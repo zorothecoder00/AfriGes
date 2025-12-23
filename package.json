@@ -6,11 +6,12 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint . --ext .ts,.tsx,.js,.jsx",
+    "check": "npm run lint && tsc --noEmit && next build"
   },
   "dependencies": {
     "@prisma/client": "^7.2.0",
-    "next": "16.0.10",
+    "next": "16.0.10",   
     "react": "19.2.1",
     "react-dom": "19.2.1"
   },

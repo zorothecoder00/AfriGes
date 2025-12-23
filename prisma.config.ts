@@ -9,7 +9,6 @@ export default defineConfig({
     path: "prisma/migrations",
   },
   datasource: {
-    provider: "postgresql",        // 👈 ajoute le provider ici
     url: process.env.DATABASE_URL, // 👈 l’URL de ta DB
   },
 });

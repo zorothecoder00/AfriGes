@@ -10,6 +10,7 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 model User {
@@ -259,7 +260,7 @@ model CreditAlimentaireTransaction {
 enum StatutCreditAlim {
   ACTIF
   EPUISE
-  EXPIRE
+  EXPIRE   
 }
 
 enum TypeCreditAlim {
