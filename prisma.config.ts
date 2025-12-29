@@ -12,3 +12,4 @@ export default defineConfig({
     url: process.env.DATABASE_URL, // 👈 l’URL de ta DB
   },
 });
+    
