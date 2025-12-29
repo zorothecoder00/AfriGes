@@ -4,10 +4,10 @@ import React, { useState } from 'react';
 import { Plus, Search, Filter, Download, Calendar, CreditCard, CheckCircle, XCircle, Clock, TrendingUp, AlertTriangle, Eye, MoreVertical } from 'lucide-react';
 import { StatutCotisation } from '@prisma/client'
 
-export default function CotisationsPage() {
+export default function CotisationsPage() {  
   const [selectedPeriod, setSelectedPeriod] = useState('mois');
-  const [searchQuery, setSearchQuery] = useState('');
-
+  const [searchQuery, setSearchQuery] = useState('');  
+    
   // Données de simulation
   const cotisations = [
     {
@@ -87,7 +87,7 @@ export default function CotisationsPage() {
       membre: 'Sow Amadou',
       avatar: 'SA',
       tontine: 'Entrepreneuriat Plus',
-      montant: '€300',
+      montant: '€300',  
       dateEcheance: '10 Jan 2025',
       datePaiement: null,
       statut: StatutCotisation.EN_ATTENTE,
@@ -140,7 +140,7 @@ export default function CotisationsPage() {
       icon: AlertTriangle, 
       color: 'bg-red-500',
       lightBg: 'bg-red-50' 
-    },
+    },   
   ];
 
   const getStatutBadge = (statut: StatutCotisation) => {

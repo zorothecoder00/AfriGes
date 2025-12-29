@@ -12,7 +12,7 @@ type Produit = {
   seuilMinimum: number;
   prixUnitaire: string;
   valeurStock: string;
-  derniereMaj: string;
+  derniereMaj: string;   
   fournisseur: string;
   statut: StatutStock;
   mouvements: string;

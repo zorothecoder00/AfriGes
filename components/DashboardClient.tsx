@@ -154,7 +154,7 @@ export default function AfriGesDashboard() {
                 <button className="w-full flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-50 rounded-xl transition-all">
                   <Package size={20} />
                   <span>Gestion du stock</span>
-                </button>
+                </button>  
               </nav>
             </div>
           </div>
