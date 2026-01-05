@@ -7,7 +7,7 @@ export default function AfriGesDashboard() {
   const [selectedPeriod, setSelectedPeriod] = useState('30');
 
   // Données du dashboard  
-  const stats = [
+  const stats = [    
     { 
       id: 1, 
       label: 'Membres actifs', 

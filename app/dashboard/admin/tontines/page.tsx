@@ -8,7 +8,7 @@ type Tontine = {
   id: number;
   nom: string;
   type: string;
-  membres: number;
+  membres: number;  
   montantTotal: string;
   contribution: string;
   frequence: string;

@@ -5,13 +5,18 @@
 // Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
 
 generator client {
-  provider = "prisma-client-js"   
+  provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")  
-}  
+}
+
+enum Role {
+  SUPER_ADMIN
+  ADMIN
+  USER  
+}    
 
 model User {
   id           Int          @id @default(autoincrement())
@@ -19,9 +24,11 @@ model User {
   nom          String
   prenom       String
   email        String       @unique
+  photo        String? // 👈 NextAuth (image / photo)
+  role         Role?       
   telephone    String?
   adresse      String?
-  passwordHash String
+  passwordHash String?
   etat         MemberStatus @default(ACTIF)
   dateAdhesion DateTime     @default(now())
 
@@ -34,8 +41,8 @@ model User {
   factures     Facture[] // ✅ AJOUTÉ
   auditLogs    AuditLog[] // ✅ (pour erreur suivante)
 
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 enum MemberStatus {
@@ -45,32 +52,32 @@ enum MemberStatus {
 }
 
 model Wallet {
-  id           Int                 @id @default(autoincrement())
-  memberId     Int                 @unique
-  soldeGeneral Decimal             @default(0.0)
-  soldeTontine Decimal             @default(0.0)
-  soldeCredit  Decimal             @default(0.0)
+  id           Int     @id @default(autoincrement())
+  memberId     Int     @unique
+  soldeGeneral Decimal @default(0.0)
+  soldeTontine Decimal @default(0.0)
+  soldeCredit  Decimal @default(0.0)
 
   member       User                @relation(fields: [memberId], references: [id])
   transactions WalletTransaction[]
   paiements    Paiement[] // ✅ AJOUTÉ pour relation inverse
 
-  createdAt    DateTime            @default(now())
-  updatedAt    DateTime            @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model WalletTransaction {
-  id           Int                  @id @default(autoincrement())
-  walletId     Int
-  type         TransactionType
-  montant      Decimal
-  description  String?
-  reference    String               @unique
+  id          Int             @id @default(autoincrement())
+  walletId    Int
+  type        TransactionType
+  montant     Decimal
+  description String?
+  reference   String          @unique
 
-  wallet       Wallet               @relation(fields: [walletId], references: [id])
+  wallet Wallet @relation(fields: [walletId], references: [id])
 
-  createdAt    DateTime             @default(now())
-  updatedAt    DateTime             @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 enum TransactionType {
@@ -85,10 +92,10 @@ enum TransactionType {
 }
 
 model Gestionnaire {
-  id       Int     @id @default(autoincrement())
-  memberId Int     @unique
-  role     Role
-  actif    Boolean @default(true)
+  id       Int              @id @default(autoincrement())
+  memberId Int              @unique
+  role     RoleGestionnaire
+  actif    Boolean          @default(true)
 
   member User @relation(fields: [memberId], references: [id])
 
@@ -96,7 +103,7 @@ model Gestionnaire {
   updatedAt DateTime @updatedAt
 }
 
-enum Role {
+enum RoleGestionnaire {
   AGENT
   SUPERVISEUR
   CAISSIER
@@ -211,28 +218,28 @@ enum TransactionCreditType {
 }
 
 model CreditAlimentaire {
-  id                  Int             @id @default(autoincrement())
-  memberId            Int
-  member              User            @relation(fields: [memberId], references: [id])
+  id       Int  @id @default(autoincrement())
+  memberId Int
+  member   User @relation(fields: [memberId], references: [id])
 
-  plafond             Decimal
-  montantUtilise      Decimal         @default(0)
-  montantRestant      Decimal         // Calculé automatiquement
+  plafond        Decimal
+  montantUtilise Decimal @default(0)
+  montantRestant Decimal // Calculé automatiquement
 
-  dateAttribution     DateTime        @default(now())
-  dateExpiration      DateTime?
+  dateAttribution DateTime  @default(now())
+  dateExpiration  DateTime?
 
-  statut              StatutCreditAlim @default(ACTIF)
+  statut StatutCreditAlim @default(ACTIF)
 
-  transactions        CreditAlimentaireTransaction[]
-  ventes              VenteCreditAlimentaire[] // ✅ AJOUTÉ
+  transactions CreditAlimentaireTransaction[]
+  ventes       VenteCreditAlimentaire[] // ✅ AJOUTÉ
 
-  createdAt           DateTime        @default(now())
-  updatedAt           DateTime        @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model VenteCreditAlimentaire {
-  id                  Int             @id @default(autoincrement())
+  id                  Int     @id @default(autoincrement())
   creditAlimentaireId Int
   produitId           Int
   quantite            Int
@@ -245,22 +252,22 @@ model VenteCreditAlimentaire {
 }
 
 model CreditAlimentaireTransaction {
-  id              Int                 @id @default(autoincrement())
-  creditId        Int
-  montant         Decimal
-  type            TypeCreditAlim
-  description     String?
+  id          Int            @id @default(autoincrement())
+  creditId    Int
+  montant     Decimal
+  type        TypeCreditAlim
+  description String?
 
-  credit          CreditAlimentaire   @relation(fields: [creditId], references: [id])
+  credit CreditAlimentaire @relation(fields: [creditId], references: [id])
 
-  createdAt       DateTime            @default(now())
-  updatedAt       DateTime            @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 enum StatutCreditAlim {
   ACTIF
   EPUISE
-  EXPIRE   
+  EXPIRE
 }
 
 enum TypeCreditAlim {
@@ -274,18 +281,18 @@ enum TypeCreditAlim {
  */
 
 model Produit {
-  id            Int           @id @default(autoincrement())
-  nom           String
-  description   String?
-  prixUnitaire  Decimal
-  stock         Int           @default(0)
-  alerteStock   Int           @default(0)
+  id           Int     @id @default(autoincrement())
+  nom          String
+  description  String?
+  prixUnitaire Decimal
+  stock        Int     @default(0)
+  alerteStock  Int     @default(0)
 
   mouvements       MouvementStock[]
   ventesCreditAlim VenteCreditAlimentaire[] // ✅ AJOUTÉ
 
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model MouvementStock {
@@ -307,16 +314,16 @@ enum TypeMouvement {
 }
 
 model Paiement {
-  id            Int            @id @default(autoincrement())
-  factureId     Int
-  walletId      Int
-  montant       Decimal
-  type          TypePaiement   // Ex: WALLET_GENERAL, WALLET_TONTINE, WALLET_CREDIT, EXTERNE
-  reference     String         @unique
-  createdAt     DateTime       @default(now())
+  id        Int          @id @default(autoincrement())
+  factureId Int
+  walletId  Int
+  montant   Decimal
+  type      TypePaiement // Ex: WALLET_GENERAL, WALLET_TONTINE, WALLET_CREDIT, EXTERNE
+  reference String       @unique
+  createdAt DateTime     @default(now())
 
-  facture       Facture        @relation(fields: [factureId], references: [id])
-  wallet        Wallet         @relation(fields: [walletId], references: [id])
+  facture Facture @relation(fields: [factureId], references: [id])
+  wallet  Wallet  @relation(fields: [walletId], references: [id])
 }
 
 enum TypePaiement {
@@ -341,32 +348,32 @@ enum StatutFacture {
 }
 
 model Facture {
-  id              Int                 @id @default(autoincrement())
-  reference       String              @unique
-  memberId        Int
-  montant         Decimal
-  type            TypeFacture
-  statut          StatutFacture
+  id        Int           @id @default(autoincrement())
+  reference String        @unique
+  memberId  Int
+  montant   Decimal
+  type      TypeFacture
+  statut    StatutFacture
 
-  member          User                @relation(fields: [memberId], references: [id])
-  paiements       Paiement[]          // ✅ AJOUTÉ pour relation inverse
+  member    User       @relation(fields: [memberId], references: [id])
+  paiements Paiement[] // ✅ AJOUTÉ pour relation inverse
 
-  createdAt       DateTime            @default(now())
-  updatedAt       DateTime            @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model AuditLog {
-  id              Int                 @id @default(autoincrement())
-  userId          Int?
-  action          String
-  entite          String
-  entiteId        Int?
-  createdAt       DateTime            @default(now())
+  id        Int      @id @default(autoincrement())
+  userId    Int?
+  action    String
+  entite    String
+  entiteId  Int?
+  createdAt DateTime @default(now())
 
-  user            User?               @relation(fields: [userId], references: [id])
+  user User? @relation(fields: [userId], references: [id])
 }
 
 model Parametre {
-  cle             String              @id
-  valeur          String
+  cle    String @id
+  valeur String
 }

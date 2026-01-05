@@ -10,15 +10,20 @@
     "check": "npm run lint && tsc --noEmit && next build"
   },
   "dependencies": {
+    "@prisma/adapter-pg": "^7.2.0",
     "@prisma/client": "^7.2.0",
+    "bcryptjs": "^3.0.3",
     "lucide-react": "^0.562.0",
     "next": "16.0.10",
+    "next-auth": "^4.24.13",
+    "pg": "^8.16.3",
     "react": "19.2.1",
     "react-dom": "19.2.1"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
+    "@types/pg": "^8.16.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
