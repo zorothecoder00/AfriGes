@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { Plus, Search, Filter, Download, Calendar, Users, DollarSign, TrendingUp, Clock, MoreVertical, Eye, Edit, Archive, AlertCircle } from 'lucide-react';
-import { StatutTontine } from '@prisma/client'
+import { StatutTontine } from '@/types'
 
 type Tontine = {
   id: number;

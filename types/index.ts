@@ -5,3 +5,4 @@ export * from "./credit";
 export * from "./finance";
 export * from "./stock";
 export * from "./facture";
+export * from "./tontine";

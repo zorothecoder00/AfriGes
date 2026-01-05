@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { Plus, Search, Filter, Download, Calendar, CreditCard, CheckCircle, XCircle, Clock, TrendingUp, AlertTriangle, Eye, MoreVertical } from 'lucide-react';
-import { StatutCotisation } from '@/types'
+import { StatutCotisation } from '@/types' 
 
 export default function CotisationsPage() {  
   const [selectedPeriod, setSelectedPeriod] = useState('mois');

@@ -11,7 +11,7 @@ type Vente = {
   quantite: number;
   montantTotal: string;
   methodePaiement: MethodePaiement;
-  date: string;
+  date: string;  
   statut: StatutVente;
   vendeur: string;
   reference: string;
