@@ -52,7 +52,7 @@ export const authOptions: NextAuthOptions = {
 	      if (account?.provider === "google") {
 	        const existingUser = await prisma.user.findUnique({ where: { email: user.email! } })
 	        if (!existingUser) {
-
+   
 	          // Séparer le prénom et le nom depuis Google "name"
 	          const [prenom, ...rest] = user.name?.split(" ") ?? ["Inconnu"]
 	          const nom = rest.join(" ") || "Inconnu"
@@ -62,7 +62,7 @@ export const authOptions: NextAuthOptions = {
 	            data: {
 	              email: user.email!,
 	              passwordHash: null,
-	              prenom,
+	              prenom,    
 	              nom,
 	              photo: user.image,
 	              role: null

@@ -1,0 +1,13 @@
+export enum TypeFacture {
+  COTISATION = "COTISATION",
+  TONTINE = "TONTINE",
+  CREDIT = "CREDIT",
+  CREDIT_ALIMENTAIRE = "CREDIT_ALIMENTAIRE",
+  ACHAT = "ACHAT",
+}
+
+export enum StatutFacture {
+  BROUILLON = "BROUILLON",
+  PAYEE = "PAYEE",
+  ANNULEE = "ANNULEE",
+}

@@ -1,0 +1,24 @@
+export enum StatutCredit {
+  EN_ATTENTE = "EN_ATTENTE",
+  APPROUVE = "APPROUVE",
+  REJETE = "REJETE",
+  REMBOURSE_PARTIEL = "REMBOURSE_PARTIEL",
+  REMBOURSE_TOTAL = "REMBOURSE_TOTAL",
+}
+
+export enum TransactionCreditType {
+  DECAISSEMENT = "DECAISSEMENT",
+  REMBOURSEMENT = "REMBOURSEMENT",
+}
+
+export enum StatutCreditAlim {
+  ACTIF = "ACTIF",
+  EPUISE = "EPUISE",
+  EXPIRE = "EXPIRE",
+}
+
+export enum TypeCreditAlim {
+  UTILISATION = "UTILISATION",
+  ANNULATION = "ANNULATION",
+  AJUSTEMENT = "AJUSTEMENT",
+}
