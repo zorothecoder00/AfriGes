@@ -10,7 +10,7 @@ export enum TransactionCreditType {
   DECAISSEMENT = "DECAISSEMENT",
   REMBOURSEMENT = "REMBOURSEMENT",
 }
-
+  
 export enum StatutCreditAlim {
   ACTIF = "ACTIF",
   EPUISE = "EPUISE",

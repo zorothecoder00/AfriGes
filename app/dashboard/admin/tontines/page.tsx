@@ -6,7 +6,7 @@ import { StatutTontine } from '@/types'
 
 type Tontine = {
   id: number;
-  nom: string;
+  nom: string; 
   type: string;
   membres: number;  
   montantTotal: string;

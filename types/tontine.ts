@@ -8,3 +8,4 @@ export enum Frequence {
   HEBDOMADAIRE = "HEBDOMADAIRE",
   MENSUEL = "MENSUEL",
 }
+  
