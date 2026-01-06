@@ -11,7 +11,7 @@ const pool = new Pool({
 })
 
 export const prisma =
-  globalForPrisma.prisma ??
+  globalForPrisma.prisma ??   
   new PrismaClient({
     adapter: new PrismaPg(pool),
     log: ["query"],

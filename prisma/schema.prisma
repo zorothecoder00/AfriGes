@@ -135,8 +135,8 @@ enum StatutCotisation {
   PAYEE
   EXPIREE
 }
-
-model Tontine {
+ 
+model Tontine {  
   id                  Int               @id @default(autoincrement())
   nom                 String
   description         String?
@@ -377,3 +377,4 @@ model Parametre {
   cle                 String                @id
   valeur              String
 }
+  
