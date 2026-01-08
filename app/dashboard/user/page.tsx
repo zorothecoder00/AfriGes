@@ -533,7 +533,7 @@ export default function UserDashboard() {
             {/* Desktop Navigation */}
             <div className="hidden md:flex items-center space-x-4">
               <span className="text-sm text-gray-700">
-                Bonjour, <span className="font-semibold">{userData.user.prenom} {userData.user.nom}</span>
+                Salut, <span className="font-semibold">{userData.user.prenom} {userData.user.nom}</span>
               </span>
               <div className="w-10 h-10 rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 flex items-center justify-center text-white font-bold cursor-pointer hover:shadow-lg transition-shadow">
                 {userData.user.prenom[0]}{userData.user.nom[0]}
