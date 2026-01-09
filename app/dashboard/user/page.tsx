@@ -376,7 +376,7 @@ const CreditAlimentaireCard = ({
 // ============================================================================
 
 export default function UserDashboard() {
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);   
   
   // Données mockées - À remplacer par un appel API réel
   const [userData] = useState<{
@@ -676,6 +676,6 @@ export default function UserDashboard() {
           </div>
         </div>
       </main>
-    </div>
+    </div>  
   );
 }
