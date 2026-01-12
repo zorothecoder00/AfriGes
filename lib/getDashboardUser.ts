@@ -9,7 +9,7 @@ export async function getDashboardUser(userId: number) {
     where: {
       memberId: userId,
     },
-    select: {
+    select: {  
       soldeGeneral: true,
       soldeTontine: true,
       soldeCredit: true,

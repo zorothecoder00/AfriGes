@@ -5,11 +5,11 @@
 // Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
 
 generator client {
-  provider = "prisma-client-js"
-}
-   
+  provider = "prisma-client-js"   
+}              
+     
 datasource db {  
-  provider = "postgresql"
+  provider = "postgresql"       
 }
 
 enum Role {
@@ -80,7 +80,7 @@ model WalletTransaction {
   updatedAt           DateTime          @updatedAt
 }
 
-enum TransactionType {
+enum TransactionType {         
   DEPOT
   RETRAIT
   COTISATION
@@ -189,9 +189,9 @@ model Credit {
 
   createdAt           DateTime          @default(now())
   updatedAt           DateTime          @updatedAt
-}
-
-model CreditTransaction {
+}    
+  
+model CreditTransaction {  
   id                  Int               @id @default(autoincrement())
   creditId            Int
   montant             Decimal
@@ -203,7 +203,7 @@ model CreditTransaction {
   createdAt           DateTime          @default(now())
   updatedAt           DateTime          @updatedAt
 }
-
+ 
 enum StatutCredit {
   EN_ATTENTE
   APPROUVE

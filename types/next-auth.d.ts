@@ -1,6 +1,6 @@
 // /types/next-auth.d.ts
 import { DefaultSession, DefaultUser } from "next-auth";
-import { Role } from "prisma/client";  
+import { Role } from "@prisma/client";  
 
 // On étend les types User, Session et JWT
 declare module "next-auth" {

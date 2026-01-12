@@ -1,8 +1,8 @@
 import { NextApiRequest, NextApiResponse } from 'next'
 import prisma from '@/lib/prisma'
 import { Role } from '@prisma/client'
-import bcrypt from 'bcryptjs'       
-
+import bcrypt from 'bcryptjs'          
+ 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) 
 {
 	if(req.method !== 'POST'){  
