@@ -64,7 +64,7 @@ export default function LoginPage() {
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.1)_1px,transparent_1px)] bg-[length:50px_50px] animate-[patternMove_20s_linear_infinite]" />
       </div>
 
-      <div className="w-full max-width-md relative z-10 animate-[slideUp_0.6s_ease-out]">
+      <div className="w-full max-w-sm md:max-w-md mx-auto relative z-10 animate-[slideUp_0.6s_ease-out]">
         <div className="bg-white rounded-3xl shadow-[0_20px_60px_rgba(44,62,80,0.25)] overflow-hidden transition-transform hover:-translate-y-1 duration-300">
           {/* Header */}
           <div className="bg-gradient-to-br from-slate-800 to-slate-900 px-8 py-10 text-center relative overflow-hidden">
@@ -78,7 +78,7 @@ export default function LoginPage() {
           </div>
 
           {/* Body */}
-          <div className="px-8 py-10">
+          <div className="px-6 py-8 md:px-8 md:py-10">
             <form onSubmit={handleSubmit} className="space-y-5">
               {error && (
                 <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
@@ -98,7 +98,7 @@ export default function LoginPage() {
                   onChange={handleChange}
                   placeholder="votre.email@exemple.com"
                   required
-                  className="w-full px-4 py-3.5 border-2 border-gray-200 rounded-xl focus:border-slate-800 focus:outline-none focus:ring-4 focus:ring-violet-100 transition-all"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:border-slate-800 focus:outline-none focus:ring-4 focus:ring-violet-100 transition-all"
                 />
               </div>
 
@@ -115,7 +115,7 @@ export default function LoginPage() {
                     onChange={handleChange}
                     placeholder="••••••••"
                     required
-                    className="w-full px-4 py-3.5 border-2 border-gray-200 rounded-xl focus:border-slate-800 focus:outline-none focus:ring-4 focus:ring-violet-100 transition-all"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:border-slate-800 focus:outline-none focus:ring-4 focus:ring-violet-100 transition-all"
                   />
                   <button
                     type="button"
