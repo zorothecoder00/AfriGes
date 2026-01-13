@@ -1,20 +1,44 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react'
 import { signIn } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
   
-export default function LoginPage() {
+// Définition du type pour nos erreurs
+type Errors = {
+  email?: string
+  password?: string
+  general?: string
+}
+
+export default function LoginPage() {  
   const router = useRouter();
+  const searchParams = useSearchParams()
   const [formData, setFormData] = useState({
     email: '',
     password: '',
-    remember: false,
+    remember: false,  
   });
   const [showPassword, setShowPassword] = useState(false);
+  const [infoMessage, setInfoMessage] = useState('')
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [errors, setErrors] = useState<Errors>({}) // ✅ Typage;
+
+  useEffect(() => {
+    if (!searchParams) return;
+
+    const registered = searchParams.get('registered')
+    const logout = searchParams.get('logout')
+
+    if (registered === 'success') {
+      setInfoMessage('✅ Compte créé avec succès. Veuillez vous connecter.')
+    }
+
+    if (logout === 'success') {
+      setInfoMessage('✅ Déconnexion réussie.')
+    }
+  }, [searchParams])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type, checked } = e.target;
@@ -27,22 +51,37 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    setError('');
+    setErrors({}) // ✅ Clear previous errors
 
     try {
       const result = await signIn('credentials', {
         redirect: false,
-        email: formData.email,
+        email: formData.email,    
         password: formData.password,
       });
 
       if (result?.error) {
-        setError('Email ou mot de passe incorrect');
-      } else {
-        router.push('/dashboard');
+        setErrors({ general: 'Email ou mot de passe incorrect' })
+      } 
+
+      if(result?.ok){
+        // Récupération session
+        const sessionRes = await fetch('/api/auth/session')
+        const sessionData = await sessionRes.json()
+
+        const role = sessionData?.user?.role
+        if(role === 'SUPER_ADMIN'){  
+          router.push('/dashboard/admin') 
+        }else if(role === 'ADMIN'){
+          router.push('/dashboard/admin')
+        }else if(role === 'USER'){
+          router.push('/dashboard/user')
+        }else{
+          setErrors({ general: 'Rôle non autorisé' })
+        }
       }
     } catch (error) {
-      setError('Une erreur est survenue. Veuillez réessayer.');
+      setErrors({ general:'Une erreur est survenue. Veuillez réessayer.' });
       console.error('Login error:', error);
     } finally {
       setIsLoading(false);
@@ -77,12 +116,18 @@ export default function LoginPage() {
             </p>
           </div>
 
+          {infoMessage && (
+            <div className="text-green-600 text-sm text-center mb-4">
+              {infoMessage}
+            </div>
+          )}
+
           {/* Body */}
           <div className="px-6 py-8 md:px-8 md:py-10">
             <form onSubmit={handleSubmit} className="space-y-5">
-              {error && (
+              {errors.general && (
                 <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
-                  {error}
+                  {errors.general}
                 </div>
               )}
 

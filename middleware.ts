@@ -14,7 +14,7 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(new URL("/login", request.url))
     }  
   }
-
+   
   const role = token?.role  
 
   // Protection des routes /admin/**

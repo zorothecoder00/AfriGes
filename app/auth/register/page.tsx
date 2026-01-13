@@ -10,7 +10,7 @@ export default function RegisterPage() {
     nom: '',
     prenom: '',
     email: '',
-    telephone: '',
+    telephone: '',   
     adresse: '',
     password: '',
     confirmPassword: '',

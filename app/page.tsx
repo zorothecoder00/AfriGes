@@ -5,7 +5,7 @@ import { Role } from "@/types"
 export default async function Home() {
   const session = await getAuthSession()
 
-  // Pas connecté
+  // Pas connecté  
   if (!session) {
     redirect("/auth/login")
   }

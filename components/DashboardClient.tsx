@@ -77,7 +77,7 @@ export default function AfriGesDashboard() {
             </div>
             <h1 className="text-xl font-bold text-slate-800">
               AfriGes
-            </h1>
+            </h1>  
           </div>
 
           {/* Right actions */}
