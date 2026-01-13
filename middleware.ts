@@ -6,7 +6,7 @@ const secret = process.env.NEXTAUTH_SECRET
 
 export async function middleware(request: NextRequest) {
   const token = await getToken({ req: request, secret })
-  const { pathname } = request.nextUrl
+  const { pathname } = request.nextUrl  
 
   // Redirection vers /login si l'utilisateur n'est pas connecté
   if (!token) {
@@ -19,14 +19,14 @@ export async function middleware(request: NextRequest) {
 
   // Protection des routes /admin/**
   if (pathname.startsWith("/dashboard/admin")) {
-    if (![Role.ADMIN, Role.SUPER_ADMIN].includes(role)) {
+    if (!role || (role !== "ADMIN" && role !== "SUPER_ADMIN")) {
       return NextResponse.redirect(new URL("/unauthorized", request.url))
     }
   }
 
   // Protection des routes /user/**
   if (pathname.startsWith("/dashboard/user")) {
-    if (!role || !["USER", "ADMIN", "SUPER_ADMIN"].includes(role)) {
+    if (!role || (role !== "USER" && role!== "ADMIN" && role!== "SUPER_ADMIN")) {
       return NextResponse.redirect(new URL("/unauthorized", request.url))
     }
   }
