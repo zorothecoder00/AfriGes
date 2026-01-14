@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { TrendingUp, Users, Coins, CreditCard, ShoppingCart, Package, MoreVertical, Download, Plus } from 'lucide-react';  
+import Link from "next/link";
 
 export default function AfriGesDashboard() {
   const [selectedPeriod, setSelectedPeriod] = useState('30');
@@ -92,7 +93,7 @@ export default function AfriGesDashboard() {
               </span>
             </div>
           </div>
-        </div>
+        </div>   
       </header>
 
       <div className="max-w-[1600px] mx-auto px-8 py-8 flex gap-6">
@@ -109,14 +110,14 @@ export default function AfriGesDashboard() {
                   <TrendingUp size={20} />
                   <span>Tableau de bord</span>
                 </button>
-                <button className="w-full flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-50 rounded-xl transition-all">
+                <Link href="/dashboard/admin/membres" className="w-full flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-50 rounded-xl transition-all">
                   <Users size={20} />
                   <span>Membres</span>
-                </button>
-                <button className="w-full flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-50 rounded-xl transition-all">
+                </Link>
+                <Link href="/dashboard/admin/gestionnaires" className="w-full flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-50 rounded-xl transition-all">
                   <Users size={20} />
                   <span>Gestionnaires</span>
-                </button>
+                </Link>
               </nav>
             </div>
 
@@ -126,18 +127,18 @@ export default function AfriGesDashboard() {
                 Communauté
               </h3>
               <nav className="space-y-1">
-                <button className="w-full flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-50 rounded-xl transition-all">
+                <Link href="/dashboard/admin/tontines" className="w-full flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-50 rounded-xl transition-all">
                   <Coins size={20} />
                   <span>Tontines</span>
-                </button>
-                <button className="w-full flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-50 rounded-xl transition-all">
+                </Link>
+                <Link href="/dashboard/admin/cotisations" className="w-full flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-50 rounded-xl transition-all">
                   <CreditCard size={20} />
                   <span>Cotisations</span>
-                </button>
-                <button className="w-full flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-50 rounded-xl transition-all">
+                </Link>
+                <Link href="/dashboard/admin/creditsAlimentaires" className="w-full flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-50 rounded-xl transition-all">
                   <CreditCard size={20} />
                   <span>Crédits alimentaires</span>
-                </button>
+                </Link>
               </nav>
             </div>
 
@@ -147,14 +148,14 @@ export default function AfriGesDashboard() {
                 Commerce
               </h3>
               <nav className="space-y-1">
-                <button className="w-full flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-50 rounded-xl transition-all">
+                <Link href="/dashboard/admin/ventes" className="w-full flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-50 rounded-xl transition-all">
                   <ShoppingCart size={20} />
                   <span>Ventes</span>
-                </button>
-                <button className="w-full flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-50 rounded-xl transition-all">
+                </Link>
+                <Link href="/dashboard/admin/stock" className="w-full flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-50 rounded-xl transition-all">
                   <Package size={20} />
                   <span>Gestion du stock</span>
-                </button>  
+                </Link>  
               </nav>
             </div>
           </div>

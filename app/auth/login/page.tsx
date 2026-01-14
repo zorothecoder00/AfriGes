@@ -3,7 +3,7 @@ import LoginClient from './LoginClient'
 
 export default function LoginPage() {
   return (
-    <Suspense fallback={null}>
+    <Suspense fallback={null}>  
       <LoginClient />
     </Suspense>
   )

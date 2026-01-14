@@ -11,7 +11,7 @@ export async function middleware(request: NextRequest) {
   // Redirection vers /login si l'utilisateur n'est pas connecté
   if (!token) {
     if (pathname.startsWith("/dashboard/admin") || pathname.startsWith("/dashboard/user")) {
-      return NextResponse.redirect(new URL("/login", request.url))
+      return NextResponse.redirect(new URL("/auth/login", request.url))
     }  
   }
    
