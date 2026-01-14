@@ -7,12 +7,12 @@
 generator client {
   provider = "prisma-client-js"   
 }              
-     
-datasource db {  
+       
+datasource db {    
   provider = "postgresql"       
 }
 
-enum Role {
+enum Role {    
   SUPER_ADMIN
   ADMIN
   USER  
@@ -27,13 +27,13 @@ model User {
   photo               String? // 👈 NextAuth (image / photo)
   role                Role?       
   telephone           String?       
-  adresse             String?
+  adresse             String?    
   passwordHash        String?
   etat                MemberStatus      @default(ACTIF)
   dateAdhesion        DateTime          @default(now())
 
   wallet              Wallet?
-  gestionnaire        Gestionnaire?
+  gestionnaire        Gestionnaire?   
   tontines            TontineMembre[]
   credits             Credit[]
   creditsAlim         CreditAlimentaire[]
