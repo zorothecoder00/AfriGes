@@ -20,6 +20,7 @@ import {
   Menu,
   X
 } from 'lucide-react';
+import Link from "next/link";
 
 type TrendType = 'up' | 'down';
 
@@ -325,49 +326,51 @@ const CreditAlimentaireCard = ({
   const pourcentageUtilise = ((montantUtilise / plafond) * 100).toFixed(0);
 
   return (
-    <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 p-6 border border-purple-100">
-      <div className="flex items-start justify-between mb-4">
-        <div>
-          <h3 className="text-lg font-bold text-gray-900 flex items-center">
-            <ShoppingBag className="w-5 h-5 mr-2 text-purple-600" />
-            Crédit Alimentaire
-          </h3>
-          {dateExpiration && (
-            <p className="text-xs text-gray-600 mt-1">
-              Expire le {new Date(dateExpiration).toLocaleDateString('fr-FR')}
-            </p>
-          )}
-        </div>
-      </div>
-      
-      <div className="space-y-4">
-        <div className="flex justify-between items-center">
-          <span className="text-sm text-gray-600">Plafond</span>
-          <span className="font-bold text-gray-900">{plafond.toFixed(2)} €</span>
-        </div>
-        <div className="flex justify-between items-center">
-          <span className="text-sm text-gray-600">Utilisé</span>
-          <span className="font-bold text-purple-600">{montantUtilise.toFixed(2)} €</span>
-        </div>
-        <div className="flex justify-between items-center">
-          <span className="text-sm text-gray-600">Disponible</span>
-          <span className="font-bold text-green-600">{montantRestant.toFixed(2)} €</span>
+    <Link href="/dashboard/user/creditsalimentaires" className="block">
+      <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 p-6 border border-purple-100">
+        <div className="flex items-start justify-between mb-4">
+          <div>
+            <h3 className="text-lg font-bold text-gray-900 flex items-center">
+              <ShoppingBag className="w-5 h-5 mr-2 text-purple-600" />
+              Crédit Alimentaire
+            </h3>
+            {dateExpiration && (
+              <p className="text-xs text-gray-600 mt-1">
+                Expire le {new Date(dateExpiration).toLocaleDateString('fr-FR')}
+              </p>
+            )}
+          </div>
         </div>
         
-        <div>
-          <div className="flex justify-between items-center mb-2">
-            <span className="text-xs text-gray-600">Utilisation</span>
-            <span className="text-xs font-bold text-gray-900">{pourcentageUtilise}%</span>
+        <div className="space-y-4">
+          <div className="flex justify-between items-center">
+            <span className="text-sm text-gray-600">Plafond</span>
+            <span className="font-bold text-gray-900">{plafond.toFixed(2)} €</span>
           </div>
-          <div className="w-full bg-white rounded-full h-2.5">
-            <div 
-              className="bg-gradient-to-r from-purple-500 to-pink-500 h-2.5 rounded-full transition-all duration-500"
-              style={{ width: `${pourcentageUtilise}%` }}
-            />
+          <div className="flex justify-between items-center">
+            <span className="text-sm text-gray-600">Utilisé</span>
+            <span className="font-bold text-purple-600">{montantUtilise.toFixed(2)} €</span>
+          </div>
+          <div className="flex justify-between items-center">
+            <span className="text-sm text-gray-600">Disponible</span>
+            <span className="font-bold text-green-600">{montantRestant.toFixed(2)} €</span>
+          </div>
+          
+          <div>
+            <div className="flex justify-between items-center mb-2">
+              <span className="text-xs text-gray-600">Utilisation</span>
+              <span className="text-xs font-bold text-gray-900">{pourcentageUtilise}%</span>
+            </div>
+            <div className="w-full bg-white rounded-full h-2.5">
+              <div 
+                className="bg-gradient-to-r from-purple-500 to-pink-500 h-2.5 rounded-full transition-all duration-500"
+                style={{ width: `${pourcentageUtilise}%` }}
+              />
+            </div>
           </div>
         </div>
       </div>
-    </div>
+    </Link>
   );
 };
 
@@ -600,22 +603,33 @@ export default function UserDashboard() {
             trend="up"
             trendValue="+8%"
           />
-          <StatCard 
-            title="Solde Crédit" 
-            value={`${userData.wallet.soldeCredit.toFixed(2)} €`}
-            icon={CreditCardIcon}
-            color="text-orange-600"
-            bgColor="bg-orange-50"
-            trend="down"
-            trendValue="-5%"
-          />
-          <StatCard 
-            title="Mes Tontines" 
-            value={userData.stats.totalTontines.toString()}
-            icon={Users}
-            color="text-purple-600"
-            bgColor="bg-purple-50"
-          />
+
+          <Link href="/dashboard/user/credits">
+            <div className="cursor-pointer">
+            <StatCard 
+              title="Solde Crédit" 
+              value={`${userData.wallet.soldeCredit.toFixed(2)} €`}
+              icon={CreditCardIcon}
+              color="text-orange-600"
+              bgColor="bg-orange-50"
+              trend="down"
+              trendValue="-5%"
+            />
+            </div>
+          </Link>
+
+          <Link href="/dashboard/user/tontines">
+            <div className="cursor-pointer">
+            <StatCard 
+              title="Mes Tontines" 
+              value={userData.stats.totalTontines.toString()}
+              icon={Users}
+              color="text-purple-600"
+              bgColor="bg-purple-50"
+            />
+            </div>
+          </Link>
+          
         </div>
 
         {/* Crédit Alimentaire */}
@@ -662,10 +676,13 @@ export default function UserDashboard() {
             <div className="bg-white rounded-xl shadow-sm p-6">
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-xl font-bold text-gray-900">Transactions Récentes</h3>
-                <button className="text-indigo-600 hover:text-indigo-700 text-sm font-medium flex items-center">
+                <Link
+                  href="/dashboard/user/transactions"
+                  className="text-indigo-600 hover:text-indigo-700 text-sm font-medium flex items-center"
+                >
                   Voir tout
                   <ChevronRight className="w-4 h-4 ml-1" />
-                </button>
+                </Link>
               </div>
               <div className="space-y-1">
                 {userData.recentTransactions.map(transaction => (

@@ -147,7 +147,7 @@ export async function POST(req: Request) {
 
         // Création automatique du wallet
         wallet: {
-          create: {},
+          create: {},  
         },
 
         // Audit log

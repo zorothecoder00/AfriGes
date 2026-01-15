@@ -125,7 +125,7 @@ export default function RegisterPage() {
                   <input
                     type="text"
                     id="nom"
-                    name="nom"
+                    name="nom"  
                     value={formData.nom}
                     onChange={handleChange}
                     placeholder="Votre nom"
