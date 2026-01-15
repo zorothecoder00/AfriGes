@@ -2,9 +2,25 @@
 
 import { useState } from 'react';
 
+type NotificationPriority = 'urgent' | 'high' | 'normal';
+type NotificationColor = 'emerald' | 'blue' | 'orange' | 'purple' | 'red' | 'yellow';
+
+interface Notification {
+  id: number;
+  type: string;
+  title: string;
+  message: string;
+  user: string;
+  timestamp: string;
+  read: boolean;
+  priority: NotificationPriority;
+  icon: string;
+  color: NotificationColor;
+}
+
 export default function NotificationsPage() {
   const [filter, setFilter] = useState('all');
-  const [notifications, setNotifications] = useState([
+  const [notifications, setNotifications] = useState<Notification[]>([
     {
       id: 1,
       type: 'COTISATION',
@@ -121,8 +137,8 @@ export default function NotificationsPage() {
     return n.type.toLowerCase() === filter.toLowerCase();
   });
 
-  const markAsRead = (id) => {
-    setNotifications(notifications.map(n => 
+  const markAsRead = (id: number) => {
+    setNotifications(notifications.map(n =>
       n.id === id ? { ...n, read: true } : n
     ));
   };
@@ -131,14 +147,15 @@ export default function NotificationsPage() {
     setNotifications(notifications.map(n => ({ ...n, read: true })));
   };
 
-  const deleteNotification = (id) => {
+  const deleteNotification = (id: number) => {
     setNotifications(notifications.filter(n => n.id !== id));
   };
 
-  const getTimeDiff = (timestamp) => {
-    const now = new Date();
-    const then = new Date(timestamp);
+  const getTimeDiff = (timestamp: string) => {
+    const now = new Date().getTime();
+    const then = new Date(timestamp).getTime();
     const diffMs = now - then;
+
     const diffMins = Math.floor(diffMs / 60000);
     const diffHours = Math.floor(diffMs / 3600000);
     const diffDays = Math.floor(diffMs / 86400000);
@@ -150,7 +167,7 @@ export default function NotificationsPage() {
     return `Il y a ${diffDays} jours`;
   };
 
-  const colorClasses = {
+  const colorClasses: Record<NotificationColor, string> = {
     emerald: 'bg-emerald-50 border-emerald-200 text-emerald-700',
     blue: 'bg-blue-50 border-blue-200 text-blue-700',
     orange: 'bg-orange-50 border-orange-200 text-orange-700',
@@ -159,7 +176,7 @@ export default function NotificationsPage() {
     yellow: 'bg-yellow-50 border-yellow-200 text-yellow-700'
   };
 
-  const priorityBadges = {
+  const priorityBadges: Record<NotificationPriority, string> = {
     urgent: 'bg-red-100 text-red-700 border-red-300',
     high: 'bg-orange-100 text-orange-700 border-orange-300',
     normal: 'bg-gray-100 text-gray-600 border-gray-300'
@@ -249,7 +266,7 @@ export default function NotificationsPage() {
               <p className="text-gray-500 text-sm">
                 Vous n&apos;avez pas de notifications pour ce filtre
               </p>
-            </div>
+            </div>    
           ) : (
             filteredNotifications.map((notification, index) => (
               <div
