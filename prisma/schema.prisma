@@ -15,7 +15,7 @@ datasource db {
 enum Role {    
   SUPER_ADMIN
   ADMIN
-  USER  
+  USER     
 }    
 
 model User {
@@ -33,13 +33,14 @@ model User {
   dateAdhesion        DateTime          @default(now())
 
   wallet              Wallet?
-  gestionnaire        Gestionnaire?   
+  gestionnaire        Gestionnaire?          
   tontines            TontineMembre[]
   credits             Credit[]
   creditsAlim         CreditAlimentaire[]
   cotisations         Cotisation[]
   factures            Facture[] // ✅ AJOUTÉ
   auditLogs           AuditLog[] // ✅ (pour erreur suivante)
+  notifications       Notification[]
 
   createdAt           DateTime          @default(now())
   updatedAt           DateTime          @updatedAt
@@ -378,3 +379,38 @@ model Parametre {
   valeur              String
 }
   
+model Notification {
+  id                  Int                   @id @default(autoincrement())
+  uuid                String                @unique @default(uuid())
+  
+  // Relation avec l'utilisateur
+  userId              Int
+  user                User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Informations de base
+  titre               String
+  message             String
+  priorite            PrioriteNotification  @default(NORMAL)
+  
+  // État de la notification
+  lue                 Boolean               @default(false)
+  dateLecture         DateTime?
+  
+  // Action associée
+  actionUrl           String?               // URL vers la page de détail
+  
+  // Dates
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
+  
+  // Index pour optimiser les requêtes
+  @@index([userId, lue])
+  @@index([userId, createdAt])
+}
+
+enum PrioriteNotification {
+  URGENT       // Rouge - Action immédiate requise
+  HAUTE        // Orange - Important
+  NORMAL       // Gris - Standard
+  BASSE        // Bleu - Info
+}
