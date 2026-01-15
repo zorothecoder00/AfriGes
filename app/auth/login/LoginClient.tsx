@@ -97,7 +97,8 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-violet-600 to-purple-800 px-4 py-8 relative overflow-hidden">
+    <div className="h-screen overflow-hidden flex items-center justify-center bg-gradient-to-br from-violet-600 to-purple-800 px-4 relative">
+
       {/* Animated background pattern */}
       <div className="absolute inset-0 opacity-10">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.1)_1px,transparent_1px)] bg-[length:50px_50px] animate-[patternMove_20s_linear_infinite]" />
@@ -106,7 +107,7 @@ export default function LoginPage() {
       <div className="w-full max-w-sm md:max-w-md mx-auto relative z-10 animate-[slideUp_0.6s_ease-out]">
         <div className="bg-white rounded-3xl shadow-[0_20px_60px_rgba(44,62,80,0.25)] overflow-hidden transition-transform hover:-translate-y-1 duration-300">
           {/* Header */}
-          <div className="bg-gradient-to-br from-slate-800 to-slate-900 px-8 py-10 text-center relative overflow-hidden">
+          <div className="bg-gradient-to-br from-slate-800 to-slate-900 px-8 py-6 text-center relative overflow-hidden">
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.1)_20%,transparent_70%)] animate-pulse opacity-50" />
             <h1 className="text-4xl font-bold text-white mb-2 relative z-10 font-serif tracking-tight">
               Bienvenue
@@ -123,8 +124,8 @@ export default function LoginPage() {
           )}
 
           {/* Body */}
-          <div className="px-6 py-8 md:px-8 md:py-10">
-            <form onSubmit={handleSubmit} className="space-y-5">
+          <div className="px-6 py-6 md:px-8 md:py-6">
+            <form onSubmit={handleSubmit} className="space-y-4">
               {errors.general && (
                 <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
                   {errors.general}
