@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
-import { Plus, Search, Filter, Download, ShoppingCart, TrendingUp, DollarSign, Calendar, Users, CheckCircle, Clock, AlertCircle, Eye, MoreVertical, Package } from 'lucide-react';
+import { Plus, Search, Filter, Download, ShoppingCart, TrendingUp, DollarSign, Users, CheckCircle, Clock, AlertCircle, Eye, MoreVertical, Package } from 'lucide-react';
 import { StatutCreditAlim } from '@/types'  
     
 export default function CreditsAlimentairesPage() {  

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
-import { Plus, Search, Filter, Download, Calendar, CreditCard, CheckCircle, XCircle, Clock, TrendingUp, AlertTriangle, Eye, MoreVertical } from 'lucide-react';
+import { Plus, Search, Filter, Download, Calendar, CreditCard, CheckCircle, Clock, TrendingUp, AlertTriangle, Eye, MoreVertical } from 'lucide-react';
 import { StatutCotisation } from '@/types' 
 
 export default function CotisationsPage() {  
@@ -9,7 +9,7 @@ export default function CotisationsPage() {
   const [searchQuery, setSearchQuery] = useState('');  
     
   // Données de simulation
-  const cotisations = [
+  const cotisations = [  
     {
       id: 1,
       membre: 'Kouassi Adjoua',

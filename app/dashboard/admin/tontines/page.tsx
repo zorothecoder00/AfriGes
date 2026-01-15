@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
-import { Plus, Search, Filter, Download, Calendar, Users, DollarSign, TrendingUp, Clock, MoreVertical, Eye, Edit, Archive, AlertCircle } from 'lucide-react';
+import { Plus, Search, Filter, Download, Users, DollarSign, TrendingUp, Clock, MoreVertical, Eye, Edit } from 'lucide-react';
 import { StatutTontine } from '@/types'
 
 type Tontine = {

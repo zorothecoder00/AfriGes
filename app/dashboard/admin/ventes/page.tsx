@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
-import { Plus, Search, Filter, Download, ShoppingCart, TrendingUp, DollarSign, CreditCard, Users, Calendar, Eye, MoreVertical, Package, Receipt } from 'lucide-react';
+import { Plus, Search, Filter, Download, ShoppingCart, TrendingUp, DollarSign, Users, Calendar, Eye, MoreVertical, Package, Receipt } from 'lucide-react';
 
 type Vente = {
   id: string;

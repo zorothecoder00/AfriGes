@@ -1,8 +1,8 @@
 "use client";
 
 import React, { useState } from 'react';
-import { Plus, Search, Filter, Download, Shield, Users, Key, Eye, Edit, Trash2, MoreVertical, CheckCircle, XCircle, Clock, Mail, Phone } from 'lucide-react';
-
+import { Plus, Search, Filter, Shield, Users, Key, Eye, Edit, MoreVertical, CheckCircle, Clock, Mail, Phone } from 'lucide-react';
+  
 type CouleurRole = 'purple' | 'emerald' | 'blue' | 'amber' | 'rose' | 'slate';
 type StatutGestionnaire = 'Actif' | 'Inactif';
 

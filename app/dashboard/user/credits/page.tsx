@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { TrendingUp, Calendar, AlertCircle, CheckCircle, Clock, CreditCard, ArrowRight } from 'lucide-react';
+import { TrendingUp, Calendar, AlertCircle, CheckCircle, Clock, CreditCard } from 'lucide-react';
 
 // Types basés sur le schéma Prisma
 interface Credit {
