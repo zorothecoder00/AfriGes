@@ -1,9 +1,5 @@
 import { NextResponse } from "next/server";
-import {
-  Role,
-  MemberStatus,
-  PrioriteNotification,
-} from "@prisma/client";
+import {Role, MemberStatus, PrioriteNotification } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 
