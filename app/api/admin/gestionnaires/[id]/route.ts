@@ -230,7 +230,7 @@ export async function DELETE(
             titre: "Gestionnaire supprimé",
             message: `${gestionnaire.member.prenom} ${gestionnaire.member.nom} n'est plus gestionnaire.`,
             priorite: PrioriteNotification.HAUTE,
-            actionUrl: `/admin/gestionnaires`,
+            actionUrl: `/dashboard/admin/gestionnaires`,
           })),
         });
       }

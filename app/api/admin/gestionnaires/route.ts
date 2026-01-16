@@ -153,7 +153,7 @@ export async function POST(req: Request) {
             titre: "Nouveau gestionnaire",
             message: `${user.prenom} ${user.nom} a été nommé gestionnaire (${role}).`,
             priorite: PrioriteNotification.NORMAL,
-            actionUrl: `/admin/gestionnaires`,
+            actionUrl: `/dashboard/admin/gestionnaires`,
           })),
         });
       }

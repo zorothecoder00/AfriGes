@@ -162,7 +162,7 @@ export async function PATCH(
             titre: "Membre modifié",
             message: `Les informations de ${updated.prenom} ${updated.nom} ont été modifiées.`,
             priorite: PrioriteNotification.NORMAL,
-            actionUrl: `/admin/membres/${memberId}`,
+            actionUrl: `/dashboard/admin/membres/${memberId}`,
           })),
         });
       }
@@ -252,7 +252,7 @@ export async function DELETE(
             titre: "Membre supprimé",
             message: `Le membre ${membre.prenom} ${membre.nom} a été supprimé.`,
             priorite: PrioriteNotification.HAUTE,
-            actionUrl: `/admin/membres`,
+            actionUrl: `/dashboard/admin/membres`,
           })),
         });
       }

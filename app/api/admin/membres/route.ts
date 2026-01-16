@@ -180,7 +180,7 @@ export async function POST(req: Request) {
             titre: "Nouveau membre créé",
             message: `Un nouveau membre (${membre.prenom} ${membre.nom}) a été ajouté.`,
             priorite: PrioriteNotification.NORMAL,
-            actionUrl: `/admin/membres/${membre.id}`,
+            actionUrl: `/dashboard/admin/membres/${membre.id}`,
           })),
         });
       }
