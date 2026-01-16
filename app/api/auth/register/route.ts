@@ -52,7 +52,7 @@ export async function POST(req: Request) {
     // Hash mot de passe
     const passwordHash = await bcrypt.hash(password, 10)
 
-    // Création utilisateur
+    // Création utilisateur + wallet en même temps
     const newUser = await prisma.user.create({
       data: {
         prenom,
@@ -63,7 +63,18 @@ export async function POST(req: Request) {
         telephone: telephone || null,
         adresse: adresse || null,
         photo: '/profile.png',
-      }
+
+        wallet: {
+          create: {
+            soldeGeneral: 0,
+            soldeTontine: 0,
+            soldeCredit: 0,
+          },
+        },
+      },
+      include: {
+        wallet: true, // pour avoir le wallet créé dans le retour
+      },
     })
 
     // Supprimer le hash avant réponse
