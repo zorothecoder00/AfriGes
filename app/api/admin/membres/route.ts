@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { Role, MemberStatus, Prisma } from "@prisma/client";
+import { Role, MemberStatus, PrioriteNotification, Prisma } from "@prisma/client";
 import { prisma } from '@/lib/prisma'
 import bcrypt from "bcryptjs";
 
@@ -134,36 +134,61 @@ export async function POST(req: Request) {
 
     const passwordHash = await bcrypt.hash(password, 10);
 
-    const membre = await prisma.user.create({
-      data: {
-        nom,
-        prenom,
-        email,
-        telephone,
-        adresse,
-        role: Role.USER,
-        etat: MemberStatus.ACTIF,
-        passwordHash,
+    const result = await prisma.$transaction(async (tx) => {
+      // 1. Création du membre
+      const membre = await tx.user.create({
+        data: {
+          nom,
+          prenom,
+          email,
+          telephone,
+          adresse,
+          role: Role.USER,
+          etat: MemberStatus.ACTIF,
+          passwordHash,
 
-        // Création automatique du wallet
-        wallet: {
-          create: {},  
-        },
+          wallet: {
+            create: {},
+          },
 
-        // Audit log
-        auditLogs: {
-          create: {
-            action: "CREATION_MEMBRE",
-            entite: "User",
+          auditLogs: {
+            create: {
+              action: "CREATION_MEMBRE",
+              entite: "User",
+            },
           },
         },
-      },
-      include: {
-        wallet: true,
-      },
+      });
+
+      // 2. Récupérer les ADMIN & SUPER_ADMIN uniquement
+      const destinataires = await tx.user.findMany({
+        where: {
+          role: {
+            in: [Role.ADMIN, Role.SUPER_ADMIN],
+          },
+        },
+        select: {
+          id: true,
+        },
+      });
+
+      // 3. Créer les notifications
+      if (destinataires.length > 0) {
+        await tx.notification.createMany({
+          data: destinataires.map((user) => ({
+            userId: user.id,
+            titre: "Nouveau membre créé",
+            message: `Un nouveau membre (${membre.prenom} ${membre.nom}) a été ajouté.`,
+            priorite: PrioriteNotification.NORMAL,
+            actionUrl: `/admin/membres/${membre.id}`,
+          })),
+        });
+      }
+
+      return membre;
     });
 
-    return NextResponse.json(membre, { status: 201 });
+    return NextResponse.json({ data: result }, { status: 201 });
   } catch (error) {
     console.error(error);
     return NextResponse.json(

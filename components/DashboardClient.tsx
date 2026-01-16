@@ -83,9 +83,9 @@ export default function AfriGesDashboard() {
 
           {/* Right actions */}
           <div className="flex items-center gap-4">
-            <button className="text-slate-600 hover:text-slate-800">
+            <Link href="/dashboard/admin/notifications" className="text-slate-600 hover:text-slate-800">
               🔔
-            </button>
+            </Link>
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 bg-slate-200 rounded-full"></div>
               <span className="text-sm font-medium text-slate-700">

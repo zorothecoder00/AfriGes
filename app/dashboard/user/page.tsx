@@ -1,12 +1,12 @@
-'use client';
+'use client';   
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';  
 import { 
-  Wallet, 
-  CreditCard as CreditCardIcon, 
-  LucideIcon,
-  Users, 
-  TrendingUp, 
+  Wallet,    
+  CreditCard as CreditCardIcon,     
+  LucideIcon,     
+  Users,   
+  TrendingUp,  
   ShoppingBag,
   Calendar,
   ArrowUpRight,
@@ -538,6 +538,9 @@ export default function UserDashboard() {
               <span className="text-sm text-gray-700">
                 Salut, <span className="font-semibold">{userData.user.prenom} {userData.user.nom}</span>
               </span>
+              <Link href="/dashboard/user/notifications" className="text-slate-600 hover:text-slate-800">
+                🔔
+              </Link>
               <div className="w-10 h-10 rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 flex items-center justify-center text-white font-bold cursor-pointer hover:shadow-lg transition-shadow">
                 {userData.user.prenom[0]}{userData.user.nom[0]}
               </div>
@@ -629,7 +632,7 @@ export default function UserDashboard() {
             />
             </div>
           </Link>
-          
+
         </div>
 
         {/* Crédit Alimentaire */}
@@ -638,7 +641,7 @@ export default function UserDashboard() {
             <CreditAlimentaireCard {...userData.creditAlimentaire} />
           </div>
         )}
-
+ 
         {/* Mes Tontines Actives */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-6">
