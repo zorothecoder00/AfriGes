@@ -35,7 +35,6 @@ export async function GET(req: Request) {
   return NextResponse.json({ data: notifications });
 }
 
-// app/api/notifications/route.ts
 export async function DELETE(req: Request) {
   const session = await getAuthSession();
 
