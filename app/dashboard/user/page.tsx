@@ -21,6 +21,7 @@ import {
   X
 } from 'lucide-react';
 import Link from "next/link";
+import SignOutButton from '@/components/SignOutButton';
 
 type TrendType = 'up' | 'down';
 
@@ -544,6 +545,11 @@ export default function UserDashboard() {
               <div className="w-10 h-10 rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 flex items-center justify-center text-white font-bold cursor-pointer hover:shadow-lg transition-shadow">
                 {userData.user.prenom[0]}{userData.user.nom[0]}
               </div>
+              {/* Bouton de déconnexion */}
+              <SignOutButton 
+                redirectTo="/auth/login?logout=success"
+                className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+              />
             </div>
 
             {/* Mobile menu button */}
@@ -558,14 +564,23 @@ export default function UserDashboard() {
           {/* Mobile menu */}
           {isMobileMenuOpen && (
             <div className="md:hidden py-4 border-t border-gray-200">
-              <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 flex items-center justify-center text-white font-bold">
-                  {userData.user.prenom[0]}{userData.user.nom[0]}
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center space-x-3">
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 flex items-center justify-center text-white font-bold">
+                    {userData.user.prenom[0]}{userData.user.nom[0]}
+                  </div>
+                  <div>
+                    <p className="font-semibold text-gray-900">{userData.user.prenom} {userData.user.nom}</p>
+                    <p className="text-sm text-gray-500">{userData.user.email}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="font-semibold text-gray-900">{userData.user.prenom} {userData.user.nom}</p>
-                  <p className="text-sm text-gray-500">{userData.user.email}</p>
-                </div>
+              </div>
+              {/* Bouton de déconnexion mobile */}
+              <div className="mt-4 pt-4 border-t border-gray-200">
+                <SignOutButton 
+                  redirectTo="/auth/login?logout=success"
+                  className="w-full flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                />
               </div>
             </div>
           )}
@@ -698,4 +713,4 @@ export default function UserDashboard() {
       </main>
     </div>  
   );
-}
+}      

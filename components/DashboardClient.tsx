@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { TrendingUp, Users, Coins, CreditCard, ShoppingCart, Package, MoreVertical, Download, Plus } from 'lucide-react';  
 import Link from "next/link";
+import SignOutButton from '@/components/SignOutButton';
 
 export default function AfriGesDashboard() {
   const [selectedPeriod, setSelectedPeriod] = useState('30');
@@ -92,6 +93,12 @@ export default function AfriGesDashboard() {
                 Admin
               </span>
             </div>
+
+            <SignOutButton 
+              redirectTo="/auth/login?logout=success"
+              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+            />
+
           </div>
         </div>   
       </header>
@@ -158,6 +165,15 @@ export default function AfriGesDashboard() {
                 </Link>  
               </nav>
             </div>
+
+            {/* Section Déconnexion dans la sidebar */}
+            <div className="p-4">
+              <SignOutButton 
+                redirectTo="/auth/login?logout=success"
+                className="w-full flex items-center justify-center gap-2 px-4 py-3 text-red-600 hover:bg-red-50 rounded-xl transition-all font-medium"
+              />
+            </div>
+
           </div>
         </aside>
 
