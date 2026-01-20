@@ -233,10 +233,10 @@ const TontineCard = ({
         </div>
       </div>
 
-      <button className="w-full bg-indigo-50 hover:bg-indigo-100 text-indigo-600 font-medium py-2.5 px-4 rounded-lg transition-colors duration-150 flex items-center justify-center">
+      <Link href="/dashboard/user/tontines/id" className="w-full bg-indigo-50 hover:bg-indigo-100 text-indigo-600 font-medium py-2.5 px-4 rounded-lg transition-colors duration-150 flex items-center justify-center">
         <Eye className="w-4 h-4 mr-2" />
         Voir les détails
-      </button>
+      </Link>
     </div>
   );
 };

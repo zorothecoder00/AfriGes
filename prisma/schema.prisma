@@ -5,11 +5,11 @@
 // Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
 
 generator client {
-  provider = "prisma-client-js"   
-}               
+  provider = "prisma-client-js"       
+}                    
        
 datasource db {          
-  provider = "postgresql"         
+  provider = "postgresql"           
 }   
 
 enum Role {    
@@ -377,7 +377,7 @@ model AuditLog {
 model Parametre {
   cle                 String                @id
   valeur              String
-}
+}    
   
 model Notification {
   id                  Int                   @id @default(autoincrement())
@@ -387,7 +387,7 @@ model Notification {
   userId              Int
   user                User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
   
-  // Informations de base
+  // Informations de base   
   titre               String
   message             String
   priorite            PrioriteNotification  @default(NORMAL)

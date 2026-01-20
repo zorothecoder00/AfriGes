@@ -9,11 +9,11 @@ export async function GET(req: Request) {
   if (!session || !session.user?.id) {
     return NextResponse.json(
       {
-        success: false,
+        success: false,     
         message: "Non autorisé",
       },
-      { status: 401 }
-    );
+      { status: 401 }  
+    );  
   }
 
   const { searchParams } = new URL(req.url);
@@ -44,7 +44,7 @@ export async function DELETE(req: Request) {
         success: false,
         message: "Non autorisé",
       },
-      { status: 401 }
+      { status: 401 }   
     );
   }
 
