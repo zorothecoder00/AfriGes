@@ -8,7 +8,7 @@ export default function MembresPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFilter, setSelectedFilter] = useState('tous');
 
-  // Données de simulation
+  // Données de simulation          
   const membres = [
     {  
       id: 1,

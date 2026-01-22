@@ -9,12 +9,12 @@ type ModalProps = {
   children: ReactNode;
   footer?: ReactNode;
 };
-
+   
 export default function Modal({
   isOpen,
   onClose,
   title,
-  children,
+  children,    
   footer,
 }: ModalProps) {
   // Fermer avec ESC

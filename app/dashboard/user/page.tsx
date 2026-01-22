@@ -9,7 +9,7 @@ import {
   TrendingUp,  
   ShoppingBag,
   Calendar,
-  ArrowUpRight,
+  ArrowUpRight,   
   ArrowDownRight,
   Eye,
   Download,

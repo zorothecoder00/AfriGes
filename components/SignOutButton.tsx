@@ -1,12 +1,12 @@
 'use client'
-
+   
 import { signOut } from 'next-auth/react'
 import { useState } from 'react'
 
 interface SignOutButtonProps {
   redirectTo?: string
   className?: string
-}
+}   
 
 export default function SignOutButton({
   redirectTo = '/auth/login?logout=success',
