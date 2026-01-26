@@ -22,15 +22,15 @@ model User {
   id                  Int               @id @default(autoincrement())
   uuid                String            @unique @default(uuid())
   nom                 String    
-  prenom              String
-  email               String            @unique
+  prenom              String                
+  email               String            @unique   
   photo               String? // 👈 NextAuth (image / photo)
-  role                Role?       
-  telephone           String?       
+  role                Role?               
+  telephone           String?               
   adresse             String?    
   passwordHash        String?
-  etat                MemberStatus      @default(ACTIF)
-  dateAdhesion        DateTime          @default(now())
+  etat                MemberStatus      @default(ACTIF)    
+  dateAdhesion        DateTime          @default(now())    
 
   wallet              Wallet?
   gestionnaire        Gestionnaire?          
@@ -218,9 +218,9 @@ enum TransactionCreditType {
   REMBOURSEMENT
 }
 
-enum SourceCreditAlim {
+enum SourceCreditAlim {   
   COTISATION
-  TONTINE
+  TONTINE   
 }
 
 model CreditAlimentaire {

@@ -1,7 +1,7 @@
 // app/api/notifications/[uuid]/route.ts
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { getAuthSession } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";   
+import { getAuthSession } from "@/lib/auth";      
 
 export async function DELETE(
   req: Request,
