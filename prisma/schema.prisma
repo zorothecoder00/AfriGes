@@ -172,7 +172,7 @@ enum Frequence {
 
 enum StatutTontine {
   ACTIVE
-  TERMINEE
+  TERMINEE   
   SUSPENDUE
 }
 
@@ -218,6 +218,11 @@ enum TransactionCreditType {
   REMBOURSEMENT
 }
 
+enum SourceCreditAlim {
+  COTISATION
+  TONTINE
+}
+
 model CreditAlimentaire {
   id                  Int               @id @default(autoincrement())
   memberId            Int
@@ -227,6 +232,9 @@ model CreditAlimentaire {
   montantUtilise      Decimal           @default(0)
   montantRestant      Decimal // Calculé automatiquement
 
+  source              SourceCreditAlim  @default(COTISATION)
+  sourceId            Int // ID de la cotisation ou de la tontine
+
   dateAttribution     DateTime          @default(now())
   dateExpiration      DateTime?
 
@@ -235,8 +243,8 @@ model CreditAlimentaire {
   transactions        CreditAlimentaireTransaction[]
   ventes              VenteCreditAlimentaire[] // ✅ AJOUTÉ
 
-  createdAt           DateTime           @default(now())
-  updatedAt           DateTime           @updatedAt
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
 }
 
 model VenteCreditAlimentaire {

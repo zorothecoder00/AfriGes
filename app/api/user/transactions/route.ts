@@ -7,7 +7,7 @@ export async function GET(req: NextRequest) {
   try {
     const session = await getAuthSession();
 
-    if (!session?.user) {
+    if (!session?.user) {   
       return NextResponse.json(
         { message: "Non autorisé" },
         { status: 401 }
