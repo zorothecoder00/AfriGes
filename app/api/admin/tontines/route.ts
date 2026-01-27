@@ -22,8 +22,12 @@ export async function GET(req: Request) {
 
 // ✅ POST - Créer une nouvelle tontine
 export async function POST(req: Request) {
+  
+  // ✅ Vérification session + rôle
   const session = await getAuthSession();
-  if (!session || session?.user.role !== 'ADMIN') return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!session || !session.user.role || !["ADMIN", "SUPER_ADMIN"].includes(session.user.role)) {
+    return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
+  }
 
   const { nom, description, montantCycle, frequence, dateDebut, dateFin } = await req.json();
 

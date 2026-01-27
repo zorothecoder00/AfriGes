@@ -7,7 +7,10 @@ export async function PUT(
   context: { params: Promise<{ id: string }> }
 ) {
   const session = await getAuthSession();
-  if (!session || session?.user.role !== 'ADMIN') return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  // ✅ Vérification session + rôle
+  if (!session || !session.user.role || !["ADMIN", "SUPER_ADMIN"].includes(session.user.role)) {
+    return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
+  }
 
   const { id } = await context.params;
   const { valeur } = await req.json();
@@ -17,7 +20,7 @@ export async function PUT(
     data: { valeur },
   });
 
-  return NextResponse.json(updated);
+  return NextResponse.json({ data: updated});
 }
 
 export async function DELETE(
@@ -25,7 +28,9 @@ export async function DELETE(
   context: { params: Promise<{ id: string }> }
 ) {
   const session = await getAuthSession();
-  if (!session || session?.user.role !== 'ADMIN') return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!session || !session.user.role || !["ADMIN", "SUPER_ADMIN"].includes(session.user.role)) {
+    return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
+  }
 
   const { id } = await context.params;
 

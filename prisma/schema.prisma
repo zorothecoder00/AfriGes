@@ -22,14 +22,14 @@ model User {
   id                  Int               @id @default(autoincrement())
   uuid                String            @unique @default(uuid())
   nom                 String    
-  prenom              String                
+  prenom              String                     
   email               String            @unique   
   photo               String? // 👈 NextAuth (image / photo)
   role                Role?               
-  telephone           String?               
-  adresse             String?    
+  telephone           String?                    
+  adresse             String?      
   passwordHash        String?
-  etat                MemberStatus      @default(ACTIF)    
+  etat                MemberStatus      @default(ACTIF)           
   dateAdhesion        DateTime          @default(now())    
 
   wallet              Wallet?
