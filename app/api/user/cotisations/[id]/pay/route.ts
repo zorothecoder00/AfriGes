@@ -32,16 +32,17 @@ export async function POST(
     // Créer la facture en dehors du transaction
     const facture = await prisma.facture.create({
       data: {
-      memberId,
-      montant: cotisation.montant,
-      type: 'COTISATION',
-      statut: 'PAYEE',
-      reference: `FACTURE-${Date.now()}`,
+        memberId,
+        montant: cotisation.montant,
+        type: 'COTISATION',
+        statut: 'PAYEE',
+        reference: `FACTURE-${Date.now()}`,
       },
     });
 
     // Créer la transaction atomique
     const reference = `COTISATION-${cotisation.id}-${Date.now()}`;
+
     await prisma.$transaction([
       // Débiter le wallet
       prisma.wallet.update({
@@ -75,7 +76,7 @@ export async function POST(
         data: { statut: 'PAYEE' },
       }),
       // Créer une notification
-      prisma.notification.create({
+      prisma.notification.create({   
         data: {
           userId: memberId,
           titre: 'Cotisation payée',

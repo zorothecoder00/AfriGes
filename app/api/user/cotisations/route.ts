@@ -47,9 +47,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Montant invalide' }, { status: 400 });
     }
 
-    if (!periode) {
+    if (!periode || !['MENSUEL', 'ANNUEL'].includes(periode))
       return NextResponse.json({ error: 'Période invalide' }, { status: 400 });
-    }
 
     const datePaiement = new Date();
     const dateExpiration =
@@ -70,7 +69,7 @@ export async function POST(req: Request) {
 
     // Notification
     await prisma.notification.create({
-      data: {
+      data: {   
         userId: memberId,
         titre: 'Cotisation créée',
         message: `Votre cotisation de ${montant} a été créée et est en attente de paiement.`,
