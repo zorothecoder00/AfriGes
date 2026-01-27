@@ -3,45 +3,83 @@ import { prisma } from '@/lib/prisma';
 import { getAuthSession } from '@/lib/auth'; // fonction pour récupérer user connecté
 import { Prisma } from '@prisma/client'
 
-export async function GET(req: Request) {
-  const session = await getAuthSession();
-  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+export async function GET(req: Request) {      
 
-  const cotisations = await prisma.cotisation.findMany({
-    where: { memberId: parseInt(session.user.id) },
-  });
+  try {
+    const session = await getAuthSession();
+    if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  return NextResponse.json(cotisations);
+    const memberId = parseInt(session.user.id)
+
+    const cotisations = await prisma.cotisation.findMany({
+      where: { memberId },
+      orderBy: { datePaiement: 'desc' },
+      select: {
+      id: true,
+      montant: true,
+      periode: true,
+      statut: true,
+      datePaiement: true,
+      dateExpiration: true,
+      createdAt: true,
+      },
+    });
+
+    return NextResponse.json({ data: cotisations });
+  } catch (error) {
+    console.error('GET /cotisations error:', error);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+  }
 }
 
 export async function POST(req: Request) {
-  const session = await getAuthSession();
-  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  try {
+    const session = await getAuthSession();
+    if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const body = await req.json();
-  const { montant, periode } = body;
+    const memberId = parseInt(session.user.id)
 
-  const cotisation = await prisma.cotisation.create({
-    data: {
-      memberId: parseInt(session.user.id),
-      montant: new Prisma.Decimal(montant),
-      periode,
-      datePaiement: new Date(),
-      dateExpiration: periode === 'MENSUEL'
-        ? new Date(new Date().setMonth(new Date().getMonth() + 1))
-        : new Date(new Date().setFullYear(new Date().getFullYear() + 1)),
-      statut: 'PAYEE', // si paiement direct, sinon EN_ATTENTE
-    },
-  });
+    const body = await req.json();
+    const { montant, periode } = body;
 
-  // Notification
-  await prisma.notification.create({
-    data: {
-      userId: parseInt(session.user.id),
-      titre: 'Cotisation créée',
-      message: `Votre cotisation de ${montant} a été créée`,
-    },
-  });
+    // Validation
+    if (!montant || isNaN(montant) || montant <= 0) {
+      return NextResponse.json({ error: 'Montant invalide' }, { status: 400 });
+    }
 
-  return NextResponse.json(cotisation);
+    if (!periode) {
+      return NextResponse.json({ error: 'Période invalide' }, { status: 400 });
+    }
+
+    const datePaiement = new Date();
+    const dateExpiration =
+      periode === 'MENSUEL'
+        ? new Date(new Date().setMonth(datePaiement.getMonth() + 1))
+        : new Date(new Date().setFullYear(datePaiement.getFullYear() + 1));
+
+    const cotisation = await prisma.cotisation.create({
+      data: {
+        memberId,
+        montant: new Prisma.Decimal(montant),
+        periode,
+        datePaiement,
+        dateExpiration,
+        statut: 'EN_ATTENTE', // paiement non effectué
+      },
+    });
+
+    // Notification
+    await prisma.notification.create({
+      data: {
+        userId: memberId,
+        titre: 'Cotisation créée',
+        message: `Votre cotisation de ${montant} a été créée et est en attente de paiement.`,
+      },
+    });
+
+    return NextResponse.json({ success: true, data: cotisation });
+  } catch (error) {
+  console.error('POST /cotisations error:', error);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+  }
 }
