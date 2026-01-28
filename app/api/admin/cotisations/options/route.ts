@@ -4,7 +4,7 @@ import { getAuthSession } from '@/lib/auth';
 
 /**
  * ======================
- * GET - Options cotisation
+ * GET - Options cotisation     
  * ======================
  */
 export async function GET(req: Request) {

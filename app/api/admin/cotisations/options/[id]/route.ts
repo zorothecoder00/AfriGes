@@ -31,11 +31,11 @@ export async function PUT(
 
     if (!exists) {
       return NextResponse.json({ error: "Option introuvable" }, { status: 404 });
-    }
+    }  
 
     const updated = await prisma.parametre.update({   
       where: { cle: id },
-      data: { valeur },
+      data: { valeur },  
     });
 
   } catch (error) {
@@ -45,7 +45,7 @@ export async function PUT(
 }
 
 export async function DELETE(
-  req: Request,
+  req: Request,  
   context: { params: Promise<{ id: string }> }
 ) {
   try{

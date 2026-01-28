@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getAuthSession } from '@/lib/auth';
+import { Prisma, SourceCreditAlim } from "@prisma/client";
    
-export async function POST(req: Request) {       
+export async function POST(req: Request) {             
   
   try {
     const session = await getAuthSession()
@@ -22,13 +23,20 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Le plafond doit être supérieur à 0" }, { status: 400 });
     }
 
+    if (!Object.values(SourceCreditAlim).includes(source)) {
+      return NextResponse.json({ error: `Source invalide. Doit être l'une de: ${Object.values(SourceCreditAlim).join(', ')}` }, { status: 400 });
+    }
+
+    const plafondDecimal = new Prisma.Decimal(plafond);
+
     // Créer le crédit alimentaire
     const credit = await prisma.creditAlimentaire.create({
       data: {
         memberId,
-        plafond,
-        montantRestant: plafond, // Par défaut égal au plafond
-        source,
+        plafond: plafondDecimal,
+        montantUtilise: new Prisma.Decimal(0),
+        montantRestant: plafondDecimal, // Par défaut égal au plafond
+        source: source as SourceCreditAlim,
         sourceId,
         dateExpiration: dateExpiration ? new Date(dateExpiration) : null, // optionnel
       },
