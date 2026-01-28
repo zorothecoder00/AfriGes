@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getAuthSession } from '@/lib/auth';
 
-export async function POST(req: Request) {
+export async function POST(req: Request) {  
   const session = await getAuthSession();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
@@ -17,7 +17,7 @@ export async function POST(req: Request) {
   const total = produit.prixUnitaire.mul(quantite);
 
   if (total.gt(credit.montantRestant)) return NextResponse.json({ error: 'Crédit insuffisant' }, { status: 400 });
-
+  
   await prisma.$transaction([
     prisma.venteCreditAlimentaire.create({
       data: { creditAlimentaireId: creditId, produitId, quantite, prixUnitaire: produit.prixUnitaire },

@@ -5,13 +5,13 @@
 // Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
 
 generator client {
-  provider = "prisma-client-js"            
-}                    
+  provider = "prisma-client-js"                 
+}                      
             
-datasource db {          
+datasource db {                
   provider = "postgresql"           
-}      
-
+}           
+              
 enum Role {    
   SUPER_ADMIN
   ADMIN
@@ -47,7 +47,7 @@ model User {
 }
 
 enum MemberStatus {
-  ACTIF
+  ACTIF   
   INACTIF
   SUSPENDU
 }
@@ -316,7 +316,7 @@ model MouvementStock {
   produit             Produit              @relation(fields: [produitId], references: [id])
 }
 
-enum TypeMouvement {
+enum TypeMouvement {  
   ENTREE
   SORTIE
   AJUSTEMENT

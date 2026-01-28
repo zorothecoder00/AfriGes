@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { getAuthSession } from '@/lib/auth';
 
 export async function GET(req: Request) {
-  const session = await getAuthSession();
+  const session = await getAuthSession();   
   // ✅ Vérification session + rôle
   if (!session || !session.user.role || !["ADMIN", "SUPER_ADMIN"].includes(session.user.role)) {
     return NextResponse.json({ error: "Accès refusé" }, { status: 403 });

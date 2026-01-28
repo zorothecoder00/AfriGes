@@ -11,6 +11,7 @@ export async function GET(req: Request) {
     include: { ventes: true },
   });
 
-  return NextResponse.json({ data: credits });
+  return NextResponse.json({ data: credits }
+    );
 }
    
