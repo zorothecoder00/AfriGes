@@ -5,7 +5,7 @@ import { Prisma, SourceCreditAlim } from "@prisma/client";
    
 export async function POST(req: Request) {             
   
-  try {
+  try {   
     const session = await getAuthSession()
     // ✅ Vérification session + rôle
     if (!session || !session.user.role || !["ADMIN", "SUPER_ADMIN"].includes(session.user.role)) {

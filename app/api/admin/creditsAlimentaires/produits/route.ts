@@ -15,12 +15,12 @@ export async function GET(req: Request) {
   const skip = parseInt(searchParams.get("skip") || "0");
   const take = parseInt(searchParams.get("take") || "20");
 
-  try {
+  try {      
     const produits = await prisma.produit.findMany({
-    where: { nom: { contains: search, mode: "insensitive" } },
-    skip,
-    take,
-    orderBy: { createdAt: "desc" },
+      where: { nom: { contains: search, mode: "insensitive" } },
+      skip,
+      take,
+      orderBy: { createdAt: "desc" },
     });
     return NextResponse.json({ data: produits });
   } catch (error) {
@@ -36,7 +36,6 @@ export async function POST(req: Request) {
 
   const body = await req.json();
   const { nom, description, prixUnitaire, stock, alerteStock } = body;
-
 
   // Validation simple
   if (!nom || prixUnitaire == null || stock == null || alerteStock == null) {
