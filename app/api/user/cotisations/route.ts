@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getAuthSession } from '@/lib/auth'; // fonction pour récupérer user connecté
-import { Prisma, PeriodeCotisation, StatutCotisation } from '@prisma/client'
+import { Prisma, PeriodeCotisation, StatutCotisation, PrioriteNotification  } from '@prisma/client'
 
 export async function GET(req: Request) {           
 
@@ -13,7 +13,7 @@ export async function GET(req: Request) {
 
     const cotisations = await prisma.cotisation.findMany({
       where: { memberId },
-      orderBy: { datePaiement: 'desc' },
+      orderBy: { createdAt: 'desc' },
       select: {
         id: true,
         montant: true,
@@ -47,23 +47,53 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Montant invalide' }, { status: 400 });
     }
 
-    if (!periode || !['MENSUEL', 'ANNUEL'].includes(periode))
+    if (!Object.values(PeriodeCotisation).includes(periode))
       return NextResponse.json({ error: 'Période invalide' }, { status: 400 });
 
-    const datePaiement = new Date();
+    /* =======================
+       RÈGLE MÉTIER :
+       Une seule cotisation active
+    ======================= */
+
+    const cotisationActive = await prisma.cotisation.findFirst({
+      where: {
+        memberId,
+        statut: {
+          in: [
+            StatutCotisation.EN_ATTENTE,
+            StatutCotisation.PAYEE,
+          ],
+        },
+        dateExpiration: {
+          gt: new Date(),
+        },
+      },
+    });
+
+    if (cotisationActive) {
+      return NextResponse.json({ error: 'Une cotisation active existe déjà. Vous ne pouvez pas en créer une nouvelle.'}, { status: 400 });
+    }
+
+    /* =======================
+       CALCUL DES DATES
+    ======================= */
+
+    const now = new Date();
+
     const dateExpiration =
-      periode === 'MENSUEL'
-        ? new Date(new Date().setMonth(datePaiement.getMonth() + 1))
-        : new Date(new Date().setFullYear(datePaiement.getFullYear() + 1));
+      periode === PeriodeCotisation.MENSUEL
+        ? new Date(new Date().setMonth(now.getMonth() + 1))
+        : new Date(new Date().setFullYear(now.getFullYear() + 1));
+
 
     const cotisation = await prisma.cotisation.create({
       data: {
         memberId,
         montant: new Prisma.Decimal(montant),
         periode,
-        datePaiement,
+        statut: StatutCotisation.EN_ATTENTE,
+        datePaiement: null, // ✅ PAS PAYÉ
         dateExpiration,
-        statut: 'EN_ATTENTE', // paiement non effectué
       },
     });
 
