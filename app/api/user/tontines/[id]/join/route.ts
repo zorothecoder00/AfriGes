@@ -54,7 +54,7 @@ export async function POST(
         userId: memberId,
         titre: 'Participation à une tontine',
         message: `Vous avez rejoint la tontine "${tontine.nom}" qui commence le ${tontine.dateDebut.toLocaleDateString()}.`,
-        priorite: 'NORMAL',
+        priorite: PrioriteNotification.NORMAL,
         actionUrl: `/user/tontines/${tontineId}`, // lien vers la tontine
       },
     });

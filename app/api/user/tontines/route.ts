@@ -56,7 +56,7 @@ export async function POST(req: Request) {
         userId: memberId,
         titre: 'Participation à une tontine',
         message: `Vous avez rejoint la tontine "${tontine.nom}"`,
-        priorite: 'NORMAL',
+        priorite: PrioriteNotification.NORMAL,
       },
     });
 

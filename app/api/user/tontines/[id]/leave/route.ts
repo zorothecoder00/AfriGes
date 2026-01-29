@@ -48,7 +48,7 @@ export async function POST(
         userId: memberId,
         titre: 'Quitter la tontine',
         message: `Vous avez quitté la tontine "${tontine.nom}".`,
-        priorite: 'NORMAL',
+        priorite: PrioriteNotification.NORMAL,
         actionUrl: `/user/tontines/${tontineId}`,
       },
     });
