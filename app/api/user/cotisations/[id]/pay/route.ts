@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getAuthSession } from '@/lib/auth';
+import { StatutCotisation, TypeFacture, StatutFacture, TypePaiement, TransactionType, PrioriteNotification } from '@prisma/client'
 
-export async function POST(
-  req: Request,
+export async function POST(    
+  req: Request,    
   context: { params: Promise<{ id: string }> }
 ) {
   try {

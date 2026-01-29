@@ -1,15 +1,17 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
-import { getAuthSession } from '@/lib/auth';
+import { prisma } from '@/lib/prisma';  
+import { getAuthSession } from '@/lib/auth';    
 
 export async function POST(req: Request) {  
   const session = await getAuthSession();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
+  const userId = parseInt(session.user.id)
+
   const { creditId, produitId, quantite } = await req.json();
 
   const credit = await prisma.creditAlimentaire.findUnique({ where: { id: creditId } });
-  if (!credit || credit.memberId !== parseInt(session.user.id)) return NextResponse.json({ error: 'Not allowed' }, { status: 403 });
+  if (!credit || credit.memberId !== userId) return NextResponse.json({ error: 'Not allowed' }, { status: 403 });
 
   const produit = await prisma.produit.findUnique({ where: { id: produitId } });
   if (!produit || produit.stock < quantite) return NextResponse.json({ error: 'Stock insuffisant' }, { status: 400 });
@@ -35,7 +37,7 @@ export async function POST(req: Request) {
     }),
     prisma.notification.create({
       data: {
-        userId: parseInt(session.user.id),
+        userId,
         titre: 'Achat effectué',
         message: `Vous avez utilisé ${total} de votre crédit alimentaire pour ${quantite}x ${produit.nom}`,
       },

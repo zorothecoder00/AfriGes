@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { getAuthSession } from '@/lib/auth';   
 import { Frequence } from '@prisma/client'
 
-// ✅ GET - Liste toutes les tontines
+// ✅ GET - Liste toutes les tontines   
 export async function GET(req: Request) {
   
   try {

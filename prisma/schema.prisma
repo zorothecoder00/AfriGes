@@ -6,7 +6,7 @@
 
 generator client {
   provider = "prisma-client-js"                 
-}                      
+}                              
             
 datasource db {                
   provider = "postgresql"           
@@ -316,7 +316,7 @@ model MouvementStock {
   produit             Produit              @relation(fields: [produitId], references: [id])
 }
 
-enum TypeMouvement {  
+enum TypeMouvement {    
   ENTREE
   SORTIE
   AJUSTEMENT

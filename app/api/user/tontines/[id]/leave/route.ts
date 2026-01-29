@@ -1,12 +1,13 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getAuthSession } from '@/lib/auth';
+import { StatutTontine, PrioriteNotification } from '@prisma/client'
 
 export async function POST(
   req: Request,
   context: { params: Promise<{ id: string }> }
 ) {
-  try{
+  try{   
     const session = await getAuthSession();
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 

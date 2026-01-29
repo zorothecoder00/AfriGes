@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getAuthSession } from '@/lib/auth'; // fonction pour récupérer user connecté
-import { Prisma } from '@prisma/client'
+import { Prisma, PeriodeCotisation, StatutCotisation } from '@prisma/client'
 
-export async function GET(req: Request) {      
+export async function GET(req: Request) {           
 
   try {
     const session = await getAuthSession();
@@ -15,13 +15,13 @@ export async function GET(req: Request) {
       where: { memberId },
       orderBy: { datePaiement: 'desc' },
       select: {
-      id: true,
-      montant: true,
-      periode: true,
-      statut: true,
-      datePaiement: true,
-      dateExpiration: true,
-      createdAt: true,
+        id: true,
+        montant: true,
+        periode: true,
+        statut: true,
+        datePaiement: true,
+        dateExpiration: true,
+        createdAt: true,
       },
     });
 

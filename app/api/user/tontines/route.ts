@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getAuthSession } from '@/lib/auth';
+import { StatutTontine, PrioriteNotification } from '@prisma/client'
 
-export async function GET(req: Request) {
+export async function GET(req: Request) {     
   try {
     const tontines = await prisma.tontine.findMany({
       where: { statut: 'ACTIVE' },

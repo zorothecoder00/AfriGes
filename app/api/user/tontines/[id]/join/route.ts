@@ -1,11 +1,12 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getAuthSession } from '@/lib/auth';
+import { StatutTontine, PrioriteNotification } from '@prisma/client'
   
 export async function POST(  
   req: Request,
   context: { params: Promise<{ id: string }> }
-) {  
+) {     
   try {   
     // 1️⃣ Vérifier session utilisateur
     const session = await getAuthSession();

@@ -25,7 +25,7 @@ export async function PUT(
 
     const existing = await prisma.tontine.findUnique({
       where: { id: tontineId },
-      include: { membres: true },
+      include: { membres: true },   
     });
 
     if (!existing) {
