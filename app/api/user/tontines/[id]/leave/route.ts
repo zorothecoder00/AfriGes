@@ -3,14 +3,9 @@ import { prisma } from '@/lib/prisma';
 import { getAuthSession } from '@/lib/auth';
 import { StatutTontine, PrioriteNotification } from '@prisma/client'
 
-type ProduitPanier = {
-  produitId: number;
-  quantite: number;
-};
-
 export async function POST(
   req: Request,  
-  context: { params: Promise<{ id: string }> }
+  context: { params: Promise<{ id: string }> }  
 ) {
   try{   
     const session = await getAuthSession();

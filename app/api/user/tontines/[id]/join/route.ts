@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { getAuthSession } from '@/lib/auth';
 import { StatutTontine, PrioriteNotification } from '@prisma/client'
   
-export async function POST(  
+export async function POST(    
   req: Request,
   context: { params: Promise<{ id: string }> }
 ) {     
