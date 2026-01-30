@@ -3,8 +3,8 @@ import { prisma } from '@/lib/prisma';
 import { getAuthSession } from '@/lib/auth';
 import { StatutTontine, PrioriteNotification } from '@prisma/client'
 
-export async function POST(
-  req: Request,  
+export async function POST(       
+  req: Request,        
   context: { params: Promise<{ id: string }> }  
 ) {
   try{   
@@ -28,6 +28,18 @@ export async function POST(
       return NextResponse.json({ error: 'Tontine introuvable' }, { status: 404 });
     }
 
+    if (tontine.statut !== StatutTontine.ACTIVE) {
+      return NextResponse.json({ error: 'Impossible de quitter une tontine inactive' }, { status: 400 });
+    }
+
+    const now = new Date();
+    if (tontine.dateDebut <= now) {
+      return NextResponse.json(
+        { error: 'Impossible de quitter une tontine déjà démarrée' },
+        { status: 400 }
+      );
+    }
+
     // 4️⃣ Vérifier que l'utilisateur est bien membre actif
     const membership = await prisma.tontineMembre.findFirst({
       where: { tontineId, memberId, dateSortie: null },
@@ -37,20 +49,30 @@ export async function POST(
     }
 
     // 5️⃣ Mettre à jour la participation (quitter la tontine)
-    await prisma.tontineMembre.updateMany({
-      where: { tontineId, memberId, dateSortie: null },
-      data: { dateSortie: new Date() },
-    });
+    await prisma.$transaction(async (tx) => {
+      await tx.tontineMembre.update({
+        where: { id: membership.id },
+        data: { dateSortie: new Date() },
+      });
 
-    // 6️⃣ Créer une notification complète
-    await prisma.notification.create({
-      data: {
-        userId: memberId,
-        titre: 'Quitter la tontine',
-        message: `Vous avez quitté la tontine "${tontine.nom}".`,
-        priorite: PrioriteNotification.NORMAL,
-        actionUrl: `/user/tontines/${tontineId}`,
-      },
+      await tx.notification.create({
+        data: {
+          userId: memberId,
+          titre: 'Quitter la tontine',
+          message: `Vous avez quitté la tontine "${tontine.nom}".`,
+          priorite: PrioriteNotification.NORMAL,
+          actionUrl: `/user/tontines/${tontineId}`,
+        },
+      });
+
+      await tx.auditLog.create({
+        data: {
+          userId: memberId,
+          action: 'LEAVE_TONTINE',
+          entite: 'TONTINE',
+          entiteId: tontineId,
+        },
+      });
     });
 
     // 7️⃣ Retour structuré

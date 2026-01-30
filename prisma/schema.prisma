@@ -6,11 +6,11 @@
    
 generator client {
   provider = "prisma-client-js"                 
-}                                 
+}                                     
             
-datasource db {                
+datasource db {                  
   provider = "postgresql"           
-}           
+}             
               
 enum Role {    
   SUPER_ADMIN
@@ -163,6 +163,8 @@ model TontineMembre {
 
   tontine             Tontine           @relation(fields: [tontineId], references: [id])
   member              User              @relation(fields: [memberId], references: [id])
+
+  @@unique([tontineId, memberId])
 }
 
 enum Frequence {
