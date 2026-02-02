@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { Plus, Search, Filter, Download, Users, DollarSign, TrendingUp, Clock, MoreVertical, Eye, Edit } from 'lucide-react';
 import { StatutTontine } from '@/types'
+import Link from 'next/link'
 
 type Tontine = {
   id: number;
@@ -336,14 +337,14 @@ export default function TontinesPage() {
 
                 {/* Card Footer */}
                 <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex items-center gap-2">
-                  <button className="flex-1 px-4 py-2 bg-white border border-slate-200 rounded-lg text-slate-700 hover:bg-slate-100 transition-all flex items-center justify-center gap-2 text-sm font-medium">
+                  <Link href="/dashboard/admin/tontines/id" className="flex-1 px-4 py-2 bg-white border border-slate-200 rounded-lg text-slate-700 hover:bg-slate-100 transition-all flex items-center justify-center gap-2 text-sm font-medium">
                     <Eye size={16} />
                     Détails
-                  </button>
-                  <button className={`flex-1 px-4 py-2 ${colors.bg} text-white rounded-lg hover:opacity-90 transition-all flex items-center justify-center gap-2 text-sm font-medium`}>
+                  </Link>
+                  <Link href="/dashboard/admin/tontines/id/gestion" className={`flex-1 px-4 py-2 ${colors.bg} text-white rounded-lg hover:opacity-90 transition-all flex items-center justify-center gap-2 text-sm font-medium`}>
                     <Edit size={16} />
                     Gérer
-                  </button>
+                  </Link>
                 </div>
               </div>
             );
