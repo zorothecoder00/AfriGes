@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { Plus, Search, Filter, Shield, Users, Key, Eye, Edit, MoreVertical, CheckCircle, Clock, Mail, Phone } from 'lucide-react';
+import Link from 'next/link'
   
 type CouleurRole = 'purple' | 'emerald' | 'blue' | 'amber' | 'rose' | 'slate';
 type StatutGestionnaire = 'Actif' | 'Inactif';
@@ -378,12 +379,12 @@ export default function GestionnairesPage() {
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2">
-                        <button className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
+                        <Link href="/dashboard/admin/gestionnaires/id" className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
                           <Eye size={16} />
-                        </button>
-                        <button className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
+                        </Link>
+                        <Link href="/dashboard/admin/gestionnaires/id/edit" className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
                           <Edit size={16} />
-                        </button>
+                        </Link>
                         <button className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
                           <MoreVertical size={16} />
                         </button>
