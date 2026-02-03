@@ -341,7 +341,7 @@ export default function TontinesPage() {
                     <Eye size={16} />
                     Détails
                   </Link>
-                  <Link href="/dashboard/admin/tontines/id/gestion" className={`flex-1 px-4 py-2 ${colors.bg} text-white rounded-lg hover:opacity-90 transition-all flex items-center justify-center gap-2 text-sm font-medium`}>
+                  <Link href="/dashboard/admin/tontines/id/edit" className={`flex-1 px-4 py-2 ${colors.bg} text-white rounded-lg hover:opacity-90 transition-all flex items-center justify-center gap-2 text-sm font-medium`}>
                     <Edit size={16} />
                     Gérer
                   </Link>

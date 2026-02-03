@@ -1,13 +1,13 @@
-'use client'
-
 import GestionnaireDetails from '@/components/GestionnaireDetails';
+import { use } from 'react';
 
 interface PageProps {
-  params: {
-    id: string;
-  };
+  params: Promise<{ id: string }>; // Turbopack peut transformer params en Promise
 }
 
 export default function Page({ params }: PageProps) {
-  return <GestionnaireDetails gestionnaireId={params.id} />;
+  const resolvedParams = use(params); // unwrap la Promise
+  const id = resolvedParams.id;
+
+  return <GestionnaireDetails gestionnaireId={id} />;
 }

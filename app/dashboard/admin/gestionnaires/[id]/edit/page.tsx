@@ -1,13 +1,13 @@
-'use client'
-
-import GestionnaireEdit from '@/components/GestionnaireEdit'
+import GestionnaireEdit from '@/components/GestionnaireEdit';
+import { use } from 'react';
 
 interface PageProps {
-  params: {
-    id: string;
-  };
+  params: Promise<{ id: string }>; // Turbopack peut transformer params en Promise
 }
 
 export default function Page({ params }: PageProps) {
-  return <GestionnaireEdit gestionnaireId={params.id} /> 
-}  
+  const resolvedParams = use(params); // unwrap la Promise
+  const id = resolvedParams.id;
+
+  return <GestionnaireEdit gestionnaireId={id} />;
+}
