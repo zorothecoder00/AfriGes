@@ -6,7 +6,7 @@ import {
   ArrowLeft, 
   Users, 
   Calendar, 
-  Euro, 
+  Euro,   
   Clock, 
   MoreVertical,
   TrendingUp,
@@ -71,7 +71,7 @@ export default function TontineDetails() {
           photo: null,
           telephone: "+228 90 12 34 56"
         }
-      },
+      },    
       {
         id: 2,
         ordreTirage: 2,

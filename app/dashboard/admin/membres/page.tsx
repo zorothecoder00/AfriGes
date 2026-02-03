@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { Search, Filter, Download, Plus, MoreVertical, Mail, Phone, MapPin, Edit, Eye } from 'lucide-react';
 import { MemberStatus } from '@/types'
+import Link from 'next/link';
 
 export default function MembresPage() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -273,12 +274,12 @@ export default function MembresPage() {
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2">
-                        <button className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
+                        <Link href="/dashboard/admin/membres/id" className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
                           <Eye size={16} />
-                        </button>
-                        <button className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
+                        </Link>
+                        <Link href="/dashboard/admin/membres/id/edit" className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
                           <Edit size={16} />
-                        </button>
+                        </Link>
                         <button className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
                           <MoreVertical size={16} />
                         </button>
