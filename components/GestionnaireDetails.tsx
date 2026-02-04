@@ -17,10 +17,10 @@ import {
 } from 'lucide-react';
 
 interface GestionnaireDetailsProps {
-  gestionnaireId: string;
+  gestionnaireId: string;   
 }
 
-interface Gestionnaire {
+interface Gestionnaire {  
   id: number;
   memberId: number;
   role: 'AGENT' | 'SUPERVISEUR' | 'CAISSIER';

@@ -3,18 +3,19 @@
 import React, { useState } from 'react';
 import { Plus, Search, Filter, Download, ShoppingCart, TrendingUp, DollarSign, Users, CheckCircle, Clock, AlertCircle, Eye, MoreVertical, Package } from 'lucide-react';
 import { StatutCreditAlim } from '@/types'  
+import Link from 'next/link'
     
 export default function CreditsAlimentairesPage() {  
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFilter, setSelectedFilter] = useState('tous');
 
-  // Données de simulation
+  // Données de simulation  
   const credits = [
     {
       id: 1,
       membre: 'Kouassi Adjoua',
       avatar: 'KA',
-      montantCredit: '€500',
+      montantCredit: '€500',  
       montantUtilise: '€350',
       montantRestant: '€150',
       dateOctroi: '01 Jan 2025',
@@ -409,15 +410,15 @@ export default function CreditsAlimentairesPage() {
                           <StatutIcon size={14} className={statutInfo.iconColor} />
                           {credit.statut}
                         </span>
-                      </td>
+                      </td>  
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2">
-                          <button className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
+                          <Link href="/dashboard/admin/creditsAlimentaires/id" className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
                             <Eye size={16} />
-                          </button>
-                          <button className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
+                          </Link>
+                          <Link href="/dashboard/admin/creditsAlimentaires/id/edit" className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
                             <MoreVertical size={16} />
-                          </button>
+                          </Link>
                         </div>
                       </td>
                     </tr>
