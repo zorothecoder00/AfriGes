@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';   
 
-interface CreditAlimentaire {
+interface CreditAlimentaire {  
   id: number;
   plafond: number;
   montantUtilise: number;

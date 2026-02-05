@@ -8,13 +8,12 @@ export default function CotisationsPage() {
   const [selectedPeriod, setSelectedPeriod] = useState('mois');
   const [searchQuery, setSearchQuery] = useState('');  
     
-  // Données de simulation
-  const cotisations = [  
+  // Données de simulation  
+  const cotisations = [    
     {
       id: 1,
       membre: 'Kouassi Adjoua',
       avatar: 'KA',
-      tontine: 'Tontine Solidarité',
       montant: '€250',
       dateEcheance: '15 Jan 2025',
       datePaiement: '14 Jan 2025',
@@ -26,7 +25,6 @@ export default function CotisationsPage() {
       id: 2,
       membre: 'Mensah Kofi',
       avatar: 'MK',
-      tontine: 'Entrepreneuriat Plus',
       montant: '€300',
       dateEcheance: '15 Jan 2025',
       datePaiement: '15 Jan 2025',
@@ -38,7 +36,6 @@ export default function CotisationsPage() {
       id: 3,
       membre: 'Diallo Fatoumata',
       avatar: 'DF',
-      tontine: 'Éducation Avenir',
       montant: '€200',
       dateEcheance: '15 Jan 2025',
       datePaiement: null,
@@ -50,7 +47,6 @@ export default function CotisationsPage() {
       id: 4,
       membre: 'Nkrumah Akosua',
       avatar: 'NA',
-      tontine: 'Commerce Communautaire',
       montant: '€275',
       dateEcheance: '20 Jan 2025',
       datePaiement: null,
@@ -62,7 +58,6 @@ export default function CotisationsPage() {
       id: 5,
       membre: 'Traoré Ibrahim',
       avatar: 'TI',
-      tontine: 'Tontine Solidarité',
       montant: '€250',
       dateEcheance: '15 Jan 2025',
       datePaiement: '15 Jan 2025',
@@ -74,7 +69,6 @@ export default function CotisationsPage() {
       id: 6,
       membre: 'Bamba Marie',
       avatar: 'BM',
-      tontine: 'Santé et Bien-être',
       montant: '€220',
       dateEcheance: '22 Jan 2025',
       datePaiement: null,
@@ -86,7 +80,6 @@ export default function CotisationsPage() {
       id: 7,
       membre: 'Sow Amadou',
       avatar: 'SA',
-      tontine: 'Entrepreneuriat Plus',
       montant: '€300',  
       dateEcheance: '10 Jan 2025',
       datePaiement: null,
@@ -98,7 +91,6 @@ export default function CotisationsPage() {
       id: 8,
       membre: 'Osei Kwame',
       avatar: 'OK',
-      tontine: 'Commerce Communautaire',
       montant: '€275',
       dateEcheance: '15 Jan 2025',
       datePaiement: '13 Jan 2025',
@@ -233,7 +225,7 @@ export default function CotisationsPage() {
               <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400" size={20} />
               <input
                 type="text"
-                placeholder="Rechercher par membre, tontine ou référence..."
+                placeholder="Rechercher par membre ou référence..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full pl-12 pr-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50"
@@ -255,12 +247,7 @@ export default function CotisationsPage() {
               <option>En attente</option>
               <option>En retard</option>
             </select>
-            <select className="px-4 py-3 border border-slate-200 rounded-xl text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50">
-              <option>Toutes les tontines</option>
-              <option>Tontine Solidarité</option>
-              <option>Entrepreneuriat Plus</option>
-              <option>Éducation Avenir</option>
-            </select>
+            
             <button className="px-5 py-3 bg-slate-100 border border-slate-200 rounded-xl text-slate-700 hover:bg-slate-200 transition-all flex items-center gap-2 font-medium">
               <Filter size={18} />
             </button>
@@ -320,9 +307,7 @@ export default function CotisationsPage() {
                   <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
                     Membre
                   </th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                    Tontine
-                  </th>
+                  
                   <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
                     Montant
                   </th>
@@ -358,9 +343,7 @@ export default function CotisationsPage() {
                           <span className="font-semibold text-slate-800">{cotisation.membre}</span>
                         </div>
                       </td>
-                      <td className="px-6 py-4">
-                        <span className="text-sm text-slate-600">{cotisation.tontine}</span>
-                      </td>
+                      
                       <td className="px-6 py-4">
                         <span className="text-lg font-bold text-slate-800">{cotisation.montant}</span>
                       </td>
