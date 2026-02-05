@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { Plus, Search, Filter, Download, Calendar, CreditCard, CheckCircle, Clock, TrendingUp, AlertTriangle, Eye, MoreVertical } from 'lucide-react';
+import Link from 'next/link'
 import { StatutCotisation } from '@/types' 
 
 export default function CotisationsPage() {  
@@ -372,15 +373,15 @@ export default function CotisationsPage() {
                         ) : (
                           <span className="text-sm text-slate-400">-</span>
                         )}
-                      </td>
+                      </td>   
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2">
-                          <button className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
+                          <Link href="/dashboard/admin/cotisations/id" className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
                             <Eye size={16} />
-                          </button>
-                          <button className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
+                          </Link>
+                          <Link href="/dashboard/admin/cotisations/id/edit" className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
                             <MoreVertical size={16} />
-                          </button>
+                          </Link>
                         </div>
                       </td>
                     </tr>
