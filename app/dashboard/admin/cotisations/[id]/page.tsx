@@ -19,7 +19,7 @@ export default function Page({ params }: { params: { id: string } }) {
     statut: 'EN_ATTENTE',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
-  } as const;
+  } as const;   
 
   return (
     <CotisationDetails

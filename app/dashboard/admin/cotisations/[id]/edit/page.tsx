@@ -20,7 +20,7 @@ export default function Page({ params }: { params: { id: string } }) {
     datePaiement: null,
     dateExpiration: '2026-12-31',
     statut: 'EN_ATTENTE' as const,
-  };
+  };   
 
   const handleClose = () => {
     router.back();

@@ -19,7 +19,7 @@ interface CotisationEditProps {
       nom: string;
       prenom: string;
       email: string;
-      photo?: string;
+      photo?: string;   
     };
     montant: number;
     periode: 'MENSUEL' | 'ANNUEL';

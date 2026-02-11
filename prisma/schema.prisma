@@ -5,17 +5,17 @@
 // Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
    
 generator client {
-  provider = "prisma-client-js"                                                                    
-}                                        
-                   
-datasource db {                        
+  provider = "prisma-client-js"                                                                      
+}                                                     
+                      
+datasource db {                            
   provider = "postgresql"           
-}             
+}                
                 
 enum Role {      
-  SUPER_ADMIN   
-  ADMIN
-  USER     
+  SUPER_ADMIN                  
+  ADMIN              
+  USER                       
 }    
 
 model User {
@@ -25,12 +25,12 @@ model User {
   prenom              String                     
   email               String            @unique   
   photo               String? // 👈 NextAuth (image / photo)
-  role                Role?               
+  role                Role?                
   telephone           String?                    
-  adresse             String?      
+  adresse             String?            
   passwordHash        String?
-  etat                MemberStatus      @default(ACTIF)           
-  dateAdhesion        DateTime          @default(now())    
+  etat                MemberStatus      @default(ACTIF)            
+  dateAdhesion        DateTime          @default(now())      
 
   wallet              Wallet?
   gestionnaire        Gestionnaire?          
@@ -49,8 +49,8 @@ model User {
 enum MemberStatus {
   ACTIF   
   INACTIF
-  SUSPENDU
-}
+  SUSPENDU   
+}   
 
 model Wallet {
   id                  Int               @id @default(autoincrement())
@@ -84,7 +84,7 @@ model WalletTransaction {
 enum TransactionType {         
   DEPOT
   RETRAIT
-  COTISATION
+  COTISATION  
   TONTINE
   REMBOURSEMENT_CREDIT
   CREDIT
@@ -126,7 +126,7 @@ model Cotisation {
   updatedAt           DateTime          @updatedAt
 }
 
-enum PeriodeCotisation {
+enum PeriodeCotisation {   
   MENSUEL
   ANNUEL
 }
@@ -134,7 +134,7 @@ enum PeriodeCotisation {
 enum StatutCotisation {
   EN_ATTENTE
   PAYEE
-  EXPIREE
+  EXPIREE              
 }
  
 model Tontine {  
@@ -286,7 +286,7 @@ enum TypeCreditAlim {
   ANNULATION
   AJUSTEMENT
 }
-
+  
 /**
  * ========= STOCK (facultatif mais prêt) ==========
  */

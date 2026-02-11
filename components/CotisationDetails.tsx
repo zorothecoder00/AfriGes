@@ -10,7 +10,7 @@ interface CotisationDetailsProps {
       nom: string;
       prenom: string;
       email: string;
-      telephone?: string;
+      telephone?: string;  
       photo?: string;
     };
     montant: number;

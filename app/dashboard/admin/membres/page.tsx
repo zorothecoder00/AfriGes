@@ -1,133 +1,76 @@
 "use client";
-  
-import React, { useState } from 'react';
-import { Search, Filter, Download, Plus, MoreVertical, Mail, Phone, MapPin, Edit, Eye } from 'lucide-react';
-import { MemberStatus } from '@/types'
+
+import React, { useState, useEffect } from 'react';
+import { Search, Filter, Download, Plus, Mail, Phone, Eye, Edit, MoreVertical } from 'lucide-react';
 import Link from 'next/link';
+import { useApi } from '@/hooks/useApi';
+import { formatDate } from '@/lib/format';
+import { getStatusStyle, getStatusLabel } from '@/lib/status';
+
+interface Member {
+  id: number;
+  nom: string;
+  prenom: string;
+  email: string;
+  role: string;
+  photo: string | null;
+  createdAt: string;
+}
+
+interface MembresResponse {
+  data: Member[];
+  meta: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+}
 
 export default function MembresPage() {
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedFilter, setSelectedFilter] = useState('tous');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [page, setPage] = useState(1);
+  const [roleFilter, setRoleFilter] = useState('');
+  const limit = 10;
 
-  // Données de simulation          
-  const membres = [
-    {  
-      id: 1,
-      nom: 'Kouassi Adjoua',
-      email: 'k.adjoua@email.com',
-      telephone: '+225 07 XX XX XX XX',
-      ville: 'Abidjan',
-      statut: MemberStatus.ACTIF,
-      tontines: 3,
-      cotisations: '€450',
-      dateInscription: '15 Jan 2024',
-      avatar: 'KA'
-    },
-    {
-      id: 2,
-      nom: 'Mensah Kofi',
-      email: 'm.kofi@email.com',
-      telephone: '+228 90 XX XX XX XX',
-      ville: 'Lomé',
-      statut: MemberStatus.ACTIF,
-      tontines: 2,
-      cotisations: '€320',
-      dateInscription: '22 Jan 2024',
-      avatar: 'MK'
-    },
-    {
-      id: 3,
-      nom: 'Diallo Fatoumata',
-      email: 'f.diallo@email.com',
-      telephone: '+221 77 XXX XX XX',
-      ville: 'Dakar',
-      statut: MemberStatus.INACTIF,
-      tontines: 1,
-      cotisations: '€150',
-      dateInscription: '03 Fév 2024',
-      avatar: 'DF'
-    },
-    {
-      id: 4,
-      nom: 'Nkrumah Akosua',
-      email: 'a.nkrumah@email.com',
-      telephone: '+233 24 XXX XXXX',
-      ville: 'Accra',
-      statut: MemberStatus.ACTIF,
-      tontines: 4,
-      cotisations: '€780',
-      dateInscription: '10 Fév 2024',
-      avatar: 'NA'
-    },
-    {
-      id: 5,
-      nom: 'Traoré Ibrahim',
-      email: 'i.traore@email.com',
-      telephone: '+223 76 XX XX XX',
-      ville: 'Bamako',
-      statut: MemberStatus.ACTIF,
-      tontines: 2,
-      cotisations: '€290',
-      dateInscription: '18 Fév 2024',
-      avatar: 'TI'
-    },
-    {
-      id: 6,
-      nom: 'Bamba Marie',
-      email: 'm.bamba@email.com',
-      telephone: '+225 05 XX XX XX XX',
-      ville: 'Yamoussoukro',
-      statut: MemberStatus.ACTIF,
-      tontines: 3,
-      cotisations: '€520',
-      dateInscription: '25 Fév 2024',
-      avatar: 'BM'
-    },
-    {
-      id: 7,
-      nom: 'Sow Amadou',
-      email: 'a.sow@email.com',
-      telephone: '+221 78 XXX XX XX',
-      ville: 'Dakar',
-      statut: MemberStatus.SUSPENDU,
-      tontines: 1,
-      cotisations: '€100',
-      dateInscription: '05 Mar 2024',
-      avatar: 'SA'
-    },
-    {
-      id: 8,
-      nom: 'Osei Kwame',
-      email: 'k.osei@email.com',
-      telephone: '+233 20 XXX XXXX',
-      ville: 'Kumasi',
-      statut: MemberStatus.ACTIF,
-      tontines: 5,
-      cotisations: '€920',
-      dateInscription: '12 Mar 2024',
-      avatar: 'OK'
-    },
-  ];
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchQuery), 400);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
-  const stats = [
-    { label: 'Total Membres', value: '1,847', change: '+12%', color: 'bg-blue-500' },
-    { label: 'Membres Actifs', value: '1,653', change: '+8%', color: 'bg-emerald-500' },
-    { label: 'Nouveaux ce mois', value: '124', change: '+23%', color: 'bg-purple-500' },
-    { label: 'Taux de rétention', value: '94.5%', change: '+2%', color: 'bg-amber-500' },
-  ];
+  const params = new URLSearchParams({ page: String(page), limit: String(limit) });
+  if (debouncedSearch) params.set('search', debouncedSearch);
+  if (roleFilter) params.set('role', roleFilter);
 
-  const getStatusColor = (statut: MemberStatus) => {
-    switch (statut) {
-      case MemberStatus.ACTIF:
-        return 'bg-emerald-100 text-emerald-700 border-emerald-200';
-      case MemberStatus.INACTIF:
-        return 'bg-slate-100 text-slate-700 border-slate-200';
-      case MemberStatus.SUSPENDU:
-        return 'bg-red-100 text-red-700 border-red-200';
-      default:
-        return 'bg-slate-100 text-slate-700 border-slate-200';
-    }
-  };
+  const { data: response, loading, error, refetch } = useApi<MembresResponse>(`/api/admin/membres?${params}`);
+  const membres = response?.data ?? [];
+  const meta = response?.meta;
+
+  const getInitials = (nom: string, prenom: string) => `${prenom?.[0] ?? ''}${nom?.[0] ?? ''}`.toUpperCase();
+
+  if (loading && !response) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-emerald-50/20 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 border-4 border-emerald-200 border-t-emerald-600 rounded-full animate-spin"></div>
+          <p className="text-slate-500 font-medium">Chargement des membres...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error && !response) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-emerald-50/20 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4 bg-white rounded-2xl p-8 shadow-sm border max-w-md text-center">
+          <h3 className="text-lg font-bold text-slate-800">Erreur de chargement</h3>
+          <p className="text-slate-500 text-sm">{error}</p>
+          <button onClick={refetch} className="px-5 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 font-medium">Reessayer</button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-emerald-50/20 font-['DM_Sans',sans-serif] p-8">
@@ -136,7 +79,7 @@ export default function MembresPage() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-4xl font-bold text-slate-800 mb-2">Membres</h1>
-            <p className="text-slate-500">Gérez tous les membres de votre communauté AfriSime</p>
+            <p className="text-slate-500">Gerez tous les membres de votre communaute</p>
           </div>
           <button className="px-6 py-3 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-200 flex items-center gap-2 font-medium">
             <Plus size={20} />
@@ -144,43 +87,54 @@ export default function MembresPage() {
           </button>
         </div>
 
-        {/* Stats Cards */}
+        {/* Stats */}
         <div className="grid grid-cols-4 gap-5">
-          {stats.map((stat, index) => (
-            <div key={index} className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/60">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-slate-600 text-sm font-medium">{stat.label}</span>
-                <span className="text-emerald-600 text-xs font-semibold bg-emerald-50 px-2 py-1 rounded-lg">
-                  {stat.change}
-                </span>
-              </div>
-              <p className="text-3xl font-bold text-slate-800">{stat.value}</p>
-            </div>
-          ))}
+          <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/60">
+            <span className="text-slate-600 text-sm font-medium">Total Membres</span>
+            <p className="text-3xl font-bold text-slate-800 mt-1">{meta?.total ?? '—'}</p>
+          </div>
+          <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/60">
+            <span className="text-slate-600 text-sm font-medium">Page actuelle</span>
+            <p className="text-3xl font-bold text-slate-800 mt-1">{meta?.page ?? '—'} / {meta?.totalPages ?? '—'}</p>
+          </div>
+          <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/60">
+            <span className="text-slate-600 text-sm font-medium">Affichage</span>
+            <p className="text-3xl font-bold text-slate-800 mt-1">{membres.length} membres</p>
+          </div>
+          <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/60">
+            <span className="text-slate-600 text-sm font-medium">Recherche</span>
+            <p className="text-3xl font-bold text-slate-800 mt-1">{debouncedSearch || 'Aucune'}</p>
+          </div>
         </div>
 
-        {/* Filters and Search */}
+        {/* Filters */}
         <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/60">
           <div className="flex items-center gap-4">
             <div className="flex-1 relative">
               <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400" size={20} />
               <input
                 type="text"
-                placeholder="Rechercher un membre par nom, email ou téléphone..."
+                placeholder="Rechercher un membre par nom, email..."
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => { 
+                  setSearchQuery(e.target.value);
+                  setPage(1);
+                }}
                 className="w-full pl-12 pr-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50"
               />
             </div>
             <select
-              value={selectedFilter}
-              onChange={(e) => setSelectedFilter(e.target.value)}
+              value={roleFilter}
+              onChange={(e) => { 
+                setRoleFilter(e.target.value);
+                setPage(1);
+              }}
               className="px-4 py-3 border border-slate-200 rounded-xl text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50"
             >
-              <option value="tous">Tous les statuts</option>
-              <option value="actif">Actifs</option>
-              <option value="inactif">Inactifs</option>
-              <option value="suspendu">Suspendus</option>
+              <option value="">Tous les roles</option>
+              <option value="USER">Utilisateur</option>
+              <option value="ADMIN">Admin</option>
+              <option value="SUPER_ADMIN">Super Admin</option>
             </select>
             <button className="px-5 py-3 bg-slate-100 border border-slate-200 rounded-xl text-slate-700 hover:bg-slate-200 transition-all flex items-center gap-2 font-medium">
               <Filter size={18} />
@@ -199,30 +153,11 @@ export default function MembresPage() {
             <table className="w-full">
               <thead className="bg-slate-50 border-b border-slate-200">
                 <tr>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                    Membre
-                  </th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                    Contact
-                  </th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                    Localisation
-                  </th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                    Statut
-                  </th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                    Tontines
-                  </th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                    Cotisations
-                  </th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                    Inscription
-                  </th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                    Actions
-                  </th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Membre</th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Contact</th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Role</th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Inscription</th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -231,53 +166,34 @@ export default function MembresPage() {
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-full flex items-center justify-center text-white font-semibold shadow-md">
-                          {membre.avatar}
+                          {getInitials(membre.nom, membre.prenom)}
                         </div>
                         <div>
-                          <p className="font-semibold text-slate-800">{membre.nom}</p>
+                          <p className="font-semibold text-slate-800">{membre.prenom} {membre.nom}</p>
                           <p className="text-sm text-slate-500">{membre.email}</p>
                         </div>
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <div className="flex flex-col gap-1">
-                        <div className="flex items-center gap-2 text-sm text-slate-600">
-                          <Phone size={14} className="text-slate-400" />
-                          {membre.telephone}
-                        </div>
-                        <div className="flex items-center gap-2 text-sm text-slate-600">
-                          <Mail size={14} className="text-slate-400" />
-                          {membre.email}
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
                       <div className="flex items-center gap-2 text-sm text-slate-600">
-                        <MapPin size={14} className="text-slate-400" />
-                        {membre.ville}
+                        <Mail size={14} className="text-slate-400" />
+                        {membre.email}
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border ${getStatusColor(membre.statut)}`}>
-                        {membre.statut}
+                      <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${getStatusStyle(membre.role)}`}>
+                        {getStatusLabel(membre.role)}
                       </span>
                     </td>
                     <td className="px-6 py-4">
-                      <span className="text-slate-800 font-semibold">{membre.tontines}</span>
-                      <span className="text-slate-500 text-sm ml-1">actives</span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className="text-slate-800 font-semibold">{membre.cotisations}</span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className="text-sm text-slate-600">{membre.dateInscription}</span>
+                      <span className="text-sm text-slate-600">{formatDate(membre.createdAt)}</span>
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2">
-                        <Link href="/dashboard/admin/membres/id" className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
+                        <Link href={`/dashboard/admin/membres/${membre.id}`} className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
                           <Eye size={16} />
                         </Link>
-                        <Link href="/dashboard/admin/membres/id/edit" className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
+                        <Link href={`/dashboard/admin/membres/${membre.id}/edit`} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
                           <Edit size={16} />
                         </Link>
                         <button className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
@@ -287,33 +203,32 @@ export default function MembresPage() {
                     </td>
                   </tr>
                 ))}
+                {membres.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="px-6 py-12 text-center text-slate-500">Aucun membre trouve</td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
 
           {/* Pagination */}
-          <div className="px-6 py-4 border-t border-slate-200 flex items-center justify-between">
-            <p className="text-sm text-slate-600">
-              Affichage de <span className="font-semibold">1-8</span> sur <span className="font-semibold">1,847</span> membres
-            </p>
-            <div className="flex items-center gap-2">
-              <button className="px-4 py-2 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 transition-colors">
-                Précédent
-              </button>
-              <button className="px-4 py-2 bg-emerald-600 text-white rounded-lg font-medium">
-                1
-              </button>
-              <button className="px-4 py-2 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 transition-colors">
-                2
-              </button>
-              <button className="px-4 py-2 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 transition-colors">
-                3
-              </button>
-              <button className="px-4 py-2 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 transition-colors">
-                Suivant
-              </button>
+          {meta && (
+            <div className="px-6 py-4 border-t border-slate-200 flex items-center justify-between">
+              <p className="text-sm text-slate-600">
+                Page <span className="font-semibold">{meta.page}</span> sur <span className="font-semibold">{meta.totalPages}</span> ({meta.total} membres)
+              </p>
+              <div className="flex items-center gap-2">
+                <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page <= 1} className="px-4 py-2 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-50">
+                  Precedent
+                </button>
+                <span className="px-4 py-2 bg-emerald-600 text-white rounded-lg font-medium">{page}</span>
+                <button onClick={() => setPage((p) => Math.min(meta.totalPages, p + 1))} disabled={page >= meta.totalPages} className="px-4 py-2 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-50">
+                  Suivant
+                </button>
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
     </div>

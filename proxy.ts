@@ -14,7 +14,7 @@ export async function proxy(request: NextRequest) {
     }  
   }
    
-  const role = token?.role  
+  const role = token?.role                           
 
   // Protection des routes /admin/**
   if (pathname.startsWith("/dashboard/admin")) {
