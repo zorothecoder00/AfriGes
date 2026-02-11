@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Filter, Download, Plus, Mail, Phone, Eye, Edit, MoreVertical } from 'lucide-react';
 import Link from 'next/link';
-import { useApi } from '@/hooks/useApi';
+import { useApi, useMutation } from '@/hooks/useApi';
 import { formatDate } from '@/lib/format';
 import { getStatusStyle, getStatusLabel } from '@/lib/status';
 
@@ -32,6 +32,8 @@ export default function MembresPage() {
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [page, setPage] = useState(1);
   const [roleFilter, setRoleFilter] = useState('');
+  const [modalOpen, setModalOpen] = useState(false);
+  const [formData, setFormData] = useState({ nom: '', prenom: '', email: '', password: '', telephone: '', adresse: '' });
   const limit = 10;
 
   useEffect(() => {
@@ -46,6 +48,21 @@ export default function MembresPage() {
   const { data: response, loading, error, refetch } = useApi<MembresResponse>(`/api/admin/membres?${params}`);
   const membres = response?.data ?? [];
   const meta = response?.meta;
+
+  // -------------------------------
+  // Mutation pour ajouter un membre
+  // -------------------------------
+  const { mutate: addMember, loading: adding, error: addError } = useMutation('/api/admin/membres', 'POST');
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const result = await addMember(formData);
+    if (result) {
+      setModalOpen(false);
+      setFormData({ nom: '', prenom: '', email: '', password: '', telephone: '', adresse: '' });
+      refetch(); // rafraîchir la liste
+    }
+  };
 
   const getInitials = (nom: string, prenom: string) => `${prenom?.[0] ?? ''}${nom?.[0] ?? ''}`.toUpperCase();
 
@@ -81,11 +98,73 @@ export default function MembresPage() {
             <h1 className="text-4xl font-bold text-slate-800 mb-2">Membres</h1>
             <p className="text-slate-500">Gerez tous les membres de votre communaute</p>
           </div>
-          <button className="px-6 py-3 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-200 flex items-center gap-2 font-medium">
+          <button 
+            onClick={() => setModalOpen(true)}
+            className="px-6 py-3 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-200 flex items-center gap-2 font-medium"
+          >
             <Plus size={20} />
             Ajouter un membre
           </button>
         </div>
+
+        {/* Modal pour ajouter membre */}
+        {modalOpen && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-2xl p-8 w-full max-w-md shadow-lg relative">
+              <button 
+                onClick={() => setModalOpen(false)}
+                className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 font-bold"
+              >X</button>
+              <h2 className="text-xl font-bold mb-4">Ajouter un nouveau membre</h2>
+              {addError && <p className="text-red-500 mb-2">{addError}</p>}
+              <form onSubmit={handleSubmit} className="space-y-3">
+                <input 
+                  type="text" placeholder="Nom" required
+                  value={formData.nom}
+                  onChange={e => setFormData({ ...formData, nom: e.target.value })}
+                  className="w-full px-4 py-2 border rounded-xl"
+                />
+                <input 
+                  type="text" placeholder="Prénom" required
+                  value={formData.prenom}
+                  onChange={e => setFormData({ ...formData, prenom: e.target.value })}
+                  className="w-full px-4 py-2 border rounded-xl"
+                />
+                <input 
+                  type="email" placeholder="Email" required
+                  value={formData.email}
+                  onChange={e => setFormData({ ...formData, email: e.target.value })}
+                  className="w-full px-4 py-2 border rounded-xl"
+                />
+                <input 
+                  type="password" placeholder="Mot de passe" required
+                  value={formData.password}
+                  onChange={e => setFormData({ ...formData, password: e.target.value })}
+                  className="w-full px-4 py-2 border rounded-xl"
+                />
+                <input 
+                  type="text" placeholder="Téléphone"
+                  value={formData.telephone}
+                  onChange={e => setFormData({ ...formData, telephone: e.target.value })}
+                  className="w-full px-4 py-2 border rounded-xl"
+                />
+                <input 
+                  type="text" placeholder="Adresse"
+                  value={formData.adresse}
+                  onChange={e => setFormData({ ...formData, adresse: e.target.value })}
+                  className="w-full px-4 py-2 border rounded-xl"
+                />
+                <button 
+                  type="submit"
+                  disabled={adding}
+                  className="w-full py-2 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-all"
+                >
+                  {adding ? "Ajout en cours..." : "Ajouter le membre"}
+                </button>
+              </form>
+            </div>
+          </div>
+        )}
 
         {/* Stats */}
         <div className="grid grid-cols-4 gap-5">
