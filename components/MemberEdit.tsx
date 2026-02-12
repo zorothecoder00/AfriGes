@@ -11,7 +11,7 @@ interface MemberFormData {
   email: string;
   telephone: string;
   adresse: string;
-  role: string;
+  role: string;  
   etat: string;
   password?: string;
 }

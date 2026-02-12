@@ -1,0 +1,9 @@
+/app/dashboard/admin/stock/id ne fonctionne pas ( pages edit et détails pas encore crées)
+
+Mettre les bons liens de retour à travers les pages ( Link pour mieux naviguer ai lieu de router.back à chaque fois )
+
+/dashboard/user/tontines ( y'a un problème au niveau de la liste des tontines ; côté /dashboard/admin/edit lors de l'ajouter d'un membre à une tontine , le membre ne s'affiche pas parmi les membres de la tontine et aussi dans tontines /dashboard/user/tontines , la tontine ne s'affiche pas , même si elle s'affiche sur le dashboard/user )
+
+/dashboard/admin ( j'ai oublié de gérer les credits simples (pas crédits alimentaires ) sur le dashboard ; depuis le dashboard/user on peut faire une demande de crédit mais j'ai oublié de permettre de gérer la réponse sur le dashboard/admin et même les api admin/credits que j'ai oubliés de créer ) 
+
+Pas important mais je veux gérer les notifications avec ToastProvider après certaines actions importantes   

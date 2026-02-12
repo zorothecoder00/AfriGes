@@ -159,7 +159,7 @@ export default function CreditsAlimentairesPage() {
             </button>
             <button onClick={() => setModalOpen(true)} className="px-6 py-3 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-200 flex items-center gap-2 font-medium">
               <Plus size={20} />
-              Nouveau credit
+              Nouveau credit alimentaire
             </button>
           </div>
         </div>
@@ -187,7 +187,7 @@ export default function CreditsAlimentairesPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Plafond du credit (FCFA)</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Plafond du credit alimentaire (FCFA)</label>
                   <input
                     type="number" placeholder="Ex: 100 000" required min="1" step="0.01"
                     value={formData.plafond}
