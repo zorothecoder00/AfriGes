@@ -1,9 +1,9 @@
 "use client";
 
 import React, { useState } from 'react';
-import { Plus, Search, Filter, Download, Users, DollarSign, TrendingUp, Clock, Eye, Edit } from 'lucide-react';
+import { Plus, Search, Filter, Download, Users, DollarSign, TrendingUp, Clock, Eye, Edit, Trash2, X } from 'lucide-react';
 import Link from 'next/link';
-import { useApi } from '@/hooks/useApi';
+import { useApi, useMutation } from '@/hooks/useApi';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { getStatusStyle, getStatusLabel } from '@/lib/status';
 
@@ -43,9 +43,44 @@ const colorClasses: Record<CouleurTontine, { bg: string; lightBg: string; text: 
 
 export default function TontinesPage() {
   const [searchQuery, setSearchQuery] = useState('');
+  const [modalOpen, setModalOpen] = useState(false);
+  const [deleteId, setDeleteId] = useState<number | null>(null);
+  const [formData, setFormData] = useState({
+    nom: '', description: '', montantCycle: '', frequence: 'MENSUEL', dateDebut: '', dateFin: ''
+  });
 
   const { data: response, loading, error, refetch } = useApi<TontinesResponse>('/api/admin/tontines');
   const tontines = response?.data ?? [];
+
+  // Mutations
+  const { mutate: addTontine, loading: adding, error: addError } = useMutation('/api/admin/tontines', 'POST');
+  const { mutate: deleteTontine, loading: deleting } = useMutation(`/api/admin/tontines/${deleteId}`, 'DELETE');
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const result = await addTontine({
+      nom: formData.nom,
+      description: formData.description || undefined,
+      montantCycle: Number(formData.montantCycle),
+      frequence: formData.frequence,
+      dateDebut: formData.dateDebut,
+      dateFin: formData.dateFin || undefined,
+    });
+    if (result) {
+      setModalOpen(false);
+      setFormData({ nom: '', description: '', montantCycle: '', frequence: 'MENSUEL', dateDebut: '', dateFin: '' });
+      refetch();
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!deleteId) return;
+    const result = await deleteTontine({});
+    if (result) {
+      setDeleteId(null);
+      refetch();
+    }
+  };
 
   const filtered = tontines.filter((t) =>
     !searchQuery || t.nom.toLowerCase().includes(searchQuery.toLowerCase())
@@ -99,7 +134,7 @@ export default function TontinesPage() {
               <Download size={18} />
               Rapport
             </button>
-            <button className="px-6 py-3 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-200 flex items-center gap-2 font-medium">
+            <button onClick={() => setModalOpen(true)} className="px-6 py-3 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-200 flex items-center gap-2 font-medium">
               <Plus size={20} />
               Creer une tontine
             </button>
@@ -143,6 +178,71 @@ export default function TontinesPage() {
             </button>
           </div>
         </div>
+
+        {/* Modal Ajout Tontine */}
+        {modalOpen && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-2xl p-8 w-full max-w-lg shadow-lg relative">
+              <button onClick={() => setModalOpen(false)} className="absolute top-4 right-4 text-slate-400 hover:text-slate-600">
+                <X size={20} />
+              </button>
+              <h2 className="text-xl font-bold mb-4">Creer une tontine</h2>
+              {addError && <p className="text-red-500 mb-2 text-sm">{addError}</p>}
+              <form onSubmit={handleSubmit} className="space-y-3">
+                <input type="text" placeholder="Nom de la tontine" required value={formData.nom}
+                  onChange={e => setFormData({ ...formData, nom: e.target.value })}
+                  className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50" />
+                <textarea placeholder="Description (optionnel)" value={formData.description}
+                  onChange={e => setFormData({ ...formData, description: e.target.value })}
+                  className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50 resize-none" rows={2} />
+                <input type="number" placeholder="Montant du cycle" required min="1" value={formData.montantCycle}
+                  onChange={e => setFormData({ ...formData, montantCycle: e.target.value })}
+                  className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50" />
+                <select value={formData.frequence} onChange={e => setFormData({ ...formData, frequence: e.target.value })}
+                  className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50">
+                  <option value="HEBDOMADAIRE">Hebdomadaire</option>
+                  <option value="MENSUEL">Mensuel</option>
+                  <option value="TRIMESTRIEL">Trimestriel</option>
+                </select>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Date de debut</label>
+                    <input type="date" required value={formData.dateDebut}
+                      onChange={e => setFormData({ ...formData, dateDebut: e.target.value })}
+                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Date de fin (optionnel)</label>
+                    <input type="date" value={formData.dateFin}
+                      onChange={e => setFormData({ ...formData, dateFin: e.target.value })}
+                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50" />
+                  </div>
+                </div>
+                <button type="submit" disabled={adding} className="w-full py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-all font-medium">
+                  {adding ? "Creation en cours..." : "Creer la tontine"}
+                </button>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* Modal Confirmation Suppression */}
+        {deleteId && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-2xl p-8 w-full max-w-sm shadow-lg text-center">
+              <h2 className="text-lg font-bold text-slate-800 mb-2">Confirmer la suppression</h2>
+              <p className="text-slate-500 text-sm mb-6">Voulez-vous vraiment supprimer cette tontine ? Elle ne doit pas avoir de membres.</p>
+              <div className="flex gap-3">
+                <button onClick={() => setDeleteId(null)} className="flex-1 py-2.5 border border-slate-200 rounded-xl text-slate-700 hover:bg-slate-50 font-medium">
+                  Annuler
+                </button>
+                <button onClick={handleDelete} disabled={deleting} className="flex-1 py-2.5 bg-red-600 text-white rounded-xl hover:bg-red-700 font-medium">
+                  {deleting ? "Suppression..." : "Supprimer"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Tontines Grid */}
         <div className="grid grid-cols-3 gap-6">
@@ -204,6 +304,9 @@ export default function TontinesPage() {
                     <Edit size={16} />
                     Gerer
                   </Link>
+                  <button onClick={() => setDeleteId(tontine.id)} className="px-3 py-2 bg-white border border-red-200 rounded-lg text-red-600 hover:bg-red-50 transition-all flex items-center justify-center">
+                    <Trash2 size={16} />
+                  </button>
                 </div>
               </div>
             );

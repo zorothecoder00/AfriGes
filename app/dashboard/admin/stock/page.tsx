@@ -1,9 +1,9 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { Plus, Search, Download, Package, TrendingUp, AlertTriangle, Archive, Eye, Edit, MoreVertical, RefreshCw } from 'lucide-react';
+import { Plus, Search, Download, Package, TrendingUp, AlertTriangle, Archive, Eye, Edit, Trash2, RefreshCw, X } from 'lucide-react';
 import Link from 'next/link';
-import { useApi } from '@/hooks/useApi';
+import { useApi, useMutation } from '@/hooks/useApi';
 import { formatCurrency, formatDate } from '@/lib/format';
 
 interface Produit {
@@ -51,6 +51,9 @@ export default function GestionStockPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [page, setPage] = useState(1);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [deleteId, setDeleteId] = useState<number | null>(null);
+  const [formData, setFormData] = useState({ nom: '', description: '', prixUnitaire: '', stock: '', alerteStock: '' });
   const limit = 10;
 
   useEffect(() => {
@@ -65,6 +68,35 @@ export default function GestionStockPage() {
   const produits = response?.data ?? [];
   const stats = response?.stats;
   const meta = response?.meta;
+
+  // Mutations
+  const { mutate: addProduit, loading: adding, error: addError } = useMutation('/api/admin/stock', 'POST');
+  const { mutate: deleteProduit, loading: deleting } = useMutation(`/api/admin/stock/${deleteId}`, 'DELETE');
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const result = await addProduit({
+      nom: formData.nom,
+      description: formData.description || undefined,
+      prixUnitaire: Number(formData.prixUnitaire),
+      stock: Number(formData.stock) || 0,
+      alerteStock: Number(formData.alerteStock) || 0,
+    });
+    if (result) {
+      setModalOpen(false);
+      setFormData({ nom: '', description: '', prixUnitaire: '', stock: '', alerteStock: '' });
+      refetch();
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!deleteId) return;
+    const result = await deleteProduit({});
+    if (result) {
+      setDeleteId(null);
+      refetch();
+    }
+  };
 
   const getProgressColor = (quantite: number, seuil: number): string => {
     const percentage = seuil > 0 ? (quantite / seuil) * 100 : 100;
@@ -127,7 +159,7 @@ export default function GestionStockPage() {
               <Download size={18} />
               Exporter
             </button>
-            <button className="px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all shadow-lg shadow-blue-200 flex items-center gap-2 font-medium">
+            <button onClick={() => setModalOpen(true)} className="px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all shadow-lg shadow-blue-200 flex items-center gap-2 font-medium">
               <Plus size={20} />
               Ajouter un produit
             </button>
@@ -200,6 +232,59 @@ export default function GestionStockPage() {
           </div>
         </div>
 
+        {/* Modal Ajout Produit */}
+        {modalOpen && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-2xl p-8 w-full max-w-md shadow-lg relative">
+              <button onClick={() => setModalOpen(false)} className="absolute top-4 right-4 text-slate-400 hover:text-slate-600">
+                <X size={20} />
+              </button>
+              <h2 className="text-xl font-bold mb-4">Ajouter un produit</h2>
+              {addError && <p className="text-red-500 mb-2 text-sm">{addError}</p>}
+              <form onSubmit={handleSubmit} className="space-y-3">
+                <input type="text" placeholder="Nom du produit" required value={formData.nom}
+                  onChange={e => setFormData({ ...formData, nom: e.target.value })}
+                  className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50" />
+                <input type="text" placeholder="Description (optionnel)" value={formData.description}
+                  onChange={e => setFormData({ ...formData, description: e.target.value })}
+                  className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50" />
+                <input type="number" placeholder="Prix unitaire" required min="0.01" step="0.01" value={formData.prixUnitaire}
+                  onChange={e => setFormData({ ...formData, prixUnitaire: e.target.value })}
+                  className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50" />
+                <div className="grid grid-cols-2 gap-3">
+                  <input type="number" placeholder="Stock initial" min="0" value={formData.stock}
+                    onChange={e => setFormData({ ...formData, stock: e.target.value })}
+                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50" />
+                  <input type="number" placeholder="Seuil d'alerte" min="0" value={formData.alerteStock}
+                    onChange={e => setFormData({ ...formData, alerteStock: e.target.value })}
+                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50" />
+                </div>
+                <button type="submit" disabled={adding} className="w-full py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all font-medium">
+                  {adding ? "Ajout en cours..." : "Ajouter le produit"}
+                </button>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* Modal Confirmation Suppression */}
+        {deleteId && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-2xl p-8 w-full max-w-sm shadow-lg text-center">
+              <h2 className="text-lg font-bold text-slate-800 mb-2">Confirmer la suppression</h2>
+              <p className="text-slate-500 text-sm mb-6">Voulez-vous vraiment supprimer ce produit ? Il ne doit pas avoir de ventes associees.</p>
+              <div className="flex gap-3">
+                <button onClick={() => setDeleteId(null)} className="flex-1 py-2.5 border border-slate-200 rounded-xl text-slate-700 hover:bg-slate-50 font-medium">
+                  Annuler
+                </button>
+                <button onClick={handleDelete} disabled={deleting} className="flex-1 py-2.5 bg-red-600 text-white rounded-xl hover:bg-red-700 font-medium">
+                  {deleting ? "Suppression..." : "Supprimer"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Products Table */}
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 overflow-hidden">
           <div className="overflow-x-auto">
@@ -271,8 +356,8 @@ export default function GestionStockPage() {
                           <Link href={`/dashboard/admin/stock/${produit.id}/edit`} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
                             <Edit size={16} />
                           </Link>
-                          <button className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
-                            <MoreVertical size={16} />
+                          <button onClick={() => setDeleteId(produit.id)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+                            <Trash2 size={16} />
                           </button>
                         </div>
                       </td>

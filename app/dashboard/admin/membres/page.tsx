@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { Search, Filter, Download, Plus, Mail, Phone, Eye, Edit, MoreVertical } from 'lucide-react';
+import { Search, Filter, Download, Plus, Mail, Phone, Eye, Edit, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { useApi, useMutation } from '@/hooks/useApi';
 import { formatDate } from '@/lib/format';
@@ -34,6 +34,7 @@ export default function MembresPage() {
   const [roleFilter, setRoleFilter] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
   const [formData, setFormData] = useState({ nom: '', prenom: '', email: '', password: '', telephone: '', adresse: '' });
+  const [deleteId, setDeleteId] = useState<number | null>(null);
   const limit = 10;
 
   useEffect(() => {
@@ -60,7 +61,19 @@ export default function MembresPage() {
     if (result) {
       setModalOpen(false);
       setFormData({ nom: '', prenom: '', email: '', password: '', telephone: '', adresse: '' });
-      refetch(); // rafraîchir la liste
+      refetch();
+    }
+  };
+
+  // Mutation pour supprimer un membre
+  const { mutate: deleteMember, loading: deletingMember } = useMutation(`/api/admin/membres/${deleteId}`, 'DELETE');
+
+  const handleDelete = async () => {
+    if (!deleteId) return;
+    const result = await deleteMember({});
+    if (result) {
+      setDeleteId(null);
+      refetch();
     }
   };
 
@@ -162,6 +175,24 @@ export default function MembresPage() {
                   {adding ? "Ajout en cours..." : "Ajouter le membre"}
                 </button>
               </form>
+            </div>
+          </div>
+        )}
+
+        {/* Modal Confirmation Suppression */}
+        {deleteId && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-2xl p-8 w-full max-w-sm shadow-lg text-center">
+              <h2 className="text-lg font-bold text-slate-800 mb-2">Confirmer la suppression</h2>
+              <p className="text-slate-500 text-sm mb-6">Voulez-vous vraiment supprimer ce membre ? Cette action est irreversible.</p>
+              <div className="flex gap-3">
+                <button onClick={() => setDeleteId(null)} className="flex-1 py-2.5 border border-slate-200 rounded-xl text-slate-700 hover:bg-slate-50 font-medium">
+                  Annuler
+                </button>
+                <button onClick={handleDelete} disabled={deletingMember} className="flex-1 py-2.5 bg-red-600 text-white rounded-xl hover:bg-red-700 font-medium">
+                  {deletingMember ? "Suppression..." : "Supprimer"}
+                </button>
+              </div>
             </div>
           </div>
         )}
@@ -275,8 +306,8 @@ export default function MembresPage() {
                         <Link href={`/dashboard/admin/membres/${membre.id}/edit`} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
                           <Edit size={16} />
                         </Link>
-                        <button className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
-                          <MoreVertical size={16} />
+                        <button onClick={() => setDeleteId(membre.id)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+                          <Trash2 size={16} />
                         </button>
                       </div>
                     </td>
