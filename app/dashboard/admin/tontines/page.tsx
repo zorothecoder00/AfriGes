@@ -189,21 +189,33 @@ export default function TontinesPage() {
               <h2 className="text-xl font-bold mb-4">Creer une tontine</h2>
               {addError && <p className="text-red-500 mb-2 text-sm">{addError}</p>}
               <form onSubmit={handleSubmit} className="space-y-3">
-                <input type="text" placeholder="Nom de la tontine" required value={formData.nom}
-                  onChange={e => setFormData({ ...formData, nom: e.target.value })}
-                  className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50" />
-                <textarea placeholder="Description (optionnel)" value={formData.description}
-                  onChange={e => setFormData({ ...formData, description: e.target.value })}
-                  className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50 resize-none" rows={2} />
-                <input type="number" placeholder="Montant du cycle" required min="1" value={formData.montantCycle}
-                  onChange={e => setFormData({ ...formData, montantCycle: e.target.value })}
-                  className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50" />
-                <select value={formData.frequence} onChange={e => setFormData({ ...formData, frequence: e.target.value })}
-                  className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50">
-                  <option value="HEBDOMADAIRE">Hebdomadaire</option>
-                  <option value="MENSUEL">Mensuel</option>
-                  <option value="TRIMESTRIEL">Trimestriel</option>
-                </select>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Nom de la tontine</label>
+                  <input type="text" placeholder="Ex: Tontine Solidarite Femmes" required value={formData.nom}
+                    onChange={e => setFormData({ ...formData, nom: e.target.value })}
+                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Description (optionnel)</label>
+                  <textarea placeholder="Decrivez brievement cette tontine..." value={formData.description}
+                    onChange={e => setFormData({ ...formData, description: e.target.value })}
+                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50 resize-none" rows={2} />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Montant par cycle (FCFA)</label>
+                  <input type="number" placeholder="Ex: 50 000" required min="1" value={formData.montantCycle}
+                    onChange={e => setFormData({ ...formData, montantCycle: e.target.value })}
+                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Frequence</label>
+                  <select value={formData.frequence} onChange={e => setFormData({ ...formData, frequence: e.target.value })}
+                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50">
+                    <option value="HEBDOMADAIRE">Hebdomadaire</option>
+                    <option value="MENSUEL">Mensuel</option>
+                    <option value="TRIMESTRIEL">Trimestriel</option>
+                  </select>
+                </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">Date de debut</label>

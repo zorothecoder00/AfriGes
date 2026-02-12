@@ -173,38 +173,47 @@ export default function VentesPage() {
               <h2 className="text-xl font-bold mb-4">Nouvelle vente</h2>
               {addError && <p className="text-red-500 mb-2 text-sm">{addError}</p>}
               <form onSubmit={handleSubmit} className="space-y-3">
-                <select
-                  required
-                  value={formData.creditAlimentaireId}
-                  onChange={e => setFormData({ ...formData, creditAlimentaireId: e.target.value })}
-                  className="w-full px-4 py-2 border rounded-xl bg-white"
-                >
-                  <option value="">Selectionner un credit alimentaire</option>
-                  {creditsAlim.map(c => (
-                    <option key={c.id} value={c.id}>
-                      {c.member.prenom} {c.member.nom} - Solde: {formatCurrency(c.montantRestant)}
-                    </option>
-                  ))}
-                </select>
-                <select
-                  required
-                  value={formData.produitId}
-                  onChange={e => setFormData({ ...formData, produitId: e.target.value })}
-                  className="w-full px-4 py-2 border rounded-xl bg-white"
-                >
-                  <option value="">Selectionner un produit</option>
-                  {produits.map(p => (
-                    <option key={p.id} value={p.id}>
-                      {p.nom} - {formatCurrency(p.prixUnitaire)} (Stock: {p.stock})
-                    </option>
-                  ))}
-                </select>
-                <input
-                  type="number" placeholder="Quantite" required min="1"
-                  value={formData.quantite}
-                  onChange={e => setFormData({ ...formData, quantite: e.target.value })}
-                  className="w-full px-4 py-2 border rounded-xl"
-                />
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Client (credit alimentaire)</label>
+                  <select
+                    required
+                    value={formData.creditAlimentaireId}
+                    onChange={e => setFormData({ ...formData, creditAlimentaireId: e.target.value })}
+                    className="w-full px-4 py-2 border rounded-xl bg-white"
+                  >
+                    <option value="">Selectionner un credit alimentaire</option>
+                    {creditsAlim.map(c => (
+                      <option key={c.id} value={c.id}>
+                        {c.member.prenom} {c.member.nom} - Solde: {formatCurrency(c.montantRestant)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Produit</label>
+                  <select
+                    required
+                    value={formData.produitId}
+                    onChange={e => setFormData({ ...formData, produitId: e.target.value })}
+                    className="w-full px-4 py-2 border rounded-xl bg-white"
+                  >
+                    <option value="">Selectionner un produit</option>
+                    {produits.map(p => (
+                      <option key={p.id} value={p.id}>
+                        {p.nom} - {formatCurrency(p.prixUnitaire)} (Stock: {p.stock})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Quantite</label>
+                  <input
+                    type="number" placeholder="Ex: 3" required min="1"
+                    value={formData.quantite}
+                    onChange={e => setFormData({ ...formData, quantite: e.target.value })}
+                    className="w-full px-4 py-2 border rounded-xl"
+                  />
+                </div>
                 <button type="submit" disabled={adding} className="w-full py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-all font-medium">
                   {adding ? "Creation en cours..." : "Enregistrer la vente"}
                 </button>

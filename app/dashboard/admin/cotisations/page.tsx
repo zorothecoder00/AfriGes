@@ -141,7 +141,7 @@ export default function CotisationsPage() {
             </button>
             <button onClick={() => setModalOpen(true)} className="px-6 py-3 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-200 flex items-center gap-2 font-medium">
               <Plus size={20} />
-              Enregistrer paiement
+              Nouvelle cotisation
             </button>
           </div>
         </div>
@@ -151,36 +151,45 @@ export default function CotisationsPage() {
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
             <div className="bg-white rounded-2xl p-8 w-full max-w-md shadow-lg relative">
               <button onClick={() => setModalOpen(false)} className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 font-bold">X</button>
-              <h2 className="text-xl font-bold mb-4">Enregistrer un paiement</h2>
+              <h2 className="text-xl font-bold mb-4">Nouvelle cotisation</h2>
               {addError && <p className="text-red-500 mb-2 text-sm">{addError}</p>}
               <form onSubmit={handleSubmit} className="space-y-3">
-                <select
-                  required
-                  value={formData.memberId}
-                  onChange={e => setFormData({ ...formData, memberId: e.target.value })}
-                  className="w-full px-4 py-2 border rounded-xl bg-white"
-                >
-                  <option value="">Selectionner un membre</option>
-                  {membres.map(m => (
-                    <option key={m.id} value={m.id}>{m.prenom} {m.nom} ({m.email})</option>
-                  ))}
-                </select>
-                <input
-                  type="number" placeholder="Montant (EUR)" required min="1" step="0.01"
-                  value={formData.montant}
-                  onChange={e => setFormData({ ...formData, montant: e.target.value })}
-                  className="w-full px-4 py-2 border rounded-xl"
-                />
-                <select
-                  value={formData.periode}
-                  onChange={e => setFormData({ ...formData, periode: e.target.value })}
-                  className="w-full px-4 py-2 border rounded-xl bg-white"
-                >
-                  <option value="MENSUEL">Mensuel</option>
-                  <option value="ANNUEL">Annuel</option>
-                </select>
                 <div>
-                  <label className="text-sm text-slate-600 mb-1 block">Date d&apos;echeance</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Membre</label>
+                  <select
+                    required
+                    value={formData.memberId}
+                    onChange={e => setFormData({ ...formData, memberId: e.target.value })}
+                    className="w-full px-4 py-2 border rounded-xl bg-white"
+                  >
+                    <option value="">Selectionner un membre</option>
+                    {membres.map(m => (
+                      <option key={m.id} value={m.id}>{m.prenom} {m.nom} ({m.email})</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Montant (FCFA)</label>
+                  <input
+                    type="number" placeholder="Ex: 25 000" required min="1" step="0.01"
+                    value={formData.montant}
+                    onChange={e => setFormData({ ...formData, montant: e.target.value })}
+                    className="w-full px-4 py-2 border rounded-xl"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Periodicite</label>
+                  <select
+                    value={formData.periode}
+                    onChange={e => setFormData({ ...formData, periode: e.target.value })}
+                    className="w-full px-4 py-2 border rounded-xl bg-white"
+                  >
+                    <option value="MENSUEL">Mensuel</option>
+                    <option value="ANNUEL">Annuel</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Date d&apos;echeance</label>
                   <input
                     type="date" required
                     value={formData.dateEcheance}
@@ -189,7 +198,7 @@ export default function CotisationsPage() {
                   />
                 </div>
                 <button type="submit" disabled={adding} className="w-full py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-all font-medium">
-                  {adding ? "Enregistrement..." : "Enregistrer le paiement"}
+                  {adding ? "Creation en cours..." : "Creer la cotisation"}
                 </button>
               </form>
             </div>

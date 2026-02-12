@@ -79,6 +79,14 @@ export default function CreditsAlimentairesPage() {
   const { data: membresResponse } = useApi<MembresListResponse>(modalOpen ? '/api/admin/membres?limit=200' : null);
   const membres = membresResponse?.data ?? [];
 
+  // Charger cotisations ou tontines selon la source selectionnee
+  const { data: cotisationsSource } = useApi<{ data: { id: number; montant: string; periode: string; member: { nom: string; prenom: string } }[] }>(
+    modalOpen && formData.source === 'COTISATION' ? '/api/admin/cotisations?limit=200&statut=PAYEE' : null
+  );
+  const { data: tontinesSource } = useApi<{ data: { id: number; nom: string }[] }>(
+    modalOpen && formData.source === 'TONTINE' ? '/api/admin/tontines' : null
+  );
+
   const { mutate: addCredit, loading: adding, error: addError } = useMutation('/api/admin/creditsAlimentaires', 'POST');
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -164,39 +172,69 @@ export default function CreditsAlimentairesPage() {
               <h2 className="text-xl font-bold mb-4">Nouveau credit alimentaire</h2>
               {addError && <p className="text-red-500 mb-2 text-sm">{addError}</p>}
               <form onSubmit={handleSubmit} className="space-y-3">
-                <select
-                  required
-                  value={formData.memberId}
-                  onChange={e => setFormData({ ...formData, memberId: e.target.value })}
-                  className="w-full px-4 py-2 border rounded-xl bg-white"
-                >
-                  <option value="">Selectionner un membre</option>
-                  {membres.map(m => (
-                    <option key={m.id} value={m.id}>{m.prenom} {m.nom} ({m.email})</option>
-                  ))}
-                </select>
-                <input
-                  type="number" placeholder="Plafond (EUR)" required min="1" step="0.01"
-                  value={formData.plafond}
-                  onChange={e => setFormData({ ...formData, plafond: e.target.value })}
-                  className="w-full px-4 py-2 border rounded-xl"
-                />
-                <select
-                  value={formData.source}
-                  onChange={e => setFormData({ ...formData, source: e.target.value })}
-                  className="w-full px-4 py-2 border rounded-xl bg-white"
-                >
-                  <option value="COTISATION">Cotisation</option>
-                  <option value="TONTINE">Tontine</option>
-                </select>
-                <input
-                  type="number" placeholder="ID Source (cotisation/tontine)" required min="1"
-                  value={formData.sourceId}
-                  onChange={e => setFormData({ ...formData, sourceId: e.target.value })}
-                  className="w-full px-4 py-2 border rounded-xl"
-                />
                 <div>
-                  <label className="text-sm text-slate-600 mb-1 block">Date d&apos;expiration (optionnel)</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Beneficiaire</label>
+                  <select
+                    required
+                    value={formData.memberId}
+                    onChange={e => setFormData({ ...formData, memberId: e.target.value })}
+                    className="w-full px-4 py-2 border rounded-xl bg-white"
+                  >
+                    <option value="">Selectionner un membre</option>
+                    {membres.map(m => (
+                      <option key={m.id} value={m.id}>{m.prenom} {m.nom} ({m.email})</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Plafond du credit (FCFA)</label>
+                  <input
+                    type="number" placeholder="Ex: 100 000" required min="1" step="0.01"
+                    value={formData.plafond}
+                    onChange={e => setFormData({ ...formData, plafond: e.target.value })}
+                    className="w-full px-4 py-2 border rounded-xl"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Source du credit</label>
+                  <select
+                    value={formData.source}
+                    onChange={e => setFormData({ ...formData, source: e.target.value, sourceId: '' })}
+                    className="w-full px-4 py-2 border rounded-xl bg-white"
+                  >
+                    <option value="COTISATION">Cotisation</option>
+                    <option value="TONTINE">Tontine</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    {formData.source === 'COTISATION' ? 'Cotisation associee' : 'Tontine associee'}
+                  </label>
+                  <select
+                    required
+                    value={formData.sourceId}
+                    onChange={e => setFormData({ ...formData, sourceId: e.target.value })}
+                    className="w-full px-4 py-2 border rounded-xl bg-white"
+                  >
+                    <option value="">
+                      {formData.source === 'COTISATION' ? 'Selectionner une cotisation' : 'Selectionner une tontine'}
+                    </option>
+                    {formData.source === 'COTISATION'
+                      ? (cotisationsSource?.data ?? []).map(c => (
+                          <option key={c.id} value={c.id}>
+                            #{c.id} - {c.member.prenom} {c.member.nom} - {formatCurrency(c.montant)} ({getStatusLabel(c.periode)})
+                          </option>
+                        ))
+                      : (tontinesSource?.data ?? []).map(t => (
+                          <option key={t.id} value={t.id}>
+                            {t.nom}
+                          </option>
+                        ))
+                    }
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Date d&apos;expiration (optionnel)</label>
                   <input
                     type="date"
                     value={formData.dateExpiration}
