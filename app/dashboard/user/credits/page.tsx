@@ -1,8 +1,8 @@
 "use client";
 
-import React from 'react';
+import React, { useState } from 'react';
 import { TrendingUp, Calendar, AlertCircle, CheckCircle, Clock, CreditCard } from 'lucide-react';
-import { useApi } from '@/hooks/useApi';
+import { useApi, useMutation } from '@/hooks/useApi';
 import { formatCurrency, formatDate } from '@/lib/format';
 
 interface CreditTransaction {
@@ -57,9 +57,24 @@ const getProgressionColor = (progression: number) => {
 };
 
 export default function CreditsPage() {
+  const [modalOpen, setModalOpen] = useState(false);
+  const [montant, setMontant] = useState('');
+
   const { data: response, loading, error, refetch } = useApi<CreditsResponse>('/api/user/credits');
   const credits = response?.data ?? [];
   const stats = response?.stats;
+
+  const { mutate: requestCredit, loading: requesting, error: requestError } = useMutation('/api/user/credits', 'POST');
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const result = await requestCredit({ montant: Number(montant) });
+    if (result) {
+      setModalOpen(false);
+      setMontant('');
+      refetch();
+    }
+  };
 
   if (loading && !response) {
     return (
@@ -93,11 +108,37 @@ export default function CreditsPage() {
             <h1 className="text-4xl font-bold text-slate-900 tracking-tight">Mes Credits en Cours</h1>
             <p className="text-slate-600 mt-2 text-lg">Suivez vos demandes et remboursements</p>
           </div>
-          <button className="hidden sm:flex items-center gap-3 px-6 py-3 bg-gradient-to-r from-emerald-600 to-green-600 text-white rounded-2xl font-semibold hover:from-emerald-700 hover:to-green-700 transition-all shadow-lg shadow-emerald-200">
+          <button onClick={() => setModalOpen(true)} className="hidden sm:flex items-center gap-3 px-6 py-3 bg-gradient-to-r from-emerald-600 to-green-600 text-white rounded-2xl font-semibold hover:from-emerald-700 hover:to-green-700 transition-all shadow-lg shadow-emerald-200">
             <TrendingUp className="w-5 h-5" />
             Demander un credit
           </button>
         </div>
+
+        {/* Modal Demander un credit */}
+        {modalOpen && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-2xl p-8 w-full max-w-md shadow-lg relative">
+              <button onClick={() => setModalOpen(false)} className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 font-bold">X</button>
+              <h2 className="text-xl font-bold mb-4">Demander un credit</h2>
+              {requestError && <p className="text-red-500 mb-2 text-sm">{requestError}</p>}
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div>
+                  <label className="text-sm text-slate-600 mb-1 block">Montant souhaite (EUR)</label>
+                  <input
+                    type="number" placeholder="Ex: 500" required min="1" step="0.01"
+                    value={montant}
+                    onChange={e => setMontant(e.target.value)}
+                    className="w-full px-4 py-3 border rounded-xl text-lg"
+                  />
+                </div>
+                <p className="text-sm text-slate-500">Votre demande sera examinee par un administrateur. Vous serez notifie de la decision.</p>
+                <button type="submit" disabled={requesting} className="w-full py-3 bg-gradient-to-r from-emerald-600 to-green-600 text-white rounded-xl hover:from-emerald-700 hover:to-green-700 transition-all font-semibold">
+                  {requesting ? "Envoi en cours..." : "Soumettre la demande"}
+                </button>
+              </form>
+            </div>
+          </div>
+        )}
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
@@ -227,7 +268,7 @@ export default function CreditsPage() {
 
         {/* Bouton mobile */}
         <div className="mt-8 sm:hidden">
-          <button className="w-full flex items-center justify-center gap-3 px-6 py-4 bg-gradient-to-r from-emerald-600 to-green-600 text-white rounded-2xl font-semibold hover:from-emerald-700 hover:to-green-700 transition-all shadow-lg">
+          <button onClick={() => setModalOpen(true)} className="w-full flex items-center justify-center gap-3 px-6 py-4 bg-gradient-to-r from-emerald-600 to-green-600 text-white rounded-2xl font-semibold hover:from-emerald-700 hover:to-green-700 transition-all shadow-lg">
             <TrendingUp className="w-5 h-5" />
             Demander un credit
           </button>

@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState } from 'react';
-import { TrendingUp, Users, Coins, CreditCard, ShoppingCart, Package, MoreVertical, Download, Plus } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { TrendingUp, Users, Coins, CreditCard, ShoppingCart, Package, MoreVertical, Download, Plus, ChevronDown } from 'lucide-react';
 import Link from "next/link";
 import SignOutButton from '@/components/SignOutButton';
 import { useApi } from '@/hooks/useApi';
@@ -22,6 +22,16 @@ interface DashboardResponse {
 
 export default function AfriGesDashboard() {
   const [selectedPeriod, setSelectedPeriod] = useState('30');
+  const [showMenu, setShowMenu] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setShowMenu(false);
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
 
   const { data: response, loading, error, refetch } = useApi<DashboardResponse>('/api/admin/dashboard');
   const dashData = response?.data;
@@ -203,10 +213,36 @@ export default function AfriGesDashboard() {
                 <Download size={18} />
                 Exporter
               </button>
-              <button className="px-5 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-200 flex items-center gap-2 font-medium">
-                <Plus size={18} />
-                Nouvelle operation
-              </button>
+              <div className="relative" ref={menuRef}>
+                <button
+                  onClick={() => setShowMenu(!showMenu)}
+                  className="px-5 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-200 flex items-center gap-2 font-medium"
+                >
+                  <Plus size={18} />
+                  Nouvelle operation
+                  <ChevronDown size={16} className={`transition-transform ${showMenu ? 'rotate-180' : ''}`} />
+                </button>
+                {showMenu && (
+                  <div className="absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-slate-200 py-2 z-50">
+                    <Link href="/dashboard/admin/cotisations" onClick={() => setShowMenu(false)} className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 transition-colors">
+                      <CreditCard size={18} className="text-blue-500" />
+                      <span className="text-sm font-medium text-slate-700">Enregistrer un paiement</span>
+                    </Link>
+                    <Link href="/dashboard/admin/creditsAlimentaires" onClick={() => setShowMenu(false)} className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 transition-colors">
+                      <ShoppingCart size={18} className="text-purple-500" />
+                      <span className="text-sm font-medium text-slate-700">Nouveau credit alimentaire</span>
+                    </Link>
+                    <Link href="/dashboard/admin/ventes" onClick={() => setShowMenu(false)} className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 transition-colors">
+                      <Package size={18} className="text-emerald-500" />
+                      <span className="text-sm font-medium text-slate-700">Nouvelle vente</span>
+                    </Link>
+                    <Link href="/dashboard/admin/membres" onClick={() => setShowMenu(false)} className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 transition-colors">
+                      <Users size={18} className="text-amber-500" />
+                      <span className="text-sm font-medium text-slate-700">Ajouter un membre</span>
+                    </Link>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 

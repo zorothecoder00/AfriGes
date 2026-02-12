@@ -4,11 +4,11 @@ import { useState } from 'react';
 import {
   Wallet, CreditCard as CreditCardIcon, LucideIcon, Users, TrendingUp,
   ShoppingBag, Calendar, ArrowUpRight, ArrowDownRight, Eye, Download,
-  ChevronRight, Clock, CheckCircle, AlertCircle, Menu, X
+  ChevronRight, Clock, CheckCircle, AlertCircle, Menu, X, Receipt, History
 } from 'lucide-react';
 import Link from "next/link";
 import SignOutButton from '@/components/SignOutButton';
-import { useApi } from '@/hooks/useApi';
+import { useApi, useMutation } from '@/hooks/useApi';
 import { formatCurrency } from '@/lib/format';
 
 // ============================================================================
@@ -292,15 +292,29 @@ const CreditAlimentaireCard = ({ credit }: { credit: CreditAlimentaire }) => {
 
 export default function UserDashboard() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [creditModalOpen, setCreditModalOpen] = useState(false);
+  const [creditMontant, setCreditMontant] = useState('');
+
+  const { mutate: requestCredit, loading: requesting, error: requestError } = useMutation('/api/user/credits', 'POST');
 
   // Fetch all data
   const { data: dashResponse, loading: dashLoading } = useApi<DashboardResponse>('/api/user/dashboard');
-  const { data: creditsResponse } = useApi<CreditsResponse>('/api/user/credits');
+  const { data: creditsResponse, refetch: refetchCredits } = useApi<CreditsResponse>('/api/user/credits');
   const { data: tontinesResponse } = useApi<TontinesResponse>('/api/user/tontines');
   const { data: txResponse } = useApi<TransactionsResponse>('/api/user/transactions?limit=5');
   const { data: creditAlimResponse } = useApi<CreditAlimResponse>('/api/user/creditsAlimentaires');
 
   const dashData = dashResponse?.data;
+
+  const handleCreditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const result = await requestCredit({ montant: Number(creditMontant) });
+    if (result) {
+      setCreditModalOpen(false);
+      setCreditMontant('');
+      refetchCredits();
+    }
+  };
   const credits = creditsResponse?.data ?? [];
   const tontines = tontinesResponse?.data ?? [];
   const transactions = txResponse?.data ?? [];
@@ -326,8 +340,20 @@ export default function UserDashboard() {
             <div className="flex items-center">
               <h1 className="text-2xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">AfriGes</h1>
             </div>
-            <div className="hidden md:flex items-center space-x-4">
-              <Link href="/dashboard/user/notifications" className="text-slate-600 hover:text-slate-800">
+            <div className="hidden md:flex items-center space-x-2">
+              <Link href="/dashboard/user/credits" className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
+                <CreditCardIcon className="w-4 h-4" />
+                Credits
+              </Link>
+              <Link href="/dashboard/user/creditsalimentaires" className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
+                <ShoppingBag className="w-4 h-4" />
+                Credit Alimentaire
+              </Link>
+              <Link href="/dashboard/user/transactions" className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
+                <History className="w-4 h-4" />
+                Transactions
+              </Link>
+              <Link href="/dashboard/user/notifications" className="text-slate-600 hover:text-slate-800 px-2">
                 <span role="img" aria-label="notifications">&#x1F514;</span>
               </Link>
               <div className="w-10 h-10 rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 flex items-center justify-center text-white font-bold cursor-pointer hover:shadow-lg transition-shadow">U</div>
@@ -338,14 +364,60 @@ export default function UserDashboard() {
             </button>
           </div>
           {isMobileMenuOpen && (
-            <div className="md:hidden py-4 border-t border-gray-200">
-              <div className="mt-4 pt-4 border-t border-gray-200">
+            <div className="md:hidden py-4 border-t border-gray-200 space-y-1">
+              <Link href="/dashboard/user/credits" className="flex items-center gap-2 px-4 py-3 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
+                <CreditCardIcon className="w-4 h-4" />
+                Mes Credits
+              </Link>
+              <Link href="/dashboard/user/creditsalimentaires" className="flex items-center gap-2 px-4 py-3 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
+                <ShoppingBag className="w-4 h-4" />
+                Credit Alimentaire
+              </Link>
+              <Link href="/dashboard/user/transactions" className="flex items-center gap-2 px-4 py-3 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
+                <History className="w-4 h-4" />
+                Transactions
+              </Link>
+              <Link href="/dashboard/user/tontines" className="flex items-center gap-2 px-4 py-3 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
+                <Users className="w-4 h-4" />
+                Tontines
+              </Link>
+              <Link href="/dashboard/user/notifications" className="flex items-center gap-2 px-4 py-3 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
+                <Receipt className="w-4 h-4" />
+                Notifications
+              </Link>
+              <div className="pt-4 border-t border-gray-200">
                 <SignOutButton redirectTo="/auth/login?logout=success" className="w-full flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium text-red-600 hover:bg-red-50 rounded-lg transition-colors" />
               </div>
             </div>
           )}
         </div>
       </nav>
+
+      {/* Modal Demander un credit */}
+      {creditModalOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl p-8 w-full max-w-md shadow-lg relative">
+            <button onClick={() => setCreditModalOpen(false)} className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 font-bold">X</button>
+            <h2 className="text-xl font-bold mb-4">Demander un credit</h2>
+            {requestError && <p className="text-red-500 mb-2 text-sm">{requestError}</p>}
+            <form onSubmit={handleCreditSubmit} className="space-y-4">
+              <div>
+                <label className="text-sm text-slate-600 mb-1 block">Montant souhaite (EUR)</label>
+                <input
+                  type="number" placeholder="Ex: 500" required min="1" step="0.01"
+                  value={creditMontant}
+                  onChange={e => setCreditMontant(e.target.value)}
+                  className="w-full px-4 py-3 border rounded-xl text-lg"
+                />
+              </div>
+              <p className="text-sm text-slate-500">Votre demande sera examinee par un administrateur. Vous serez notifie de la decision.</p>
+              <button type="submit" disabled={requesting} className="w-full py-3 bg-gradient-to-r from-emerald-600 to-green-600 text-white rounded-xl hover:from-emerald-700 hover:to-green-700 transition-all font-semibold">
+                {requesting ? "Envoi en cours..." : "Soumettre la demande"}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* MAIN CONTENT */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -403,7 +475,7 @@ export default function UserDashboard() {
           <div className="lg:col-span-2">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 gap-4">
               <h3 className="text-2xl font-bold text-gray-900">Mes Credits en Cours</h3>
-              <button className="bg-green-50 hover:bg-green-100 text-green-600 font-medium px-4 py-2 rounded-lg transition-colors duration-150 text-sm">
+              <button onClick={() => setCreditModalOpen(true)} className="bg-green-50 hover:bg-green-100 text-green-600 font-medium px-4 py-2 rounded-lg transition-colors duration-150 text-sm">
                 Demander un credit
               </button>
             </div>

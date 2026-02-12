@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { Prisma, StatutCotisation, PeriodeCotisation } from "@prisma/client";
+import { Prisma, StatutCotisation, PeriodeCotisation, PrioriteNotification } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getAuthSession } from "@/lib/auth";
 
@@ -98,6 +98,84 @@ export async function GET(req: Request) {
     console.error("GET /admin/cotisations error:", error);
     return NextResponse.json(
       { error: "Erreur lors de la recuperation des cotisations" },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * POST /api/admin/cotisations
+ * Enregistrer un paiement de cotisation
+ */
+export async function POST(req: Request) {
+  try {
+    const session = await getAuthSession();
+    if (!session || !session.user.role || !["ADMIN", "SUPER_ADMIN"].includes(session.user.role)) {
+      return NextResponse.json({ error: "Acces refuse" }, { status: 403 });
+    }
+
+    const body = await req.json();
+    const { memberId, montant, periode, dateEcheance } = body;
+
+    if (!memberId || !montant || !periode || !dateEcheance) {
+      return NextResponse.json(
+        { error: "Champs obligatoires manquants (memberId, montant, periode, dateEcheance)" },
+        { status: 400 }
+      );
+    }
+
+    if (Number(montant) <= 0) {
+      return NextResponse.json(
+        { error: "Le montant doit etre superieur a 0" },
+        { status: 400 }
+      );
+    }
+
+    if (!Object.values(PeriodeCotisation).includes(periode as PeriodeCotisation)) {
+      return NextResponse.json(
+        { error: "Periode invalide (MENSUEL ou ANNUEL)" },
+        { status: 400 }
+      );
+    }
+
+    const member = await prisma.user.findUnique({ where: { id: Number(memberId) } });
+    if (!member) {
+      return NextResponse.json({ error: "Membre introuvable" }, { status: 404 });
+    }
+
+    const cotisation = await prisma.$transaction(async (tx) => {
+      const created = await tx.cotisation.create({
+        data: {
+          memberId: Number(memberId),
+          montant: new Prisma.Decimal(montant),
+          periode: periode as PeriodeCotisation,
+          dateExpiration: new Date(dateEcheance),
+          statut: StatutCotisation.PAYEE,
+          datePaiement: new Date(),
+        },
+        include: {
+          member: { select: { id: true, nom: true, prenom: true, email: true } },
+        },
+      });
+
+      await tx.notification.create({
+        data: {
+          userId: Number(memberId),
+          titre: "Cotisation enregistree",
+          message: `Votre cotisation de ${montant} EUR a ete enregistree.`,
+          priorite: PrioriteNotification.NORMAL,
+          actionUrl: `/dashboard/user/cotisations`,
+        },
+      });
+
+      return created;
+    });
+
+    return NextResponse.json({ data: cotisation }, { status: 201 });
+  } catch (error) {
+    console.error("POST /admin/cotisations error:", error);
+    return NextResponse.json(
+      { error: "Erreur lors de l'enregistrement de la cotisation" },
       { status: 500 }
     );
   }

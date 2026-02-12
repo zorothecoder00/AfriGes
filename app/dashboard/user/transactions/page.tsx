@@ -211,7 +211,7 @@ export default function TransactionsPage() {
                       <div className="flex-1 min-w-0">
                         <p className="font-semibold text-slate-900 truncate">{transaction.description || config.label}</p>
                         <div className="flex items-center gap-3 mt-1">
-                          <p className="text-xs text-slate-500 font-medium">{transaction.reference}</p>
+                          <p className="text-xs text-slate-500 font-medium">{transaction.reference ?? ''}</p>
                           <span className="text-slate-300">&bull;</span>
                           <p className="text-xs text-slate-500">{dateTime.date}, {dateTime.time}</p>
                         </div>

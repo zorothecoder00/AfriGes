@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getAuthSession } from "@/lib/auth";
+import { randomUUID } from "crypto";
 
 /**
  * GET /api/admin/ventes
@@ -100,6 +102,124 @@ export async function GET(req: Request) {
     console.error("GET /admin/ventes error:", error);
     return NextResponse.json(
       { error: "Erreur lors de la recuperation des ventes" },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * POST /api/admin/ventes
+ * Creer une nouvelle vente via credit alimentaire
+ */
+export async function POST(req: Request) {
+  try {
+    const session = await getAuthSession();
+    if (!session || !session.user.role || !["ADMIN", "SUPER_ADMIN"].includes(session.user.role)) {
+      return NextResponse.json({ error: "Acces refuse" }, { status: 403 });
+    }
+
+    const body = await req.json();
+    const { creditAlimentaireId, produitId, quantite } = body;
+
+    if (!creditAlimentaireId || !produitId || !quantite) {
+      return NextResponse.json(
+        { error: "Champs obligatoires manquants (creditAlimentaireId, produitId, quantite)" },
+        { status: 400 }
+      );
+    }
+
+    if (Number(quantite) <= 0) {
+      return NextResponse.json(
+        { error: "La quantite doit etre superieure a 0" },
+        { status: 400 }
+      );
+    }
+
+    const creditAlim = await prisma.creditAlimentaire.findUnique({
+      where: { id: Number(creditAlimentaireId) },
+      include: { member: { select: { id: true, nom: true, prenom: true } } },
+    });
+
+    if (!creditAlim) {
+      return NextResponse.json({ error: "Credit alimentaire introuvable" }, { status: 404 });
+    }
+
+    if (creditAlim.statut !== "ACTIF") {
+      return NextResponse.json({ error: "Ce credit alimentaire n'est plus actif" }, { status: 400 });
+    }
+
+    const produit = await prisma.produit.findUnique({ where: { id: Number(produitId) } });
+    if (!produit) {
+      return NextResponse.json({ error: "Produit introuvable" }, { status: 404 });
+    }
+
+    if (produit.stock < Number(quantite)) {
+      return NextResponse.json({ error: "Stock insuffisant" }, { status: 400 });
+    }
+
+    const montantTotal = Number(produit.prixUnitaire) * Number(quantite);
+
+    if (montantTotal > Number(creditAlim.montantRestant)) {
+      return NextResponse.json(
+        { error: "Solde du credit alimentaire insuffisant" },
+        { status: 400 }
+      );
+    }
+
+    const vente = await prisma.$transaction(async (tx) => {
+      const created = await tx.venteCreditAlimentaire.create({
+        data: {
+          creditAlimentaireId: Number(creditAlimentaireId),
+          produitId: Number(produitId),
+          quantite: Number(quantite),
+          prixUnitaire: produit.prixUnitaire,
+        },
+        include: {
+          produit: { select: { id: true, nom: true, prixUnitaire: true } },
+          creditAlimentaire: {
+            select: {
+              id: true,
+              member: { select: { id: true, nom: true, prenom: true, email: true } },
+            },
+          },
+        },
+      });
+
+      const newUtilise = Number(creditAlim.montantUtilise) + montantTotal;
+      const newRestant = Number(creditAlim.plafond) - newUtilise;
+
+      await tx.creditAlimentaire.update({
+        where: { id: Number(creditAlimentaireId) },
+        data: {
+          montantUtilise: new Prisma.Decimal(newUtilise),
+          montantRestant: new Prisma.Decimal(Math.max(0, newRestant)),
+          statut: newRestant <= 0 ? "EPUISE" : "ACTIF",
+        },
+      });
+
+      await tx.produit.update({
+        where: { id: Number(produitId) },
+        data: { stock: { decrement: Number(quantite) } },
+      });
+
+      await tx.mouvementStock.create({
+        data: {
+          produitId: Number(produitId),
+          type: "SORTIE",
+          quantite: Number(quantite),
+          motif: `Vente credit alimentaire #${created.id}`,
+          reference: `VENTE-${randomUUID()}`,
+        },
+      });
+
+      return created;
+    });
+
+    return NextResponse.json({ data: vente }, { status: 201 });
+  } catch (error) {
+    console.error("POST /admin/ventes error:", error);
+    return NextResponse.json(
+      { error: "Erreur lors de la creation de la vente" },
       { status: 500 }
     );
   }

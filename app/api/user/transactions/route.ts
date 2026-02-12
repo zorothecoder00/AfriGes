@@ -34,10 +34,10 @@ export async function GET(req: NextRequest) {
     });
 
     if (!user?.wallet) {
-      return NextResponse.json(
-        { message: "Wallet introuvable" },
-        { status: 404 }
-      );
+      return NextResponse.json({
+        data: [],
+        meta: { page, limit, total: 0, totalPages: 0 },
+      });
     }
 
     // 2️⃣ Construire le filtre dynamique

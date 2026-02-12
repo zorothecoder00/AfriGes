@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Search, Download, ShoppingCart, TrendingUp, DollarSign, AlertCircle, CheckCircle, Clock, Eye, MoreVertical } from 'lucide-react';
 import Link from 'next/link';
-import { useApi } from '@/hooks/useApi';
+import { useApi, useMutation } from '@/hooks/useApi';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { getStatusStyle, getStatusLabel } from '@/lib/status';
 
@@ -42,11 +42,24 @@ interface CreditsAlimentairesResponse {
   };
 }
 
+interface MemberOption {
+  id: number;
+  nom: string;
+  prenom: string;
+  email: string;
+}
+
+interface MembresListResponse {
+  data: MemberOption[];
+}
+
 export default function CreditsAlimentairesPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [page, setPage] = useState(1);
   const [statutFilter, setStatutFilter] = useState('');
+  const [modalOpen, setModalOpen] = useState(false);
+  const [formData, setFormData] = useState({ memberId: '', plafond: '', source: 'COTISATION', sourceId: '1', dateExpiration: '' });
   const limit = 10;
 
   useEffect(() => {
@@ -62,6 +75,27 @@ export default function CreditsAlimentairesPage() {
   const credits = response?.data ?? [];
   const stats = response?.stats;
   const meta = response?.meta;
+
+  const { data: membresResponse } = useApi<MembresListResponse>(modalOpen ? '/api/admin/membres?limit=200' : null);
+  const membres = membresResponse?.data ?? [];
+
+  const { mutate: addCredit, loading: adding, error: addError } = useMutation('/api/admin/creditsAlimentaires', 'POST');
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const result = await addCredit({
+      memberId: Number(formData.memberId),
+      plafond: Number(formData.plafond),
+      source: formData.source,
+      sourceId: Number(formData.sourceId),
+      dateExpiration: formData.dateExpiration || undefined,
+    });
+    if (result) {
+      setModalOpen(false);
+      setFormData({ memberId: '', plafond: '', source: 'COTISATION', sourceId: '1', dateExpiration: '' });
+      refetch();
+    }
+  };
 
   const getInitials = (nom: string, prenom: string) => `${prenom?.[0] ?? ''}${nom?.[0] ?? ''}`.toUpperCase();
 
@@ -115,12 +149,68 @@ export default function CreditsAlimentairesPage() {
               <Download size={18} />
               Rapport
             </button>
-            <button className="px-6 py-3 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-200 flex items-center gap-2 font-medium">
+            <button onClick={() => setModalOpen(true)} className="px-6 py-3 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-200 flex items-center gap-2 font-medium">
               <Plus size={20} />
               Nouveau credit
             </button>
           </div>
         </div>
+
+        {/* Modal Nouveau Credit */}
+        {modalOpen && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-2xl p-8 w-full max-w-md shadow-lg relative">
+              <button onClick={() => setModalOpen(false)} className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 font-bold">X</button>
+              <h2 className="text-xl font-bold mb-4">Nouveau credit alimentaire</h2>
+              {addError && <p className="text-red-500 mb-2 text-sm">{addError}</p>}
+              <form onSubmit={handleSubmit} className="space-y-3">
+                <select
+                  required
+                  value={formData.memberId}
+                  onChange={e => setFormData({ ...formData, memberId: e.target.value })}
+                  className="w-full px-4 py-2 border rounded-xl bg-white"
+                >
+                  <option value="">Selectionner un membre</option>
+                  {membres.map(m => (
+                    <option key={m.id} value={m.id}>{m.prenom} {m.nom} ({m.email})</option>
+                  ))}
+                </select>
+                <input
+                  type="number" placeholder="Plafond (EUR)" required min="1" step="0.01"
+                  value={formData.plafond}
+                  onChange={e => setFormData({ ...formData, plafond: e.target.value })}
+                  className="w-full px-4 py-2 border rounded-xl"
+                />
+                <select
+                  value={formData.source}
+                  onChange={e => setFormData({ ...formData, source: e.target.value })}
+                  className="w-full px-4 py-2 border rounded-xl bg-white"
+                >
+                  <option value="COTISATION">Cotisation</option>
+                  <option value="TONTINE">Tontine</option>
+                </select>
+                <input
+                  type="number" placeholder="ID Source (cotisation/tontine)" required min="1"
+                  value={formData.sourceId}
+                  onChange={e => setFormData({ ...formData, sourceId: e.target.value })}
+                  className="w-full px-4 py-2 border rounded-xl"
+                />
+                <div>
+                  <label className="text-sm text-slate-600 mb-1 block">Date d&apos;expiration (optionnel)</label>
+                  <input
+                    type="date"
+                    value={formData.dateExpiration}
+                    onChange={e => setFormData({ ...formData, dateExpiration: e.target.value })}
+                    className="w-full px-4 py-2 border rounded-xl"
+                  />
+                </div>
+                <button type="submit" disabled={adding} className="w-full py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-all font-medium">
+                  {adding ? "Creation en cours..." : "Creer le credit"}
+                </button>
+              </form>
+            </div>
+          </div>
+        )}
 
         {/* Stats Cards */}
         <div className="grid grid-cols-4 gap-5">

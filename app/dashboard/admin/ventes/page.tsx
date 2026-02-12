@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Search, Download, ShoppingCart, TrendingUp, DollarSign, Users, Calendar, Eye, MoreVertical, Package } from 'lucide-react';
 import Link from 'next/link';
-import { useApi } from '@/hooks/useApi';
+import { useApi, useMutation } from '@/hooks/useApi';
 import { formatCurrency, formatDateTime } from '@/lib/format';
 
 interface VenteCreditAlimentaire {
@@ -42,10 +42,35 @@ interface VentesResponse {
   };
 }
 
+interface CreditAlimOption {
+  id: number;
+  plafond: string;
+  montantRestant: string;
+  statut: string;
+  member: { id: number; nom: string; prenom: string };
+}
+
+interface CreditsAlimListResponse {
+  data: CreditAlimOption[];
+}
+
+interface ProduitOption {
+  id: number;
+  nom: string;
+  prixUnitaire: string;
+  stock: number;
+}
+
+interface ProduitsListResponse {
+  data: ProduitOption[];
+}
+
 export default function VentesPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [page, setPage] = useState(1);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [formData, setFormData] = useState({ creditAlimentaireId: '', produitId: '', quantite: '1' });
   const limit = 10;
 
   useEffect(() => {
@@ -60,6 +85,28 @@ export default function VentesPage() {
   const ventes = response?.data ?? [];
   const stats = response?.stats;
   const meta = response?.meta;
+
+  const { data: creditsAlimResponse } = useApi<CreditsAlimListResponse>(modalOpen ? '/api/admin/creditsAlimentaires?limit=200&statut=ACTIF' : null);
+  const creditsAlim = (creditsAlimResponse?.data ?? []).filter(c => c.statut === 'ACTIF');
+
+  const { data: produitsResponse } = useApi<ProduitsListResponse>(modalOpen ? '/api/admin/stock?limit=200' : null);
+  const produits = (produitsResponse?.data ?? []).filter(p => p.stock > 0);
+
+  const { mutate: addVente, loading: adding, error: addError } = useMutation('/api/admin/ventes', 'POST');
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const result = await addVente({
+      creditAlimentaireId: Number(formData.creditAlimentaireId),
+      produitId: Number(formData.produitId),
+      quantite: Number(formData.quantite),
+    });
+    if (result) {
+      setModalOpen(false);
+      setFormData({ creditAlimentaireId: '', produitId: '', quantite: '1' });
+      refetch();
+    }
+  };
 
   const getInitials = (nom: string, prenom: string) => `${prenom?.[0] ?? ''}${nom?.[0] ?? ''}`.toUpperCase();
 
@@ -111,12 +158,60 @@ export default function VentesPage() {
               <Download size={18} />
               Exporter
             </button>
-            <button className="px-6 py-3 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-200 flex items-center gap-2 font-medium">
+            <button onClick={() => setModalOpen(true)} className="px-6 py-3 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-200 flex items-center gap-2 font-medium">
               <Plus size={20} />
               Nouvelle vente
             </button>
           </div>
         </div>
+
+        {/* Modal Nouvelle Vente */}
+        {modalOpen && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-2xl p-8 w-full max-w-md shadow-lg relative">
+              <button onClick={() => setModalOpen(false)} className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 font-bold">X</button>
+              <h2 className="text-xl font-bold mb-4">Nouvelle vente</h2>
+              {addError && <p className="text-red-500 mb-2 text-sm">{addError}</p>}
+              <form onSubmit={handleSubmit} className="space-y-3">
+                <select
+                  required
+                  value={formData.creditAlimentaireId}
+                  onChange={e => setFormData({ ...formData, creditAlimentaireId: e.target.value })}
+                  className="w-full px-4 py-2 border rounded-xl bg-white"
+                >
+                  <option value="">Selectionner un credit alimentaire</option>
+                  {creditsAlim.map(c => (
+                    <option key={c.id} value={c.id}>
+                      {c.member.prenom} {c.member.nom} - Solde: {formatCurrency(c.montantRestant)}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  required
+                  value={formData.produitId}
+                  onChange={e => setFormData({ ...formData, produitId: e.target.value })}
+                  className="w-full px-4 py-2 border rounded-xl bg-white"
+                >
+                  <option value="">Selectionner un produit</option>
+                  {produits.map(p => (
+                    <option key={p.id} value={p.id}>
+                      {p.nom} - {formatCurrency(p.prixUnitaire)} (Stock: {p.stock})
+                    </option>
+                  ))}
+                </select>
+                <input
+                  type="number" placeholder="Quantite" required min="1"
+                  value={formData.quantite}
+                  onChange={e => setFormData({ ...formData, quantite: e.target.value })}
+                  className="w-full px-4 py-2 border rounded-xl"
+                />
+                <button type="submit" disabled={adding} className="w-full py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-all font-medium">
+                  {adding ? "Creation en cours..." : "Enregistrer la vente"}
+                </button>
+              </form>
+            </div>
+          </div>
+        )}
 
         {/* Stats Cards */}
         <div className="grid grid-cols-4 gap-5">
