@@ -2,81 +2,67 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getAuthSession } from '@/lib/auth';
 
-export async function GET(req: Request) {
+export async function GET(
+  _req: Request,
+  context: { params: Promise<{ id: string }> }
+) {
   try {
-    // 1️⃣ Vérifier la session
     const session = await getAuthSession();
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const { id } = await context.params;
+    const tontineId = parseInt(id);
+
+    if (isNaN(tontineId)) {
+      return NextResponse.json({ error: 'ID invalide' }, { status: 400 });
+    }
+
     const memberId = parseInt(session.user.id);
 
-    const { searchParams } = new URL(req.url);
-
-    // 2️⃣ Pagination
-    const page = parseInt(searchParams.get('page') ?? '1');
-    const limit = parseInt(searchParams.get('limit') ?? '10');
-    const skip = (page - 1) * limit;
-
-    // 3️⃣ Tri
-    const sortBy = searchParams.get('sortBy') ?? 'dateDebut';
-    const order = searchParams.get('order') === 'desc' ? 'desc' : 'asc';
-
-    const allowedSortFields = ['dateDebut', 'createdAt', 'montantCycle'];
-    const orderByField = allowedSortFields.includes(sortBy)
-      ? sortBy
-      : 'dateDebut';
-
-    // 4️⃣ Requête via la table pivot
-    const [tontines, total] = await prisma.$transaction([
-      prisma.tontine.findMany({
-        where: {
-          membres: {
-            some: {
-              memberId,
-            },
-          },
-        },
-        orderBy: {
-          [orderByField]: order,
-        },
-        skip,
-        take: limit,
-        include: {
-          membres: {
-            where: { memberId },
-            select: {
-              ordreTirage: true,
-              dateEntree: true,
-              dateSortie: true,
-            },
-          },
-        },
-      }),
-      prisma.tontine.count({
-        where: {
-          membres: {
-            some: {
-              memberId,
-            },
-          },
-        },
-      }),
-    ]);
-
-    // 5️⃣ Retour structuré
-    return NextResponse.json({
-      data: tontines,
-      meta: {
-        page,
-        limit,
-        total,
-        totalPages: Math.ceil(total / limit),
+    // Vérifier que l'utilisateur est membre de cette tontine
+    const membership = await prisma.tontineMembre.findFirst({
+      where: {
+        tontineId,
+        memberId,
       },
     });
+
+    if (!membership) {
+      return NextResponse.json(
+        { error: 'Vous ne faites pas partie de cette tontine' },
+        { status: 403 }
+      );
+    }
+
+    // Récupérer la tontine avec tous ses membres
+    const tontine = await prisma.tontine.findUnique({
+      where: { id: tontineId },
+      include: {
+        membres: {
+          include: {
+            member: {
+              select: {
+                id: true,
+                nom: true,
+                prenom: true,
+                photo: true,
+              },
+            },
+          },
+          orderBy: { ordreTirage: 'asc' },
+        },
+      },
+    });
+
+    if (!tontine) {
+      return NextResponse.json({ error: 'Tontine introuvable' }, { status: 404 });
+    }
+
+    return NextResponse.json({ data: tontine });
   } catch (error) {
-    console.error('Erreur lors de la récupération des tontines utilisateur :', error);
+    console.error('GET /user/tontines/[id]', error);
     return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
   }
 }

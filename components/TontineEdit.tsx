@@ -1,11 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { 
-  ArrowLeft, 
-  Save, 
-  Trash2,
+import { useRouter } from 'next/navigation';
+import { useApi, useMutation } from '@/hooks/useApi';
+import {
+  ArrowLeft,
+  Save,
   Plus,
   X,
   Calendar,
@@ -16,7 +17,6 @@ import {
   Search
 } from 'lucide-react';
 
-// Types basés sur votre schéma Prisma
 interface TontineForm {
   nom: string;
   description: string;
@@ -35,78 +35,99 @@ interface Membre {
   photo: string | null;
 }
 
-interface MembreSelectionne {
-  memberId: number;
+interface TontineMembre {
+  id: number;
   ordreTirage: number | null;
-  membre: Membre;
+  member: Membre;
 }
 
-export default function TontineEdit() {
-  const tontineId = 1; // À récupérer depuis les params
+interface Tontine {
+  id: number;
+  nom: string;
+  description: string | null;
+  montantCycle: string;
+  frequence: string;
+  statut: string;
+  dateDebut: string;
+  dateFin: string | null;
+  membres: TontineMembre[];
+}
+
+interface TontineResponse {
+  data: Tontine;
+}
+
+interface MembresResponse {
+  data: Array<{
+    id: number;
+    nom: string;
+    prenom: string;
+    email: string;
+    photo: string | null;
+  }>;
+}
+
+export default function TontineEdit({ tontineId }: { tontineId: string }) {
+  const router = useRouter();
+  const { data: response, loading } = useApi<TontineResponse>(`/api/admin/tontines/${tontineId}`);
+  const { mutate, loading: saving, error: saveError } = useMutation(`/api/admin/tontines/${tontineId}`, 'PUT');
+  const { data: membresResponse } = useApi<MembresResponse>('/api/admin/membres?limit=100');
 
   const [formData, setFormData] = useState<TontineForm>({
-    nom: "Tontine Solidarité",
-    description: "Tontine de solidarité pour les membres actifs de la communauté",
-    montantCycle: "250",
-    frequence: "MENSUEL",
-    statut: "ACTIVE",
-    dateDebut: "2024-01-15",
-    dateFin: ""
+    nom: '',
+    description: '',
+    montantCycle: '',  
+    frequence: 'MENSUEL',
+    statut: 'ACTIVE',
+    dateDebut: '',
+    dateFin: ''
   });
 
-  const [membresSelectionnes, setMembresSelectionnes] = useState<MembreSelectionne[]>([
-    {
-      memberId: 1,
-      ordreTirage: 1,
-      membre: {
-        id: 1,
-        nom: "Kouassi",
-        prenom: "Jean",
-        email: "jean.kouassi@email.com",
-        photo: null
-      }
-    },
-    {
-      memberId: 2,
-      ordreTirage: 2,
-      membre: {
-        id: 2,
-        nom: "Mensah",
-        prenom: "Marie",
-        email: "marie.mensah@email.com",
-        photo: null
-      }
-    }
-  ]);
+  const [membresSelectionnes, setMembresSelectionnes] = useState<Array<{
+    memberId: number;
+    ordreTirage: number | null;
+    membre: Membre;
+  }>>([]);
 
   const [showMemberModal, setShowMemberModal] = useState(false);
   const [searchMembre, setSearchMembre] = useState('');
-  const [saving, setSaving] = useState(false);
 
-  // Liste des membres disponibles (à remplacer par un vrai fetch)
-  const membresDisponibles: Membre[] = [
-    { id: 3, nom: "Agbodjan", prenom: "Paul", email: "paul.agbodjan@email.com", photo: null },
-    { id: 4, nom: "Doe", prenom: "Jane", email: "jane.doe@email.com", photo: null },
-    { id: 5, nom: "Smith", prenom: "John", email: "john.smith@email.com", photo: null }
-  ];
+  useEffect(() => {
+    if (!response?.data) return;
+
+    const timeout = setTimeout(() => {
+      const t = response.data;
+      setFormData({
+        nom: t.nom,
+        description: t.description || '',
+        montantCycle: String(t.montantCycle),
+        frequence: t.frequence as TontineForm['frequence'],
+        statut: t.statut as TontineForm['statut'],
+        dateDebut: t.dateDebut ? t.dateDebut.split('T')[0] : '',
+        dateFin: t.dateFin ? t.dateFin.split('T')[0] : '',
+      });
+      setMembresSelectionnes(
+        t.membres.map(m => ({
+          memberId: m.member.id,
+          ordreTirage: m.ordreTirage,
+          membre: m.member,
+        }))
+      );
+    }, 0);
+
+    return () => clearTimeout(timeout);
+  }, [response]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    setFormData(prev => ({ ...prev, [name]: value }));
   };
 
   const ajouterMembre = (membre: Membre) => {
-    if (membresSelectionnes.some(m => m.memberId === membre.id)) {
-      return;
-    }
-
+    if (membresSelectionnes.some(m => m.memberId === membre.id)) return;
     const prochainOrdre = membresSelectionnes.length > 0
       ? Math.max(...membresSelectionnes.map(m => m.ordreTirage || 0)) + 1
       : 1;
-
     setMembresSelectionnes(prev => [...prev, {
       memberId: membre.id,
       ordreTirage: prochainOrdre,
@@ -122,43 +143,45 @@ export default function TontineEdit() {
 
   const updateOrdreTirage = (memberId: number, ordre: number) => {
     setMembresSelectionnes(prev =>
-      prev.map(m =>
-        m.memberId === memberId ? { ...m, ordreTirage: ordre } : m
-      )
+      prev.map(m => m.memberId === memberId ? { ...m, ordreTirage: ordre } : m)
     );
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSaving(true);
-
-    // Simuler une sauvegarde
-    setTimeout(() => {
-      setSaving(false);
-      // Rediriger vers la page de détails
-      // router.push(`/dashboard/admin/tontines/${tontineId}`);
-      alert('Tontine mise à jour avec succès!');
-    }, 1500);
+    const result = await mutate({
+      ...formData,
+      montantCycle: parseFloat(formData.montantCycle),
+      dateDebut: formData.dateDebut,
+      dateFin: formData.dateFin || null,
+    });
+    if (result) {
+      router.push(`/dashboard/admin/tontines/${tontineId}`);
+    }
   };
 
   const getCategoryColor = (nom: string) => {
-    if (nom.toLowerCase().includes('solidarité') || nom.toLowerCase().includes('solidarite')) {
-      return 'bg-emerald-500';
-    } else if (nom.toLowerCase().includes('entrepreneuriat') || nom.toLowerCase().includes('entrepreneur')) {
-      return 'bg-orange-500';
-    } else if (nom.toLowerCase().includes('éducation') || nom.toLowerCase().includes('education')) {
-      return 'bg-blue-500';
-    }
+    if (nom.toLowerCase().includes('solidarit')) return 'bg-emerald-500';
+    if (nom.toLowerCase().includes('entrepren')) return 'bg-orange-500';
+    if (nom.toLowerCase().includes('educ')) return 'bg-blue-500';
     return 'bg-purple-500';
   };
 
-  const membresFiltres = membresDisponibles.filter(m =>
+  const membresDisponibles = (membresResponse?.data || []).filter((m: Membre) =>
     !membresSelectionnes.some(ms => ms.memberId === m.id) &&
     (searchMembre === '' ||
       m.nom.toLowerCase().includes(searchMembre.toLowerCase()) ||
       m.prenom.toLowerCase().includes(searchMembre.toLowerCase()) ||
       m.email.toLowerCase().includes(searchMembre.toLowerCase()))
   );
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="w-12 h-12 border-4 border-emerald-200 border-t-emerald-600 rounded-full animate-spin"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -174,22 +197,16 @@ export default function TontineEdit() {
                 <ArrowLeft className="w-5 h-5 text-gray-600" />
               </Link>
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">Gérer la tontine</h1>
+                <h1 className="text-2xl font-bold text-gray-900">Gerer la tontine</h1>
                 <p className="text-sm text-gray-500 mt-1">
-                  Modifiez les informations et gérez les membres
+                  Modifiez les informations et gerez les membres
                 </p>
               </div>
             </div>
             <div className="flex items-center gap-3">
               <button
-                type="button"
-                className="px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg font-medium transition-colors flex items-center gap-2"
-              >
-                <Trash2 className="w-4 h-4" />
-                Supprimer
-              </button>
-              <button
-                onClick={handleSubmit}
+                type="submit"
+                form="tontine-form"
                 disabled={saving}
                 className={`${getCategoryColor(formData.nom)} text-white px-6 py-2.5 rounded-lg font-medium hover:opacity-90 transition-opacity flex items-center gap-2 disabled:opacity-50`}
               >
@@ -201,16 +218,22 @@ export default function TontineEdit() {
         </div>
       </div>
 
+      {saveError && (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4">
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-sm text-red-700">{saveError}</div>
+        </div>
+      )}
+
       {/* Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <form onSubmit={handleSubmit}>
+        <form id="tontine-form" onSubmit={handleSubmit}>
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Formulaire principal */}
             <div className="lg:col-span-2 space-y-6">
               {/* Informations de base */}
               <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
                 <h3 className="text-lg font-bold text-gray-900 mb-6">Informations de base</h3>
-                
+
                 <div className="space-y-5">
                   <div>
                     <label htmlFor="nom" className="block text-sm font-medium text-gray-700 mb-2">
@@ -224,7 +247,6 @@ export default function TontineEdit() {
                       onChange={handleInputChange}
                       required
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
-                      placeholder="Ex: Tontine Solidarité"
                     />
                   </div>
 
@@ -239,7 +261,6 @@ export default function TontineEdit() {
                       onChange={handleInputChange}
                       rows={4}
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all resize-none"
-                      placeholder="Décrivez l'objectif de cette tontine..."
                     />
                   </div>
 
@@ -252,7 +273,7 @@ export default function TontineEdit() {
                         </div>
                       </label>
                       <div className="relative">
-                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500">€</span>
+                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500">XOF</span>
                         <input
                           type="number"
                           id="montantCycle"
@@ -262,8 +283,7 @@ export default function TontineEdit() {
                           required
                           min="0"
                           step="0.01"
-                          className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
-                          placeholder="250"
+                          className="w-full pl-14 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
                         />
                       </div>
                     </div>
@@ -272,7 +292,7 @@ export default function TontineEdit() {
                       <label htmlFor="frequence" className="block text-sm font-medium text-gray-700 mb-2">
                         <div className="flex items-center gap-2">
                           <Clock className="w-4 h-4" />
-                          Fréquence *
+                          Frequence *
                         </div>
                       </label>
                       <select
@@ -294,7 +314,7 @@ export default function TontineEdit() {
                       <label htmlFor="dateDebut" className="block text-sm font-medium text-gray-700 mb-2">
                         <div className="flex items-center gap-2">
                           <Calendar className="w-4 h-4" />
-                          Date de début *
+                          Date de debut *
                         </div>
                       </label>
                       <input
@@ -340,7 +360,7 @@ export default function TontineEdit() {
                     >
                       <option value="ACTIVE">Active</option>
                       <option value="SUSPENDUE">Suspendue</option>
-                      <option value="TERMINEE">Terminée</option>
+                      <option value="TERMINEE">Terminee</option>
                     </select>
                   </div>
                 </div>
@@ -365,12 +385,11 @@ export default function TontineEdit() {
                 {membresSelectionnes.length === 0 ? (
                   <div className="text-center py-12 border-2 border-dashed border-gray-300 rounded-xl">
                     <Users className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                    <p className="text-gray-500">Aucun membre ajouté</p>
-                    <p className="text-sm text-gray-400 mt-1">Cliquez sur &ldquo;Ajouter un membre&rdquo; pour commencer</p>
+                    <p className="text-gray-500">Aucun membre ajoute</p>
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {membresSelectionnes.map((membre, index) => (
+                    {membresSelectionnes.map((membre) => (
                       <div
                         key={membre.memberId}
                         className="flex items-center gap-4 p-4 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
@@ -411,17 +430,17 @@ export default function TontineEdit() {
               </div>
             </div>
 
-            {/* Sidebar - Aperçu */}
+            {/* Sidebar - Apercu */}
             <div className="lg:col-span-1">
               <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 sticky top-6">
-                <h3 className="text-lg font-bold text-gray-900 mb-4">Aperçu</h3>
-                
+                <h3 className="text-lg font-bold text-gray-900 mb-4">Apercu</h3>
+
                 <div className={`${getCategoryColor(formData.nom)} rounded-xl p-6 text-white mb-6`}>
                   <div className="text-white/80 text-xs font-medium mb-1">
                     {formData.nom.split(' ')[0]}
                   </div>
-                  <h4 className="text-xl font-bold mb-4">{formData.nom}</h4>
-                  
+                  <h4 className="text-xl font-bold mb-4">{formData.nom || 'Sans nom'}</h4>
+
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
                       <span className="text-white/80 text-sm">Membres</span>
@@ -430,7 +449,7 @@ export default function TontineEdit() {
                     <div className="flex items-center justify-between">
                       <span className="text-white/80 text-sm">Total</span>
                       <span className="font-bold">
-                        €{(parseFloat(formData.montantCycle || '0') * membresSelectionnes.length).toLocaleString()}
+                        {(parseFloat(formData.montantCycle || '0') * membresSelectionnes.length).toLocaleString()} XOF
                       </span>
                     </div>
                   </div>
@@ -439,16 +458,14 @@ export default function TontineEdit() {
                 <div className="space-y-4">
                   <div>
                     <p className="text-sm text-gray-500 mb-1">Contribution</p>
-                    <p className="text-2xl font-bold text-gray-900">€{formData.montantCycle || '0'}</p>
+                    <p className="text-2xl font-bold text-gray-900">{formData.montantCycle || '0'} XOF</p>
                   </div>
-                  
                   <div>
-                    <p className="text-sm text-gray-500 mb-1">Fréquence</p>
+                    <p className="text-sm text-gray-500 mb-1">Frequence</p>
                     <p className="font-medium text-gray-900">
                       {formData.frequence === 'MENSUEL' ? 'Mensuelle' : 'Hebdomadaire'}
                     </p>
                   </div>
-
                   <div>
                     <p className="text-sm text-gray-500 mb-1">Statut</p>
                     <p className="font-medium text-gray-900">{formData.statut}</p>
@@ -459,7 +476,7 @@ export default function TontineEdit() {
                   <div className="flex items-start gap-2 text-sm text-amber-700 bg-amber-50 p-3 rounded-lg">
                     <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
                     <p>
-                      Les modifications seront appliquées immédiatement à tous les membres de la tontine.
+                      Les modifications seront appliquees immediatement.
                     </p>
                   </div>
                 </div>
@@ -483,7 +500,7 @@ export default function TontineEdit() {
                   <X className="w-5 h-5 text-gray-500" />
                 </button>
               </div>
-              
+
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                 <input
@@ -497,14 +514,14 @@ export default function TontineEdit() {
             </div>
 
             <div className="p-6 overflow-y-auto max-h-[calc(80vh-180px)]">
-              {membresFiltres.length === 0 ? (
+              {membresDisponibles.length === 0 ? (
                 <div className="text-center py-12">
                   <Users className="w-12 h-12 text-gray-400 mx-auto mb-3" />
                   <p className="text-gray-500">Aucun membre disponible</p>
                 </div>
               ) : (
                 <div className="space-y-2">
-                  {membresFiltres.map((membre) => (
+                  {membresDisponibles.map((membre: Membre) => (
                     <button
                       key={membre.id}
                       type="button"

@@ -1,14 +1,15 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { 
-  User, 
-  Mail, 
-  Phone, 
-  MapPin, 
-  Calendar,     
-  Shield, 
+import { useApi } from '@/hooks/useApi';
+import { formatDateTime } from '@/lib/format';
+import {
+  User,
+  Mail,
+  Phone,
+  MapPin,
+  Calendar,
+  Shield,
   Activity,
   CheckCircle,
   XCircle,
@@ -17,13 +18,13 @@ import {
 } from 'lucide-react';
 
 interface GestionnaireDetailsProps {
-  gestionnaireId: string;   
+  gestionnaireId: string;
 }
 
-interface Gestionnaire {  
+interface Gestionnaire {
   id: number;
   memberId: number;
-  role: 'AGENT' | 'SUPERVISEUR' | 'CAISSIER';
+  role: string;
   actif: boolean;
   createdAt: string;
   updatedAt: string;
@@ -42,52 +43,14 @@ interface Gestionnaire {
   };
 }
 
+interface GestionnaireResponse {
+  data: Gestionnaire;
+}
+
 export default function GestionnaireDetails({ gestionnaireId }: GestionnaireDetailsProps) {
   const router = useRouter();
-  const [gestionnaire, setGestionnaire] = useState<Gestionnaire | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    // Simuler le chargement des données
-    // Remplacer par votre appel API réel
-    const fetchGestionnaire = async () => {
-      try {
-        // const response = await fetch(`/api/gestionnaires/${gestionnaireId}`);
-        // const data = await response.json();
-        
-        // Données simulées pour la démo
-        const mockData: Gestionnaire = {
-          id: 1,
-          memberId: 1,
-          role: 'SUPERVISEUR',
-          actif: true,
-          createdAt: '2024-01-01T10:00:00Z',
-          updatedAt: '2024-12-29T14:32:00Z',
-          member: {
-            id: 1,
-            uuid: 'abc-123',
-            nom: 'Aminata',
-            prenom: 'Koné',
-            email: 'a.kone@afriges.com',
-            photo: '',
-            role: 'ADMIN',
-            telephone: '+225 07 XX XX XX XX',
-            adresse: 'Abidjan, Cocody',
-            etat: 'ACTIF',
-            dateAdhesion: '2024-01-01T10:00:00Z'
-          }
-        };
-        
-        setGestionnaire(mockData);
-      } catch (error) {
-        console.error('Erreur lors du chargement:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchGestionnaire();
-  }, [gestionnaireId]);
+  const { data: response, loading, error, refetch } = useApi<GestionnaireResponse>(`/api/admin/gestionnaires/${gestionnaireId}`);
+  const gestionnaire = response?.data;
 
   const getRoleBadgeColor = (role: string) => {
     switch (role) {
@@ -102,44 +65,35 @@ export default function GestionnaireDetails({ gestionnaireId }: GestionnaireDeta
     }
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('fr-FR', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
-
-  if (loading) {
+  if (loading && !gestionnaire) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
-      </div>
-    );
-  }
-
-  if (!gestionnaire) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-gray-600">Gestionnaire non trouvé</p>
-          <button
-            onClick={() => router.back()}
-            className="mt-4 text-purple-600 hover:text-purple-700"
-          >
-            Retour
-          </button>
+        <div className="flex flex-col items-center gap-4">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+          <p className="text-slate-500 font-medium">Chargement du gestionnaire...</p>
         </div>
       </div>
     );
   }
 
+  if (error && !gestionnaire) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4 bg-white rounded-2xl p-8 shadow-sm border max-w-md text-center">
+          <h3 className="text-lg font-bold text-slate-800">Erreur</h3>
+          <p className="text-slate-500 text-sm">{error}</p>
+          <button onClick={refetch} className="px-5 py-2.5 bg-purple-600 text-white rounded-xl hover:bg-purple-700 font-medium">Reessayer</button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!gestionnaire) return null;
+
   return (
     <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-5xl mx-auto">
-        {/* En-tête */}
+        {/* En-tete */}
         <div className="mb-6 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <button
@@ -149,9 +103,9 @@ export default function GestionnaireDetails({ gestionnaireId }: GestionnaireDeta
               <ArrowLeft className="w-5 h-5 text-gray-600" />
             </button>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Détails du gestionnaire</h1>
+              <h1 className="text-2xl font-bold text-gray-900">Details du gestionnaire</h1>
               <p className="text-sm text-gray-500 mt-1">
-                Informations complètes et activité
+                Informations completes et activite
               </p>
             </div>
           </div>
@@ -203,7 +157,7 @@ export default function GestionnaireDetails({ gestionnaireId }: GestionnaireDeta
                       {gestionnaire.member.prenom} {gestionnaire.member.nom}
                     </h2>
                     <p className="text-sm text-gray-500 mt-1">
-                      Membre depuis {formatDate(gestionnaire.member.dateAdhesion)}
+                      Membre depuis {formatDateTime(gestionnaire.member.dateAdhesion)}
                     </p>
                   </div>
                   <div className="flex gap-2">
@@ -211,8 +165,8 @@ export default function GestionnaireDetails({ gestionnaireId }: GestionnaireDeta
                       {gestionnaire.role}
                     </span>
                     <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                      gestionnaire.actif 
-                        ? 'bg-green-100 text-green-700' 
+                      gestionnaire.actif
+                        ? 'bg-green-100 text-green-700'
                         : 'bg-red-100 text-red-700'
                     }`}>
                       {gestionnaire.actif ? 'Actif' : 'Inactif'}
@@ -220,11 +174,11 @@ export default function GestionnaireDetails({ gestionnaireId }: GestionnaireDeta
                   </div>
                 </div>
 
-                {/* Rôle système */}
+                {/* Role systeme */}
                 {gestionnaire.member.role && (
                   <div className="mt-4 flex items-center gap-2 text-sm">
                     <Shield className="w-4 h-4 text-purple-600" />
-                    <span className="text-gray-600">Rôle système:</span>
+                    <span className="text-gray-600">Role systeme:</span>
                     <span className="font-medium text-gray-900">{gestionnaire.member.role}</span>
                   </div>
                 )}
@@ -232,11 +186,11 @@ export default function GestionnaireDetails({ gestionnaireId }: GestionnaireDeta
             </div>
           </div>
 
-          {/* Coordonnées */}
+          {/* Coordonnees */}
           <div className="p-6 border-b border-gray-200">
             <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
               <User className="w-5 h-5 text-purple-600" />
-              Coordonnées
+              Coordonnees
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="flex items-start gap-3">
@@ -257,7 +211,7 @@ export default function GestionnaireDetails({ gestionnaireId }: GestionnaireDeta
                     <Phone className="w-5 h-5 text-gray-600" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs text-gray-500 mb-1">Téléphone</p>
+                    <p className="text-xs text-gray-500 mb-1">Telephone</p>
                     <p className="text-sm font-medium text-gray-900">
                       {gestionnaire.member.telephone}
                     </p>
@@ -313,61 +267,22 @@ export default function GestionnaireDetails({ gestionnaireId }: GestionnaireDeta
               <div className="flex items-center gap-3">
                 <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
                 <div>
-                  <p className="text-xs text-gray-500">Créé le</p>
+                  <p className="text-xs text-gray-500">Cree le</p>
                   <p className="text-sm font-medium text-gray-900">
-                    {formatDate(gestionnaire.createdAt)}
+                    {formatDateTime(gestionnaire.createdAt)}
                   </p>
                 </div>
               </div>
               <div className="flex items-center gap-3">
                 <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                 <div>
-                  <p className="text-xs text-gray-500">Dernière modification</p>
+                  <p className="text-xs text-gray-500">Derniere modification</p>
                   <p className="text-sm font-medium text-gray-900">
-                    {formatDate(gestionnaire.updatedAt)}
+                    {formatDateTime(gestionnaire.updatedAt)}
                   </p>
                 </div>
               </div>
             </div>
-          </div>
-        </div>
-
-        {/* Statistiques d'activité */}
-        <div className="mt-6 grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-sm text-gray-600">Actions ce mois</p>
-              <Activity className="w-5 h-5 text-purple-600" />
-            </div>
-            <p className="text-2xl font-bold text-gray-900">156</p>
-            <p className="text-xs text-green-600 mt-1">+12% vs mois dernier</p>
-          </div>
-          
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-sm text-gray-600">Tâches complétées</p>
-              <CheckCircle className="w-5 h-5 text-green-600" />
-            </div>
-            <p className="text-2xl font-bold text-gray-900">89%</p>
-            <p className="text-xs text-gray-500 mt-1">142/160 tâches</p>
-          </div>
-          
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-sm text-gray-600">Temps de réponse</p>
-              <Calendar className="w-5 h-5 text-blue-600" />
-            </div>
-            <p className="text-2xl font-bold text-gray-900">2.5h</p>
-            <p className="text-xs text-green-600 mt-1">-30min vs moyenne</p>
-          </div>
-          
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-sm text-gray-600">Satisfaction</p>
-              <Activity className="w-5 h-5 text-amber-600" />
-            </div>
-            <p className="text-2xl font-bold text-gray-900">4.8/5</p>
-            <p className="text-xs text-gray-500 mt-1">Basé sur 45 avis</p>
           </div>
         </div>
       </div>

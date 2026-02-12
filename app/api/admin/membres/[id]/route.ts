@@ -35,6 +35,17 @@ export async function GET(
       include: {
         wallet: true,
         gestionnaire: true,
+        tontines: {
+          include: { tontine: { select: { nom: true, montantCycle: true } } },
+        },
+        cotisations: {
+          orderBy: { createdAt: 'desc' },
+          take: 20,
+        },
+        credits: {
+          orderBy: { createdAt: 'desc' },
+          take: 20,
+        },
       },
     });
 

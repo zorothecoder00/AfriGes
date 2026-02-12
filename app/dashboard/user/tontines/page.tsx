@@ -7,9 +7,9 @@ import { useApi } from '@/hooks/useApi';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { getStatusLabel } from '@/lib/status';
 
-interface Tontine {
+interface Tontine {  
   id: number;
-  nom: string;
+  nom: string;   
   description: string | null;
   montantCycle: string;
   frequence: string;

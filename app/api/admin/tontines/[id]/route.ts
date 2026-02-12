@@ -1,7 +1,58 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getAuthSession } from '@/lib/auth';    
+import { getAuthSession } from '@/lib/auth';
 import { Frequence, StatutTontine } from '@prisma/client'
+
+/**
+ * ==========================
+ * GET /admin/tontines/[id]
+ * ==========================
+ * Lire une tontine specifique
+ */
+export async function GET(
+  _req: Request,
+  context: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await context.params;
+    const tontineId = parseInt(id);
+
+    if (isNaN(tontineId)) {
+      return NextResponse.json({ message: "ID invalide" }, { status: 400 });
+    }
+
+    const tontine = await prisma.tontine.findUnique({
+      where: { id: tontineId },
+      include: {
+        membres: {
+          include: {
+            member: {
+              select: {
+                id: true,
+                nom: true,
+                prenom: true,
+                email: true,
+                photo: true,
+                telephone: true,
+              },
+            },
+          },
+          orderBy: { ordreTirage: 'asc' },
+        },
+        _count: { select: { membres: true } },
+      },
+    });
+
+    if (!tontine) {
+      return NextResponse.json({ message: "Tontine introuvable" }, { status: 404 });
+    }
+
+    return NextResponse.json({ data: tontine });
+  } catch (error) {
+    console.error("GET /admin/tontines/[id]", error);
+    return NextResponse.json({ message: "Erreur lors de la recuperation de la tontine" }, { status: 500 });
+  }
+}
 
 export async function PUT(
   req: Request,

@@ -4,8 +4,8 @@ import { useState, useEffect, useCallback, useRef } from "react";
 
 interface UseApiResult<T> {
   data: T | null;
-  loading: boolean;
-  error: string | null;
+  loading: boolean;   
+  error: string | null;  
   refetch: () => void;
 }
 

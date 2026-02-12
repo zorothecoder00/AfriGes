@@ -1,7 +1,13 @@
 'use client';
 
 import TontineEdit from '@/components/TontineEdit';
+import { use } from 'react';
 
-export default function Page() {
-  return <TontineEdit />;
+interface PageProps {
+  params: Promise<{ id: string }>;
+}
+
+export default function Page({ params }: PageProps) {
+  const { id } = use(params);
+  return <TontineEdit tontineId={id} />;
 }

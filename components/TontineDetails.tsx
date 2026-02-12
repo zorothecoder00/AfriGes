@@ -2,12 +2,14 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { 
-  ArrowLeft, 
-  Users, 
-  Calendar, 
-  Euro,   
-  Clock, 
+import { useApi } from '@/hooks/useApi';
+import { formatCurrency, formatDate } from '@/lib/format';
+import {
+  ArrowLeft,
+  Users,
+  Calendar,
+  Euro,
+  Clock,
   MoreVertical,
   TrendingUp,
   AlertCircle,
@@ -15,7 +17,6 @@ import {
   XCircle
 } from 'lucide-react';
 
-// Types basés sur votre schéma Prisma
 interface TontineMembre {
   id: number;
   ordreTirage: number | null;
@@ -35,9 +36,9 @@ interface Tontine {
   id: number;
   nom: string;
   description: string | null;
-  montantCycle: number;
-  frequence: 'HEBDOMADAIRE' | 'MENSUEL';
-  statut: 'ACTIVE' | 'TERMINEE' | 'SUSPENDUE';
+  montantCycle: string;
+  frequence: string;
+  statut: string;
   dateDebut: string;
   dateFin: string | null;
   membres: TontineMembre[];
@@ -46,65 +47,13 @@ interface Tontine {
   };
 }
 
-export default function TontineDetails() {
-  // Données d'exemple - à remplacer par fetch réel
-  const [tontine] = useState<Tontine>({
-    id: 1,
-    nom: "Tontine Solidarité",
-    description: "Tontine de solidarité pour les membres actifs de la communauté",
-    montantCycle: 12500,
-    frequence: "MENSUEL",
-    statut: "ACTIVE",
-    dateDebut: "2024-01-15T00:00:00.000Z",
-    dateFin: null,
-    membres: [
-      {
-        id: 1,
-        ordreTirage: 1,
-        dateEntree: "2024-01-15T00:00:00.000Z",
-        dateSortie: null,
-        member: {
-          id: 1,
-          nom: "Kouassi",
-          prenom: "Jean",
-          email: "jean.kouassi@email.com",
-          photo: null,
-          telephone: "+228 90 12 34 56"
-        }
-      },    
-      {
-        id: 2,
-        ordreTirage: 2,
-        dateEntree: "2024-01-15T00:00:00.000Z",
-        dateSortie: null,
-        member: {
-          id: 2,
-          nom: "Mensah",
-          prenom: "Marie",
-          email: "marie.mensah@email.com",
-          photo: null,
-          telephone: "+228 90 23 45 67"
-        }
-      },
-      {
-        id: 3,
-        ordreTirage: 3,
-        dateEntree: "2024-01-20T00:00:00.000Z",
-        dateSortie: null,
-        member: {
-          id: 3,
-          nom: "Agbodjan",
-          prenom: "Paul",
-          email: "paul.agbodjan@email.com",
-          photo: null,
-          telephone: "+228 90 34 56 78"
-        }
-      }
-    ],
-    _count: {
-      membres: 45
-    }
-  });
+interface TontineResponse {
+  data: Tontine;
+}
+
+export default function TontineDetails({ tontineId }: { tontineId: string }) {
+  const { data: response, loading, error, refetch } = useApi<TontineResponse>(`/api/admin/tontines/${tontineId}`);
+  const tontine = response?.data;
 
   const getStatutColor = (statut: string) => {
     switch (statut) {
@@ -133,18 +82,43 @@ export default function TontineDetails() {
   };
 
   const getCategoryColor = (nom: string) => {
-    if (nom.toLowerCase().includes('solidarité') || nom.toLowerCase().includes('solidarite')) {
+    if (nom.toLowerCase().includes('solidarit')) {
       return 'bg-emerald-500';
-    } else if (nom.toLowerCase().includes('entrepreneuriat') || nom.toLowerCase().includes('entrepreneur')) {
+    } else if (nom.toLowerCase().includes('entrepren')) {
       return 'bg-orange-500';
-    } else if (nom.toLowerCase().includes('éducation') || nom.toLowerCase().includes('education')) {
+    } else if (nom.toLowerCase().includes('educ')) {
       return 'bg-blue-500';
     }
     return 'bg-purple-500';
   };
 
-  const totalCollecte = tontine.montantCycle * (tontine._count?.membres || 0);
-  const progression = 75; // À calculer selon la logique métier
+  if (loading && !tontine) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 border-4 border-emerald-200 border-t-emerald-600 rounded-full animate-spin"></div>
+          <p className="text-slate-500 font-medium">Chargement de la tontine...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error && !tontine) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4 bg-white rounded-2xl p-8 shadow-sm border max-w-md text-center">
+          <h3 className="text-lg font-bold text-slate-800">Erreur</h3>
+          <p className="text-slate-500 text-sm">{error}</p>
+          <button onClick={refetch} className="px-5 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 font-medium">Reessayer</button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!tontine) return null;
+
+  const montantCycle = Number(tontine.montantCycle);
+  const totalCollecte = montantCycle * (tontine._count?.membres || 0);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -162,11 +136,7 @@ export default function TontineDetails() {
               <div>
                 <h1 className="text-2xl font-bold text-gray-900">{tontine.nom}</h1>
                 <p className="text-sm text-gray-500 mt-1">
-                  Créée le {new Date(tontine.dateDebut).toLocaleDateString('fr-FR', {
-                    day: 'numeric',
-                    month: 'long',
-                    year: 'numeric'
-                  })}
+                  Creee le {formatDate(tontine.dateDebut)}
                 </p>
               </div>
             </div>
@@ -179,7 +149,7 @@ export default function TontineDetails() {
                 href={`/dashboard/admin/tontines/${tontine.id}/edit`}
                 className={`${getCategoryColor(tontine.nom)} text-white px-6 py-2.5 rounded-lg font-medium hover:opacity-90 transition-opacity`}
               >
-                Gérer
+                Gerer
               </Link>
             </div>
           </div>
@@ -210,19 +180,6 @@ export default function TontineDetails() {
                 </p>
               )}
 
-              <div className="mb-6">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-white/90 text-sm">Progression</span>
-                  <span className="text-white font-bold text-lg">{progression}%</span>
-                </div>
-                <div className="w-full bg-white/20 rounded-full h-3 overflow-hidden">
-                  <div 
-                    className="bg-white h-full rounded-full transition-all duration-500"
-                    style={{ width: `${progression}%` }}
-                  />
-                </div>
-              </div>
-
               <div className="grid grid-cols-2 gap-4">
                 <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
                   <div className="flex items-center gap-2 text-white/80 text-sm mb-2">
@@ -236,15 +193,15 @@ export default function TontineDetails() {
                     <Euro className="w-4 h-4" />
                     Total
                   </div>
-                  <div className="text-3xl font-bold">€{totalCollecte.toLocaleString()}</div>
+                  <div className="text-3xl font-bold">{formatCurrency(totalCollecte)}</div>
                 </div>
               </div>
             </div>
 
-            {/* Informations détaillées */}
+            {/* Informations detaillees */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 mt-6">
-              <h3 className="text-lg font-bold text-gray-900 mb-6">Informations détaillées</h3>
-              
+              <h3 className="text-lg font-bold text-gray-900 mb-6">Informations detaillees</h3>
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <div className="flex items-center gap-3 mb-2">
@@ -253,7 +210,7 @@ export default function TontineDetails() {
                     </div>
                     <div>
                       <p className="text-sm text-gray-500">Contribution</p>
-                      <p className="text-xl font-bold text-gray-900">€{tontine.montantCycle.toLocaleString()}</p>
+                      <p className="text-xl font-bold text-gray-900">{formatCurrency(montantCycle)}</p>
                     </div>
                   </div>
                 </div>
@@ -264,7 +221,7 @@ export default function TontineDetails() {
                       <Clock className="w-5 h-5 text-purple-600" />
                     </div>
                     <div>
-                      <p className="text-sm text-gray-500">Fréquence</p>
+                      <p className="text-sm text-gray-500">Frequence</p>
                       <p className="text-xl font-bold text-gray-900">
                         {tontine.frequence === 'MENSUEL' ? 'Mensuelle' : 'Hebdomadaire'}
                       </p>
@@ -278,13 +235,9 @@ export default function TontineDetails() {
                       <Calendar className="w-5 h-5 text-emerald-600" />
                     </div>
                     <div>
-                      <p className="text-sm text-gray-500">Date de début</p>
+                      <p className="text-sm text-gray-500">Date de debut</p>
                       <p className="text-xl font-bold text-gray-900">
-                        {new Date(tontine.dateDebut).toLocaleDateString('fr-FR', {
-                          day: 'numeric',
-                          month: 'short',
-                          year: 'numeric'
-                        })}
+                        {formatDate(tontine.dateDebut)}
                       </p>
                     </div>
                   </div>
@@ -296,8 +249,10 @@ export default function TontineDetails() {
                       <TrendingUp className="w-5 h-5 text-orange-600" />
                     </div>
                     <div>
-                      <p className="text-sm text-gray-500">Prochain tour</p>
-                      <p className="text-xl font-bold text-gray-900">15 Jan 2025</p>
+                      <p className="text-sm text-gray-500">Date de fin</p>
+                      <p className="text-xl font-bold text-gray-900">
+                        {tontine.dateFin ? formatDate(tontine.dateFin) : 'Non definie'}
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -311,7 +266,7 @@ export default function TontineDetails() {
               <h3 className="text-lg font-bold text-gray-900 mb-4">
                 Membres ({tontine.membres.length})
               </h3>
-              
+
               <div className="space-y-3 max-h-[600px] overflow-y-auto">
                 {tontine.membres.map((membre) => (
                   <div
@@ -338,30 +293,9 @@ export default function TontineDetails() {
                     )}
                   </div>
                 ))}
-              </div>
-
-              <button className="w-full mt-4 px-4 py-2.5 border-2 border-dashed border-gray-300 rounded-xl text-gray-600 font-medium hover:border-gray-400 hover:bg-gray-50 transition-colors">
-                + Ajouter un membre
-              </button>
-            </div>
-
-            {/* Statistiques rapides */}
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 mt-6">
-              <h3 className="text-lg font-bold text-gray-900 mb-4">Statistiques</h3>
-              
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">Taux de participation</span>
-                  <span className="font-bold text-gray-900">98%</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">Tours complétés</span>
-                  <span className="font-bold text-gray-900">12/16</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">Montant distribué</span>
-                  <span className="font-bold text-emerald-600">€150,000</span>
-                </div>
+                {tontine.membres.length === 0 && (
+                  <p className="text-gray-500 text-center py-8">Aucun membre</p>
+                )}
               </div>
             </div>
           </div>

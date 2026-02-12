@@ -1,7 +1,13 @@
 'use client';
 
 import TontineDetails from '@/components/TontineDetails';
+import { use } from 'react';
 
-export default function Page() {
-  return <TontineDetails />;
+interface PageProps {
+  params: Promise<{ id: string }>;
+}
+
+export default function Page({ params }: PageProps) {
+  const { id } = use(params);
+  return <TontineDetails tontineId={id} />;
 }

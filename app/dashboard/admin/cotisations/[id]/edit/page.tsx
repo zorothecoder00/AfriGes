@@ -1,35 +1,86 @@
 'use client';
 
+import { use } from 'react';
 import { useRouter } from 'next/navigation';
+import { useApi, useMutation } from '@/hooks/useApi';
 import CotisationEdit, {
   CotisationUpdatePayload,
 } from '@/components/CotisationEdit';
 
-export default function Page({ params }: { params: { id: string } }) {
-  const router = useRouter();
+interface PageProps {
+  params: Promise<{ id: string }>;
+}
 
+interface CotisationResponse {
+  data: {
+    id: number;
+    montant: string;
+    periode: 'MENSUEL' | 'ANNUEL';
+    datePaiement: string | null;
+    dateExpiration: string;
+    statut: 'EN_ATTENTE' | 'PAYEE' | 'EXPIREE';
+    member: {
+      id: number;
+      nom: string;
+      prenom: string;
+      email: string;
+      photo?: string;
+    };
+  };
+}
+
+export default function Page({ params }: PageProps) {
+  const { id } = use(params);
+  const router = useRouter();
+  const { data: response, loading, error } = useApi<CotisationResponse>(`/api/admin/cotisations/${id}`);
+  const { mutate } = useMutation(`/api/admin/cotisations/${id}`, 'PATCH');
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="w-12 h-12 border-4 border-emerald-200 border-t-emerald-600 rounded-full animate-spin"></div>
+      </div>
+    );
+  }
+
+  if (error || !response?.data) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-gray-600">{error || 'Cotisation introuvable'}</p>
+          <button onClick={() => router.back()} className="mt-4 text-emerald-600 hover:text-emerald-700">
+            Retour
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const c = response.data;
   const cotisation = {
-    id: Number(params.id),
+    id: c.id,
     membre: {
-      nom: 'Doe',
-      prenom: 'John',
-      email: 'john@example.com',
+      nom: c.member.nom,
+      prenom: c.member.prenom,
+      email: c.member.email,
+      photo: c.member.photo,
     },
-    montant: 100,
-    periode: 'MENSUEL' as const,
-    datePaiement: null,
-    dateExpiration: '2026-12-31',
-    statut: 'EN_ATTENTE' as const,
-  };   
+    montant: Number(c.montant),
+    periode: c.periode,
+    datePaiement: c.datePaiement,
+    dateExpiration: c.dateExpiration,
+    statut: c.statut,
+  };
 
   const handleClose = () => {
     router.back();
   };
 
-  const handleSave = (updatedData: CotisationUpdatePayload) => {
-    console.log('Données à envoyer à l’API :', updatedData);
-
-    router.back();
+  const handleSave = async (updatedData: CotisationUpdatePayload) => {
+    const result = await mutate(updatedData);
+    if (result) {
+      router.push(`/dashboard/admin/cotisations/${id}`);
+    }
   };
 
   return (

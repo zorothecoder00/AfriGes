@@ -39,10 +39,16 @@ export async function GET(
         member: {
           select: {
             id: true,
+            uuid: true,
             nom: true,
             prenom: true,
             email: true,
+            photo: true,
+            role: true,
             telephone: true,
+            adresse: true,
+            etat: true,
+            dateAdhesion: true,
           },
         },
       },
