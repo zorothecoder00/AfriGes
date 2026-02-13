@@ -10,7 +10,7 @@ export async function GET(req: Request) {
     const tontines = await prisma.tontine.findMany({
       include: {
         membres: {
-        include: { member: true },
+          include: { client: true },
         },
       },
       orderBy: { dateDebut: "desc" },

@@ -3,5 +3,5 @@
 import NotificationsPage from '@/components/Notifications';
 
 export default function UserNotificationsPage() {
-  return <NotificationsPage />;
+  return <NotificationsPage backUrl="/dashboard/user" />;
 }

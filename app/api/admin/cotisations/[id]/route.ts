@@ -6,6 +6,7 @@ import {
   PrioriteNotification,
 } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { getAuthSession } from "@/lib/auth";
 
 interface RouteParams {
   params: Promise<{
@@ -37,14 +38,12 @@ export async function GET(
     const cotisation = await prisma.cotisation.findUnique({
       where: { id: cotisationId },
       include: {
-        member: {
+        client: {
           select: {
             id: true,
             nom: true,
             prenom: true,
-            email: true,
             telephone: true,
-            photo: true,
           },
         },
       },
@@ -78,6 +77,7 @@ export async function PATCH(
   { params }: RouteParams
 ) {
   try {
+    const session = await getAuthSession();
     const { id } = await params;
     const cotisationId = Number(id);
 
@@ -114,7 +114,7 @@ export async function PATCH(
     const result = await prisma.$transaction(async (tx) => {
       const cotisation = await tx.cotisation.findUnique({
         where: { id: cotisationId },
-        include: { member: true },
+        include: { client: true },
       });
 
       if (!cotisation) {
@@ -133,23 +133,21 @@ export async function PATCH(
           }),
         },
         include: {
-          member: {
+          client: {
             select: {
               id: true,
               nom: true,
               prenom: true,
-              email: true,
               telephone: true,
-              photo: true,
             },
           },
         },
       });
 
-      // Audit log
+      // Audit log - userId = admin connecté
       await tx.auditLog.create({
         data: {
-          userId: cotisation.memberId,
+          userId: session ? parseInt(session.user.id) : null,
           action: "MODIFICATION_COTISATION",
           entite: "Cotisation",
           entiteId: cotisationId,
@@ -167,11 +165,14 @@ export async function PATCH(
       });
 
       if (admins.length > 0) {
+        const clientNom = cotisation.client
+          ? `${cotisation.client.prenom} ${cotisation.client.nom}`
+          : "Client inconnu";
         await tx.notification.createMany({
           data: admins.map((admin) => ({
             userId: admin.id,
             titre: "Cotisation modifiee",
-            message: `La cotisation de ${cotisation.member.prenom} ${cotisation.member.nom} a ete modifiee.`,
+            message: `La cotisation de ${clientNom} a ete modifiee.`,
             priorite: PrioriteNotification.NORMAL,
             actionUrl: `/dashboard/admin/cotisations/${cotisationId}`,
           })),

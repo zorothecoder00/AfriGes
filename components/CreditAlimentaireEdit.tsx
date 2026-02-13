@@ -12,21 +12,22 @@ interface CreditAlimentaire {
   statut: StatutCreditAlim;
 }  
 
-interface User {
+interface ClientInfo {
   id: number;
   prenom: string;
   nom: string;
+  telephone: string;
 }
 
 type SourceCreditAlim = 'COTISATION' | 'TONTINE';
 type StatutCreditAlim = 'ACTIF' | 'EPUISE' | 'EXPIRE';
 
-interface CreditAlimentaireWithMember extends CreditAlimentaire {
-  member: User;
-}  
-  
+interface CreditAlimentaireWithClient extends CreditAlimentaire {
+  client: ClientInfo | null;
+}
+
 interface CreditAlimentaireEditProps {
-  credit?: CreditAlimentaireWithMember;
+  credit?: CreditAlimentaireWithClient;
   onClose: () => void;
   onSave: (data: UpdateCreditAlimentaireData) => Promise<void>;
 }
@@ -136,7 +137,7 @@ export default function CreditAlimentaireEdit({ credit, onClose, onSave }: Credi
           <div>
             <h2 className="text-2xl font-semibold text-gray-900">Modifier le crédit alimentaire</h2>
             <p className="text-sm text-gray-500 mt-1">
-              {credit.member.prenom} {credit.member.nom}
+              {credit.client?.prenom} {credit.client?.nom}
             </p>
           </div>
           <button

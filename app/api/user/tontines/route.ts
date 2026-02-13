@@ -3,42 +3,54 @@ import { prisma } from '@/lib/prisma';
 import { getAuthSession } from '@/lib/auth';
 import { StatutTontine } from '@prisma/client'
 
-export async function GET(req: Request) {              
-  try {  
+export async function GET(req: Request) {
+  try {
+    const session = await getAuthSession();
+    if (!session?.user) {
+      return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
+    }
+
+    const memberId = parseInt(session.user.id);
+
     const { searchParams } = new URL(req.url)
 
-        // 🔹 Pagination
+    // Pagination
     const page = parseInt(searchParams.get('page') ?? '1');
     const limit = parseInt(searchParams.get('limit') ?? '10');
     const skip = (page - 1) * limit;
 
-    // 🔹 Tri
+    // Tri
     const sortBy = searchParams.get('sortBy') ?? 'dateDebut';
     const order = searchParams.get('order') === 'desc' ? 'desc' : 'asc';
 
-    // 🔒 Sécurité : champs de tri autorisés
     const allowedSortFields = ['dateDebut', 'createdAt', 'montantCycle'];
     const orderByField = allowedSortFields.includes(sortBy)
       ? sortBy
       : 'dateDebut';
 
-    // 🔹 Requête principale
+    // Filtrer uniquement les tontines où l'utilisateur est membre
+    const where = {
+      statut: StatutTontine.ACTIVE,
+      membres: {
+        some: {
+          memberId,
+        },
+      },
+    };
+
     const [tontines, total] = await prisma.$transaction([
       prisma.tontine.findMany({
-        where: {
-          statut: StatutTontine.ACTIVE,
-        },
+        where,
         orderBy: {
           [orderByField]: order,
         },
         skip,
         take: limit,
-      }),  
-      prisma.tontine.count({
-        where: {
-          statut: StatutTontine.ACTIVE,
+        include: {
+          _count: { select: { membres: true } },
         },
       }),
+      prisma.tontine.count({ where }),
     ]);
 
     return NextResponse.json({
@@ -55,4 +67,3 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
   }
 }
-

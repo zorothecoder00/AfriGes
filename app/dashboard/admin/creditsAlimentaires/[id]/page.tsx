@@ -1,6 +1,7 @@
 'use client';
 
 import { use } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useApi } from '@/hooks/useApi';
 import CreditAlimentaireDetails from '@/components/CreditAlimentaireDetails';
@@ -20,12 +21,12 @@ interface CreditAlimentaireResponse {
     sourceId: number;
     dateAttribution: string;
     dateExpiration?: string | null;
-    member: {
+    client: {
       id: number;
       prenom: string;
       nom: string;
-      email: string;
-    };
+      telephone: string;
+    } | null;
     transactions: Array<{
       id: number;
       type: string;
@@ -65,9 +66,9 @@ export default function Page({ params }: PageProps) {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <p className="text-gray-600">{error || 'Credit alimentaire introuvable'}</p>
-          <button onClick={() => router.back()} className="mt-4 text-emerald-600 hover:text-emerald-700">
-            Retour
-          </button>
+          <Link href="/dashboard/admin/creditsAlimentaires" className="mt-4 text-emerald-600 hover:text-emerald-700 inline-block">
+            Retour aux credits alimentaires
+          </Link>
         </div>
       </div>
     );
@@ -84,7 +85,7 @@ export default function Page({ params }: PageProps) {
     sourceId: c.sourceId,
     dateAttribution: c.dateAttribution,
     dateExpiration: c.dateExpiration,
-    member: c.member,
+    client: c.client,
     transactions: c.transactions.map(t => ({
       ...t,
       montant: Number(t.montant),
@@ -98,7 +99,7 @@ export default function Page({ params }: PageProps) {
   return (
     <CreditAlimentaireDetails
       credit={credit}
-      onClose={() => router.back()}
+      onClose={() => router.push('/dashboard/admin/creditsAlimentaires')}
       onEdit={() => router.push(`/dashboard/admin/creditsAlimentaires/${id}/edit`)}
     />
   );

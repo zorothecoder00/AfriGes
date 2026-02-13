@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { Plus, Search, Download, ShoppingCart, TrendingUp, DollarSign, AlertCircle, CheckCircle, Clock, Eye, MoreVertical } from 'lucide-react';
+import { Plus, Search, Download, ShoppingCart, TrendingUp, DollarSign, AlertCircle, CheckCircle, Clock, Eye, MoreVertical, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { useApi, useMutation } from '@/hooks/useApi';
 import { formatCurrency, formatDate } from '@/lib/format';
@@ -16,12 +16,12 @@ interface CreditAlimentaire {
   source: string;
   dateExpiration: string | null;
   createdAt: string;
-  member: {
+  client: {
     id: number;
     nom: string;
     prenom: string;
-    email: string;
-  };
+    telephone: string;
+  } | null;
 }
 
 interface CreditsAlimentairesResponse {
@@ -42,15 +42,15 @@ interface CreditsAlimentairesResponse {
   };
 }
 
-interface MemberOption {
+interface ClientOption {
   id: number;
   nom: string;
   prenom: string;
-  email: string;
+  telephone: string;
 }
 
-interface MembresListResponse {
-  data: MemberOption[];
+interface ClientsListResponse {
+  data: ClientOption[];
 }
 
 export default function CreditsAlimentairesPage() {
@@ -59,7 +59,7 @@ export default function CreditsAlimentairesPage() {
   const [page, setPage] = useState(1);
   const [statutFilter, setStatutFilter] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
-  const [formData, setFormData] = useState({ memberId: '', plafond: '', source: 'COTISATION', sourceId: '1', dateExpiration: '' });
+  const [formData, setFormData] = useState({ clientId: '', plafond: '', source: 'COTISATION', sourceId: '1', dateExpiration: '' });
   const limit = 10;
 
   useEffect(() => {
@@ -76,11 +76,11 @@ export default function CreditsAlimentairesPage() {
   const stats = response?.stats;
   const meta = response?.meta;
 
-  const { data: membresResponse } = useApi<MembresListResponse>(modalOpen ? '/api/admin/membres?limit=200' : null);
-  const membres = membresResponse?.data ?? [];
+  const { data: clientsResponse } = useApi<ClientsListResponse>(modalOpen ? '/api/admin/clients?limit=200' : null);
+  const clients = clientsResponse?.data ?? [];
 
   // Charger cotisations ou tontines selon la source selectionnee
-  const { data: cotisationsSource } = useApi<{ data: { id: number; montant: string; periode: string; member: { nom: string; prenom: string } }[] }>(
+  const { data: cotisationsSource } = useApi<{ data: { id: number; montant: string; periode: string; client: { nom: string; prenom: string } | null }[] }>(
     modalOpen && formData.source === 'COTISATION' ? '/api/admin/cotisations?limit=200&statut=PAYEE' : null
   );
   const { data: tontinesSource } = useApi<{ data: { id: number; nom: string }[] }>(
@@ -92,7 +92,7 @@ export default function CreditsAlimentairesPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const result = await addCredit({
-      memberId: Number(formData.memberId),
+      clientId: Number(formData.clientId),
       plafond: Number(formData.plafond),
       source: formData.source,
       sourceId: Number(formData.sourceId),
@@ -100,7 +100,7 @@ export default function CreditsAlimentairesPage() {
     });
     if (result) {
       setModalOpen(false);
-      setFormData({ memberId: '', plafond: '', source: 'COTISATION', sourceId: '1', dateExpiration: '' });
+      setFormData({ clientId: '', plafond: '', source: 'COTISATION', sourceId: '1', dateExpiration: '' });
       refetch();
     }
   };
@@ -148,9 +148,14 @@ export default function CreditsAlimentairesPage() {
       <div className="max-w-[1600px] mx-auto space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-4xl font-bold text-slate-800 mb-2">Credits Alimentaires</h1>
-            <p className="text-slate-500">Gerez les credits alimentaires de vos membres</p>
+          <div className="flex items-center gap-4">
+            <Link href="/dashboard/admin" className="p-2 hover:bg-white rounded-lg transition-colors">
+              <ArrowLeft className="w-5 h-5 text-slate-600" />
+            </Link>
+            <div>
+              <h1 className="text-4xl font-bold text-slate-800 mb-2">Credits Alimentaires</h1>
+              <p className="text-slate-500">Gerez les credits alimentaires de vos clients</p>
+            </div>
           </div>
           <div className="flex gap-3">
             <button className="px-5 py-3 bg-white border border-slate-200 rounded-xl text-slate-700 hover:bg-slate-50 transition-all shadow-sm flex items-center gap-2 font-medium">
@@ -176,13 +181,13 @@ export default function CreditsAlimentairesPage() {
                   <label className="block text-sm font-medium text-slate-700 mb-1">Beneficiaire</label>
                   <select
                     required
-                    value={formData.memberId}
-                    onChange={e => setFormData({ ...formData, memberId: e.target.value })}
+                    value={formData.clientId}
+                    onChange={e => setFormData({ ...formData, clientId: e.target.value })}
                     className="w-full px-4 py-2 border rounded-xl bg-white"
                   >
-                    <option value="">Selectionner un membre</option>
-                    {membres.map(m => (
-                      <option key={m.id} value={m.id}>{m.prenom} {m.nom} ({m.email})</option>
+                    <option value="">Selectionner un client</option>
+                    {clients.map(c => (
+                      <option key={c.id} value={c.id}>{c.prenom} {c.nom} ({c.telephone})</option>
                     ))}
                   </select>
                 </div>
@@ -222,7 +227,7 @@ export default function CreditsAlimentairesPage() {
                     {formData.source === 'COTISATION'
                       ? (cotisationsSource?.data ?? []).map(c => (
                           <option key={c.id} value={c.id}>
-                            #{c.id} - {c.member.prenom} {c.member.nom} - {formatCurrency(c.montant)} ({getStatusLabel(c.periode)})
+                            #{c.id} - {c.client?.prenom} {c.client?.nom} - {formatCurrency(c.montant)} ({getStatusLabel(c.periode)})
                           </option>
                         ))
                       : (tontinesSource?.data ?? []).map(t => (
@@ -325,9 +330,12 @@ export default function CreditsAlimentairesPage() {
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-full flex items-center justify-center text-white font-semibold shadow-md">
-                            {getInitials(credit.member.nom, credit.member.prenom)}
+                            {getInitials(credit.client?.nom ?? '', credit.client?.prenom ?? '')}
                           </div>
-                          <span className="font-semibold text-slate-800">{credit.member.prenom} {credit.member.nom}</span>
+                          <div>
+                            <span className="font-semibold text-slate-800">{credit.client?.prenom} {credit.client?.nom}</span>
+                            <p className="text-xs text-slate-500">{credit.client?.telephone}</p>
+                          </div>
                         </div>
                       </td>
                       <td className="px-6 py-4">

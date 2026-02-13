@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { Plus, Search, Download, ShoppingCart, TrendingUp, DollarSign, Users, Calendar, Eye, MoreVertical, Package } from 'lucide-react';
+import { Plus, Search, Download, ShoppingCart, TrendingUp, DollarSign, Users, Calendar, Eye, MoreVertical, Package, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { useApi, useMutation } from '@/hooks/useApi';
 import { formatCurrency, formatDateTime } from '@/lib/format';
@@ -149,9 +149,14 @@ export default function VentesPage() {
       <div className="max-w-[1600px] mx-auto space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-4xl font-bold text-slate-800 mb-2">Ventes</h1>
-            <p className="text-slate-500">Gerez et suivez toutes vos transactions de vente</p>
+          <div className="flex items-center gap-4">
+            <Link href="/dashboard/admin" className="p-2 hover:bg-white rounded-lg transition-colors">
+              <ArrowLeft className="w-5 h-5 text-slate-600" />
+            </Link>
+            <div>
+              <h1 className="text-4xl font-bold text-slate-800 mb-2">Ventes</h1>
+              <p className="text-slate-500">Gerez et suivez toutes vos transactions de vente</p>
+            </div>
           </div>
           <div className="flex gap-3">
             <button className="px-5 py-3 bg-white border border-slate-200 rounded-xl text-slate-700 hover:bg-slate-50 transition-all shadow-sm flex items-center gap-2 font-medium">

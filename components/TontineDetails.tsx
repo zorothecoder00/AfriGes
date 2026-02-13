@@ -22,14 +22,12 @@ interface TontineMembre {
   ordreTirage: number | null;
   dateEntree: string;
   dateSortie: string | null;
-  member: {
+  client: {
     id: number;
     nom: string;
     prenom: string;
-    email: string;
-    photo: string | null;
-    telephone: string | null;
-  };
+    telephone: string;
+  } | null;
 }
 
 interface Tontine {
@@ -274,14 +272,14 @@ export default function TontineDetails({ tontineId }: { tontineId: string }) {
                     className="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 transition-colors border border-gray-100"
                   >
                     <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-sm">
-                      {membre.member.prenom[0]}{membre.member.nom[0]}
+                      {membre.client?.prenom?.[0]}{membre.client?.nom?.[0]}
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-gray-900 truncate">
-                        {membre.member.prenom} {membre.member.nom}
+                        {membre.client?.prenom} {membre.client?.nom}
                       </p>
                       <p className="text-xs text-gray-500 truncate">
-                        {membre.member.email}
+                        {membre.client?.telephone}
                       </p>
                     </div>
                     {membre.ordreTirage && (

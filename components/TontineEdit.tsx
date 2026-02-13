@@ -27,18 +27,17 @@ interface TontineForm {
   dateFin: string;
 }
 
-interface Membre {
+interface ClientOption {
   id: number;
   nom: string;
   prenom: string;
-  email: string;
-  photo: string | null;
+  telephone: string;
 }
 
 interface TontineMembre {
   id: number;
   ordreTirage: number | null;
-  member: Membre;
+  client: ClientOption | null;
 }
 
 interface Tontine {
@@ -57,13 +56,12 @@ interface TontineResponse {
   data: Tontine;
 }
 
-interface MembresResponse {
+interface ClientsResponse {
   data: Array<{
     id: number;
     nom: string;
     prenom: string;
-    email: string;
-    photo: string | null;
+    telephone: string;
   }>;
 }
 
@@ -71,7 +69,7 @@ export default function TontineEdit({ tontineId }: { tontineId: string }) {
   const router = useRouter();
   const { data: response, loading } = useApi<TontineResponse>(`/api/admin/tontines/${tontineId}`);
   const { mutate, loading: saving, error: saveError } = useMutation(`/api/admin/tontines/${tontineId}`, 'PUT');
-  const { data: membresResponse } = useApi<MembresResponse>('/api/admin/membres?limit=100');
+  const { data: clientsResponse } = useApi<ClientsResponse>('/api/admin/clients?limit=100');
 
   const [formData, setFormData] = useState<TontineForm>({
     nom: '',
@@ -84,9 +82,9 @@ export default function TontineEdit({ tontineId }: { tontineId: string }) {
   });
 
   const [membresSelectionnes, setMembresSelectionnes] = useState<Array<{
-    memberId: number;
+    clientId: number;
     ordreTirage: number | null;
-    membre: Membre;
+    client: ClientOption;
   }>>([]);
 
   const [showMemberModal, setShowMemberModal] = useState(false);
@@ -107,11 +105,13 @@ export default function TontineEdit({ tontineId }: { tontineId: string }) {
         dateFin: t.dateFin ? t.dateFin.split('T')[0] : '',
       });
       setMembresSelectionnes(
-        t.membres.map(m => ({
-          memberId: m.member.id,
-          ordreTirage: m.ordreTirage,
-          membre: m.member,
-        }))
+        t.membres
+          .filter(m => m.client !== null)
+          .map(m => ({
+            clientId: m.client!.id,
+            ordreTirage: m.ordreTirage,
+            client: m.client!,
+          }))
       );
     }, 0);
 
@@ -123,27 +123,27 @@ export default function TontineEdit({ tontineId }: { tontineId: string }) {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const ajouterMembre = (membre: Membre) => {
-    if (membresSelectionnes.some(m => m.memberId === membre.id)) return;
+  const ajouterClient = (client: ClientOption) => {
+    if (membresSelectionnes.some(m => m.clientId === client.id)) return;
     const prochainOrdre = membresSelectionnes.length > 0
       ? Math.max(...membresSelectionnes.map(m => m.ordreTirage || 0)) + 1
       : 1;
     setMembresSelectionnes(prev => [...prev, {
-      memberId: membre.id,
+      clientId: client.id,
       ordreTirage: prochainOrdre,
-      membre
+      client
     }]);
     setShowMemberModal(false);
     setSearchMembre('');
   };
 
-  const retirerMembre = (memberId: number) => {
-    setMembresSelectionnes(prev => prev.filter(m => m.memberId !== memberId));
+  const retirerMembre = (clientId: number) => {
+    setMembresSelectionnes(prev => prev.filter(m => m.clientId !== clientId));
   };
 
-  const updateOrdreTirage = (memberId: number, ordre: number) => {
+  const updateOrdreTirage = (clientId: number, ordre: number) => {
     setMembresSelectionnes(prev =>
-      prev.map(m => m.memberId === memberId ? { ...m, ordreTirage: ordre } : m)
+      prev.map(m => m.clientId === clientId ? { ...m, ordreTirage: ordre } : m)
     );
   };
 
@@ -154,6 +154,7 @@ export default function TontineEdit({ tontineId }: { tontineId: string }) {
       montantCycle: parseFloat(formData.montantCycle),
       dateDebut: formData.dateDebut,
       dateFin: formData.dateFin || null,
+      membres: membresSelectionnes,
     });
     if (result) {
       router.push(`/dashboard/admin/tontines/${tontineId}`);
@@ -167,12 +168,12 @@ export default function TontineEdit({ tontineId }: { tontineId: string }) {
     return 'bg-purple-500';
   };
 
-  const membresDisponibles = (membresResponse?.data || []).filter((m: Membre) =>
-    !membresSelectionnes.some(ms => ms.memberId === m.id) &&
+  const clientsDisponibles = (clientsResponse?.data || []).filter((c: ClientOption) =>
+    !membresSelectionnes.some(ms => ms.clientId === c.id) &&
     (searchMembre === '' ||
-      m.nom.toLowerCase().includes(searchMembre.toLowerCase()) ||
-      m.prenom.toLowerCase().includes(searchMembre.toLowerCase()) ||
-      m.email.toLowerCase().includes(searchMembre.toLowerCase()))
+      c.nom.toLowerCase().includes(searchMembre.toLowerCase()) ||
+      c.prenom.toLowerCase().includes(searchMembre.toLowerCase()) ||
+      c.telephone.toLowerCase().includes(searchMembre.toLowerCase()))
   );
 
   if (loading) {
@@ -378,7 +379,7 @@ export default function TontineEdit({ tontineId }: { tontineId: string }) {
                     className="px-4 py-2 bg-emerald-50 text-emerald-700 rounded-lg font-medium hover:bg-emerald-100 transition-colors flex items-center gap-2"
                   >
                     <Plus className="w-4 h-4" />
-                    Ajouter un membre
+                    Ajouter un client
                   </button>
                 </div>
 
@@ -391,17 +392,17 @@ export default function TontineEdit({ tontineId }: { tontineId: string }) {
                   <div className="space-y-3">
                     {membresSelectionnes.map((membre) => (
                       <div
-                        key={membre.memberId}
+                        key={membre.clientId}
                         className="flex items-center gap-4 p-4 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
                       >
                         <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold">
-                          {membre.membre.prenom[0]}{membre.membre.nom[0]}
+                          {membre.client.prenom[0]}{membre.client.nom[0]}
                         </div>
                         <div className="flex-1">
                           <p className="font-medium text-gray-900">
-                            {membre.membre.prenom} {membre.membre.nom}
+                            {membre.client.prenom} {membre.client.nom}
                           </p>
-                          <p className="text-sm text-gray-500">{membre.membre.email}</p>
+                          <p className="text-sm text-gray-500">{membre.client.telephone}</p>
                         </div>
                         <div className="flex items-center gap-3">
                           <div>
@@ -409,7 +410,7 @@ export default function TontineEdit({ tontineId }: { tontineId: string }) {
                             <input
                               type="number"
                               value={membre.ordreTirage || ''}
-                              onChange={(e) => updateOrdreTirage(membre.memberId, parseInt(e.target.value) || 0)}
+                              onChange={(e) => updateOrdreTirage(membre.clientId, parseInt(e.target.value) || 0)}
                               min="1"
                               className="w-20 px-3 py-2 border border-gray-300 rounded-lg text-center focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                               placeholder="#"
@@ -417,7 +418,7 @@ export default function TontineEdit({ tontineId }: { tontineId: string }) {
                           </div>
                           <button
                             type="button"
-                            onClick={() => retirerMembre(membre.memberId)}
+                            onClick={() => retirerMembre(membre.clientId)}
                             className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                           >
                             <X className="w-5 h-5" />
@@ -492,7 +493,7 @@ export default function TontineEdit({ tontineId }: { tontineId: string }) {
           <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-hidden">
             <div className="p-6 border-b border-gray-200">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-xl font-bold text-gray-900">Ajouter un membre</h3>
+                <h3 className="text-xl font-bold text-gray-900">Ajouter un client</h3>
                 <button
                   onClick={() => setShowMemberModal(false)}
                   className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
@@ -507,35 +508,35 @@ export default function TontineEdit({ tontineId }: { tontineId: string }) {
                   type="text"
                   value={searchMembre}
                   onChange={(e) => setSearchMembre(e.target.value)}
-                  placeholder="Rechercher un membre..."
+                  placeholder="Rechercher un client..."
                   className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                 />
               </div>
             </div>
 
             <div className="p-6 overflow-y-auto max-h-[calc(80vh-180px)]">
-              {membresDisponibles.length === 0 ? (
+              {clientsDisponibles.length === 0 ? (
                 <div className="text-center py-12">
                   <Users className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                  <p className="text-gray-500">Aucun membre disponible</p>
+                  <p className="text-gray-500">Aucun client disponible</p>
                 </div>
               ) : (
                 <div className="space-y-2">
-                  {membresDisponibles.map((membre: Membre) => (
+                  {clientsDisponibles.map((client: ClientOption) => (
                     <button
-                      key={membre.id}
+                      key={client.id}
                       type="button"
-                      onClick={() => ajouterMembre(membre)}
+                      onClick={() => ajouterClient(client)}
                       className="w-full flex items-center gap-3 p-4 hover:bg-gray-50 rounded-xl transition-colors border border-gray-200 text-left"
                     >
                       <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold">
-                        {membre.prenom[0]}{membre.nom[0]}
+                        {client.prenom[0]}{client.nom[0]}
                       </div>
                       <div className="flex-1">
                         <p className="font-medium text-gray-900">
-                          {membre.prenom} {membre.nom}
+                          {client.prenom} {client.nom}
                         </p>
-                        <p className="text-sm text-gray-500">{membre.email}</p>
+                        <p className="text-sm text-gray-500">{client.telephone}</p>
                       </div>
                       <Plus className="w-5 h-5 text-emerald-600" />
                     </button>

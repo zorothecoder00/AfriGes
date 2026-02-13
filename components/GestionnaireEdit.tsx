@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useApi, useMutation } from '@/hooks/useApi';
 import {
@@ -40,7 +41,7 @@ interface GestionnaireResponse {
 }
 
 interface FormData {
-  role: 'AGENT' | 'SUPERVISEUR' | 'CAISSIER';
+  role: string;
   actif: boolean;
 }
 
@@ -50,7 +51,7 @@ export default function GestionnaireEdit({ gestionnaireId }: GestionnaireEditPro
   const { mutate, loading: saving, error: saveError } = useMutation(`/api/admin/gestionnaires/${gestionnaireId}`, 'PATCH');
 
   const [formData, setFormData] = useState<FormData>({
-    role: 'AGENT',
+    role: 'CAISSIER',
     actif: true,
   });
 
@@ -60,7 +61,7 @@ export default function GestionnaireEdit({ gestionnaireId }: GestionnaireEditPro
     // setState dans un micro-task pour éviter le warning
     const timeout = setTimeout(() => {
       setFormData({
-        role: response.data.role as FormData['role'],
+        role: response.data.role,
         actif: response.data.actif,
       });
     }, 0);
@@ -92,12 +93,12 @@ export default function GestionnaireEdit({ gestionnaireId }: GestionnaireEditPro
       <div className="max-w-4xl mx-auto">
         {/* En-tete */}
         <div className="mb-6 flex items-center gap-4">
-          <button
-            onClick={() => router.back()}
+          <Link
+            href={`/dashboard/admin/gestionnaires/${gestionnaireId}`}
             className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
           >
             <ArrowLeft className="w-5 h-5 text-gray-600" />
-          </button>
+          </Link>
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Modifier le gestionnaire</h1>
             <p className="text-sm text-gray-500 mt-1">
@@ -187,12 +188,26 @@ export default function GestionnaireEdit({ gestionnaireId }: GestionnaireEditPro
                 <select
                   id="role"
                   value={formData.role}
-                  onChange={(e) => setFormData(prev => ({ ...prev, role: e.target.value as FormData['role'] }))}
+                  onChange={(e) => setFormData(prev => ({ ...prev, role: e.target.value }))}
                   className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition-all appearance-none bg-white"
                 >
-                  <option value="AGENT">Agent</option>
-                  <option value="SUPERVISEUR">Superviseur</option>
+                  <option value="SUPER_ADMIN">Super Admin</option>
+                  <option value="ADMIN">Admin</option>
+                  <option value="RESPONSABLE_POINT_DE_VENTE">Responsable point de vente</option>
+                  <option value="RESPONSABLE_COMMUNAUTE">Responsable communaute</option>
+                  <option value="REVENDEUR">Revendeur</option>
+                  <option value="AGENT_LOGISTIQUE_APPROVISIONNEMENT">Agent logistique / approvisionnement</option>
+                  <option value="MAGAZINIER">Magazinier</option>
                   <option value="CAISSIER">Caissier</option>
+                  <option value="COMMERCIAL">Commercial</option>
+                  <option value="COMPTABLE">Comptable</option>
+                  <option value="AUDITEUR_INTERNE">Auditeur interne</option>
+                  <option value="RESPONSABLE_VENTE_CREDIT">Responsable vente credit</option>
+                  <option value="CONTROLEUR_TERRAIN">Controleur terrain</option>
+                  <option value="AGENT_TERRAIN">Agent terrain</option>
+                  <option value="RESPONSABLE_ECONOMIQUE">Responsable economique</option>
+                  <option value="RESPONSABLE_MARKETING">Responsable marketing</option>
+                  <option value="ACTIONNAIRE">Actionnaire</option>
                 </select>
                 <p className="mt-1 text-xs text-gray-500">
                   Definit les responsabilites du gestionnaire
@@ -226,14 +241,12 @@ export default function GestionnaireEdit({ gestionnaireId }: GestionnaireEditPro
 
           {/* Boutons d'action */}
           <div className="flex items-center justify-end gap-4 pt-6 border-t border-gray-200">
-            <button
-              type="button"
-              onClick={() => router.back()}
-              className="px-6 py-2.5 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-              disabled={saving}
+            <Link
+              href={`/dashboard/admin/gestionnaires/${gestionnaireId}`}
+              className={`px-6 py-2.5 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors ${saving ? 'pointer-events-none opacity-50' : ''}`}
             >
               Annuler
-            </button>
+            </Link>
             <button
               type="submit"
               disabled={saving}

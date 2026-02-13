@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { Search, Plus, Phone, MapPin, Eye, Edit, Trash2 } from 'lucide-react';
+import { Search, Plus, Phone, MapPin, Eye, Edit, Trash2, ArrowLeft } from 'lucide-react';
+import Link from 'next/link';
 import { useApi, useMutation } from '@/hooks/useApi';
 import { formatDate } from '@/lib/format';
 
@@ -93,9 +94,14 @@ export default function ClientsPage() {
       <div className="max-w-[1600px] mx-auto space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-4xl font-bold text-slate-800 mb-2">Clients</h1>
-            <p className="text-slate-500">Gerez les clients externes de votre communaute</p>
+          <div className="flex items-center gap-4">
+            <Link href="/dashboard/admin" className="p-2 hover:bg-white rounded-lg transition-colors">
+              <ArrowLeft className="w-5 h-5 text-slate-600" />
+            </Link>
+            <div>
+              <h1 className="text-4xl font-bold text-slate-800 mb-2">Clients</h1>
+              <p className="text-slate-500">Gerez les clients externes de votre communaute</p>
+            </div>
           </div>
           <button
             onClick={() => setModalOpen(true)}
@@ -215,7 +221,9 @@ export default function ClientsPage() {
                           {getInitials(client.nom, client.prenom)}
                         </div>
                         <div>
-                          <p className="font-semibold text-slate-800">{client.prenom} {client.nom}</p>
+                          <Link href={`/dashboard/admin/clients/${client.id}`} className="font-semibold text-slate-800 hover:text-amber-600 transition-colors">
+                            {client.prenom} {client.nom}
+                          </Link>
                         </div>
                       </div>
                     </td>
@@ -255,12 +263,12 @@ export default function ClientsPage() {
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2">
-                        <button className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
+                        <Link href={`/dashboard/admin/clients/${client.id}`} className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
                           <Eye size={16} />
-                        </button>
-                        <button className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
+                        </Link>
+                        <Link href={`/dashboard/admin/clients/${client.id}/edit`} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
                           <Edit size={16} />
-                        </button>
+                        </Link>
                         <button className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors">
                           <Trash2 size={16} />
                         </button>

@@ -6,6 +6,7 @@ import {
   PrioriteNotification,
 } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { getAuthSession } from "@/lib/auth";
 
 interface RouteParams {
   params: Promise<{
@@ -37,12 +38,12 @@ export async function GET(
     const credit = await prisma.creditAlimentaire.findUnique({
       where: { id: creditId },
       include: {
-        member: {
+        client: {
           select: {
             id: true,
             nom: true,
             prenom: true,
-            email: true,
+            telephone: true,
           },
         },
         transactions: {
@@ -93,6 +94,7 @@ export async function PATCH(
   { params }: RouteParams
 ) {
   try {
+    const session = await getAuthSession();
     const { id } = await params;
     const creditId = Number(id);
 
@@ -129,7 +131,7 @@ export async function PATCH(
     const result = await prisma.$transaction(async (tx) => {
       const credit = await tx.creditAlimentaire.findUnique({
         where: { id: creditId },
-        include: { member: true },
+        include: { client: true },
       });
 
       if (!credit) {
@@ -176,21 +178,21 @@ export async function PATCH(
           }),
         },
         include: {
-          member: {
+          client: {
             select: {
               id: true,
               nom: true,
               prenom: true,
-              email: true,
+              telephone: true,
             },
           },
         },
       });
 
-      // Audit log
+      // Audit log - userId = admin connecté
       await tx.auditLog.create({
         data: {
-          userId: credit.memberId,
+          userId: session ? parseInt(session.user.id) : null,
           action: "MODIFICATION_CREDIT_ALIMENTAIRE",
           entite: "CreditAlimentaire",
           entiteId: creditId,
@@ -208,11 +210,14 @@ export async function PATCH(
       });
 
       if (admins.length > 0) {
+        const clientNom = credit.client
+          ? `${credit.client.prenom} ${credit.client.nom}`
+          : "Client inconnu";
         await tx.notification.createMany({
           data: admins.map((admin) => ({
             userId: admin.id,
             titre: "Credit alimentaire modifie",
-            message: `Le credit alimentaire de ${credit.member.prenom} ${credit.member.nom} a ete modifie.`,
+            message: `Le credit alimentaire de ${clientNom} a ete modifie.`,
             priorite: PrioriteNotification.NORMAL,
             actionUrl: `/dashboard/admin/creditsAlimentaires/${creditId}`,
           })),

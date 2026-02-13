@@ -1,6 +1,6 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { useApi } from '@/hooks/useApi';
 import { formatDateTime } from '@/lib/format';
 import {
@@ -48,18 +48,37 @@ interface GestionnaireResponse {
 }
 
 export default function GestionnaireDetails({ gestionnaireId }: GestionnaireDetailsProps) {
-  const router = useRouter();
   const { data: response, loading, error, refetch } = useApi<GestionnaireResponse>(`/api/admin/gestionnaires/${gestionnaireId}`);
   const gestionnaire = response?.data;
 
   const getRoleBadgeColor = (role: string) => {
     switch (role) {
-      case 'AGENT':
-        return 'bg-blue-100 text-blue-700';
-      case 'SUPERVISEUR':
+      case 'SUPER_ADMIN':
+        return 'bg-red-100 text-red-700';
+      case 'ADMIN':
         return 'bg-purple-100 text-purple-700';
+      case 'RESPONSABLE_POINT_DE_VENTE':
+      case 'RESPONSABLE_COMMUNAUTE':
+      case 'RESPONSABLE_VENTE_CREDIT':
+      case 'RESPONSABLE_ECONOMIQUE':
+      case 'RESPONSABLE_MARKETING':
+        return 'bg-blue-100 text-blue-700';
       case 'CAISSIER':
+      case 'COMPTABLE':
         return 'bg-amber-100 text-amber-700';
+      case 'COMMERCIAL':
+      case 'REVENDEUR':
+        return 'bg-emerald-100 text-emerald-700';
+      case 'AGENT_LOGISTIQUE_APPROVISIONNEMENT':
+      case 'MAGAZINIER':
+        return 'bg-orange-100 text-orange-700';
+      case 'CONTROLEUR_TERRAIN':
+      case 'AGENT_TERRAIN':
+        return 'bg-teal-100 text-teal-700';
+      case 'AUDITEUR_INTERNE':
+        return 'bg-indigo-100 text-indigo-700';
+      case 'ACTIONNAIRE':
+        return 'bg-pink-100 text-pink-700';
       default:
         return 'bg-gray-100 text-gray-700';
     }
@@ -96,12 +115,12 @@ export default function GestionnaireDetails({ gestionnaireId }: GestionnaireDeta
         {/* En-tete */}
         <div className="mb-6 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <button
-              onClick={() => router.back()}
+            <Link
+              href="/dashboard/admin/gestionnaires"
               className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
             >
               <ArrowLeft className="w-5 h-5 text-gray-600" />
-            </button>
+            </Link>
             <div>
               <h1 className="text-2xl font-bold text-gray-900">Details du gestionnaire</h1>
               <p className="text-sm text-gray-500 mt-1">
@@ -109,13 +128,13 @@ export default function GestionnaireDetails({ gestionnaireId }: GestionnaireDeta
               </p>
             </div>
           </div>
-          <button
-            onClick={() => router.push(`/dashboard/admin/gestionnaires/${gestionnaireId}/edit`)}
+          <Link
+            href={`/dashboard/admin/gestionnaires/${gestionnaireId}/edit`}
             className="flex items-center gap-2 bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors"
           >
             <Edit className="w-4 h-4" />
             Modifier
-          </button>
+          </Link>
         </div>
 
         {/* Carte principale */}

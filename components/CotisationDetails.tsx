@@ -6,13 +6,11 @@ import { X, User, Calendar, Euro, Clock, CheckCircle, AlertCircle, XCircle } fro
 interface CotisationDetailsProps {
   cotisation: {
     id: number;
-    membre: {
+    client: {
       nom: string;
       prenom: string;
-      email: string;
-      telephone?: string;  
-      photo?: string;
-    };
+      telephone: string;
+    } | null;
     montant: number;
     periode: 'MENSUEL' | 'ANNUEL';
     datePaiement?: string | null;
@@ -101,41 +99,27 @@ const CotisationDetails: React.FC<CotisationDetailsProps> = ({ cotisation, onClo
             </div>
           </div>
 
-          {/* Informations du membre */}
+          {/* Informations du client */}
           <div className="bg-gray-50 rounded-xl p-5">
             <div className="flex items-center gap-3 mb-4">
               <div className="p-2 bg-blue-100 rounded-lg">
                 <User className="w-5 h-5 text-blue-600" />
               </div>
-              <h3 className="text-lg font-semibold text-gray-900">Informations du membre</h3>
+              <h3 className="text-lg font-semibold text-gray-900">Informations du client</h3>
             </div>
-            
+
             <div className="space-y-3">
               <div className="flex items-center gap-3">
-                {cotisation.membre.photo ? (
-                  <img 
-                    src={cotisation.membre.photo} 
-                    alt={`${cotisation.membre.prenom} ${cotisation.membre.nom}`}
-                    className="w-12 h-12 rounded-full object-cover"
-                  />
-                ) : (
-                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-green-400 to-blue-500 flex items-center justify-center text-white font-bold text-lg">
-                    {cotisation.membre.prenom[0]}{cotisation.membre.nom[0]}
-                  </div>
-                )}
+                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-green-400 to-blue-500 flex items-center justify-center text-white font-bold text-lg">
+                  {cotisation.client?.prenom?.[0]}{cotisation.client?.nom?.[0]}
+                </div>
                 <div>
                   <p className="font-semibold text-gray-900">
-                    {cotisation.membre.prenom} {cotisation.membre.nom}
+                    {cotisation.client?.prenom} {cotisation.client?.nom}
                   </p>
-                  <p className="text-sm text-gray-500">{cotisation.membre.email}</p>
+                  <p className="text-sm text-gray-500">{cotisation.client?.telephone}</p>
                 </div>
               </div>
-              {cotisation.membre.telephone && (
-                <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <span className="font-medium">Téléphone:</span>
-                  <span>{cotisation.membre.telephone}</span>
-                </div>
-              )}
             </div>
           </div>
 

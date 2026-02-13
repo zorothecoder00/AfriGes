@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, FormEvent } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useApi } from '@/hooks/useApi';
 import { useMutation } from '@/hooks/useApi';
@@ -112,11 +113,11 @@ export default function EditMember({ memberId }: { memberId: string }) {
       <div className="bg-white border-b border-gray-200">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex items-center gap-4">
-            <button onClick={() => router.back()} className="text-gray-500 hover:text-gray-700 transition-colors">
+            <Link href={`/dashboard/admin/membres/${memberId}`} className="text-gray-500 hover:text-gray-700 transition-colors">
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
               </svg>
-            </button>
+            </Link>
             <div>
               <h1 className="text-2xl font-bold text-gray-900">Modifier le membre</h1>
               <p className="text-sm text-gray-600 mt-1">Mettez a jour les informations du membre</p>
@@ -213,9 +214,9 @@ export default function EditMember({ memberId }: { memberId: string }) {
             </div>
 
             <div className="bg-gray-50 px-6 py-4 flex items-center justify-between border-t border-gray-200">
-              <button type="button" onClick={() => router.back()} className="px-6 py-2.5 border border-gray-300 rounded-lg font-medium text-gray-700 hover:bg-gray-100 transition-colors">
+              <Link href={`/dashboard/admin/membres/${memberId}`} className="px-6 py-2.5 border border-gray-300 rounded-lg font-medium text-gray-700 hover:bg-gray-100 transition-colors">
                 Annuler
-              </button>
+              </Link>
               <button type="submit" disabled={saving} className="px-6 py-2.5 bg-emerald-600 text-white rounded-lg font-medium hover:bg-emerald-700 transition-colors disabled:opacity-50 flex items-center gap-2">
                 {saving ? 'Enregistrement...' : 'Enregistrer les modifications'}
               </button>

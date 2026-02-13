@@ -16,18 +16,14 @@ export async function proxy(request: NextRequest) {
    
   const role = token?.role                           
 
-  // Protection des routes /admin/**
-  if (pathname.startsWith("/dashboard/admin")) {
-    if (!role || (role !== "ADMIN" && role !== "SUPER_ADMIN")) {
-      return NextResponse.redirect(new URL("/unauthorized", request.url))
-    }
+  // Admin/Super_admin qui tente d'acceder a /dashboard/user → redirection vers /dashboard/admin
+  if (pathname.startsWith("/dashboard/user") && (role === "ADMIN" || role === "SUPER_ADMIN")) {
+    return NextResponse.redirect(new URL("/dashboard/admin", req.url));
   }
 
-  // Protection des routes /user/**
-  if (pathname.startsWith("/dashboard/user")) {
-    if (!role || (role !== "USER" && role!== "ADMIN" && role!== "SUPER_ADMIN")) {
-      return NextResponse.redirect(new URL("/unauthorized", request.url))
-    }
+  // User qui tente d'acceder a /dashboard/admin → redirection vers /dashboard/user
+  if (pathname.startsWith("/dashboard/admin") && role === "USER") {
+    return NextResponse.redirect(new URL("/dashboard/user", req.url));
   }
 
   return NextResponse.next()
@@ -35,5 +31,5 @@ export async function proxy(request: NextRequest) {
 
 // Définir les routes protégées
 export const config = {
-  matcher: ["/dashboard/admin/:path*", "/dashboard/user/:path*"],
-}
+  matcher: ["/dashboard/:path*"],
+};

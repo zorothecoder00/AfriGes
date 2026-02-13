@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { Search, Filter, Download, Plus, Mail, Phone, Eye, Edit, Trash2 } from 'lucide-react';
+import { Search, Filter, Download, Plus, Mail, Phone, Eye, Edit, Trash2, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { useApi, useMutation } from '@/hooks/useApi';
 import { formatDate } from '@/lib/format';
@@ -107,9 +107,14 @@ export default function MembresPage() {
       <div className="max-w-[1600px] mx-auto space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-4xl font-bold text-slate-800 mb-2">Membres</h1>
-            <p className="text-slate-500">Gerez tous les membres de votre communaute</p>
+          <div className="flex items-center gap-4">
+            <Link href="/dashboard/admin" className="p-2 hover:bg-white rounded-lg transition-colors">
+              <ArrowLeft className="w-5 h-5 text-slate-600" />
+            </Link>
+            <div>
+              <h1 className="text-4xl font-bold text-slate-800 mb-2">Membres</h1>
+              <p className="text-slate-500">Gerez tous les membres de votre communaute</p>
+            </div>
           </div>
           <button 
             onClick={() => setModalOpen(true)}

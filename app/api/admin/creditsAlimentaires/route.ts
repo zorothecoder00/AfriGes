@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { Prisma, StatutCreditAlim, SourceCreditAlim, PrioriteNotification } from "@prisma/client";
+import { Prisma, StatutCreditAlim, SourceCreditAlim, PrioriteNotification, Role } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getAuthSession } from "@/lib/auth";
 
@@ -30,11 +30,11 @@ export async function GET(req: Request) {
     const where: Prisma.CreditAlimentaireWhereInput = {
       ...(statut && { statut }),
       ...(search && {
-        member: {
+        client: {
           OR: [
             { nom: { contains: search, mode: "insensitive" } },
             { prenom: { contains: search, mode: "insensitive" } },
-            { email: { contains: search, mode: "insensitive" } },
+            { telephone: { contains: search, mode: "insensitive" } },
           ],
         },
       }),
@@ -47,12 +47,12 @@ export async function GET(req: Request) {
         take: limit,
         orderBy: { createdAt: "desc" },
         include: {
-          member: {
+          client: {
             select: {
               id: true,
               nom: true,
               prenom: true,
-              email: true,
+              telephone: true,
             },
           },
         },
@@ -102,7 +102,7 @@ export async function GET(req: Request) {
 
 /**
  * POST /api/admin/creditsAlimentaires
- * Creer un nouveau credit alimentaire pour un membre
+ * Creer un nouveau credit alimentaire pour un client
  */
 export async function POST(req: Request) {
   try {
@@ -112,11 +112,11 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-    const { memberId, plafond, source, sourceId, dateExpiration } = body;
+    const { clientId, plafond, source, sourceId, dateExpiration } = body;
 
-    if (!memberId || !plafond || !source || !sourceId) {
+    if (!clientId || !plafond || !source || !sourceId) {
       return NextResponse.json(
-        { error: "Champs obligatoires manquants (memberId, plafond, source, sourceId)" },
+        { error: "Champs obligatoires manquants (clientId, plafond, source, sourceId)" },
         { status: 400 }
       );
     }
@@ -135,15 +135,15 @@ export async function POST(req: Request) {
       );
     }
 
-    const member = await prisma.user.findUnique({ where: { id: Number(memberId) } });
-    if (!member) {
-      return NextResponse.json({ error: "Membre introuvable" }, { status: 404 });
+    const client = await prisma.client.findUnique({ where: { id: Number(clientId) } });
+    if (!client) {
+      return NextResponse.json({ error: "Client introuvable" }, { status: 404 });
     }
 
     const credit = await prisma.$transaction(async (tx) => {
       const created = await tx.creditAlimentaire.create({
         data: {
-          memberId: Number(memberId),
+          clientId: Number(clientId),
           plafond: new Prisma.Decimal(plafond),
           montantUtilise: 0,
           montantRestant: new Prisma.Decimal(plafond),
@@ -152,19 +152,27 @@ export async function POST(req: Request) {
           dateExpiration: dateExpiration ? new Date(dateExpiration) : null,
         },
         include: {
-          member: { select: { id: true, nom: true, prenom: true, email: true } },
+          client: { select: { id: true, nom: true, prenom: true, telephone: true } },
         },
       });
 
-      await tx.notification.create({
-        data: {
-          userId: Number(memberId),
-          titre: "Nouveau credit alimentaire",
-          message: `Un credit alimentaire de ${plafond} EUR vous a ete attribue.`,
-          priorite: PrioriteNotification.NORMAL,
-          actionUrl: `/dashboard/user/creditsalimentaires`,
-        },
+      // Notifier les admins
+      const admins = await tx.user.findMany({
+        where: { role: { in: [Role.ADMIN, Role.SUPER_ADMIN] } },
+        select: { id: true },
       });
+
+      if (admins.length > 0) {
+        await tx.notification.createMany({
+          data: admins.map((admin) => ({
+            userId: admin.id,
+            titre: "Nouveau credit alimentaire",
+            message: `Un credit alimentaire de ${plafond} FCFA a ete attribue a ${client.prenom} ${client.nom}.`,
+            priorite: PrioriteNotification.NORMAL,
+            actionUrl: `/dashboard/admin/creditsAlimentaires/${created.id}`,
+          })),
+        });
+      }
 
       return created;
     });

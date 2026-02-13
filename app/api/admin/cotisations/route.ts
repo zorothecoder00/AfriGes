@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { Prisma, StatutCotisation, PeriodeCotisation, PrioriteNotification } from "@prisma/client";
+import { Prisma, StatutCotisation, PeriodeCotisation, PrioriteNotification, Role } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getAuthSession } from "@/lib/auth";
 
@@ -38,11 +38,11 @@ export async function GET(req: Request) {
       ...(statut && { statut }),
       ...(periode && { periode }),
       ...(search && {
-        member: {
+        client: {
           OR: [
             { nom: { contains: search, mode: "insensitive" } },
             { prenom: { contains: search, mode: "insensitive" } },
-            { email: { contains: search, mode: "insensitive" } },
+            { telephone: { contains: search, mode: "insensitive" } },
           ],
         },
       }),
@@ -55,12 +55,12 @@ export async function GET(req: Request) {
         take: limit,
         orderBy: { createdAt: "desc" },
         include: {
-          member: {
+          client: {
             select: {
               id: true,
               nom: true,
               prenom: true,
-              email: true,
+              telephone: true,
             },
           },
         },
@@ -115,11 +115,11 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-    const { memberId, montant, periode, dateEcheance } = body;
+    const { clientId, montant, periode, dateEcheance } = body;
 
-    if (!memberId || !montant || !periode || !dateEcheance) {
+    if (!clientId || !montant || !periode || !dateEcheance) {
       return NextResponse.json(
-        { error: "Champs obligatoires manquants (memberId, montant, periode, dateEcheance)" },
+        { error: "Champs obligatoires manquants (clientId, montant, periode, dateEcheance)" },
         { status: 400 }
       );
     }
@@ -138,15 +138,15 @@ export async function POST(req: Request) {
       );
     }
 
-    const member = await prisma.user.findUnique({ where: { id: Number(memberId) } });
-    if (!member) {
-      return NextResponse.json({ error: "Membre introuvable" }, { status: 404 });
+    const client = await prisma.client.findUnique({ where: { id: Number(clientId) } });
+    if (!client) {
+      return NextResponse.json({ error: "Client introuvable" }, { status: 404 });
     }
 
     const cotisation = await prisma.$transaction(async (tx) => {
       const created = await tx.cotisation.create({
         data: {
-          memberId: Number(memberId),
+          clientId: Number(clientId),
           montant: new Prisma.Decimal(montant),
           periode: periode as PeriodeCotisation,
           dateExpiration: new Date(dateEcheance),
@@ -154,19 +154,27 @@ export async function POST(req: Request) {
           datePaiement: new Date(),
         },
         include: {
-          member: { select: { id: true, nom: true, prenom: true, email: true } },
+          client: { select: { id: true, nom: true, prenom: true, telephone: true } },
         },
       });
 
-      await tx.notification.create({
-        data: {
-          userId: Number(memberId),
-          titre: "Cotisation enregistree",
-          message: `Votre cotisation de ${montant} EUR a ete enregistree.`,
-          priorite: PrioriteNotification.NORMAL,
-          actionUrl: `/dashboard/user/cotisations`,
-        },
+      // Notifier les admins
+      const admins = await tx.user.findMany({
+        where: { role: { in: [Role.ADMIN, Role.SUPER_ADMIN] } },
+        select: { id: true },
       });
+
+      if (admins.length > 0) {
+        await tx.notification.createMany({
+          data: admins.map((admin) => ({
+            userId: admin.id,
+            titre: "Cotisation enregistree",
+            message: `La cotisation de ${client.prenom} ${client.nom} de ${montant} FCFA a ete enregistree.`,
+            priorite: PrioriteNotification.NORMAL,
+            actionUrl: `/dashboard/admin/cotisations/${created.id}`,
+          })),
+        });
+      }
 
       return created;
     });

@@ -122,15 +122,29 @@ model Gestionnaire {
 }
 
 enum RoleGestionnaire {
-  AGENT
-  SUPERVISEUR
+  SUPER_ADMIN
+  ADMIN
+  RESPONSABLE_POINT_DE_VENTE
+  RESPONSABLE_COMMUNAUTE
+  REVENDEUR
+  AGENT_LOGISTIQUE_APPROVISIONNEMENT
+  MAGAZINIER
   CAISSIER
+  COMMERCIAL
+  COMPTABLE
+  AUDITEUR_INTERNE
+  RESPONSABLE_VENTE_CREDIT
+  CONTROLEUR_TERRAIN
+  AGENT_TERRAIN
+  RESPONSABLE_ECONOMIQUE
+  RESPONSABLE_MARKETING
+  ACTIONNAIRE
 }
   
 model Cotisation {
   id                  Int               @id @default(autoincrement())
-  memberId            Int
-  member              User              @relation(fields: [memberId], references: [id])
+  memberId            Int?
+  member              User?             @relation(fields: [memberId], references: [id])
 
   clientId            Int?
   client              Client?           @relation(fields: [clientId], references: [id])
@@ -176,7 +190,7 @@ model Tontine {
 model TontineMembre {
   id                  Int               @id @default(autoincrement())
   tontineId           Int
-  memberId            Int
+  memberId            Int?
   ordreTirage         Int?
   dateEntree          DateTime          @default(now())
   dateSortie          DateTime?
@@ -185,9 +199,9 @@ model TontineMembre {
   client              Client?           @relation(fields: [clientId], references: [id])
 
   tontine             Tontine           @relation(fields: [tontineId], references: [id])
-  member              User              @relation(fields: [memberId], references: [id])
+  member              User?             @relation(fields: [memberId], references: [id])
 
-  @@unique([tontineId, memberId])
+  @@unique([tontineId, clientId])
 }
 
 enum Frequence {
@@ -203,7 +217,7 @@ enum StatutTontine {
 
 model Credit {
   id                  Int               @id @default(autoincrement())
-  memberId            Int
+  memberId            Int?
   montant             Decimal
   montantRestant      Decimal
   dateDemande         DateTime          @default(now())
@@ -213,7 +227,7 @@ model Credit {
   clientId            Int?
   client              Client?           @relation(fields: [clientId], references: [id])
 
-  member              User              @relation(fields: [memberId], references: [id])
+  member              User?             @relation(fields: [memberId], references: [id])
   transactions        CreditTransaction[]
 
   createdAt           DateTime          @default(now())
@@ -253,8 +267,8 @@ enum SourceCreditAlim {
 
 model CreditAlimentaire {
   id                  Int               @id @default(autoincrement())
-  memberId            Int
-  member              User              @relation(fields: [memberId], references: [id])
+  memberId            Int?
+  member              User?             @relation(fields: [memberId], references: [id])
 
   clientId            Int?
   client              Client?           @relation(fields: [clientId], references: [id])

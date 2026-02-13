@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { Plus, Search, Shield, Users, Key, Eye, Edit, MoreVertical, CheckCircle, Clock, Mail, Phone, Trash2, X } from 'lucide-react';
+import { Plus, Search, Shield, Users, Key, Eye, Edit, MoreVertical, CheckCircle, Clock, Mail, Phone, Trash2, X, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { useApi, useMutation } from '@/hooks/useApi';
 import { formatDate } from '@/lib/format';
@@ -50,7 +50,7 @@ export default function GestionnairesPage() {
   const [page, setPage] = useState(1);
   const [roleFilter, setRoleFilter] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
-  const [formData, setFormData] = useState({ memberId: '', role: 'AGENT' });
+  const [formData, setFormData] = useState({ memberId: '', role: 'CAISSIER' });
   const [deleteId, setDeleteId] = useState<number | null>(null);
   const [menuOpenId, setMenuOpenId] = useState<number | null>(null);
   const limit = 10;
@@ -80,7 +80,7 @@ export default function GestionnairesPage() {
     const result = await addGestionnaire({ memberId: Number(formData.memberId), role: formData.role });
     if (result) {
       setModalOpen(false);
-      setFormData({ memberId: '', role: 'AGENT' });
+      setFormData({ memberId: '', role: 'CAISSIER' });
       refetch();
     }
   };
@@ -142,9 +142,14 @@ export default function GestionnairesPage() {
       <div className="max-w-[1600px] mx-auto space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-4xl font-bold text-slate-800 mb-2">Gestionnaires</h1>
-            <p className="text-slate-500">Gerez les administrateurs et leurs permissions</p>
+          <div className="flex items-center gap-4">
+            <Link href="/dashboard/admin" className="p-2 hover:bg-white rounded-lg transition-colors">
+              <ArrowLeft className="w-5 h-5 text-slate-600" />
+            </Link>
+            <div>
+              <h1 className="text-4xl font-bold text-slate-800 mb-2">Gestionnaires</h1>
+              <p className="text-slate-500">Gerez les administrateurs et leurs permissions</p>
+            </div>
           </div>
           <div className="flex gap-3">
             <button className="px-5 py-3 bg-white border border-slate-200 rounded-xl text-slate-700 hover:bg-slate-50 transition-all shadow-sm flex items-center gap-2 font-medium">
@@ -201,9 +206,23 @@ export default function GestionnairesPage() {
               className="px-4 py-3 border border-slate-200 rounded-xl text-slate-700 focus:outline-none focus:ring-2 focus:ring-purple-500 bg-slate-50"
             >
               <option value="">Tous les roles</option>
-              <option value="AGENT">Agent</option>
-              <option value="SUPERVISEUR">Superviseur</option>
+              <option value="SUPER_ADMIN">Super Admin</option>
+              <option value="ADMIN">Admin</option>
+              <option value="RESPONSABLE_POINT_DE_VENTE">Resp. point de vente</option>
+              <option value="RESPONSABLE_COMMUNAUTE">Resp. communaute</option>
+              <option value="REVENDEUR">Revendeur</option>
+              <option value="AGENT_LOGISTIQUE_APPROVISIONNEMENT">Agent logistique</option>
+              <option value="MAGAZINIER">Magazinier</option>
               <option value="CAISSIER">Caissier</option>
+              <option value="COMMERCIAL">Commercial</option>
+              <option value="COMPTABLE">Comptable</option>
+              <option value="AUDITEUR_INTERNE">Auditeur interne</option>
+              <option value="RESPONSABLE_VENTE_CREDIT">Resp. vente credit</option>
+              <option value="CONTROLEUR_TERRAIN">Controleur terrain</option>
+              <option value="AGENT_TERRAIN">Agent terrain</option>
+              <option value="RESPONSABLE_ECONOMIQUE">Resp. economique</option>
+              <option value="RESPONSABLE_MARKETING">Resp. marketing</option>
+              <option value="ACTIONNAIRE">Actionnaire</option>
             </select>
           </div>
         </div>
@@ -239,9 +258,23 @@ export default function GestionnairesPage() {
                     onChange={e => setFormData({ ...formData, role: e.target.value })}
                     className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 bg-slate-50"
                   >
-                    <option value="AGENT">Agent</option>
-                    <option value="SUPERVISEUR">Superviseur</option>
+                    <option value="SUPER_ADMIN">Super Admin</option>
+                    <option value="ADMIN">Admin</option>
+                    <option value="RESPONSABLE_POINT_DE_VENTE">Responsable point de vente</option>
+                    <option value="RESPONSABLE_COMMUNAUTE">Responsable communaute</option>
+                    <option value="REVENDEUR">Revendeur</option>
+                    <option value="AGENT_LOGISTIQUE_APPROVISIONNEMENT">Agent logistique / approvisionnement</option>
+                    <option value="MAGAZINIER">Magazinier</option>
                     <option value="CAISSIER">Caissier</option>
+                    <option value="COMMERCIAL">Commercial</option>
+                    <option value="COMPTABLE">Comptable</option>
+                    <option value="AUDITEUR_INTERNE">Auditeur interne</option>
+                    <option value="RESPONSABLE_VENTE_CREDIT">Responsable vente credit</option>
+                    <option value="CONTROLEUR_TERRAIN">Controleur terrain</option>
+                    <option value="AGENT_TERRAIN">Agent terrain</option>
+                    <option value="RESPONSABLE_ECONOMIQUE">Responsable economique</option>
+                    <option value="RESPONSABLE_MARKETING">Responsable marketing</option>
+                    <option value="ACTIONNAIRE">Actionnaire</option>
                   </select>
                 </div>
                 <button type="submit" disabled={adding} className="w-full py-2.5 bg-purple-600 text-white rounded-xl hover:bg-purple-700 transition-all font-medium">

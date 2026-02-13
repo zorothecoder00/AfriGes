@@ -1,6 +1,8 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
+import { ArrowLeft } from 'lucide-react';
 import { useApi, useMutation } from '@/hooks/useApi';
 
 type PrioriteNotification = 'URGENT' | 'HAUTE' | 'NORMAL' | 'BASSE';
@@ -21,7 +23,11 @@ interface NotificationsResponse {
   data: Notification[];
 }
 
-export default function NotificationsPage() {
+interface NotificationsPageProps {
+  backUrl?: string;
+}
+
+export default function NotificationsPage({ backUrl }: NotificationsPageProps) {
   const [filter, setFilter] = useState('all');
 
   const { data: response, loading, error, refetch } = useApi<NotificationsResponse>('/api/notifications?limit=50');
@@ -131,13 +137,20 @@ export default function NotificationsPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="py-6">
             <div className="flex items-center justify-between mb-6">
-              <div>
-                <h1 className="text-3xl font-bold text-gray-900 mb-1">
-                  Notifications
-                </h1>
-                <p className="text-gray-500 text-sm">
-                  Restez informe de toutes les activites
-                </p>
+              <div className="flex items-center gap-4">
+                {backUrl && (
+                  <Link href={backUrl} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+                    <ArrowLeft className="w-5 h-5 text-gray-600" />
+                  </Link>
+                )}
+                <div>
+                  <h1 className="text-3xl font-bold text-gray-900 mb-1">
+                    Notifications
+                  </h1>
+                  <p className="text-gray-500 text-sm">
+                    Restez informe de toutes les activites
+                  </p>
+                </div>
               </div>
               <div className="flex gap-2">
                 <button

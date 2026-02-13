@@ -10,7 +10,7 @@ type ModalProps = {
   footer?: ReactNode;
 };
    
-export default function Modal({
+export default function Modal({        
   isOpen,
   onClose,
   title,

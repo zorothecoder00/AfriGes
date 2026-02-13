@@ -26,13 +26,11 @@ export async function GET(
       include: {
         membres: {
           include: {
-            member: {
+            client: {
               select: {
                 id: true,
                 nom: true,
                 prenom: true,
-                email: true,
-                photo: true,
                 telephone: true,
               },
             },
@@ -72,11 +70,11 @@ export async function PUT(
     }
 
     const body = await req.json();
-    const { nom, description, montantCycle, frequence, dateDebut, dateFin, statut } = body;
+    const { nom, description, montantCycle, frequence, dateDebut, dateFin, statut, membres } = body;
 
     const existing = await prisma.tontine.findUnique({
       where: { id: tontineId },
-      include: { membres: true },   
+      include: { membres: true },
     });
 
     if (!existing) {
@@ -98,20 +96,44 @@ export async function PUT(
     }
 
     if (statut && !Object.values(StatutTontine).includes(statut)) {
-    return NextResponse.json({ error: "Statut invalide" }, { status: 400 });
+      return NextResponse.json({ error: "Statut invalide" }, { status: 400 });
     }
 
-    const updated = await prisma.tontine.update({
-      where: { id: tontineId },
-      data: {
-        nom,
-        description,
-        montantCycle,
-        frequence,
-        statut,
-        dateDebut: dateDebut ? new Date(dateDebut) : undefined,
-        dateFin: dateFin ? new Date(dateFin) : undefined,
-      },
+    const updated = await prisma.$transaction(async (tx) => {
+      // 1. Mettre à jour les infos de la tontine
+      const tontine = await tx.tontine.update({
+        where: { id: tontineId },
+        data: {
+          nom,
+          description,
+          montantCycle,
+          frequence,
+          statut,
+          dateDebut: dateDebut ? new Date(dateDebut) : undefined,
+          dateFin: dateFin ? new Date(dateFin) : undefined,
+        },
+      });
+
+      // 2. Synchroniser les membres si fournis
+      if (Array.isArray(membres)) {
+        // Supprimer les anciens membres
+        await tx.tontineMembre.deleteMany({
+          where: { tontineId },
+        });
+
+        // Créer les nouveaux membres
+        if (membres.length > 0) {
+          await tx.tontineMembre.createMany({
+            data: membres.map((m: { clientId: number; ordreTirage: number | null }) => ({
+              tontineId,
+              clientId: m.clientId,
+              ordreTirage: m.ordreTirage,
+            })),
+          });
+        }
+      }
+
+      return tontine;
     });
 
     return NextResponse.json({ data: updated });

@@ -14,11 +14,11 @@ interface CreditAlimentaire {
   dateExpiration?: string | null;
 }
 
-interface User {
+interface ClientInfo {
   id: number;
   prenom: string;
   nom: string;
-  email: string;
+  telephone: string;
 }
 
 interface Produit {
@@ -43,7 +43,7 @@ interface VenteCreditAlimentaire {
 }
   
 interface CreditAlimentaireWithRelations extends CreditAlimentaire {
-  member: User;
+  client: ClientInfo | null;
   transactions: CreditAlimentaireTransaction[];
   ventes: (VenteCreditAlimentaire & {
     produit: Produit;
@@ -103,7 +103,7 @@ export default function CreditAlimentaireDetails({ credit, onClose, onEdit }: Cr
           <div>
             <h2 className="text-2xl font-semibold text-gray-900">Détails du crédit alimentaire</h2>
             <p className="text-sm text-gray-500 mt-1">
-              {credit.member.prenom} {credit.member.nom}
+              {credit.client?.prenom} {credit.client?.nom}
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -231,12 +231,12 @@ export default function CreditAlimentaireDetails({ credit, onClose, onEdit }: Cr
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
                       <span className="text-sm font-semibold text-green-700">
-                        {credit.member.prenom[0]}{credit.member.nom[0]}
+                        {credit.client?.prenom?.[0]}{credit.client?.nom?.[0]}
                       </span>
                     </div>
                     <div>
-                      <p className="font-medium text-gray-900">{credit.member.prenom} {credit.member.nom}</p>
-                      <p className="text-sm text-gray-500">{credit.member.email}</p>
+                      <p className="font-medium text-gray-900">{credit.client?.prenom} {credit.client?.nom}</p>
+                      <p className="text-sm text-gray-500">{credit.client?.telephone}</p>
                     </div>
                   </div>
                 </div>

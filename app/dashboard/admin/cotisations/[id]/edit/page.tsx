@@ -1,6 +1,7 @@
 'use client';
 
 import { use } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useApi, useMutation } from '@/hooks/useApi';
 import CotisationEdit, {
@@ -19,13 +20,12 @@ interface CotisationResponse {
     datePaiement: string | null;
     dateExpiration: string;
     statut: 'EN_ATTENTE' | 'PAYEE' | 'EXPIREE';
-    member: {
+    client: {
       id: number;
       nom: string;
       prenom: string;
-      email: string;
-      photo?: string;
-    };
+      telephone: string;
+    } | null;
   };
 }
 
@@ -48,9 +48,9 @@ export default function Page({ params }: PageProps) {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <p className="text-gray-600">{error || 'Cotisation introuvable'}</p>
-          <button onClick={() => router.back()} className="mt-4 text-emerald-600 hover:text-emerald-700">
-            Retour
-          </button>
+          <Link href="/dashboard/admin/cotisations" className="mt-4 text-emerald-600 hover:text-emerald-700 inline-block">
+            Retour aux cotisations
+          </Link>
         </div>
       </div>
     );
@@ -59,12 +59,11 @@ export default function Page({ params }: PageProps) {
   const c = response.data;
   const cotisation = {
     id: c.id,
-    membre: {
-      nom: c.member.nom,
-      prenom: c.member.prenom,
-      email: c.member.email,
-      photo: c.member.photo,
-    },
+    client: c.client ? {
+      nom: c.client.nom,
+      prenom: c.client.prenom,
+      telephone: c.client.telephone,
+    } : null,
     montant: Number(c.montant),
     periode: c.periode,
     datePaiement: c.datePaiement,
@@ -73,7 +72,7 @@ export default function Page({ params }: PageProps) {
   };
 
   const handleClose = () => {
-    router.back();
+    router.push(`/dashboard/admin/cotisations/${id}`);
   };
 
   const handleSave = async (updatedData: CotisationUpdatePayload) => {
