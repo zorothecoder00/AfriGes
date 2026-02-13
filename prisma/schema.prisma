@@ -6,11 +6,11 @@
    
 generator client {
   provider = "prisma-client-js"                                                                      
-}                                                     
+}                                                       
                       
 datasource db {                              
-  provider = "postgresql"             
-}                
+  provider = "postgresql"              
+}                 
                 
 enum Role {      
   SUPER_ADMIN                  
@@ -47,10 +47,27 @@ model User {
 }
 
 enum MemberStatus {
-  ACTIF   
+  ACTIF
   INACTIF
-  SUSPENDU   
-}   
+  SUSPENDU
+}
+
+model Client {
+  id                  Int               @id @default(autoincrement())
+  nom                 String
+  prenom              String
+  telephone           String            @unique
+  adresse             String?
+  etat                MemberStatus      @default(ACTIF)
+
+  credits             Credit[]
+  creditsAlim         CreditAlimentaire[]
+  cotisations         Cotisation[]
+  tontines            TontineMembre[]
+
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+}
 
 model Wallet {
   id                  Int               @id @default(autoincrement())
@@ -115,8 +132,11 @@ model Cotisation {
   memberId            Int
   member              User              @relation(fields: [memberId], references: [id])
 
+  clientId            Int?
+  client              Client?           @relation(fields: [clientId], references: [id])
+
   montant             Decimal
-  periode             PeriodeCotisation   
+  periode             PeriodeCotisation
   datePaiement        DateTime?
   dateExpiration      DateTime
 
@@ -161,6 +181,9 @@ model TontineMembre {
   dateEntree          DateTime          @default(now())
   dateSortie          DateTime?
 
+  clientId            Int?
+  client              Client?           @relation(fields: [clientId], references: [id])
+
   tontine             Tontine           @relation(fields: [tontineId], references: [id])
   member              User              @relation(fields: [memberId], references: [id])
 
@@ -186,6 +209,9 @@ model Credit {
   dateDemande         DateTime          @default(now())
   statut              StatutCredit      @default(EN_ATTENTE)
   scoreRisque         Decimal?
+
+  clientId            Int?
+  client              Client?           @relation(fields: [clientId], references: [id])
 
   member              User              @relation(fields: [memberId], references: [id])
   transactions        CreditTransaction[]
@@ -229,6 +255,9 @@ model CreditAlimentaire {
   id                  Int               @id @default(autoincrement())
   memberId            Int
   member              User              @relation(fields: [memberId], references: [id])
+
+  clientId            Int?
+  client              Client?           @relation(fields: [clientId], references: [id])
 
   plafond             Decimal
   montantUtilise      Decimal           @default(0)
@@ -281,7 +310,7 @@ enum StatutCreditAlim {
   EXPIRE
 }
 
-enum TypeCreditAlim {
+enum TypeCreditAlim {  
   UTILISATION
   ANNULATION
   AJUSTEMENT

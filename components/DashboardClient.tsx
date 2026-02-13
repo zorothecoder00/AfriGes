@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from 'react';
-import { TrendingUp, Users, Coins, CreditCard, ShoppingCart, Package, MoreVertical, Download, Plus, ChevronDown } from 'lucide-react';
+import { TrendingUp, Users, UserCheck, Coins, CreditCard, ShoppingCart, Package, MoreVertical, Download, Plus, ChevronDown } from 'lucide-react';
 import Link from "next/link";
 import SignOutButton from '@/components/SignOutButton';
 import { useApi } from '@/hooks/useApi';
@@ -159,6 +159,10 @@ export default function AfriGesDashboard() {
                 <Link href="/dashboard/admin/gestionnaires" className="w-full flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-50 rounded-xl transition-all">
                   <Users size={20} />
                   <span>Gestionnaires</span>
+                </Link>
+                <Link href="/dashboard/admin/clients" className="w-full flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-50 rounded-xl transition-all">
+                  <UserCheck size={20} />
+                  <span>Clients</span>
                 </Link>
               </nav>
             </div>
