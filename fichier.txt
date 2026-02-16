@@ -4,5 +4,13 @@
 
 -Enlève aussi la partie register pour empêcher tout le monde de s'inscrire
 
--le dashboard user lui va servir aux membres ou gestionnaires de AfriSime ( les clients n'en ont pas besoin ; on va tout faire pour eux )
-                                               
+-le dashboard user lui va servir aux membres ou gestionnaires de AfriSime ( tous les types de gestionnaires [ RESPONSABLE_POINT_DE_VENTE, RESPONSABLE_COMMUNAUTE, REVENDEUR, AGENT_LOGISTIQUE_APPROVISIONNEMENT, MAGAZINIER, CAISSIER, COMMERCIAL, COMPTABLE, AUDITEUR_INTERNE, RESPONSABLE_VENTE_CREDIT, CONTROLEUR_TERRAIN, AGENT_TERRAIN, RESPONSABLE_ECONOMIQUE, RESPONSABLE_MARKETING, ACTIONNAIRE ] doivent avoir leur dashboard dédié )
+
+claude , créé moi un /dashboard/user/responsablePointDeVente, un
+  dashboard/user/agentTerrain , dashboard/user/magazinier  s'il te plait (
+  biensûr essaie de baser sur la logique métier : gestion des produits ,
+  supervision des agents , caissiers, magaziniers ; collecte des
+  remboursements puis prospections ; inventaires réguliers puis gestion
+  physique des stocks )
+
+                                                     
