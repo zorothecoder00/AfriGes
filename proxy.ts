@@ -18,12 +18,12 @@ export async function proxy(request: NextRequest) {
 
   // Admin/Super_admin qui tente d'acceder a /dashboard/user → redirection vers /dashboard/admin
   if (pathname.startsWith("/dashboard/user") && (role === "ADMIN" || role === "SUPER_ADMIN")) {
-    return NextResponse.redirect(new URL("/dashboard/admin", req.url));
+    return NextResponse.redirect(new URL("/dashboard/admin", request.url));
   }
 
   // User qui tente d'acceder a /dashboard/admin → redirection vers /dashboard/user
   if (pathname.startsWith("/dashboard/admin") && role === "USER") {
-    return NextResponse.redirect(new URL("/dashboard/user", req.url));
+    return NextResponse.redirect(new URL("/dashboard/user", request.url));
   }
 
   return NextResponse.next()

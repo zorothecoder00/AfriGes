@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import {
-  Users, MapPin, Phone, CreditCard, TrendingUp, Clock, CheckCircle,
+  Users, MapPin, Phone, CreditCard as CreditCardIcon, TrendingUp, Clock, CheckCircle,
   AlertCircle, Search, ArrowLeft, RefreshCw, Download, UserPlus,
   Banknote, Target, Calendar, ChevronRight, Eye, LucideIcon, XCircle
 } from 'lucide-react';
@@ -197,10 +197,10 @@ export default function AgentTerrainPage() {
         </div>
       </div>
     );
-  }
+  }   
 
   const statCards = [
-    { label: 'Credits en Cours', value: String(creditsEnCours.length), subtitle: 'A suivre sur le terrain', icon: CreditCard, color: 'text-teal-500', lightBg: 'bg-teal-50' },
+    { label: 'Credits en Cours', value: String(creditsEnCours.length), subtitle: 'A suivre sur le terrain', icon: CreditCardIcon, color: 'text-teal-500', lightBg: 'bg-teal-50' },
     { label: 'Montant a Collecter', value: formatCurrency(totalACollecter), subtitle: 'Remboursements restants', icon: Banknote, color: 'text-emerald-500', lightBg: 'bg-emerald-50' },
     { label: 'Clients Repertories', value: String(clientsMeta?.total ?? 0), subtitle: 'Prospection active', icon: Users, color: 'text-blue-500', lightBg: 'bg-blue-50' },
     { label: 'Cotisations en Attente', value: String(cotisationsEnAttente.length), subtitle: 'A encaisser', icon: Target, color: 'text-purple-500', lightBg: 'bg-purple-50' },
