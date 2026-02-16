@@ -4,26 +4,27 @@ import React, { useState, useEffect } from 'react';
 import {
   Users, MapPin, Phone, CreditCard as CreditCardIcon, TrendingUp, Clock, CheckCircle,
   AlertCircle, Search, ArrowLeft, RefreshCw, Download, UserPlus,
-  Banknote, Target, Calendar, ChevronRight, Eye, LucideIcon, XCircle
+  Banknote, Target, Calendar, Eye, LucideIcon, XCircle, ShoppingBag
 } from 'lucide-react';
 import Link from 'next/link';
 import SignOutButton from '@/components/SignOutButton';
 import { useApi } from '@/hooks/useApi';
-import { formatCurrency, formatDate, formatDateTime } from '@/lib/format';
+import { formatCurrency, formatDate } from '@/lib/format';
 import { getStatusStyle, getStatusLabel } from '@/lib/status';
 
 // ============================================================================
 // TYPES
 // ============================================================================
 
+// --- Credit Simple (pret) ---
 interface Credit {
   id: number;
   montant: string;
   montantRestant: string;
   dateDemande: string;
-  statut: string;
+  statut: 'EN_ATTENTE' | 'APPROUVE' | 'REJETE' | 'REMBOURSE_PARTIEL' | 'REMBOURSE_TOTAL';
   scoreRisque: string | null;
-  membre?: { id: number; nom: string; prenom: string; telephone: string | null } | null;
+  member?: { id: number; nom: string; prenom: string; telephone: string | null } | null;
   client?: { id: number; nom: string; prenom: string; telephone: string } | null;
   transactions?: CreditTransaction[];
 }
@@ -31,15 +32,53 @@ interface Credit {
 interface CreditTransaction {
   id: number;
   montant: string;
-  type: string;
-  datePaiement: string;
+  type: 'DECAISSEMENT' | 'REMBOURSEMENT';
+  description: string | null;
+  createdAt: string;
 }
 
 interface CreditsResponse {
   data: Credit[];
+  stats: {
+    totalEnAttente: number;
+    totalApprouves: number;
+    totalRemboursePartiel: number;
+    totalRembourseTotal: number;
+    totalRejetes: number;
+    montantTotalPrete: number;
+    montantTotalRestant: number;
+  };
   meta: { total: number; page: number; limit: number; totalPages: number };
 }
 
+// --- Credit Alimentaire ---
+interface CreditAlimentaire {
+  id: number;
+  plafond: string;
+  montantUtilise: string;
+  montantRestant: string;
+  source: 'COTISATION' | 'TONTINE';
+  sourceId: number;
+  dateAttribution: string;
+  dateExpiration: string | null;
+  statut: 'ACTIF' | 'EPUISE' | 'EXPIRE';
+  client?: { id: number; nom: string; prenom: string; telephone: string } | null;
+}
+
+interface CreditsAlimResponse {
+  data: CreditAlimentaire[];
+  stats: {
+    totalActifs: number;
+    totalEpuises: number;
+    totalExpires: number;
+    montantTotalPlafond: number;
+    montantTotalUtilise: number;
+    montantTotalRestant: number;
+  };
+  meta: { total: number; page: number; limit: number; totalPages: number };
+}
+
+// --- Clients / Cotisations ---
 interface Client {
   id: number;
   nom: string;
@@ -91,11 +130,12 @@ const StatCard = ({ label, value, subtitle, icon: Icon, color, lightBg }: {
   </div>
 );
 
-const CreditCard = ({ credit }: { credit: Credit }) => {
+// --- Carte Credit Simple ---
+const CreditSimpleCard = ({ credit }: { credit: Credit }) => {
   const montant = Number(credit.montant);
   const restant = Number(credit.montantRestant);
   const pct = montant > 0 ? Math.round(((montant - restant) / montant) * 100) : 0;
-  const person = credit.client ?? credit.membre;
+  const person = credit.client ?? credit.member;
 
   const statutConfig: Record<string, { color: string; icon: LucideIcon; label: string }> = {
     EN_ATTENTE: { color: 'bg-yellow-100 text-yellow-800', icon: Clock, label: 'En attente' },
@@ -127,11 +167,11 @@ const CreditCard = ({ credit }: { credit: Credit }) => {
       </div>
       <div className="space-y-2 mb-3">
         <div className="flex justify-between">
-          <span className="text-sm text-slate-600">Montant</span>
+          <span className="text-sm text-slate-600">Montant prete</span>
           <span className="font-bold text-slate-900">{formatCurrency(montant)}</span>
         </div>
         <div className="flex justify-between">
-          <span className="text-sm text-slate-600">Reste</span>
+          <span className="text-sm text-slate-600">Reste a rembourser</span>
           <span className="font-bold text-red-600">{formatCurrency(restant)}</span>
         </div>
       </div>
@@ -151,14 +191,82 @@ const CreditCard = ({ credit }: { credit: Credit }) => {
   );
 };
 
+// --- Carte Credit Alimentaire ---
+const CreditAlimCard = ({ credit }: { credit: CreditAlimentaire }) => {
+  const plafond = Number(credit.plafond);
+  const utilise = Number(credit.montantUtilise);
+  const restant = Number(credit.montantRestant);
+  const pctUtilise = plafond > 0 ? Math.round((utilise / plafond) * 100) : 0;
+
+  const statutConfig: Record<string, { color: string; icon: LucideIcon; label: string }> = {
+    ACTIF: { color: 'bg-emerald-100 text-emerald-800', icon: CheckCircle, label: 'Actif' },
+    EPUISE: { color: 'bg-orange-100 text-orange-800', icon: AlertCircle, label: 'Epuise' },
+    EXPIRE: { color: 'bg-red-100 text-red-800', icon: XCircle, label: 'Expire' },
+  };
+  const config = statutConfig[credit.statut] || { color: 'bg-gray-100 text-gray-800', icon: AlertCircle, label: credit.statut };
+  const StatusIcon = config.icon;
+
+  return (
+    <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-all p-5 border border-slate-100">
+      <div className="flex items-start justify-between mb-3">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-gradient-to-br from-amber-500 to-orange-500 rounded-full flex items-center justify-center text-white font-semibold text-sm">
+            {credit.client ? `${credit.client.prenom?.[0]}${credit.client.nom?.[0]}` : '??'}
+          </div>
+          <div>
+            <p className="font-semibold text-slate-800">{credit.client ? `${credit.client.prenom} ${credit.client.nom}` : 'Inconnu'}</p>
+            {credit.client?.telephone && (
+              <p className="text-xs text-slate-500 flex items-center gap-1"><Phone size={10} />{credit.client.telephone}</p>
+            )}
+          </div>
+        </div>
+        <span className={`${config.color} text-xs font-semibold px-2.5 py-1 rounded-full flex items-center gap-1`}>
+          <StatusIcon size={12} />{config.label}
+        </span>
+      </div>
+      <div className="space-y-2 mb-3">
+        <div className="flex justify-between">
+          <span className="text-sm text-slate-600">Plafond</span>
+          <span className="font-bold text-slate-900">{formatCurrency(plafond)}</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-sm text-slate-600">Utilise</span>
+          <span className="font-bold text-orange-600">{formatCurrency(utilise)}</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-sm text-slate-600">Disponible</span>
+          <span className="font-bold text-emerald-600">{formatCurrency(restant)}</span>
+        </div>
+      </div>
+      <div>
+        <div className="flex justify-between items-center mb-1.5">
+          <span className="text-xs text-slate-600">Consommation</span>
+          <span className="text-xs font-bold text-slate-900">{pctUtilise}%</span>
+        </div>
+        <div className="w-full bg-slate-200 rounded-full h-2">
+          <div className={`h-2 rounded-full transition-all ${pctUtilise >= 90 ? 'bg-gradient-to-r from-red-400 to-red-500' : pctUtilise >= 60 ? 'bg-gradient-to-r from-orange-400 to-amber-500' : 'bg-gradient-to-r from-emerald-400 to-teal-500'}`} style={{ width: `${pctUtilise}%` }} />
+        </div>
+      </div>
+      <div className="flex items-center justify-between mt-3">
+        <p className="text-xs text-slate-400">Source : {credit.source === 'COTISATION' ? 'Cotisation' : 'Tontine'}</p>
+        {credit.dateExpiration && (
+          <p className="text-xs text-slate-400">Expire le {formatDate(credit.dateExpiration)}</p>
+        )}
+      </div>
+    </div>
+  );
+};
+
 // ============================================================================
 // MAIN PAGE
 // ============================================================================
 
+type TabKey = 'creditsSimples' | 'creditsAlim' | 'prospects' | 'cotisations';
+
 export default function AgentTerrainPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [activeTab, setActiveTab] = useState<'remboursements' | 'prospects' | 'cotisations'>('remboursements');
+  const [activeTab, setActiveTab] = useState<TabKey>('creditsSimples');
   const [clientPage, setClientPage] = useState(1);
 
   useEffect(() => {
@@ -169,24 +277,38 @@ export default function AgentTerrainPage() {
   const clientParams = new URLSearchParams({ page: String(clientPage), limit: '10' });
   if (debouncedSearch && activeTab === 'prospects') clientParams.set('search', debouncedSearch);
 
-  // Fetch credits (pour les remboursements a collecter)
-  const { data: creditsResponse, loading: creditsLoading, refetch: refetchCredits } = useApi<CreditsResponse>('/api/admin/creditsAlimentaires?limit=50');
+  // Fetch credits simples (prets a rembourser)
+  const { data: creditsResponse, loading: creditsLoading, refetch: refetchCredits } = useApi<CreditsResponse>('/api/admin/credits?limit=50');
+  // Fetch credits alimentaires
+  const { data: creditsAlimResponse, loading: creditsAlimLoading, refetch: refetchCreditsAlim } = useApi<CreditsAlimResponse>('/api/admin/creditsAlimentaires?limit=50');
   // Fetch clients (pour prospection)
   const { data: clientsResponse, loading: clientsLoading, refetch: refetchClients } = useApi<ClientsResponse>(`/api/admin/clients?${clientParams}`);
   // Fetch cotisations
   const { data: cotisationsResponse, loading: cotisationsLoading } = useApi<CotisationsResponse>('/api/admin/cotisations?limit=20');
 
   const credits = creditsResponse?.data ?? [];
+  const creditsAlim = creditsAlimResponse?.data ?? [];
   const clients = clientsResponse?.data ?? [];
   const clientsMeta = clientsResponse?.meta;
   const cotisations = cotisationsResponse?.data ?? [];
 
-  // Stats calculees
-  const creditsEnCours = credits.filter(c => c.statut === 'ACTIF' || c.statut === 'APPROUVE' || c.statut === 'REMBOURSE_PARTIEL');
-  const totalACollecter = credits.reduce((sum, c) => sum + Number(c.montantRestant || 0), 0);
+  // Stats credits simples — en cours = approuves ou partiellement rembourses
+  const creditsEnCours = credits.filter(c => c.statut === 'APPROUVE' || c.statut === 'REMBOURSE_PARTIEL');
+  const totalACollecter = creditsEnCours.reduce((sum, c) => sum + Number(c.montantRestant || 0), 0);
+  // Stats credits alimentaires — actifs
+  const creditsAlimActifs = creditsAlim.filter(c => c.statut === 'ACTIF');
+  const totalPlafondActif = creditsAlimActifs.reduce((sum, c) => sum + Number(c.plafond || 0), 0);
+  const totalAlimRestant = creditsAlimActifs.reduce((sum, c) => sum + Number(c.montantRestant || 0), 0);
+  // Cotisations
   const cotisationsEnAttente = cotisations.filter(c => c.statut === 'EN_ATTENTE');
 
   const isLoading = creditsLoading && !creditsResponse;
+
+  const refetchAll = () => {
+    refetchCredits();
+    refetchCreditsAlim();
+    refetchClients();
+  };
 
   if (isLoading) {
     return (
@@ -197,19 +319,20 @@ export default function AgentTerrainPage() {
         </div>
       </div>
     );
-  }   
+  }
 
   const statCards = [
-    { label: 'Credits en Cours', value: String(creditsEnCours.length), subtitle: 'A suivre sur le terrain', icon: CreditCardIcon, color: 'text-teal-500', lightBg: 'bg-teal-50' },
-    { label: 'Montant a Collecter', value: formatCurrency(totalACollecter), subtitle: 'Remboursements restants', icon: Banknote, color: 'text-emerald-500', lightBg: 'bg-emerald-50' },
+    { label: 'Credits Simples en Cours', value: String(creditsEnCours.length), subtitle: 'Prets a suivre', icon: Banknote, color: 'text-teal-500', lightBg: 'bg-teal-50' },
+    { label: 'A Collecter (Prets)', value: formatCurrency(totalACollecter), subtitle: 'Remboursements restants', icon: CreditCardIcon, color: 'text-emerald-500', lightBg: 'bg-emerald-50' },
+    { label: 'Credits Alim. Actifs', value: String(creditsAlimActifs.length), subtitle: `${formatCurrency(totalAlimRestant)} disponible`, icon: ShoppingBag, color: 'text-amber-500', lightBg: 'bg-amber-50' },
     { label: 'Clients Repertories', value: String(clientsMeta?.total ?? 0), subtitle: 'Prospection active', icon: Users, color: 'text-blue-500', lightBg: 'bg-blue-50' },
-    { label: 'Cotisations en Attente', value: String(cotisationsEnAttente.length), subtitle: 'A encaisser', icon: Target, color: 'text-purple-500', lightBg: 'bg-purple-50' },
   ];
 
-  const tabs = [
-    { key: 'remboursements' as const, label: 'Remboursements', icon: Banknote },
-    { key: 'prospects' as const, label: 'Prospection', icon: UserPlus },
-    { key: 'cotisations' as const, label: 'Cotisations', icon: Calendar },
+  const tabs: { key: TabKey; label: string; icon: LucideIcon }[] = [
+    { key: 'creditsSimples', label: 'Credits Simples', icon: Banknote },
+    { key: 'creditsAlim', label: 'Credits Alimentaires', icon: ShoppingBag },
+    { key: 'prospects', label: 'Prospection', icon: UserPlus },
+    { key: 'cotisations', label: 'Cotisations', icon: Calendar },
   ];
 
   return (
@@ -242,10 +365,10 @@ export default function AgentTerrainPage() {
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-3xl font-bold text-slate-800 mb-2">Tableau de Bord - Agent Terrain</h2>
-            <p className="text-slate-500">Collectez les remboursements et developpez votre portefeuille clients</p>
+            <p className="text-slate-500">Gerez les credits, collectez les remboursements et developpez votre portefeuille</p>
           </div>
           <div className="flex gap-3">
-            <button onClick={refetchCredits} className="px-5 py-3 bg-white border border-slate-200 rounded-xl text-slate-700 hover:bg-slate-50 transition-all shadow-sm flex items-center gap-2 font-medium">
+            <button onClick={refetchAll} className="px-5 py-3 bg-white border border-slate-200 rounded-xl text-slate-700 hover:bg-slate-50 transition-all shadow-sm flex items-center gap-2 font-medium">
               <RefreshCw size={18} />
               Actualiser
             </button>
@@ -264,18 +387,31 @@ export default function AgentTerrainPage() {
         </div>
 
         {/* Objectifs terrain */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
           <div className="bg-gradient-to-br from-teal-500 to-teal-600 rounded-2xl p-6 text-white shadow-lg shadow-teal-200">
             <div className="flex items-center gap-3 mb-3">
               <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
                 <Banknote size={24} />
               </div>
               <div>
-                <p className="text-teal-100 text-sm">Remboursements a collecter</p>
+                <p className="text-teal-100 text-sm">Prets a collecter</p>
                 <p className="text-3xl font-bold">{formatCurrency(totalACollecter)}</p>
               </div>
             </div>
-            <p className="text-teal-100 text-sm">Sur {creditsEnCours.length} credits actifs</p>
+            <p className="text-teal-100 text-sm">Sur {creditsEnCours.length} credit{creditsEnCours.length > 1 ? 's' : ''} en cours</p>
+          </div>
+
+          <div className="bg-gradient-to-br from-amber-500 to-orange-500 rounded-2xl p-6 text-white shadow-lg shadow-amber-200">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
+                <ShoppingBag size={24} />
+              </div>
+              <div>
+                <p className="text-amber-100 text-sm">Credits alimentaires actifs</p>
+                <p className="text-3xl font-bold">{creditsAlimActifs.length}</p>
+              </div>
+            </div>
+            <p className="text-amber-100 text-sm">Plafond total : {formatCurrency(totalPlafondActif)}</p>
           </div>
 
           <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl p-6 text-white shadow-lg shadow-blue-200">
@@ -299,7 +435,7 @@ export default function AgentTerrainPage() {
             return (
               <button
                 key={tab.key}
-                onClick={() => setActiveTab(tab.key)}
+                onClick={() => { setActiveTab(tab.key); setSearchQuery(''); }}
                 className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-sm font-semibold transition-all ${
                   activeTab === tab.key
                     ? 'bg-teal-600 text-white shadow-lg shadow-teal-200'
@@ -320,7 +456,12 @@ export default function AgentTerrainPage() {
               <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400" size={20} />
               <input
                 type="text"
-                placeholder={activeTab === 'remboursements' ? "Rechercher un credit..." : activeTab === 'prospects' ? "Rechercher un client..." : "Rechercher une cotisation..."}
+                placeholder={
+                  activeTab === 'creditsSimples' ? "Rechercher un credit simple..." :
+                  activeTab === 'creditsAlim' ? "Rechercher un credit alimentaire..." :
+                  activeTab === 'prospects' ? "Rechercher un client..." :
+                  "Rechercher une cotisation..."
+                }
                 value={searchQuery}
                 onChange={(e) => { setSearchQuery(e.target.value); setClientPage(1); }}
                 className="w-full pl-12 pr-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 bg-slate-50"
@@ -329,29 +470,56 @@ export default function AgentTerrainPage() {
           </div>
         </div>
 
-        {/* TAB: Remboursements */}
-        {activeTab === 'remboursements' && (
+        {/* TAB: Credits Simples (Prets / Remboursements) */}
+        {activeTab === 'creditsSimples' && (
           <div>
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xl font-bold text-slate-800">Credits a Suivre</h3>
+              <h3 className="text-xl font-bold text-slate-800">Credits Simples - Prets a Suivre</h3>
               <span className="bg-teal-100 text-teal-800 text-sm font-semibold px-4 py-2 rounded-full">
-                {credits.length} credits
+                {credits.length} credit{credits.length > 1 ? 's' : ''}
               </span>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
               {credits.filter(c => {
                 if (!debouncedSearch) return true;
                 const q = debouncedSearch.toLowerCase();
-                const person = c.client ?? c.membre;
+                const person = c.client ?? c.member;
                 return person ? (`${person.prenom} ${person.nom}`).toLowerCase().includes(q) : false;
               }).map(credit => (
-                <CreditCard key={credit.id} credit={credit} />
+                <CreditSimpleCard key={credit.id} credit={credit} />
               ))}
             </div>
             {credits.length === 0 && (
               <div className="bg-white rounded-2xl p-12 text-center shadow-sm border border-slate-200/60">
                 <Banknote className="w-12 h-12 text-slate-300 mx-auto mb-4" />
-                <p className="text-slate-500">Aucun credit a suivre pour le moment</p>
+                <p className="text-slate-500">Aucun credit simple a suivre pour le moment</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* TAB: Credits Alimentaires */}
+        {activeTab === 'creditsAlim' && (
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold text-slate-800">Credits Alimentaires</h3>
+              <span className="bg-amber-100 text-amber-800 text-sm font-semibold px-4 py-2 rounded-full">
+                {creditsAlim.length} credit{creditsAlim.length > 1 ? 's' : ''} alim.
+              </span>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+              {creditsAlim.filter(c => {
+                if (!debouncedSearch) return true;
+                const q = debouncedSearch.toLowerCase();
+                return c.client ? (`${c.client.prenom} ${c.client.nom}`).toLowerCase().includes(q) : false;
+              }).map(ca => (
+                <CreditAlimCard key={ca.id} credit={ca} />
+              ))}
+            </div>
+            {creditsAlim.length === 0 && (
+              <div className="bg-white rounded-2xl p-12 text-center shadow-sm border border-slate-200/60">
+                <ShoppingBag className="w-12 h-12 text-slate-300 mx-auto mb-4" />
+                <p className="text-slate-500">Aucun credit alimentaire pour le moment</p>
               </div>
             )}
           </div>

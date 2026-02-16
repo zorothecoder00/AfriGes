@@ -132,18 +132,6 @@ export default function MagazinierPage() {
     );
   }
 
-  if (error && !response) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-orange-50/30 to-amber-50/20 flex items-center justify-center">
-        <div className="flex flex-col items-center gap-4 bg-white rounded-2xl p-8 shadow-sm border max-w-md text-center">
-          <h3 className="text-lg font-bold text-slate-800">Erreur de chargement</h3>
-          <p className="text-slate-500 text-sm">{error}</p>
-          <button onClick={refetch} className="px-5 py-2.5 bg-orange-600 text-white rounded-xl hover:bg-orange-700 font-medium">Reessayer</button>
-        </div>
-      </div>
-    );
-  }
-
   const statCards = [
     { label: 'Valeur Totale Stock', value: formatCurrency(stats?.valeurTotale ?? 0), icon: TrendingUp, color: 'text-emerald-500', lightBg: 'bg-emerald-50' },
     { label: 'Produits en Stock', value: String(stats?.totalProduits ?? 0), icon: Package, color: 'text-blue-500', lightBg: 'bg-blue-50' },
@@ -200,6 +188,25 @@ export default function MagazinierPage() {
             </button>
           </div>
         </div>
+
+        {/* Erreur non-bloquante */}
+        {error && !response && (
+          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="bg-amber-100 p-2.5 rounded-xl">
+                <AlertTriangle className="text-amber-600 w-5 h-5" />
+              </div>
+              <div>
+                <p className="font-semibold text-amber-800">Impossible de charger les donnees</p>
+                <p className="text-sm text-amber-600">Les donnees de stock ne sont pas disponibles pour le moment. Verifiez vos droits d&apos;acces.</p>
+              </div>
+            </div>
+            <button onClick={refetch} className="px-4 py-2 bg-amber-600 text-white rounded-xl hover:bg-amber-700 font-medium text-sm flex items-center gap-2 shrink-0">
+              <RefreshCw size={16} />
+              Reessayer
+            </button>
+          </div>
+        )}
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">

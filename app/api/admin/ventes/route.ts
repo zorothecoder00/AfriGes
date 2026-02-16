@@ -7,12 +7,13 @@ import { randomUUID } from "crypto";
 /**
  * GET /api/admin/ventes
  * Liste toutes les ventes via credit alimentaire avec pagination et stats
+ * Accessible par tout utilisateur authentifie (lecture seule)
  */
 export async function GET(req: Request) {
   try {
     const session = await getAuthSession();
-    if (!session || !session.user.role || !["ADMIN", "SUPER_ADMIN"].includes(session.user.role)) {
-      return NextResponse.json({ error: "Acces refuse" }, { status: 403 });
+    if (!session) {
+      return NextResponse.json({ error: "Non autorise" }, { status: 401 });
     }
 
     const { searchParams } = new URL(req.url);
