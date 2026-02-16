@@ -53,7 +53,7 @@ export default function MembresPage() {
   // -------------------------------
   // Mutation pour ajouter un membre
   // -------------------------------
-  const { mutate: addMember, loading: adding, error: addError } = useMutation('/api/admin/membres', 'POST');
+  const { mutate: addMember, loading: adding, error: addError } = useMutation('/api/admin/membres', 'POST', { successMessage: 'Membre ajouté avec succès', errorMessage: 'Erreur lors de l\'ajout du membre' });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -66,7 +66,7 @@ export default function MembresPage() {
   };
 
   // Mutation pour supprimer un membre
-  const { mutate: deleteMember, loading: deletingMember } = useMutation(`/api/admin/membres/${deleteId}`, 'DELETE');
+  const { mutate: deleteMember, loading: deletingMember } = useMutation(`/api/admin/membres/${deleteId}`, 'DELETE', { successMessage: 'Membre supprimé avec succès' });
 
   const handleDelete = async () => {
     if (!deleteId) return;

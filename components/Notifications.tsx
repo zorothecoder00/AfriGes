@@ -34,8 +34,8 @@ export default function NotificationsPage({ backUrl }: NotificationsPageProps) {
   const notifications = response?.data ?? [];
 
   // Mutations
-  const { mutate: markAllRead, loading: markingAll } = useMutation('/api/notifications/readAll', 'PATCH');
-  const { mutate: clearAll, loading: clearingAll } = useMutation('/api/notifications', 'DELETE');
+  const { mutate: markAllRead, loading: markingAll } = useMutation('/api/notifications/readAll', 'PATCH', { successMessage: 'Toutes les notifications marquées comme lues' });
+  const { mutate: clearAll, loading: clearingAll } = useMutation('/api/notifications', 'DELETE', { successMessage: 'Toutes les notifications supprimées' });
 
   const handleMarkAllRead = async () => {
     const result = await markAllRead({});

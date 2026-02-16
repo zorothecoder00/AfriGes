@@ -41,7 +41,7 @@ interface FormData {
 export default function StockEdit({ produitId }: StockEditProps) {
   const router = useRouter();
   const { data: response, loading } = useApi<ProduitResponse>(`/api/admin/stock/${produitId}`);
-  const { mutate, loading: saving, error: saveError } = useMutation(`/api/admin/stock/${produitId}`, 'PUT');
+  const { mutate, loading: saving, error: saveError } = useMutation(`/api/admin/stock/${produitId}`, 'PUT', { successMessage: 'Produit modifié avec succès' });
 
   const [formData, setFormData] = useState<FormData>({
     nom: '',

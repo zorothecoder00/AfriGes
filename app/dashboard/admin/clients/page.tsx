@@ -52,7 +52,7 @@ export default function ClientsPage() {
   const clients = response?.data ?? [];
   const meta = response?.meta;
 
-  const { mutate: addClient, loading: adding, error: addError } = useMutation('/api/admin/clients', 'POST');
+  const { mutate: addClient, loading: adding, error: addError } = useMutation('/api/admin/clients', 'POST', { successMessage: 'Client ajouté avec succès' });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

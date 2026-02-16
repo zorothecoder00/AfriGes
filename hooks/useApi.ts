@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import { toast } from "sonner";
 
 interface UseApiResult<T> {
   data: T | null;
@@ -54,7 +55,8 @@ interface UseMutationResult<TData, TBody> {
 
 export function useMutation<TData = unknown, TBody = unknown>(
   url: string,
-  method: "POST" | "PUT" | "PATCH" | "DELETE" = "POST"
+  method: "POST" | "PUT" | "PATCH" | "DELETE" = "POST",
+  options?: { successMessage?: string; errorMessage?: string }
 ): UseMutationResult<TData, TBody> {
   const [data, setData] = useState<TData | null>(null);
   const [loading, setLoading] = useState(false);
@@ -77,16 +79,18 @@ export function useMutation<TData = unknown, TBody = unknown>(
         const json = await res.json();
         const result = json.data ?? json;
         setData(result);
+        if (options?.successMessage) toast.success(options.successMessage);
         return result;
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : "Erreur inconnue";
         setError(msg);
+        toast.error(options?.errorMessage ?? msg);
         return null;
       } finally {
         setLoading(false);
       }
     },
-    [url, method]
+    [url, method, options?.successMessage, options?.errorMessage]
   );
 
   return { mutate, data, loading, error };

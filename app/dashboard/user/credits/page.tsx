@@ -64,7 +64,7 @@ export default function CreditsPage() {
   const credits = response?.data ?? [];
   const stats = response?.stats;
 
-  const { mutate: requestCredit, loading: requesting, error: requestError } = useMutation('/api/user/credits', 'POST');
+  const { mutate: requestCredit, loading: requesting, error: requestError } = useMutation('/api/user/credits', 'POST', { successMessage: 'Demande de crédit soumise avec succès' });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

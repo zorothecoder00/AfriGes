@@ -70,8 +70,8 @@ export default function GestionStockPage() {
   const meta = response?.meta;
 
   // Mutations
-  const { mutate: addProduit, loading: adding, error: addError } = useMutation('/api/admin/stock', 'POST');
-  const { mutate: deleteProduit, loading: deleting } = useMutation(`/api/admin/stock/${deleteId}`, 'DELETE');
+  const { mutate: addProduit, loading: adding, error: addError } = useMutation('/api/admin/stock', 'POST', { successMessage: 'Produit ajouté avec succès', errorMessage: 'Erreur lors de l\'ajout du produit' });
+  const { mutate: deleteProduit, loading: deleting } = useMutation(`/api/admin/stock/${deleteId}`, 'DELETE', { successMessage: 'Produit supprimé avec succès' });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
