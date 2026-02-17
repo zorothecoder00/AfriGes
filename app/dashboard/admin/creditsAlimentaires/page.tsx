@@ -87,7 +87,7 @@ export default function CreditsAlimentairesPage() {
     modalOpen && formData.source === 'TONTINE' ? '/api/admin/tontines' : null
   );
 
-  const { mutate: addCredit, loading: adding, error: addError } = useMutation('/api/admin/creditsAlimentaires', 'POST');
+  const { mutate: addCredit, loading: adding, error: addError } = useMutation('/api/admin/creditsAlimentaires', 'POST', { successMessage: 'Crédit alimentaire ajouté avec succès' });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

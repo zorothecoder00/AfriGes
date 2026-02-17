@@ -128,7 +128,7 @@ export default function CaissierPage() {
   const { data: ventesResponse, loading: ventesLoading, refetch: refetchVentes } = useApi<VentesResponse>(`/api/admin/ventes?${ventesParams}`);
   const { data: creditsAlimResponse } = useApi<CreditsAlimResponse>('/api/admin/creditsAlimentaires?statut=ACTIF&limit=100');
 
-  const { mutate: enregistrerVente, loading: enregistrant, error: erreurVente } = useMutation('/api/admin/ventes', 'POST');
+  const { mutate: enregistrerVente, loading: enregistrant, error: erreurVente } = useMutation('/api/admin/ventes', 'POST', { successMessage: 'Vente enregistrée avec succès' });
 
   const produits = stockResponse?.data ?? [];
   const ventes = ventesResponse?.data ?? [];

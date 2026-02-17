@@ -1,11 +1,11 @@
 -Enlève aussi la partie register pour empêcher tout le monde de s'inscrire
-( tous les types de gestionnaires [ COMMERCIAL, AUDITEUR_INTERNE, RESPONSABLE_VENTE_CREDIT, CONTROLEUR_TERRAIN, AGENT_TERRAIN, RESPONSABLE_ECONOMIQUE, RESPONSABLE_MARKETING, ACTIONNAIRE ] doivent avoir leur dashboard dédié )
+( tous les types de gestionnaires [ COMMERCIAL, RESPONSABLE_VENTE_CREDIT, RESPONSABLE_ECONOMIQUE, RESPONSABLE_MARKETING ] doivent avoir leur dashboard dédié )
 
 -claude , créé moi un /dashboard/user/responsablePointDeVente, un
   dashboard/user/agentTerrain , dashboard/user/magazinier  s'il te plait (
   biensûr essaie de baser sur la logique métier : gestion des produits ,
   supervision des agents , caissiers, magaziniers ; collecte des
   remboursements puis prospections ; inventaires réguliers puis gestion
-  physique des stocks )
+  physique des stocks )     
 
                                                        

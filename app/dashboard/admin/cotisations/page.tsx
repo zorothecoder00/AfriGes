@@ -76,7 +76,7 @@ export default function CotisationsPage() {
   const { data: clientsResponse } = useApi<ClientsListResponse>(modalOpen ? '/api/admin/clients?limit=200' : null);
   const clients = clientsResponse?.data ?? [];
 
-  const { mutate: addCotisation, loading: adding, error: addError } = useMutation('/api/admin/cotisations', 'POST');
+  const { mutate: addCotisation, loading: adding, error: addError } = useMutation('/api/admin/cotisations', 'POST', { successMessage: 'Cotisation ajoutée avec succès' });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

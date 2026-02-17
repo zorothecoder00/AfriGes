@@ -68,7 +68,7 @@ interface ClientsResponse {
 export default function TontineEdit({ tontineId }: { tontineId: string }) {
   const router = useRouter();
   const { data: response, loading } = useApi<TontineResponse>(`/api/admin/tontines/${tontineId}`);
-  const { mutate, loading: saving, error: saveError } = useMutation(`/api/admin/tontines/${tontineId}`, 'PUT');
+  const { mutate, loading: saving, error: saveError } = useMutation(`/api/admin/tontines/${tontineId}`, 'PUT', { successMessage: 'Tontine modifiée avec succès' });
   const { data: clientsResponse } = useApi<ClientsResponse>('/api/admin/clients?limit=100');
 
   const [formData, setFormData] = useState<TontineForm>({

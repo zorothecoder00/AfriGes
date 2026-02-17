@@ -51,7 +51,7 @@ interface ClientResponse {
 export default function ClientDetails({ clientId }: ClientDetailsProps) {
   const router = useRouter();
   const { data: response, loading, error, refetch } = useApi<ClientResponse>(`/api/admin/clients/${clientId}`);
-  const { mutate: deleteClient, loading: deleting } = useMutation(`/api/admin/clients/${clientId}`, 'DELETE');
+  const { mutate: deleteClient, loading: deleting } = useMutation(`/api/admin/clients/${clientId}`, 'DELETE', { successMessage: 'Client supprimé avec succès' });
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const client = response?.data;

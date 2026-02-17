@@ -33,7 +33,7 @@ export default function Page({ params }: PageProps) {
   const { id } = use(params);
   const router = useRouter();
   const { data: response, loading, error } = useApi<CotisationResponse>(`/api/admin/cotisations/${id}`);
-  const { mutate } = useMutation(`/api/admin/cotisations/${id}`, 'PATCH');
+  const { mutate } = useMutation(`/api/admin/cotisations/${id}`, 'PATCH', { successMessage: 'Cotisation modifiée avec succès' });
 
   if (loading) {
     return (

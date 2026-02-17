@@ -1,7 +1,7 @@
 import { getToken } from "next-auth/jwt"
 import { NextRequest, NextResponse } from "next/server"
 
-const secret = process.env.NEXTAUTH_SECRET
+const secret = process.env.NEXTAUTH_SECRET    
 
 // Mapping RoleGestionnaire → chemin dashboard
 const gestionnaireDashboardMap: Record<string, string> = {
@@ -13,6 +13,8 @@ const gestionnaireDashboardMap: Record<string, string> = {
   CAISSIER: "/dashboard/user/caissiers",
   COMPTABLE: "/dashboard/user/comptables",
   AGENT_TERRAIN: "/dashboard/user/agentsTerrain",
+  AUDITEUR_INTERNE: "/dashboard/user/auditeursInterne",
+  ACTIONNAIRE: "/dashboard/user/actionnaires",
 }
 
 export async function proxy(request: NextRequest) {
@@ -27,7 +29,7 @@ export async function proxy(request: NextRequest) {
   }
 
   const role = token?.role
-
+  
   // Admin/Super_admin qui tente d'acceder a /dashboard/user → redirection vers /dashboard/admin
   if (pathname.startsWith("/dashboard/user") && (role === "ADMIN" || role === "SUPER_ADMIN")) {
     return NextResponse.redirect(new URL("/dashboard/admin", request.url));
@@ -40,11 +42,23 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL(destination, request.url));
   }
 
-  // User sur /dashboard/user exactement → rediriger vers son dashboard gestionnaire spécifique
-  if ((pathname === "/dashboard/user" || pathname === "/dashboard/user/") && role === "USER") {
+  // User sur /dashboard/user → vérifier qu'il accède uniquement à SON dashboard
+  if (pathname.startsWith("/dashboard/user") && role === "USER") {
     const gestionnaireRole = token?.gestionnaireRole as string | undefined
-    if (gestionnaireRole && gestionnaireDashboardMap[gestionnaireRole]) {
-      return NextResponse.redirect(new URL(gestionnaireDashboardMap[gestionnaireRole], request.url));
+    const allowedPath = (gestionnaireRole && gestionnaireDashboardMap[gestionnaireRole]) || null
+
+    // /dashboard/user exactement → rediriger vers son dashboard spécifique
+    if (pathname === "/dashboard/user" || pathname === "/dashboard/user/") {
+      if (allowedPath) {
+        return NextResponse.redirect(new URL(allowedPath, request.url));
+      }
+      // Pas de rôle gestionnaire → laisser passer sur /dashboard/user
+      return NextResponse.next()
+    }
+
+    // Si le user tente d'accéder à un dashboard qui n'est pas le sien → redirection
+    if (allowedPath && !pathname.startsWith(allowedPath)) {
+      return NextResponse.redirect(new URL(allowedPath, request.url));
     }
   }
 

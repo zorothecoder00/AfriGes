@@ -295,7 +295,7 @@ export default function UserDashboard() {
   const [creditModalOpen, setCreditModalOpen] = useState(false);
   const [creditMontant, setCreditMontant] = useState('');
 
-  const { mutate: requestCredit, loading: requesting, error: requestError } = useMutation('/api/user/credits', 'POST');
+  const { mutate: requestCredit, loading: requesting, error: requestError } = useMutation('/api/user/credits', 'POST', { successMessage: 'Demande de crédit soumise avec succès' });
 
   // Fetch all data
   const { data: dashResponse, loading: dashLoading } = useApi<DashboardResponse>('/api/user/dashboard');

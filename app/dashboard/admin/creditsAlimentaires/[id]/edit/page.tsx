@@ -33,7 +33,7 @@ export default function Page({ params }: PageProps) {
   const { id } = use(params);
   const router = useRouter();
   const { data: response, loading, error } = useApi<CreditAlimentaireResponse>(`/api/admin/creditsAlimentaires/${id}`);
-  const { mutate } = useMutation(`/api/admin/creditsAlimentaires/${id}`, 'PATCH');
+  const { mutate } = useMutation(`/api/admin/creditsAlimentaires/${id}`, 'PATCH', { successMessage: 'Crédit alimentaire modifié avec succès' });
 
   if (loading) {
     return (

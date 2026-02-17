@@ -53,8 +53,8 @@ export default function TontinesPage() {
   const tontines = response?.data ?? [];
 
   // Mutations
-  const { mutate: addTontine, loading: adding, error: addError } = useMutation('/api/admin/tontines', 'POST');
-  const { mutate: deleteTontine, loading: deleting } = useMutation(`/api/admin/tontines/${deleteId}`, 'DELETE');
+  const { mutate: addTontine, loading: adding, error: addError } = useMutation('/api/admin/tontines', 'POST', { successMessage: 'Tontine créée avec succès' });
+  const { mutate: deleteTontine, loading: deleting } = useMutation(`/api/admin/tontines/${deleteId}`, 'DELETE', { successMessage: 'Tontine supprimée avec succès' });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

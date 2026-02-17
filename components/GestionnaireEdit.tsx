@@ -48,7 +48,7 @@ interface FormData {
 export default function GestionnaireEdit({ gestionnaireId }: GestionnaireEditProps) {
   const router = useRouter();
   const { data: response, loading } = useApi<GestionnaireResponse>(`/api/admin/gestionnaires/${gestionnaireId}`);
-  const { mutate, loading: saving, error: saveError } = useMutation(`/api/admin/gestionnaires/${gestionnaireId}`, 'PATCH');
+  const { mutate, loading: saving, error: saveError } = useMutation(`/api/admin/gestionnaires/${gestionnaireId}`, 'PATCH', { successMessage: 'Gestionnaire modifié avec succès' });
 
   const [formData, setFormData] = useState<FormData>({
     role: 'CAISSIER',

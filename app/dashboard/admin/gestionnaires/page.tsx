@@ -73,8 +73,8 @@ export default function GestionnairesPage() {
   const allMembers = (membersResponse?.data ?? []).filter(m => m.role === "USER");
 
   // Mutations
-  const { mutate: addGestionnaire, loading: adding, error: addError } = useMutation('/api/admin/gestionnaires', 'POST');
-  const { mutate: deleteGestionnaire, loading: deleting } = useMutation(`/api/admin/gestionnaires/${deleteId}`, 'DELETE');
+  const { mutate: addGestionnaire, loading: adding, error: addError } = useMutation('/api/admin/gestionnaires', 'POST', { successMessage: 'Gestionnaire ajouté avec succès' });
+  const { mutate: deleteGestionnaire, loading: deleting } = useMutation(`/api/admin/gestionnaires/${deleteId}`, 'DELETE', { successMessage: 'Gestionnaire supprimé avec succès' });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

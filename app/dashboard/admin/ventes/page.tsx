@@ -92,7 +92,7 @@ export default function VentesPage() {
   const { data: produitsResponse } = useApi<ProduitsListResponse>(modalOpen ? '/api/admin/stock?limit=200' : null);
   const produits = (produitsResponse?.data ?? []).filter(p => p.stock > 0);
 
-  const { mutate: addVente, loading: adding, error: addError } = useMutation('/api/admin/ventes', 'POST');
+  const { mutate: addVente, loading: adding, error: addError } = useMutation('/api/admin/ventes', 'POST', { successMessage: 'Vente enregistrée avec succès' });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

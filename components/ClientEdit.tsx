@@ -43,7 +43,7 @@ interface FormData {
 export default function ClientEdit({ clientId }: ClientEditProps) {
   const router = useRouter();
   const { data: response, loading } = useApi<ClientResponse>(`/api/admin/clients/${clientId}`);
-  const { mutate, loading: saving, error: saveError } = useMutation(`/api/admin/clients/${clientId}`, 'PATCH');
+  const { mutate, loading: saving, error: saveError } = useMutation(`/api/admin/clients/${clientId}`, 'PATCH', { successMessage: 'Client modifié avec succès' });
 
   const [formData, setFormData] = useState<FormData>({
     nom: '',

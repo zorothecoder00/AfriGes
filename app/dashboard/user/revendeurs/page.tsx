@@ -145,7 +145,7 @@ export default function RevendeurPage() {
   const { data: creditAlimResponse } = useApi<CreditAlimResponse>('/api/user/creditsAlimentaires');
   const { data: creditsResponse, refetch: refetchCredits } = useApi<CreditsResponse>('/api/user/credits');
   const { data: txResponse } = useApi<TransactionsResponse>('/api/user/transactions?limit=10');
-  const { mutate: requestCredit, loading: requesting, error: requestError } = useMutation('/api/user/credits', 'POST');
+  const { mutate: requestCredit, loading: requesting, error: requestError } = useMutation('/api/user/credits', 'POST', { successMessage: 'Demande de crédit soumise avec succès' });
 
   const dashData = dashResponse?.data;
   const produits = stockResponse?.data ?? [];
