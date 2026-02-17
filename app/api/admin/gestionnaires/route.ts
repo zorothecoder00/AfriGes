@@ -114,6 +114,10 @@ export async function POST(req: Request) {
         throw new Error("Utilisateur introuvable");
       }
 
+      if (user.role !== Role.USER) {
+        throw new Error("Seuls les utilisateurs simples (USER) peuvent être nommés gestionnaires");
+      }
+
       if (user.gestionnaire) {
         throw new Error("Cet utilisateur est déjà gestionnaire");
       }
@@ -168,6 +172,7 @@ export async function POST(req: Request) {
     if(error instanceof Error){
       if (
       error.message === "Utilisateur introuvable" ||
+      error.message === "Seuls les utilisateurs simples (USER) peuvent être nommés gestionnaires" ||
       error.message === "Cet utilisateur est déjà gestionnaire"
       ) {
         return NextResponse.json(

@@ -42,6 +42,7 @@ interface MemberOption {
   nom: string;
   prenom: string;
   email: string;
+  role: string | null;
 }
 
 export default function GestionnairesPage() {
@@ -50,7 +51,7 @@ export default function GestionnairesPage() {
   const [page, setPage] = useState(1);
   const [roleFilter, setRoleFilter] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
-  const [formData, setFormData] = useState({ memberId: '', role: 'CAISSIER' });
+  const [formData, setFormData] = useState({ memberId: '', role: 'RESPONSABLE_POINT_DE_VENTE' });
   const [deleteId, setDeleteId] = useState<number | null>(null);
   const [menuOpenId, setMenuOpenId] = useState<number | null>(null);
   const limit = 10;
@@ -69,7 +70,7 @@ export default function GestionnairesPage() {
 
   // Fetch members pour le formulaire d'ajout
   const { data: membersResponse } = useApi<{ data: MemberOption[] }>('/api/admin/membres?limit=100');
-  const allMembers = membersResponse?.data ?? [];
+  const allMembers = (membersResponse?.data ?? []).filter(m => m.role === "USER");
 
   // Mutations
   const { mutate: addGestionnaire, loading: adding, error: addError } = useMutation('/api/admin/gestionnaires', 'POST');
@@ -80,7 +81,7 @@ export default function GestionnairesPage() {
     const result = await addGestionnaire({ memberId: Number(formData.memberId), role: formData.role });
     if (result) {
       setModalOpen(false);
-      setFormData({ memberId: '', role: 'CAISSIER' });
+      setFormData({ memberId: '', role: 'RESPONSABLE_POINT_DE_VENTE' });
       refetch();
     }
   };
@@ -206,8 +207,6 @@ export default function GestionnairesPage() {
               className="px-4 py-3 border border-slate-200 rounded-xl text-slate-700 focus:outline-none focus:ring-2 focus:ring-purple-500 bg-slate-50"
             >
               <option value="">Tous les roles</option>
-              <option value="SUPER_ADMIN">Super Admin</option>
-              <option value="ADMIN">Admin</option>
               <option value="RESPONSABLE_POINT_DE_VENTE">Resp. point de vente</option>
               <option value="RESPONSABLE_COMMUNAUTE">Resp. communaute</option>
               <option value="REVENDEUR">Revendeur</option>
@@ -258,8 +257,6 @@ export default function GestionnairesPage() {
                     onChange={e => setFormData({ ...formData, role: e.target.value })}
                     className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 bg-slate-50"
                   >
-                    <option value="SUPER_ADMIN">Super Admin</option>
-                    <option value="ADMIN">Admin</option>
                     <option value="RESPONSABLE_POINT_DE_VENTE">Responsable point de vente</option>
                     <option value="RESPONSABLE_COMMUNAUTE">Responsable communaute</option>
                     <option value="REVENDEUR">Revendeur</option>
