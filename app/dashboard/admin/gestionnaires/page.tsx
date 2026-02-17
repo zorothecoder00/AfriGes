@@ -68,9 +68,11 @@ export default function GestionnairesPage() {
   const allGestionnaires = response?.data ?? [];
   const meta = response?.meta;
 
-  // Fetch members pour le formulaire d'ajout
-  const { data: membersResponse } = useApi<{ data: MemberOption[] }>('/api/admin/membres?limit=100');
-  const allMembers = (membersResponse?.data ?? []).filter(m => m.role === "USER");
+  // Fetch members + tous les gestionnaires pour le formulaire d'ajout (seulement quand la modale est ouverte)
+  const { data: membersResponse } = useApi<{ data: MemberOption[] }>(modalOpen ? '/api/admin/membres?limit=100' : null);
+  const { data: allGestionnairesResponse } = useApi<GestionnairesResponse>(modalOpen ? '/api/admin/gestionnaires?limit=1000' : null);
+  const gestionnairesMemberIds = new Set((allGestionnairesResponse?.data ?? []).map(g => g.member.id));
+  const allMembers = (membersResponse?.data ?? []).filter(m => m.role === "USER" && !gestionnairesMemberIds.has(m.id));
 
   // Mutations
   const { mutate: addGestionnaire, loading: adding, error: addError } = useMutation('/api/admin/gestionnaires', 'POST', { successMessage: 'Gestionnaire ajouté avec succès' });

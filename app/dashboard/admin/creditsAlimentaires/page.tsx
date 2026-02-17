@@ -77,7 +77,10 @@ export default function CreditsAlimentairesPage() {
   const meta = response?.meta;
 
   const { data: clientsResponse } = useApi<ClientsListResponse>(modalOpen ? '/api/admin/clients?limit=200' : null);
-  const clients = clientsResponse?.data ?? [];
+  // Charger tous les credits actifs pour exclure les clients qui en ont deja un
+  const { data: creditsActifsResponse } = useApi<CreditsAlimentairesResponse>(modalOpen ? '/api/admin/creditsAlimentaires?statut=ACTIF&limit=1000' : null);
+  const clientsAvecCreditActif = new Set((creditsActifsResponse?.data ?? []).map(c => c.client?.id).filter(Boolean));
+  const clients = (clientsResponse?.data ?? []).filter(c => !clientsAvecCreditActif.has(c.id));
 
   // Charger cotisations ou tontines selon la source selectionnee
   const { data: cotisationsSource } = useApi<{ data: { id: number; montant: string; periode: string; client: { nom: string; prenom: string } | null }[] }>(
