@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma'
-import { Role } from "@/types"    
+import { Role, RoleGestionnaire } from "@/types"
 import bcrypt from 'bcryptjs'     
 import GoogleProvider from 'next-auth/providers/google'
 import CredentialsProvider from 'next-auth/providers/credentials'
@@ -87,6 +87,13 @@ export const authOptions: NextAuthOptions = {
 				token.nom = user.nom ?? user.name?.split(" ").slice(1).join(" ")
 				token.photo = user.photo ?? user.image ?? null
 				token.role = user.role ?? null
+
+				// Récupérer le rôle gestionnaire depuis la DB
+				const gestionnaire = await prisma.gestionnaire.findUnique({
+					where: { memberId: Number(user.id) },
+					select: { role: true },
+				})
+				token.gestionnaireRole = gestionnaire?.role ?? null
 			}
 			return token
 		},
@@ -96,7 +103,8 @@ export const authOptions: NextAuthOptions = {
 				session.user.prenom = token.prenom as string;
 				session.user.nom = token.nom as string;
 				session.user.photo = (token.photo as string) ?? null
-		        session.user.role = token.role as Role ?? null;	        		        
+		        session.user.role = token.role as Role ?? null;
+		        session.user.gestionnaireRole = (token.gestionnaireRole as RoleGestionnaire) ?? null;
 			}
 			return session
 		},

@@ -189,7 +189,7 @@ const CreditSimpleCard = ({ credit }: { credit: Credit }) => {
       <p className="text-xs text-slate-400 mt-3">Demande le {formatDate(credit.dateDemande)}</p>
     </div>
   );
-};
+};           
 
 // --- Carte Credit Alimentaire ---
 const CreditAlimCard = ({ credit }: { credit: CreditAlimentaire }) => {

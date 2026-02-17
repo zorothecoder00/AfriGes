@@ -1,6 +1,6 @@
 // /types/next-auth.d.ts
 import { DefaultSession, DefaultUser } from "next-auth";
-import { Role } from "@prisma/client";  
+import { Role, RoleGestionnaire } from "@prisma/client";
 
 // On étend les types User, Session et JWT
 declare module "next-auth" {
@@ -9,8 +9,9 @@ declare module "next-auth" {
       id: string;
       nom: string;
       prenom: string;
-      role: Role| null; // ton enum
-      photo?: string;  
+      role: Role | null;
+      gestionnaireRole: RoleGestionnaire | null;
+      photo?: string;
     } & DefaultSession["user"];
   }
 
@@ -18,16 +19,18 @@ declare module "next-auth" {
     id: string;
     nom: string;
     prenom: string;
-    role: Role| null; // ton enum
+    role: Role | null;
+    gestionnaireRole?: RoleGestionnaire | null;
     photo?: string;
   }
 
   interface JWT {
     id: string;
-    role: Role| null;
+    role: Role | null;
+    gestionnaireRole: RoleGestionnaire | null;
     nom: string;
     prenom: string;
-    photo?: string // 👈 facultatif, si photo existe
+    photo?: string;
   }
 }
 

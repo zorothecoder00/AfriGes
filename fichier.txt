@@ -1,16 +1,11 @@
--/dashboard/admin ( j'ai oublié de gérer les credits simples (pas crédits alimentaires ) sur le dashboard ; depuis le dashboard/user on peut faire une demande de crédit mais j'ai oublié de permettre de gérer la réponse sur le dashboard/admin et même les api admin/credits que j'ai oubliés de créer ) 
-
--Pas important mais je veux gérer les notifications avec ToastProvider après certaines actions importantes   
-
 -Enlève aussi la partie register pour empêcher tout le monde de s'inscrire
+( tous les types de gestionnaires [ COMMERCIAL, AUDITEUR_INTERNE, RESPONSABLE_VENTE_CREDIT, CONTROLEUR_TERRAIN, AGENT_TERRAIN, RESPONSABLE_ECONOMIQUE, RESPONSABLE_MARKETING, ACTIONNAIRE ] doivent avoir leur dashboard dédié )
 
--le dashboard user lui va servir aux membres ou gestionnaires de AfriSime ( tous les types de gestionnaires [ RESPONSABLE_POINT_DE_VENTE, RESPONSABLE_COMMUNAUTE, REVENDEUR, AGENT_LOGISTIQUE_APPROVISIONNEMENT, MAGAZINIER, CAISSIER, COMMERCIAL, COMPTABLE, AUDITEUR_INTERNE, RESPONSABLE_VENTE_CREDIT, CONTROLEUR_TERRAIN, AGENT_TERRAIN, RESPONSABLE_ECONOMIQUE, RESPONSABLE_MARKETING, ACTIONNAIRE ] doivent avoir leur dashboard dédié )
-
-claude , créé moi un /dashboard/user/responsablePointDeVente, un
+-claude , créé moi un /dashboard/user/responsablePointDeVente, un
   dashboard/user/agentTerrain , dashboard/user/magazinier  s'il te plait (
   biensûr essaie de baser sur la logique métier : gestion des produits ,
   supervision des agents , caissiers, magaziniers ; collecte des
   remboursements puis prospections ; inventaires réguliers puis gestion
   physique des stocks )
 
-                                                     
+                                                       
