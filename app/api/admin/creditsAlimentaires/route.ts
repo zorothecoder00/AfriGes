@@ -140,6 +140,60 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Client introuvable" }, { status: 404 });
     }
 
+    // Validation : vérifier que la source existe et appartient au client
+    if (source === "COTISATION") {
+      const cotisation = await prisma.cotisation.findUnique({
+        where: { id: Number(sourceId) },
+      });
+      if (!cotisation) {
+        return NextResponse.json({ error: "Cotisation introuvable" }, { status: 404 });
+      }
+      if (cotisation.clientId !== Number(clientId)) {
+        return NextResponse.json(
+          { error: "Cette cotisation n'appartient pas au client selectionne" },
+          { status: 400 }
+        );
+      }
+      if (cotisation.statut !== "PAYEE") {
+        return NextResponse.json(
+          { error: "La cotisation doit etre payee pour generer un credit alimentaire" },
+          { status: 400 }
+        );
+      }
+    } else if (source === "TONTINE") {
+      const tontine = await prisma.tontine.findUnique({
+        where: { id: Number(sourceId) },
+      });
+      if (!tontine) {
+        return NextResponse.json({ error: "Tontine introuvable" }, { status: 404 });
+      }
+      const membre = await prisma.tontineMembre.findFirst({
+        where: { tontineId: Number(sourceId), clientId: Number(clientId) },
+      });
+      if (!membre) {
+        return NextResponse.json(
+          { error: "Ce client n'est pas membre de la tontine selectionnee" },
+          { status: 400 }
+        );
+      }
+    }
+
+    // Vérifier qu'il n'a pas déjà un crédit actif pour cette source
+    const creditExistant = await prisma.creditAlimentaire.findFirst({
+      where: {
+        clientId: Number(clientId),
+        source: source as SourceCreditAlim,
+        sourceId: Number(sourceId),
+        statut: StatutCreditAlim.ACTIF,
+      },
+    });
+    if (creditExistant) {
+      return NextResponse.json(
+        { error: "Un credit alimentaire actif existe deja pour ce client avec cette source" },
+        { status: 400 }
+      );
+    }
+
     const credit = await prisma.$transaction(async (tx) => {
       const created = await tx.creditAlimentaire.create({
         data: {

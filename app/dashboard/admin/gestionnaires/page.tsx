@@ -5,7 +5,7 @@ import { Plus, Search, Shield, Users, Key, Eye, Edit, MoreVertical, CheckCircle,
 import Link from 'next/link';
 import { useApi, useMutation } from '@/hooks/useApi';
 import { formatDate } from '@/lib/format';
-import { getStatusLabel } from '@/lib/status';
+import { getStatusLabel, getStatusStyle } from '@/lib/status';
 
 interface Gestionnaire {
   id: number;
@@ -29,13 +29,7 @@ interface GestionnairesResponse {
     limit: number;
     totalPages: number;
   };
-}
-
-const roleCouleurs: Record<string, string> = {
-  AGENT: 'bg-emerald-100 text-emerald-700 border-emerald-200',
-  SUPERVISEUR: 'bg-purple-100 text-purple-700 border-purple-200',
-  CAISSIER: 'bg-blue-100 text-blue-700 border-blue-200',
-};
+}   
 
 interface MemberOption {
   id: number;
@@ -107,12 +101,13 @@ export default function GestionnairesPage() {
 
   const totalActifs = allGestionnaires.filter((g) => g.actif).length;
   const totalInactifs = allGestionnaires.filter((g) => !g.actif).length;
+  const totalRoles = new Set(allGestionnaires.map(g => g.role)).size;
 
   const stats = [
     { label: 'Total Gestionnaires', value: String(meta?.total ?? 0), icon: Users, color: 'bg-blue-500', lightBg: 'bg-blue-50' },
     { label: 'Actifs', value: String(totalActifs), icon: CheckCircle, color: 'bg-emerald-500', lightBg: 'bg-emerald-50' },
     { label: 'Inactifs', value: String(totalInactifs), icon: Clock, color: 'bg-amber-500', lightBg: 'bg-amber-50' },
-    { label: 'Roles', value: '3', icon: Shield, color: 'bg-purple-500', lightBg: 'bg-purple-50' },
+    { label: 'Roles', value: String(totalRoles), icon: Shield, color: 'bg-purple-500', lightBg: 'bg-purple-50' },
   ];
 
   const getInitials = (nom: string, prenom: string) => `${prenom?.[0] ?? ''}${nom?.[0] ?? ''}`.toUpperCase();
@@ -345,7 +340,9 @@ export default function GestionnairesPage() {
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border ${roleCouleurs[g.role] ?? 'bg-slate-100 text-slate-700 border-slate-200'}`}>
+                      <span
+                        className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border ${getStatusStyle(g.role)}`}
+                      >
                         <Shield size={12} />
                         {getStatusLabel(g.role)}
                       </span>

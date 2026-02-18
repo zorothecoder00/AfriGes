@@ -12,7 +12,7 @@ datasource db {
   provider = "postgresql"              
 }                 
                 
-enum Role {      
+enum Role {         
   SUPER_ADMIN                  
   ADMIN              
   USER                       
@@ -131,7 +131,7 @@ enum RoleGestionnaire {
   MAGAZINIER
   CAISSIER
   COMMERCIAL
-  COMPTABLE
+  COMPTABLE  
   AUDITEUR_INTERNE
   RESPONSABLE_VENTE_CREDIT
   CONTROLEUR_TERRAIN
@@ -171,7 +171,7 @@ enum StatutCotisation {
   EXPIREE              
 }
  
-model Tontine {  
+model Tontine {
   id                  Int               @id @default(autoincrement())
   nom                 String
   description         String?
@@ -181,7 +181,8 @@ model Tontine {
   dateDebut           DateTime
   dateFin             DateTime?
 
-  membres             TontineMembre[]  
+  membres             TontineMembre[]
+  cycles              TontineCycle[]
 
   createdAt           DateTime          @default(now())
   updatedAt           DateTime          @updatedAt
@@ -200,6 +201,8 @@ model TontineMembre {
 
   tontine             Tontine           @relation(fields: [tontineId], references: [id])
   member              User?             @relation(fields: [memberId], references: [id])
+  contributions       TontineContribution[]
+  cyclesBeneficiaire  TontineCycle[]    @relation("CycleBeneficiaire")
 
   @@unique([tontineId, clientId])
 }
@@ -211,8 +214,57 @@ enum Frequence {
 
 enum StatutTontine {
   ACTIVE
-  TERMINEE   
+  TERMINEE
   SUSPENDUE
+}
+
+enum StatutCycle {
+  EN_COURS
+  COMPLETE
+  ANNULE
+}
+
+enum StatutContribution {
+  EN_ATTENTE
+  PAYEE
+}
+
+model TontineCycle {
+  id              Int                   @id @default(autoincrement())
+  tontineId       Int
+  numeroCycle     Int
+  beneficiaireId  Int
+  montantPot      Decimal
+  statut          StatutCycle           @default(EN_COURS)
+  dateDebut       DateTime              @default(now())
+  dateCloture     DateTime?
+
+  tontine         Tontine               @relation(fields: [tontineId], references: [id])
+  beneficiaire    TontineMembre         @relation("CycleBeneficiaire", fields: [beneficiaireId], references: [id])
+  contributions   TontineContribution[]
+
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+
+  @@unique([tontineId, numeroCycle])
+}
+
+model TontineContribution {
+  id              Int                   @id @default(autoincrement())
+  cycleId         Int
+  membreId        Int
+  montant         Decimal
+  statut          StatutContribution    @default(EN_ATTENTE)
+  datePaiement    DateTime?
+  notePaiement    String?
+
+  cycle           TontineCycle          @relation(fields: [cycleId], references: [id])
+  membre          TontineMembre         @relation(fields: [membreId], references: [id])
+
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+
+  @@unique([cycleId, membreId])
 }
 
 model Credit {

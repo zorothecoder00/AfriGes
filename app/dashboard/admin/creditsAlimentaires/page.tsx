@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { Plus, Search, Download, ShoppingCart, TrendingUp, DollarSign, AlertCircle, CheckCircle, Clock, Eye, MoreVertical, ArrowLeft } from 'lucide-react';
+import { Plus, Search, Download, ShoppingCart, TrendingUp, DollarSign, AlertCircle, CheckCircle, Clock, Eye, Pencil, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { useApi, useMutation } from '@/hooks/useApi';
 import { formatCurrency, formatDate } from '@/lib/format';
@@ -374,8 +374,8 @@ export default function CreditsAlimentairesPage() {
                           <Link href={`/dashboard/admin/creditsAlimentaires/${credit.id}`} className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
                             <Eye size={16} />
                           </Link>
-                          <Link href={`/dashboard/admin/creditsAlimentaires/${credit.id}/edit`} className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
-                            <MoreVertical size={16} />
+                          <Link href={`/dashboard/admin/creditsAlimentaires/${credit.id}/edit`} className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors" title="Modifier">
+                            <Pencil size={16} />
                           </Link>
                         </div>
                       </td>

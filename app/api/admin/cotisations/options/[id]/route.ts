@@ -33,11 +33,12 @@ export async function PUT(
       return NextResponse.json({ error: "Option introuvable" }, { status: 404 });
     }  
 
-    const updated = await prisma.parametre.update({   
+    const updated = await prisma.parametre.update({
       where: { cle: id },
-      data: { valeur },  
+      data: { valeur },
     });
 
+    return NextResponse.json({ message: "Option mise à jour avec succès", data: updated }, { status: 200 });
   } catch (error) {
     console.error("PUT /admin/cotisations/options/[id]", error);
     return NextResponse.json({ error: "Erreur interne du serveur" }, { status: 500 });

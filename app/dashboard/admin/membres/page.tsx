@@ -8,7 +8,7 @@ import { formatDate } from '@/lib/format';
 import { getStatusStyle, getStatusLabel } from '@/lib/status';
 
 interface Member {
-  id: number;
+  id: number;  
   nom: string;
   prenom: string;
   email: string;

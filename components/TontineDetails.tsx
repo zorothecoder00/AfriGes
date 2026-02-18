@@ -2,32 +2,61 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { useApi } from '@/hooks/useApi';
+import { useApi, useMutation } from '@/hooks/useApi';
 import { formatCurrency, formatDate } from '@/lib/format';
 import {
   ArrowLeft,
   Users,
   Calendar,
-  Euro,
   Clock,
-  MoreVertical,
   TrendingUp,
   AlertCircle,
   CheckCircle,
-  XCircle
+  XCircle,
+  Play,
+  CreditCard,
+  Loader2,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
+
+interface ClientInfo {
+  id: number;
+  nom: string;
+  prenom: string;
+  telephone: string;
+}
 
 interface TontineMembre {
   id: number;
   ordreTirage: number | null;
   dateEntree: string;
   dateSortie: string | null;
-  client: {
-    id: number;
-    nom: string;
-    prenom: string;
-    telephone: string;
-  } | null;
+  client: ClientInfo | null;
+}
+
+interface TontineContribution {
+  id: number;
+  cycleId: number;
+  membreId: number;
+  montant: string;
+  statut: 'EN_ATTENTE' | 'PAYEE';
+  datePaiement: string | null;
+  notePaiement: string | null;
+  membre: TontineMembre;
+}
+
+interface TontineCycle {
+  id: number;
+  tontineId: number;
+  numeroCycle: number;
+  beneficiaireId: number;
+  montantPot: string;
+  statut: 'EN_COURS' | 'COMPLETE' | 'ANNULE';
+  dateDebut: string;
+  dateCloture: string | null;
+  beneficiaire: TontineMembre;
+  contributions: TontineContribution[];
 }
 
 interface Tontine {
@@ -40,6 +69,7 @@ interface Tontine {
   dateDebut: string;
   dateFin: string | null;
   membres: TontineMembre[];
+  cycles?: TontineCycle[];
   _count?: {
     membres: number;
   };
@@ -52,6 +82,23 @@ interface TontineResponse {
 export default function TontineDetails({ tontineId }: { tontineId: string }) {
   const { data: response, loading, error, refetch } = useApi<TontineResponse>(`/api/admin/tontines/${tontineId}`);
   const tontine = response?.data;
+
+  const [payingId, setPayingId] = useState<number | null>(null);
+  const [expandedCycleId, setExpandedCycleId] = useState<number | null>(null);
+
+  const { mutate: startCycle, loading: startingCycle } = useMutation<unknown, object>(
+    `/api/admin/tontines/${tontineId}/cycles`,
+    'POST',
+    { successMessage: 'Cycle demarre avec succes' }
+  );
+
+  const { mutate: markPaid, loading: markingPaid } = useMutation<unknown, { notePaiement?: string }>(
+    payingId
+      ? `/api/admin/tontines/${tontineId}/cycles/${tontine?.cycles?.find(c => c.contributions.some(ct => ct.id === payingId))?.id}/contributions/${payingId}`
+      : '/api/admin/tontines/0/cycles/0/contributions/0',
+    'PATCH',
+    { successMessage: 'Contribution marquee comme payee' }
+  );
 
   const getStatutColor = (statut: string) => {
     switch (statut) {
@@ -90,6 +137,25 @@ export default function TontineDetails({ tontineId }: { tontineId: string }) {
     return 'bg-purple-500';
   };
 
+  const handleStartCycle = async () => {
+    const result = await startCycle({});
+    if (result) refetch();
+  };
+
+  const handleMarkPaid = async (contributionId: number) => {
+    setPayingId(contributionId);
+  };
+
+  // Separate useEffect-like pattern: when payingId changes and markPaid URL is ready, call it
+  const confirmMarkPaid = async () => {
+    if (!payingId) return;
+    const result = await markPaid({});
+    if (result) {
+      setPayingId(null);
+      refetch();
+    }
+  };
+
   if (loading && !tontine) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -117,6 +183,12 @@ export default function TontineDetails({ tontineId }: { tontineId: string }) {
 
   const montantCycle = Number(tontine.montantCycle);
   const totalCollecte = montantCycle * (tontine._count?.membres || 0);
+
+  const cycles = tontine.cycles || [];
+  const cycleEnCours = cycles.find(c => c.statut === 'EN_COURS');
+  const cyclesPasses = cycles.filter(c => c.statut !== 'EN_COURS');
+
+  const canStartCycle = tontine.statut === 'ACTIVE' && !cycleEnCours && tontine.membres.length > 0;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -167,9 +239,6 @@ export default function TontineDetails({ tontineId }: { tontineId: string }) {
                   </div>
                   <h2 className="text-3xl font-bold">{tontine.nom}</h2>
                 </div>
-                <button className="p-2 hover:bg-white/10 rounded-lg transition-colors">
-                  <MoreVertical className="w-5 h-5" />
-                </button>
               </div>
 
               {tontine.description && (
@@ -178,7 +247,7 @@ export default function TontineDetails({ tontineId }: { tontineId: string }) {
                 </p>
               )}
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
                   <div className="flex items-center gap-2 text-white/80 text-sm mb-2">
                     <Users className="w-4 h-4" />
@@ -188,13 +257,202 @@ export default function TontineDetails({ tontineId }: { tontineId: string }) {
                 </div>
                 <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
                   <div className="flex items-center gap-2 text-white/80 text-sm mb-2">
-                    <Euro className="w-4 h-4" />
-                    Total
+                    <CreditCard className="w-4 h-4" />
+                    Pot / cycle
                   </div>
-                  <div className="text-3xl font-bold">{formatCurrency(totalCollecte)}</div>
+                  <div className="text-2xl font-bold">{formatCurrency(totalCollecte)}</div>
+                </div>
+                <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
+                  <div className="flex items-center gap-2 text-white/80 text-sm mb-2">
+                    <TrendingUp className="w-4 h-4" />
+                    Cycles
+                  </div>
+                  <div className="text-3xl font-bold">{cycles.length}</div>
                 </div>
               </div>
             </div>
+
+            {/* Cycle en cours */}
+            {cycleEnCours && (
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 mt-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-bold text-gray-900">
+                    Cycle {cycleEnCours.numeroCycle} en cours
+                  </h3>
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200">
+                    <Clock className="w-3.5 h-3.5" />
+                    En cours
+                  </span>
+                </div>
+
+                {/* Beneficiaire */}
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4">
+                  <p className="text-sm text-amber-700 font-medium mb-1">Beneficiaire du pot</p>
+                  <p className="text-lg font-bold text-amber-900">
+                    {cycleEnCours.beneficiaire.client
+                      ? `${cycleEnCours.beneficiaire.client.prenom} ${cycleEnCours.beneficiaire.client.nom}`
+                      : 'Membre inconnu'}
+                  </p>
+                  <p className="text-sm text-amber-600 mt-1">
+                    Pot : {formatCurrency(Number(cycleEnCours.montantPot))}
+                  </p>
+                </div>
+
+                {/* Barre de progression */}
+                {(() => {
+                  const totalContribs = cycleEnCours.contributions.length;
+                  const payees = cycleEnCours.contributions.filter(c => c.statut === 'PAYEE').length;
+                  const pct = totalContribs > 0 ? Math.round((payees / totalContribs) * 100) : 0;
+                  return (
+                    <div className="mb-4">
+                      <div className="flex items-center justify-between text-sm mb-2">
+                        <span className="text-gray-600">Contributions payees</span>
+                        <span className="font-medium text-gray-900">{payees}/{totalContribs} ({pct}%)</span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-3">
+                        <div
+                          className="bg-emerald-500 h-3 rounded-full transition-all duration-500"
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* Table des contributions */}
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-gray-200">
+                        <th className="text-left py-3 px-2 text-gray-500 font-medium">#</th>
+                        <th className="text-left py-3 px-2 text-gray-500 font-medium">Membre</th>
+                        <th className="text-left py-3 px-2 text-gray-500 font-medium">Montant</th>
+                        <th className="text-left py-3 px-2 text-gray-500 font-medium">Statut</th>
+                        <th className="text-right py-3 px-2 text-gray-500 font-medium">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {cycleEnCours.contributions.map((contrib) => (
+                        <tr key={contrib.id} className="border-b border-gray-100 last:border-0">
+                          <td className="py-3 px-2 text-gray-600">
+                            {contrib.membre.ordreTirage || '-'}
+                          </td>
+                          <td className="py-3 px-2">
+                            <div className="flex items-center gap-2">
+                              <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-xs">
+                                {contrib.membre.client?.prenom?.[0]}{contrib.membre.client?.nom?.[0]}
+                              </div>
+                              <div>
+                                <p className="font-medium text-gray-900">
+                                  {contrib.membre.client?.prenom} {contrib.membre.client?.nom}
+                                </p>
+                                <p className="text-xs text-gray-500">{contrib.membre.client?.telephone}</p>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="py-3 px-2 font-medium text-gray-900">
+                            {formatCurrency(Number(contrib.montant))}
+                          </td>
+                          <td className="py-3 px-2">
+                            {contrib.statut === 'PAYEE' ? (
+                              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700">
+                                <CheckCircle className="w-3.5 h-3.5" />
+                                Payee
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-orange-50 text-orange-700">
+                                <Clock className="w-3.5 h-3.5" />
+                                En attente
+                              </span>
+                            )}
+                          </td>
+                          <td className="py-3 px-2 text-right">
+                            {contrib.statut === 'EN_ATTENTE' && (
+                              payingId === contrib.id ? (
+                                <div className="flex items-center gap-2 justify-end">
+                                  <button
+                                    onClick={confirmMarkPaid}
+                                    disabled={markingPaid}
+                                    className="px-3 py-1.5 bg-emerald-600 text-white text-xs rounded-lg hover:bg-emerald-700 disabled:opacity-50 font-medium"
+                                  >
+                                    {markingPaid ? (
+                                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                    ) : (
+                                      'Confirmer'
+                                    )}
+                                  </button>
+                                  <button
+                                    onClick={() => setPayingId(null)}
+                                    className="px-3 py-1.5 bg-gray-200 text-gray-700 text-xs rounded-lg hover:bg-gray-300 font-medium"
+                                  >
+                                    Annuler
+                                  </button>
+                                </div>
+                              ) : (
+                                <button
+                                  onClick={() => handleMarkPaid(contrib.id)}
+                                  className="px-3 py-1.5 bg-blue-600 text-white text-xs rounded-lg hover:bg-blue-700 font-medium"
+                                >
+                                  Marquer paye
+                                </button>
+                              )
+                            )}
+                            {contrib.statut === 'PAYEE' && contrib.datePaiement && (
+                              <span className="text-xs text-gray-500">
+                                {formatDate(contrib.datePaiement)}
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* Bouton demarrer cycle */}
+            {canStartCycle && (
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 mt-6">
+                <div className="text-center">
+                  <Play className="w-12 h-12 text-emerald-500 mx-auto mb-3" />
+                  <h3 className="text-lg font-bold text-gray-900 mb-2">
+                    {cycles.length === 0
+                      ? 'Demarrer le premier cycle'
+                      : 'Demarrer un nouveau cycle'}
+                  </h3>
+                  <p className="text-sm text-gray-500 mb-4">
+                    Chaque membre contribuera {formatCurrency(montantCycle)} pour un pot total de {formatCurrency(totalCollecte)}.
+                  </p>
+                  <button
+                    onClick={handleStartCycle}
+                    disabled={startingCycle}
+                    className="px-6 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 font-medium disabled:opacity-50 inline-flex items-center gap-2"
+                  >
+                    {startingCycle ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Demarrage...
+                      </>
+                    ) : (
+                      <>
+                        <Play className="w-4 h-4" />
+                        Demarrer le cycle {cycles.length + 1}
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Tontine terminee */}
+            {tontine.statut === 'TERMINEE' && !cycleEnCours && (
+              <div className="bg-gray-50 rounded-2xl border border-gray-200 p-6 mt-6 text-center">
+                <CheckCircle className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                <h3 className="text-lg font-bold text-gray-700 mb-1">Tontine terminee</h3>
+                <p className="text-sm text-gray-500">Tous les membres ont recu leur pot.</p>
+              </div>
+            )}
 
             {/* Informations detaillees */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 mt-6">
@@ -204,7 +462,7 @@ export default function TontineDetails({ tontineId }: { tontineId: string }) {
                 <div>
                   <div className="flex items-center gap-3 mb-2">
                     <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center">
-                      <Euro className="w-5 h-5 text-blue-600" />
+                      <CreditCard className="w-5 h-5 text-blue-600" />
                     </div>
                     <div>
                       <p className="text-sm text-gray-500">Contribution</p>
@@ -256,6 +514,107 @@ export default function TontineDetails({ tontineId }: { tontineId: string }) {
                 </div>
               </div>
             </div>
+
+            {/* Historique des cycles */}
+            {cyclesPasses.length > 0 && (
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 mt-6">
+                <h3 className="text-lg font-bold text-gray-900 mb-4">
+                  Historique des cycles ({cyclesPasses.length})
+                </h3>
+
+                <div className="space-y-3">
+                  {cyclesPasses.map((cycle) => {
+                    const payees = cycle.contributions.filter(c => c.statut === 'PAYEE').length;
+                    const total = cycle.contributions.length;
+                    const isExpanded = expandedCycleId === cycle.id;
+
+                    return (
+                      <div key={cycle.id} className="border border-gray-200 rounded-xl overflow-hidden">
+                        <button
+                          onClick={() => setExpandedCycleId(isExpanded ? null : cycle.id)}
+                          className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition-colors text-left"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm ${
+                              cycle.statut === 'COMPLETE' ? 'bg-emerald-500' : 'bg-gray-400'
+                            }`}>
+                              {cycle.numeroCycle}
+                            </div>
+                            <div>
+                              <p className="font-medium text-gray-900">
+                                Cycle {cycle.numeroCycle} — {cycle.beneficiaire.client
+                                  ? `${cycle.beneficiaire.client.prenom} ${cycle.beneficiaire.client.nom}`
+                                  : 'Membre'}
+                              </p>
+                              <p className="text-xs text-gray-500">
+                                {formatDate(cycle.dateDebut)}
+                                {cycle.dateCloture && ` — ${formatDate(cycle.dateCloture)}`}
+                                {' | '}{payees}/{total} payees | Pot : {formatCurrency(Number(cycle.montantPot))}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${
+                              cycle.statut === 'COMPLETE'
+                                ? 'bg-emerald-50 text-emerald-700'
+                                : 'bg-gray-100 text-gray-600'
+                            }`}>
+                              {cycle.statut === 'COMPLETE' ? (
+                                <><CheckCircle className="w-3 h-3" /> Complete</>
+                              ) : (
+                                <><XCircle className="w-3 h-3" /> Annule</>
+                              )}
+                            </span>
+                            {isExpanded ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
+                          </div>
+                        </button>
+
+                        {isExpanded && (
+                          <div className="border-t border-gray-200 p-4 bg-gray-50">
+                            <table className="w-full text-sm">
+                              <thead>
+                                <tr className="border-b border-gray-200">
+                                  <th className="text-left py-2 px-2 text-gray-500 font-medium text-xs">#</th>
+                                  <th className="text-left py-2 px-2 text-gray-500 font-medium text-xs">Membre</th>
+                                  <th className="text-left py-2 px-2 text-gray-500 font-medium text-xs">Montant</th>
+                                  <th className="text-left py-2 px-2 text-gray-500 font-medium text-xs">Statut</th>
+                                  <th className="text-left py-2 px-2 text-gray-500 font-medium text-xs">Date paiement</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {cycle.contributions.map((contrib) => (
+                                  <tr key={contrib.id} className="border-b border-gray-100 last:border-0">
+                                    <td className="py-2 px-2 text-gray-600">{contrib.membre.ordreTirage || '-'}</td>
+                                    <td className="py-2 px-2 font-medium text-gray-900">
+                                      {contrib.membre.client?.prenom} {contrib.membre.client?.nom}
+                                    </td>
+                                    <td className="py-2 px-2">{formatCurrency(Number(contrib.montant))}</td>
+                                    <td className="py-2 px-2">
+                                      {contrib.statut === 'PAYEE' ? (
+                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-emerald-50 text-emerald-700">
+                                          <CheckCircle className="w-3 h-3" /> Payee
+                                        </span>
+                                      ) : (
+                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-orange-50 text-orange-700">
+                                          <Clock className="w-3 h-3" /> En attente
+                                        </span>
+                                      )}
+                                    </td>
+                                    <td className="py-2 px-2 text-gray-500 text-xs">
+                                      {contrib.datePaiement ? formatDate(contrib.datePaiement) : '-'}
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Sidebar - Liste des membres */}

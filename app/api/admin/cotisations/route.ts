@@ -150,8 +150,8 @@ export async function POST(req: Request) {
           montant: new Prisma.Decimal(montant),
           periode: periode as PeriodeCotisation,
           dateExpiration: new Date(dateEcheance),
-          statut: StatutCotisation.PAYEE,
-          datePaiement: new Date(),
+          statut: StatutCotisation.EN_ATTENTE,
+          datePaiement: null,
         },
         include: {
           client: { select: { id: true, nom: true, prenom: true, telephone: true } },

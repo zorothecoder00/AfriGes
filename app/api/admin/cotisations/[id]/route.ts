@@ -7,6 +7,7 @@ import {
 } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getAuthSession } from "@/lib/auth";
+import { genererCreditAlimentaireDepuisCotisation } from "@/lib/creditAlimentaireAuto";
 
 interface RouteParams {
   params: Promise<{
@@ -121,6 +122,18 @@ export async function PATCH(
         throw new Error("COTISATION_INTROUVABLE");
       }
 
+      // Si le statut passe à PAYEE, auto-remplir datePaiement si non fournie
+      const autoDatePaiement =
+        statut === StatutCotisation.PAYEE && cotisation.statut !== StatutCotisation.PAYEE && !datePaiement
+          ? new Date()
+          : undefined;
+
+      // Si le statut quitte PAYEE, effacer datePaiement
+      const clearDatePaiement =
+        statut && statut !== StatutCotisation.PAYEE && cotisation.statut === StatutCotisation.PAYEE
+          ? null
+          : undefined;
+
       const updated = await tx.cotisation.update({
         where: { id: cotisationId },
         data: {
@@ -131,6 +144,8 @@ export async function PATCH(
           ...(datePaiement !== undefined && {
             datePaiement: datePaiement ? new Date(datePaiement) : null,
           }),
+          ...(autoDatePaiement && { datePaiement: autoDatePaiement }),
+          ...(clearDatePaiement === null && { datePaiement: null }),
         },
         include: {
           client: {
@@ -144,11 +159,23 @@ export async function PATCH(
         },
       });
 
+      // Si la cotisation vient de passer à PAYEE → générer le crédit alimentaire auto
+      const estNouveauPaiement =
+        statut === StatutCotisation.PAYEE && cotisation.statut !== StatutCotisation.PAYEE;
+
+      if (estNouveauPaiement) {
+        await genererCreditAlimentaireDepuisCotisation(tx, {
+          id: cotisationId,
+          clientId: cotisation.clientId,
+          montant: cotisation.montant,
+        });
+      }
+
       // Audit log - userId = admin connecté
       await tx.auditLog.create({
         data: {
           userId: session ? parseInt(session.user.id) : null,
-          action: "MODIFICATION_COTISATION",
+          action: estNouveauPaiement ? "PAIEMENT_COTISATION" : "MODIFICATION_COTISATION",
           entite: "Cotisation",
           entiteId: cotisationId,
         },
@@ -198,6 +225,77 @@ export async function PATCH(
 
     return NextResponse.json(
       { message: "Erreur lors de la modification de la cotisation" },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * ==========================
+ * DELETE /admin/cotisations/[id]
+ * ==========================
+ * Supprimer une cotisation
+ */
+export async function DELETE(
+  _req: Request,
+  { params }: RouteParams
+) {
+  try {
+    const session = await getAuthSession();
+    if (!session || !session.user.role || !["ADMIN", "SUPER_ADMIN"].includes(session.user.role)) {
+      return NextResponse.json({ message: "Acces refuse" }, { status: 403 });
+    }
+
+    const { id } = await params;
+    const cotisationId = Number(id);
+
+    if (isNaN(cotisationId)) {
+      return NextResponse.json({ message: "ID invalide" }, { status: 400 });
+    }
+
+    await prisma.$transaction(async (tx) => {
+      const cotisation = await tx.cotisation.findUnique({
+        where: { id: cotisationId },
+        include: { client: true },
+      });
+
+      if (!cotisation) {
+        throw new Error("COTISATION_INTROUVABLE");
+      }
+
+      if (cotisation.statut === StatutCotisation.PAYEE) {
+        throw new Error("COTISATION_PAYEE");
+      }
+
+      await tx.cotisation.delete({ where: { id: cotisationId } });
+
+      await tx.auditLog.create({
+        data: {
+          userId: parseInt(session.user.id),
+          action: "SUPPRESSION_COTISATION",
+          entite: "Cotisation",
+          entiteId: cotisationId,
+        },
+      });
+    });
+
+    return NextResponse.json({ message: "Cotisation supprimee" });
+  } catch (error: unknown) {
+    console.error(error);
+
+    if (error instanceof Error && error.message === "COTISATION_INTROUVABLE") {
+      return NextResponse.json({ message: "Cotisation introuvable" }, { status: 404 });
+    }
+
+    if (error instanceof Error && error.message === "COTISATION_PAYEE") {
+      return NextResponse.json(
+        { message: "Impossible de supprimer une cotisation deja payee" },
+        { status: 400 }
+      );
+    }
+
+    return NextResponse.json(
+      { message: "Erreur lors de la suppression de la cotisation" },
       { status: 500 }
     );
   }

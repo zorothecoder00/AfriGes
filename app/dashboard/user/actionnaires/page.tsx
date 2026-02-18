@@ -75,7 +75,7 @@ const StatCard = ({ label, value, subtitle, icon: Icon, color, lightBg }: {
     {subtitle && <p className="text-xs text-slate-500 mt-1">{subtitle}</p>}
   </div>
 );
-
+  
 // Placeholder dividendes
 const dividendesHistorique = [
   { id: 1, periode: 'T4 2025', montant: 250000, statut: 'Verse', date: '2026-01-15' },

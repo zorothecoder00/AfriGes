@@ -135,7 +135,7 @@ export default function ClientsPage() {
                   onChange={e => setFormData({ ...formData, prenom: e.target.value })}
                   className="w-full px-4 py-2 border rounded-xl"
                 />
-                <input
+                <input  
                   type="text" placeholder="Telephone" required
                   value={formData.telephone}
                   onChange={e => setFormData({ ...formData, telephone: e.target.value })}
@@ -269,7 +269,7 @@ export default function ClientsPage() {
                         <Link href={`/dashboard/admin/clients/${client.id}/edit`} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
                           <Edit size={16} />
                         </Link>
-                        <button className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+                        <button className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors">   
                           <Trash2 size={16} />
                         </button>
                       </div>

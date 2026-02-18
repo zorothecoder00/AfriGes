@@ -37,6 +37,26 @@ export async function GET(
           },
           orderBy: { ordreTirage: 'asc' },
         },
+        cycles: {
+          include: {
+            beneficiaire: {
+              include: {
+                client: { select: { id: true, nom: true, prenom: true, telephone: true } },
+              },
+            },
+            contributions: {
+              include: {
+                membre: {
+                  include: {
+                    client: { select: { id: true, nom: true, prenom: true, telephone: true } },
+                  },
+                },
+              },
+              orderBy: { membre: { ordreTirage: 'asc' } },
+            },
+          },
+          orderBy: { numeroCycle: 'desc' },
+        },
         _count: { select: { membres: true } },
       },
     });

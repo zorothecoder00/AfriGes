@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { Plus, Search, Download, Calendar, CheckCircle, Clock, TrendingUp, AlertTriangle, Eye, MoreVertical, ArrowLeft } from 'lucide-react';
+import { Plus, Search, Download, Calendar, CheckCircle, Clock, TrendingUp, AlertTriangle, Eye, Pencil, Trash2, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { useApi, useMutation } from '@/hooks/useApi';
 import { formatCurrency, formatDate } from '@/lib/format';
@@ -12,7 +12,7 @@ interface Cotisation {
   montant: string;
   periode: string;
   statut: string;
-  dateEcheance: string;
+  dateExpiration: string;
   datePaiement: string | null;
   createdAt: string;
   client: {
@@ -56,6 +56,7 @@ export default function CotisationsPage() {
   const [page, setPage] = useState(1);
   const [statutFilter, setStatutFilter] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
+  const [deleteId, setDeleteId] = useState<number | null>(null);
   const [formData, setFormData] = useState({ clientId: '', montant: '', periode: 'MENSUEL', dateEcheance: '' });
   const limit = 10;
 
@@ -77,6 +78,17 @@ export default function CotisationsPage() {
   const clients = clientsResponse?.data ?? [];
 
   const { mutate: addCotisation, loading: adding, error: addError } = useMutation('/api/admin/cotisations', 'POST', { successMessage: 'Cotisation ajoutée avec succès' });
+
+  const { mutate: deleteCotisation, loading: deleting } = useMutation(`/api/admin/cotisations/${deleteId}`, 'DELETE', { successMessage: 'Cotisation supprimée avec succès' });
+
+  const handleDelete = async () => {
+    if (!deleteId) return;
+    const result = await deleteCotisation({});
+    if (result) {
+      setDeleteId(null);
+      refetch();
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -210,6 +222,24 @@ export default function CotisationsPage() {
           </div>
         )}
 
+        {/* Modal Confirmation Suppression */}
+        {deleteId && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-2xl p-8 w-full max-w-sm shadow-lg text-center">
+              <h2 className="text-lg font-bold text-slate-800 mb-2">Confirmer la suppression</h2>
+              <p className="text-slate-500 text-sm mb-6">Voulez-vous vraiment supprimer cette cotisation ? Cette action est irreversible.</p>
+              <div className="flex gap-3">
+                <button onClick={() => setDeleteId(null)} className="flex-1 py-2.5 border border-slate-200 rounded-xl text-slate-700 hover:bg-slate-50 font-medium">
+                  Annuler
+                </button>
+                <button onClick={handleDelete} disabled={deleting} className="flex-1 py-2.5 bg-red-600 text-white rounded-xl hover:bg-red-700 font-medium">
+                  {deleting ? 'Suppression...' : 'Supprimer'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Stats Cards */}
         <div className="grid grid-cols-4 gap-5">
           {statCards.map((stat, index) => {
@@ -298,7 +328,7 @@ export default function CotisationsPage() {
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2">
                         <Calendar size={14} className="text-slate-400" />
-                        <span className="text-sm text-slate-600">{formatDate(cotisation.dateEcheance)}</span>
+                        <span className="text-sm text-slate-600">{formatDate(cotisation.dateExpiration)}</span>
                       </div>
                     </td>
                     <td className="px-6 py-4">
@@ -318,9 +348,17 @@ export default function CotisationsPage() {
                         <Link href={`/dashboard/admin/cotisations/${cotisation.id}`} className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
                           <Eye size={16} />
                         </Link>
-                        <Link href={`/dashboard/admin/cotisations/${cotisation.id}/edit`} className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
-                          <MoreVertical size={16} />
+                        <Link href={`/dashboard/admin/cotisations/${cotisation.id}/edit`} className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors" title="Modifier">
+                          <Pencil size={16} />
                         </Link>
+                        {cotisation.statut !== 'PAYEE' && (
+                          <button
+                            onClick={() => setDeleteId(cotisation.id)}
+                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>

@@ -43,10 +43,20 @@ const CotisationEdit: React.FC<CotisationEditProps> = ({ cotisation, onClose, on
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    setFormData(prev => {
+      const updated = { ...prev, [name]: value };
+
+      // Auto-remplir datePaiement quand on passe à PAYEE
+      if (name === 'statut' && value === 'PAYEE' && !prev.datePaiement) {
+        updated.datePaiement = new Date().toISOString().split('T')[0];
+      }
+      // Effacer datePaiement quand on quitte PAYEE
+      if (name === 'statut' && value !== 'PAYEE') {
+        updated.datePaiement = '';
+      }
+
+      return updated;
+    });
     // Clear error when user starts typing
     if (errors[name]) {
       setErrors(prev => ({
