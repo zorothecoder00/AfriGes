@@ -10,7 +10,7 @@ import { getStatusLabel, getStatusStyle } from '@/lib/status';
 interface Gestionnaire {
   id: number;
   role: string;
-  actif: boolean;
+  actif: boolean;  
   createdAt: string;
   member: {
     id: number;

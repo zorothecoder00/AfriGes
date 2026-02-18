@@ -6,6 +6,12 @@
   biensûr essaie de baser sur la logique métier : gestion des produits ,
   supervision des agents , caissiers, magaziniers ; collecte des
   remboursements puis prospections ; inventaires réguliers puis gestion
-  physique des stocks )     
+  physique des stocks )
+
+  -Pour le /dashboard/admin/ventes ; empêcher de vendre un produit à un client qui n'a pas cotisé ou qui n'a pas de crédit alimentaire ou qui ne participe à aucune tontine activement  ; c'est à dire vendre le produit seulement à une personne qui doit consommer son crédit alimentaire 
+
+  -aussi pour la création de crédit alimentaire , par exemple c'est pas normal de pouvoir accorder un crédit alimentaire par cotisation à un client qui ne fait même pas de cotisation ( c'est mauvais pour la logique et pour l'audit ,log); revois tout le processus de credit alimentaire (il me semble qu'il manque encore n peu de robustesse)
+
+  -pour /dashboard/admin/tontines/id aussi, est ce que les cycles fonctionnent bien ????
 
                                                             
