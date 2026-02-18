@@ -348,10 +348,15 @@ export default function GestionnairesPage() {
                       </span>
                     </td>
                     <td className="px-6 py-4">
-                      <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border ${g.actif ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : 'bg-slate-100 text-slate-700 border-slate-200'}`}>
-                        {g.actif ? <CheckCircle size={14} className="text-emerald-600" /> : <Clock size={14} className="text-slate-600" />}
-                        {g.actif ? 'Actif' : 'Inactif'}
+                      <span
+                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border ${getStatusStyle(
+                          g.actif ? 'ACTIF' : 'INACTIF'
+                        )}`}
+                      >
+                        {g.actif ? <CheckCircle size={14} /> : <Clock size={14} />}
+                        {getStatusLabel(g.actif ? 'ACTIF' : 'INACTIF')}
                       </span>
+
                     </td>
                     <td className="px-6 py-4">
                       <span className="text-sm text-slate-600">{formatDate(g.createdAt)}</span>

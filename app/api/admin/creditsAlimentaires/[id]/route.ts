@@ -247,3 +247,101 @@ export async function PATCH(
     );
   }
 }
+
+/**
+ * ==========================
+ * DELETE /admin/creditsAlimentaires/[id]
+ * ==========================
+ * Supprimer un credit alimentaire
+ * Interdit si montantUtilise > 0 (credit deja consomme)
+ */
+export async function DELETE(
+  _req: Request,
+  { params }: RouteParams
+) {
+  try {
+    const session = await getAuthSession();
+    if (!session || !session.user.role || !["ADMIN", "SUPER_ADMIN"].includes(session.user.role)) {
+      return NextResponse.json({ error: "Acces refuse" }, { status: 403 });
+    }
+
+    const { id } = await params;
+    const creditId = Number(id);
+
+    if (isNaN(creditId)) {
+      return NextResponse.json({ message: "ID invalide" }, { status: 400 });
+    }
+
+    const credit = await prisma.creditAlimentaire.findUnique({
+      where: { id: creditId },
+      include: { client: { select: { nom: true, prenom: true } } },
+    });
+
+    if (!credit) {
+      return NextResponse.json({ message: "Credit alimentaire introuvable" }, { status: 404 });
+    }
+
+    if (Number(credit.montantUtilise) > 0) {
+      return NextResponse.json(
+        { error: "Impossible de supprimer un credit alimentaire deja utilise. Vous pouvez le passer en statut EXPIRE." },
+        { status: 400 }
+      );
+    }
+
+    await prisma.$transaction(async (tx) => {
+      // Supprimer les transactions liees
+      await tx.creditAlimentaireTransaction.deleteMany({
+        where: { creditId },
+      });
+
+      // Supprimer les ventes liees
+      await tx.venteCreditAlimentaire.deleteMany({
+        where: { creditAlimentaireId: creditId },
+      });
+
+      // Supprimer le credit
+      await tx.creditAlimentaire.delete({
+        where: { id: creditId },
+      });
+
+      // Audit log
+      await tx.auditLog.create({
+        data: {
+          userId: parseInt(session.user.id),
+          action: "SUPPRESSION_CREDIT_ALIMENTAIRE",
+          entite: "CreditAlimentaire",
+          entiteId: creditId,
+        },
+      });
+
+      // Notification admins
+      const admins = await tx.user.findMany({
+        where: { role: { in: [Role.ADMIN, Role.SUPER_ADMIN] } },
+        select: { id: true },
+      });
+
+      const clientNom = credit.client
+        ? `${credit.client.prenom} ${credit.client.nom}`
+        : "Client inconnu";
+
+      if (admins.length > 0) {
+        await tx.notification.createMany({
+          data: admins.map((admin) => ({
+            userId: admin.id,
+            titre: "Credit alimentaire supprime",
+            message: `Le credit alimentaire de ${clientNom} (plafond: ${credit.plafond} FCFA, source: ${credit.source}) a ete supprime.`,
+            priorite: PrioriteNotification.NORMAL,
+          })),
+        });
+      }
+    });
+
+    return NextResponse.json({ message: "Credit alimentaire supprime avec succes" });
+  } catch (error) {
+    console.error("DELETE /admin/creditsAlimentaires/[id]:", error);
+    return NextResponse.json(
+      { message: "Erreur lors de la suppression du credit alimentaire" },
+      { status: 500 }
+    );
+  }
+}

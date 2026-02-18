@@ -56,8 +56,12 @@ export async function proxy(request: NextRequest) {
       return NextResponse.next()
     }
 
+    // Pages communes accessibles à tous les gestionnaires
+    const commonPaths = ["/dashboard/user/notifications"];
+    const isCommonPath = commonPaths.some(p => pathname.startsWith(p));
+
     // Si le user tente d'accéder à un dashboard qui n'est pas le sien → redirection
-    if (allowedPath && !pathname.startsWith(allowedPath)) {
+    if (allowedPath && !isCommonPath && !pathname.startsWith(allowedPath)) {
       return NextResponse.redirect(new URL(allowedPath, request.url));
     }
   }

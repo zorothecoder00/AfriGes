@@ -57,7 +57,7 @@ export default function CotisationsPage() {
   const [statutFilter, setStatutFilter] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
   const [deleteId, setDeleteId] = useState<number | null>(null);
-  const [formData, setFormData] = useState({ clientId: '', montant: '', periode: 'MENSUEL', dateEcheance: '' });
+  const [formData, setFormData] = useState({ clientId: '', montant: '', periode: 'MENSUEL', dateExpiration: '' });
   const limit = 10;
 
   useEffect(() => {
@@ -96,11 +96,11 @@ export default function CotisationsPage() {
       clientId: Number(formData.clientId),
       montant: Number(formData.montant),
       periode: formData.periode,
-      dateEcheance: formData.dateEcheance,
+      dateExpiration: formData.dateExpiration,
     });
     if (result) {
       setModalOpen(false);
-      setFormData({ clientId: '', montant: '', periode: 'MENSUEL', dateEcheance: '' });
+      setFormData({ clientId: '', montant: '', periode: 'MENSUEL', dateExpiration: '' });
       refetch();
     }
   };
@@ -209,8 +209,8 @@ export default function CotisationsPage() {
                   <label className="block text-sm font-medium text-slate-700 mb-1">Date d&apos;echeance</label>
                   <input
                     type="date" required
-                    value={formData.dateEcheance}
-                    onChange={e => setFormData({ ...formData, dateEcheance: e.target.value })}
+                    value={formData.dateExpiration}
+                    onChange={e => setFormData({ ...formData, dateExpiration: e.target.value })}
                     className="w-full px-4 py-2 border rounded-xl"
                   />
                 </div>

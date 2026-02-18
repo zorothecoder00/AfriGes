@@ -115,11 +115,11 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-    const { clientId, montant, periode, dateEcheance } = body;
+    const { clientId, montant, periode, dateExpiration } = body;
 
-    if (!clientId || !montant || !periode || !dateEcheance) {
+    if (!clientId || !montant || !periode || !dateExpiration) {
       return NextResponse.json(
-        { error: "Champs obligatoires manquants (clientId, montant, periode, dateEcheance)" },
+        { error: "Champs obligatoires manquants (clientId, montant, periode, dateExpiration)" },
         { status: 400 }
       );
     }
@@ -149,7 +149,7 @@ export async function POST(req: Request) {
           clientId: Number(clientId),
           montant: new Prisma.Decimal(montant),
           periode: periode as PeriodeCotisation,
-          dateExpiration: new Date(dateEcheance),
+          dateExpiration: new Date(dateExpiration),
           statut: StatutCotisation.EN_ATTENTE,
           datePaiement: null,
         },

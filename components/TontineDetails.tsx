@@ -84,6 +84,7 @@ export default function TontineDetails({ tontineId }: { tontineId: string }) {
   const tontine = response?.data;
 
   const [payingId, setPayingId] = useState<number | null>(null);
+  const [payingCycleId, setPayingCycleId] = useState<number | null>(null);
   const [expandedCycleId, setExpandedCycleId] = useState<number | null>(null);
 
   const { mutate: startCycle, loading: startingCycle } = useMutation<unknown, object>(
@@ -93,9 +94,7 @@ export default function TontineDetails({ tontineId }: { tontineId: string }) {
   );
 
   const { mutate: markPaid, loading: markingPaid } = useMutation<unknown, { notePaiement?: string }>(
-    payingId
-      ? `/api/admin/tontines/${tontineId}/cycles/${tontine?.cycles?.find(c => c.contributions.some(ct => ct.id === payingId))?.id}/contributions/${payingId}`
-      : '/api/admin/tontines/0/cycles/0/contributions/0',
+    `/api/admin/tontines/${tontineId}/cycles/${payingCycleId}/contributions/${payingId}`,
     'PATCH',
     { successMessage: 'Contribution marquee comme payee' }
   );
@@ -142,18 +141,24 @@ export default function TontineDetails({ tontineId }: { tontineId: string }) {
     if (result) refetch();
   };
 
-  const handleMarkPaid = async (contributionId: number) => {
+  const handleMarkPaid = (cycleId: number, contributionId: number) => {
+    setPayingCycleId(cycleId);
     setPayingId(contributionId);
   };
 
-  // Separate useEffect-like pattern: when payingId changes and markPaid URL is ready, call it
   const confirmMarkPaid = async () => {
-    if (!payingId) return;
+    if (!payingId || !payingCycleId) return;
     const result = await markPaid({});
     if (result) {
       setPayingId(null);
+      setPayingCycleId(null);
       refetch();
     }
+  };
+
+  const cancelMarkPaid = () => {
+    setPayingId(null);
+    setPayingCycleId(null);
   };
 
   if (loading && !tontine) {
@@ -382,7 +387,7 @@ export default function TontineDetails({ tontineId }: { tontineId: string }) {
                                     )}
                                   </button>
                                   <button
-                                    onClick={() => setPayingId(null)}
+                                    onClick={cancelMarkPaid}
                                     className="px-3 py-1.5 bg-gray-200 text-gray-700 text-xs rounded-lg hover:bg-gray-300 font-medium"
                                   >
                                     Annuler
@@ -390,7 +395,7 @@ export default function TontineDetails({ tontineId }: { tontineId: string }) {
                                 </div>
                               ) : (
                                 <button
-                                  onClick={() => handleMarkPaid(contrib.id)}
+                                  onClick={() => handleMarkPaid(cycleEnCours.id, contrib.id)}
                                   className="px-3 py-1.5 bg-blue-600 text-white text-xs rounded-lg hover:bg-blue-700 font-medium"
                                 >
                                   Marquer paye
