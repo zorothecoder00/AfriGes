@@ -23,6 +23,8 @@ export async function GET(req: Request) {
     const search = searchParams.get("search") || "";
     const statutParam = searchParams.get("statut");
     const periodeParam = searchParams.get("periode");
+    const clientIdParam = searchParams.get("clientId");
+    const clientId = clientIdParam && !isNaN(Number(clientIdParam)) ? Number(clientIdParam) : undefined;
 
     const statut =
       statutParam && Object.values(StatutCotisation).includes(statutParam as StatutCotisation)
@@ -35,6 +37,7 @@ export async function GET(req: Request) {
         : undefined;
 
     const where: Prisma.CotisationWhereInput = {
+      ...(clientId && { clientId }),
       ...(statut && { statut }),
       ...(periode && { periode }),
       ...(search && {

@@ -234,7 +234,7 @@ model TontineCycle {
   tontineId       Int
   numeroCycle     Int
   beneficiaireId  Int
-  montantPot      Decimal
+  montantPot      Decimal 
   statut          StatutCycle           @default(EN_COURS)
   dateDebut       DateTime              @default(now())
   dateCloture     DateTime?

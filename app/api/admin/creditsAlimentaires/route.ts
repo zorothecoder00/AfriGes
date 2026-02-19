@@ -21,6 +21,8 @@ export async function GET(req: Request) {
     const skip = (page - 1) * limit;
     const search = searchParams.get("search") || "";
     const statutParam = searchParams.get("statut");
+    const clientIdParam = searchParams.get("clientId");
+    const filterClientId = clientIdParam && !isNaN(Number(clientIdParam)) ? Number(clientIdParam) : undefined;
 
     const statut =
       statutParam && Object.values(StatutCreditAlim).includes(statutParam as StatutCreditAlim)
@@ -28,6 +30,7 @@ export async function GET(req: Request) {
         : undefined;
 
     const where: Prisma.CreditAlimentaireWhereInput = {
+      ...(filterClientId && { clientId: filterClientId }),
       ...(statut && { statut }),
       ...(search && {
         client: {
@@ -140,7 +143,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Client introuvable" }, { status: 404 });
     }
 
-    // Validation : vérifier que la source existe et appartient au client
+    // ── Validation : la source doit exister et appartenir au client ─────────
+
     if (source === "COTISATION") {
       const cotisation = await prisma.cotisation.findUnique({
         where: { id: Number(sourceId) },
@@ -150,13 +154,18 @@ export async function POST(req: Request) {
       }
       if (cotisation.clientId !== Number(clientId)) {
         return NextResponse.json(
-          { error: "Cette cotisation n'appartient pas au client selectionne" },
+          { error: `Cette cotisation appartient à un autre client. Impossible de l'associer à ${client.prenom} ${client.nom}.` },
           { status: 400 }
         );
       }
       if (cotisation.statut !== "PAYEE") {
         return NextResponse.json(
-          { error: "La cotisation doit etre payee pour generer un credit alimentaire" },
+          {
+            error:
+              cotisation.statut === "EN_ATTENTE"
+                ? "Cette cotisation n'a pas encore été payée. Un crédit ne peut être généré qu'à partir d'une cotisation payée."
+                : "Cette cotisation est expirée. Elle ne peut plus générer de crédit alimentaire.",
+          },
           { status: 400 }
         );
       }
@@ -167,18 +176,26 @@ export async function POST(req: Request) {
       if (!tontine) {
         return NextResponse.json({ error: "Tontine introuvable" }, { status: 404 });
       }
+      // La tontine doit être active
+      if (tontine.statut !== "ACTIVE") {
+        return NextResponse.json(
+          { error: `Cette tontine n'est pas active (statut actuel : ${tontine.statut}). Seules les tontines actives peuvent générer un crédit.` },
+          { status: 400 }
+        );
+      }
+      // Le client doit être membre actif (non sorti)
       const membre = await prisma.tontineMembre.findFirst({
-        where: { tontineId: Number(sourceId), clientId: Number(clientId) },
+        where: { tontineId: Number(sourceId), clientId: Number(clientId), dateSortie: null },
       });
       if (!membre) {
         return NextResponse.json(
-          { error: "Ce client n'est pas membre de la tontine selectionnee" },
+          { error: `${client.prenom} ${client.nom} n'est pas membre actif de cette tontine. Il ne peut pas recevoir un crédit lié à cette tontine.` },
           { status: 400 }
         );
       }
     }
 
-    // Vérifier qu'il n'a pas déjà un crédit actif pour cette source
+    // ── Vérifier l'absence de doublon actif pour cette source précise ────────
     const creditExistant = await prisma.creditAlimentaire.findFirst({
       where: {
         clientId: Number(clientId),
@@ -188,8 +205,11 @@ export async function POST(req: Request) {
       },
     });
     if (creditExistant) {
+      const sourceLabel = source === "COTISATION" ? "cotisation" : "tontine";
       return NextResponse.json(
-        { error: "Un credit alimentaire actif existe deja pour ce client avec cette source" },
+        {
+          error: `Un crédit alimentaire actif existe déjà pour ce client sur cette ${sourceLabel} (crédit #${creditExistant.id}, solde restant : ${creditExistant.montantRestant} FCFA).`,
+        },
         { status: 400 }
       );
     }
@@ -210,6 +230,16 @@ export async function POST(req: Request) {
         },
       });
 
+      // Audit log
+      await tx.auditLog.create({
+        data: {
+          userId: parseInt(session.user.id),
+          action: "CREATION_CREDIT_ALIMENTAIRE",
+          entite: "CreditAlimentaire",
+          entiteId: created.id,
+        },
+      });
+
       // Notifier les admins
       const admins = await tx.user.findMany({
         where: { role: { in: [Role.ADMIN, Role.SUPER_ADMIN] } },
@@ -217,11 +247,12 @@ export async function POST(req: Request) {
       });
 
       if (admins.length > 0) {
+        const sourceLabel = source === "COTISATION" ? "cotisation" : "tontine";
         await tx.notification.createMany({
           data: admins.map((admin) => ({
             userId: admin.id,
             titre: "Nouveau credit alimentaire",
-            message: `Un credit alimentaire de ${plafond} FCFA a ete attribue a ${client.prenom} ${client.nom}.`,
+            message: `Un crédit alimentaire de ${plafond} FCFA a été attribué à ${client.prenom} ${client.nom} (source : ${sourceLabel}).`,
             priorite: PrioriteNotification.NORMAL,
             actionUrl: `/dashboard/admin/creditsAlimentaires/${created.id}`,
           })),

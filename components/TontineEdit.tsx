@@ -14,7 +14,8 @@ import {
   Users,
   Clock,
   AlertCircle,
-  Search
+  Search,
+  Lock
 } from 'lucide-react';
 
 interface TontineForm {
@@ -40,6 +41,12 @@ interface TontineMembre {
   client: ClientOption | null;
 }
 
+interface TontineCycleBrief {
+  id: number;
+  statut: string;
+  numeroCycle: number;
+}
+
 interface Tontine {
   id: number;
   nom: string;
@@ -50,6 +57,7 @@ interface Tontine {
   dateDebut: string;
   dateFin: string | null;
   membres: TontineMembre[];
+  cycles: TontineCycleBrief[];
 }
 
 interface TontineResponse {
@@ -74,7 +82,7 @@ export default function TontineEdit({ tontineId }: { tontineId: string }) {
   const [formData, setFormData] = useState<TontineForm>({
     nom: '',
     description: '',
-    montantCycle: '',  
+    montantCycle: '',
     frequence: 'MENSUEL',
     statut: 'ACTIVE',
     dateDebut: '',
@@ -89,6 +97,10 @@ export default function TontineEdit({ tontineId }: { tontineId: string }) {
 
   const [showMemberModal, setShowMemberModal] = useState(false);
   const [searchMembre, setSearchMembre] = useState('');
+
+  // Fix Bug 7 : détecter si des cycles existent pour protéger la gestion des membres
+  const hasCycles = (response?.data?.cycles?.length ?? 0) > 0;
+  const hasCycleEnCours = response?.data?.cycles?.some(c => c.statut === 'EN_COURS') ?? false;
 
   useEffect(() => {
     if (!response?.data) return;
@@ -124,6 +136,7 @@ export default function TontineEdit({ tontineId }: { tontineId: string }) {
   };
 
   const ajouterClient = (client: ClientOption) => {
+    if (hasCycles) return;
     if (membresSelectionnes.some(m => m.clientId === client.id)) return;
     const prochainOrdre = membresSelectionnes.length > 0
       ? Math.max(...membresSelectionnes.map(m => m.ordreTirage || 0)) + 1
@@ -138,10 +151,12 @@ export default function TontineEdit({ tontineId }: { tontineId: string }) {
   };
 
   const retirerMembre = (clientId: number) => {
+    if (hasCycles) return;
     setMembresSelectionnes(prev => prev.filter(m => m.clientId !== clientId));
   };
 
   const updateOrdreTirage = (clientId: number, ordre: number) => {
+    if (hasCycles) return;
     setMembresSelectionnes(prev =>
       prev.map(m => m.clientId === clientId ? { ...m, ordreTirage: ordre } : m)
     );
@@ -154,7 +169,8 @@ export default function TontineEdit({ tontineId }: { tontineId: string }) {
       montantCycle: parseFloat(formData.montantCycle),
       dateDebut: formData.dateDebut,
       dateFin: formData.dateFin || null,
-      membres: membresSelectionnes,
+      // Ne pas envoyer les membres si des cycles existent (le serveur le bloque aussi)
+      ...(!hasCycles && { membres: membresSelectionnes }),
     });
     if (result) {
       router.push(`/dashboard/admin/tontines/${tontineId}`);
@@ -192,7 +208,7 @@ export default function TontineEdit({ tontineId }: { tontineId: string }) {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <Link
-                href={`/dashboard/admin/tontines/${tontineId}`}
+                href="/dashboard/admin/tontines"
                 className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
               >
                 <ArrowLeft className="w-5 h-5 text-gray-600" />
@@ -271,6 +287,11 @@ export default function TontineEdit({ tontineId }: { tontineId: string }) {
                         <div className="flex items-center gap-2">
                           <Euro className="w-4 h-4" />
                           Montant par cycle *
+                          {hasCycleEnCours && (
+                            <span className="inline-flex items-center gap-1 text-amber-600 text-xs font-normal">
+                              <Lock className="w-3 h-3" /> Cycle en cours
+                            </span>
+                          )}
                         </div>
                       </label>
                       <div className="relative">
@@ -284,9 +305,20 @@ export default function TontineEdit({ tontineId }: { tontineId: string }) {
                           required
                           min="0"
                           step="0.01"
-                          className="w-full pl-14 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
+                          disabled={hasCycleEnCours}
+                          title={hasCycleEnCours ? "Impossible de modifier le montant pendant un cycle en cours" : undefined}
+                          className={`w-full pl-14 pr-4 py-3 border rounded-lg transition-all ${
+                            hasCycleEnCours
+                              ? 'bg-gray-100 text-gray-500 cursor-not-allowed border-gray-200'
+                              : 'border-gray-300 focus:ring-2 focus:ring-emerald-500 focus:border-transparent'
+                          }`}
                         />
                       </div>
+                      {hasCycleEnCours && (
+                        <p className="mt-1 text-xs text-amber-600">
+                          Clôturez le cycle en cours pour modifier le montant.
+                        </p>
+                      )}
                     </div>
 
                     <div>
@@ -369,14 +401,32 @@ export default function TontineEdit({ tontineId }: { tontineId: string }) {
 
               {/* Gestion des membres */}
               <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+                {/* Fix Bug 7 : avertissement et blocage si des cycles existent */}
+                {hasCycles && (
+                  <div className="mb-5 flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-xl p-4">
+                    <Lock className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="text-sm font-semibold text-amber-800">Gestion des membres verrouillée</p>
+                      <p className="text-sm text-amber-700 mt-0.5">
+                        Cette tontine possède des cycles enregistrés. La composition des membres ne peut plus être modifiée pour préserver la cohérence des données (contributions et bénéficiaires).
+                      </p>
+                    </div>
+                  </div>
+                )}
+
                 <div className="flex items-center justify-between mb-6">
                   <h3 className="text-lg font-bold text-gray-900">
                     Membres ({membresSelectionnes.length})
                   </h3>
                   <button
                     type="button"
-                    onClick={() => setShowMemberModal(true)}
-                    className="px-4 py-2 bg-emerald-50 text-emerald-700 rounded-lg font-medium hover:bg-emerald-100 transition-colors flex items-center gap-2"
+                    onClick={() => !hasCycles && setShowMemberModal(true)}
+                    disabled={hasCycles}
+                    className={`px-4 py-2 rounded-lg font-medium flex items-center gap-2 ${
+                      hasCycles
+                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                        : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition-colors'
+                    }`}
                   >
                     <Plus className="w-4 h-4" />
                     Ajouter un client
@@ -412,14 +462,26 @@ export default function TontineEdit({ tontineId }: { tontineId: string }) {
                               value={membre.ordreTirage || ''}
                               onChange={(e) => updateOrdreTirage(membre.clientId, parseInt(e.target.value) || 0)}
                               min="1"
-                              className="w-20 px-3 py-2 border border-gray-300 rounded-lg text-center focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                              disabled={hasCycles}
+                              title={hasCycles ? "Ordre de tirage verrouillé (cycles existants)" : undefined}
+                              className={`w-20 px-3 py-2 border rounded-lg text-center ${
+                                hasCycles
+                                  ? 'bg-gray-100 text-gray-500 cursor-not-allowed border-gray-200'
+                                  : 'border-gray-300 focus:ring-2 focus:ring-emerald-500 focus:border-transparent'
+                              }`}
                               placeholder="#"
                             />
                           </div>
                           <button
                             type="button"
                             onClick={() => retirerMembre(membre.clientId)}
-                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                            disabled={hasCycles}
+                            title={hasCycles ? "Impossible de retirer un membre si des cycles existent" : "Retirer ce membre"}
+                            className={`p-2 rounded-lg transition-colors ${
+                              hasCycles
+                                ? 'text-gray-300 cursor-not-allowed'
+                                : 'text-red-600 hover:bg-red-50'
+                            }`}
                           >
                             <X className="w-5 h-5" />
                           </button>
@@ -448,7 +510,11 @@ export default function TontineEdit({ tontineId }: { tontineId: string }) {
                       <span className="font-bold">{membresSelectionnes.length}</span>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-white/80 text-sm">Total</span>
+                      <span className="text-white/80 text-sm">Cycles</span>
+                      <span className="font-bold">{response?.data?.cycles?.length ?? 0}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-white/80 text-sm">Total pot</span>
                       <span className="font-bold">
                         {(parseFloat(formData.montantCycle || '0') * membresSelectionnes.length).toLocaleString()} XOF
                       </span>
@@ -474,12 +540,21 @@ export default function TontineEdit({ tontineId }: { tontineId: string }) {
                 </div>
 
                 <div className="mt-6 pt-6 border-t border-gray-200">
-                  <div className="flex items-start gap-2 text-sm text-amber-700 bg-amber-50 p-3 rounded-lg">
-                    <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
-                    <p>
-                      Les modifications seront appliquees immediatement.
-                    </p>
-                  </div>
+                  {hasCycles ? (
+                    <div className="flex items-start gap-2 text-sm text-amber-700 bg-amber-50 p-3 rounded-lg">
+                      <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                      <p>
+                        Seules les informations générales (nom, statut, dates) sont modifiables. Les membres et le montant (hors cycle en cours) restent éditables selon l&apos;état des cycles.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="flex items-start gap-2 text-sm text-amber-700 bg-amber-50 p-3 rounded-lg">
+                      <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                      <p>
+                        Les modifications seront appliquees immediatement.
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -488,7 +563,7 @@ export default function TontineEdit({ tontineId }: { tontineId: string }) {
       </div>
 
       {/* Modal d'ajout de membre */}
-      {showMemberModal && (
+      {showMemberModal && !hasCycles && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-hidden">
             <div className="p-6 border-b border-gray-200">

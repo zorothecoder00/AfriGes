@@ -94,7 +94,7 @@ export default function GestionnaireEdit({ gestionnaireId }: GestionnaireEditPro
         {/* En-tete */}
         <div className="mb-6 flex items-center gap-4">
           <Link
-            href={`/dashboard/admin/gestionnaires/${gestionnaireId}`}
+            href="/dashboard/admin/gestionnaires"
             className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
           >
             <ArrowLeft className="w-5 h-5 text-gray-600" />

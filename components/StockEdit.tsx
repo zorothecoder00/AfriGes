@@ -105,7 +105,7 @@ export default function StockEdit({ produitId }: StockEditProps) {
       <div className="max-w-4xl mx-auto">
         {/* En-tete */}
         <div className="mb-6 flex items-center gap-4">
-          <Link href={`/dashboard/admin/stock/${produitId}`} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+          <Link href="/dashboard/admin/stock" className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
             <ArrowLeft className="w-5 h-5 text-gray-600" />
           </Link>
           <div>

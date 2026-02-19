@@ -95,6 +95,10 @@ export async function PATCH(
 ) {
   try {
     const session = await getAuthSession();
+    if (!session || !session.user.role || !["ADMIN", "SUPER_ADMIN"].includes(session.user.role)) {
+      return NextResponse.json({ message: "Acces refuse" }, { status: 403 });
+    }
+
     const { id } = await params;
     const creditId = Number(id);
 

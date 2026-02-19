@@ -72,10 +72,14 @@ export async function POST(_req: Request, { params }: RouteParams) {
       return NextResponse.json({ error: "ID invalide" }, { status: 400 });
     }
 
+    // Fix Bug 5 : filtrer uniquement les membres actifs (dateSortie: null)
     const tontine = await prisma.tontine.findUnique({
       where: { id: tontineId },
       include: {
-        membres: { orderBy: { ordreTirage: "asc" } },
+        membres: {
+          where: { dateSortie: null },
+          orderBy: { ordreTirage: "asc" },
+        },
       },
     });
 
@@ -87,8 +91,10 @@ export async function POST(_req: Request, { params }: RouteParams) {
       return NextResponse.json({ error: "La tontine n'est pas active" }, { status: 400 });
     }
 
-    if (tontine.membres.length === 0) {
-      return NextResponse.json({ error: "La tontine n'a aucun membre" }, { status: 400 });
+    const activeMembers = tontine.membres;
+
+    if (activeMembers.length === 0) {
+      return NextResponse.json({ error: "La tontine n'a aucun membre actif" }, { status: 400 });
     }
 
     // Vérifier qu'il n'y a pas de cycle en cours
@@ -100,6 +106,23 @@ export async function POST(_req: Request, { params }: RouteParams) {
       return NextResponse.json({ error: "Un cycle est deja en cours" }, { status: 400 });
     }
 
+    // Fix Bug 6 : valider que les ordres de tirage sont définis, uniques et séquentiels (1..N)
+    if (activeMembers.some(m => m.ordreTirage === null)) {
+      return NextResponse.json({
+        error: "Certains membres actifs n'ont pas d'ordre de tirage défini. Configurez l'ordre de tirage pour tous les membres avant de démarrer un cycle.",
+      }, { status: 400 });
+    }
+
+    const ordres = activeMembers.map(m => m.ordreTirage!).sort((a, b) => a - b);
+    const isSequential = ordres.every((o, i) => o === i + 1);
+    const isUnique = new Set(ordres).size === ordres.length;
+
+    if (!isSequential || !isUnique) {
+      return NextResponse.json({
+        error: `Les ordres de tirage des membres actifs doivent être séquentiels et uniques (de 1 à ${activeMembers.length}). Corrigez-les dans les paramètres de la tontine avant de démarrer un cycle.`,
+      }, { status: 400 });
+    }
+
     // Déterminer le prochain numéro de cycle
     const dernierCycle = await prisma.tontineCycle.findFirst({
       where: { tontineId },
@@ -108,27 +131,55 @@ export async function POST(_req: Request, { params }: RouteParams) {
 
     const nextNumeroCycle = (dernierCycle?.numeroCycle ?? 0) + 1;
 
-    // Trouver le bénéficiaire selon l'ordre de tirage
-    const beneficiaire = tontine.membres.find((m) => m.ordreTirage === nextNumeroCycle);
+    // Fix Bug 6 : vérification correcte de la fin de tontine (tous les membres ont reçu)
+    if (nextNumeroCycle > activeMembers.length) {
+      await prisma.$transaction(async (tx) => {
+        await tx.tontine.update({
+          where: { id: tontineId },
+          data: { statut: StatutTontine.TERMINEE },
+        });
 
-    if (!beneficiaire) {
-      // Plus de bénéficiaire → tontine terminée
-      await prisma.tontine.update({
-        where: { id: tontineId },
-        data: { statut: StatutTontine.TERMINEE },
+        await tx.auditLog.create({
+          data: {
+            userId: parseInt(session.user.id),
+            action: "CLOTURE_TONTINE",
+            entite: "Tontine",
+            entiteId: tontineId,
+          },
+        });
+
+        const admins = await tx.user.findMany({
+          where: { role: { in: [Role.ADMIN, Role.SUPER_ADMIN] } },
+          select: { id: true },
+        });
+
+        if (admins.length > 0) {
+          await tx.notification.createMany({
+            data: admins.map((admin) => ({
+              userId: admin.id,
+              titre: "Tontine terminee",
+              message: `Tous les membres actifs de la tontine "${tontine.nom}" ont recu le pot. La tontine est maintenant terminee.`,
+              priorite: PrioriteNotification.NORMAL,
+              actionUrl: `/dashboard/admin/tontines/${tontineId}`,
+            })),
+          });
+        }
       });
 
       return NextResponse.json({
-        message: "Tous les membres ont recu le pot. La tontine est terminee.",
+        message: "Tous les membres actifs ont recu le pot. La tontine est terminee.",
         tontineTerminee: true,
       });
     }
 
-    // Calculer le pot
-    const montantPot = new Prisma.Decimal(tontine.montantCycle).mul(tontine.membres.length);
+    // Trouver le bénéficiaire selon l'ordre de tirage
+    // Après validation de la séquence, ce find est toujours garanti de réussir
+    const beneficiaire = activeMembers.find((m) => m.ordreTirage === nextNumeroCycle)!;
+
+    // Fix Bug 5 : pot calculé sur les membres ACTIFS uniquement
+    const montantPot = new Prisma.Decimal(tontine.montantCycle).mul(activeMembers.length);
 
     const cycle = await prisma.$transaction(async (tx) => {
-      // Créer le cycle
       const created = await tx.tontineCycle.create({
         data: {
           tontineId,
@@ -146,9 +197,9 @@ export async function POST(_req: Request, { params }: RouteParams) {
         },
       });
 
-      // Créer une contribution par membre
+      // Fix Bug 5 : contributions créées pour les membres ACTIFS uniquement
       await tx.tontineContribution.createMany({
-        data: tontine.membres.map((m) => ({
+        data: activeMembers.map((m) => ({
           cycleId: created.id,
           membreId: m.id,
           montant: tontine.montantCycle,
@@ -156,7 +207,6 @@ export async function POST(_req: Request, { params }: RouteParams) {
         })),
       });
 
-      // Récupérer le cycle complet avec contributions
       const cycleComplet = await tx.tontineCycle.findUnique({
         where: { id: created.id },
         include: {
@@ -178,7 +228,6 @@ export async function POST(_req: Request, { params }: RouteParams) {
         },
       });
 
-      // Audit log
       await tx.auditLog.create({
         data: {
           userId: parseInt(session.user.id),
@@ -188,7 +237,6 @@ export async function POST(_req: Request, { params }: RouteParams) {
         },
       });
 
-      // Notification admins
       const admins = await tx.user.findMany({
         where: { role: { in: [Role.ADMIN, Role.SUPER_ADMIN] } },
         select: { id: true },

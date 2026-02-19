@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getAuthSession } from '@/lib/auth';
-import { Frequence, StatutTontine } from '@prisma/client'
+import { Frequence, StatutTontine, StatutCycle } from '@prisma/client'
 
 /**
  * ==========================
@@ -14,6 +14,12 @@ export async function GET(
   context: { params: Promise<{ id: string }> }
 ) {
   try {
+    // Fix Bug 1 : auth manquant sur GET
+    const session = await getAuthSession();
+    if (!session || !session.user.role || !["ADMIN", "SUPER_ADMIN"].includes(session.user.role)) {
+      return NextResponse.json({ error: "Acces refuse" }, { status: 403 });
+    }
+
     const { id } = await context.params;
     const tontineId = parseInt(id);
 
@@ -76,7 +82,7 @@ export async function PUT(
   req: Request,
   context: { params: Promise<{ id: string }> }
 ) {
-  try{
+  try {
     const session = await getAuthSession();
     if (!session || !session.user.role || !["ADMIN", "SUPER_ADMIN"].includes(session.user.role)) {
       return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
@@ -101,7 +107,7 @@ export async function PUT(
       return NextResponse.json({ error: "Tontine introuvable" }, { status: 404 });
     }
 
-    // 🔒 Règle métier
+    // Règle métier : tontine terminée non modifiable
     if (existing.statut === StatutTontine.TERMINEE) {
       return NextResponse.json({ error: "Impossible de modifier une tontine terminée" }, { status: 400 });
     }
@@ -110,7 +116,6 @@ export async function PUT(
       return NextResponse.json({ error: "La date de fin doit être après la date de début" }, { status: 400 });
     }
 
-    // 🔎 Validation enum
     if (frequence && !Object.values(Frequence).includes(frequence)) {
       return NextResponse.json({ error: "Fréquence invalide" }, { status: 400 });
     }
@@ -119,8 +124,30 @@ export async function PUT(
       return NextResponse.json({ error: "Statut invalide" }, { status: 400 });
     }
 
+    // Fix Bug 2 : bloquer la modification des membres si des cycles existent
+    if (Array.isArray(membres)) {
+      const cyclesCount = await prisma.tontineCycle.count({ where: { tontineId } });
+      if (cyclesCount > 0) {
+        return NextResponse.json({
+          error: "Impossible de modifier les membres d'une tontine qui a déjà des cycles enregistrés. La composition des membres est figée une fois les cycles démarrés.",
+        }, { status: 400 });
+      }
+    }
+
+    // Fix Bug 3 : bloquer la modification du montantCycle pendant un cycle EN_COURS
+    if (montantCycle !== undefined && Number(montantCycle) !== Number(existing.montantCycle)) {
+      const cycleEnCours = await prisma.tontineCycle.findFirst({
+        where: { tontineId, statut: StatutCycle.EN_COURS },
+      });
+      if (cycleEnCours) {
+        return NextResponse.json({
+          error: `Impossible de modifier le montant du cycle pendant qu'un cycle est en cours (cycle n°${cycleEnCours.numeroCycle}). Clôturez d'abord le cycle actuel.`,
+        }, { status: 400 });
+      }
+    }
+
     const updated = await prisma.$transaction(async (tx) => {
-      // 1. Mettre à jour les infos de la tontine
+      // Mettre à jour les infos de la tontine
       const tontine = await tx.tontine.update({
         where: { id: tontineId },
         data: {
@@ -134,14 +161,12 @@ export async function PUT(
         },
       });
 
-      // 2. Synchroniser les membres si fournis
+      // Synchroniser les membres si fournis (et cycles=0, vérifié avant)
       if (Array.isArray(membres)) {
-        // Supprimer les anciens membres
         await tx.tontineMembre.deleteMany({
           where: { tontineId },
         });
 
-        // Créer les nouveaux membres
         if (membres.length > 0) {
           await tx.tontineMembre.createMany({
             data: membres.map((m: { clientId: number; ordreTirage: number | null }) => ({
@@ -157,17 +182,17 @@ export async function PUT(
     });
 
     return NextResponse.json({ data: updated });
-  }catch (error) {
+  } catch (error) {
     console.error("PUT /admin/tontines/[id]", error);
     return NextResponse.json({ error: "Erreur lors de la mise à jour de la tontine" }, { status: 500 });
   }
 }
 
 export async function DELETE(
-  req: Request,
+  _req: Request,
   context: { params: Promise<{ id: string }> }
 ) {
-  try{
+  try {
     const session = await getAuthSession();
     if (!session || !session.user.role || !["ADMIN", "SUPER_ADMIN"].includes(session.user.role)) {
       return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
@@ -189,16 +214,23 @@ export async function DELETE(
       return NextResponse.json({ error: "Tontine introuvable" }, { status: 404 });
     }
 
-    // 🔒 Règle métier critique
+    // Fix Bug 4 : vérifier l'existence de cycles avant la suppression
+    const cyclesCount = await prisma.tontineCycle.count({ where: { tontineId } });
+    if (cyclesCount > 0) {
+      return NextResponse.json({
+        error: `Impossible de supprimer cette tontine : elle possède ${cyclesCount} cycle(s) enregistré(s). Seules les tontines sans cycles peuvent être supprimées.`,
+      }, { status: 400 });
+    }
+
     if (tontine.membres.length > 0) {
-      return NextResponse.json({ error: "Impossible de supprimer une tontine avec des membres" }, {status: 400 });
+      return NextResponse.json({ error: "Impossible de supprimer une tontine avec des membres" }, { status: 400 });
     }
 
     await prisma.tontine.delete({ where: { id: tontineId } });
 
     return NextResponse.json({ message: "Tontine supprimée avec succès" });
-  }catch (error) {
+  } catch (error) {
     console.error("DELETE /admin/tontines/[id]", error);
-    return NextResponse.json({ error: "Erreur lors de la suppression de la tontine"}, { status: 500 });
+    return NextResponse.json({ error: "Erreur lors de la suppression de la tontine" }, { status: 500 });
   }
 }

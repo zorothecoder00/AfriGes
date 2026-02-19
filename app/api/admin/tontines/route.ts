@@ -1,15 +1,35 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getAuthSession } from '@/lib/auth';   
-import { Frequence } from '@prisma/client'
+import { getAuthSession } from '@/lib/auth';
+import { Frequence, Prisma } from '@prisma/client'
 
-// ✅ GET - Liste toutes les tontines   
+// ✅ GET - Liste toutes les tontines
+// Paramètre optionnel : clientId → retourne uniquement les tontines ACTIVE où ce client est membre actif
 export async function GET(req: Request) {
-  
   try {
+    const session = await getAuthSession();
+    if (!session || !session.user.role || !["ADMIN", "SUPER_ADMIN"].includes(session.user.role)) {
+      return NextResponse.json({ error: "Acces refuse" }, { status: 403 });
+    }
+
+    const { searchParams } = new URL(req.url);
+    const clientIdParam = searchParams.get("clientId");
+    const clientId = clientIdParam && !isNaN(Number(clientIdParam)) ? Number(clientIdParam) : undefined;
+
+    const where: Prisma.TontineWhereInput = clientId
+      ? {
+          statut: "ACTIVE",
+          membres: {
+            some: { clientId, dateSortie: null },
+          },
+        }
+      : {};
+
     const tontines = await prisma.tontine.findMany({
+      where,
       include: {
         membres: {
+          where: clientId ? { clientId, dateSortie: null } : undefined,
           include: { client: true },
         },
       },
@@ -19,7 +39,7 @@ export async function GET(req: Request) {
     return NextResponse.json({ data: tontines });
   } catch (error) {
     console.error("GET /admin/tontines", error);
-    return NextResponse.json({ error: "Erreur lors du chargement des tontines" },{ status: 500 });
+    return NextResponse.json({ error: "Erreur lors du chargement des tontines" }, { status: 500 });
   }
 }
 
