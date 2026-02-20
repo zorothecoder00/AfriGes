@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { Prisma, PrioriteNotification } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCaissierSession } from "@/lib/authCaissier";
+import { getRPVSession } from "@/lib/authRPV";
 import { notifyRoles, auditLog } from "@/lib/notifications";
 
 /**
@@ -14,7 +15,8 @@ import { notifyRoles, auditLog } from "@/lib/notifications";
  */
 export async function GET(req: Request) {
   try {
-    const session = await getCaissierSession();
+    // Lecture autorisée pour : Caissier, RPV (supervision), Admin/SuperAdmin
+    const session = (await getCaissierSession()) ?? (await getRPVSession());
     if (!session) {
       return NextResponse.json({ message: "Accès refusé" }, { status: 403 });
     }
