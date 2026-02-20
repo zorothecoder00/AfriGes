@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
-import { Prisma } from "@prisma/client";
+import { Prisma, PrioriteNotification } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getRPVSession } from "@/lib/authRPV";
 import { randomUUID } from "crypto";
+import { notifyRoles, auditLog } from "@/lib/notifications";
 
 /**
  * GET /api/rpv/produits
@@ -121,6 +122,22 @@ export async function POST(req: Request) {
           },
         });
       }
+
+      // Audit log
+      await auditLog(tx, parseInt(session.user.id), "CREATION_PRODUIT_RPV", "Produit", created.id);
+
+      // Notifications : Admin + Magasinier + Logistique
+      await notifyRoles(
+        tx,
+        ["MAGAZINIER", "AGENT_LOGISTIQUE_APPROVISIONNEMENT"],
+        {
+          titre:    `Nouveau produit : ${nom}`,
+          message:  `${session.user.name ?? "RPV"} a créé le produit "${nom}" (prix : ${Number(prixUnitaire).toLocaleString("fr-FR")} FCFA${stockInit > 0 ? `, stock initial : ${stockInit}` : ""}).`,
+          priorite: PrioriteNotification.BASSE,
+          actionUrl: `/dashboard/admin/stock`,
+        }
+      );
+
       return created;
     });
 

@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
-import { Prisma, Role, PrioriteNotification } from "@prisma/client";
+import { Prisma, PrioriteNotification } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getLogistiqueSession } from "@/lib/authLogistique";
 import { randomUUID } from "crypto";
+import { notifyRoles } from "@/lib/notifications";
 
 /**
  * GET /api/logistique/receptions
@@ -142,35 +143,17 @@ export async function POST(req: Request) {
         },
       });
 
-      // Notifier les admins
-      const admins = await tx.user.findMany({
-        where:  { role: { in: [Role.ADMIN, Role.SUPER_ADMIN] } },
-        select: { id: true },
-      });
-
-      // Notifier les magasiniers
-      const magasiniers = await tx.user.findMany({
-        where:  { gestionnaire: { role: "MAGAZINIER", actif: true } },
-        select: { id: true },
-      });
-
-      const destinataires = [
-        ...admins.map(u => u.id),
-        ...magasiniers.map(u => u.id),
-      ];
-      const uniqueDestinataires = [...new Set(destinataires)];
-
-      if (uniqueDestinataires.length > 0) {
-        await tx.notification.createMany({
-          data: uniqueDestinataires.map((userId) => ({
-            userId,
-            titre:   `Reception : ${produit.nom}`,
-            message: `${operateur} a receptionne ${qty} unite(s) de "${produit.nom}". Stock : ${produit.stock} → ${newStock}${referenceExterne ? ` | Ref : ${referenceExterne}` : ""}.`,
-            priorite: PrioriteNotification.NORMAL,
-            actionUrl: `/dashboard/admin/stock/${produit.id}`,
-          })),
-        });
-      }
+      // Notifier : Admin + Magasinier + RPV
+      await notifyRoles(
+        tx,
+        ["MAGAZINIER", "RESPONSABLE_POINT_DE_VENTE"],
+        {
+          titre:    `Réception : ${produit.nom}`,
+          message:  `${operateur} a réceptionné ${qty} unité(s) de "${produit.nom}". Stock : ${produit.stock} → ${newStock}${referenceExterne ? ` | Réf : ${referenceExterne}` : ""}.`,
+          priorite: PrioriteNotification.NORMAL,
+          actionUrl: `/dashboard/admin/stock/${produit.id}`,
+        }
+      );
 
       return { mouvement, produit: updated };
     });

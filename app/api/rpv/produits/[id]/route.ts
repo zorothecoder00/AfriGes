@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
-import { Prisma } from "@prisma/client";
+import { Prisma, PrioriteNotification } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getRPVSession } from "@/lib/authRPV";
 import { randomUUID } from "crypto";
+import { notifyRoles, auditLog } from "@/lib/notifications";
 
-type Ctx = { params: { id: string } };
+type Ctx = { params: Promise<{ id: string }> };
 
 /** GET /api/rpv/produits/[id] — Détail produit + 30 derniers mouvements */
 export async function GET(_req: Request, { params }: Ctx) {
@@ -12,8 +13,9 @@ export async function GET(_req: Request, { params }: Ctx) {
     const session = await getRPVSession();
     if (!session) return NextResponse.json({ message: "Accès refusé" }, { status: 403 });
 
+    const { id: idStr } = await params;
     const produit = await prisma.produit.findUnique({
-      where: { id: Number(params.id) },
+      where: { id: Number(idStr) },
       include: {
         mouvements: {
           orderBy: { dateMouvement: "desc" },
@@ -45,7 +47,8 @@ export async function PUT(req: Request, { params }: Ctx) {
     const session = await getRPVSession();
     if (!session) return NextResponse.json({ message: "Accès refusé" }, { status: 403 });
 
-    const id = Number(params.id);
+    const { id: idStr } = await params;
+    const id = Number(idStr);
     const produitExistant = await prisma.produit.findUnique({ where: { id } });
     if (!produitExistant) return NextResponse.json({ message: "Produit introuvable" }, { status: 404 });
 
@@ -82,7 +85,35 @@ export async function PUT(req: Request, { params }: Ctx) {
           where: { id },
           data:  { stock: newStock },
         });
+
+        // Notifier l'ajustement de stock : Admin + Magasinier + Logistique
+        await notifyRoles(
+          tx,
+          ["MAGAZINIER", "AGENT_LOGISTIQUE_APPROVISIONNEMENT"],
+          {
+            titre:    `Ajustement stock : ${produitExistant.nom}`,
+            message:  `${session.user.name ?? "RPV"} a ${delta > 0 ? "ajouté" : "retiré"} ${Math.abs(delta)} unité(s) sur "${produitExistant.nom}". Stock : ${produitExistant.stock} → ${newStock}.${motifAjustement ? ` Motif : ${motifAjustement}` : ""}`,
+            priorite: PrioriteNotification.NORMAL,
+            actionUrl: `/dashboard/admin/stock/${id}`,
+          }
+        );
+      } else {
+        // Simple mise à jour sans mouvement de stock
+        await notifyRoles(
+          tx,
+          ["MAGAZINIER", "AGENT_LOGISTIQUE_APPROVISIONNEMENT"],
+          {
+            titre:    `Produit modifié : ${produitExistant.nom}`,
+            message:  `${session.user.name ?? "RPV"} a mis à jour la fiche du produit "${produitExistant.nom}".`,
+            priorite: PrioriteNotification.BASSE,
+            actionUrl: `/dashboard/admin/stock/${id}`,
+          }
+        );
       }
+
+      // Audit log
+      await auditLog(tx, parseInt(session.user.id), "MODIFICATION_PRODUIT_RPV", "Produit", id);
+
       return updated;
     });
 
@@ -106,7 +137,8 @@ export async function DELETE(_req: Request, { params }: Ctx) {
     const session = await getRPVSession();
     if (!session) return NextResponse.json({ message: "Accès refusé" }, { status: 403 });
 
-    const id = Number(params.id);
+    const { id: idStr } = await params;
+    const id = Number(idStr);
     const produit = await prisma.produit.findUnique({
       where:  { id },
       include: { ventesCreditAlim: { take: 1 }, livraisonsLignes: { take: 1 } },
@@ -117,10 +149,25 @@ export async function DELETE(_req: Request, { params }: Ctx) {
     if (produit.livraisonsLignes.length > 0)
       return NextResponse.json({ message: "Impossible de supprimer : ce produit est présent dans des livraisons" }, { status: 409 });
 
-    await prisma.$transaction([
-      prisma.mouvementStock.deleteMany({ where: { produitId: id } }),
-      prisma.produit.delete({ where: { id } }),
-    ]);
+    await prisma.$transaction(async (tx) => {
+      await tx.mouvementStock.deleteMany({ where: { produitId: id } });
+      await tx.produit.delete({ where: { id } });
+
+      // Audit log
+      await auditLog(tx, parseInt(session.user.id), "SUPPRESSION_PRODUIT_RPV", "Produit", id);
+
+      // Notifications HAUTE priorité : Admin + Magasinier + Logistique
+      await notifyRoles(
+        tx,
+        ["MAGAZINIER", "AGENT_LOGISTIQUE_APPROVISIONNEMENT"],
+        {
+          titre:    `Produit supprimé : ${produit.nom}`,
+          message:  `${session.user.name ?? "RPV"} a supprimé le produit "${produit.nom}" du catalogue. Tout l'historique de stock associé a été effacé.`,
+          priorite: PrioriteNotification.HAUTE,
+          actionUrl: `/dashboard/admin/stock`,
+        }
+      );
+    });
 
     return NextResponse.json({ success: true, message: "Produit supprimé" });
   } catch (error) {

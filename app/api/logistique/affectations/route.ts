@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
-import { Prisma, Role, PrioriteNotification } from "@prisma/client";
+import { Prisma, PrioriteNotification } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getLogistiqueSession } from "@/lib/authLogistique";
 import { randomUUID } from "crypto";
+import { notifyRoles } from "@/lib/notifications";
 
 /**
  * GET /api/logistique/affectations
@@ -165,34 +166,17 @@ export async function POST(req: Request) {
         },
       });
 
-      // Notifier admins
-      const admins = await tx.user.findMany({
-        where:  { role: { in: [Role.ADMIN, Role.SUPER_ADMIN] } },
-        select: { id: true },
-      });
-
-      // Notifier magasiniers
-      const magasiniers = await tx.user.findMany({
-        where:  { gestionnaire: { role: "MAGAZINIER", actif: true } },
-        select: { id: true },
-      });
-
-      const uniqueDestinataires = [...new Set([
-        ...admins.map(u => u.id),
-        ...magasiniers.map(u => u.id),
-      ])];
-
-      if (uniqueDestinataires.length > 0) {
-        await tx.notification.createMany({
-          data: uniqueDestinataires.map((userId) => ({
-            userId,
-            titre:    `Affectation stock : ${produit.nom}`,
-            message:  `${operateur} a affecte ${qty} unite(s) de "${produit.nom}" au point de vente "${pointDeVente}". Stock : ${produit.stock} → ${newStock}.`,
-            priorite: PrioriteNotification.NORMAL,
-            actionUrl: `/dashboard/admin/stock/${produit.id}`,
-          })),
-        });
-      }
+      // Notifier : Admin + Magasinier + RPV
+      await notifyRoles(
+        tx,
+        ["MAGAZINIER", "RESPONSABLE_POINT_DE_VENTE"],
+        {
+          titre:    `Affectation stock : ${produit.nom}`,
+          message:  `${operateur} a affecté ${qty} unité(s) de "${produit.nom}" au point de vente "${pointDeVente}". Stock : ${produit.stock} → ${newStock}.${notes ? ` Notes : ${notes.trim()}` : ""}`,
+          priorite: PrioriteNotification.NORMAL,
+          actionUrl: `/dashboard/admin/stock/${produit.id}`,
+        }
+      );
 
       return { mouvement, produit: updated };
     });

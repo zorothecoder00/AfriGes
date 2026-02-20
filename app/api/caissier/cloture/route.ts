@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
-import { Prisma } from "@prisma/client";
+import { Prisma, PrioriteNotification } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCaissierSession } from "@/lib/authCaissier";
+import { notifyRoles, auditLog } from "@/lib/notifications";
 
 /**
  * GET /api/caissier/cloture
@@ -187,16 +188,36 @@ export async function POST(req: Request) {
 
     const caissierNom = session.user.name ?? "Caissier";
 
-    const cloture = await prisma.clotureCaisse.create({
-      data: {
-        date:         startOfDay,
-        caissierNom,
-        totalVentes,
-        montantTotal: new Prisma.Decimal(montantTotal),
-        panierMoyen:  new Prisma.Decimal(panierMoyen),
-        nbClients,
-        notes:        notes ?? undefined,
-      },
+    const cloture = await prisma.$transaction(async (tx) => {
+      const created = await tx.clotureCaisse.create({
+        data: {
+          date:         startOfDay,
+          caissierNom,
+          totalVentes,
+          montantTotal: new Prisma.Decimal(montantTotal),
+          panierMoyen:  new Prisma.Decimal(panierMoyen),
+          nbClients,
+          notes:        notes ?? undefined,
+        },
+      });
+
+      // Audit log
+      await auditLog(tx, parseInt(session.user.id), "CLOTURE_CAISSE", "ClotureCaisse", created.id);
+
+      // Notifications : Admin + RPV + Comptable
+      const dateStr = startOfDay.toLocaleDateString("fr-FR");
+      await notifyRoles(
+        tx,
+        ["RESPONSABLE_POINT_DE_VENTE", "COMPTABLE"],
+        {
+          titre:    `Clôture de caisse — ${dateStr}`,
+          message:  `${caissierNom} a effectué la clôture de caisse du ${dateStr} : ${totalVentes} vente(s) pour un total de ${montantTotal.toLocaleString("fr-FR")} FCFA (${nbClients} client(s) servi(s)).`,
+          priorite: PrioriteNotification.HAUTE,
+          actionUrl: `/dashboard/admin/ventes`,
+        }
+      );
+
+      return created;
     });
 
     return NextResponse.json(

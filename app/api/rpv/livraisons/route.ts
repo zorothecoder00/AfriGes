@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
+import { PrioriteNotification } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getRPVSession } from "@/lib/authRPV";
 import { randomUUID } from "crypto";
+import { notifyRoles, auditLog } from "@/lib/notifications";
 
 /**
  * GET /api/rpv/livraisons
@@ -123,26 +125,50 @@ export async function POST(req: Request) {
 
     const reference = `LIV-${Date.now()}-${randomUUID().slice(0, 6).toUpperCase()}`;
 
-    const livraison = await prisma.livraison.create({
-      data: {
-        reference,
-        type,
-        statut:            "EN_ATTENTE",
-        fournisseurNom:    fournisseurNom  ?? null,
-        destinataireNom:   destinataireNom ?? null,
-        datePrevisionnelle: new Date(datePrevisionnelle),
-        notes:             notes ?? null,
-        planifiePar:       session.user.name ?? "RPV",
-        lignes: {
-          create: lignes.map((l: { produitId: number; quantitePrevue: number }) => ({
-            produitId:     Number(l.produitId),
-            quantitePrevue: Number(l.quantitePrevue),
-          })),
+    const livraison = await prisma.$transaction(async (tx) => {
+      const created = await tx.livraison.create({
+        data: {
+          reference,
+          type,
+          statut:            "EN_ATTENTE",
+          fournisseurNom:    fournisseurNom  ?? null,
+          destinataireNom:   destinataireNom ?? null,
+          datePrevisionnelle: new Date(datePrevisionnelle),
+          notes:             notes ?? null,
+          planifiePar:       session.user.name ?? "RPV",
+          lignes: {
+            create: lignes.map((l: { produitId: number; quantitePrevue: number }) => ({
+              produitId:     Number(l.produitId),
+              quantitePrevue: Number(l.quantitePrevue),
+            })),
+          },
         },
-      },
-      include: {
-        lignes: { include: { produit: { select: { id: true, nom: true } } } },
-      },
+        include: {
+          lignes: { include: { produit: { select: { id: true, nom: true } } } },
+        },
+      });
+
+      // Audit log
+      await auditLog(tx, parseInt(session.user.id), "PLANIFICATION_LIVRAISON_RPV", "Livraison", created.id);
+
+      // Résumé des lignes pour le message
+      const lignesStr = created.lignes.map((l) => `${l.quantitePrevue}× ${l.produit.nom}`).join(", ");
+      const typeLabel = type === "RECEPTION" ? "réception" : "expédition";
+      const tiers     = type === "RECEPTION" ? fournisseurNom : destinataireNom;
+
+      // Notifications : Admin + Magasinier + Logistique
+      await notifyRoles(
+        tx,
+        ["MAGAZINIER", "AGENT_LOGISTIQUE_APPROVISIONNEMENT"],
+        {
+          titre:    `Livraison planifiée (${typeLabel})`,
+          message:  `${session.user.name ?? "RPV"} a planifié une ${typeLabel}${tiers ? ` avec "${tiers}"` : ""} pour le ${new Date(datePrevisionnelle).toLocaleDateString("fr-FR")}. Réf : ${reference}. Produits : ${lignesStr}.`,
+          priorite: PrioriteNotification.NORMAL,
+          actionUrl: `/dashboard/user/responsablesPointDeVente`,
+        }
+      );
+
+      return created;
     });
 
     return NextResponse.json(

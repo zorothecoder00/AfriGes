@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
-import { Prisma } from "@prisma/client";
+import { Prisma, PrioriteNotification } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getRPVSession } from "@/lib/authRPV";
 import { randomUUID } from "crypto";
+import { notifyRoles, auditLog } from "@/lib/notifications";
 
 /**
  * GET /api/rpv/mouvements
@@ -120,6 +121,26 @@ export async function POST(req: Request) {
         where: { id: Number(produitId) },
         data:  { stock: newStock, prixUnitaire: new Prisma.Decimal(Number(produit.prixUnitaire)) },
       });
+
+      // Audit log
+      await auditLog(tx, parseInt(session.user.id), `MOUVEMENT_STOCK_RPV_${type}`, "MouvementStock", mv.id);
+
+      // Labels pour la notification
+      const typeLabel = type === "ENTREE" ? "Entrée" : type === "SORTIE" ? "Sortie" : "Ajustement";
+      const priorite  = PrioriteNotification.NORMAL;
+
+      // Notifications : Admin + Magasinier + Logistique
+      await notifyRoles(
+        tx,
+        ["MAGAZINIER", "AGENT_LOGISTIQUE_APPROVISIONNEMENT"],
+        {
+          titre:    `${typeLabel} stock — ${produit.nom}`,
+          message:  `${session.user.name ?? "RPV"} a enregistré un mouvement ${typeLabel.toLowerCase()} de ${Math.abs(qte)} unité(s) sur "${produit.nom}". Stock : ${produit.stock} → ${newStock}.${motif ? ` Motif : ${motif}` : ""}`,
+          priorite,
+          actionUrl: `/dashboard/admin/stock/${produitId}`,
+        }
+      );
+
       return mv;
     });
 

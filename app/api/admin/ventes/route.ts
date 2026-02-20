@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
-import { Prisma } from "@prisma/client";
+import { Prisma, PrioriteNotification } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getAuthSession } from "@/lib/auth";
 import { randomUUID } from "crypto";
+import { notifyRoles, auditLog } from "@/lib/notifications";
 
 /**
  * GET /api/admin/ventes
@@ -222,10 +223,30 @@ export async function POST(req: Request) {
           produitId: Number(produitId),
           type: "SORTIE",
           quantite: Number(quantite),
-          motif: `Vente credit alimentaire #${created.id}`,
+          motif: `Vente crédit alimentaire #${created.id} — par ${session.user.prenom ?? ""} ${session.user.nom ?? "Admin"}`.trim(),
           reference: `VENTE-${randomUUID()}`,
         },
       });
+
+      // Audit log
+      await auditLog(tx, parseInt(session.user.id), "VENTE_ADMIN", "VenteCreditAlimentaire", created.id);
+
+      // Bénéficiaire
+      const beneficiaire = creditAlim.member;
+      const benefNom = beneficiaire ? `${beneficiaire.prenom} ${beneficiaire.nom}` : "Client";
+      const adminNom = `${session.user.prenom ?? ""} ${session.user.nom ?? "Admin"}`.trim();
+
+      // Notifications : RPV + Caissier + Magasinier + Comptable (+ Admins via notifyRoles)
+      await notifyRoles(
+        tx,
+        ["RESPONSABLE_POINT_DE_VENTE", "CAISSIER", "MAGAZINIER", "COMPTABLE"],
+        {
+          titre:    `Vente enregistrée — ${produit.nom}`,
+          message:  `${adminNom} a enregistré une vente de ${Number(quantite)} × "${produit.nom}" (${montantTotal.toLocaleString("fr-FR")} FCFA) pour ${benefNom}. Stock restant : ${produit.stock - Number(quantite)}.`,
+          priorite: PrioriteNotification.NORMAL,
+          actionUrl: `/dashboard/admin/ventes`,
+        }
+      );
 
       return created;
     });

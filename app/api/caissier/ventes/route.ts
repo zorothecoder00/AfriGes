@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
-import { Prisma } from "@prisma/client";
+import { Prisma, PrioriteNotification } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCaissierSession } from "@/lib/authCaissier";
 import { randomUUID } from "crypto";
+import { notifyRoles, auditLog } from "@/lib/notifications";
 
 /**
  * GET /api/caissier/ventes
@@ -245,10 +246,29 @@ export async function POST(req: Request) {
           produitId:    Number(produitId),
           type:         "SORTIE",
           quantite:     qte,
-          motif:        `Vente caisse #${created.id}`,
+          motif:        `Vente caisse #${created.id} — par ${session.user.name ?? "Caissier"}`,
           reference:    `CAISSE-${randomUUID()}`,
         },
       });
+
+      // Audit log
+      await auditLog(tx, parseInt(session.user.id), "VENTE_CAISSIER", "VenteCreditAlimentaire", created.id);
+
+      // Bénéficiaire de la vente
+      const beneficiaire = creditAlim.member ?? creditAlim.client;
+      const benefNom = beneficiaire ? `${beneficiaire.prenom} ${beneficiaire.nom}` : "Client inconnu";
+
+      // Notifications : Admin + RPV + Magasinier + Comptable
+      await notifyRoles(
+        tx,
+        ["RESPONSABLE_POINT_DE_VENTE", "MAGAZINIER", "COMPTABLE"],
+        {
+          titre:    `Vente enregistrée — ${produit.nom}`,
+          message:  `${session.user.name ?? "Caissier"} a enregistré une vente de ${qte} × "${produit.nom}" (${montantTotal.toLocaleString("fr-FR")} FCFA) pour ${benefNom}. Stock résiduel : ${produit.stock - qte}.`,
+          priorite: PrioriteNotification.NORMAL,
+          actionUrl: `/dashboard/admin/ventes`,
+        }
+      );
 
       return created;
     });

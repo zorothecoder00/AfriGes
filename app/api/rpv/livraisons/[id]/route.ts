@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
-import { Prisma } from "@prisma/client";
+import { Prisma, PrioriteNotification } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getRPVSession } from "@/lib/authRPV";
 import { randomUUID } from "crypto";
+import { notifyRoles, auditLog } from "@/lib/notifications";
 
-type Ctx = { params: { id: string } };
+type Ctx = { params: Promise<{ id: string }> };
 
 /** GET /api/rpv/livraisons/[id] — Détail complet d'une livraison */
 export async function GET(_req: Request, { params }: Ctx) {
@@ -12,8 +13,9 @@ export async function GET(_req: Request, { params }: Ctx) {
     const session = await getRPVSession();
     if (!session) return NextResponse.json({ message: "Accès refusé" }, { status: 403 });
 
+    const { id: idStr } = await params;
     const livraison = await prisma.livraison.findUnique({
-      where:   { id: Number(params.id) },
+      where:   { id: Number(idStr) },
       include: { lignes: { include: { produit: { select: { id: true, nom: true, stock: true, prixUnitaire: true } } } } },
     });
     if (!livraison) return NextResponse.json({ message: "Livraison introuvable" }, { status: 404 });
@@ -48,7 +50,8 @@ export async function PATCH(req: Request, { params }: Ctx) {
     const session = await getRPVSession();
     if (!session) return NextResponse.json({ message: "Accès refusé" }, { status: 403 });
 
-    const id = Number(params.id);
+    const { id: idStr } = await params;
+    const id = Number(idStr);
     const livraison = await prisma.livraison.findUnique({
       where:   { id },
       include: { lignes: { include: { produit: true } } },
@@ -63,9 +66,22 @@ export async function PATCH(req: Request, { params }: Ctx) {
       if (livraison.statut !== "EN_ATTENTE")
         return NextResponse.json({ message: "Seule une livraison EN_ATTENTE peut être démarrée" }, { status: 400 });
 
-      const updated = await prisma.livraison.update({
-        where: { id },
-        data:  { statut: "EN_COURS" },
+      const updated = await prisma.$transaction(async (tx) => {
+        const u = await tx.livraison.update({ where: { id }, data: { statut: "EN_COURS" } });
+
+        await auditLog(tx, parseInt(session.user.id), "LIVRAISON_DEMARREE_RPV", "Livraison", id);
+
+        await notifyRoles(
+          tx,
+          ["MAGAZINIER", "AGENT_LOGISTIQUE_APPROVISIONNEMENT"],
+          {
+            titre:    `Livraison démarrée — ${livraison.reference}`,
+            message:  `${session.user.name ?? "RPV"} a démarré la livraison ${livraison.reference} (${livraison.type === "RECEPTION" ? "réception" : "expédition"}). Elle est maintenant EN COURS.`,
+            priorite: PrioriteNotification.NORMAL,
+            actionUrl: `/dashboard/user/responsablesPointDeVente`,
+          }
+        );
+        return u;
       });
       return NextResponse.json({ success: true, message: "Livraison démarrée", data: { ...updated, datePrevisionnelle: updated.datePrevisionnelle.toISOString() } });
     }
@@ -75,9 +91,22 @@ export async function PATCH(req: Request, { params }: Ctx) {
       if (!["EN_ATTENTE", "EN_COURS"].includes(livraison.statut))
         return NextResponse.json({ message: "Cette livraison ne peut pas être annulée" }, { status: 400 });
 
-      const updated = await prisma.livraison.update({
-        where: { id },
-        data:  { statut: "ANNULEE" },
+      const updated = await prisma.$transaction(async (tx) => {
+        const u = await tx.livraison.update({ where: { id }, data: { statut: "ANNULEE" } });
+
+        await auditLog(tx, parseInt(session.user.id), "LIVRAISON_ANNULEE_RPV", "Livraison", id);
+
+        await notifyRoles(
+          tx,
+          ["MAGAZINIER", "AGENT_LOGISTIQUE_APPROVISIONNEMENT"],
+          {
+            titre:    `Livraison annulée — ${livraison.reference}`,
+            message:  `${session.user.name ?? "RPV"} a annulé la livraison ${livraison.reference} (${livraison.type === "RECEPTION" ? "réception" : "expédition"}, statut précédent : ${livraison.statut}).`,
+            priorite: PrioriteNotification.HAUTE,
+            actionUrl: `/dashboard/user/responsablesPointDeVente`,
+          }
+        );
+        return u;
       });
       return NextResponse.json({ success: true, message: "Livraison annulée", data: { ...updated, datePrevisionnelle: updated.datePrevisionnelle.toISOString() } });
     }
@@ -138,11 +167,37 @@ export async function PATCH(req: Request, { params }: Ctx) {
           });
         }
 
-        return tx.livraison.update({
+        const validated = await tx.livraison.update({
           where: { id },
           data:  { statut: "LIVREE", dateLivraison: new Date() },
           include: { lignes: { include: { produit: { select: { id: true, nom: true } } } } },
         });
+
+        // Audit log
+        await auditLog(tx, parseInt(session.user.id), "LIVRAISON_VALIDEE_RPV", "Livraison", id);
+
+        // Résumé des produits traités
+        const produitsStr = lignesRecues
+          .map((lr) => {
+            const l = livraison.lignes.find((x) => x.id === lr.ligneId);
+            return l ? `${lr.quantiteRecue}× ${l.produit.nom}` : null;
+          })
+          .filter(Boolean)
+          .join(", ");
+
+        // Notifications : Admin + Magasinier + Logistique + Comptable (pour validation finale)
+        await notifyRoles(
+          tx,
+          ["MAGAZINIER", "AGENT_LOGISTIQUE_APPROVISIONNEMENT", "COMPTABLE"],
+          {
+            titre:    `Livraison validée — ${livraison.reference}`,
+            message:  `${session.user.name ?? "RPV"} a validé la livraison ${livraison.reference} (${livraison.type === "RECEPTION" ? "réception" : "expédition"}). ${lignesRecues.length} ligne(s) traitée(s) : ${produitsStr}.`,
+            priorite: PrioriteNotification.NORMAL,
+            actionUrl: `/dashboard/user/responsablesPointDeVente`,
+          }
+        );
+
+        return validated;
       });
 
       return NextResponse.json({

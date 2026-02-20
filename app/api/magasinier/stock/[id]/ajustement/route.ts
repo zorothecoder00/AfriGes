@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
-import { Prisma, TypeMouvement, Role, PrioriteNotification } from "@prisma/client";
+import { Prisma, TypeMouvement, PrioriteNotification } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getMagasinierSession } from "@/lib/authMagasinier";
 import { randomUUID } from "crypto";
+import { notifyRoles } from "@/lib/notifications";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -95,25 +96,18 @@ export async function POST(req: Request, { params }: RouteParams) {
         },
       });
 
-      // Notification aux admins pour les entrées
-      if (type === "ENTREE") {
-        const admins = await tx.user.findMany({
-          where: { role: { in: [Role.ADMIN, Role.SUPER_ADMIN] } },
-          select: { id: true },
-        });
-
-        if (admins.length > 0) {
-          await tx.notification.createMany({
-            data: admins.map((admin) => ({
-              userId: admin.id,
-              titre: `Reception stock: ${produit.nom}`,
-              message: `Le magasinier ${session.user.prenom} ${session.user.nom} a receptionne ${qty} unites de "${produit.nom}". Stock: ${produit.stock} → ${newStock}.`,
-              priorite: PrioriteNotification.NORMAL,
-              actionUrl: `/dashboard/admin/stock/${produitId}`,
-            })),
-          });
+      // Notifications : Admin + RPV + Logistique (pour ENTREE et AJUSTEMENT)
+      const typeLabel = type === "ENTREE" ? "Réception" : "Ajustement";
+      await notifyRoles(
+        tx,
+        ["RESPONSABLE_POINT_DE_VENTE", "AGENT_LOGISTIQUE_APPROVISIONNEMENT"],
+        {
+          titre:    `${typeLabel} stock : ${produit.nom}`,
+          message:  `${session.user.prenom} ${session.user.nom} (magasinier) a enregistré ${qty > 0 ? "+" : ""}${qty} unité(s) sur "${produit.nom}". Stock : ${produit.stock} → ${newStock}. Motif : ${motif}.`,
+          priorite: type === "AJUSTEMENT" ? PrioriteNotification.HAUTE : PrioriteNotification.NORMAL,
+          actionUrl: `/dashboard/admin/stock/${produitId}`,
         }
-      }
+      );
 
       return { mouvement, produit: updated };
     });
