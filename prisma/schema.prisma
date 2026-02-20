@@ -395,7 +395,8 @@ model Produit {
   alerteStock         Int                  @default(0)
 
   mouvements          MouvementStock[]
-  ventesCreditAlim    VenteCreditAlimentaire[] // ✅ AJOUTÉ
+  ventesCreditAlim    VenteCreditAlimentaire[]
+  livraisonsLignes    LivraisonLigne[]
 
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt
@@ -483,6 +484,51 @@ model Parametre {
   cle                 String                @id
   valeur              String
 }
+
+// ── Livraisons (gérées par le Responsable PDV) ──────────────────────────────
+
+enum TypeLivraison {
+  RECEPTION   // Entrée de marchandises (fournisseur → PDV)
+  EXPEDITION  // Sortie / livraison (PDV → client ou autre PDV)
+}
+
+enum StatutLivraison {
+  EN_ATTENTE
+  EN_COURS
+  LIVREE
+  ANNULEE
+}
+
+model Livraison {
+  id                 Int             @id @default(autoincrement())
+  reference          String          @unique
+  type               TypeLivraison
+  statut             StatutLivraison @default(EN_ATTENTE)
+  fournisseurNom     String?
+  destinataireNom    String?
+  datePrevisionnelle DateTime
+  dateLivraison      DateTime?
+  notes              String?
+  planifiePar        String
+
+  lignes             LivraisonLigne[]
+
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+}
+
+model LivraisonLigne {
+  id              Int      @id @default(autoincrement())
+  livraisonId     Int
+  produitId       Int
+  quantitePrevue  Int
+  quantiteRecue   Int?
+
+  livraison       Livraison @relation(fields: [livraisonId], references: [id], onDelete: Cascade)
+  produit         Produit   @relation(fields: [produitId], references: [id])
+}
+
+// ── Clôture de caisse ────────────────────────────────────────────────────────
 
 model ClotureCaisse {
   id            Int      @id @default(autoincrement())
