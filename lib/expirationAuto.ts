@@ -5,7 +5,7 @@ interface ExpirationResult {
   cotisationsExpirees: number;
   creditsExpires: number;
 }
-
+  
 /**
  * Expire automatiquement :
  * - Les cotisations EN_ATTENTE dont dateExpiration est dépassée → EXPIREE

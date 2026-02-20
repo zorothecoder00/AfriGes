@@ -10,7 +10,7 @@ generator client {
                       
 datasource db {                              
   provider = "postgresql"              
-}                 
+}                           
                 
 enum Role {         
   SUPER_ADMIN                  
@@ -482,6 +482,18 @@ model AuditLog {
 model Parametre {
   cle                 String                @id
   valeur              String
+}
+
+model ClotureCaisse {
+  id            Int      @id @default(autoincrement())
+  date          DateTime @unique          // Date du jour clôturé (minuit)
+  caissierNom   String                    // Nom affiché du caissier
+  totalVentes   Int                       // Nombre de ventes dans la journée
+  montantTotal  Decimal                   // Total encaissé
+  panierMoyen   Decimal                   // Montant moyen par vente
+  nbClients     Int                       // Clients distincts servis
+  notes         String?                   // Observations libres
+  createdAt     DateTime @default(now())
 }    
   
 model Notification {

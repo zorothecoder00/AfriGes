@@ -29,7 +29,13 @@ interface VenteCreditAlimentaire {
       nom: string;
       prenom: string;
       email: string;
-    };
+    } | null;
+    client: {
+      id: number;
+      nom: string;
+      prenom: string;
+      telephone: string;
+    } | null;
   };
 }
 
@@ -591,17 +597,26 @@ export default function VentesPage() {
                   return (
                     <tr key={vente.id} className="hover:bg-slate-50 transition-colors">
                       <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-full flex items-center justify-center text-white font-semibold shadow-md">
-                            {getInitials(vente.creditAlimentaire.member.nom, vente.creditAlimentaire.member.prenom)}
-                          </div>
-                          <div>
-                            <span className="font-semibold text-slate-800">
-                              {vente.creditAlimentaire.member.prenom} {vente.creditAlimentaire.member.nom}
-                            </span>
-                            <p className="text-xs text-slate-500">{vente.creditAlimentaire.member.email}</p>
-                          </div>
-                        </div>
+                        {(() => {
+                          const m = vente.creditAlimentaire.member;
+                          const c = vente.creditAlimentaire.client;
+                          const nom = m?.nom ?? c?.nom ?? 'Inconnu';
+                          const prenom = m?.prenom ?? c?.prenom ?? '';
+                          const sub = m?.email ?? c?.telephone ?? '';
+                          return (
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-full flex items-center justify-center text-white font-semibold shadow-md">
+                                {getInitials(nom, prenom)}
+                              </div>
+                              <div>
+                                <span className="font-semibold text-slate-800">
+                                  {prenom} {nom}
+                                </span>
+                                <p className="text-xs text-slate-500">{sub}</p>
+                              </div>
+                            </div>
+                          );
+                        })()}
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2">

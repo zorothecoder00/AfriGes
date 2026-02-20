@@ -47,6 +47,16 @@ export async function GET(req: Request) {
             },
           },
         },
+        {
+          creditAlimentaire: {
+            client: {
+              OR: [
+                { nom: { contains: search, mode: "insensitive" } },
+                { prenom: { contains: search, mode: "insensitive" } },
+              ],
+            },
+          },
+        },
       ];
     }
 
@@ -65,6 +75,9 @@ export async function GET(req: Request) {
               id: true,
               member: {
                 select: { id: true, nom: true, prenom: true, email: true },
+              },
+              client: {
+                select: { id: true, nom: true, prenom: true, telephone: true },
               },
             },
           },
@@ -181,6 +194,7 @@ export async function POST(req: Request) {
             select: {
               id: true,
               member: { select: { id: true, nom: true, prenom: true, email: true } },
+              client: { select: { id: true, nom: true, prenom: true, telephone: true } },
             },
           },
         },

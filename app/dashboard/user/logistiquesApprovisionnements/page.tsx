@@ -234,7 +234,7 @@ export default function LogistiqueApprovisionnementPage() {
       successMessage: "Affectation enregistrée avec succès",
     });
 
-  const openAffModal = (p: Produit) => {
+  const openAffModal = (p: Produit | null) => {
     setAffProduit(p);
     setAffForm({ quantite: "", pointDeVente: "", notes: "" });
     setAffPdVLibre(responsables.length === 0);
@@ -654,9 +654,7 @@ export default function LogistiqueApprovisionnementPage() {
                   )}
                 </div>
                 <button
-                  onClick={() => {
-                    if (produits.length > 0) openAffModal(produits[0]);
-                  }}
+                  onClick={() => openAffModal(null)}
                   className="px-4 py-2 bg-purple-600 text-white rounded-xl text-sm font-semibold hover:bg-purple-700 transition-colors flex items-center gap-2"
                 >
                   <Plus size={15} />
@@ -1099,7 +1097,7 @@ export default function LogistiqueApprovisionnementPage() {
       {/* ════════════════════════════════════════════════════════════════════ */}
       {/* MODAL – AFFECTATION PdV                                             */}
       {/* ════════════════════════════════════════════════════════════════════ */}
-      {affModal && affProduit && (
+      {affModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
             {/* Header */}
@@ -1110,7 +1108,9 @@ export default function LogistiqueApprovisionnementPage() {
                 </div>
                 <div>
                   <h2 className="text-lg font-bold text-slate-800">Affecter au point de vente</h2>
-                  <p className="text-sm text-slate-500">{affProduit.nom}</p>
+                  <p className="text-sm text-slate-500">
+                    {affProduit ? affProduit.nom : "Sélectionnez un produit"}
+                  </p>
                 </div>
               </div>
               <button onClick={closeAffModal} className="p-2 hover:bg-slate-100 rounded-lg transition-colors">
@@ -1118,30 +1118,64 @@ export default function LogistiqueApprovisionnementPage() {
               </button>
             </div>
 
-            {/* Infos produit */}
-            <div className="px-6 pt-5">
-              <div className="bg-slate-50 rounded-xl p-4 grid grid-cols-2 gap-3 text-sm">
-                <div>
-                  <p className="text-slate-500">Stock disponible</p>
-                  <p className={`font-bold text-lg ${affProduit.stock === 0 ? "text-red-600" : "text-slate-800"}`}>
-                    {affProduit.stock} unités
-                  </p>
+            {/* Infos produit (visible uniquement si produit sélectionné) */}
+            {affProduit && (
+              <div className="px-6 pt-5">
+                <div className="bg-slate-50 rounded-xl p-4 grid grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <p className="text-slate-500">Stock disponible</p>
+                    <p className={`font-bold text-lg ${affProduit.stock === 0 ? "text-red-600" : "text-slate-800"}`}>
+                      {affProduit.stock} unités
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-slate-500">Prix unitaire</p>
+                    <p className="font-semibold text-slate-700">{formatCurrency(affProduit.prixUnitaire)}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-slate-500">Prix unitaire</p>
-                  <p className="font-semibold text-slate-700">{formatCurrency(affProduit.prixUnitaire)}</p>
-                </div>
+                {affProduit.stock === 0 && (
+                  <div className="mt-3 flex items-center gap-2 bg-red-50 border border-red-200 rounded-xl p-3">
+                    <AlertTriangle size={16} className="text-red-500 shrink-0" />
+                    <p className="text-sm text-red-700">Ce produit est en rupture. Effectuez d&apos;abord une réception.</p>
+                  </div>
+                )}
               </div>
-              {affProduit.stock === 0 && (
-                <div className="mt-3 flex items-center gap-2 bg-red-50 border border-red-200 rounded-xl p-3">
-                  <AlertTriangle size={16} className="text-red-500 shrink-0" />
-                  <p className="text-sm text-red-700">Ce produit est en rupture. Effectuez d&apos;abord une réception.</p>
-                </div>
-              )}
-            </div>
+            )}
 
             {/* Formulaire */}
             <form onSubmit={handleAffectation} className="p-6 space-y-4">
+
+              {/* Sélecteur de produit (visible uniquement si aucun produit pré-sélectionné) */}
+              {!affProduit && (
+                <div>
+                  <label className="text-sm font-medium text-slate-700 block mb-1.5">
+                    Produit à affecter <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    required
+                    value=""
+                    onChange={e => {
+                      const selected = produits.find(p => p.id === Number(e.target.value));
+                      if (selected) {
+                        setAffProduit(selected);
+                        setAffForm(f => ({ ...f, quantite: "" }));
+                      }
+                    }}
+                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 bg-slate-50 text-sm"
+                  >
+                    <option value="">— Choisir un produit —</option>
+                    {produits.map(p => (
+                      <option key={p.id} value={p.id} disabled={p.stock === 0}>
+                        {p.nom} — stock : {p.stock} u.{p.stock === 0 ? " (rupture)" : ""}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-slate-400 mt-1">
+                    Seuls les produits de la page courante sont listés. Utilisez la recherche dans l&apos;onglet Stock pour en trouver d&apos;autres.
+                  </p>
+                </div>
+              )}
+
               <div>
                 <label className="text-sm font-medium text-slate-700 block mb-1.5">
                   Quantité à affecter <span className="text-red-500">*</span>
@@ -1149,14 +1183,15 @@ export default function LogistiqueApprovisionnementPage() {
                 <input
                   type="number"
                   min="1"
-                  max={affProduit.stock}
+                  max={affProduit?.stock ?? undefined}
                   required
+                  disabled={!affProduit}
                   value={affForm.quantite}
                   onChange={e => setAffForm(f => ({ ...f, quantite: e.target.value }))}
-                  placeholder={`Max : ${affProduit.stock}`}
-                  className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 bg-slate-50 text-sm"
+                  placeholder={affProduit ? `Max : ${affProduit.stock}` : "Sélectionnez d'abord un produit"}
+                  className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 bg-slate-50 text-sm disabled:opacity-50"
                 />
-                {affForm.quantite && Number(affForm.quantite) > 0 && (
+                {affProduit && affForm.quantite && Number(affForm.quantite) > 0 && (
                   <p className="text-xs mt-1">
                     {Number(affForm.quantite) > affProduit.stock
                       ? <span className="text-red-600">⚠ Quantité supérieure au stock disponible</span>
@@ -1233,11 +1268,12 @@ export default function LogistiqueApprovisionnementPage() {
                   type="submit"
                   disabled={
                     affLoading ||
+                    !affProduit ||
                     !affForm.quantite ||
                     Number(affForm.quantite) <= 0 ||
-                    Number(affForm.quantite) > affProduit.stock ||
+                    Number(affForm.quantite) > (affProduit?.stock ?? 0) ||
                     !affForm.pointDeVente.trim() ||
-                    affProduit.stock === 0
+                    (affProduit?.stock ?? 0) === 0
                   }
                   className="flex-1 py-2.5 bg-purple-600 text-white rounded-xl hover:bg-purple-700 font-medium text-sm transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >

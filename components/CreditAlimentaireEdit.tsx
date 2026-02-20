@@ -1,6 +1,11 @@
 'use client'
 
 import { useState, useEffect } from 'react';
+import { X, Save, AlertTriangle, User, Phone, Wallet, TrendingDown, DollarSign } from 'lucide-react';
+import { formatCurrency } from '@/lib/format';
+
+type SourceCreditAlim = 'COTISATION' | 'TONTINE';
+type StatutCreditAlim = 'ACTIF' | 'EPUISE' | 'EXPIRE';
 
 interface CreditAlimentaire {
   plafond: number;
@@ -10,7 +15,7 @@ interface CreditAlimentaire {
   sourceId: number;
   dateExpiration?: string | null;
   statut: StatutCreditAlim;
-}  
+}
 
 interface ClientInfo {
   id: number;
@@ -19,17 +24,8 @@ interface ClientInfo {
   telephone: string;
 }
 
-type SourceCreditAlim = 'COTISATION' | 'TONTINE';
-type StatutCreditAlim = 'ACTIF' | 'EPUISE' | 'EXPIRE';
-
 interface CreditAlimentaireWithClient extends CreditAlimentaire {
   client: ClientInfo | null;
-}
-
-interface CreditAlimentaireEditProps {
-  credit?: CreditAlimentaireWithClient;
-  onClose: () => void;
-  onSave: (data: UpdateCreditAlimentaireData) => Promise<void>;
 }
 
 export interface UpdateCreditAlimentaireData {
@@ -42,10 +38,26 @@ export interface UpdateCreditAlimentaireData {
   raisonAjustement?: string;
 }
 
+interface CreditAlimentaireEditProps {
+  credit?: CreditAlimentaireWithClient;
+  onClose: () => void;
+  onSave: (data: UpdateCreditAlimentaireData) => Promise<void>;
+}
+
+const inputCls =
+  'w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm text-slate-800 bg-white transition-all outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-400';
+
+const STATUTS: { value: StatutCreditAlim; label: string; active: string; inactive: string }[] = [
+  { value: 'ACTIF',  label: 'Actif',   active: 'bg-emerald-500 text-white border-emerald-500', inactive: 'bg-white text-emerald-600 border-emerald-200 hover:bg-emerald-50' },
+  { value: 'EPUISE', label: 'Épuisé',  active: 'bg-orange-500 text-white border-orange-500',  inactive: 'bg-white text-orange-600 border-orange-200 hover:bg-orange-50'  },
+  { value: 'EXPIRE', label: 'Expiré',  active: 'bg-slate-600  text-white border-slate-600',   inactive: 'bg-white text-slate-600  border-slate-200 hover:bg-slate-50'   },
+];
+
 export default function CreditAlimentaireEdit({ credit, onClose, onSave }: CreditAlimentaireEditProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
+  const [showAjustement, setShowAjustement] = useState(false);
+
   const [formData, setFormData] = useState({
     plafond: 0,
     source: 'COTISATION' as SourceCreditAlim,
@@ -53,14 +65,11 @@ export default function CreditAlimentaireEdit({ credit, onClose, onSave }: Credi
     dateExpiration: '',
     statut: 'ACTIF' as StatutCreditAlim,
     ajustementMontant: 0,
-    raisonAjustement: ''
+    raisonAjustement: '',
   });
-
-  const [showAjustement, setShowAjustement] = useState(false);
 
   useEffect(() => {
     if (!credit) return;
-
     setFormData({
       plafond: Number(credit.plafond),
       source: credit.source,
@@ -70,7 +79,7 @@ export default function CreditAlimentaireEdit({ credit, onClose, onSave }: Credi
         : '',
       statut: credit.statut,
       ajustementMontant: 0,
-      raisonAjustement: ''
+      raisonAjustement: '',
     });
   }, [credit]);
 
@@ -78,9 +87,7 @@ export default function CreditAlimentaireEdit({ credit, onClose, onSave }: Credi
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
-      [name]: name === 'plafond' || name === 'sourceId' || name === 'ajustementMontant'
-        ? Number(value)
-        : value
+      [name]: ['plafond', 'sourceId', 'ajustementMontant'].includes(name) ? Number(value) : value,
     }));
   };
 
@@ -88,23 +95,19 @@ export default function CreditAlimentaireEdit({ credit, onClose, onSave }: Credi
     e.preventDefault();
     setError(null);
     setIsLoading(true);
-
     try {
       const updateData: UpdateCreditAlimentaireData = {
         plafond: formData.plafond,
         source: formData.source,
         sourceId: formData.sourceId,
         dateExpiration: formData.dateExpiration ? new Date(formData.dateExpiration) : null,
-        statut: formData.statut
+        statut: formData.statut,
       };
-
       if (showAjustement && formData.ajustementMontant !== 0) {
         updateData.ajustementMontant = formData.ajustementMontant;
         updateData.raisonAjustement = formData.raisonAjustement;
       }
-
       await onSave(updateData);
-      onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Une erreur est survenue');
     } finally {
@@ -112,283 +115,309 @@ export default function CreditAlimentaireEdit({ credit, onClose, onSave }: Credi
     }
   };
 
-  const formatCurrency = (amount: number | string) => {
-    return new Intl.NumberFormat('fr-FR', {
-      style: 'currency',
-      currency: 'EUR'
-    }).format(Number(amount));
-  };
-
-  if (!credit || !formData) {
-    return <div>Chargement...</div>;
+  if (!credit) {
+    return (
+      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
+        <div className="bg-white rounded-2xl p-8">
+          <div className="w-8 h-8 border-4 border-emerald-200 border-t-emerald-500 rounded-full animate-spin mx-auto" />
+        </div>
+      </div>
+    );
   }
 
-  const nouveauMontantUtilise =
-    Number(credit.montantUtilise) + formData.ajustementMontant;
-
-  const nouveauMontantRestant =
-    formData.plafond - nouveauMontantUtilise;
+  const newUtilise = Number(credit.montantUtilise) + formData.ajustementMontant;
+  const newRestant = formData.plafond - newUtilise;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
+    <div
+      className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+
+        {/* Accent bar */}
+        <div className="h-1 bg-gradient-to-r from-emerald-400 via-emerald-500 to-teal-500 rounded-t-2xl flex-shrink-0" />
+
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b">
-          <div>
-            <h2 className="text-2xl font-semibold text-gray-900">Modifier le crédit alimentaire</h2>
-            <p className="text-sm text-gray-500 mt-1">
-              {credit.client?.prenom} {credit.client?.nom}
-            </p>
+        <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100 flex-shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center">
+              <Wallet size={19} className="text-emerald-600" />
+            </div>
+            <div>
+              <h2 className="text-base font-bold text-slate-900">Modifier le crédit alimentaire</h2>
+              <p className="text-xs text-slate-400 mt-0.5">
+                {credit.client ? `${credit.client.prenom} ${credit.client.nom}` : 'Bénéficiaire inconnu'}
+              </p>
+            </div>
           </div>
           <button
             onClick={onClose}
-            className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
+            className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
+            <X size={18} />
           </button>
         </div>
 
-        {/* Info Banner */}
-        <div className="px-6 py-3 bg-blue-50 border-b border-blue-100">
-          <div className="flex items-start gap-3">
-            <svg className="w-5 h-5 text-blue-600 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <div className="flex-1">
-              <p className="text-sm font-medium text-blue-900">État actuel du crédit</p>
-              <div className="mt-1 text-sm text-blue-700 space-y-1">
-                <p>Plafond: {formatCurrency(credit.plafond)} | Utilisé: {formatCurrency(credit.montantUtilise)} | Disponible: {formatCurrency(credit.montantRestant)}</p>
+        {/* Current state banner */}
+        <div className="px-6 py-3 bg-slate-50 border-b border-slate-100 flex-shrink-0">
+          <div className="grid grid-cols-3 gap-3">
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                <Wallet size={13} className="text-blue-600" />
+              </div>
+              <div>
+                <p className="text-[10px] text-slate-400">Plafond</p>
+                <p className="text-sm font-bold text-slate-700">{formatCurrency(credit.plafond)}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 bg-orange-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                <TrendingDown size={13} className="text-orange-600" />
+              </div>
+              <div>
+                <p className="text-[10px] text-slate-400">Utilisé</p>
+                <p className="text-sm font-bold text-orange-600">{formatCurrency(credit.montantUtilise)}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 bg-emerald-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                <DollarSign size={13} className="text-emerald-600" />
+              </div>
+              <div>
+                <p className="text-[10px] text-slate-400">Disponible</p>
+                <p className="text-sm font-bold text-emerald-600">{formatCurrency(credit.montantRestant)}</p>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="px-6 py-4 overflow-y-auto" style={{ maxHeight: 'calc(90vh - 180px)' }}>
-          {error && (
-            <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
-              <div className="flex items-start gap-3">
-                <svg className="w-5 h-5 text-red-600 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <p className="text-sm text-red-700">{error}</p>
+        {/* Client */}
+        {credit.client && (
+          <div className="px-6 pt-5 flex-shrink-0">
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-2 flex items-center gap-1.5">
+              <User size={11} /> Bénéficiaire
+            </p>
+            <div className="flex items-center gap-3 bg-slate-50 border border-slate-100 rounded-xl px-4 py-3">
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
+                {credit.client.prenom?.[0]}{credit.client.nom?.[0]}
               </div>
+              <div>
+                <p className="font-semibold text-slate-800 text-sm">{credit.client.prenom} {credit.client.nom}</p>
+                <p className="text-xs text-slate-500 flex items-center gap-1">
+                  <Phone size={10} /> {credit.client.telephone}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="overflow-y-auto flex-1 px-6 py-5 space-y-5">
+
+          {error && (
+            <div className="flex items-start gap-3 p-3 bg-red-50 border border-red-200 rounded-xl">
+              <AlertTriangle size={15} className="text-red-500 flex-shrink-0 mt-0.5" />
+              <p className="text-sm text-red-700">{error}</p>
             </div>
           )}
 
-          <div className="space-y-6">
-            {/* Informations de base */}
+          {/* Plafond + Statut */}
+          <div className="grid grid-cols-2 gap-4">
             <div>
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Informations de base</h3>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label htmlFor="plafond" className="block text-sm font-medium text-gray-700 mb-1">
-                    Plafond *
-                  </label>
-                  <div className="relative">
-                    <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-500">€</span>
-                    <input
-                      type="number"
-                      id="plafond"
-                      name="plafond"
-                      value={formData.plafond}
-                      onChange={handleChange}
-                      step="0.01"
-                      min="0"
-                      required
-                      className="w-full pl-8 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label htmlFor="statut" className="block text-sm font-medium text-gray-700 mb-1">
-                    Statut *
-                  </label>
-                  <select
-                    id="statut"
-                    name="statut"
-                    value={formData.statut}
-                    onChange={handleChange}
-                    required
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                  >
-                    <option value="ACTIF">Actif</option>
-                    <option value="EPUISE">Épuisé</option>
-                    <option value="EXPIRE">Expiré</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label htmlFor="source" className="block text-sm font-medium text-gray-700 mb-1">
-                    Source *
-                  </label>
-                  <select
-                    id="source"
-                    name="source"
-                    value={formData.source}
-                    onChange={handleChange}
-                    required
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                  >
-                    <option value="COTISATION">Cotisation</option>
-                    <option value="TONTINE">Tontine</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label htmlFor="sourceId" className="block text-sm font-medium text-gray-700 mb-1">
-                    ID Source *
-                  </label>
-                  <input
-                    type="number"
-                    id="sourceId"
-                    name="sourceId"
-                    value={formData.sourceId}
-                    onChange={handleChange}
-                    min="1"
-                    required
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                  />
-                </div>
-
-                <div className="col-span-2">
-                  <label htmlFor="dateExpiration" className="block text-sm font-medium text-gray-700 mb-1">
-                    Date d&apos;expiration
-                  </label>
-                  <input
-                    type="date"
-                    id="dateExpiration"
-                    name="dateExpiration"
-                    value={formData.dateExpiration}
-                    onChange={handleChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                  />
-                </div>
+              <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2">
+                Plafond
+              </label>
+              <div className="relative">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-medium">FCFA</span>
+                <input
+                  type="number"
+                  name="plafond"
+                  value={formData.plafond}
+                  onChange={handleChange}
+                  step="0.01"
+                  min="0"
+                  required
+                  className={`${inputCls} pl-14`}
+                />
               </div>
             </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2">
+                Date d&apos;expiration
+              </label>
+              <input
+                type="date"
+                name="dateExpiration"
+                value={formData.dateExpiration}
+                onChange={handleChange}
+                className={inputCls}
+              />
+            </div>
+          </div>
 
-            {/* Ajustement manuel */}
-            <div className="border-t pt-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-medium text-gray-900">Ajustement manuel du montant</h3>
+          {/* Source + sourceId */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2">
+                Source
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                {(['COTISATION', 'TONTINE'] as const).map(s => (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => setFormData(prev => ({ ...prev, source: s }))}
+                    className={`py-2.5 rounded-xl border text-xs font-semibold transition-all ${
+                      formData.source === s
+                        ? 'bg-emerald-500 text-white border-emerald-500'
+                        : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                    }`}
+                  >
+                    {s === 'COTISATION' ? 'Cotisation' : 'Tontine'}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2">
+                ID Source
+              </label>
+              <input
+                type="number"
+                name="sourceId"
+                value={formData.sourceId}
+                onChange={handleChange}
+                min="1"
+                required
+                className={inputCls}
+              />
+            </div>
+          </div>
+
+          {/* Statut */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2">
+              Statut
+            </label>
+            <div className="grid grid-cols-3 gap-2">
+              {STATUTS.map(({ value, label, active, inactive }) => (
                 <button
+                  key={value}
                   type="button"
-                  onClick={() => setShowAjustement(!showAjustement)}
-                  className={`px-3 py-1 text-sm font-medium rounded-lg transition-colors ${
-                    showAjustement
-                      ? 'bg-green-100 text-green-700'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  onClick={() => setFormData(prev => ({ ...prev, statut: value }))}
+                  className={`py-2.5 rounded-xl border text-xs font-semibold transition-all ${
+                    formData.statut === value ? active : inactive
                   }`}
                 >
-                  {showAjustement ? 'Masquer' : 'Afficher'}
+                  {label}
                 </button>
-              </div>
+              ))}
+            </div>
+          </div>
 
-              {showAjustement && (
-                <div className="space-y-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                  <div className="flex items-start gap-3">
-                    <svg className="w-5 h-5 text-yellow-600 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                    </svg>
-                    <p className="text-sm text-yellow-700">
-                      Attention: Cette opération créera une transaction d&apos;ajustement dans l&apos;historique.
-                    </p>
-                  </div>
+          {/* Ajustement */}
+          <div className="border border-slate-100 rounded-xl overflow-hidden">
+            <button
+              type="button"
+              onClick={() => setShowAjustement(!showAjustement)}
+              className="w-full flex items-center justify-between px-4 py-3 bg-slate-50 hover:bg-slate-100 transition-colors text-sm font-semibold text-slate-700"
+            >
+              <span>Ajustement manuel du montant</span>
+              <span className={`text-xs px-2.5 py-1 rounded-full font-medium transition-colors ${
+                showAjustement ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-500'
+              }`}>
+                {showAjustement ? 'Masquer' : 'Afficher'}
+              </span>
+            </button>
 
+            {showAjustement && (
+              <div className="px-4 py-4 space-y-4">
+                <div className="flex items-start gap-3 p-3 bg-amber-50 border border-amber-100 rounded-xl">
+                  <AlertTriangle size={14} className="text-amber-600 flex-shrink-0 mt-0.5" />
+                  <p className="text-xs text-amber-700">
+                    Un ajustement créera une transaction dans l&apos;historique. Valeur positive = augmente le montant utilisé, négative = le diminue.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label htmlFor="ajustementMontant" className="block text-sm font-medium text-gray-700 mb-1">
-                      Montant de l&apos;ajustement
+                    <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2">
+                      Montant d&apos;ajustement
                     </label>
                     <div className="relative">
-                      <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-500">€</span>
+                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-xs">FCFA</span>
                       <input
                         type="number"
-                        id="ajustementMontant"
                         name="ajustementMontant"
                         value={formData.ajustementMontant}
                         onChange={handleChange}
                         step="0.01"
-                        className="w-full pl-8 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                        placeholder="Montant positif ou négatif"
+                        className={`${inputCls} pl-14`}
+                        placeholder="0"
                       />
                     </div>
-                    <p className="mt-1 text-xs text-gray-500">
-                      Valeur positive pour augmenter, négative pour diminuer le montant utilisé
-                    </p>
                   </div>
-
                   <div>
-                    <label htmlFor="raisonAjustement" className="block text-sm font-medium text-gray-700 mb-1">
-                      Raison de l&apos;ajustement *
+                    <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2">
+                      Raison
                     </label>
                     <textarea
-                      id="raisonAjustement"
                       name="raisonAjustement"
                       value={formData.raisonAjustement}
                       onChange={handleChange}
-                      rows={3}
+                      rows={2}
                       required={formData.ajustementMontant !== 0}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent resize-none"
-                      placeholder="Expliquez la raison de cet ajustement..."
+                      className={`${inputCls} resize-none`}
+                      placeholder="Raison de l'ajustement..."
                     />
                   </div>
-
-                  {formData.ajustementMontant !== 0 && (
-                    <div className="p-3 bg-white rounded-lg border border-gray-200">
-                      <p className="text-sm font-medium text-gray-700 mb-2">Aperçu après ajustement:</p>
-                      <div className="space-y-1 text-sm">
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">Montant utilisé actuel:</span>
-                          <span className="font-medium">{formatCurrency(credit.montantUtilise)}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">Ajustement:</span>
-                          <span className={`font-medium ${formData.ajustementMontant > 0 ? 'text-orange-600' : 'text-green-600'}`}>
-                            {formData.ajustementMontant > 0 ? '+' : ''}{formatCurrency(formData.ajustementMontant)}
-                          </span>
-                        </div>
-                        <div className="flex justify-between pt-2 border-t">
-                          <span className="text-gray-900 font-medium">Nouveau montant utilisé:</span>
-                          <span className="font-semibold">{formatCurrency(nouveauMontantUtilise)}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-gray-900 font-medium">Nouveau montant restant:</span>
-                          <span className={`font-semibold ${nouveauMontantRestant < 0 ? 'text-red-600' : 'text-green-600'}`}>
-                            {formatCurrency(nouveauMontantRestant)}
-                          </span>
-                        </div>
-                      </div>
-                      {nouveauMontantRestant < 0 && (
-                        <div className="mt-2 p-2 bg-red-50 rounded text-xs text-red-700">
-                          ⚠️ Le montant restant sera négatif après cet ajustement
-                        </div>
-                      )}
-                    </div>
-                  )}
                 </div>
-              )}
-            </div>
+
+                {formData.ajustementMontant !== 0 && (
+                  <div className="rounded-xl border border-slate-100 overflow-hidden divide-y divide-slate-100">
+                    <div className="flex justify-between items-center px-4 py-2.5 bg-slate-50">
+                      <span className="text-xs text-slate-500">Montant utilisé actuel</span>
+                      <span className="text-xs font-semibold text-slate-700">{formatCurrency(credit.montantUtilise)}</span>
+                    </div>
+                    <div className="flex justify-between items-center px-4 py-2.5 bg-slate-50">
+                      <span className="text-xs text-slate-500">Ajustement</span>
+                      <span className={`text-xs font-semibold ${formData.ajustementMontant > 0 ? 'text-orange-600' : 'text-emerald-600'}`}>
+                        {formData.ajustementMontant > 0 ? '+' : ''}{formatCurrency(formData.ajustementMontant)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center px-4 py-2.5 bg-white">
+                      <span className="text-xs font-semibold text-slate-700">Nouveau montant restant</span>
+                      <span className={`text-sm font-bold ${newRestant < 0 ? 'text-red-600' : 'text-emerald-600'}`}>
+                        {formatCurrency(newRestant)}
+                      </span>
+                    </div>
+                    {newRestant < 0 && (
+                      <div className="px-4 py-2 bg-red-50">
+                        <p className="text-xs text-red-600">Le montant restant sera négatif après cet ajustement.</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </form>
 
         {/* Footer */}
-        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t bg-gray-50">
+        <div className="px-6 py-4 border-t border-slate-100 flex gap-3 justify-end flex-shrink-0">
           <button
             type="button"
             onClick={onClose}
             disabled={isLoading}
-            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+            className="px-5 py-2.5 text-sm font-semibold text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors disabled:opacity-50"
           >
             Annuler
-          </button>  
+          </button>
           <button
-            type="submit"
             onClick={handleSubmit}
             disabled={isLoading}
-            className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 disabled:opacity-50 flex items-center gap-2"
+            className="px-5 py-2.5 text-sm font-semibold text-white bg-emerald-500 hover:bg-emerald-600 rounded-xl transition-colors flex items-center gap-2 shadow-sm shadow-emerald-200 disabled:opacity-50"
           >
             {isLoading ? (
               <>
@@ -396,10 +425,13 @@ export default function CreditAlimentaireEdit({ credit, onClose, onSave }: Credi
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                 </svg>
-                Enregistrement...
+                Enregistrement…
               </>
             ) : (
-              'Enregistrer les modifications'
+              <>
+                <Save size={15} />
+                Enregistrer
+              </>
             )}
           </button>
         </div>

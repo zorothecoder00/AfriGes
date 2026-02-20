@@ -1,12 +1,12 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { toast } from "sonner";
+import { toast } from "sonner"; 
 
-interface UseApiResult<T> {
+interface UseApiResult<T> {      
   data: T | null;
   loading: boolean;   
-  error: string | null;  
+  error: string | null;       
   refetch: () => void;
 }
 

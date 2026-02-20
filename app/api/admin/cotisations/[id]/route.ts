@@ -122,30 +122,54 @@ export async function PATCH(
         throw new Error("COTISATION_INTROUVABLE");
       }
 
+      // ── Règles métier selon le statut actuel ───────────────────────────────
+
+      // Cotisation EXPIREE : aucune modification autorisée
+      if (cotisation.statut === StatutCotisation.EXPIREE) {
+        throw new Error("COTISATION_EXPIREE");
+      }
+
+      // Cotisation PAYEE : montant, periode et datePaiement sont verrouillés
+      if (cotisation.statut === StatutCotisation.PAYEE) {
+        if (montant !== undefined && Number(montant) !== Number(cotisation.montant)) {
+          throw new Error("MODIFICATION_MONTANT_INTERDIT");
+        }
+        if (periode && periode !== cotisation.periode) {
+          throw new Error("MODIFICATION_PERIODE_INTERDIT");
+        }
+        if (datePaiement !== undefined) {
+          throw new Error("MODIFICATION_DATE_PAIEMENT_INTERDIT");
+        }
+        // Statut ne peut aller que vers EXPIREE (pas retour EN_ATTENTE)
+        if (statut && statut !== StatutCotisation.EXPIREE && statut !== StatutCotisation.PAYEE) {
+          throw new Error("TRANSITION_STATUT_INTERDIT");
+        }
+      }
+
+      // Cotisation EN_ATTENTE : on ne peut pas sauter directement à EXPIREE sans passer par PAYEE
+      // (on permet quand même la correction admin, c'est volontaire)
+
+      // ── Construction du payload de mise à jour ─────────────────────────────
+
       // Si le statut passe à PAYEE, auto-remplir datePaiement si non fournie
       const autoDatePaiement =
         statut === StatutCotisation.PAYEE && cotisation.statut !== StatutCotisation.PAYEE && !datePaiement
           ? new Date()
           : undefined;
 
-      // Si le statut quitte PAYEE, effacer datePaiement
-      const clearDatePaiement =
-        statut && statut !== StatutCotisation.PAYEE && cotisation.statut === StatutCotisation.PAYEE
-          ? null
-          : undefined;
-
       const updated = await tx.cotisation.update({
         where: { id: cotisationId },
         data: {
+          // Montant et période : seulement si EN_ATTENTE (gardes ci-dessus bloquent PAYEE)
           ...(montant !== undefined && { montant }),
           ...(periode && { periode }),
           ...(statut && { statut }),
           ...(dateExpiration && { dateExpiration: new Date(dateExpiration) }),
+          // datePaiement : seulement si EN_ATTENTE (gardes ci-dessus bloquent PAYEE)
           ...(datePaiement !== undefined && {
             datePaiement: datePaiement ? new Date(datePaiement) : null,
           }),
           ...(autoDatePaiement && { datePaiement: autoDatePaiement }),
-          ...(clearDatePaiement === null && { datePaiement: null }),
         },
         include: {
           client: {
@@ -213,13 +237,39 @@ export async function PATCH(
   } catch (error: unknown) {
     console.error(error);
 
-    if (
-      error instanceof Error &&
-      error.message === "COTISATION_INTROUVABLE"
-    ) {
+    const msg = error instanceof Error ? error.message : "";
+
+    if (msg === "COTISATION_INTROUVABLE") {
+      return NextResponse.json({ message: "Cotisation introuvable" }, { status: 404 });
+    }
+    if (msg === "COTISATION_EXPIREE") {
       return NextResponse.json(
-        { message: "Cotisation introuvable" },
-        { status: 404 }
+        { message: "Une cotisation expirée ne peut plus être modifiée." },
+        { status: 400 }
+      );
+    }
+    if (msg === "MODIFICATION_MONTANT_INTERDIT") {
+      return NextResponse.json(
+        { message: "Le montant d'une cotisation déjà payée ne peut pas être modifié." },
+        { status: 400 }
+      );
+    }
+    if (msg === "MODIFICATION_PERIODE_INTERDIT") {
+      return NextResponse.json(
+        { message: "La période d'une cotisation déjà payée ne peut pas être modifiée." },
+        { status: 400 }
+      );
+    }
+    if (msg === "MODIFICATION_DATE_PAIEMENT_INTERDIT") {
+      return NextResponse.json(
+        { message: "La date de paiement d'une cotisation déjà payée ne peut pas être modifiée." },
+        { status: 400 }
+      );
+    }
+    if (msg === "TRANSITION_STATUT_INTERDIT") {
+      return NextResponse.json(
+        { message: "Une cotisation payée ne peut passer qu'au statut Expirée, pas revenir en attente." },
+        { status: 400 }
       );
     }
 

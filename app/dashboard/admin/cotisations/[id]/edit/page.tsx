@@ -72,13 +72,13 @@ export default function Page({ params }: PageProps) {
   };
 
   const handleClose = () => {
-    router.push(`/dashboard/admin/cotisations/${id}`);
+    router.push('/dashboard/admin/cotisations');
   };
 
   const handleSave = async (updatedData: CotisationUpdatePayload) => {
     const result = await mutate(updatedData);
     if (result) {
-      router.push(`/dashboard/admin/cotisations/${id}`);
+      router.push('/dashboard/admin/cotisations');
     }
   };
 

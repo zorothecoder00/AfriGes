@@ -75,14 +75,14 @@ export default function Page({ params }: PageProps) {
     };
     const result = await mutate(payload);
     if (result) {
-      router.push(`/dashboard/admin/creditsAlimentaires/${id}`);
+      router.push('/dashboard/admin/creditsAlimentaires');
     }
   };
 
   return (
     <CreditAlimentaireEdit
       credit={credit}
-      onClose={() => router.push(`/dashboard/admin/creditsAlimentaires/${id}`)}
+      onClose={() => router.push('/dashboard/admin/creditsAlimentaires')}
       onSave={handleSave}
     />
   );

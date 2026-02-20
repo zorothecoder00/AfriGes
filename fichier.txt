@@ -1,11 +1,3 @@
--Enlève aussi la partie register pour empêcher tout le monde de s'inscrire
-( tous les types de gestionnaires [ COMMERCIAL, RESPONSABLE_VENTE_CREDIT, RESPONSABLE_ECONOMIQUE, RESPONSABLE_MARKETING ] doivent avoir leur dashboard dédié )
+-Pages user qu'il me reste à créer( types de gestionnaires [ COMMERCIAL, RESPONSABLE_VENTE_CREDIT, RESPONSABLE_ECONOMIQUE, RESPONSABLE_MARKETING ] )
 
--claude , créé moi un /dashboard/user/responsablePointDeVente, un
-  dashboard/user/agentTerrain , dashboard/user/magazinier  s'il te plait (
-  biensûr essaie de baser sur la logique métier : gestion des produits ,
-  supervision des agents , caissiers, magaziniers ; collecte des
-  remboursements puis prospections ; inventaires réguliers puis gestion
-  physique des stocks )
-
--Cannot read properties of null (reading 'nom') dans /dashboard/admin/ventes    
+-Corrige moi cette api  app/api/comptable/journal/( il est plein d'erreurs typescript et donc refuse de compiler)

@@ -1,18 +1,8 @@
 'use client'
 
-import { useState, useEffect } from 'react';   
-
-interface CreditAlimentaire {  
-  id: number;
-  plafond: number;
-  montantUtilise: number;
-  montantRestant: number;
-  statut: string;
-  source: string;
-  sourceId: number;
-  dateAttribution: string;
-  dateExpiration?: string | null;
-}
+import { useState } from 'react';
+import { X, User, Calendar, CheckCircle, AlertTriangle, XCircle, Phone, ShoppingCart, ArrowDownLeft, RefreshCw, Wallet, TrendingDown, DollarSign } from 'lucide-react';
+import { formatCurrency, formatDate, formatDateTime } from '@/lib/format';
 
 interface ClientInfo {
   id: number;
@@ -41,13 +31,20 @@ interface VenteCreditAlimentaire {
   prixUnitaire: number;
   createdAt: string;
 }
-  
-interface CreditAlimentaireWithRelations extends CreditAlimentaire {
+
+interface CreditAlimentaireWithRelations {
+  id: number;
+  plafond: number;
+  montantUtilise: number;
+  montantRestant: number;
+  statut: string;
+  source: string;
+  sourceId: number;
+  dateAttribution: string;
+  dateExpiration?: string | null;
   client: ClientInfo | null;
   transactions: CreditAlimentaireTransaction[];
-  ventes: (VenteCreditAlimentaire & {
-    produit: Produit;
-  })[];
+  ventes: (VenteCreditAlimentaire & { produit: Produit })[];
 }
 
 interface CreditAlimentaireDetailsProps {
@@ -56,301 +53,277 @@ interface CreditAlimentaireDetailsProps {
   onEdit?: () => void;
 }
 
-export default function CreditAlimentaireDetails({ credit, onClose, onEdit }: CreditAlimentaireDetailsProps) {
+const statutConfig: Record<string, { label: string; Icon: React.ElementType; badge: string; dot: string }> = {
+  ACTIF:  { label: 'Actif',   Icon: CheckCircle,  badge: 'bg-emerald-100 text-emerald-700 border border-emerald-200', dot: 'bg-emerald-500' },
+  EPUISE: { label: 'Épuisé',  Icon: AlertTriangle, badge: 'bg-orange-100  text-orange-700  border border-orange-200',  dot: 'bg-orange-400'  },
+  EXPIRE: { label: 'Expiré',  Icon: XCircle,       badge: 'bg-slate-100   text-slate-600   border border-slate-200',   dot: 'bg-slate-400'   },
+};
 
+const txConfig: Record<string, { label: string; Icon: React.ElementType; iconBg: string; iconColor: string; amountColor: string; sign: string }> = {
+  UTILISATION: { label: 'Utilisation', Icon: ArrowDownLeft, iconBg: 'bg-orange-100', iconColor: 'text-orange-600', amountColor: 'text-orange-600', sign: '-' },
+  ANNULATION:  { label: 'Annulation',  Icon: RefreshCw,     iconBg: 'bg-emerald-100', iconColor: 'text-emerald-600', amountColor: 'text-emerald-600', sign: '+' },
+  AJUSTEMENT:  { label: 'Ajustement',  Icon: RefreshCw,     iconBg: 'bg-blue-100',    iconColor: 'text-blue-600',    amountColor: 'text-blue-600',    sign: '±' },
+};
+
+export default function CreditAlimentaireDetails({ credit, onClose, onEdit }: CreditAlimentaireDetailsProps) {
   const [activeTab, setActiveTab] = useState<'info' | 'transactions' | 'ventes'>('info');
 
   if (!credit) {
-    return <div>Chargement...</div>;
+    return (
+      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
+        <div className="bg-white rounded-2xl p-8">
+          <div className="w-8 h-8 border-4 border-emerald-200 border-t-emerald-500 rounded-full animate-spin mx-auto" />
+        </div>
+      </div>
+    );
   }
 
-  const tauxUtilisation =
-    (Number(credit.montantUtilise) / Number(credit.plafond)) * 100;
+  const usagePct = credit.plafond > 0 ? Math.min(100, Math.round((credit.montantUtilise / credit.plafond) * 100)) : 0;
+  const sc = statutConfig[credit.statut] ?? statutConfig.EXPIRE;
+  const { Icon: StatutIcon } = sc;
 
-  const formatCurrency = (amount: number | string) => {
-    return new Intl.NumberFormat('fr-FR', {
-      style: 'currency',
-      currency: 'EUR'
-    }).format(Number(amount));
-  };
-
-  const formatDate = (date: Date | string) => {
-    return new Intl.DateTimeFormat('fr-FR', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric'
-    }).format(new Date(date));
-  };
-
-  const getStatutBadge = (statut: string) => {
-    const styles = {
-      ACTIF: 'bg-green-100 text-green-700',
-      EPUISE: 'bg-red-100 text-red-700',
-      EXPIRE: 'bg-gray-100 text-gray-700'
-    };
-    return styles[statut as keyof typeof styles] || 'bg-gray-100 text-gray-700';
-  };
-
-  const getSourceLabel = (source: string) => {
-    return source === 'COTISATION' ? 'Cotisation' : 'Tontine';
-  };
+  const TABS = [
+    { key: 'info' as const,         label: 'Informations' },
+    { key: 'transactions' as const,  label: `Transactions (${credit.transactions.length})` },
+    { key: 'ventes' as const,        label: `Achats (${credit.ventes.length})` },
+  ];
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
+    <div
+      className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col">
+
+        {/* Accent bar */}
+        <div className="h-1 bg-gradient-to-r from-emerald-400 via-emerald-500 to-teal-500 rounded-t-2xl flex-shrink-0" />
+
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b">
-          <div>
-            <h2 className="text-2xl font-semibold text-gray-900">Détails du crédit alimentaire</h2>
-            <p className="text-sm text-gray-500 mt-1">
-              {credit.client?.prenom} {credit.client?.nom}
-            </p>
+        <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100 flex-shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center">
+              <Wallet size={19} className="text-emerald-600" />
+            </div>
+            <div>
+              <h2 className="text-base font-bold text-slate-900">Crédit alimentaire #{credit.id}</h2>
+              <p className="text-xs text-slate-400 mt-0.5">
+                {credit.client ? `${credit.client.prenom} ${credit.client.nom}` : 'Bénéficiaire inconnu'}
+              </p>
+            </div>
           </div>
           <div className="flex items-center gap-2">
             {onEdit && (
               <button
                 onClick={onEdit}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+                className="px-4 py-2 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-xl hover:bg-emerald-100 transition-colors"
               >
                 Modifier
               </button>
             )}
             <button
               onClick={onClose}
-              className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
+              className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
+              <X size={18} />
             </button>
           </div>
         </div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-4 gap-4 px-6 py-4 bg-gray-50">
-          <div className="bg-white rounded-lg p-4 border border-gray-200">
-            <div className="flex items-center gap-2 mb-2">
-              <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
-                <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
-                </svg>
+        {/* Stats strip */}
+        <div className="px-6 py-4 bg-slate-50/80 border-b border-slate-100 flex-shrink-0">
+          <div className="grid grid-cols-4 gap-3">
+            {/* Plafond */}
+            <div className="bg-white rounded-xl border border-slate-200 px-3 py-3">
+              <div className="flex items-center gap-1.5 mb-1">
+                <Wallet size={13} className="text-blue-500" />
+                <span className="text-[10px] text-slate-400 font-medium uppercase tracking-wider">Plafond</span>
               </div>
+              <p className="text-base font-bold text-slate-800">{formatCurrency(credit.plafond)}</p>
             </div>
-            <p className="text-xs text-gray-500">Plafond</p>
-            <p className="text-xl font-bold text-gray-900">{formatCurrency(credit.plafond)}</p>
-          </div>
-
-          <div className="bg-white rounded-lg p-4 border border-gray-200">
-            <div className="flex items-center gap-2 mb-2">
-              <div className="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center">
-                <svg className="w-5 h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
-                </svg>
+            {/* Utilisé */}
+            <div className="bg-white rounded-xl border border-slate-200 px-3 py-3">
+              <div className="flex items-center gap-1.5 mb-1">
+                <TrendingDown size={13} className="text-orange-500" />
+                <span className="text-[10px] text-slate-400 font-medium uppercase tracking-wider">Utilisé</span>
               </div>
+              <p className="text-base font-bold text-orange-600">{formatCurrency(credit.montantUtilise)}</p>
             </div>
-            <p className="text-xs text-gray-500">Utilisé</p>
-            <p className="text-xl font-bold text-orange-600">{formatCurrency(credit.montantUtilise)}</p>
-          </div>
-
-          <div className="bg-white rounded-lg p-4 border border-gray-200">
-            <div className="flex items-center gap-2 mb-2">
-              <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
-                <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
+            {/* Disponible */}
+            <div className="bg-white rounded-xl border border-slate-200 px-3 py-3">
+              <div className="flex items-center gap-1.5 mb-1">
+                <DollarSign size={13} className="text-emerald-500" />
+                <span className="text-[10px] text-slate-400 font-medium uppercase tracking-wider">Disponible</span>
               </div>
+              <p className="text-base font-bold text-emerald-600">{formatCurrency(credit.montantRestant)}</p>
             </div>
-            <p className="text-xs text-gray-500">Disponible</p>
-            <p className="text-xl font-bold text-green-600">{formatCurrency(credit.montantRestant)}</p>
-          </div>
-
-          <div className="bg-white rounded-lg p-4 border border-gray-200">
-            <div className="flex items-center gap-2 mb-2">
-              <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatutBadge(credit.statut)}`}>
-                {credit.statut}
-              </span>
-            </div>
-            <p className="text-xs text-gray-500">Progression</p>
-            <div className="mt-2">
-              <div className="flex justify-between text-xs mb-1">
-                <span className="font-semibold">{tauxUtilisation.toFixed(0)}%</span>
+            {/* Progression */}
+            <div className="bg-white rounded-xl border border-slate-200 px-3 py-3">
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-[10px] text-slate-400 font-medium uppercase tracking-wider">Usage</span>
+                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold ${sc.badge}`}>
+                  <StatutIcon size={9} />
+                  {sc.label}
+                </span>
               </div>
-              <div className="w-full bg-gray-200 rounded-full h-2">
-                <div
-                  className="bg-orange-500 h-2 rounded-full transition-all"
-                  style={{ width: `${Math.min(tauxUtilisation, 100)}%` }}
-                />
+              <div className="flex items-center gap-2">
+                <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full rounded-full ${usagePct >= 100 ? 'bg-red-500' : usagePct >= 80 ? 'bg-orange-400' : 'bg-emerald-500'}`}
+                    style={{ width: `${usagePct}%` }}
+                  />
+                </div>
+                <span className="text-xs font-bold text-slate-700">{usagePct}%</span>
               </div>
             </div>
           </div>
         </div>
 
         {/* Tabs */}
-        <div className="border-b border-gray-200">
-          <nav className="flex px-6 gap-8">
+        <div className="flex border-b border-slate-100 px-6 flex-shrink-0">
+          {TABS.map(tab => (
             <button
-              onClick={() => setActiveTab('info')}
-              className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
-                activeTab === 'info'
-                  ? 'border-green-500 text-green-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
+              className={`py-3.5 px-1 mr-6 text-sm font-semibold border-b-2 transition-colors ${
+                activeTab === tab.key
+                  ? 'border-emerald-500 text-emerald-600'
+                  : 'border-transparent text-slate-400 hover:text-slate-600'
               }`}
             >
-              Informations
+              {tab.label}
             </button>
-            <button
-              onClick={() => setActiveTab('transactions')}
-              className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
-                activeTab === 'transactions'
-                  ? 'border-green-500 text-green-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
-            >
-              Transactions ({credit.transactions.length})
-            </button>
-            <button
-              onClick={() => setActiveTab('ventes')}
-              className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
-                activeTab === 'ventes'
-                  ? 'border-green-500 text-green-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
-            >
-              Achats ({credit.ventes.length})
-            </button>
-          </nav>
+          ))}
         </div>
 
-        {/* Content */}
-        <div className="px-6 py-4 overflow-y-auto" style={{ maxHeight: 'calc(90vh - 400px)' }}>
+        {/* Tab content */}
+        <div className="overflow-y-auto flex-1 px-6 py-5">
+
+          {/* ── Informations ── */}
           {activeTab === 'info' && (
-            <div className="space-y-6">
-              <div className="grid grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Bénéficiaire</label>
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
-                      <span className="text-sm font-semibold text-green-700">
-                        {credit.client?.prenom?.[0]}{credit.client?.nom?.[0]}
-                      </span>
+            <div className="space-y-5">
+              {/* Client */}
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-2 flex items-center gap-1.5">
+                  <User size={11} /> Bénéficiaire
+                </p>
+                {credit.client ? (
+                  <div className="flex items-center gap-3 bg-slate-50 border border-slate-100 rounded-xl px-4 py-3">
+                    <div className="w-11 h-11 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center text-white font-bold text-sm shadow-sm flex-shrink-0">
+                      {credit.client.prenom?.[0]}{credit.client.nom?.[0]}
                     </div>
                     <div>
-                      <p className="font-medium text-gray-900">{credit.client?.prenom} {credit.client?.nom}</p>
-                      <p className="text-sm text-gray-500">{credit.client?.telephone}</p>
+                      <p className="font-semibold text-slate-800">{credit.client.prenom} {credit.client.nom}</p>
+                      <p className="text-xs text-slate-500 flex items-center gap-1 mt-0.5">
+                        <Phone size={10} /> {credit.client.telephone}
+                      </p>
                     </div>
                   </div>
-                </div>
+                ) : (
+                  <p className="text-sm text-slate-400 italic">Bénéficiaire introuvable</p>
+                )}
+              </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Source</label>
-                  <p className="text-gray-900">{getSourceLabel(credit.source)}</p>
-                  <p className="text-sm text-gray-500">ID: {credit.sourceId}</p>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Date d&apos;attribution</label>
-                  <p className="text-gray-900">{formatDate(credit.dateAttribution)}</p>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Date d&apos;expiration</label>
-                  <p className="text-gray-900">
-                    {credit.dateExpiration ? formatDate(credit.dateExpiration) : 'Non définie'}
-                  </p>
+              {/* Source + Dates */}
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-2 flex items-center gap-1.5">
+                  <Calendar size={11} /> Informations
+                </p>
+                <div className="rounded-xl border border-slate-100 overflow-hidden divide-y divide-slate-100">
+                  <div className="flex justify-between items-center px-4 py-3 bg-white">
+                    <span className="text-sm text-slate-500">Source</span>
+                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-700">
+                      {credit.source === 'COTISATION' ? 'Cotisation' : 'Tontine'} #{credit.sourceId}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center px-4 py-3 bg-white">
+                    <span className="text-sm text-slate-500">Date d&apos;attribution</span>
+                    <span className="text-sm font-semibold text-slate-800">{formatDate(credit.dateAttribution)}</span>
+                  </div>
+                  <div className="flex justify-between items-center px-4 py-3 bg-white">
+                    <span className="text-sm text-slate-500">Date d&apos;expiration</span>
+                    <span className="text-sm font-semibold text-slate-800">
+                      {credit.dateExpiration ? formatDate(credit.dateExpiration) : <span className="text-slate-400 italic">Non définie</span>}
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
           )}
 
+          {/* ── Transactions ── */}
           {activeTab === 'transactions' && (
-            <div className="space-y-3">
+            <div className="space-y-2">
               {credit.transactions.length === 0 ? (
-                <div className="text-center py-12">
-                  <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                    </svg>
+                <div className="flex flex-col items-center justify-center py-16 text-slate-400">
+                  <div className="w-14 h-14 bg-slate-100 rounded-full flex items-center justify-center mb-3">
+                    <RefreshCw size={24} />
                   </div>
-                  <p className="text-gray-500">Aucune transaction</p>
+                  <p className="text-sm font-medium">Aucune transaction</p>
                 </div>
               ) : (
-                <div className="space-y-2">
-                  {credit.transactions.map((transaction) => (
-                    <div key={transaction.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200">
+                credit.transactions.map(tx => {
+                  const cfg = txConfig[tx.type] ?? txConfig.AJUSTEMENT;
+                  const { Icon: TxIcon } = cfg;
+                  return (
+                    <div
+                      key={tx.id}
+                      className="flex items-center justify-between bg-white border border-slate-100 rounded-xl px-4 py-3 hover:border-slate-200 transition-colors"
+                    >
                       <div className="flex items-center gap-3">
-                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                          transaction.type === 'UTILISATION' ? 'bg-orange-100' : 
-                          transaction.type === 'ANNULATION' ? 'bg-red-100' : 'bg-blue-100'
-                        }`}>
-                          <svg className={`w-5 h-5 ${
-                            transaction.type === 'UTILISATION' ? 'text-orange-600' : 
-                            transaction.type === 'ANNULATION' ? 'text-red-600' : 'text-blue-600'
-                          }`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            {transaction.type === 'UTILISATION' ? (
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
-                            ) : (
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                            )}
-                          </svg>
+                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${cfg.iconBg}`}>
+                          <TxIcon size={16} className={cfg.iconColor} />
                         </div>
                         <div>
-                          <p className="font-medium text-gray-900">{transaction.type}</p>
-                          {transaction.description && (
-                            <p className="text-sm text-gray-500">{transaction.description}</p>
-                          )}
-                          <p className="text-xs text-gray-400">{formatDate(transaction.createdAt)}</p>
+                          <p className="text-sm font-semibold text-slate-800">{cfg.label}</p>
+                          {tx.description && <p className="text-xs text-slate-500">{tx.description}</p>}
+                          <p className="text-xs text-slate-400">{formatDateTime(tx.createdAt)}</p>
                         </div>
                       </div>
-                      <p className={`font-semibold ${
-                        transaction.type === 'UTILISATION' ? 'text-orange-600' : 'text-green-600'
-                      }`}>
-                        {transaction.type === 'UTILISATION' ? '-' : '+'}{formatCurrency(transaction.montant)}
+                      <p className={`text-sm font-bold ${cfg.amountColor}`}>
+                        {cfg.sign}{formatCurrency(tx.montant)}
                       </p>
                     </div>
-                  ))}
-                </div>
+                  );
+                })
               )}
             </div>
           )}
 
+          {/* ── Ventes ── */}
           {activeTab === 'ventes' && (
-            <div className="space-y-3">
+            <div>
               {credit.ventes.length === 0 ? (
-                <div className="text-center py-12">
-                  <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-                    </svg>
+                <div className="flex flex-col items-center justify-center py-16 text-slate-400">
+                  <div className="w-14 h-14 bg-slate-100 rounded-full flex items-center justify-center mb-3">
+                    <ShoppingCart size={24} />
                   </div>
-                  <p className="text-gray-500">Aucun achat</p>
+                  <p className="text-sm font-medium">Aucun achat enregistré</p>
                 </div>
               ) : (
-                <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
+                <div className="rounded-xl border border-slate-100 overflow-hidden">
+                  <table className="w-full">
+                    <thead className="bg-slate-50">
                       <tr>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Produit</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quantité</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Prix unitaire</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                      </tr>   
+                        {['Produit', 'Qté', 'Prix unitaire', 'Total', 'Date'].map(h => (
+                          <th key={h} className="px-4 py-3 text-left text-[10px] font-semibold text-slate-400 uppercase tracking-wider">{h}</th>
+                        ))}
+                      </tr>
                     </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {credit.ventes.map((vente) => (
-                        <tr key={vente.id}>
+                    <tbody className="divide-y divide-slate-50">
+                      {credit.ventes.map(vente => (
+                        <tr key={vente.id} className="hover:bg-slate-50/60 transition-colors">
                           <td className="px-4 py-3">
-                            <p className="font-medium text-gray-900">{vente.produit.nom}</p>
+                            <p className="text-sm font-medium text-slate-800">{vente.produit.nom}</p>
                             {vente.produit.description && (
-                              <p className="text-sm text-gray-500">{vente.produit.description}</p>
+                              <p className="text-xs text-slate-400">{vente.produit.description}</p>
                             )}
                           </td>
-                          <td className="px-4 py-3 text-gray-900">{vente.quantite}</td>
-                          <td className="px-4 py-3 text-gray-900">{formatCurrency(vente.prixUnitaire)}</td>
-                          <td className="px-4 py-3 font-medium text-gray-900">
+                          <td className="px-4 py-3 text-sm font-semibold text-slate-700">{vente.quantite}</td>
+                          <td className="px-4 py-3 text-sm text-slate-600">{formatCurrency(vente.prixUnitaire)}</td>
+                          <td className="px-4 py-3 text-sm font-bold text-slate-800">
                             {formatCurrency(Number(vente.prixUnitaire) * vente.quantite)}
                           </td>
-                          <td className="px-4 py-3 text-sm text-gray-500">{formatDate(vente.createdAt)}</td>
+                          <td className="px-4 py-3 text-xs text-slate-400">{formatDate(vente.createdAt)}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -359,6 +332,16 @@ export default function CreditAlimentaireDetails({ credit, onClose, onEdit }: Cr
               )}
             </div>
           )}
+        </div>
+
+        {/* Footer */}
+        <div className="px-6 py-4 border-t border-slate-100 flex justify-end flex-shrink-0">
+          <button
+            onClick={onClose}
+            className="px-6 py-2.5 bg-slate-800 hover:bg-slate-700 text-white text-sm font-semibold rounded-xl transition-colors"
+          >
+            Fermer
+          </button>
         </div>
       </div>
     </div>

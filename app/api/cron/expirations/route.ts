@@ -13,7 +13,7 @@ import { traiterExpirations } from "@/lib/expirationAuto";
  * - cron-job.org, easycron, etc.
  */
 export async function GET(req: Request) {
-  try {
+  try {    
     // Vérification de la clé secrète
     const { searchParams } = new URL(req.url);
     const secret = searchParams.get("secret") || req.headers.get("authorization")?.replace("Bearer ", "");
