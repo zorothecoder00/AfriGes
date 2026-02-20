@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import Link from "next/link";
 import SignOutButton from '@/components/SignOutButton';
+import NotificationBell from '@/components/NotificationBell';
 import { useApi, useMutation } from '@/hooks/useApi';
 import { formatCurrency } from '@/lib/format';
 
@@ -353,9 +354,7 @@ export default function UserDashboard() {
                 <History className="w-4 h-4" />
                 Transactions
               </Link>
-              <Link href="/dashboard/user/notifications" className="text-slate-600 hover:text-slate-800 px-2">
-                <span role="img" aria-label="notifications">&#x1F514;</span>
-              </Link>
+              <NotificationBell href="/dashboard/user/notifications" />
               <div className="w-10 h-10 rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 flex items-center justify-center text-white font-bold cursor-pointer hover:shadow-lg transition-shadow">U</div>
               <SignOutButton redirectTo="/auth/login?logout=success" className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50 rounded-lg transition-colors" />
             </div>

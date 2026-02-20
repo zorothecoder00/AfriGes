@@ -15,7 +15,7 @@ import { getComptableSession } from "@/lib/authComptable";
  *   - dateDebut, dateFin (ISO strings, défaut : 30 derniers jours)
  */
 
-type JournalType = "ENCAISSEMENT" | "DECAISSEMENT";
+type JournalType = "ENCAISSEMENT" | "DECAISSEMENT" | "ACTIVITE";
 type JournalCategory =
   | "VENTE"
   | "COTISATION"
@@ -121,6 +121,7 @@ export async function GET(req: Request) {
 
     const includeEnc = typeFilter === "TOUS" || typeFilter === "ENCAISSEMENT";
     const includeDec = typeFilter === "TOUS" || typeFilter === "DECAISSEMENT";
+    const includeAct = typeFilter === "TOUS" || typeFilter === "ACTIVITE";
 
     const matchCat = (cat: JournalCategory) => !catFilter || catFilter === cat;
 
@@ -129,8 +130,8 @@ export async function GET(req: Request) {
     const [ventes, cotisations, contributions, rembCredits, decaisCredits, appros, potsTontines] =
       await Promise.all([
 
-        // VENTE (encaissement)
-        includeEnc && matchCat("VENTE")
+        // VENTE (activité produits — consommation de crédits pré-financés)
+        includeAct && matchCat("VENTE")
           ? prisma.venteCreditAlimentaire.findMany({
               where: { createdAt: { gte: dateDebut, lte: dateFin } },
               select: {
@@ -268,7 +269,7 @@ export async function GET(req: Request) {
         id: `VENTE-${v.id}`,
         sourceId: v.id,
         date: v.createdAt,
-        type: "ENCAISSEMENT",
+        type: "ACTIVITE",
         categorie: "VENTE",
         libelle: `Vente ${v.produit.nom} ×${v.quantite}${who ? ` — ${who.prenom} ${who.nom}` : ""}`,
         montant: v.quantite * Number(v.prixUnitaire),
@@ -383,6 +384,9 @@ export async function GET(req: Request) {
     const totalDecaissements = filtered
       .filter((e) => e.type === "DECAISSEMENT")
       .reduce((s, e) => s + e.montant, 0);
+    const totalActivite = filtered
+      .filter((e) => e.type === "ACTIVITE")
+      .reduce((s, e) => s + e.montant, 0);
 
     // ── Pagination ────────────────────────────────────────────────────────
 
@@ -396,6 +400,7 @@ export async function GET(req: Request) {
       totaux: {
         encaissements: totalEncaissements,
         decaissements: totalDecaissements,
+        activite: totalActivite,
         net: totalEncaissements - totalDecaissements,
       },
       meta: {

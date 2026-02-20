@@ -27,7 +27,7 @@ export async function GET(req: Request) {
       userId: parseInt(session?.user.id),
       ...(lue !== null && { lue: lue === "true" }),
     },
-    orderBy: { createdAt: "desc" },
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     skip: (page - 1) * limit,
     take: limit,
   });

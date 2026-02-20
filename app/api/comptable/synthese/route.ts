@@ -184,27 +184,35 @@ export async function GET(req: Request) {
 
     // ── Totaux ────────────────────────────────────────────────────────────────
 
-    const encaisVentes       = Number(ventesTotaux[0].total);
+    // Ventes via crédit alimentaire : flux opérationnel (pas de cash réel reçu)
+    const ventesVolume       = Number(ventesTotaux[0].total);
+    const ventesCount        = Number(ventesTotaux[0].cnt);
+
+    // Encaissements réels (cash entrant)
     const encaisCotisations  = Number(cotisationsTotaux[0].total);
     const encaisContribs     = Number(contribsTotaux[0].total);
     const encaisRemb         = Number(rembCredits[0].total);
-    const totalEncaissements = encaisVentes + encaisCotisations + encaisContribs + encaisRemb;
+    const totalEncaissements = encaisCotisations + encaisContribs + encaisRemb;
 
-    const decaisAppro  = Number(approTotaux[0].total);
-    const decaisCredits = Number(creditsDecaisses[0].total);
-    const decaisPots   = Number(potsTontines[0].total);
+    const decaisAppro        = Number(approTotaux[0].total);
+    const decaisCredits      = Number(creditsDecaisses[0].total);
+    const decaisPots         = Number(potsTontines[0].total);
     const totalDecaissements = decaisAppro + decaisCredits + decaisPots;
 
     return NextResponse.json({
       success: true,
       data: {
         periode: { debut: since.toISOString(), fin: now.toISOString(), jours: period },
+        // Encaissements = cash réellement reçu (cotisations, contributions, remboursements)
         encaissements: {
-          ventes:                  { montant: encaisVentes,      count: Number(ventesTotaux[0].cnt) },
-          cotisations:             { montant: encaisCotisations, count: Number(cotisationsTotaux[0].cnt) },
-          contributions_tontines:  { montant: encaisContribs,    count: Number(contribsTotaux[0].cnt) },
-          remboursements_credits:  { montant: encaisRemb },
+          cotisations:            { montant: encaisCotisations, count: Number(cotisationsTotaux[0].cnt) },
+          contributions_tontines: { montant: encaisContribs,    count: Number(contribsTotaux[0].cnt) },
+          remboursements_credits: { montant: encaisRemb },
           total: totalEncaissements,
+        },
+        // Activité produits = ventes via crédit alim (consommation de crédits pré-financés)
+        activiteProduits: {
+          ventes: { montant: ventesVolume, count: ventesCount },
         },
         decaissements: {
           approvisionnements: { montant: decaisAppro,   count: Number(approTotaux[0].cnt) },

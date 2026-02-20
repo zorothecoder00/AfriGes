@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import SignOutButton from '@/components/SignOutButton';
+import NotificationBell from '@/components/NotificationBell';
 import { useApi, useMutation } from '@/hooks/useApi';
 import { formatCurrency, formatDate, formatDateTime } from '@/lib/format';
 import { getStatusStyle, getStatusLabel } from '@/lib/status';
@@ -209,9 +210,7 @@ export default function RevendeurPage() {
               </h1>
             </div>
             <div className="flex items-center gap-3">
-              <Link href="/dashboard/user/notifications" className="text-slate-600 hover:text-slate-800 px-2">
-                <span role="img" aria-label="notifications">&#x1F514;</span>
-              </Link>
+              <NotificationBell href="/dashboard/user/notifications" />
               <div className="w-9 h-9 rounded-full bg-gradient-to-r from-rose-500 to-pink-500 flex items-center justify-center text-white font-bold text-sm">R</div>
               <SignOutButton redirectTo="/auth/login?logout=success" className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50 rounded-lg transition-colors" />
             </div>

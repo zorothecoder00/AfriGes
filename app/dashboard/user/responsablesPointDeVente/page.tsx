@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import SignOutButton from "@/components/SignOutButton";
+import NotificationBell from "@/components/NotificationBell";
 import { useApi, useMutation } from "@/hooks/useApi";
 import { formatCurrency, formatDate, formatDateTime } from "@/lib/format";
 
@@ -801,6 +802,7 @@ export default function ResponsablePDVPage() {
                   <Plus size={15} />Planifier livraison
                 </button>
               )}
+              <NotificationBell href="/dashboard/user/notifications" />
               <SignOutButton redirectTo="/auth/login?logout=success" className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50 rounded-lg transition-colors" />
             </div>
           </div>

@@ -16,6 +16,7 @@ interface CotisationPayee {
 interface TontinePotRecu {
   cycleId: number;
   clientId: number | null;
+  memberId?: number | null;
   montantPot: Prisma.Decimal;
 }
 
@@ -102,12 +103,13 @@ export async function genererCreditAlimentaireDepuisTontine(
   tx: PrismaTx,
   pot: TontinePotRecu
 ) {
-  if (!pot.clientId) return null;
+  // Le bénéficiaire doit être identifié par clientId OU memberId
+  if (!pot.clientId && !pot.memberId) return null;
 
   // Vérifier qu'il n'existe pas déjà un crédit actif pour ce cycle
   const creditExistant = await tx.creditAlimentaire.findFirst({
     where: {
-      clientId: pot.clientId,
+      ...(pot.clientId ? { clientId: pot.clientId } : { memberId: pot.memberId! }),
       source: SourceCreditAlim.TONTINE,
       sourceId: pot.cycleId,
       statut: StatutCreditAlim.ACTIF,
@@ -121,7 +123,7 @@ export async function genererCreditAlimentaireDepuisTontine(
 
   const credit = await tx.creditAlimentaire.create({
     data: {
-      clientId: pot.clientId,
+      ...(pot.clientId ? { clientId: pot.clientId } : { memberId: pot.memberId! }),
       plafond: pot.montantPot,
       montantUtilise: 0,
       montantRestant: pot.montantPot,
@@ -137,19 +139,28 @@ export async function genererCreditAlimentaireDepuisTontine(
     select: { id: true },
   });
 
-  const client = await tx.client.findUnique({
-    where: { id: pot.clientId },
-    select: { nom: true, prenom: true },
-  });
-
-  const clientNom = client ? `${client.prenom} ${client.nom}` : "Client";
+  // Récupérer le nom du bénéficiaire (client ou membre)
+  let benefNom = "Bénéficiaire";
+  if (pot.clientId) {
+    const client = await tx.client.findUnique({
+      where: { id: pot.clientId },
+      select: { nom: true, prenom: true },
+    });
+    if (client) benefNom = `${client.prenom} ${client.nom}`;
+  } else if (pot.memberId) {
+    const member = await tx.user.findUnique({
+      where: { id: pot.memberId! },
+      select: { nom: true, prenom: true },
+    });
+    if (member) benefNom = `${member.prenom ?? ""} ${member.nom ?? ""}`.trim();
+  }
 
   if (admins.length > 0) {
     await tx.notification.createMany({
       data: admins.map((admin) => ({
         userId: admin.id,
         titre: "Credit alimentaire auto-genere (Tontine)",
-        message: `Un credit alimentaire de ${pot.montantPot} FCFA a ete genere pour ${clientNom} suite a la reception du pot tontine (cycle #${pot.cycleId}).`,
+        message: `Un credit alimentaire de ${pot.montantPot} FCFA a ete genere pour ${benefNom} suite a la reception du pot tontine (cycle #${pot.cycleId}).`,
         priorite: PrioriteNotification.NORMAL,
         actionUrl: `/dashboard/admin/creditsAlimentaires/${credit.id}`,
       })),

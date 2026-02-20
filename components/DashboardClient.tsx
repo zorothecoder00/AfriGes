@@ -6,6 +6,7 @@ import {
   ShoppingCart, Package, MoreVertical, Download, Plus, ChevronDown,
 } from 'lucide-react';
 import Link from "next/link";
+import NotificationBell from '@/components/NotificationBell';
 import SignOutButton from '@/components/SignOutButton';
 import { useApi } from '@/hooks/useApi';
 import { formatCurrency, formatNumber } from '@/lib/format';
@@ -214,7 +215,7 @@ export default function AfriGesDashboard() {
             <h1 className="text-xl font-bold text-slate-800">AfriGes</h1>
           </div>
           <div className="flex items-center gap-4">
-            <Link href="/dashboard/admin/notifications" className="text-slate-600 hover:text-slate-800">🔔</Link>
+            <NotificationBell href="/dashboard/admin/notifications" />
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 bg-slate-200 rounded-full" />
               <span className="text-sm font-medium text-slate-700">Admin</span>

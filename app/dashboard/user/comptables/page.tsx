@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import SignOutButton from "@/components/SignOutButton";
+import NotificationBell from "@/components/NotificationBell";
 import { useApi } from "@/hooks/useApi";
 import { formatCurrency, formatDateShort, formatDateTime } from "@/lib/format";
 
@@ -22,11 +23,13 @@ interface SyntheseResponse {
   data: {
     periode: { debut: string; fin: string; jours: number };
     encaissements: {
-      ventes:                 { montant: number; count: number };
       cotisations:            { montant: number; count: number };
       contributions_tontines: { montant: number; count: number };
       remboursements_credits: { montant: number };
       total: number;
+    };
+    activiteProduits: {
+      ventes: { montant: number; count: number };
     };
     decaissements: {
       approvisionnements: { montant: number; count: number };
@@ -50,7 +53,7 @@ interface JournalEntry {
   id: string;
   sourceId: number;
   date: string;
-  type: "ENCAISSEMENT" | "DECAISSEMENT";
+  type: "ENCAISSEMENT" | "DECAISSEMENT" | "ACTIVITE";
   categorie: string;
   libelle: string;
   montant: number;
@@ -60,7 +63,7 @@ interface JournalEntry {
 interface JournalResponse {
   success: boolean;
   data: JournalEntry[];
-  totaux: { encaissements: number; decaissements: number; net: number };
+  totaux: { encaissements: number; decaissements: number; activite: number; net: number };
   meta: { total: number; page: number; limit: number; totalPages: number; dateDebut: string; dateFin: string };
 }
 
@@ -288,6 +291,7 @@ export default function ComptablePage() {
   }
 
   const enc = sd?.encaissements;
+  const act = sd?.activiteProduits;
   const dec = sd?.decaissements;
   const snap = sd?.snapshot;
 
@@ -340,7 +344,7 @@ export default function ComptablePage() {
             <button className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-slate-700 hover:bg-slate-50 transition-all shadow-sm text-sm font-medium">
               <Download size={16} />Exporter
             </button>
-            <Link href="/dashboard/user/notifications" className="p-2 text-slate-500 hover:bg-slate-100 rounded-lg">🔔</Link>
+            <NotificationBell href="/dashboard/user/notifications" />
             <SignOutButton redirectTo="/auth/login?logout=success" className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50 rounded-lg transition-colors" />
           </div>
         </div>
@@ -361,7 +365,7 @@ export default function ComptablePage() {
           <KpiCard
             label="Total Encaissements"
             value={enc ? formatCurrency(enc.total) : "…"}
-            sub={`${(enc?.ventes.count ?? 0) + (enc?.cotisations.count ?? 0)} opérations`}
+            sub={`${enc?.cotisations.count ?? 0} cotisations · ${enc?.contributions_tontines.count ?? 0} contributions`}
             icon={TrendingUp} color="text-emerald-600" bg="bg-emerald-50" trend="up"
           />
           <KpiCard
@@ -478,7 +482,7 @@ export default function ComptablePage() {
             </div>
 
             {/* Breakdowns */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
 
               {/* Encaissements */}
               <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/60">
@@ -486,12 +490,30 @@ export default function ComptablePage() {
                   <div className="w-2 h-2 rounded-full bg-emerald-500" />
                   <h3 className="font-bold text-slate-800">Détail Encaissements</h3>
                 </div>
+                <p className="text-xs text-slate-400 mb-2">Cash réellement reçu</p>
                 <p className="text-2xl font-bold text-emerald-600 mb-5">{formatCurrency(enc?.total ?? 0)}</p>
                 <div className="space-y-1 divide-y divide-slate-100">
-                  <BarBreakdown label={`Ventes (${enc?.ventes.count ?? 0})`}         montant={enc?.ventes.montant ?? 0}                 total={enc?.total ?? 1} color="bg-emerald-500" />
                   <BarBreakdown label={`Cotisations (${enc?.cotisations.count ?? 0})`} montant={enc?.cotisations.montant ?? 0}             total={enc?.total ?? 1} color="bg-blue-500" />
                   <BarBreakdown label={`Contributions tontines (${enc?.contributions_tontines.count ?? 0})`} montant={enc?.contributions_tontines.montant ?? 0} total={enc?.total ?? 1} color="bg-violet-500" />
                   <BarBreakdown label="Remboursements crédits"                          montant={enc?.remboursements_credits.montant ?? 0} total={enc?.total ?? 1} color="bg-teal-500" />
+                </div>
+              </div>
+
+              {/* Activité Produits */}
+              <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/60">
+                <div className="flex items-center gap-2 mb-1">
+                  <div className="w-2 h-2 rounded-full bg-blue-500" />
+                  <h3 className="font-bold text-slate-800">Activité Produits</h3>
+                </div>
+                <p className="text-xs text-slate-400 mb-2">Consommation de crédits pré-financés</p>
+                <p className="text-2xl font-bold text-blue-600 mb-5">{formatCurrency(act?.ventes.montant ?? 0)}</p>
+                <div className="space-y-1 divide-y divide-slate-100">
+                  <BarBreakdown label={`Ventes crédit alim. (${act?.ventes.count ?? 0})`} montant={act?.ventes.montant ?? 0} total={act?.ventes.montant ?? 1} color="bg-blue-500" />
+                </div>
+                <div className="mt-4 p-3 bg-blue-50 rounded-xl border border-blue-200">
+                  <p className="text-xs text-blue-700 leading-relaxed">
+                    Ces ventes consomment des crédits pré-financés par les cotisations. Elles ne représentent pas un nouvel encaissement de trésorerie.
+                  </p>
                 </div>
               </div>
 
@@ -571,6 +593,7 @@ export default function ComptablePage() {
                   <option value="TOUS">Tous les types</option>
                   <option value="ENCAISSEMENT">Encaissements</option>
                   <option value="DECAISSEMENT">Décaissements</option>
+                  <option value="ACTIVITE">Activité produits</option>
                 </select>
 
                 {/* Catégorie */}
@@ -603,12 +626,19 @@ export default function ComptablePage() {
 
             {/* Totaux du filtre */}
             {journalData && (
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 <div className="bg-emerald-50 rounded-xl p-4 border border-emerald-200 flex items-center gap-3">
                   <ArrowUpRight className="w-5 h-5 text-emerald-600 flex-shrink-0" />
                   <div>
                     <p className="text-xs text-emerald-700 font-medium">Encaissements filtrés</p>
                     <p className="text-lg font-bold text-emerald-700">{formatCurrency(journalData.totaux.encaissements)}</p>
+                  </div>
+                </div>
+                <div className="bg-blue-50 rounded-xl p-4 border border-blue-200 flex items-center gap-3">
+                  <ShoppingCart className="w-5 h-5 text-blue-600 flex-shrink-0" />
+                  <div>
+                    <p className="text-xs text-blue-700 font-medium">Activité produits filtrée</p>
+                    <p className="text-lg font-bold text-blue-700">{formatCurrency(journalData.totaux.activite ?? 0)}</p>
                   </div>
                 </div>
                 <div className="bg-red-50 rounded-xl p-4 border border-red-200 flex items-center gap-3">
@@ -669,14 +699,20 @@ export default function ComptablePage() {
                             </td>
                             <td className="px-5 py-3">
                               <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold ${
-                                entry.type === "ENCAISSEMENT" ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"
+                                entry.type === "ENCAISSEMENT" ? "bg-emerald-100 text-emerald-700"
+                                  : entry.type === "ACTIVITE" ? "bg-blue-100 text-blue-700"
+                                  : "bg-red-100 text-red-700"
                               }`}>
-                                {entry.type === "ENCAISSEMENT" ? <ArrowUpRight size={11} /> : <ArrowDownRight size={11} />}
-                                {entry.type === "ENCAISSEMENT" ? "Encaiss." : "Décaiss."}
+                                {entry.type === "ENCAISSEMENT" ? <ArrowUpRight size={11} /> : entry.type === "ACTIVITE" ? <ShoppingCart size={11} /> : <ArrowDownRight size={11} />}
+                                {entry.type === "ENCAISSEMENT" ? "Encaiss." : entry.type === "ACTIVITE" ? "Activité" : "Décaiss."}
                               </span>
                             </td>
-                            <td className={`px-5 py-3 text-right font-bold ${entry.type === "ENCAISSEMENT" ? "text-emerald-600" : "text-red-600"}`}>
-                              {entry.type === "ENCAISSEMENT" ? "+" : "-"}{formatCurrency(entry.montant)}
+                            <td className={`px-5 py-3 text-right font-bold ${
+                              entry.type === "ENCAISSEMENT" ? "text-emerald-600"
+                                : entry.type === "ACTIVITE" ? "text-blue-600"
+                                : "text-red-600"
+                            }`}>
+                              {entry.type === "ENCAISSEMENT" ? "+" : entry.type === "ACTIVITE" ? "~" : "-"}{formatCurrency(entry.montant)}
                             </td>
                           </tr>
                         );
@@ -729,10 +765,10 @@ export default function ComptablePage() {
                   </div>
                 </div>
                 <div className="text-xs text-emerald-100 space-y-0.5">
-                  <p>Ventes : {formatCurrency(enc?.ventes.montant ?? 0)}</p>
                   <p>Cotisations : {formatCurrency(enc?.cotisations.montant ?? 0)}</p>
                   <p>Contributions : {formatCurrency(enc?.contributions_tontines.montant ?? 0)}</p>
                   <p>Remboursements : {formatCurrency(enc?.remboursements_credits.montant ?? 0)}</p>
+                  <p className="mt-1 opacity-70">+ Activité produits : {formatCurrency(act?.ventes.montant ?? 0)}</p>
                 </div>
               </div>
 
@@ -773,7 +809,6 @@ export default function ComptablePage() {
                   <ArrowUpRight size={20} className="text-emerald-600" />Encaissements par source
                 </h3>
                 {[
-                  { label: `Ventes crédit alimentaire (${enc?.ventes.count ?? 0})`,             montant: enc?.ventes.montant ?? 0,                 icon: ShoppingCart, color: "bg-emerald-500", text: "text-emerald-600" },
                   { label: `Cotisations payées (${enc?.cotisations.count ?? 0})`,                montant: enc?.cotisations.montant ?? 0,             icon: Calendar,     color: "bg-blue-500",   text: "text-blue-600" },
                   { label: `Contributions tontines (${enc?.contributions_tontines.count ?? 0})`, montant: enc?.contributions_tontines.montant ?? 0,  icon: Coins,        color: "bg-violet-500", text: "text-violet-600" },
                   { label: "Remboursements crédits",                                              montant: enc?.remboursements_credits.montant ?? 0, icon: TrendingUp,   color: "bg-teal-500",   text: "text-teal-600" },

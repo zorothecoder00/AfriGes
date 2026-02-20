@@ -101,7 +101,10 @@ export async function PATCH(req: Request, { params }: RouteParams) {
           where: { id: contribution.cycleId },
           include: {
             beneficiaire: {
-              include: { client: { select: { id: true, nom: true, prenom: true } } },
+              include: {
+                client: { select: { id: true, nom: true, prenom: true } },
+                member: { select: { id: true, nom: true, prenom: true } },
+              },
             },
           },
         });
@@ -110,6 +113,7 @@ export async function PATCH(req: Request, { params }: RouteParams) {
           const credit = await genererCreditAlimentaireDepuisTontine(tx, {
             cycleId: contribution.cycleId,
             clientId: cycle.beneficiaire.clientId,
+            memberId: cycle.beneficiaire.memberId,
             montantPot: cycle.montantPot,
           });
           creditAlimentaireGenere = credit !== null;

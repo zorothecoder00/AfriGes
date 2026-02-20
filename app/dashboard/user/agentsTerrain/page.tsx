@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import SignOutButton from '@/components/SignOutButton';
+import NotificationBell from '@/components/NotificationBell';
 import { useApi, useMutation } from '@/hooks/useApi';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { getStatusStyle, getStatusLabel } from '@/lib/status';
@@ -326,9 +327,7 @@ export default function AgentTerrainPage() {
               </h1>
             </div>
             <div className="flex items-center gap-3">
-              <Link href="/dashboard/user/notifications" className="p-2 hover:bg-slate-100 rounded-lg text-slate-600">
-                <AlertCircle className="w-5 h-5" />
-              </Link>
+              <NotificationBell href="/dashboard/user/notifications" />
               <div className="w-9 h-9 rounded-full bg-gradient-to-r from-teal-500 to-emerald-500 flex items-center justify-center text-white font-bold text-sm">A</div>
               <SignOutButton redirectTo="/auth/login?logout=success" className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50 rounded-lg transition-colors" />
             </div>
