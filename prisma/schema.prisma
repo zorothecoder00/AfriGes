@@ -11,11 +11,11 @@ generator client {
 datasource db {                              
   provider = "postgresql"              
 }                           
-                
+                  
 enum Role {         
   SUPER_ADMIN                  
-  ADMIN              
-  USER                       
+  ADMIN                 
+  USER                      
 }    
    
 model User {
@@ -116,6 +116,7 @@ model Gestionnaire {
   actif               Boolean           @default(true)
 
   member              User              @relation(fields: [memberId], references: [id])
+  assemblees          AssembleeParticipant[]
 
   createdAt           DateTime          @default(now())
   updatedAt           DateTime          @updatedAt
@@ -576,4 +577,126 @@ enum PrioriteNotification {
   HAUTE        // Orange - Important
   NORMAL       // Gris - Standard
   BASSE        // Bleu - Info
-}  
+}
+
+// ── Actionnaires ──────────────────────────────────────────────────────────────
+
+enum StatutDividende {
+  PLANIFIE
+  EN_COURS
+  VERSE
+  ANNULE
+}
+
+model Dividende {
+  id              Int             @id @default(autoincrement())
+  periode         String          // "T1 2026", "Annuel 2025"
+  montantTotal    Decimal
+  montantParPart  Decimal?
+  dateVersement   DateTime?
+  statut          StatutDividende @default(PLANIFIE)
+  notes           String?
+
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+}
+
+enum TypeAssemblee {
+  AGO  // Assemblée Générale Ordinaire
+  AGE  // Assemblée Générale Extraordinaire
+  CS   // Comité Stratégique
+  CA   // Conseil d'Administration
+}
+
+enum StatutAssemblee {
+  PLANIFIEE
+  EN_COURS
+  TERMINEE
+  ANNULEE
+}
+
+enum StatutParticipation {
+  INVITE
+  CONFIRME
+  ABSENT
+  PRESENT
+}
+
+enum StatutResolution {
+  EN_ATTENTE
+  APPROUVEE
+  REJETEE
+}
+
+enum DecisionVote {
+  POUR
+  CONTRE
+  ABSTENTION
+}
+
+model Assemblee {
+  id              Int                   @id @default(autoincrement())
+  titre           String
+  description     String?
+  type            TypeAssemblee
+  statut          StatutAssemblee       @default(PLANIFIEE)
+  dateAssemblee   DateTime
+  lieu            String
+  ordreJour       String?
+  notes           String?
+
+  participants    AssembleeParticipant[]
+  resolutions     ResolutionAssemblee[]
+
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+}
+
+model AssembleeParticipant {
+  id                   Int                  @id @default(autoincrement())
+  assembleeId          Int
+  gestionnaireId       Int
+  statut               StatutParticipation  @default(INVITE)
+  dateConfirmation     DateTime?
+
+  assemblee            Assemblee            @relation(fields: [assembleeId], references: [id], onDelete: Cascade)
+  gestionnaire         Gestionnaire         @relation(fields: [gestionnaireId], references: [id])
+  votes                VoteAssemblee[]
+
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime             @updatedAt
+
+  @@unique([assembleeId, gestionnaireId])
+}
+
+model ResolutionAssemblee {
+  id              Int                  @id @default(autoincrement())
+  assembleeId     Int
+  numero          Int
+  titre           String
+  description     String?
+  statut          StatutResolution     @default(EN_ATTENTE)
+
+  assemblee       Assemblee            @relation(fields: [assembleeId], references: [id], onDelete: Cascade)
+  votes           VoteAssemblee[]
+
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+
+  @@unique([assembleeId, numero])
+}
+
+model VoteAssemblee {
+  id              Int                   @id @default(autoincrement())
+  resolutionId    Int
+  participantId   Int
+  decision        DecisionVote
+  commentaire     String?
+
+  resolution      ResolutionAssemblee   @relation(fields: [resolutionId], references: [id], onDelete: Cascade)
+  participant     AssembleeParticipant  @relation(fields: [participantId], references: [id], onDelete: Cascade)
+
+  createdAt       DateTime              @default(now())
+
+  @@unique([resolutionId, participantId])
+}
