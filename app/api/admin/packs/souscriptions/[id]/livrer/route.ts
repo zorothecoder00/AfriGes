@@ -1,0 +1,219 @@
+import { NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { getAuthSession } from "@/lib/auth";
+import { notifyAdmins } from "@/lib/notifications";
+
+type Ctx = { params: Promise<{ id: string }> };
+
+/**
+ * GET  — Détail d'une souscription (versements + échéances + réceptions).
+ * POST — Planifie ou valide la livraison des produits pour une souscription.
+ *   action: "planifier" → crée ReceptionProduitPack PLANIFIEE
+ *   action: "livrer"    → marque une réception comme LIVREE + décrémente stock
+ */
+export async function GET(_req: Request, { params }: Ctx) {
+  try {
+    const session = await getAuthSession();
+    if (!session || !["ADMIN", "SUPER_ADMIN"].includes(session.user.role ?? "")) {
+      return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
+    }
+
+    const { id } = await params;
+    const souscription = await prisma.souscriptionPack.findUnique({
+      where: { id: parseInt(id) },
+      include: {
+        pack: true,
+        user: { select: { id: true, nom: true, prenom: true, telephone: true } },
+        client: { select: { id: true, nom: true, prenom: true, telephone: true } },
+        versements: { orderBy: { datePaiement: "desc" } },
+        echeances: { orderBy: { numero: "asc" } },
+        receptions: {
+          include: {
+            lignes: {
+              include: { produit: { select: { nom: true, prixUnitaire: true } } },
+            },
+          },
+        },
+      },
+    });
+
+    if (!souscription) {
+      return NextResponse.json({ error: "Souscription introuvable" }, { status: 404 });
+    }
+
+    return NextResponse.json(souscription);
+  } catch (error) {
+    console.error("GET /api/admin/packs/souscriptions/[id]/livrer", error);
+    return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
+  }
+}
+
+export async function POST(req: Request, { params }: Ctx) {
+  try {
+    const session = await getAuthSession();
+    if (!session || !["ADMIN", "SUPER_ADMIN"].includes(session.user.role ?? "")) {
+      return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
+    }
+
+    const { id } = await params;
+    const souscriptionId = parseInt(id);
+    const body = await req.json();
+    const { action, lignes, datePrevisionnelle, livreurNom, notes, receptionId } = body;
+
+    const souscription = await prisma.souscriptionPack.findUnique({
+      where: { id: souscriptionId },
+      include: { pack: true },
+    });
+
+    if (!souscription) {
+      return NextResponse.json({ error: "Souscription introuvable" }, { status: 404 });
+    }
+
+    const adminNom = `${session.user.prenom ?? ""} ${session.user.nom ?? ""}`.trim();
+
+    if (action === "planifier") {
+      if (!lignes || lignes.length === 0) {
+        return NextResponse.json({ error: "Au moins une ligne requise" }, { status: 400 });
+      }
+
+      const reception = await prisma.$transaction(async (tx) => {
+        const rec = await tx.receptionProduitPack.create({
+          data: {
+            souscriptionId,
+            statut: "PLANIFIEE",
+            datePrevisionnelle: datePrevisionnelle ? new Date(datePrevisionnelle) : new Date(),
+            livreurNom: livreurNom ?? adminNom,
+            notes,
+            lignes: {
+              create: lignes.map((l: { produitId: number; quantite: number; prixUnitaire: number }) => ({
+                produitId: l.produitId,
+                quantite: l.quantite,
+                prixUnitaire: l.prixUnitaire,
+              })),
+            },
+          },
+          include: { lignes: { include: { produit: { select: { nom: true } } } } },
+        });
+
+        await notifyAdmins(tx, {
+          titre: `Livraison planifiée — ${souscription.pack.nom}`,
+          message: `Une livraison pour la souscription #${souscriptionId} a été planifiée par ${adminNom}.`,
+          priorite: "NORMAL",
+          actionUrl: "/dashboard/admin/packs",
+        });
+
+        return rec;
+      });
+
+      return NextResponse.json(reception, { status: 201 });
+    }
+
+    if (action === "livrer") {
+      if (!receptionId) {
+        return NextResponse.json({ error: "receptionId requis" }, { status: 400 });
+      }
+
+      const reception = await prisma.$transaction(async (tx) => {
+        const rec = await tx.receptionProduitPack.findUnique({
+          where: { id: parseInt(receptionId) },
+          include: { lignes: true },
+        });
+
+        if (!rec || rec.souscriptionId !== souscriptionId) throw new Error("Réception introuvable");
+        if (rec.statut !== "PLANIFIEE") throw new Error(`Déjà ${rec.statut.toLowerCase()}`);
+
+        for (const ligne of rec.lignes) {
+          await tx.produit.update({
+            where: { id: ligne.produitId },
+            data: { stock: { decrement: ligne.quantite } },
+          });
+          await tx.mouvementStock.create({
+            data: {
+              produitId: ligne.produitId,
+              type: "SORTIE",
+              quantite: ligne.quantite,
+              motif: `Livraison Pack ${souscription.pack.nom} — Souscription #${souscriptionId}`,
+              reference: `PACK-${souscriptionId}-REC-${rec.id}-${Date.now()}`,
+            },
+          });
+        }
+
+        const updated = await tx.receptionProduitPack.update({
+          where: { id: rec.id },
+          data: { statut: "LIVREE", dateLivraison: new Date(), livreurNom: livreurNom ?? adminNom },
+        });
+
+        await notifyAdmins(tx, {
+          titre: `Produits livrés — ${souscription.pack.nom}`,
+          message: `La livraison pour la souscription #${souscriptionId} a été validée par ${adminNom}.`,
+          priorite: "HAUTE",
+          actionUrl: "/dashboard/admin/packs",
+        });
+
+        return updated;
+      });
+
+      return NextResponse.json(reception);
+    }
+
+    if (action === "vente_directe") {
+      if (!lignes || lignes.length === 0) {
+        return NextResponse.json({ error: "Au moins une ligne requise" }, { status: 400 });
+      }
+
+      const reception = await prisma.$transaction(async (tx) => {
+        const rec = await tx.receptionProduitPack.create({
+          data: {
+            souscriptionId,
+            statut: "LIVREE",
+            datePrevisionnelle: new Date(),
+            dateLivraison: new Date(),
+            livreurNom: adminNom,
+            notes,
+            lignes: {
+              create: lignes.map((l: { produitId: number; quantite: number; prixUnitaire: number }) => ({
+                produitId: l.produitId,
+                quantite: l.quantite,
+                prixUnitaire: l.prixUnitaire,
+              })),
+            },
+          },
+          include: { lignes: { include: { produit: { select: { nom: true } } } } },
+        });
+
+        for (const ligne of lignes as { produitId: number; quantite: number; prixUnitaire: number }[]) {
+          await tx.produit.update({
+            where: { id: ligne.produitId },
+            data: { stock: { decrement: ligne.quantite } },
+          });
+          await tx.mouvementStock.create({
+            data: {
+              produitId: ligne.produitId,
+              type: "SORTIE",
+              quantite: ligne.quantite,
+              motif: `Vente directe Pack ${souscription.pack.nom} — Souscription #${souscriptionId}`,
+              reference: `PACK-VD-${souscriptionId}-${Date.now()}`,
+            },
+          });
+        }
+
+        await notifyAdmins(tx, {
+          titre: `Vente directe — ${souscription.pack.nom}`,
+          message: `${adminNom} a enregistré une vente directe pour la souscription #${souscriptionId}.`,
+          priorite: "NORMAL",
+          actionUrl: "/dashboard/admin/ventes",
+        });
+
+        return rec;
+      });
+
+      return NextResponse.json(reception, { status: 201 });
+    }
+
+    return NextResponse.json({ error: "action invalide : 'planifier', 'livrer' ou 'vente_directe'" }, { status: 400 });
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : "Erreur serveur";
+    console.error("POST /api/admin/packs/souscriptions/[id]/livrer", error);
+    return NextResponse.json({ error: msg }, { status: 500 });
+  }
+}

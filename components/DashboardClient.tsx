@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
   TrendingUp, Users, UserCheck, Coins, CreditCard,
-  ShoppingCart, Package, MoreVertical, Download, Plus, ChevronDown,
+  ShoppingCart, Package, MoreVertical, Download, Plus, ChevronDown, Layers,
 } from 'lucide-react';
 import Link from "next/link";
 import NotificationBell from '@/components/NotificationBell';
@@ -245,7 +245,13 @@ export default function AfriGesDashboard() {
               </nav>
             </div>
             <div className="p-4 border-b border-slate-100">
-              <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Communauté</h3>
+              <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Packs &amp; Ventes</h3>
+              <nav className="space-y-1">
+                <Link href="/dashboard/admin/packs" className="w-full flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-50 rounded-xl transition-all"><Layers size={20} /><span>Packs clients</span></Link>
+              </nav>
+            </div>
+            <div className="p-4 border-b border-slate-100">
+              <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Historique</h3>
               <nav className="space-y-1">
                 <Link href="/dashboard/admin/tontines"           className="w-full flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-50 rounded-xl transition-all"><Coins size={20} /><span>Tontines</span></Link>
                 <Link href="/dashboard/admin/cotisations"        className="w-full flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-50 rounded-xl transition-all"><CreditCard size={20} /><span>Cotisations</span></Link>
@@ -291,10 +297,9 @@ export default function AfriGesDashboard() {
                 </button>
                 {showMenu && (
                   <div className="absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-slate-200 py-2 z-50">
-                    <Link href="/dashboard/admin/cotisations"        onClick={() => setShowMenu(false)} className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 transition-colors"><CreditCard size={18} className="text-blue-500" /><span className="text-sm font-medium text-slate-700">Enregistrer un paiement</span></Link>
-                    <Link href="/dashboard/admin/creditsAlimentaires" onClick={() => setShowMenu(false)} className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 transition-colors"><ShoppingCart size={18} className="text-purple-500" /><span className="text-sm font-medium text-slate-700">Nouveau crédit alimentaire</span></Link>
-                    <Link href="/dashboard/admin/ventes"             onClick={() => setShowMenu(false)} className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 transition-colors"><Package size={18} className="text-emerald-500" /><span className="text-sm font-medium text-slate-700">Nouvelle vente</span></Link>
-                    <Link href="/dashboard/admin/membres"            onClick={() => setShowMenu(false)} className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 transition-colors"><Users size={18} className="text-amber-500" /><span className="text-sm font-medium text-slate-700">Ajouter un membre</span></Link>
+                    <Link href="/dashboard/admin/packs"  onClick={() => setShowMenu(false)} className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 transition-colors"><Layers size={18} className="text-blue-500" /><span className="text-sm font-medium text-slate-700">Nouvelle souscription pack</span></Link>
+                    <Link href="/dashboard/admin/ventes" onClick={() => setShowMenu(false)} className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 transition-colors"><Package size={18} className="text-emerald-500" /><span className="text-sm font-medium text-slate-700">Nouvelle vente / livraison</span></Link>
+                    <Link href="/dashboard/admin/membres" onClick={() => setShowMenu(false)} className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 transition-colors"><Users size={18} className="text-amber-500" /><span className="text-sm font-medium text-slate-700">Ajouter un membre</span></Link>
                   </div>
                 )}
               </div>

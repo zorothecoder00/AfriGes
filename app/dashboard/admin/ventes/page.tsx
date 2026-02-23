@@ -3,234 +3,210 @@
 import React, { useState, useEffect } from 'react';
 import {
   Plus, Search, Download, ShoppingCart, TrendingUp, DollarSign,
-  Users, Calendar, Eye, MoreVertical, Package, ArrowLeft,
-  CheckCircle, XCircle, ChevronRight, AlertCircle,
+  Users, Calendar, CheckCircle, XCircle, ChevronRight, AlertCircle,
+  Layers, Truck, ArrowLeft, Package,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useApi, useMutation } from '@/hooks/useApi';
 import { formatCurrency, formatDateTime } from '@/lib/format';
 
-// ─── Types ───────────────────────────────────────────────────────────────────
+// ─── Types ────────────────────────────────────────────────────────────────────
 
-interface VenteCreditAlimentaire {
+interface LigneReception {
   id: number;
   quantite: number;
   prixUnitaire: string;
+  produit: { nom: string };
+}
+
+interface Reception {
+  id: number;
+  dateLivraison?: string;
+  livreurNom?: string;
   createdAt: string;
-  produit: {
+  souscription: {
     id: number;
-    nom: string;
-    prixUnitaire: string;
+    pack: { nom: string; type: string };
+    client?: { nom: string; prenom: string; telephone: string };
+    user?:   { nom: string; prenom: string };
   };
-  creditAlimentaire: {
-    id: number;
-    member: {
-      id: number;
-      nom: string;
-      prenom: string;
-      email: string;
-    } | null;
-    client: {
-      id: number;
-      nom: string;
-      prenom: string;
-      telephone: string;
-    } | null;
-  };
+  lignes: LigneReception[];
 }
 
-interface VentesResponse {
-  data: VenteCreditAlimentaire[];
-  stats: {
-    totalVentes: number;
-    montantTotal: number | string;
-    clientsActifs: number;
-  };
-  meta: {
-    total: number;
-    page: number;
-    limit: number;
-    totalPages: number;
-  };
+interface ReceptionsResponse {
+  receptions: Reception[];
+  meta: { total: number; page: number; limit: number; totalPages: number };
+  stats: { totalLivraisons: number; montantTotal: number; clientsActifs: number; ceMois: number };
 }
 
-interface ClientOption {
+interface ClientOption { id: number; nom: string; prenom: string; telephone: string; }
+
+interface SouscriptionActive {
   id: number;
-  nom: string;
-  prenom: string;
-  telephone: string;
-}
-
-interface ClientsListResponse {
-  data: ClientOption[];
-}
-
-interface ActiveCreditOption {
-  id: number;
-  plafond: string;
-  montantRestant: string;
-  montantUtilise: string;
+  pack: { nom: string; type: string };
   statut: string;
-  source: string; // "COTISATION" | "TONTINE"
-  dateExpiration: string | null;
+  montantTotal: number; montantVerse: number; montantRestant: number;
+  formuleRevendeur?: string;
 }
 
-interface EligibiliteResponse {
+interface EligibilitePackResponse {
   eligible: boolean;
-  credits: ActiveCreditOption[];
+  souscriptions: SouscriptionActive[];
   client: ClientOption;
-  hasCotisationPayee: boolean;
-  hasActiveTontine: boolean;
   raisons: string[];
 }
 
-interface ProduitOption {
-  id: number;
-  nom: string;
-  prixUnitaire: string;
-  stock: number;
+interface ProduitOption { id: number; nom: string; prixUnitaire: string; stock: number; }
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+const PACK_LABELS: Record<string, string> = {
+  ALIMENTAIRE: 'Alimentaire', REVENDEUR: 'Revendeur', FAMILIAL: 'Familial',
+  URGENCE: 'Urgence', EPARGNE_PRODUIT: 'Épargne-Produit', FIDELITE: 'Fidélité',
+};
+
+const PACK_BADGE: Record<string, string> = {
+  ALIMENTAIRE: 'bg-green-100 text-green-800', REVENDEUR: 'bg-blue-100 text-blue-800',
+  FAMILIAL: 'bg-purple-100 text-purple-800', URGENCE: 'bg-red-100 text-red-800',
+  EPARGNE_PRODUIT: 'bg-amber-100 text-amber-800', FIDELITE: 'bg-pink-100 text-pink-800',
+};
+
+function clientNom(r: Reception) {
+  const c = r.souscription.client;
+  const u = r.souscription.user;
+  return c ? `${c.prenom} ${c.nom}` : u ? `${u.prenom} ${u.nom}` : '—';
+}
+function clientTel(r: Reception) {
+  return r.souscription.client?.telephone ?? '—';
+}
+function initials(nom: string, prenom: string) {
+  return `${(prenom?.[0] ?? '').toUpperCase()}${(nom?.[0] ?? '').toUpperCase()}`;
 }
 
-interface ProduitsListResponse {
-  data: ProduitOption[];
-}
-
-// ─── Page ────────────────────────────────────────────────────────────────────
+// ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function VentesPage() {
-  // Pagination / search
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery]       = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [page, setPage] = useState(1);
-  const limit = 10;
+  const limit = 20;
 
   useEffect(() => {
-    const timer = setTimeout(() => setDebouncedSearch(searchQuery), 400);
-    return () => clearTimeout(timer);
+    const t = setTimeout(() => setDebouncedSearch(searchQuery), 400);
+    return () => clearTimeout(t);
   }, [searchQuery]);
 
-  // Modal state
-  const [modalOpen, setModalOpen] = useState(false);
-  const [step, setStep] = useState<1 | 2>(1);
-  const [formData, setFormData] = useState({ creditAlimentaireId: '', produitId: '', quantite: '1' });
+  // Modal
+  const [modalOpen, setModalOpen]   = useState(false);
+  const [step, setStep]             = useState<1 | 2>(1);
 
-  // Step 1 – client search
-  const [clientSearch, setClientSearch] = useState('');
+  // Step 1 – recherche client
+  const [clientSearch, setClientSearch]           = useState('');
   const [debouncedClientSearch, setDebouncedClientSearch] = useState('');
-  const [selectedClient, setSelectedClient] = useState<ClientOption | null>(null);
-  const [eligibilite, setEligibilite] = useState<EligibiliteResponse | null>(null);
+  const [selectedClient, setSelectedClient]       = useState<ClientOption | null>(null);
+  const [eligibilitePack, setEligibilitePack]     = useState<EligibilitePackResponse | null>(null);
   const [checkingEligibility, setCheckingEligibility] = useState(false);
-  const [eligibiliteError, setEligibiliteError] = useState<string | null>(null);
+  const [eligibiliteError, setEligibiliteError]   = useState<string | null>(null);
 
   useEffect(() => {
-    const timer = setTimeout(() => setDebouncedClientSearch(clientSearch), 400);
-    return () => clearTimeout(timer);
+    const t = setTimeout(() => setDebouncedClientSearch(clientSearch), 400);
+    return () => clearTimeout(t);
   }, [clientSearch]);
 
-  // ── Data fetching ──────────────────────────────────────────────────────────
+  // Step 2 – formulaire
+  const [formPack, setFormPack] = useState({ souscriptionId: '', produitId: '', quantite: '1' });
+
+  // ── Data ────────────────────────────────────────────────────────────────────
 
   const params = new URLSearchParams({ page: String(page), limit: String(limit) });
   if (debouncedSearch) params.set('search', debouncedSearch);
 
-  const { data: response, loading, error, refetch } = useApi<VentesResponse>(`/api/admin/ventes?${params}`);
-  const ventes = response?.data ?? [];
-  const stats = response?.stats;
-  const meta = response?.meta;
+  const { data: response, loading, error, refetch } = useApi<ReceptionsResponse>(
+    `/api/admin/packs/receptions?${params}`
+  );
+  const receptions = response?.receptions ?? [];
+  const stats      = response?.stats;
+  const meta       = response?.meta;
 
-  // Client search (step 1)
-  const { data: clientsResponse } = useApi<ClientsListResponse>(
+  const { data: clientsResponse } = useApi<{ data: ClientOption[] }>(
     modalOpen && step === 1 && debouncedClientSearch.length >= 2
       ? `/api/admin/clients?search=${encodeURIComponent(debouncedClientSearch)}&limit=6`
       : null
   );
   const clientsOptions = clientsResponse?.data ?? [];
 
-  // Products (step 2)
-  const { data: produitsResponse } = useApi<ProduitsListResponse>(
-    modalOpen ? '/api/admin/stock?limit=200' : null
+  const { data: produitsResponse } = useApi<{ data: ProduitOption[] }>(
+    modalOpen && step === 2 ? '/api/admin/stock?limit=200' : null
   );
   const produits = (produitsResponse?.data ?? []).filter(p => p.stock > 0);
 
+  // Mutation vente directe via pack
   const { mutate: addVente, loading: adding, error: addError } = useMutation(
-    '/api/admin/ventes', 'POST',
-    { successMessage: 'Vente enregistrée avec succès' }
+    formPack.souscriptionId
+      ? `/api/admin/packs/souscriptions/${formPack.souscriptionId}/livrer`
+      : '',
+    'POST',
+    { successMessage: 'Vente enregistrée !' }
   );
 
-  // ── Handlers ───────────────────────────────────────────────────────────────
+  // ── Handlers ────────────────────────────────────────────────────────────────
 
   const closeModal = () => {
     setModalOpen(false);
     setStep(1);
     setClientSearch('');
     setSelectedClient(null);
-    setEligibilite(null);
+    setEligibilitePack(null);
     setEligibiliteError(null);
-    setFormData({ creditAlimentaireId: '', produitId: '', quantite: '1' });
+    setFormPack({ souscriptionId: '', produitId: '', quantite: '1' });
   };
 
   const checkEligibility = async (client: ClientOption) => {
     setSelectedClient(client);
     setCheckingEligibility(true);
-    setEligibilite(null);
+    setEligibilitePack(null);
     setEligibiliteError(null);
-
     try {
-      const res = await fetch(`/api/admin/clients/${client.id}/eligibilite`);
-      const data: EligibiliteResponse = await res.json();
-
-      if (!res.ok) {
-        setEligibiliteError((data as unknown as { error: string }).error || 'Erreur lors de la vérification');
-        return;
-      }
-
-      setEligibilite(data);
-
+      const res  = await fetch(`/api/admin/clients/${client.id}/eligibilite-pack`);
+      const data: EligibilitePackResponse = await res.json();
+      if (!res.ok) { setEligibiliteError((data as unknown as { error: string }).error || 'Erreur'); return; }
+      setEligibilitePack(data);
       if (data.eligible) {
         setStep(2);
-        // Auto-sélectionner le crédit s'il n'y en a qu'un seul
-        if (data.credits.length === 1) {
-          setFormData(f => ({ ...f, creditAlimentaireId: String(data.credits[0].id) }));
+        if (data.souscriptions.length === 1) {
+          setFormPack(f => ({ ...f, souscriptionId: String(data.souscriptions[0].id) }));
         }
       }
-    } catch {
-      setEligibiliteError('Erreur réseau lors de la vérification');
-    } finally {
-      setCheckingEligibility(false);
-    }
+    } catch { setEligibiliteError('Erreur réseau'); }
+    finally { setCheckingEligibility(false); }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const result = await addVente({
-      creditAlimentaireId: Number(formData.creditAlimentaireId),
-      produitId: Number(formData.produitId),
-      quantite: Number(formData.quantite),
+    if (!formPack.souscriptionId || !formPack.produitId) return;
+    const produit = produits.find(p => p.id === parseInt(formPack.produitId));
+    if (!produit) return;
+
+    const res = await addVente({
+      action: 'vente_directe',
+      lignes: [{
+        produitId:    parseInt(formPack.produitId),
+        quantite:     parseInt(formPack.quantite),
+        prixUnitaire: parseFloat(produit.prixUnitaire),
+      }],
+      notes: `Vente directe — ${produit.nom} × ${formPack.quantite}`,
     });
-    if (result) {
-      closeModal();
-      refetch();
-    }
+    if (res) { closeModal(); refetch(); }
   };
 
-  const getInitials = (nom: string, prenom: string) =>
-    `${prenom?.[0] ?? ''}${nom?.[0] ?? ''}`.toUpperCase();
-
-  const sourceLabel = (source: string) =>
-    source === 'COTISATION' ? 'Cotisation' : 'Tontine';
-
-  const panierMoyen =
-    stats && stats.totalVentes > 0
-      ? Number(stats.montantTotal) / stats.totalVentes
-      : 0;
-
-  // ── Loading / Error screens ────────────────────────────────────────────────
+  // ── Loading / Error ──────────────────────────────────────────────────────────
 
   if (loading && !response) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-emerald-50/30 to-blue-50/20 flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 border-4 border-emerald-200 border-t-emerald-600 rounded-full animate-spin"></div>
-          <p className="text-slate-500 font-medium">Chargement des ventes...</p>
+          <div className="w-12 h-12 border-4 border-emerald-200 border-t-emerald-600 rounded-full animate-spin" />
+          <p className="text-slate-500 font-medium">Chargement des ventes…</p>
         </div>
       </div>
     );
@@ -242,22 +218,20 @@ export default function VentesPage() {
         <div className="flex flex-col items-center gap-4 bg-white rounded-2xl p-8 shadow-sm border max-w-md text-center">
           <h3 className="text-lg font-bold text-slate-800">Erreur de chargement</h3>
           <p className="text-slate-500 text-sm">{error}</p>
-          <button onClick={refetch} className="px-5 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 font-medium">
-            Reessayer
-          </button>
+          <button onClick={refetch} className="px-5 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 font-medium">Réessayer</button>
         </div>
       </div>
     );
   }
 
   const statCards = [
-    { label: 'Montant Total', value: formatCurrency(stats?.montantTotal ?? 0), icon: TrendingUp, color: 'bg-emerald-500', lightBg: 'bg-emerald-50' },
-    { label: 'Transactions', value: String(stats?.totalVentes ?? 0), icon: ShoppingCart, color: 'bg-blue-500', lightBg: 'bg-blue-50' },
-    { label: 'Panier Moyen', value: formatCurrency(panierMoyen), icon: DollarSign, color: 'bg-purple-500', lightBg: 'bg-purple-50' },
-    { label: 'Clients Actifs', value: String(stats?.clientsActifs ?? 0), icon: Users, color: 'bg-amber-500', lightBg: 'bg-amber-50' },
+    { label: 'Total livraisons', value: String(stats?.totalLivraisons ?? 0), icon: Truck,       color: 'bg-emerald-500', lightBg: 'bg-emerald-50' },
+    { label: 'Montant total',    value: formatCurrency(stats?.montantTotal ?? 0), icon: TrendingUp, color: 'bg-blue-500',    lightBg: 'bg-blue-50'    },
+    { label: 'Ce mois',         value: String(stats?.ceMois ?? 0),           icon: DollarSign,  color: 'bg-purple-500',  lightBg: 'bg-purple-50'  },
+    { label: 'Clients servis',  value: String(stats?.clientsActifs ?? 0),    icon: Users,       color: 'bg-amber-500',   lightBg: 'bg-amber-50'   },
   ];
 
-  // ── Render ─────────────────────────────────────────────────────────────────
+  // ── Render ───────────────────────────────────────────────────────────────────
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-emerald-50/30 to-blue-50/20 font-['DM_Sans',sans-serif] p-8">
@@ -271,20 +245,18 @@ export default function VentesPage() {
             </Link>
             <div>
               <h1 className="text-4xl font-bold text-slate-800 mb-2">Ventes</h1>
-              <p className="text-slate-500">Gerez et suivez toutes vos transactions de vente</p>
+              <p className="text-slate-500">Livraisons de produits aux clients via pack</p>
             </div>
           </div>
           <div className="flex gap-3">
             <button className="px-5 py-3 bg-white border border-slate-200 rounded-xl text-slate-700 hover:bg-slate-50 transition-all shadow-sm flex items-center gap-2 font-medium">
-              <Download size={18} />
-              Exporter
+              <Download size={18} /> Exporter
             </button>
             <button
               onClick={() => setModalOpen(true)}
               className="px-6 py-3 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-200 flex items-center gap-2 font-medium"
             >
-              <Plus size={20} />
-              Nouvelle vente
+              <Plus size={20} /> Nouvelle vente
             </button>
           </div>
         </div>
@@ -293,75 +265,62 @@ export default function VentesPage() {
         {modalOpen && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-2xl p-8 w-full max-w-md shadow-xl relative">
-
-              {/* Close */}
               <button
                 onClick={closeModal}
-                className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors font-bold text-lg"
-              >
-                ×
-              </button>
+                className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg font-bold text-lg"
+              >×</button>
 
               <h2 className="text-xl font-bold text-slate-800 mb-1">Nouvelle vente</h2>
               <p className="text-sm text-slate-500 mb-5">
-                {step === 1 ? 'Sélectionnez un client éligible' : 'Choisissez le produit à vendre'}
+                {step === 1 ? 'Recherchez un client éligible' : 'Choisissez le produit à livrer'}
               </p>
 
-              {/* Step indicator */}
-              <div className="flex items-center gap-2 mb-6">
-                <div className={`flex items-center gap-1.5 ${step >= 1 ? 'text-emerald-600' : 'text-slate-400'}`}>
-                  <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${step >= 1 ? 'bg-emerald-600 text-white' : 'bg-slate-200 text-slate-500'}`}>
-                    {step > 1 ? <CheckCircle className="w-3.5 h-3.5" /> : '1'}
-                  </div>
-                  <span className="text-sm font-medium">Client</span>
-                </div>
-                <ChevronRight className="text-slate-300 w-4 h-4" />
-                <div className={`flex items-center gap-1.5 ${step >= 2 ? 'text-emerald-600' : 'text-slate-400'}`}>
-                  <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${step >= 2 ? 'bg-emerald-600 text-white' : 'bg-slate-200 text-slate-500'}`}>
-                    2
-                  </div>
-                  <span className="text-sm font-medium">Produit</span>
-                </div>
+              {/* Steps */}
+              <div className="flex items-center gap-2 mb-5">
+                {[{ n: 1, label: 'Client' }, { n: 2, label: 'Produit' }].map(({ n, label }) => (
+                  <React.Fragment key={n}>
+                    <div className={`flex items-center gap-1.5 ${step >= n ? 'text-emerald-600' : 'text-slate-400'}`}>
+                      <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${step > n ? 'bg-emerald-600 text-white' : step === n ? 'bg-emerald-600 text-white' : 'bg-slate-200 text-slate-500'}`}>
+                        {step > n ? <CheckCircle className="w-3.5 h-3.5" /> : n}
+                      </div>
+                      <span className="text-sm font-medium">{label}</span>
+                    </div>
+                    {n < 2 && <ChevronRight className="text-slate-300 w-4 h-4" />}
+                  </React.Fragment>
+                ))}
               </div>
 
               {addError && (
                 <p className="text-red-500 mb-3 text-sm bg-red-50 border border-red-200 rounded-xl px-3 py-2">{addError}</p>
               )}
 
-              {/* ── ÉTAPE 1 : Recherche client ── */}
+              {/* ── Étape 1 : Recherche client ── */}
               {step === 1 && (
                 <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">
-                      Rechercher un client
-                    </label>
-                    <div className="relative">
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
-                      <input
-                        type="text"
-                        placeholder="Nom, prénom ou téléphone..."
-                        value={clientSearch}
-                        onChange={e => {
-                          setClientSearch(e.target.value);
-                          setSelectedClient(null);
-                          setEligibilite(null);
-                          setEligibiliteError(null);
-                        }}
-                        className="w-full pl-9 pr-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50"
-                        autoFocus
-                      />
-                    </div>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
+                    <input
+                      autoFocus
+                      type="text"
+                      placeholder="Nom, prénom ou téléphone…"
+                      value={clientSearch}
+                      onChange={e => {
+                        setClientSearch(e.target.value);
+                        setSelectedClient(null);
+                        setEligibilitePack(null);
+                        setEligibiliteError(null);
+                      }}
+                      className="w-full pl-9 pr-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50"
+                    />
                   </div>
 
-                  {/* Vérification en cours */}
                   {checkingEligibility && (
                     <div className="flex items-center gap-3 py-3 text-slate-500 text-sm">
-                      <div className="w-5 h-5 border-2 border-emerald-200 border-t-emerald-600 rounded-full animate-spin shrink-0"></div>
-                      Vérification de l&apos;éligibilité...
+                      <div className="w-5 h-5 border-2 border-emerald-200 border-t-emerald-600 rounded-full animate-spin shrink-0" />
+                      Vérification en cours…
                     </div>
                   )}
 
-                  {/* Liste des clients */}
                   {!checkingEligibility && clientsOptions.length > 0 && (
                     <div className="border border-slate-200 rounded-xl overflow-hidden">
                       {clientsOptions.map((client, idx) => (
@@ -375,18 +334,16 @@ export default function VentesPage() {
                             <p className="font-medium text-slate-800 text-sm">{client.prenom} {client.nom}</p>
                             <p className="text-xs text-slate-500">{client.telephone}</p>
                           </div>
-                          <ChevronRight className="text-slate-300 group-hover:text-emerald-500 w-4 h-4 transition-colors" />
+                          <ChevronRight className="text-slate-300 group-hover:text-emerald-500 w-4 h-4" />
                         </button>
                       ))}
                     </div>
                   )}
 
-                  {/* Aucun résultat */}
                   {!checkingEligibility && debouncedClientSearch.length >= 2 && clientsOptions.length === 0 && (
                     <p className="text-center text-slate-400 text-sm py-4">Aucun client trouvé</p>
                   )}
 
-                  {/* Erreur réseau */}
                   {eligibiliteError && (
                     <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-xl p-3">
                       <XCircle className="text-red-500 w-4 h-4 mt-0.5 shrink-0" />
@@ -394,90 +351,73 @@ export default function VentesPage() {
                     </div>
                   )}
 
-                  {/* Client non éligible */}
-                  {!checkingEligibility && selectedClient && eligibilite && !eligibilite.eligible && (
+                  {/* Client sans souscription active */}
+                  {!checkingEligibility && selectedClient && eligibilitePack && !eligibilitePack.eligible && (
                     <div className="bg-orange-50 border border-orange-200 rounded-xl p-4">
                       <div className="flex items-center gap-2 mb-2">
                         <AlertCircle className="text-orange-500 w-4 h-4 shrink-0" />
                         <p className="font-semibold text-orange-800 text-sm">
-                          {selectedClient.prenom} {selectedClient.nom} — non éligible
+                          {selectedClient.prenom} {selectedClient.nom} — aucun pack actif
                         </p>
                       </div>
-                      <ul className="space-y-1">
-                        {eligibilite.raisons.map((r, i) => (
-                          <li key={i} className="text-xs text-orange-700 leading-relaxed">• {r}</li>
-                        ))}
-                      </ul>
+                      {eligibilitePack.raisons.map((r, i) => (
+                        <p key={i} className="text-xs text-orange-700 leading-relaxed">• {r}</p>
+                      ))}
+                      <Link href="/dashboard/admin/packs" className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-medium hover:bg-emerald-700 transition-colors">
+                        <Layers size={12} /> Gérer les packs
+                      </Link>
                     </div>
                   )}
 
-                  {/* Aide */}
                   {debouncedClientSearch.length < 2 && (
-                    <p className="text-center text-slate-400 text-xs py-1">
-                      Saisissez au moins 2 caractères pour rechercher
-                    </p>
+                    <p className="text-center text-slate-400 text-xs py-1">Saisissez au moins 2 caractères</p>
                   )}
                 </div>
               )}
 
-              {/* ── ÉTAPE 2 : Crédit + Produit + Quantité ── */}
-              {step === 2 && selectedClient && eligibilite && (
+              {/* ── Étape 2 : Produit ── */}
+              {step === 2 && selectedClient && eligibilitePack && (
                 <form onSubmit={handleSubmit} className="space-y-4">
-
-                  {/* Client sélectionné */}
+                  {/* Client */}
                   <div className="flex items-center justify-between bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3">
                     <div className="flex items-center gap-2">
                       <CheckCircle className="text-emerald-500 w-4 h-4 shrink-0" />
                       <div>
-                        <p className="font-semibold text-slate-800 text-sm">
-                          {selectedClient.prenom} {selectedClient.nom}
-                        </p>
+                        <p className="font-semibold text-slate-800 text-sm">{selectedClient.prenom} {selectedClient.nom}</p>
                         <p className="text-xs text-slate-500">{selectedClient.telephone}</p>
                       </div>
                     </div>
                     <button
                       type="button"
-                      onClick={() => {
-                        setStep(1);
-                        setEligibilite(null);
-                        setSelectedClient(null);
-                        setFormData({ creditAlimentaireId: '', produitId: '', quantite: '1' });
-                      }}
+                      onClick={() => { setStep(1); setEligibilitePack(null); setSelectedClient(null); setFormPack({ souscriptionId: '', produitId: '', quantite: '1' }); }}
                       className="text-xs text-emerald-600 hover:text-emerald-800 font-medium underline underline-offset-2"
-                    >
-                      Changer
-                    </button>
+                    >Changer</button>
                   </div>
 
-                  {/* Crédit alimentaire */}
-                  {eligibilite.credits.length === 1 ? (
-                    // Un seul crédit → afficher l'info (déjà auto-sélectionné)
+                  {/* Pack / Souscription */}
+                  {eligibilitePack.souscriptions.length === 1 ? (
                     <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3">
-                      <p className="text-xs font-medium text-slate-500 mb-0.5">Crédit alimentaire disponible</p>
-                      <p className="text-xl font-bold text-slate-800">{formatCurrency(eligibilite.credits[0].montantRestant)}</p>
-                      <p className="text-xs text-slate-500 mt-0.5">
-                        Source : {sourceLabel(eligibilite.credits[0].source)}
-                        {eligibilite.credits[0].dateExpiration && (
-                          <> · Expire le {new Date(eligibilite.credits[0].dateExpiration).toLocaleDateString('fr-FR')}</>
-                        )}
-                      </p>
+                      <p className="text-xs font-medium text-slate-500 mb-0.5">Pack actif</p>
+                      <div className="flex items-center gap-2">
+                        <p className="font-bold text-slate-800">{eligibilitePack.souscriptions[0].pack.nom}</p>
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${PACK_BADGE[eligibilitePack.souscriptions[0].pack.type] ?? 'bg-slate-100 text-slate-600'}`}>
+                          {PACK_LABELS[eligibilitePack.souscriptions[0].pack.type] ?? eligibilitePack.souscriptions[0].pack.type}
+                        </span>
+                      </div>
                     </div>
                   ) : (
-                    // Plusieurs crédits → dropdown
                     <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1">
-                        Crédit alimentaire à utiliser
-                      </label>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Pack à utiliser *</label>
                       <select
                         required
-                        value={formData.creditAlimentaireId}
-                        onChange={e => setFormData({ ...formData, creditAlimentaireId: e.target.value })}
+                        value={formPack.souscriptionId}
+                        onChange={e => setFormPack(f => ({ ...f, souscriptionId: e.target.value }))}
                         className="w-full px-4 py-2.5 border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
                       >
-                        <option value="">Sélectionner un crédit</option>
-                        {eligibilite.credits.map(c => (
-                          <option key={c.id} value={c.id}>
-                            {sourceLabel(c.source)} – Solde : {formatCurrency(c.montantRestant)}
+                        <option value="">Sélectionner un pack</option>
+                        {eligibilitePack.souscriptions.map(s => (
+                          <option key={s.id} value={s.id}>
+                            {s.pack.nom} — {PACK_LABELS[s.pack.type] ?? s.pack.type} ({s.statut})
                           </option>
                         ))}
                       </select>
@@ -486,17 +426,17 @@ export default function VentesPage() {
 
                   {/* Produit */}
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Produit</label>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Produit *</label>
                     <select
                       required
-                      value={formData.produitId}
-                      onChange={e => setFormData({ ...formData, produitId: e.target.value })}
+                      value={formPack.produitId}
+                      onChange={e => setFormPack(f => ({ ...f, produitId: e.target.value }))}
                       className="w-full px-4 py-2.5 border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
                     >
                       <option value="">Sélectionner un produit</option>
                       {produits.map(p => (
                         <option key={p.id} value={p.id}>
-                          {p.nom} – {formatCurrency(p.prixUnitaire)} (Stock : {p.stock})
+                          {p.nom} — {formatCurrency(p.prixUnitaire)} (Stock : {p.stock})
                         </option>
                       ))}
                     </select>
@@ -506,31 +446,20 @@ export default function VentesPage() {
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">Quantité</label>
                     <input
-                      type="number"
-                      placeholder="Ex : 3"
-                      required
-                      min="1"
-                      value={formData.quantite}
-                      onChange={e => setFormData({ ...formData, quantite: e.target.value })}
+                      type="number" min="1" required
+                      value={formPack.quantite}
+                      onChange={e => setFormPack(f => ({ ...f, quantite: e.target.value }))}
                       className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
                     />
                   </div>
 
-                  {/* Boutons */}
                   <div className="flex gap-3 pt-1">
-                    <button
-                      type="button"
-                      onClick={() => setStep(1)}
-                      className="flex-1 py-2.5 border border-slate-200 text-slate-700 rounded-xl hover:bg-slate-50 transition-all font-medium text-sm"
-                    >
+                    <button type="button" onClick={() => setStep(1)} className="flex-1 py-2.5 border border-slate-200 text-slate-700 rounded-xl hover:bg-slate-50 font-medium text-sm transition-colors">
                       Retour
                     </button>
-                    <button
-                      type="submit"
-                      disabled={adding}
-                      className="flex-1 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-all font-medium text-sm disabled:opacity-60"
-                    >
-                      {adding ? 'Enregistrement...' : 'Enregistrer la vente'}
+                    <button type="submit" disabled={adding} className="flex-1 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 disabled:opacity-60 font-medium text-sm flex items-center justify-center gap-2 transition-colors">
+                      <Truck size={15} />
+                      {adding ? 'Enregistrement…' : 'Livrer le produit'}
                     </button>
                   </div>
                 </form>
@@ -539,12 +468,12 @@ export default function VentesPage() {
           </div>
         )}
 
-        {/* Stats Cards */}
+        {/* Stats */}
         <div className="grid grid-cols-4 gap-5">
-          {statCards.map((stat, index) => {
+          {statCards.map((stat, i) => {
             const Icon = stat.icon;
             return (
-              <div key={index} className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/60 hover:shadow-md transition-all group">
+              <div key={i} className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/60 hover:shadow-md transition-all group">
                 <div className="flex items-start justify-between mb-4">
                   <div className={`${stat.lightBg} p-3 rounded-xl group-hover:scale-110 transition-transform`}>
                     <Icon className={`${stat.color.replace('bg-', 'text-')} w-6 h-6`} />
@@ -557,108 +486,106 @@ export default function VentesPage() {
           })}
         </div>
 
-        {/* Filters */}
+        {/* Lien vers packs */}
+        <div className="flex items-center gap-3 p-4 bg-emerald-50 border border-emerald-200 rounded-2xl">
+          <Layers className="w-5 h-5 text-emerald-600 shrink-0" />
+          <p className="text-sm text-emerald-800">
+            Pour créer des packs, gérer les souscriptions et suivre les cycles de paiement, rendez-vous sur la page <strong>Packs clients</strong>.
+          </p>
+          <Link href="/dashboard/admin/packs" className="ml-auto shrink-0 flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700 transition-colors">
+            <Layers size={14} /> Gérer les packs
+          </Link>
+        </div>
+
+        {/* Recherche */}
         <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/60">
           <div className="flex items-center gap-4">
             <div className="flex-1 relative">
-              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400" size={20} />
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
               <input
                 type="text"
-                placeholder="Rechercher par client ou produit..."
+                placeholder="Rechercher par client…"
                 value={searchQuery}
-                onChange={(e) => {
-                  setSearchQuery(e.target.value);
-                  setPage(1);
-                }}
+                onChange={e => { setSearchQuery(e.target.value); setPage(1); }}
                 className="w-full pl-12 pr-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50"
               />
             </div>
           </div>
         </div>
 
-        {/* Sales Table */}
+        {/* Tableau des ventes */}
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 overflow-hidden">
+          <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+            <h3 className="font-semibold text-slate-800">Historique des livraisons</h3>
+            {meta && (
+              <span className="text-xs text-slate-400 bg-slate-50 px-2 py-1 rounded-lg">
+                {meta.total} livraison{meta.total > 1 ? 's' : ''}
+              </span>
+            )}
+          </div>
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-slate-50 border-b border-slate-200">
                 <tr>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Client</th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Produit</th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Quantite</th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Prix Unitaire</th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Montant Total</th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Date</th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Actions</th>
+                  {['Client', 'Pack', 'Produits livrés', 'Montant', 'Date', 'Livreur'].map(h => (
+                    <th key={h} className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">{h}</th>
+                  ))}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {ventes.map((vente) => {
-                  const montantTotal = vente.quantite * Number(vente.prixUnitaire);
+                {receptions.map(r => {
+                  const montant = r.lignes.reduce((acc, l) => acc + Number(l.prixUnitaire) * l.quantite, 0);
+                  const cNom = clientNom(r);
+                  const parts = cNom.split(' ');
                   return (
-                    <tr key={vente.id} className="hover:bg-slate-50 transition-colors">
+                    <tr key={r.id} className="hover:bg-slate-50 transition-colors">
                       <td className="px-6 py-4">
-                        {(() => {
-                          const m = vente.creditAlimentaire.member;
-                          const c = vente.creditAlimentaire.client;
-                          const nom = m?.nom ?? c?.nom ?? 'Inconnu';
-                          const prenom = m?.prenom ?? c?.prenom ?? '';
-                          const sub = m?.email ?? c?.telephone ?? '';
-                          return (
-                            <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-full flex items-center justify-center text-white font-semibold shadow-md">
-                                {getInitials(nom, prenom)}
-                              </div>
-                              <div>
-                                <span className="font-semibold text-slate-800">
-                                  {prenom} {nom}
-                                </span>
-                                <p className="text-xs text-slate-500">{sub}</p>
-                              </div>
-                            </div>
-                          );
-                        })()}
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-2">
-                          <Package size={14} className="text-slate-400" />
-                          <span className="text-sm font-medium text-slate-800">{vente.produit.nom}</span>
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-full flex items-center justify-center text-white font-semibold shadow-sm">
+                            {initials(parts[parts.length - 1] ?? '', parts[0] ?? '')}
+                          </div>
+                          <div>
+                            <p className="font-semibold text-slate-800 text-sm">{cNom}</p>
+                            <p className="text-xs text-slate-500">{clientTel(r)}</p>
+                          </div>
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        <span className="text-sm font-semibold text-slate-800">{vente.quantite}</span>
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${PACK_BADGE[r.souscription.pack.type] ?? 'bg-slate-100 text-slate-600'}`}>
+                          {PACK_LABELS[r.souscription.pack.type] ?? r.souscription.pack.type}
+                        </span>
+                        <p className="text-xs text-slate-500 mt-0.5">{r.souscription.pack.nom}</p>
                       </td>
                       <td className="px-6 py-4">
-                        <span className="text-sm text-slate-600">{formatCurrency(vente.prixUnitaire)}</span>
+                        {r.lignes.map((l, i) => (
+                          <div key={i} className="flex items-center gap-1.5 text-sm">
+                            <Package size={13} className="text-slate-400 shrink-0" />
+                            <span className="text-slate-700">{l.produit.nom}</span>
+                            <span className="text-slate-400 text-xs">× {l.quantite}</span>
+                          </div>
+                        ))}
                       </td>
                       <td className="px-6 py-4">
-                        <span className="text-lg font-bold text-slate-800">{formatCurrency(montantTotal)}</span>
+                        <span className="text-lg font-bold text-slate-800">{formatCurrency(montant)}</span>
                       </td>
                       <td className="px-6 py-4">
-                        <div className="flex items-center gap-2">
-                          <Calendar size={14} className="text-slate-400" />
-                          <span className="text-sm text-slate-600">{formatDateTime(vente.createdAt)}</span>
+                        <div className="flex items-center gap-2 text-sm text-slate-600">
+                          <Calendar size={13} className="text-slate-400" />
+                          {r.dateLivraison ? formatDateTime(r.dateLivraison) : formatDateTime(r.createdAt)}
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        <div className="flex items-center gap-2">
-                          <Link
-                            href={`/dashboard/admin/ventes/${vente.id}`}
-                            className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
-                          >
-                            <Eye size={16} />
-                          </Link>
-                          <button className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
-                            <MoreVertical size={16} />
-                          </button>
-                        </div>
+                        <span className="text-sm text-slate-600">{r.livreurNom ?? '—'}</span>
                       </td>
                     </tr>
                   );
                 })}
-                {ventes.length === 0 && (
+                {receptions.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="px-6 py-12 text-center text-slate-500">
-                      Aucune vente trouvee
+                    <td colSpan={6} className="px-6 py-12 text-center">
+                      <ShoppingCart className="w-10 h-10 text-slate-200 mx-auto mb-3" />
+                      <p className="text-slate-500">Aucune vente enregistrée</p>
+                      <p className="text-slate-400 text-sm mt-1">Cliquez sur &quot;Nouvelle vente&quot; pour commencer.</p>
                     </td>
                   </tr>
                 )}
@@ -667,26 +594,19 @@ export default function VentesPage() {
           </div>
 
           {/* Pagination */}
-          {meta && (
+          {meta && meta.totalPages > 1 && (
             <div className="px-6 py-4 border-t border-slate-200 flex items-center justify-between">
               <p className="text-sm text-slate-600">
-                Page <span className="font-semibold">{meta.page}</span> sur{' '}
-                <span className="font-semibold">{meta.totalPages}</span> ({meta.total} ventes)
+                Page <span className="font-semibold">{meta.page}</span> sur <span className="font-semibold">{meta.totalPages}</span>
               </p>
               <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setPage(p => Math.max(1, p - 1))}
-                  disabled={page <= 1}
-                  className="px-4 py-2 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-50"
-                >
-                  Precedent
+                <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page <= 1}
+                  className="px-4 py-2 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 disabled:opacity-50 transition-colors">
+                  Précédent
                 </button>
                 <span className="px-4 py-2 bg-emerald-600 text-white rounded-lg font-medium">{page}</span>
-                <button
-                  onClick={() => setPage(p => Math.min(meta.totalPages, p + 1))}
-                  disabled={page >= meta.totalPages}
-                  className="px-4 py-2 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-50"
-                >
+                <button onClick={() => setPage(p => Math.min(meta.totalPages, p + 1))} disabled={page >= meta.totalPages}
+                  className="px-4 py-2 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 disabled:opacity-50 transition-colors">
                   Suivant
                 </button>
               </div>
