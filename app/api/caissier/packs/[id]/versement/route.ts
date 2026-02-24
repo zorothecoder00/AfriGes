@@ -64,6 +64,12 @@ export async function POST(req: Request, { params }: Ctx) {
       });
 
       // 2. Mettre à jour la souscription
+      // Bug #5: Pour FAMILIAL, incrémenter numeroCycle quand le cycle est complété
+      const nouveauCycle =
+        estSolde && souscription.pack.type === "FAMILIAL"
+          ? souscription.numeroCycle + 1
+          : souscription.numeroCycle;
+
       const updatedSouscription = await tx.souscriptionPack.update({
         where: { id: souscriptionId },
         data: {
@@ -71,6 +77,7 @@ export async function POST(req: Request, { params }: Ctx) {
           montantRestant: estSolde ? 0 : nouveauMontantRestant,
           statut: estSolde ? "COMPLETE" : "ACTIF",
           dateCloture: estSolde ? new Date() : null,
+          numeroCycle: nouveauCycle,
         },
       });
 
@@ -100,8 +107,84 @@ export async function POST(req: Request, { params }: Ctx) {
           titre: `Pack soldé — ${souscription.pack.nom}`,
           message: `La souscription #${souscriptionId} au pack ${souscription.pack.nom} est entièrement soldée (${Number(souscription.montantTotal).toLocaleString("fr-FR")} FCFA).`,
           priorite: "HAUTE",
-          actionUrl: "/dashboard/user/packs",
+          actionUrl: "/dashboard/admin/packs",
         });
+
+        // Bug #9: EPARGNE_PRODUIT — auto-planifier la livraison du produit cible
+        if (souscription.pack.type === "EPARGNE_PRODUIT" && souscription.pack.montantSeuil) {
+          const seuilAtteint = nouveauMontantVerse >= Number(souscription.pack.montantSeuil);
+          if (seuilAtteint && souscription.pack.produitCibleId) {
+            const produitCible = await tx.produit.findUnique({
+              where: { id: souscription.pack.produitCibleId },
+              select: { id: true, prixUnitaire: true, nom: true },
+            });
+            if (produitCible) {
+              await tx.receptionProduitPack.create({
+                data: {
+                  souscriptionId,
+                  statut: "PLANIFIEE",
+                  datePrevisionnelle: new Date(),
+                  livreurNom: caissierNom,
+                  notes: `Livraison auto — seuil d'épargne atteint (${Number(souscription.pack.montantSeuil).toLocaleString("fr-FR")} FCFA)`,
+                  lignes: {
+                    create: [{ produitId: produitCible.id, quantite: 1, prixUnitaire: produitCible.prixUnitaire }],
+                  },
+                },
+              });
+            }
+          }
+          if (seuilAtteint) {
+            await notifyAdmins(tx, {
+              titre: `Seuil atteint — ${souscription.pack.nom}`,
+              message: `La souscription #${souscriptionId} a atteint le seuil d'épargne (${Number(souscription.pack.montantSeuil).toLocaleString("fr-FR")} FCFA). Une livraison a été planifiée automatiquement.`,
+              priorite: "HAUTE",
+              actionUrl: "/dashboard/admin/packs",
+            });
+          }
+        }
+
+        // Bug #5: FAMILIAL — vérifier déclenchement du bonus
+        if (souscription.pack.type === "FAMILIAL") {
+          const { cyclesBonusTrigger, bonusPourcentage } = souscription.pack;
+
+          // nouveauCycle - 1 = nombre de cycles complétés
+          // Ex: cyclesBonusTrigger=3 → bonus après 3 cycles complétés (nouveauCycle=4)
+          if (
+            cyclesBonusTrigger &&
+            bonusPourcentage &&
+            (nouveauCycle - 1) >= cyclesBonusTrigger &&
+            !souscription.bonusObtenu
+          ) {
+            const bonusMontant = Math.round(
+              (Number(souscription.montantTotal) * Number(bonusPourcentage)) / 100
+            );
+
+            await tx.versementPack.create({
+              data: {
+                souscriptionId,
+                type: "BONUS",
+                montant: bonusMontant,
+                statut: "PAYE",
+                datePaiement: new Date(),
+                encaisseParId: parseInt(session.user.id),
+                encaisseParNom: caissierNom,
+                notes: `Bonus ${bonusPourcentage}% — ${nouveauCycle} cycles complétés`,
+              },
+            });
+
+            await tx.souscriptionPack.update({
+              where: { id: souscriptionId },
+              data: { bonusObtenu: true },
+            });
+
+            await notifyAdmins(tx, {
+              titre: `Bonus FAMILIAL déclenché — ${souscription.pack.nom}`,
+              message: `La souscription #${souscriptionId} a atteint ${nouveauCycle} cycles consécutifs. Bonus de ${bonusPourcentage}% accordé : ${bonusMontant.toLocaleString("fr-FR")} FCFA.`,
+              priorite: "HAUTE",
+              actionUrl: "/dashboard/admin/packs",
+            });
+          }
+        }
       }
 
       return { versement, souscription: updatedSouscription };

@@ -38,7 +38,7 @@ export async function GET(req: Request) {
         orderBy: { createdAt: "desc" },
         include: {
           _count: {
-            select: { credits: true, creditsAlim: true, cotisations: true, tontines: true },
+            select: { souscriptions: true },
           },
         },
       }),

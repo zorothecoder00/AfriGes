@@ -150,6 +150,70 @@ export async function POST(req: Request, { params }: Ctx) {
           actionUrl: "/dashboard/admin/packs",
         });
 
+        // ── Renouvellement de cycle ────────────────────────────────────────
+        // FAMILIAL : nouveau cycle après chaque livraison (pour accumuler
+        //            les cycles et déclencher le bonus)
+        if (souscription.pack.type === "FAMILIAL") {
+          const freq = (souscription.frequenceVersement ?? souscription.pack.frequenceVersement ?? "HEBDOMADAIRE") as string;
+          const duree = souscription.pack.dureeJours ?? 30;
+          const step = freq === "QUOTIDIEN" ? 1 : freq === "HEBDOMADAIRE" ? 7 : freq === "BIMENSUEL" ? 14 : 30;
+          const count = Math.ceil(duree / step);
+          const montantTotal = Number(souscription.montantTotal);
+          const montantEcheance = Math.round((montantTotal / count) * 100) / 100;
+          const debut = new Date();
+
+          await tx.echeancePack.deleteMany({ where: { souscriptionId } });
+          await tx.echeancePack.createMany({
+            data: Array.from({ length: count }, (_, i) => {
+              const date = new Date(debut);
+              date.setDate(date.getDate() + (i + 1) * step);
+              return {
+                souscriptionId,
+                numero: i + 1,
+                montant: i === count - 1
+                  ? Math.round((montantTotal - montantEcheance * (count - 1)) * 100) / 100
+                  : montantEcheance,
+                datePrevue: date,
+                statut: "EN_ATTENTE" as const,
+              };
+            }),
+          });
+
+          await tx.souscriptionPack.update({
+            where: { id: souscriptionId },
+            data: { montantVerse: 0, montantRestant: montantTotal, statut: "ACTIF", dateCloture: null, dateDebut: debut },
+          });
+
+          await notifyAdmins(tx, {
+            titre: `Nouveau cycle FAMILIAL — ${souscription.pack.nom}`,
+            message: `Souscription #${souscriptionId} : cycle ${souscription.numeroCycle} complété, nouveau cycle démarré automatiquement.`,
+            priorite: "NORMAL",
+            actionUrl: "/dashboard/admin/packs",
+          });
+        }
+
+        // ÉPARGNE-PRODUIT : cycle renouvelable automatiquement après livraison
+        else if (souscription.pack.type === "EPARGNE_PRODUIT") {
+          await tx.echeancePack.deleteMany({ where: { souscriptionId } });
+          await tx.souscriptionPack.update({
+            where: { id: souscriptionId },
+            data: {
+              montantVerse: 0,
+              montantRestant: Number(souscription.montantTotal),
+              statut: "EN_ATTENTE",
+              dateCloture: null,
+              dateDebut: new Date(),
+            },
+          });
+
+          await notifyAdmins(tx, {
+            titre: `Nouveau cycle Épargne — ${souscription.pack.nom}`,
+            message: `Souscription #${souscriptionId} : produit livré, nouveau cycle d'épargne démarré automatiquement.`,
+            priorite: "NORMAL",
+            actionUrl: "/dashboard/admin/packs",
+          });
+        }
+
         return updated;
       });
 
@@ -159,6 +223,36 @@ export async function POST(req: Request, { params }: Ctx) {
     if (action === "vente_directe") {
       if (!lignes || lignes.length === 0) {
         return NextResponse.json({ error: "Au moins une ligne requise" }, { status: 400 });
+      }
+
+      // Bug #6: Valider le statut selon le type de pack
+      // URGENCE : livraison après acompte → ACTIF requis
+      // REVENDEUR F1 : livraison après 50% upfront → ACTIF requis
+      // REVENDEUR F2 : crédit total → livraison immédiate, EN_ATTENTE/ACTIF autorisés
+      // Autres : uniquement COMPLETE (soldé)
+      const isF2 =
+        souscription.pack.type === "REVENDEUR" &&
+        souscription.formuleRevendeur === "FORMULE_2";
+
+      const statutsValides =
+        souscription.pack.type === "URGENCE" ||
+        (souscription.pack.type === "REVENDEUR" && !isF2)
+          ? ["ACTIF", "COMPLETE"]
+          : isF2
+          ? ["EN_ATTENTE", "ACTIF", "COMPLETE"]
+          : ["COMPLETE"];
+
+      if (!statutsValides.includes(souscription.statut)) {
+        return NextResponse.json(
+          {
+            error: isF2
+              ? `Vente directe impossible : statut invalide (${souscription.statut})`
+              : souscription.pack.type === "REVENDEUR" || souscription.pack.type === "URGENCE"
+              ? `Vente directe impossible : la souscription doit être active ou complète (statut actuel : ${souscription.statut})`
+              : `Vente directe impossible : la souscription doit être entièrement soldée (statut actuel : ${souscription.statut})`,
+          },
+          { status: 400 }
+        );
       }
 
       const reception = await prisma.$transaction(async (tx) => {

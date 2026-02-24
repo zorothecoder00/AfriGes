@@ -118,6 +118,67 @@ export async function POST(req: Request, { params }: Ctx) {
           actionUrl: "/dashboard/user/packs",
         });
 
+        // ── Renouvellement de cycle ────────────────────────────────────────
+        if (souscription.pack.type === "FAMILIAL") {
+          const freq = (souscription.frequenceVersement ?? souscription.pack.frequenceVersement ?? "HEBDOMADAIRE") as string;
+          const duree = souscription.pack.dureeJours ?? 30;
+          const step = freq === "QUOTIDIEN" ? 1 : freq === "HEBDOMADAIRE" ? 7 : freq === "BIMENSUEL" ? 14 : 30;
+          const count = Math.ceil(duree / step);
+          const montantTotal = Number(souscription.montantTotal);
+          const montantEcheance = Math.round((montantTotal / count) * 100) / 100;
+          const debut = new Date();
+
+          await tx.echeancePack.deleteMany({ where: { souscriptionId } });
+          await tx.echeancePack.createMany({
+            data: Array.from({ length: count }, (_, i) => {
+              const date = new Date(debut);
+              date.setDate(date.getDate() + (i + 1) * step);
+              return {
+                souscriptionId,
+                numero: i + 1,
+                montant: i === count - 1
+                  ? Math.round((montantTotal - montantEcheance * (count - 1)) * 100) / 100
+                  : montantEcheance,
+                datePrevue: date,
+                statut: "EN_ATTENTE" as const,
+              };
+            }),
+          });
+
+          await tx.souscriptionPack.update({
+            where: { id: souscriptionId },
+            data: { montantVerse: 0, montantRestant: montantTotal, statut: "ACTIF", dateCloture: null, dateDebut: debut },
+          });
+
+          await notifyAdmins(tx, {
+            titre: `Nouveau cycle FAMILIAL — ${souscription.pack.nom}`,
+            message: `Souscription #${souscriptionId} : cycle ${souscription.numeroCycle} complété, nouveau cycle démarré automatiquement.`,
+            priorite: "NORMAL",
+            actionUrl: "/dashboard/user/packs",
+          });
+        }
+
+        else if (souscription.pack.type === "EPARGNE_PRODUIT") {
+          await tx.echeancePack.deleteMany({ where: { souscriptionId } });
+          await tx.souscriptionPack.update({
+            where: { id: souscriptionId },
+            data: {
+              montantVerse: 0,
+              montantRestant: Number(souscription.montantTotal),
+              statut: "EN_ATTENTE",
+              dateCloture: null,
+              dateDebut: new Date(),
+            },
+          });
+
+          await notifyAdmins(tx, {
+            titre: `Nouveau cycle Épargne — ${souscription.pack.nom}`,
+            message: `Souscription #${souscriptionId} : produit livré, nouveau cycle d'épargne démarré automatiquement.`,
+            priorite: "NORMAL",
+            actionUrl: "/dashboard/user/packs",
+          });
+        }
+
         return updated;
       });
 

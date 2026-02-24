@@ -404,6 +404,7 @@ model Produit {
   livraisonsLignes    LivraisonLigne[]
   lignesReceptionPack LigneReceptionPack[]
   recompensesFidelite RecompenseFidelite[]
+  packsCibleProduit   Pack[]               @relation("PackProduitCible")
 
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt
@@ -609,7 +610,7 @@ model Dividende {
 
 enum TypeAssemblee {
   AGO  // Assemblée Générale Ordinaire
-  AGE  // Assemblée Générale Extraordinaire
+  AGE  // Assemblée Générale Extraordinaire   
   CS   // Comité Stratégique
   CA   // Conseil d'Administration
 }
@@ -797,6 +798,8 @@ model Pack {
 
   // Pack EPARGNE_PRODUIT
   montantSeuil        Decimal?           // Seuil d'épargne à atteindre
+  produitCibleId      Int?               // Produit à délivrer quand le seuil est atteint
+  produitCible        Produit?           @relation("PackProduitCible", fields: [produitCibleId], references: [id])
 
   // Pack FAMILIAL
   bonusPourcentage    Decimal?           // Ex: 10.0 pour 10% de bonus
@@ -829,6 +832,7 @@ model SouscriptionPack {
 
   statut              StatutSouscription @default(EN_ATTENTE)
   formuleRevendeur    FormuleRevendeur?  // Précision pour pack REVENDEUR
+  frequenceVersement  FrequenceVersement? // Override de la fréquence du pack (ex: FAMILIAL)
 
   dateDebut           DateTime           @default(now())
   dateFin             DateTime?          // Date de fin prévue du cycle

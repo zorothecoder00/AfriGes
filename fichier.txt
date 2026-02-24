@@ -1,2 +1,2 @@
 -Pages user qu'il me reste à créer( types de gestionnaires [ COMMERCIAL, RESPONSABLE_VENTE_CREDIT, RESPONSABLE_ECONOMIQUE, RESPONSABLE_MARKETING ] )
-     
+          

@@ -1,0 +1,70 @@
+import { NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { getAgentTerrainSession } from "@/lib/authAgentTerrain";
+
+/**
+ * GET /api/agentTerrain/packs
+ * Souscriptions actives / en attente avec la prochaine échéance à collecter.
+ *   ?search=nom&type=ALIMENTAIRE
+ */
+export async function GET(req: Request) {
+  try {
+    const session = await getAgentTerrainSession();
+    if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
+
+    const { searchParams } = new URL(req.url);
+    const search = searchParams.get("search") ?? "";
+    const typePack = searchParams.get("type") ?? "";
+
+    const souscriptions = await prisma.souscriptionPack.findMany({
+      where: {
+        statut: { in: ["EN_ATTENTE", "ACTIF"] },
+        ...(typePack ? { pack: { type: typePack as never } } : {}),
+        ...(search
+          ? {
+              OR: [
+                { client: { nom: { contains: search, mode: "insensitive" } } },
+                { client: { prenom: { contains: search, mode: "insensitive" } } },
+                { client: { telephone: { contains: search } } },
+                { user: { nom: { contains: search, mode: "insensitive" } } },
+                { user: { prenom: { contains: search, mode: "insensitive" } } },
+              ],
+            }
+          : {}),
+      },
+      include: {
+        pack: { select: { nom: true, type: true, frequenceVersement: true } },
+        client: { select: { id: true, nom: true, prenom: true, telephone: true } },
+        user:   { select: { id: true, nom: true, prenom: true, telephone: true } },
+        echeances: {
+          where: { statut: { in: ["EN_ATTENTE", "EN_RETARD"] } },
+          orderBy: { datePrevue: "asc" },
+          take: 1,
+        },
+        _count: { select: { versements: true } },
+      },
+      orderBy: [{ statut: "asc" }, { createdAt: "asc" }],
+    });
+
+    // Stats
+    const totalMontantRestant = souscriptions.reduce(
+      (sum, s) => sum + Number(s.montantRestant),
+      0
+    );
+    const enRetard = souscriptions.filter((s) =>
+      s.echeances.some((e) => e.statut === "EN_RETARD")
+    ).length;
+
+    return NextResponse.json({
+      souscriptions,
+      stats: {
+        total: souscriptions.length,
+        totalMontantRestant,
+        enRetard,
+      },
+    });
+  } catch (error) {
+    console.error("GET /api/agentTerrain/packs", error);
+    return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
+  }
+}

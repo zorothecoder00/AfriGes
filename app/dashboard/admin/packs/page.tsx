@@ -32,6 +32,8 @@ interface Pack {
   bonusPourcentage?: number;
   cyclesBonusTrigger?: number;
   acomptePercent?: number;
+  pointsParTranche?: number;
+  montantTranche?: number;
   _count?: { souscriptions: number };
 }
 
@@ -569,19 +571,28 @@ function TabLivraisons() {
   const [livraisonTarget, setLivraisonTarget] = useState<number | null>(null);
 
   const { data: sData, loading, refetch } = useApi<SouscriptionsData>(
-    "/api/admin/packs/souscriptions?statut=COMPLETE"
+    "/api/admin/packs/souscriptions?statut=EN_ATTENTE,ACTIF,COMPLETE"
   );
 
-  const completes = (sData?.souscriptions ?? []).filter(
-    (s) => !s._count?.receptions || s._count.receptions === 0
-  );
+  // Bug #2 + Bug #6: livrables selon le type de pack
+  // URGENCE : dès ACTIF (acompte versé)
+  // REVENDEUR F1 : dès ACTIF (50% upfront versé)
+  // REVENDEUR F2 : dès EN_ATTENTE (crédit total, livraison avant tout remboursement)
+  // Autres : uniquement COMPLETE
+  const aLivrer = (sData?.souscriptions ?? []).filter((s) => {
+    if ((s.receptions?.length ?? 0) > 0) return false;
+    if (s.pack.type === "URGENCE" && s.statut === "ACTIF") return true;
+    if (s.pack.type === "REVENDEUR" && s.formuleRevendeur === "FORMULE_1" && s.statut === "ACTIF") return true;
+    if (s.pack.type === "REVENDEUR" && s.formuleRevendeur === "FORMULE_2") return true;
+    return s.statut === "COMPLETE";
+  });
 
   return (
     <>
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-lg font-bold text-slate-800">Souscriptions à livrer</h2>
-          <p className="text-sm text-slate-500 mt-0.5">Packs soldés en attente de livraison des produits</p>
+          <p className="text-sm text-slate-500 mt-0.5">Packs en attente de livraison (soldés, URGENCE/Revendeur F1 actifs, ou Revendeur F2)</p>
         </div>
         <button onClick={refetch} className="flex items-center gap-2 px-4 py-2 border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50 text-sm transition-colors">
           <RefreshCw className="w-4 h-4" /> Actualiser
@@ -597,11 +608,11 @@ function TabLivraisons() {
         <div className="bg-white rounded-2xl p-12 text-center shadow-sm border border-slate-200">
           <Truck className="w-12 h-12 text-slate-300 mx-auto mb-3" />
           <p className="text-slate-500 font-medium">Aucune livraison en attente</p>
-          <p className="text-slate-400 text-sm mt-1">Les packs soldés sans livraison apparaîtront ici.</p>
+          <p className="text-slate-400 text-sm mt-1">Les packs éligibles (soldés, ou URGENCE/Revendeur F1 actifs) apparaîtront ici.</p>
         </div>
       ) : (
         <div className="grid gap-4">
-          {completes.map((s) => {
+          {aLivrer.map((s) => {
             const colors = PACK_COLORS[s.pack.type];
             return (
               <div key={s.id} className={`bg-white rounded-2xl border ${colors.border} p-5 shadow-sm flex items-center justify-between gap-4`}>
@@ -623,7 +634,9 @@ function TabLivraisons() {
                       <User className="w-3.5 h-3.5" /> {nom(s)} — {tel(s)}
                     </p>
                     <p className="text-xs text-slate-400 mt-0.5">
-                      Soldé le {fmtD(s.dateCloture)} — {formatCurrency(s.montantTotal)}
+                      {s.statut === "COMPLETE"
+                        ? `Soldé le ${fmtD(s.dateCloture)}`
+                        : `Actif depuis ${fmtD(s.dateDebut)}`} — {formatCurrency(s.montantTotal)}
                     </p>
                   </div>
                 </div>
@@ -816,6 +829,8 @@ function ModalCreerPack({ pack, onClose, onSuccess }: { pack: Pack | null; onClo
     bonusPourcentage: pack?.bonusPourcentage ? String(pack.bonusPourcentage) : "",
     cyclesBonusTrigger: pack?.cyclesBonusTrigger ? String(pack.cyclesBonusTrigger) : "",
     acomptePercent: pack?.acomptePercent ? String(pack.acomptePercent) : "",
+    pointsParTranche: pack?.pointsParTranche ? String(pack.pointsParTranche) : "",
+    montantTranche: pack?.montantTranche ? String(pack.montantTranche) : "",
   });
 
   const { mutate: create, loading: creating } = useMutation("/api/admin/packs", "POST", { successMessage: "Pack créé !" });
@@ -837,6 +852,8 @@ function ModalCreerPack({ pack, onClose, onSuccess }: { pack: Pack | null; onClo
       cyclesBonusTrigger: form.cyclesBonusTrigger || undefined,
       acomptePercent: form.acomptePercent || undefined,
       formuleRevendeur: form.type === "REVENDEUR" ? form.formuleRevendeur || undefined : undefined,
+      pointsParTranche: form.pointsParTranche || undefined,
+      montantTranche: form.montantTranche || undefined,
     };
 
     const ok = isEdit ? await update(payload) : await create(payload);
@@ -944,6 +961,22 @@ function ModalCreerPack({ pack, onClose, onSuccess }: { pack: Pack | null; onClo
             </div>
           )}
 
+          {form.type === "FIDELITE" && (
+            <div className="grid grid-cols-2 gap-4 p-4 bg-pink-50 rounded-xl border border-pink-200">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Points par tranche</label>
+                <input type="number" min="1" {...f("pointsParTranche")} className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-pink-500" placeholder="Ex : 10" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Montant tranche (FCFA)</label>
+                <input type="number" min="1" {...f("montantTranche")} className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-pink-500" placeholder="Ex : 5000" />
+              </div>
+              <p className="col-span-2 text-xs text-pink-700 bg-pink-100 rounded-lg px-3 py-2">
+                Ex : 10 points tous les 5 000 FCFA d&apos;achat
+              </p>
+            </div>
+          )}
+
           <div className="flex gap-3 pt-2">
             <button type="button" onClick={onClose} className="flex-1 py-2.5 border border-slate-200 text-slate-700 rounded-xl hover:bg-slate-50 text-sm font-medium transition-colors">
               Annuler
@@ -967,6 +1000,7 @@ function ModalNouvelleSouscription({ onClose, onSuccess }: { onClose: () => void
   const [selectedClient, setSelectedClient] = useState<ClientOption | null>(null);
   const [packId, setPackId] = useState("");
   const [formuleRevendeur, setFormuleRevendeur] = useState("");
+  const [frequenceVersement, setFrequenceVersement] = useState("HEBDOMADAIRE");
   const [montantTotal, setMontantTotal] = useState("");
   const [acompte, setAcompte] = useState("");
   const [dateDebut, setDateDebut] = useState(new Date().toISOString().split("T")[0]);
@@ -1019,6 +1053,7 @@ function ModalNouvelleSouscription({ onClose, onSuccess }: { onClose: () => void
     };
     if (acompte && parseFloat(acompte) > 0) payload.acompteInitial = parseFloat(acompte);
     if (selectedPack?.type === "REVENDEUR" && formuleRevendeur) payload.formuleRevendeur = formuleRevendeur;
+    if (selectedPack?.type === "FAMILIAL") payload.frequenceVersement = frequenceVersement;
 
     const res = await mutate(payload);
     if (res) { onSuccess(); onClose(); }
@@ -1139,6 +1174,20 @@ function ModalNouvelleSouscription({ onClose, onSuccess }: { onClose: () => void
                     </button>
                   ))}
                 </div>
+              </div>
+            )}
+
+            {/* Fréquence FAMILIAL */}
+            {selectedPack?.type === "FAMILIAL" && (
+              <div className="p-4 bg-purple-50 rounded-xl border border-purple-200">
+                <label className="block text-sm font-medium text-slate-700 mb-1">Fréquence de versement *</label>
+                <select value={frequenceVersement} onChange={(e) => setFrequenceVersement(e.target.value)}
+                  className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white">
+                  <option value="QUOTIDIEN">Quotidien</option>
+                  <option value="HEBDOMADAIRE">Hebdomadaire</option>
+                  <option value="BIMENSUEL">Bimensuel</option>
+                  <option value="MENSUEL">Mensuel</option>
+                </select>
               </div>
             )}
 

@@ -12,11 +12,19 @@ export async function GET() {
     if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
 
     const [souscriptionsCompletes, receptionsEnCours, statsParType] = await Promise.all([
-      // Souscriptions soldées sans réception livrée
+      // Souscriptions livrables sans réception livrée (règles par type) :
+      // - COMPLETE pour ALIMENTAIRE, FAMILIAL, EPARGNE_PRODUIT, FIDELITE
+      // - ACTIF ou COMPLETE pour URGENCE et REVENDEUR F1
+      // - EN_ATTENTE, ACTIF ou COMPLETE pour REVENDEUR F2
       prisma.souscriptionPack.findMany({
         where: {
-          statut: "COMPLETE",
           receptions: { none: { statut: "LIVREE" } },
+          OR: [
+            { statut: "COMPLETE", pack: { type: { notIn: ["URGENCE", "REVENDEUR"] } } },
+            { pack: { type: "URGENCE" }, statut: { in: ["ACTIF", "COMPLETE"] } },
+            { pack: { type: "REVENDEUR" }, formuleRevendeur: "FORMULE_1", statut: { in: ["ACTIF", "COMPLETE"] } },
+            { pack: { type: "REVENDEUR" }, formuleRevendeur: "FORMULE_2" },
+          ],
         },
         include: {
           pack: { select: { nom: true, type: true } },
@@ -28,7 +36,7 @@ export async function GET() {
             },
           },
         },
-        orderBy: { dateCloture: "asc" },
+        orderBy: { createdAt: "asc" },
       }),
 
       // Réceptions planifiées pas encore livrées

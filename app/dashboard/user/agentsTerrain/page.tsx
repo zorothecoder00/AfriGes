@@ -1,61 +1,50 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import {
-  Users, MapPin, Phone, CreditCard as CreditCardIcon, TrendingUp, Clock, CheckCircle,
+  Users, MapPin, Phone, TrendingUp, Clock, CheckCircle,
   AlertCircle, Search, ArrowLeft, RefreshCw, UserPlus,
-  Banknote, Calendar, Eye, LucideIcon, XCircle, ShoppingBag, Loader2, Plus
-} from 'lucide-react';
-import Link from 'next/link';
-import SignOutButton from '@/components/SignOutButton';
-import NotificationBell from '@/components/NotificationBell';
-import { useApi, useMutation } from '@/hooks/useApi';
-import { formatCurrency, formatDate } from '@/lib/format';
-import { getStatusStyle, getStatusLabel } from '@/lib/status';
+  Banknote, Calendar, LucideIcon, Layers, Plus, ChevronRight,
+  Loader2,
+} from "lucide-react";
+import Link from "next/link";
+import SignOutButton from "@/components/SignOutButton";
+import NotificationBell from "@/components/NotificationBell";
+import { useApi, useMutation } from "@/hooks/useApi";
+import { formatCurrency, formatDate } from "@/lib/format";
+import { getStatusStyle, getStatusLabel } from "@/lib/status";
 
-// ============================================================================
-// TYPES
-// ============================================================================
+// ─── Types ────────────────────────────────────────────────────────────────────
 
-interface Credit {
+type TypePack = "ALIMENTAIRE" | "REVENDEUR" | "FAMILIAL" | "URGENCE" | "EPARGNE_PRODUIT" | "FIDELITE";
+
+interface Echeance {
   id: number;
+  numero: number;
   montant: string;
-  montantRestant: string;
-  dateDemande: string;
-  statut: 'EN_ATTENTE' | 'APPROUVE' | 'REJETE' | 'REMBOURSE_PARTIEL' | 'REMBOURSE_TOTAL';
-  member?: { id: number; nom: string; prenom: string; telephone: string | null } | null;
-  client?: { id: number; nom: string; prenom: string; telephone: string } | null;
+  datePrevue: string;
+  statut: "EN_ATTENTE" | "EN_RETARD" | "PAYE" | "ANNULE";
 }
 
-interface CreditsResponse {
-  data: Credit[];
-  meta: { total: number; page: number; limit: number; totalPages: number };
-}
-
-interface VenteProduit {
+interface Souscription {
   id: number;
-  quantite: number;
-  prixUnitaire: string;
-  createdAt: string;
-  produit: { id: number; nom: string; prixUnitaire: string };
-}
-
-interface CreditAlimentaire {
-  id: number;
-  plafond: string;
-  montantUtilise: string;
+  statut: "EN_ATTENTE" | "ACTIF" | "COMPLETE" | "SUSPENDU" | "ANNULE";
+  montantTotal: string;
+  montantVerse: string;
   montantRestant: string;
-  source: 'COTISATION' | 'TONTINE';
-  dateExpiration: string | null;
-  statut: 'ACTIF' | 'EPUISE' | 'EXPIRE';
+  numeroCycle: number;
+  formuleRevendeur?: string | null;
+  dateDebut: string;
+  pack: { nom: string; type: TypePack; frequenceVersement: string };
   client?: { id: number; nom: string; prenom: string; telephone: string } | null;
-  ventes?: VenteProduit[];
+  user?: { id: number; nom: string; prenom: string; telephone: string } | null;
+  echeances: Echeance[];
+  _count: { versements: number };
 }
 
-interface CreditsAlimResponse {
-  data: CreditAlimentaire[];
-  stats: { totalActifs: number; totalEpuises: number; totalExpires: number };
-  meta: { total: number; page: number; limit: number; totalPages: number };
+interface PacksResponse {
+  souscriptions: Souscription[];
+  stats: { total: number; totalMontantRestant: number; enRetard: number };
 }
 
 interface Client {
@@ -66,7 +55,7 @@ interface Client {
   adresse: string | null;
   etat: string;
   createdAt: string;
-  _count?: { credits: number; creditsAlim: number; cotisations: number; tontines: number };
+  _count?: { souscriptions: number };
 }
 
 interface ClientsResponse {
@@ -74,74 +63,23 @@ interface ClientsResponse {
   meta: { total: number; page: number; limit: number; totalPages: number };
 }
 
-interface Cotisation {
-  id: number;
-  montant: string;
-  periode: string;
-  datePaiement: string | null;
-  dateExpiration: string | null;
-  statut: string;
-  client?: { id: number; nom: string; prenom: string; telephone: string } | null;
-}
+// ─── Constantes ───────────────────────────────────────────────────────────────
 
-interface CotisationsResponse {
-  data: Cotisation[];
-  stats: { totalPayees: number; totalEnAttente: number; totalExpirees: number };
-  meta: { total: number; page: number; limit: number; totalPages: number };
-}
+const PACK_LABELS: Record<TypePack, string> = {
+  ALIMENTAIRE: "Alimentaire", REVENDEUR: "Revendeur", FAMILIAL: "Familial",
+  URGENCE: "Urgence", EPARGNE_PRODUIT: "Épargne-Produit", FIDELITE: "Fidélité",
+};
 
-interface TontineContribution {
-  id: number;
-  montant: string;
-  statut: 'EN_ATTENTE' | 'PAYEE';
-  datePaiement: string | null;
-  membre: {
-    id: number;
-    ordreTirage: number | null;
-    client: { id: number; nom: string; prenom: string; telephone: string } | null;
-  };
-}
+const PACK_COLORS: Record<TypePack, { badge: string; border: string }> = {
+  ALIMENTAIRE:   { badge: "bg-green-100 text-green-800",  border: "border-green-200" },
+  REVENDEUR:     { badge: "bg-blue-100 text-blue-800",    border: "border-blue-200" },
+  FAMILIAL:      { badge: "bg-purple-100 text-purple-800",border: "border-purple-200" },
+  URGENCE:       { badge: "bg-red-100 text-red-800",      border: "border-red-200" },
+  EPARGNE_PRODUIT:{ badge: "bg-amber-100 text-amber-800", border: "border-amber-200" },
+  FIDELITE:      { badge: "bg-pink-100 text-pink-800",    border: "border-pink-200" },
+};
 
-interface TontineCycle {
-  id: number;
-  numeroCycle: number;
-  montantPot: string;
-  statut: 'EN_COURS' | 'COMPLETE' | 'ANNULE';
-  dateDebut: string;
-  beneficiaire: {
-    client: { id: number; nom: string; prenom: string; telephone: string } | null;
-  };
-  contributions: TontineContribution[];
-}
-
-interface Tontine {
-  id: number;
-  nom: string;
-  montantCycle: string;
-  frequence: string;
-  statut: string;
-  cycles: TontineCycle[];
-  _count?: { membres: number };
-}
-
-interface TontinesResponse {
-  data: Tontine[];
-}
-
-interface Produit {
-  id: number;
-  nom: string;
-  prixUnitaire: string;
-  stock: number;
-}
-
-interface StockResponse {
-  data: Produit[];
-}
-
-// ============================================================================
-// SUB-COMPONENTS
-// ============================================================================
+// ─── Sub-components ───────────────────────────────────────────────────────────
 
 const StatCard = ({ label, value, subtitle, icon: Icon, color, lightBg }: {
   label: string; value: string; subtitle?: string; icon: LucideIcon; color: string; lightBg: string;
@@ -158,162 +96,209 @@ const StatCard = ({ label, value, subtitle, icon: Icon, color, lightBg }: {
   </div>
 );
 
-// ============================================================================
-// MAIN PAGE
-// ============================================================================
+// ─── Modal Collecte ───────────────────────────────────────────────────────────
 
-type TabKey = 'prospects' | 'cotisations' | 'tontines' | 'creditsAlim' | 'creditsSimples';
+function ModalCollecte({
+  souscription,
+  onClose,
+  onSuccess,
+}: {
+  souscription: Souscription;
+  onClose: () => void;
+  onSuccess: () => void;
+}) {
+  const [montant, setMontant] = useState("");
+  const [notes, setNotes] = useState("");
 
-export default function AgentTerrainPage() {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [activeTab, setActiveTab] = useState<TabKey>('prospects');
-  const [clientPage, setClientPage] = useState(1);
-  const [cotisationPage, setCotisationPage] = useState(1);
-  const [cotisationFilter, setCotisationFilter] = useState('');
-
-  // Modals
-  const [addClientModal, setAddClientModal] = useState(false);
-  const [clientForm, setClientForm] = useState({ nom: '', prenom: '', telephone: '', adresse: '' });
-  const [collectId, setCollectId] = useState<number | null>(null);
-  const [payingContrib, setPayingContrib] = useState<{ tontineId: number; contributionId: number } | null>(null);
-  const [venteModal, setVenteModal] = useState<CreditAlimentaire | null>(null);
-  const [venteForm, setVenteForm] = useState({ produitId: '', quantite: '1' });
+  const prochaine = souscription.echeances[0];
+  const type = souscription.pack.type;
 
   useEffect(() => {
-    const timer = setTimeout(() => setDebouncedSearch(searchQuery), 400);
-    return () => clearTimeout(timer);
-  }, [searchQuery]);
+    if (prochaine) setMontant(String(prochaine.montant));
+  }, [prochaine]);
 
-  // --- API Calls ---
-  const clientParams = new URLSearchParams({ page: String(clientPage), limit: '10' });
-  if (debouncedSearch && activeTab === 'prospects') clientParams.set('search', debouncedSearch);
-
-  const cotisationParams = new URLSearchParams({ page: String(cotisationPage), limit: '10' });
-  if (debouncedSearch && activeTab === 'cotisations') cotisationParams.set('search', debouncedSearch);
-  if (cotisationFilter) cotisationParams.set('statut', cotisationFilter);
-
-  const { data: clientsResponse, loading: clientsLoading, refetch: refetchClients } = useApi<ClientsResponse>(`/api/agentTerrain/clients?${clientParams}`);
-  const { data: cotisationsResponse, loading: cotisationsLoading, refetch: refetchCotisations } = useApi<CotisationsResponse>(`/api/agentTerrain/cotisations?${cotisationParams}`);
-  const { data: tontinesResponse, refetch: refetchTontines } = useApi<TontinesResponse>('/api/agentTerrain/tontines');
-  const { data: creditsAlimResponse, refetch: refetchCreditsAlim } = useApi<CreditsAlimResponse>('/api/agentTerrain/creditsAlimentaires?limit=50');
-  const { data: creditsResponse } = useApi<CreditsResponse>('/api/admin/credits?limit=50');
-  const { data: stockResponse } = useApi<StockResponse>(venteModal ? '/api/admin/stock?limit=200' : null);
-
-  // Mutations
-  const { mutate: addClient, loading: addingClient, error: addClientError } = useMutation('/api/agentTerrain/clients', 'POST', { successMessage: 'Client ajoute avec succes' });
-  const { mutate: collectCotisation, loading: collecting } = useMutation(
-    `/api/agentTerrain/cotisations/${collectId}/collect`,
-    'PATCH',
-    { successMessage: 'Cotisation collectee avec succes' }
+  const { mutate, loading } = useMutation(
+    `/api/agentTerrain/packs/${souscription.id}/collecte`,
+    "POST",
+    { successMessage: "Versement collecté !" }
   );
-  const { mutate: markContribPaid, loading: markingContrib } = useMutation(
-    payingContrib ? `/api/agentTerrain/tontines/${payingContrib.tontineId}/contributions/${payingContrib.contributionId}` : '/api/agentTerrain/tontines/0/contributions/0',
-    'PATCH',
-    { successMessage: 'Contribution collectee avec succes' }
-  );
-  const { mutate: createVente, loading: creatingVente } = useMutation('/api/agentTerrain/ventes', 'POST', { successMessage: 'Vente effectuee avec succes' });
 
-  // Data
-  const clients = clientsResponse?.data ?? [];
-  const clientsMeta = clientsResponse?.meta;
-  const cotisations = cotisationsResponse?.data ?? [];
-  const cotisationsMeta = cotisationsResponse?.meta;
-  const cotisationsStats = cotisationsResponse?.stats;
-  const tontines = tontinesResponse?.data ?? [];
-  const creditsAlim = creditsAlimResponse?.data ?? [];
-  const creditsAlimStats = creditsAlimResponse?.stats;
-  const credits = creditsResponse?.data ?? [];
-  const produits = stockResponse?.data ?? [];
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const payload: Record<string, unknown> = {
+      montant: parseFloat(montant),
+      notes: notes || undefined,
+    };
+    if (prochaine) payload.echeanceId = prochaine.id;
+    const res = await mutate(payload);
+    if (res) { onSuccess(); onClose(); }
+  }
 
-  const creditsEnCours = credits.filter(c => c.statut === 'APPROUVE' || c.statut === 'REMBOURSE_PARTIEL');
-  const totalACollecter = creditsEnCours.reduce((sum, c) => sum + Number(c.montantRestant || 0), 0);
+  const personne = souscription.client
+    ? `${souscription.client.prenom} ${souscription.client.nom}`
+    : souscription.user
+    ? `${souscription.user.prenom} ${souscription.user.nom}`
+    : "—";
 
-  const refetchAll = () => {
-    refetchClients();
-    refetchCotisations();
-    refetchTontines();
-    refetchCreditsAlim();
+  const typeInfo: Record<TypePack, string> = {
+    ALIMENTAIRE: "Cotisation périodique — produit remis à solde complet",
+    REVENDEUR: souscription.formuleRevendeur === "FORMULE_1"
+      ? "Remboursement hebdomadaire (F1)"
+      : "Remboursement quotidien 16j (F2)",
+    FAMILIAL: `Cycle ${souscription.numeroCycle} — panier remis à solde`,
+    URGENCE: "Remboursement journalier (7-10j)",
+    EPARGNE_PRODUIT: "Épargne progressive",
+    FIDELITE: "Points bonus",
   };
 
-  // --- Handlers ---
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-xl font-bold text-slate-800">Collecte terrain</h2>
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg font-bold text-lg transition-colors">×</button>
+        </div>
+
+        {/* Info souscription */}
+        <div className={`p-4 rounded-xl border ${PACK_COLORS[type].border} bg-opacity-30 mb-5 space-y-2`}>
+          <div className="flex items-center gap-2">
+            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${PACK_COLORS[type].badge}`}>
+              {PACK_LABELS[type]}
+            </span>
+            <span className="text-sm font-semibold text-slate-800">{souscription.pack.nom}</span>
+          </div>
+          <p className="text-sm text-slate-600"><span className="font-medium">Client :</span> {personne}</p>
+          <p className="text-xs text-slate-500 italic">{typeInfo[type]}</p>
+          <div className="flex justify-between text-sm pt-1 border-t border-slate-100">
+            <span className="text-slate-500">Restant</span>
+            <span className="font-bold text-red-600">{formatCurrency(Number(souscription.montantRestant))}</span>
+          </div>
+          {prochaine && (
+            <div className="flex justify-between text-sm">
+              <span className="text-slate-500">Échéance #{prochaine.numero}</span>
+              <span className={`font-medium ${prochaine.statut === "EN_RETARD" ? "text-red-600" : "text-slate-700"}`}>
+                {formatCurrency(Number(prochaine.montant))} — {formatDate(prochaine.datePrevue)}
+                {prochaine.statut === "EN_RETARD" && " (EN RETARD)"}
+              </span>
+            </div>
+          )}
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Montant collecté (FCFA) *</label>
+            <input
+              type="number" min="1" required
+              value={montant} onChange={(e) => setMontant(e.target.value)}
+              className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+              placeholder="Ex : 5000"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Notes (optionnel)</label>
+            <textarea
+              value={notes} onChange={(e) => setNotes(e.target.value)} rows={2}
+              className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 resize-none"
+              placeholder="Observations terrain…"
+            />
+          </div>
+          <div className="flex gap-3 pt-1">
+            <button type="button" onClick={onClose}
+              className="flex-1 py-2.5 border border-slate-200 text-slate-700 rounded-xl hover:bg-slate-50 text-sm font-medium">
+              Annuler
+            </button>
+            <button type="submit" disabled={loading || !montant}
+              className="flex-1 py-2.5 bg-teal-600 text-white rounded-xl hover:bg-teal-700 disabled:opacity-50 text-sm font-medium flex items-center justify-center gap-2">
+              {loading ? <><Loader2 className="w-4 h-4 animate-spin" /> Enregistrement…</> : "Confirmer collecte"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ─── Page principale ──────────────────────────────────────────────────────────
+
+type TabKey = "prospects" | "packs";
+
+export default function AgentTerrainPage() {
+  const [searchQuery, setSearchQuery]   = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [activeTab, setActiveTab]       = useState<TabKey>("packs");
+  const [clientPage, setClientPage]     = useState(1);
+  const [packTypeFilter, setPackTypeFilter] = useState("");
+  const [collectTarget, setCollectTarget] = useState<Souscription | null>(null);
+  const [addClientModal, setAddClientModal] = useState(false);
+  const [clientForm, setClientForm]     = useState({ nom: "", prenom: "", telephone: "", adresse: "" });
+
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(searchQuery), 400);
+    return () => clearTimeout(t);
+  }, [searchQuery]);
+
+  // ── API ──
+  const clientParams = new URLSearchParams({ page: String(clientPage), limit: "10" });
+  if (debouncedSearch && activeTab === "prospects") clientParams.set("search", debouncedSearch);
+
+  const packParams = new URLSearchParams();
+  if (debouncedSearch && activeTab === "packs") packParams.set("search", debouncedSearch);
+  if (packTypeFilter) packParams.set("type", packTypeFilter);
+
+  const { data: clientsResponse, loading: clientsLoading, refetch: refetchClients } =
+    useApi<ClientsResponse>(`/api/agentTerrain/clients?${clientParams}`);
+  const { data: packsResponse, loading: packsLoading, refetch: refetchPacks } =
+    useApi<PacksResponse>(`/api/agentTerrain/packs?${packParams}`);
+
+  const { mutate: addClient, loading: addingClient } = useMutation(
+    "/api/agentTerrain/clients", "POST", { successMessage: "Client ajouté !" }
+  );
+
+  const clients        = clientsResponse?.data ?? [];
+  const clientsMeta    = clientsResponse?.meta;
+  const souscriptions  = packsResponse?.souscriptions ?? [];
+  const packStats      = packsResponse?.stats;
+
+  const refetchAll = () => { refetchClients(); refetchPacks(); };
+
+  // ── Handlers ──
   const handleAddClient = async (e: React.FormEvent) => {
     e.preventDefault();
-    const result = await addClient(clientForm);
-    if (result) {
+    const res = await addClient(clientForm);
+    if (res) {
       setAddClientModal(false);
-      setClientForm({ nom: '', prenom: '', telephone: '', adresse: '' });
+      setClientForm({ nom: "", prenom: "", telephone: "", adresse: "" });
       refetchClients();
     }
   };
 
-  const handleCollect = async () => {
-    if (!collectId) return;
-    const result = await collectCotisation({});
-    if (result) {
-      setCollectId(null);
-      refetchCotisations();
-      refetchCreditsAlim();
-    }
-  };
+  // ── Stat cards ──
+  const statCards = [
+    { label: "Clients", value: String(clientsMeta?.total ?? 0), subtitle: "Portefeuille", icon: Users, color: "text-blue-500", lightBg: "bg-blue-50" },
+    { label: "Souscriptions actives", value: String(packStats?.total ?? 0), subtitle: "À collecter", icon: Layers, color: "text-teal-500", lightBg: "bg-teal-50" },
+    { label: "Montant restant", value: formatCurrency(packStats?.totalMontantRestant ?? 0), subtitle: "Total à collecter", icon: Banknote, color: "text-emerald-500", lightBg: "bg-emerald-50" },
+    { label: "En retard", value: String(packStats?.enRetard ?? 0), subtitle: "Échéances dépassées", icon: AlertCircle, color: "text-red-500", lightBg: "bg-red-50" },
+  ];
 
-  const handleMarkContribPaid = async () => {
-    if (!payingContrib) return;
-    const result = await markContribPaid({});
-    if (result) {
-      setPayingContrib(null);
-      refetchTontines();
-      refetchCreditsAlim();
-    }
-  };
+  const tabs: { key: TabKey; label: string; icon: LucideIcon }[] = [
+    { key: "packs",     label: "Collecte Packs", icon: Banknote },
+    { key: "prospects", label: "Clients",        icon: Users },
+  ];
 
-  const handleVente = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!venteModal) return;
-    const result = await createVente({
-      creditAlimentaireId: venteModal.id,
-      produitId: Number(venteForm.produitId),
-      quantite: Number(venteForm.quantite),
-    });
-    if (result) {
-      setVenteModal(null);
-      setVenteForm({ produitId: '', quantite: '1' });
-      refetchCreditsAlim();
-    }
-  };
-
-  // --- Loading ---
-  if (clientsLoading && !clientsResponse) {
+  if (clientsLoading && !clientsResponse && !packsResponse) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-teal-50/30 to-emerald-50/20 flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 border-4 border-teal-200 border-t-teal-600 rounded-full animate-spin"></div>
-          <p className="text-slate-500 font-medium">Chargement du tableau de bord...</p>
+          <div className="w-12 h-12 border-4 border-teal-200 border-t-teal-600 rounded-full animate-spin" />
+          <p className="text-slate-500 font-medium">Chargement…</p>
         </div>
       </div>
     );
   }
 
-  const selectedProduit = produits.find(p => p.id === Number(venteForm.produitId));
-  const venteMontant = selectedProduit ? Number(selectedProduit.prixUnitaire) * Number(venteForm.quantite || 0) : 0;
-
-  const statCards = [
-    { label: 'Clients', value: String(clientsMeta?.total ?? 0), subtitle: 'Portefeuille', icon: Users, color: 'text-blue-500', lightBg: 'bg-blue-50' },
-    { label: 'Cotisations en attente', value: String(cotisationsStats?.totalEnAttente ?? 0), subtitle: 'A collecter', icon: Calendar, color: 'text-amber-500', lightBg: 'bg-amber-50' },
-    { label: 'Credits Alim. Actifs', value: String(creditsAlimStats?.totalActifs ?? 0), subtitle: 'Consommables', icon: ShoppingBag, color: 'text-emerald-500', lightBg: 'bg-emerald-50' },
-    { label: 'A Collecter (Prets)', value: formatCurrency(totalACollecter), subtitle: `${creditsEnCours.length} pret(s)`, icon: Banknote, color: 'text-teal-500', lightBg: 'bg-teal-50' },
-  ];
-
-  const tabs: { key: TabKey; label: string; icon: LucideIcon }[] = [
-    { key: 'prospects', label: 'Prospection', icon: UserPlus },
-    { key: 'cotisations', label: 'Cotisations', icon: Calendar },
-    { key: 'tontines', label: 'Tontines', icon: TrendingUp },
-    { key: 'creditsAlim', label: 'Credits Alim.', icon: ShoppingBag },
-    { key: 'creditsSimples', label: 'Credits', icon: Banknote },
-  ];
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-teal-50/30 to-emerald-50/20 font-['DM_Sans',sans-serif]">
+
       {/* Navbar */}
       <nav className="bg-white shadow-sm border-b border-slate-200 sticky top-0 z-50">
         <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8">
@@ -336,124 +321,210 @@ export default function AgentTerrainPage() {
       </nav>
 
       <main className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-3xl font-bold text-slate-800 mb-2">Tableau de Bord - Agent Terrain</h2>
-            <p className="text-slate-500">Gerez les clients, collectez les cotisations et tontines, vendez via credits alimentaires</p>
+            <h2 className="text-3xl font-bold text-slate-800 mb-1">Tableau de Bord — Agent Terrain</h2>
+            <p className="text-slate-500 text-sm">Collectez les versements packs et gérez votre portefeuille clients</p>
           </div>
           <button onClick={refetchAll} className="px-5 py-3 bg-white border border-slate-200 rounded-xl text-slate-700 hover:bg-slate-50 transition-all shadow-sm flex items-center gap-2 font-medium">
-            <RefreshCw size={18} />
-            Actualiser
+            <RefreshCw size={18} /> Actualiser
           </button>
         </div>
 
         {/* Stats */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-          {statCards.map((stat, i) => <StatCard key={i} {...stat} />)}
+          {statCards.map((s, i) => <StatCard key={i} {...s} />)}
         </div>
 
         {/* Tabs */}
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 p-1.5 flex gap-1">
-          {tabs.map(tab => {
+          {tabs.map((tab) => {
             const Icon = tab.icon;
             return (
-              <button
-                key={tab.key}
-                onClick={() => { setActiveTab(tab.key); setSearchQuery(''); }}
+              <button key={tab.key} onClick={() => { setActiveTab(tab.key); setSearchQuery(""); }}
                 className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-sm font-semibold transition-all ${
-                  activeTab === tab.key ? 'bg-teal-600 text-white shadow-lg shadow-teal-200' : 'text-slate-600 hover:bg-slate-100'
-                }`}
-              >
-                <Icon size={18} />
-                {tab.label}
+                  activeTab === tab.key ? "bg-teal-600 text-white shadow-lg shadow-teal-200" : "text-slate-600 hover:bg-slate-100"
+                }`}>
+                <Icon size={18} />{tab.label}
               </button>
             );
           })}
         </div>
 
-        {/* Search bar (sauf tontines) */}
-        {activeTab !== 'tontines' && (
-          <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/60">
-            <div className="flex items-center gap-4">
-              <div className="flex-1 relative">
-                <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400" size={20} />
-                <input
-                  type="text"
-                  placeholder="Rechercher..."
-                  value={searchQuery}
-                  onChange={(e) => { setSearchQuery(e.target.value); setClientPage(1); setCotisationPage(1); }}
-                  className="w-full pl-12 pr-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 bg-slate-50"
-                />
-              </div>
-              {activeTab === 'cotisations' && (
-                <select
-                  value={cotisationFilter}
-                  onChange={(e) => { setCotisationFilter(e.target.value); setCotisationPage(1); }}
-                  className="px-4 py-3 border border-slate-200 rounded-xl text-slate-700 bg-slate-50"
-                >
-                  <option value="">Tous les statuts</option>
-                  <option value="EN_ATTENTE">En attente</option>
-                  <option value="PAYEE">Payee</option>
-                  <option value="EXPIREE">Expiree</option>
-                </select>
-              )}
-              {activeTab === 'prospects' && (
-                <button onClick={() => setAddClientModal(true)} className="px-5 py-3 bg-teal-600 text-white rounded-xl hover:bg-teal-700 shadow-lg shadow-teal-200 flex items-center gap-2 font-medium">
-                  <Plus size={18} />
-                  Ajouter client
-                </button>
-              )}
+        {/* Search + filtres */}
+        <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-200/60">
+          <div className="flex items-center gap-3">
+            <div className="flex-1 relative">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+              <input type="text" placeholder="Rechercher…" value={searchQuery}
+                onChange={(e) => { setSearchQuery(e.target.value); setClientPage(1); }}
+                className="w-full pl-11 pr-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 bg-slate-50"
+              />
             </div>
+            {activeTab === "packs" && (
+              <select value={packTypeFilter} onChange={(e) => setPackTypeFilter(e.target.value)}
+                className="px-3 py-2.5 border border-slate-200 rounded-xl text-sm text-slate-700 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-teal-500">
+                <option value="">Tous les types</option>
+                <option value="ALIMENTAIRE">Alimentaire</option>
+                <option value="REVENDEUR">Revendeur</option>
+                <option value="FAMILIAL">Familial</option>
+                <option value="URGENCE">Urgence</option>
+                <option value="EPARGNE_PRODUIT">Épargne-Produit</option>
+              </select>
+            )}
+            {activeTab === "prospects" && (
+              <button onClick={() => setAddClientModal(true)}
+                className="px-4 py-2.5 bg-teal-600 text-white rounded-xl hover:bg-teal-700 shadow-lg shadow-teal-200 flex items-center gap-2 text-sm font-medium">
+                <Plus size={16} /> Ajouter client
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* ── TAB : COLLECTE PACKS ── */}
+        {activeTab === "packs" && (
+          <div className="space-y-3">
+            {packsLoading && (
+              <div className="bg-white rounded-2xl p-12 text-center border border-slate-200">
+                <Loader2 className="w-8 h-8 text-teal-500 animate-spin mx-auto" />
+              </div>
+            )}
+
+            {!packsLoading && souscriptions.length === 0 && (
+              <div className="bg-white rounded-2xl p-12 text-center border border-slate-200">
+                <Layers className="w-10 h-10 text-slate-300 mx-auto mb-3" />
+                <p className="text-slate-500 font-medium">Aucune souscription active à collecter</p>
+              </div>
+            )}
+
+            {souscriptions.map((s) => {
+              const personne = s.client
+                ? `${s.client.prenom} ${s.client.nom}`
+                : s.user ? `${s.user.prenom} ${s.user.nom}` : "—";
+              const telephone = s.client?.telephone ?? s.user?.telephone ?? "";
+              const prochaine = s.echeances[0];
+              const retard = prochaine?.statut === "EN_RETARD";
+              const colors = PACK_COLORS[s.pack.type];
+              const progression = Number(s.montantTotal) > 0
+                ? Math.min(100, Math.round((Number(s.montantVerse) / Number(s.montantTotal)) * 100))
+                : 0;
+
+              return (
+                <div key={s.id} className={`bg-white rounded-2xl border ${retard ? "border-red-300" : "border-slate-200"} p-5 shadow-sm hover:shadow-md transition-shadow`}>
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1 min-w-0">
+                      {/* Client + pack */}
+                      <div className="flex items-center gap-2 mb-1 flex-wrap">
+                        <span className="font-bold text-slate-800">{personne}</span>
+                        {telephone && <span className="text-xs text-slate-500 flex items-center gap-1"><Phone size={11} />{telephone}</span>}
+                      </div>
+                      <div className="flex items-center gap-2 mb-3 flex-wrap">
+                        <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${colors.badge}`}>
+                          {PACK_LABELS[s.pack.type]}
+                        </span>
+                        <span className="text-sm text-slate-600">{s.pack.nom}</span>
+                        {s.formuleRevendeur && (
+                          <span className="text-xs text-blue-600 font-medium">
+                            {s.formuleRevendeur === "FORMULE_1" ? "F1" : "F2"}
+                          </span>
+                        )}
+                        {s.pack.type === "FAMILIAL" && (
+                          <span className="text-xs text-purple-600 font-medium">Cycle {s.numeroCycle}</span>
+                        )}
+                      </div>
+
+                      {/* Barre de progression */}
+                      <div className="mb-3">
+                        <div className="flex justify-between text-xs text-slate-500 mb-1">
+                          <span>{formatCurrency(Number(s.montantVerse))} versés</span>
+                          <span>{formatCurrency(Number(s.montantRestant))} restants</span>
+                        </div>
+                        <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                          <div className="h-full bg-teal-500 rounded-full transition-all" style={{ width: `${progression}%` }} />
+                        </div>
+                        <p className="text-xs text-slate-400 mt-0.5">{progression}% payé</p>
+                      </div>
+
+                      {/* Prochaine échéance */}
+                      {prochaine ? (
+                        <div className={`flex items-center gap-2 text-sm rounded-lg px-3 py-2 ${retard ? "bg-red-50 text-red-700" : "bg-slate-50 text-slate-600"}`}>
+                          {retard ? <AlertCircle size={14} className="text-red-500 shrink-0" /> : <Calendar size={14} className="text-slate-400 shrink-0" />}
+                          <span>
+                            Échéance #{prochaine.numero} — <strong>{formatCurrency(Number(prochaine.montant))}</strong>
+                            {" "}— {formatDate(prochaine.datePrevue)}
+                            {retard && <span className="ml-1 font-bold">⚠ EN RETARD</span>}
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2 text-sm text-emerald-600 bg-emerald-50 rounded-lg px-3 py-2">
+                          <CheckCircle size={14} className="shrink-0" />
+                          <span>Toutes les échéances sont à jour</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Bouton collecter */}
+                    <button
+                      onClick={() => setCollectTarget(s)}
+                      className="shrink-0 flex items-center gap-1.5 px-4 py-2.5 bg-teal-600 text-white rounded-xl hover:bg-teal-700 text-sm font-medium transition-colors shadow-sm">
+                      <Banknote size={15} /> Collecter
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
 
-        {/* ============================================================ */}
-        {/* TAB: PROSPECTION */}
-        {/* ============================================================ */}
-        {activeTab === 'prospects' && (
+        {/* ── TAB : CLIENTS / PROSPECTION ── */}
+        {activeTab === "prospects" && (
           <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-slate-50 border-b border-slate-200">
                   <tr>
                     <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase">Client</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase">Telephone</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase">Téléphone</th>
                     <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase">Adresse</th>
                     <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase">Statut</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase">Activites</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase">Souscriptions</th>
                     <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase">Inscription</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {clients.map((client) => {
-                    const totalAct = (client._count?.credits ?? 0) + (client._count?.creditsAlim ?? 0) + (client._count?.cotisations ?? 0) + (client._count?.tontines ?? 0);
-                    return (
-                      <tr key={client.id} className="hover:bg-slate-50 transition-colors">
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-gradient-to-br from-teal-500 to-emerald-500 rounded-full flex items-center justify-center text-white font-semibold text-sm">
-                              {client.prenom?.[0]}{client.nom?.[0]}
-                            </div>
-                            <p className="font-semibold text-slate-800">{client.prenom} {client.nom}</p>
+                  {clients.map((client) => (
+                    <tr key={client.id} className="hover:bg-slate-50 transition-colors">
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-gradient-to-br from-teal-500 to-emerald-500 rounded-full flex items-center justify-center text-white font-semibold text-sm">
+                            {client.prenom?.[0]}{client.nom?.[0]}
                           </div>
-                        </td>
-                        <td className="px-6 py-4 text-sm text-slate-600"><Phone size={14} className="inline mr-1 text-slate-400" />{client.telephone}</td>
-                        <td className="px-6 py-4 text-sm text-slate-600"><MapPin size={14} className="inline mr-1 text-slate-400" />{client.adresse ?? '-'}</td>
-                        <td className="px-6 py-4">
-                          <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${getStatusStyle(client.etat)}`}>{getStatusLabel(client.etat)}</span>
-                        </td>
-                        <td className="px-6 py-4">
-                          <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${totalAct > 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>
-                            {totalAct} activite{totalAct !== 1 ? 's' : ''}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 text-sm text-slate-600">{formatDate(client.createdAt)}</td>
-                      </tr>
-                    );
-                  })}
+                          <p className="font-semibold text-slate-800">{client.prenom} {client.nom}</p>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-sm text-slate-600">
+                        <Phone size={13} className="inline mr-1 text-slate-400" />{client.telephone}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-slate-600">
+                        <MapPin size={13} className="inline mr-1 text-slate-400" />{client.adresse ?? "—"}
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${getStatusStyle(client.etat)}`}>
+                          {getStatusLabel(client.etat)}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${(client._count?.souscriptions ?? 0) > 0 ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-600"}`}>
+                          {client._count?.souscriptions ?? 0} souscription(s)
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-sm text-slate-600">{formatDate(client.createdAt)}</td>
+                    </tr>
+                  ))}
                   {clients.length === 0 && (
-                    <tr><td colSpan={6} className="px-6 py-12 text-center text-slate-500">Aucun client trouve</td></tr>
+                    <tr><td colSpan={6} className="px-6 py-12 text-center text-slate-500">Aucun client trouvé</td></tr>
                   )}
                 </tbody>
               </table>
@@ -462,430 +533,60 @@ export default function AgentTerrainPage() {
               <div className="px-6 py-4 border-t border-slate-200 flex items-center justify-between">
                 <p className="text-sm text-slate-600">Page {clientsMeta.page} sur {clientsMeta.totalPages} ({clientsMeta.total} clients)</p>
                 <div className="flex items-center gap-2">
-                  <button onClick={() => setClientPage(p => Math.max(1, p - 1))} disabled={clientPage <= 1} className="px-4 py-2 border rounded-lg text-slate-600 hover:bg-slate-50 disabled:opacity-50">Precedent</button>
-                  <span className="px-4 py-2 bg-teal-600 text-white rounded-lg font-medium">{clientPage}</span>
-                  <button onClick={() => setClientPage(p => Math.min(clientsMeta.totalPages, p + 1))} disabled={clientPage >= clientsMeta.totalPages} className="px-4 py-2 border rounded-lg text-slate-600 hover:bg-slate-50 disabled:opacity-50">Suivant</button>
+                  <button onClick={() => setClientPage((p) => Math.max(1, p - 1))} disabled={clientPage <= 1}
+                    className="px-4 py-2 border rounded-lg text-slate-600 hover:bg-slate-50 disabled:opacity-50 text-sm">Précédent</button>
+                  <span className="px-4 py-2 bg-teal-600 text-white rounded-lg font-medium text-sm">{clientPage}</span>
+                  <button onClick={() => setClientPage((p) => Math.min(clientsMeta.totalPages, p + 1))} disabled={clientPage >= clientsMeta.totalPages}
+                    className="px-4 py-2 border rounded-lg text-slate-600 hover:bg-slate-50 disabled:opacity-50 text-sm">Suivant</button>
                 </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ============================================================ */}
-        {/* TAB: COTISATIONS */}
-        {/* ============================================================ */}
-        {activeTab === 'cotisations' && (
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-slate-50 border-b border-slate-200">
-                  <tr>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase">Client</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase">Montant</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase">Periode</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase">Echeance</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase">Statut</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase">Paiement</th>
-                    <th className="px-6 py-4 text-right text-xs font-semibold text-slate-600 uppercase">Action</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {cotisations.map((cot) => (
-                    <tr key={cot.id} className="hover:bg-slate-50 transition-colors">
-                      <td className="px-6 py-4">
-                        <p className="font-semibold text-slate-800">{cot.client ? `${cot.client.prenom} ${cot.client.nom}` : '-'}</p>
-                        {cot.client?.telephone && <p className="text-xs text-slate-500">{cot.client.telephone}</p>}
-                      </td>
-                      <td className="px-6 py-4 font-bold text-slate-800">{formatCurrency(cot.montant)}</td>
-                      <td className="px-6 py-4">
-                        <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${getStatusStyle(cot.periode)}`}>{getStatusLabel(cot.periode)}</span>
-                      </td>
-                      <td className="px-6 py-4 text-sm text-slate-600">{cot.dateExpiration ? formatDate(cot.dateExpiration) : '-'}</td>
-                      <td className="px-6 py-4">
-                        <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${getStatusStyle(cot.statut)}`}>{getStatusLabel(cot.statut)}</span>
-                      </td>
-                      <td className="px-6 py-4 text-sm text-slate-600">{cot.datePaiement ? formatDate(cot.datePaiement) : '-'}</td>
-                      <td className="px-6 py-4 text-right">
-                        {cot.statut === 'EN_ATTENTE' && (
-                          collectId === cot.id ? (
-                            <div className="flex items-center gap-2 justify-end">
-                              <button onClick={handleCollect} disabled={collecting} className="px-3 py-1.5 bg-emerald-600 text-white text-xs rounded-lg hover:bg-emerald-700 disabled:opacity-50 font-medium">
-                                {collecting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Confirmer'}
-                              </button>
-                              <button onClick={() => setCollectId(null)} className="px-3 py-1.5 bg-gray-200 text-gray-700 text-xs rounded-lg hover:bg-gray-300 font-medium">Annuler</button>
-                            </div>
-                          ) : (
-                            <button onClick={() => setCollectId(cot.id)} className="px-3 py-1.5 bg-teal-600 text-white text-xs rounded-lg hover:bg-teal-700 font-medium">
-                              Collecter
-                            </button>
-                          )
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                  {cotisations.length === 0 && (
-                    <tr><td colSpan={7} className="px-6 py-12 text-center text-slate-500">Aucune cotisation trouvee</td></tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-            {cotisationsMeta && cotisationsMeta.totalPages > 1 && (
-              <div className="px-6 py-4 border-t border-slate-200 flex items-center justify-between">
-                <p className="text-sm text-slate-600">Page {cotisationsMeta.page} sur {cotisationsMeta.totalPages} ({cotisationsMeta.total} cotisations)</p>
-                <div className="flex items-center gap-2">
-                  <button onClick={() => setCotisationPage(p => Math.max(1, p - 1))} disabled={cotisationPage <= 1} className="px-4 py-2 border rounded-lg text-slate-600 hover:bg-slate-50 disabled:opacity-50">Precedent</button>
-                  <span className="px-4 py-2 bg-teal-600 text-white rounded-lg font-medium">{cotisationPage}</span>
-                  <button onClick={() => setCotisationPage(p => Math.min(cotisationsMeta.totalPages, p + 1))} disabled={cotisationPage >= cotisationsMeta.totalPages} className="px-4 py-2 border rounded-lg text-slate-600 hover:bg-slate-50 disabled:opacity-50">Suivant</button>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ============================================================ */}
-        {/* TAB: TONTINES */}
-        {/* ============================================================ */}
-        {activeTab === 'tontines' && (
-          <div className="space-y-6">
-            {tontines.map((tontine) => {
-              const cycleEnCours = tontine.cycles.find(c => c.statut === 'EN_COURS');
-              if (!cycleEnCours) return (
-                <div key={tontine.id} className="bg-white rounded-2xl shadow-sm border border-slate-200/60 p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="text-lg font-bold text-slate-800">{tontine.nom}</h3>
-                      <p className="text-sm text-slate-500">{tontine._count?.membres ?? 0} membres | {formatCurrency(tontine.montantCycle)}/cycle</p>
-                    </div>
-                    <span className="text-sm text-slate-400">Aucun cycle en cours</span>
-                  </div>
-                </div>
-              );
-
-              const payees = cycleEnCours.contributions.filter(c => c.statut === 'PAYEE').length;
-              const totalC = cycleEnCours.contributions.length;
-              const pct = totalC > 0 ? Math.round((payees / totalC) * 100) : 0;
-
-              return (
-                <div key={tontine.id} className="bg-white rounded-2xl shadow-sm border border-slate-200/60 p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <div>
-                      <h3 className="text-lg font-bold text-slate-800">{tontine.nom}</h3>
-                      <p className="text-sm text-slate-500">Cycle {cycleEnCours.numeroCycle} | Pot : {formatCurrency(cycleEnCours.montantPot)}</p>
-                    </div>
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200">
-                      <Clock className="w-3.5 h-3.5" /> En cours
-                    </span>
-                  </div>
-
-                  {/* Beneficiaire */}
-                  <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-4">
-                    <p className="text-sm text-amber-700 font-medium">
-                      Beneficiaire : {cycleEnCours.beneficiaire.client ? `${cycleEnCours.beneficiaire.client.prenom} ${cycleEnCours.beneficiaire.client.nom}` : 'Inconnu'}
-                    </p>
-                  </div>
-
-                  {/* Progress */}
-                  <div className="mb-4">
-                    <div className="flex items-center justify-between text-sm mb-1">
-                      <span className="text-slate-600">Contributions</span>
-                      <span className="font-medium">{payees}/{totalC} ({pct}%)</span>
-                    </div>
-                    <div className="w-full bg-slate-200 rounded-full h-2.5">
-                      <div className="bg-emerald-500 h-2.5 rounded-full transition-all" style={{ width: `${pct}%` }} />
-                    </div>
-                  </div>
-
-                  {/* Table contributions */}
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-slate-200">
-                        <th className="text-left py-2 px-2 text-slate-500 font-medium text-xs">#</th>
-                        <th className="text-left py-2 px-2 text-slate-500 font-medium text-xs">Membre</th>
-                        <th className="text-left py-2 px-2 text-slate-500 font-medium text-xs">Montant</th>
-                        <th className="text-left py-2 px-2 text-slate-500 font-medium text-xs">Statut</th>
-                        <th className="text-right py-2 px-2 text-slate-500 font-medium text-xs">Action</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {cycleEnCours.contributions.map((contrib) => (
-                        <tr key={contrib.id} className="border-b border-slate-100 last:border-0">
-                          <td className="py-2 px-2 text-slate-600">{contrib.membre.ordreTirage || '-'}</td>
-                          <td className="py-2 px-2 font-medium text-slate-800">
-                            {contrib.membre.client ? `${contrib.membre.client.prenom} ${contrib.membre.client.nom}` : 'Inconnu'}
-                          </td>
-                          <td className="py-2 px-2">{formatCurrency(contrib.montant)}</td>
-                          <td className="py-2 px-2">
-                            {contrib.statut === 'PAYEE' ? (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-emerald-50 text-emerald-700"><CheckCircle className="w-3 h-3" /> Payee</span>
-                            ) : (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-orange-50 text-orange-700"><Clock className="w-3 h-3" /> En attente</span>
-                            )}
-                          </td>
-                          <td className="py-2 px-2 text-right">
-                            {contrib.statut === 'EN_ATTENTE' && (
-                              payingContrib?.contributionId === contrib.id ? (
-                                <div className="flex items-center gap-2 justify-end">
-                                  <button onClick={handleMarkContribPaid} disabled={markingContrib} className="px-3 py-1 bg-emerald-600 text-white text-xs rounded-lg hover:bg-emerald-700 disabled:opacity-50 font-medium">
-                                    {markingContrib ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Confirmer'}
-                                  </button>
-                                  <button onClick={() => setPayingContrib(null)} className="px-3 py-1 bg-gray-200 text-gray-700 text-xs rounded-lg font-medium">Annuler</button>
-                                </div>
-                              ) : (
-                                <button
-                                  onClick={() => setPayingContrib({ tontineId: tontine.id, contributionId: contrib.id })}
-                                  className="px-3 py-1 bg-teal-600 text-white text-xs rounded-lg hover:bg-teal-700 font-medium"
-                                >
-                                  Collecter
-                                </button>
-                              )
-                            )}
-                            {contrib.statut === 'PAYEE' && contrib.datePaiement && (
-                              <span className="text-xs text-slate-500">{formatDate(contrib.datePaiement)}</span>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              );
-            })}
-            {tontines.length === 0 && (
-              <div className="bg-white rounded-2xl p-12 text-center shadow-sm border border-slate-200/60">
-                <TrendingUp className="w-12 h-12 text-slate-300 mx-auto mb-4" />
-                <p className="text-slate-500">Aucune tontine active</p>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ============================================================ */}
-        {/* TAB: CREDITS ALIMENTAIRES + VENTE */}
-        {/* ============================================================ */}
-        {activeTab === 'creditsAlim' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {creditsAlim.filter(c => {
-              if (!debouncedSearch) return true;
-              const q = debouncedSearch.toLowerCase();
-              return c.client ? (`${c.client.prenom} ${c.client.nom}`).toLowerCase().includes(q) : false;
-            }).map(ca => {
-              const plafond = Number(ca.plafond);
-              const utilise = Number(ca.montantUtilise);
-              const restant = Number(ca.montantRestant);
-              const pctUtilise = plafond > 0 ? Math.round((utilise / plafond) * 100) : 0;
-
-              return (
-                <div key={ca.id} className="bg-white rounded-xl shadow-sm hover:shadow-md transition-all p-5 border border-slate-100">
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-gradient-to-br from-amber-500 to-orange-500 rounded-full flex items-center justify-center text-white font-semibold text-sm">
-                        {ca.client ? `${ca.client.prenom?.[0]}${ca.client.nom?.[0]}` : '??'}
-                      </div>
-                      <div>
-                        <p className="font-semibold text-slate-800">{ca.client ? `${ca.client.prenom} ${ca.client.nom}` : 'Inconnu'}</p>
-                        {ca.client?.telephone && <p className="text-xs text-slate-500">{ca.client.telephone}</p>}
-                      </div>
-                    </div>
-                    <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
-                      ca.statut === 'ACTIF' ? 'bg-emerald-100 text-emerald-800' :
-                      ca.statut === 'EPUISE' ? 'bg-orange-100 text-orange-800' : 'bg-red-100 text-red-800'
-                    }`}>{ca.statut === 'ACTIF' ? 'Actif' : ca.statut === 'EPUISE' ? 'Epuise' : 'Expire'}</span>
-                  </div>
-
-                  <div className="space-y-1.5 mb-3 text-sm">
-                    <div className="flex justify-between"><span className="text-slate-600">Plafond</span><span className="font-bold">{formatCurrency(plafond)}</span></div>
-                    <div className="flex justify-between"><span className="text-slate-600">Utilise</span><span className="font-bold text-orange-600">{formatCurrency(utilise)}</span></div>
-                    <div className="flex justify-between"><span className="text-slate-600">Disponible</span><span className="font-bold text-emerald-600">{formatCurrency(restant)}</span></div>
-                  </div>
-
-                  <div className="mb-3">
-                    <div className="w-full bg-slate-200 rounded-full h-2">
-                      <div className={`h-2 rounded-full transition-all ${pctUtilise >= 90 ? 'bg-red-500' : pctUtilise >= 60 ? 'bg-orange-500' : 'bg-emerald-500'}`} style={{ width: `${pctUtilise}%` }} />
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between text-xs text-slate-400 mb-3">
-                    <span>Source : {ca.source === 'COTISATION' ? 'Cotisation' : 'Tontine'}</span>
-                    {ca.dateExpiration && <span>Expire {formatDate(ca.dateExpiration)}</span>}
-                  </div>
-
-                  {/* Dernières ventes */}
-                  {ca.ventes && ca.ventes.length > 0 && (
-                    <div className="border-t border-slate-100 pt-2 mb-3">
-                      <p className="text-xs font-medium text-slate-500 mb-1">Derniers achats :</p>
-                      {ca.ventes.slice(0, 3).map(v => (
-                        <div key={v.id} className="flex justify-between text-xs text-slate-500">
-                          <span>{v.produit.nom} x{v.quantite}</span>
-                          <span>{formatDate(v.createdAt)}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {ca.statut === 'ACTIF' && (
-                    <button
-                      onClick={() => setVenteModal(ca)}
-                      className="w-full py-2 bg-teal-600 text-white text-sm rounded-lg hover:bg-teal-700 font-medium flex items-center justify-center gap-2"
-                    >
-                      <ShoppingBag size={14} />
-                      Vendre un produit
-                    </button>
-                  )}
-                </div>
-              );
-            })}
-            {creditsAlim.length === 0 && (
-              <div className="col-span-full bg-white rounded-2xl p-12 text-center shadow-sm border border-slate-200/60">
-                <ShoppingBag className="w-12 h-12 text-slate-300 mx-auto mb-4" />
-                <p className="text-slate-500">Aucun credit alimentaire</p>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ============================================================ */}
-        {/* TAB: CREDITS SIMPLES (lecture seule) */}
-        {/* ============================================================ */}
-        {activeTab === 'creditsSimples' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {credits.filter(c => {
-              if (!debouncedSearch) return true;
-              const q = debouncedSearch.toLowerCase();
-              const person = c.client ?? c.member;
-              return person ? (`${person.prenom} ${person.nom}`).toLowerCase().includes(q) : false;
-            }).map(credit => {
-              const montant = Number(credit.montant);
-              const restant = Number(credit.montantRestant);
-              const pct = montant > 0 ? Math.round(((montant - restant) / montant) * 100) : 0;
-              const person = credit.client ?? credit.member;
-
-              return (
-                <div key={credit.id} className="bg-white rounded-xl shadow-sm hover:shadow-md transition-all p-5 border border-slate-100">
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-gradient-to-br from-teal-500 to-emerald-500 rounded-full flex items-center justify-center text-white font-semibold text-sm">
-                        {person ? `${person.prenom?.[0]}${person.nom?.[0]}` : '??'}
-                      </div>
-                      <div>
-                        <p className="font-semibold text-slate-800">{person ? `${person.prenom} ${person.nom}` : 'Inconnu'}</p>
-                        {person && 'telephone' in person && person.telephone && <p className="text-xs text-slate-500">{person.telephone}</p>}
-                      </div>
-                    </div>
-                    <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${getStatusStyle(credit.statut)}`}>{getStatusLabel(credit.statut)}</span>
-                  </div>
-                  <div className="space-y-1.5 mb-3 text-sm">
-                    <div className="flex justify-between"><span className="text-slate-600">Prete</span><span className="font-bold">{formatCurrency(montant)}</span></div>
-                    <div className="flex justify-between"><span className="text-slate-600">Restant</span><span className="font-bold text-red-600">{formatCurrency(restant)}</span></div>
-                  </div>
-                  {(credit.statut === 'APPROUVE' || credit.statut === 'REMBOURSE_PARTIEL') && (
-                    <div>
-                      <div className="flex justify-between items-center mb-1"><span className="text-xs text-slate-600">Remboursement</span><span className="text-xs font-bold">{pct}%</span></div>
-                      <div className="w-full bg-slate-200 rounded-full h-2">
-                        <div className="bg-teal-500 h-2 rounded-full transition-all" style={{ width: `${pct}%` }} />
-                      </div>
-                    </div>
-                  )}
-                  <p className="text-xs text-slate-400 mt-3">Demande le {formatDate(credit.dateDemande)}</p>
-                </div>
-              );
-            })}
-            {credits.length === 0 && (
-              <div className="col-span-full bg-white rounded-2xl p-12 text-center shadow-sm border border-slate-200/60">
-                <Banknote className="w-12 h-12 text-slate-300 mx-auto mb-4" />
-                <p className="text-slate-500">Aucun credit simple</p>
               </div>
             )}
           </div>
         )}
       </main>
 
-      {/* ============================================================ */}
-      {/* MODAL: AJOUTER CLIENT */}
-      {/* ============================================================ */}
-      {addClientModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl p-8 w-full max-w-md shadow-lg relative">
-            <button onClick={() => setAddClientModal(false)} className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 font-bold">X</button>
-            <h2 className="text-xl font-bold mb-4">Ajouter un client</h2>
-            {addClientError && <p className="text-red-500 mb-2 text-sm">{addClientError}</p>}
-            <form onSubmit={handleAddClient} className="space-y-3">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Prenom</label>
-                <input type="text" required value={clientForm.prenom} onChange={e => setClientForm({ ...clientForm, prenom: e.target.value })} className="w-full px-4 py-2 border rounded-xl" placeholder="Ex: Fatou" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Nom</label>
-                <input type="text" required value={clientForm.nom} onChange={e => setClientForm({ ...clientForm, nom: e.target.value })} className="w-full px-4 py-2 border rounded-xl" placeholder="Ex: Diallo" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Telephone</label>
-                <input type="tel" required value={clientForm.telephone} onChange={e => setClientForm({ ...clientForm, telephone: e.target.value })} className="w-full px-4 py-2 border rounded-xl" placeholder="Ex: 77 123 45 67" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Adresse (optionnel)</label>
-                <input type="text" value={clientForm.adresse} onChange={e => setClientForm({ ...clientForm, adresse: e.target.value })} className="w-full px-4 py-2 border rounded-xl" placeholder="Ex: Dakar, Medina" />
-              </div>
-              <button type="submit" disabled={addingClient} className="w-full py-2.5 bg-teal-600 text-white rounded-xl hover:bg-teal-700 font-medium">
-                {addingClient ? 'Ajout en cours...' : 'Ajouter le client'}
-              </button>
-            </form>
-          </div>
-        </div>
+      {/* Modal collecte */}
+      {collectTarget && (
+        <ModalCollecte
+          souscription={collectTarget}
+          onClose={() => setCollectTarget(null)}
+          onSuccess={() => { refetchPacks(); setCollectTarget(null); }}
+        />
       )}
 
-      {/* ============================================================ */}
-      {/* MODAL: VENTE PRODUIT */}
-      {/* ============================================================ */}
-      {venteModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl p-8 w-full max-w-md shadow-lg relative">
-            <button onClick={() => { setVenteModal(null); setVenteForm({ produitId: '', quantite: '1' }); }} className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 font-bold">X</button>
-            <h2 className="text-xl font-bold mb-2">Vendre un produit</h2>
-            <p className="text-sm text-slate-500 mb-4">
-              Credit de {venteModal.client ? `${venteModal.client.prenom} ${venteModal.client.nom}` : 'Inconnu'} — Disponible : <span className="font-bold text-emerald-600">{formatCurrency(venteModal.montantRestant)}</span>
-            </p>
-            <form onSubmit={handleVente} className="space-y-3">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Produit</label>
-                <select required value={venteForm.produitId} onChange={e => setVenteForm({ ...venteForm, produitId: e.target.value })} className="w-full px-4 py-2 border rounded-xl bg-white">
-                  <option value="">Selectionner un produit</option>
-                  {produits.filter(p => p.stock > 0).map(p => (
-                    <option key={p.id} value={p.id}>{p.nom} — {formatCurrency(p.prixUnitaire)} (stock: {p.stock})</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Quantite</label>
-                <input
-                  type="number" required min="1"
-                  max={selectedProduit ? selectedProduit.stock : undefined}
-                  value={venteForm.quantite}
-                  onChange={e => setVenteForm({ ...venteForm, quantite: e.target.value })}
-                  className="w-full px-4 py-2 border rounded-xl"
-                />
-              </div>
-              {selectedProduit && (
-                <div className={`rounded-xl p-4 ${venteMontant > Number(venteModal.montantRestant) ? 'bg-red-50 border border-red-200' : 'bg-emerald-50 border border-emerald-200'}`}>
-                  <div className="flex justify-between text-sm">
-                    <span>Total</span>
-                    <span className="font-bold">{formatCurrency(venteMontant)}</span>
-                  </div>
-                  <div className="flex justify-between text-sm mt-1">
-                    <span>Solde apres vente</span>
-                    <span className="font-bold">{formatCurrency(Number(venteModal.montantRestant) - venteMontant)}</span>
-                  </div>
-                  {venteMontant > Number(venteModal.montantRestant) && (
-                    <p className="text-xs text-red-600 mt-1">Solde insuffisant</p>
-                  )}
+      {/* Modal ajout client */}
+      {addClientModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-xl font-bold text-slate-800">Nouveau client</h2>
+              <button onClick={() => setAddClientModal(false)} className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg font-bold text-lg">×</button>
+            </div>
+            <form onSubmit={handleAddClient} className="space-y-4">
+              {(["prenom", "nom", "telephone", "adresse"] as const).map((field) => (
+                <div key={field}>
+                  <label className="block text-sm font-medium text-slate-700 mb-1 capitalize">
+                    {field}{field !== "adresse" && " *"}
+                  </label>
+                  <input
+                    required={field !== "adresse"}
+                    value={clientForm[field]}
+                    onChange={(e) => setClientForm((f) => ({ ...f, [field]: e.target.value }))}
+                    className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+                    placeholder={field === "telephone" ? "Ex : 07XXXXXXXX" : ""}
+                  />
                 </div>
-              )}
-              <button
-                type="submit"
-                disabled={creatingVente || !venteForm.produitId || venteMontant > Number(venteModal.montantRestant) || venteMontant <= 0}
-                className="w-full py-2.5 bg-teal-600 text-white rounded-xl hover:bg-teal-700 font-medium disabled:opacity-50"
-              >
-                {creatingVente ? 'Vente en cours...' : 'Valider la vente'}
-              </button>
+              ))}
+              <div className="flex gap-3 pt-1">
+                <button type="button" onClick={() => setAddClientModal(false)}
+                  className="flex-1 py-2.5 border border-slate-200 text-slate-700 rounded-xl hover:bg-slate-50 text-sm font-medium">
+                  Annuler
+                </button>
+                <button type="submit" disabled={addingClient}
+                  className="flex-1 py-2.5 bg-teal-600 text-white rounded-xl hover:bg-teal-700 disabled:opacity-50 text-sm font-medium">
+                  {addingClient ? "Ajout…" : "Ajouter"}
+                </button>
+              </div>
             </form>
           </div>
         </div>
