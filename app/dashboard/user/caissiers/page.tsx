@@ -17,20 +17,27 @@ import { formatCurrency, formatDate, formatDateTime } from "@/lib/format";
 // TYPES
 // ============================================================================
 
+interface EcheanceRetard {
+  id: number; numero: number; montant: number; datePrevue: string;
+  packNom: string; packType: string;
+  client: { nom: string; prenom: string; telephone: string } | null;
+}
+
 interface DashboardData {
   today: { date: string; startOfDay: string };
-  ventes: { total: number; montant: number; panierMoyen: number; nbClients: number };
+  versements: { total: number; montant: number; nbClients: number };
   stock: {
     total: number; faible: number; rupture: number; valeur: number;
     produitsAlerte: { id: number; nom: string; stock: number; alerteStock: number }[];
   };
-  creditsAlimActifs: number;
+  souscriptionsActives: number;
+  souscriptionsEnAttente: number;
+  echeancesEnRetard: EcheanceRetard[];
   derniereCloture: ClotureCaisse | null;
   alertes: { type: "danger" | "warning" | "info"; message: string }[];
-  evolution: { heure: number; count: number; montant: number }[];
-  dernieresVentes: {
-    id: number; produitNom: string; quantite: number;
-    montant: number; clientNom: string; heure: string;
+  derniersVersements: {
+    id: number; packNom: string; packType: string;
+    montant: number; clientNom: string; type: string; heure: string;
   }[];
 }
 interface DashboardResponse { success: boolean; data: DashboardData }
@@ -48,27 +55,11 @@ interface StockResponse {
 interface Vente {
   id: number; quantite: number; prixUnitaire: string; createdAt: string;
   produit: { id: number; nom: string; prixUnitaire: string };
-  creditAlimentaire: {
-    id: number; plafond?: string; montantRestant?: string;
-    member?: { id: number; nom: string; prenom: string; email: string } | null;
-    client?: { id: number; nom: string; prenom: string; telephone: string } | null;
-  } | null;
 }
 interface VentesResponse {
   success: boolean;
   data: Vente[];
   stats: { totalVentes: number; montantTotal: number; panierMoyen: number; quantiteTotale: number };
-  meta: { total: number; page: number; limit: number; totalPages: number };
-}
-
-interface CreditAlimentaire {
-  id: number; plafond: string; montantUtilise: string; montantRestant: string; statut: string;
-  member?: { id: number; nom: string; prenom: string; email: string } | null;
-  client?: { id: number; nom: string; prenom: string; telephone: string } | null;
-}
-interface CreditsAlimResponse {
-  data: CreditAlimentaire[];
-  stats: { totalActifs: number; montantTotalRestant: number | string };
   meta: { total: number; page: number; limit: number; totalPages: number };
 }
 
@@ -97,7 +88,7 @@ interface RecuData {
     recu: { numero: string; date: string; caissier: string };
     vente: { id: number; produitNom: string; produitDesc: string | null; quantite: number; prixUnitaire: number; montantTotal: number };
     client: { nom: string; telephone?: string; email?: string };
-    creditAlimentaire: { id: number; plafond: number; montantUtilise: number; montantRestant: number; statut: string } | null;
+    souscriptionPack: { packNom: string; montantRestant: number } | null;
     entreprise: { nom: string; adresse: string; telephone: string };
   };
 }
@@ -203,9 +194,9 @@ function TicketRecu({ data, onClose }: { data: RecuData["data"]; onClose: () => 
     <div class="row"><span>${data.vente.quantite} x ${data.vente.prixUnitaire.toLocaleString("fr-FR")} FCFA</span></div>
     <div class="line"></div>
     <div class="row total"><span>TOTAL</span><span>${data.vente.montantTotal.toLocaleString("fr-FR")} FCFA</span></div>
-    ${data.creditAlimentaire ? `
+    ${data.souscriptionPack ? `
     <div class="line"></div>
-    <div class="row"><span>Solde crédit alim.:</span><span>${data.creditAlimentaire.montantRestant.toLocaleString("fr-FR")} FCFA</span></div>
+    <div class="row"><span>Pack souscrit :</span><span>${data.souscriptionPack.packNom}</span></div>
     ` : ""}
     <div class="line"></div>
     <div class="center">Merci de votre confiance !</div>
@@ -256,12 +247,12 @@ function TicketRecu({ data, onClose }: { data: RecuData["data"]; onClose: () => 
             <span>TOTAL</span>
             <span className="text-emerald-600">{formatCurrency(data.vente.montantTotal)}</span>
           </div>
-          {data.creditAlimentaire && (
+          {data.souscriptionPack && (
             <>
               <div className="border-t border-dashed border-slate-300 my-3" />
               <div className="flex justify-between text-xs">
-                <span className="text-slate-500">Solde crédit alim.</span>
-                <span className="font-semibold text-sky-600">{formatCurrency(data.creditAlimentaire.montantRestant)}</span>
+                <span className="text-slate-500">Pack souscrit</span>
+                <span className="font-semibold text-emerald-600">{data.souscriptionPack.packNom}</span>
               </div>
             </>
           )}
@@ -317,7 +308,6 @@ export default function CaissierPage() {
   const [notesClotureInput, setNotesCloture] = useState("");
 
   // ── Formulaire nouvelle vente ────────────────────────────────────────────
-  const [selectedCreditAlim, setSelectedCreditAlim] = useState("");
   const [selectedProduit,    setSelectedProduit]    = useState("");
   const [venteQte,           setVenteQte]           = useState("1");
   const [catalogSearch,      setCatalogSearch]      = useState("");
@@ -345,12 +335,11 @@ export default function CaissierPage() {
   const { data: ventesRes,     refetch: refetchVentes,
           loading: ventesLoading }                           = useApi<VentesResponse>(`/api/caissier/ventes?${ventesParams}`);
   const { data: stockRes,      refetch: refetchStock       } = useApi<StockResponse>("/api/admin/stock?limit=100");
-  const { data: creditsAlimRes }                             = useApi<CreditsAlimResponse>("/api/admin/creditsAlimentaires?statut=ACTIF&limit=200");
   const { data: clotureRes,    refetch: refetchCloture     } = useApi<ClotureData>(`/api/caissier/cloture?${clotureParams}`);
 
   // ── Mutations ────────────────────────────────────────────────────────────
   const { mutate: enregistrerVente, loading: enregistrant, error: erreurVente } =
-    useMutation<Vente, { creditAlimentaireId: number; produitId: number; quantite: number }>(
+    useMutation<Vente, { produitId: number; quantite: number }>(
       "/api/caissier/ventes", "POST", { successMessage: "Vente enregistrée ✓" }
     );
 
@@ -365,7 +354,6 @@ export default function CaissierPage() {
   const ventesStats     = ventesRes?.stats;
   const ventesMeta      = ventesRes?.meta;
   const produits        = stockRes?.data ?? [];
-  const creditsAlim     = creditsAlimRes?.data ?? [];
   const jourEnCours     = clotureRes?.jourEnCours;
   const clotureHisto    = clotureRes?.historique;
 
@@ -375,30 +363,24 @@ export default function CaissierPage() {
   );
 
   const produitChoisi = produits.find((p) => String(p.id) === selectedProduit);
-  const creditChoisi  = creditsAlim.find((c) => String(c.id) === selectedCreditAlim);
   const montantVente  = produitChoisi && venteQte
     ? Number(produitChoisi.prixUnitaire) * Number(venteQte) : 0;
-  const soldeRestantApres = creditChoisi
-    ? Number(creditChoisi.montantRestant) - montantVente : null;
 
   // ── Handlers ─────────────────────────────────────────────────────────────
   const handleEnregistrerVente = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedCreditAlim || !selectedProduit || !venteQte) return;
+    if (!selectedProduit || !venteQte) return;
     const result = await enregistrerVente({
-      creditAlimentaireId: Number(selectedCreditAlim),
-      produitId:           Number(selectedProduit),
-      quantite:            Number(venteQte),
+      produitId: Number(selectedProduit),
+      quantite:  Number(venteQte),
     });
     if (result) {
       setVenteModal(false);
-      setSelectedCreditAlim("");
       setSelectedProduit("");
       setVenteQte("1");
       refetchVentes();
       refetchStock();
       refetchDashboard();
-      // Afficher le reçu automatiquement
       handleVoirRecu(result.id);
     }
   };
@@ -476,45 +458,6 @@ export default function CaissierPage() {
               </div>
             )}
             <form onSubmit={handleEnregistrerVente} className="p-6 space-y-4">
-              {/* Bénéficiaire */}
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                  Bénéficiaire (Crédit alimentaire actif)
-                </label>
-                <select
-                  value={selectedCreditAlim}
-                  onChange={(e) => setSelectedCreditAlim(e.target.value)}
-                  required
-                  className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500 bg-slate-50 text-sm"
-                >
-                  <option value="">— Sélectionner un bénéficiaire —</option>
-                  {creditsAlim.filter((c) => c.statut === "ACTIF").map((c) => {
-                    const person = c.client ?? c.member;
-                    const nom = person ? `${person.prenom} ${person.nom}` : `Crédit #${c.id}`;
-                    return (
-                      <option key={c.id} value={c.id}>
-                        {nom} — Solde : {formatCurrency(c.montantRestant)}
-                      </option>
-                    );
-                  })}
-                </select>
-                {creditChoisi && (
-                  <div className="mt-2 flex items-center gap-2">
-                    <div className="flex-1 h-2 bg-slate-200 rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-sky-500 rounded-full"
-                        style={{
-                          width: `${Math.round((Number(creditChoisi.montantUtilise) / Number(creditChoisi.plafond)) * 100)}%`,
-                        }}
-                      />
-                    </div>
-                    <span className="text-xs text-slate-500 shrink-0">
-                      {formatCurrency(creditChoisi.montantRestant)} restant
-                    </span>
-                  </div>
-                )}
-              </div>
-
               {/* Produit */}
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1.5">Produit</label>
@@ -546,11 +489,7 @@ export default function CaissierPage() {
 
               {/* Récapitulatif */}
               {montantVente > 0 && (
-                <div className={`rounded-xl p-4 border ${
-                  soldeRestantApres !== null && soldeRestantApres < 0
-                    ? "bg-red-50 border-red-200"
-                    : "bg-sky-50 border-sky-200"
-                }`}>
+                <div className="rounded-xl p-4 border bg-sky-50 border-sky-200">
                   <div className="flex justify-between items-center mb-2">
                     <span className="text-sm font-medium text-slate-700">Montant total</span>
                     <span className="text-2xl font-bold text-sky-800">{formatCurrency(montantVente)}</span>
@@ -558,23 +497,12 @@ export default function CaissierPage() {
                   <p className="text-xs text-slate-500">
                     {venteQte} × {formatCurrency(produitChoisi?.prixUnitaire ?? 0)}
                   </p>
-                  {soldeRestantApres !== null && (
-                    <div className={`mt-2 flex items-center gap-1.5 text-xs font-medium ${
-                      soldeRestantApres < 0 ? "text-red-600" : "text-emerald-600"
-                    }`}>
-                      {soldeRestantApres < 0 ? (
-                        <><AlertCircle className="w-3.5 h-3.5" />Solde insuffisant</>
-                      ) : (
-                        <><CheckCircle className="w-3.5 h-3.5" />Solde après : {formatCurrency(soldeRestantApres)}</>
-                      )}
-                    </div>
-                  )}
                 </div>
               )}
 
               <button
                 type="submit"
-                disabled={enregistrant || (soldeRestantApres !== null && soldeRestantApres < 0)}
+                disabled={enregistrant}
                 className="w-full py-3 bg-gradient-to-r from-sky-600 to-indigo-600 text-white rounded-xl hover:from-sky-700 hover:to-indigo-700 transition-all font-semibold flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {enregistrant ? (
@@ -747,18 +675,18 @@ export default function CaissierPage() {
           <div className="space-y-6">
             {/* KPIs */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-              <KpiCard label="Ventes du jour"    value={String(dashboard?.ventes.total ?? 0)}                  icon={ShoppingCart} color="text-sky-500"     bg="bg-sky-50"     sub="aujourd'hui" />
-              <KpiCard label="CA encaissé"        value={formatCurrency(dashboard?.ventes.montant ?? 0)}        icon={Banknote}     color="text-emerald-500" bg="bg-emerald-50" sub="total du jour" />
-              <KpiCard label="Panier moyen"       value={formatCurrency(dashboard?.ventes.panierMoyen ?? 0)}    icon={TrendingUp}   color="text-violet-500"  bg="bg-violet-50"  />
-              <KpiCard label="Clients servis"     value={String(dashboard?.ventes.nbClients ?? 0)}              icon={Users}        color="text-pink-500"    bg="bg-pink-50"    sub="distincts" />
+              <KpiCard label="Versements du jour"  value={String(dashboard?.versements.total ?? 0)}               icon={CreditCard}   color="text-sky-500"     bg="bg-sky-50"     sub="aujourd'hui" />
+              <KpiCard label="Montant encaissé"   value={formatCurrency(dashboard?.versements.montant ?? 0)}    icon={Banknote}     color="text-emerald-500" bg="bg-emerald-50" sub="total du jour" />
+              <KpiCard label="Souscriptions actives" value={String(dashboard?.souscriptionsActives ?? 0)}       icon={TrendingUp}   color="text-violet-500"  bg="bg-violet-50"  />
+              <KpiCard label="Clients servis"     value={String(dashboard?.versements.nbClients ?? 0)}          icon={Users}        color="text-pink-500"    bg="bg-pink-50"    sub="aujourd'hui" />
             </div>
 
-            {/* Bandeaux stock + crédits alim */}
+            {/* Bandeaux versements + stock + packs */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="bg-gradient-to-br from-sky-500 to-sky-600 rounded-2xl p-5 text-white shadow-lg shadow-sky-200">
-                <p className="text-sky-100 text-xs mb-1">Total encaissé</p>
-                <p className="text-3xl font-bold">{formatCurrency(dashboard?.ventes.montant ?? 0)}</p>
-                <p className="text-sky-200 text-sm mt-2">{dashboard?.ventes.total ?? 0} transactions</p>
+              <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-2xl p-5 text-white shadow-lg shadow-emerald-200">
+                <p className="text-emerald-100 text-xs mb-1">Total encaissé aujourd&apos;hui</p>
+                <p className="text-3xl font-bold">{formatCurrency(dashboard?.versements.montant ?? 0)}</p>
+                <p className="text-emerald-200 text-sm mt-2">{dashboard?.versements.total ?? 0} versement(s) collecté(s)</p>
               </div>
               <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60 space-y-3">
                 <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">État du stock</p>
@@ -776,72 +704,91 @@ export default function CaissierPage() {
                 </div>
               </div>
               <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60 space-y-3">
-                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Crédits alim.</p>
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Souscriptions packs</p>
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-slate-600">Actifs</span>
-                  <span className="font-bold text-sky-600">{dashboard?.creditsAlimActifs ?? 0}</span>
+                  <span className="text-sm text-slate-600">Actives</span>
+                  <span className="font-bold text-emerald-600">{dashboard?.souscriptionsActives ?? 0}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-slate-600">En attente</span>
+                  <span className="font-bold text-amber-500">{dashboard?.souscriptionsEnAttente ?? 0}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-slate-600">Échéances en retard</span>
+                  <span className={`font-bold ${(dashboard?.echeancesEnRetard?.length ?? 0) > 0 ? "text-red-500" : "text-slate-400"}`}>
+                    {dashboard?.echeancesEnRetard?.length ?? 0}
+                  </span>
                 </div>
                 {dashboard?.derniereCloture && (
                   <div className="mt-2 pt-3 border-t border-slate-100">
                     <p className="text-xs text-slate-500">Dernière clôture</p>
                     <p className="text-sm font-semibold text-slate-700">{formatDate(dashboard.derniereCloture.date)}</p>
-                    <p className="text-xs text-slate-500">{formatCurrency(dashboard.derniereCloture.montantTotal)} · {dashboard.derniereCloture.totalVentes} ventes</p>
                   </div>
                 )}
               </div>
             </div>
 
-            {/* Graphique évolution par heure */}
-            <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/60">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-bold text-slate-800 flex items-center gap-2">
-                  <BarChart3 size={20} className="text-sky-600" />
-                  Évolution des ventes aujourd&apos;hui (par heure)
+            {/* Échéances en retard */}
+            {(dashboard?.echeancesEnRetard?.length ?? 0) > 0 && (
+              <div className="bg-white rounded-2xl p-6 shadow-sm border border-red-200">
+                <h3 className="font-bold text-red-700 mb-4 flex items-center gap-2">
+                  <AlertTriangle size={20} className="text-red-500" />
+                  Échéances en retard ({dashboard!.echeancesEnRetard.length})
                 </h3>
-                <span className="text-xs text-slate-400">{formatDate(new Date().toISOString())}</span>
+                <div className="space-y-2">
+                  {dashboard!.echeancesEnRetard.map((e) => {
+                    const person = e.client;
+                    return (
+                      <div key={e.id} className="flex items-center justify-between py-2.5 border-b border-red-50 last:border-0">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 bg-red-50 rounded-lg flex items-center justify-center">
+                            <AlertCircle size={14} className="text-red-500" />
+                          </div>
+                          <div>
+                            <p className="text-sm font-semibold text-slate-800">
+                              {person ? `${person.prenom} ${person.nom}` : "—"} — {e.packNom}
+                            </p>
+                            <p className="text-xs text-slate-500">Éch. #{e.numero} · Prévue le {formatDate(e.datePrevue)}</p>
+                          </div>
+                        </div>
+                        <span className="font-bold text-red-600 text-sm shrink-0">{formatCurrency(e.montant)}</span>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
-              <EvolutionBar data={dashboard?.evolution ?? []} />
-            </div>
+            )}
 
-            {/* Dernières ventes */}
+            {/* Derniers versements */}
             <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/60">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="font-bold text-slate-800 flex items-center gap-2">
-                  <Clock size={20} className="text-sky-600" />
-                  Dernières ventes enregistrées
+                  <Clock size={20} className="text-emerald-600" />
+                  Derniers versements collectés
                 </h3>
                 <button
                   onClick={() => setActiveTab("historique")}
-                  className="text-sm text-sky-600 hover:text-sky-700 font-medium"
+                  className="text-sm text-emerald-600 hover:text-emerald-700 font-medium"
                 >
                   Voir tout →
                 </button>
               </div>
               <div className="space-y-2">
-                {(dashboard?.dernieresVentes ?? []).length === 0 && (
-                  <p className="text-center py-8 text-slate-400 text-sm">Aucune vente enregistrée aujourd&apos;hui</p>
+                {(dashboard?.derniersVersements ?? []).length === 0 && (
+                  <p className="text-center py-8 text-slate-400 text-sm">Aucun versement collecté aujourd&apos;hui</p>
                 )}
-                {(dashboard?.dernieresVentes ?? []).map((v) => (
+                {(dashboard?.derniersVersements ?? []).map((v) => (
                   <div key={v.id} className="flex items-center justify-between py-2.5 border-b border-slate-100 last:border-0">
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 bg-sky-50 rounded-lg flex items-center justify-center">
-                        <ShoppingCart size={14} className="text-sky-600" />
+                      <div className="w-8 h-8 bg-emerald-50 rounded-lg flex items-center justify-center">
+                        <Banknote size={14} className="text-emerald-600" />
                       </div>
                       <div>
-                        <p className="text-sm font-semibold text-slate-800">{v.produitNom} ×{v.quantite}</p>
-                        <p className="text-xs text-slate-500">{v.clientNom} · {v.heure}</p>
+                        <p className="text-sm font-semibold text-slate-800">{v.clientNom} — {v.packNom}</p>
+                        <p className="text-xs text-slate-500">{v.type === "BONUS" ? "Bonus" : v.type === "COTISATION_INITIALE" ? "Acompte" : "Versement"} · {v.heure}</p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-emerald-600 text-sm">{formatCurrency(v.montant)}</span>
-                      <button
-                        onClick={() => handleVoirRecu(v.id)}
-                        className="p-1.5 text-slate-400 hover:text-sky-600 hover:bg-sky-50 rounded-lg transition-colors"
-                        title="Voir le reçu"
-                      >
-                        <Eye size={14} />
-                      </button>
-                    </div>
+                    <span className="font-bold text-emerald-600 text-sm">{formatCurrency(v.montant)}</span>
                   </div>
                 ))}
               </div>
@@ -914,40 +861,42 @@ export default function CaissierPage() {
               )}
             </div>
 
-            {/* Encours crédits alim */}
-            <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/60">
-              <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
-                <Layers size={20} className="text-emerald-600" />
-                Crédits alimentaires actifs ({creditsAlim.filter((c) => c.statut === "ACTIF").length})
-              </h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                {creditsAlim.filter((c) => c.statut === "ACTIF").slice(0, 9).map((c) => {
-                  const person = c.client ?? c.member;
-                  const usagePct = Number(c.plafond) > 0
-                    ? Math.round((Number(c.montantUtilise) / Number(c.plafond)) * 100) : 0;
-                  return (
-                    <div key={c.id} className="bg-slate-50 rounded-xl p-4 border border-slate-200">
-                      <p className="font-semibold text-slate-800 text-sm">
-                        {person ? `${person.prenom} ${person.nom}` : `Crédit #${c.id}`}
-                      </p>
-                      <div className="mt-2">
-                        <div className="flex justify-between text-xs text-slate-500 mb-1">
-                          <span>Utilisé</span>
-                          <span>{usagePct}%</span>
-                        </div>
-                        <div className="h-1.5 bg-slate-200 rounded-full overflow-hidden">
-                          <div className={`h-full rounded-full ${usagePct > 80 ? "bg-red-500" : usagePct > 50 ? "bg-amber-500" : "bg-emerald-500"}`} style={{ width: `${usagePct}%` }} />
+            {/* Échéances en retard — rappel dans l'onglet encaissement */}
+            {(dashboard?.echeancesEnRetard?.length ?? 0) > 0 && (
+              <div className="bg-white rounded-2xl p-6 shadow-sm border border-red-200">
+                <h3 className="font-bold text-red-700 mb-4 flex items-center gap-2">
+                  <AlertTriangle size={20} className="text-red-500" />
+                  Échéances en retard à régulariser ({dashboard!.echeancesEnRetard.length})
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {dashboard!.echeancesEnRetard.slice(0, 9).map((e) => {
+                    const person = e.client;
+                    const joursRetard = Math.floor(
+                      (Date.now() - new Date(e.datePrevue).getTime()) / (1000 * 60 * 60 * 24)
+                    );
+                    return (
+                      <div key={e.id} className="bg-red-50 rounded-xl p-4 border border-red-200">
+                        <p className="font-semibold text-slate-800 text-sm">
+                          {person ? `${person.prenom} ${person.nom}` : `Éch. #${e.id}`}
+                        </p>
+                        <p className="text-xs text-slate-500 mt-0.5">{e.packNom} — Éch. #{e.numero}</p>
+                        <div className="flex items-center justify-between mt-2">
+                          <span className="text-xs text-red-500 font-medium">{joursRetard} jour(s) de retard</span>
+                          <span className="text-red-600 font-bold text-sm">{formatCurrency(e.montant)}</span>
                         </div>
                       </div>
-                      <p className="text-sky-600 font-bold text-sm mt-2">{formatCurrency(c.montantRestant)} <span className="font-normal text-slate-400 text-xs">restant</span></p>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
               </div>
-              {creditsAlim.filter((c) => c.statut === "ACTIF").length === 0 && (
-                <p className="text-center py-6 text-slate-400 text-sm">Aucun crédit alimentaire actif</p>
-              )}
-            </div>
+            )}
+            {(dashboard?.echeancesEnRetard?.length ?? 0) === 0 && (
+              <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/60 text-center">
+                <CheckCircle className="w-10 h-10 text-emerald-400 mx-auto mb-2" />
+                <p className="text-slate-500 font-medium">Aucune échéance en retard</p>
+                <p className="text-slate-400 text-sm mt-1">Toutes les souscriptions sont à jour</p>
+              </div>
+            )}
           </div>
         )}
 
