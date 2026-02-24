@@ -21,7 +21,9 @@ interface LigneReception {
 
 interface Reception {
   id: number;
+  statut: 'PLANIFIEE' | 'LIVREE';
   dateLivraison?: string;
+  datePrevisionnelle?: string;
   livreurNom?: string;
   createdAt: string;
   souscription: {
@@ -36,7 +38,7 @@ interface Reception {
 interface ReceptionsResponse {
   receptions: Reception[];
   meta: { total: number; page: number; limit: number; totalPages: number };
-  stats: { totalLivraisons: number; montantTotal: number; clientsActifs: number; ceMois: number };
+  stats: { totalLivraisons: number; totalPlanifiees: number; montantTotal: number; clientsActifs: number; ceMois: number };
 }
 
 interface ClientOption { id: number; nom: string; prenom: string; telephone: string; }
@@ -116,6 +118,9 @@ export default function VentesPage() {
   // Step 2 – formulaire
   const [formPack, setFormPack] = useState({ souscriptionId: '', produitId: '', quantite: '1' });
 
+  // Confirmation livraison (PLANIFIEE → LIVREE)
+  const [confirmingId, setConfirmingId] = useState<number | null>(null);
+
   // ── Data ────────────────────────────────────────────────────────────────────
 
   const params = new URLSearchParams({ page: String(page), limit: String(limit) });
@@ -140,13 +145,13 @@ export default function VentesPage() {
   );
   const produits = (produitsResponse?.data ?? []).filter(p => p.stock > 0);
 
-  // Mutation vente directe via pack
+  // Mutation planification livraison
   const { mutate: addVente, loading: adding, error: addError } = useMutation(
     formPack.souscriptionId
       ? `/api/admin/packs/souscriptions/${formPack.souscriptionId}/livrer`
       : '',
     'POST',
-    { successMessage: 'Vente enregistrée !' }
+    { successMessage: 'Livraison planifiée !' }
   );
 
   // ── Handlers ────────────────────────────────────────────────────────────────
@@ -186,17 +191,37 @@ export default function VentesPage() {
     if (!formPack.souscriptionId || !formPack.produitId) return;
     const produit = produits.find(p => p.id === parseInt(formPack.produitId));
     if (!produit) return;
+    const qte = parseInt(formPack.quantite);
+    if (qte > produit.stock) return; // sécurité frontend
 
     const res = await addVente({
-      action: 'vente_directe',
+      action: 'planifier',
       lignes: [{
         produitId:    parseInt(formPack.produitId),
-        quantite:     parseInt(formPack.quantite),
+        quantite:     qte,
         prixUnitaire: parseFloat(produit.prixUnitaire),
       }],
-      notes: `Vente directe — ${produit.nom} × ${formPack.quantite}`,
+      notes: `Livraison planifiée — ${produit.nom} × ${formPack.quantite}`,
     });
     if (res) { closeModal(); refetch(); }
+  };
+
+  const handleConfirmerLivraison = async (reception: Reception) => {
+    if (confirmingId) return;
+    setConfirmingId(reception.id);
+    try {
+      const res = await fetch(
+        `/api/admin/packs/souscriptions/${reception.souscription.id}/livrer`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'livrer', receptionId: reception.id }),
+        }
+      );
+      if (res.ok) { refetch(); }
+    } finally {
+      setConfirmingId(null);
+    }
   };
 
   // ── Loading / Error ──────────────────────────────────────────────────────────
@@ -225,10 +250,10 @@ export default function VentesPage() {
   }
 
   const statCards = [
-    { label: 'Total livraisons', value: String(stats?.totalLivraisons ?? 0), icon: Truck,       color: 'bg-emerald-500', lightBg: 'bg-emerald-50' },
+    { label: 'Livrées',          value: String(stats?.totalLivraisons ?? 0), icon: CheckCircle, color: 'bg-emerald-500', lightBg: 'bg-emerald-50' },
+    { label: 'En attente',       value: String(stats?.totalPlanifiees  ?? 0), icon: Truck,       color: 'bg-orange-500',  lightBg: 'bg-orange-50'  },
     { label: 'Montant total',    value: formatCurrency(stats?.montantTotal ?? 0), icon: TrendingUp, color: 'bg-blue-500',    lightBg: 'bg-blue-50'    },
-    { label: 'Ce mois',         value: String(stats?.ceMois ?? 0),           icon: DollarSign,  color: 'bg-purple-500',  lightBg: 'bg-purple-50'  },
-    { label: 'Clients servis',  value: String(stats?.clientsActifs ?? 0),    icon: Users,       color: 'bg-amber-500',   lightBg: 'bg-amber-50'   },
+    { label: 'Clients servis',   value: String(stats?.clientsActifs ?? 0),    icon: Users,       color: 'bg-amber-500',   lightBg: 'bg-amber-50'   },
   ];
 
   // ── Render ───────────────────────────────────────────────────────────────────
@@ -256,7 +281,7 @@ export default function VentesPage() {
               onClick={() => setModalOpen(true)}
               className="px-6 py-3 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-200 flex items-center gap-2 font-medium"
             >
-              <Plus size={20} /> Nouvelle vente
+              <Plus size={20} /> Planifier une livraison
             </button>
           </div>
         </div>
@@ -270,9 +295,9 @@ export default function VentesPage() {
                 className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg font-bold text-lg"
               >×</button>
 
-              <h2 className="text-xl font-bold text-slate-800 mb-1">Nouvelle vente</h2>
+              <h2 className="text-xl font-bold text-slate-800 mb-1">Planifier une livraison</h2>
               <p className="text-sm text-slate-500 mb-5">
-                {step === 1 ? 'Recherchez un client éligible' : 'Choisissez le produit à livrer'}
+                {step === 1 ? 'Recherchez un client éligible' : 'Choisissez le produit à planifier'}
               </p>
 
               {/* Steps */}
@@ -443,23 +468,49 @@ export default function VentesPage() {
                   </div>
 
                   {/* Quantité */}
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Quantité</label>
-                    <input
-                      type="number" min="1" required
-                      value={formPack.quantite}
-                      onChange={e => setFormPack(f => ({ ...f, quantite: e.target.value }))}
-                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                    />
-                  </div>
+                  {(() => {
+                    const selectedProduit = produits.find(p => p.id === parseInt(formPack.produitId));
+                    const qte = parseInt(formPack.quantite) || 0;
+                    const stockDispo = selectedProduit?.stock ?? Infinity;
+                    const stockDepasse = qte > stockDispo;
+                    return (
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">Quantité</label>
+                        <input
+                          type="number" min="1"
+                          max={selectedProduit ? selectedProduit.stock : undefined}
+                          required
+                          value={formPack.quantite}
+                          onChange={e => setFormPack(f => ({ ...f, quantite: e.target.value }))}
+                          className={`w-full px-4 py-2.5 border rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 ${stockDepasse ? 'border-red-400 bg-red-50' : 'border-slate-200'}`}
+                        />
+                        {selectedProduit && (
+                          <p className="text-xs mt-1 text-slate-400">
+                            Stock disponible : <span className="font-semibold text-slate-600">{selectedProduit.stock}</span>
+                          </p>
+                        )}
+                        {stockDepasse && (
+                          <p className="text-xs text-red-600 mt-0.5 font-medium">
+                            Quantité supérieure au stock disponible ({stockDispo})
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })()}
 
                   <div className="flex gap-3 pt-1">
                     <button type="button" onClick={() => setStep(1)} className="flex-1 py-2.5 border border-slate-200 text-slate-700 rounded-xl hover:bg-slate-50 font-medium text-sm transition-colors">
                       Retour
                     </button>
-                    <button type="submit" disabled={adding} className="flex-1 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 disabled:opacity-60 font-medium text-sm flex items-center justify-center gap-2 transition-colors">
+                    <button
+                      type="submit"
+                      disabled={adding || (() => {
+                        const p = produits.find(x => x.id === parseInt(formPack.produitId));
+                        return !!p && parseInt(formPack.quantite) > p.stock;
+                      })()}
+                      className="flex-1 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 disabled:opacity-60 font-medium text-sm flex items-center justify-center gap-2 transition-colors">
                       <Truck size={15} />
-                      {adding ? 'Enregistrement…' : 'Livrer le produit'}
+                      {adding ? 'Enregistrement…' : 'Planifier la livraison'}
                     </button>
                   </div>
                 </form>
@@ -516,7 +567,7 @@ export default function VentesPage() {
         {/* Tableau des ventes */}
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 overflow-hidden">
           <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
-            <h3 className="font-semibold text-slate-800">Historique des livraisons</h3>
+            <h3 className="font-semibold text-slate-800">Livraisons planifiées &amp; effectuées</h3>
             {meta && (
               <span className="text-xs text-slate-400 bg-slate-50 px-2 py-1 rounded-lg">
                 {meta.total} livraison{meta.total > 1 ? 's' : ''}
@@ -527,7 +578,7 @@ export default function VentesPage() {
             <table className="w-full">
               <thead className="bg-slate-50 border-b border-slate-200">
                 <tr>
-                  {['Client', 'Pack', 'Produits livrés', 'Montant', 'Date', 'Livreur'].map(h => (
+                  {['Client', 'Pack', 'Produits', 'Montant', 'Date prévue / livrée', 'Statut'].map(h => (
                     <th key={h} className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">{h}</th>
                   ))}
                 </tr>
@@ -537,11 +588,12 @@ export default function VentesPage() {
                   const montant = r.lignes.reduce((acc, l) => acc + Number(l.prixUnitaire) * l.quantite, 0);
                   const cNom = clientNom(r);
                   const parts = cNom.split(' ');
+                  const isPlanifiee = r.statut === 'PLANIFIEE';
                   return (
-                    <tr key={r.id} className="hover:bg-slate-50 transition-colors">
+                    <tr key={r.id} className={`hover:bg-slate-50 transition-colors ${isPlanifiee ? 'bg-orange-50/40' : ''}`}>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-full flex items-center justify-center text-white font-semibold shadow-sm">
+                          <div className={`w-10 h-10 bg-gradient-to-br ${isPlanifiee ? 'from-orange-400 to-orange-600' : 'from-emerald-400 to-emerald-600'} rounded-full flex items-center justify-center text-white font-semibold shadow-sm`}>
                             {initials(parts[parts.length - 1] ?? '', parts[0] ?? '')}
                           </div>
                           <div>
@@ -571,11 +623,30 @@ export default function VentesPage() {
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2 text-sm text-slate-600">
                           <Calendar size={13} className="text-slate-400" />
-                          {r.dateLivraison ? formatDateTime(r.dateLivraison) : formatDateTime(r.createdAt)}
+                          {r.dateLivraison ? formatDateTime(r.dateLivraison) : formatDateTime(r.datePrevisionnelle ?? r.createdAt)}
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        <span className="text-sm text-slate-600">{r.livreurNom ?? '—'}</span>
+                        {/* Statut + action */}
+                        {isPlanifiee ? (
+                          <div className="flex flex-col gap-1.5">
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-orange-100 text-orange-700 rounded-full text-xs font-semibold w-fit">
+                              <Truck size={10} /> Planifiée
+                            </span>
+                            <button
+                              onClick={() => handleConfirmerLivraison(r)}
+                              disabled={confirmingId === r.id}
+                              className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-600 text-white rounded-lg text-xs font-medium hover:bg-emerald-700 disabled:opacity-50 transition-colors"
+                            >
+                              <CheckCircle size={11} />
+                              {confirmingId === r.id ? 'En cours…' : 'Confirmer livraison'}
+                            </button>
+                          </div>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-full text-xs font-semibold">
+                            <CheckCircle size={10} /> Livrée
+                          </span>
+                        )}
                       </td>
                     </tr>
                   );
@@ -584,8 +655,8 @@ export default function VentesPage() {
                   <tr>
                     <td colSpan={6} className="px-6 py-12 text-center">
                       <ShoppingCart className="w-10 h-10 text-slate-200 mx-auto mb-3" />
-                      <p className="text-slate-500">Aucune vente enregistrée</p>
-                      <p className="text-slate-400 text-sm mt-1">Cliquez sur &quot;Nouvelle vente&quot; pour commencer.</p>
+                      <p className="text-slate-500">Aucune livraison enregistrée</p>
+                      <p className="text-slate-400 text-sm mt-1">Cliquez sur &quot;Planifier une livraison&quot; pour commencer.</p>
                     </td>
                   </tr>
                 )}

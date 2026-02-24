@@ -132,6 +132,18 @@ export async function POST(req: Request) {
       }
     }
 
+    // Statut initial selon le type de pack et l'acompte versé
+    let statutInitial: string = "EN_ATTENTE";
+    if (acompteNum > 0) {
+      if (pack.type === "REVENDEUR" && formuleRevendeur === "FORMULE_1" && pack.acomptePercent) {
+        // F1 : ACTIF seulement si l'acompte atteint 50% du montant total
+        const seuil50 = (montantTotalNum * Number(pack.acomptePercent)) / 100;
+        statutInitial = acompteNum >= seuil50 ? "ACTIF" : "EN_ATTENTE";
+      } else {
+        statutInitial = "ACTIF";
+      }
+    }
+
     const result = await prisma.$transaction(async (tx) => {
       const souscription = await tx.souscriptionPack.create({
         data: {
@@ -141,7 +153,7 @@ export async function POST(req: Request) {
           formuleRevendeur: formuleRevendeur ?? null,
           // Bug #10: stocker la fréquence override si fournie (FAMILIAL)
           frequenceVersement: frequenceVersement ?? null,
-          statut: acompteNum > 0 ? "ACTIF" : "EN_ATTENTE",
+          statut: statutInitial as never,
           montantTotal: montantTotalNum,
           montantVerse: acompteNum,
           montantRestant: montantTotalNum - acompteNum,
@@ -235,6 +247,37 @@ export async function POST(req: Request) {
               i === duree - 1
                 ? Math.round((montantRestant - montantEcheance * (duree - 1)) * 100) / 100
                 : montantEcheance,
+            datePrevue: date,
+            statut: "EN_ATTENTE" as const,
+          };
+        });
+        await tx.echeancePack.createMany({ data: echeances });
+      }
+
+      // ────────────────────────────────────────────────────────────────────────
+      // EPARGNE_PRODUIT — échéancier périodique jusqu'au seuil d'épargne
+      // ────────────────────────────────────────────────────────────────────────
+      else if (pack.type === "EPARGNE_PRODUIT" && pack.montantVersement && Number(pack.montantVersement) > 0) {
+        const freq = pack.frequenceVersement ?? "MENSUEL";
+        const step =
+          freq === "QUOTIDIEN" ? 1 :
+          freq === "HEBDOMADAIRE" ? 7 :
+          freq === "BIMENSUEL" ? 14 :
+          30; // MENSUEL
+        const epargneParEcheance = Number(pack.montantVersement);
+        // Nombre d'échéances pour atteindre le montant total
+        const count = Math.ceil(montantTotalNum / epargneParEcheance);
+
+        const echeances = Array.from({ length: count }, (_, i) => {
+          const date = new Date(debut);
+          date.setDate(date.getDate() + (i + 1) * step);
+          return {
+            souscriptionId: souscription.id,
+            numero: i + 1,
+            montant:
+              i === count - 1
+                ? Math.round((montantTotalNum - epargneParEcheance * (count - 1)) * 100) / 100
+                : epargneParEcheance,
             datePrevue: date,
             statut: "EN_ATTENTE" as const,
           };

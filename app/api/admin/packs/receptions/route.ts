@@ -18,10 +18,11 @@ export async function GET(req: Request) {
     const page   = Math.max(1, parseInt(searchParams.get("page")  ?? "1"));
     const limit  = Math.min(50, parseInt(searchParams.get("limit") ?? "20"));
     const search = searchParams.get("search") ?? "";
+    // "PLANIFIEE" | "LIVREE" | "ALL" (défaut : ALL)
+    const statutFilter = searchParams.get("statut") ?? "ALL";
 
-    const where: Prisma.ReceptionProduitPackWhereInput = {
-      statut: "LIVREE",
-      ...(search.length >= 2
+    const searchWhere: Prisma.ReceptionProduitPackWhereInput =
+      search.length >= 2
         ? {
             souscription: {
               OR: [
@@ -33,17 +34,22 @@ export async function GET(req: Request) {
               ],
             },
           }
-        : {}),
+        : {};
+
+    const where: Prisma.ReceptionProduitPackWhereInput = {
+      ...(statutFilter !== "ALL" ? { statut: statutFilter as "PLANIFIEE" | "LIVREE" } : {}),
+      ...searchWhere,
     };
 
     const startOfMonth = new Date();
     startOfMonth.setDate(1);
     startOfMonth.setHours(0, 0, 0, 0);
 
-    const [receptions, total, ceMois] = await Promise.all([
+    const [receptions, total, totalPlanifiees, totalLivrees, ceMois] = await Promise.all([
       prisma.receptionProduitPack.findMany({
         where,
-        orderBy: { createdAt: "desc" },
+        // PLANIFIEE en tête, puis LIVREE ; dans chaque groupe : plus récent d'abord
+        orderBy: [{ statut: "asc" }, { createdAt: "desc" }],
         skip: (page - 1) * limit,
         take: limit,
         include: {
@@ -59,13 +65,15 @@ export async function GET(req: Request) {
           },
         },
       }),
+      prisma.receptionProduitPack.count({ where }),
+      prisma.receptionProduitPack.count({ where: { statut: "PLANIFIEE" } }),
       prisma.receptionProduitPack.count({ where: { statut: "LIVREE" } }),
       prisma.receptionProduitPack.count({
         where: { statut: "LIVREE", createdAt: { gte: startOfMonth } },
       }),
     ]);
 
-    // Montant total calculé depuis les lignes des réceptions paginées + globales
+    // Montant total calculé uniquement sur les livraisons réelles (LIVREE)
     const allLignes = await prisma.ligneReceptionPack.findMany({
       where: { reception: { statut: "LIVREE" } },
       select: { quantite: true, prixUnitaire: true },
@@ -75,7 +83,7 @@ export async function GET(req: Request) {
       0
     );
 
-    // Clients uniques (via souscriptions distinctes)
+    // Clients uniques servis (LIVREE)
     const souscriptionsUniques = await prisma.receptionProduitPack.groupBy({
       by: ["souscriptionId"],
       where: { statut: "LIVREE" },
@@ -85,7 +93,8 @@ export async function GET(req: Request) {
       receptions,
       meta: { total, page, limit, totalPages: Math.max(1, Math.ceil(total / limit)) },
       stats: {
-        totalLivraisons: total,
+        totalLivraisons: totalLivrees,
+        totalPlanifiees,
         montantTotal,
         clientsActifs: souscriptionsUniques.length,
         ceMois,

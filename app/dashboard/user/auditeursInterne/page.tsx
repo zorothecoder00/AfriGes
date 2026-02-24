@@ -712,7 +712,7 @@ export default function AuditeurInternePage() {
                     <tr>
                       <th className="px-5 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Produit</th>
                       <th className="px-5 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Stock</th>
-                      <th className="px-5 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Seuil d'alerte</th>
+                      <th className="px-5 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Seuil d&apos;alerte</th>
                       <th className="px-5 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Prix unitaire</th>
                       <th className="px-5 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Valeur stock</th>
                       <th className="px-5 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Statut</th>

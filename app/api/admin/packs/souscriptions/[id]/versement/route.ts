@@ -43,6 +43,15 @@ export async function POST(req: Request, { params }: Ctx) {
     }
 
     const montantNum = parseFloat(montant);
+    const montantRestantActuel = Number(souscription.montantRestant);
+
+    if (montantNum > montantRestantActuel) {
+      return NextResponse.json(
+        { error: `Montant trop élevé : le restant dû est de ${montantRestantActuel.toLocaleString("fr-FR")} FCFA` },
+        { status: 400 }
+      );
+    }
+
     const adminNom = `${session.user.prenom ?? ""} ${session.user.nom ?? ""}`.trim();
 
     const result = await prisma.$transaction(async (tx) => {
@@ -69,18 +78,41 @@ export async function POST(req: Request, { params }: Ctx) {
           ? souscription.numeroCycle + 1
           : souscription.numeroCycle;
 
+      // Calcul du statut selon le type de pack et les seuils
+      let nouveauStatut: string;
+      if (estSolde) {
+        nouveauStatut = "COMPLETE";
+      } else if (
+        souscription.pack.type === "REVENDEUR" &&
+        souscription.formuleRevendeur === "FORMULE_1"
+      ) {
+        // F1 : ACTIF uniquement quand 50% du montant total versé
+        const seuil50 = Number(souscription.montantTotal) * 0.5;
+        nouveauStatut = nouveauMontantVerse >= seuil50 ? "ACTIF" : "EN_ATTENTE";
+      } else if (
+        souscription.pack.type === "URGENCE" &&
+        souscription.pack.acomptePercent
+      ) {
+        // URGENCE : ACTIF quand l'acompte minimum est atteint
+        const seuilAcompte =
+          (Number(souscription.montantTotal) * Number(souscription.pack.acomptePercent)) / 100;
+        nouveauStatut = nouveauMontantVerse >= seuilAcompte ? "ACTIF" : "EN_ATTENTE";
+      } else {
+        nouveauStatut = "ACTIF";
+      }
+
       const updatedSouscription = await tx.souscriptionPack.update({
         where: { id: souscriptionId },
         data: {
           montantVerse: nouveauMontantVerse,
           montantRestant: estSolde ? 0 : nouveauMontantRestant,
-          statut: estSolde ? "COMPLETE" : "ACTIF",
+          statut: nouveauStatut as never,
           dateCloture: estSolde ? new Date() : null,
           numeroCycle: nouveauCycle,
         },
       });
 
-      // Marquer l'échéance si fournie
+      // Marquer l'échéance si fournie ou auto-chercher la prochaine (EN_ATTENTE ou EN_RETARD)
       if (echeanceId) {
         await tx.echeancePack.update({
           where: { id: parseInt(echeanceId) },
@@ -88,7 +120,7 @@ export async function POST(req: Request, { params }: Ctx) {
         });
       } else {
         const prochaine = await tx.echeancePack.findFirst({
-          where: { souscriptionId, statut: "EN_ATTENTE" },
+          where: { souscriptionId, statut: { in: ["EN_ATTENTE", "EN_RETARD"] } },
           orderBy: { numero: "asc" },
         });
         if (prochaine) {

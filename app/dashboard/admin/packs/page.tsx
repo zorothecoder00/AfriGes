@@ -494,7 +494,15 @@ function TabEcheances() {
         ) : echeances.length === 0 ? (
           <div className="p-12 text-center">
             <CheckCircle className="w-10 h-10 text-green-400 mx-auto mb-3" />
-            <p className="text-slate-500 font-medium">Aucune échéance en attente</p>
+            <p className="text-slate-500 font-medium">
+              {filterStatut === "PAYE"
+                ? "Aucune échéance payée"
+                : filterStatut === "EN_RETARD"
+                ? "Aucune échéance en retard"
+                : filterStatut === "EN_ATTENTE"
+                ? "Aucune échéance en attente"
+                : "Aucune échéance trouvée"}
+            </p>
           </div>
         ) : (
           <table className="w-full">
@@ -533,17 +541,24 @@ function TabEcheances() {
                     <td className="px-5 py-3 text-sm text-slate-600">{fmtD(e.datePrevue)}</td>
                     <td className="px-5 py-3">
                       <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${ECHEANCE_CFG[e.statut]}`}>
-                        {e.statut === "EN_RETARD" ? <AlertTriangle className="w-3 h-3" /> : <Clock className="w-3 h-3" />}
-                        {e.statut === "EN_RETARD" ? "En retard" : "À payer"}
+                        {e.statut === "EN_RETARD" && <AlertTriangle className="w-3 h-3" />}
+                        {e.statut === "EN_ATTENTE" && <Clock className="w-3 h-3" />}
+                        {e.statut === "PAYE" && <CheckCircle className="w-3 h-3" />}
+                        {e.statut === "EN_RETARD" ? "En retard" : e.statut === "PAYE" ? "Payée" : e.statut === "ANNULE" ? "Annulée" : "À payer"}
                       </span>
                     </td>
                     <td className="px-5 py-3">
-                      <button
-                        onClick={() => setVersementTarget({ souscriptionId: s.id, echeanceId: e.id })}
-                        className="flex items-center gap-1 px-3 py-1.5 bg-emerald-600 text-white text-xs font-medium rounded-lg hover:bg-emerald-700 transition-colors"
-                      >
-                        <CreditCard className="w-3.5 h-3.5" /> Payer
-                      </button>
+                      {(e.statut === "EN_ATTENTE" || e.statut === "EN_RETARD") && (
+                        <button
+                          onClick={() => setVersementTarget({ souscriptionId: s.id, echeanceId: e.id })}
+                          className="flex items-center gap-1 px-3 py-1.5 bg-emerald-600 text-white text-xs font-medium rounded-lg hover:bg-emerald-700 transition-colors"
+                        >
+                          <CreditCard className="w-3.5 h-3.5" /> Payer
+                        </button>
+                      )}
+                      {e.statut === "PAYE" && e.datePaiement && (
+                        <span className="text-xs text-slate-400">{fmtD(e.datePaiement)}</span>
+                      )}
                     </td>
                   </tr>
                 );
@@ -580,7 +595,7 @@ function TabLivraisons() {
   // REVENDEUR F2 : dès EN_ATTENTE (crédit total, livraison avant tout remboursement)
   // Autres : uniquement COMPLETE
   const aLivrer = (sData?.souscriptions ?? []).filter((s) => {
-    if ((s.receptions?.length ?? 0) > 0) return false;
+    if ((s._count?.receptions ?? 0) > 0) return false;
     if (s.pack.type === "URGENCE" && s.statut === "ACTIF") return true;
     if (s.pack.type === "REVENDEUR" && s.formuleRevendeur === "FORMULE_1" && s.statut === "ACTIF") return true;
     if (s.pack.type === "REVENDEUR" && s.formuleRevendeur === "FORMULE_2") return true;
@@ -604,7 +619,7 @@ function TabLivraisons() {
           <div className="w-8 h-8 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
           <p className="text-slate-400 text-sm">Chargement…</p>
         </div>
-      ) : completes.length === 0 ? (
+      ) : aLivrer.length === 0 ? (
         <div className="bg-white rounded-2xl p-12 text-center shadow-sm border border-slate-200">
           <Truck className="w-12 h-12 text-slate-300 mx-auto mb-3" />
           <p className="text-slate-500 font-medium">Aucune livraison en attente</p>
@@ -833,6 +848,58 @@ function ModalCreerPack({ pack, onClose, onSuccess }: { pack: Pack | null; onClo
     montantTranche: pack?.montantTranche ? String(pack.montantTranche) : "",
   });
 
+  // Auto-fixer fréquence, durée et acompte selon le type/formule
+  useEffect(() => {
+    if (form.type === "REVENDEUR") {
+      if (form.formuleRevendeur === "FORMULE_1") {
+        // F1 : hebdomadaire fixe, acompte 50% obligatoire
+        setForm((p) => ({ ...p, frequenceVersement: "HEBDOMADAIRE", acomptePercent: "50" }));
+      } else if (form.formuleRevendeur === "FORMULE_2") {
+        // F2 : quotidien fixe, 16 jours fixes, acompte non applicable
+        setForm((p) => ({ ...p, frequenceVersement: "QUOTIDIEN", dureeJours: "16", acomptePercent: "" }));
+      }
+    } else if (form.type === "ALIMENTAIRE") {
+      setForm((p) => ({ ...p, dureeJours: p.dureeJours === "15" || p.dureeJours === "30" ? p.dureeJours : "" }));
+    } else if (form.type === "FAMILIAL") {
+      // Cycle 30j fixe, fréquence hebdo/bimensuel, bonus 10% après 3 cycles
+      setForm((p) => ({
+        ...p,
+        dureeJours: "30",
+        frequenceVersement: (p.frequenceVersement === "HEBDOMADAIRE" || p.frequenceVersement === "BIMENSUEL")
+          ? p.frequenceVersement : "HEBDOMADAIRE",
+        bonusPourcentage:    p.bonusPourcentage    || "10",
+        cyclesBonusTrigger:  p.cyclesBonusTrigger  || "3",
+      }));
+    } else if (form.type === "URGENCE") {
+      // Acompte 25% fixe, quotidien fixe, durée 7-10j
+      setForm((p) => ({
+        ...p,
+        acomptePercent: "25",
+        frequenceVersement: "QUOTIDIEN",
+        dureeJours: ["7","8","9","10"].includes(p.dureeJours) ? p.dureeJours : "",
+      }));
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.type, form.formuleRevendeur]);
+
+  // F2 : recalculer le versement quotidien quand le montant crédit change
+  useEffect(() => {
+    if (form.type === "REVENDEUR" && form.formuleRevendeur === "FORMULE_2" && form.montantCredit) {
+      const daily = Math.ceil(parseFloat(form.montantCredit) / 16);
+      if (!isNaN(daily)) setForm((p) => ({ ...p, montantVersement: String(daily) }));
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.montantCredit]);
+
+  // ALIMENTAIRE : réinitialiser la fréquence si elle devient incohérente avec la durée
+  useEffect(() => {
+    if (form.type !== "ALIMENTAIRE") return;
+    if (form.dureeJours === "15" && form.frequenceVersement !== "QUOTIDIEN" && form.frequenceVersement !== "HEBDOMADAIRE") {
+      setForm((p) => ({ ...p, frequenceVersement: "HEBDOMADAIRE" }));
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.dureeJours]);
+
   const { mutate: create, loading: creating } = useMutation("/api/admin/packs", "POST", { successMessage: "Pack créé !" });
   const { mutate: update, loading: updating } = useMutation(
     pack ? `/api/admin/packs/${pack.id}` : "",
@@ -888,16 +955,45 @@ function ModalCreerPack({ pack, onClose, onSuccess }: { pack: Pack | null; onClo
                 ))}
               </select>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Fréquence versement</label>
-              <select {...f("frequenceVersement")}
-                className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white">
-                <option value="QUOTIDIEN">Quotidien</option>
-                <option value="HEBDOMADAIRE">Hebdomadaire</option>
-                <option value="BIMENSUEL">Bimensuel</option>
-                <option value="MENSUEL">Mensuel</option>
-              </select>
-            </div>
+            {/* Fréquence : contrainte selon type, cachée pour FIDELITE */}
+            {form.type !== "FIDELITE" && (
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Fréquence versement</label>
+                {form.type === "REVENDEUR" ? (
+                  <div className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 text-slate-500">
+                    {form.formuleRevendeur === "FORMULE_1" ? "Hebdomadaire (tontine) — fixe"
+                      : form.formuleRevendeur === "FORMULE_2" ? "Quotidien (remboursement 16j) — fixe"
+                      : "Sélectionnez d'abord une formule"}
+                  </div>
+                ) : form.type === "URGENCE" ? (
+                  <div className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 text-slate-500">
+                    Quotidien — fixe (remboursement journalier)
+                  </div>
+                ) : form.type === "FAMILIAL" ? (
+                  <select {...f("frequenceVersement")}
+                    className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white">
+                    <option value="HEBDOMADAIRE">Hebdomadaire</option>
+                    <option value="BIMENSUEL">Bimensuel</option>
+                  </select>
+                ) : form.type === "ALIMENTAIRE" && !form.dureeJours ? (
+                  <div className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 text-slate-400">
+                    Choisissez d&apos;abord la durée
+                  </div>
+                ) : (
+                  <select {...f("frequenceVersement")}
+                    className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white">
+                    <option value="QUOTIDIEN">Quotidien</option>
+                    <option value="HEBDOMADAIRE">Hebdomadaire</option>
+                    {(form.type !== "ALIMENTAIRE" || form.dureeJours === "30") && (
+                      <option value="BIMENSUEL">Bimensuel</option>
+                    )}
+                    {(form.type !== "ALIMENTAIRE" || form.dureeJours === "30") && (
+                      <option value="MENSUEL">Mensuel</option>
+                    )}
+                  </select>
+                )}
+              </div>
+            )}
           </div>
 
           <div>
@@ -908,55 +1004,172 @@ function ModalCreerPack({ pack, onClose, onSuccess }: { pack: Pack | null; onClo
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Durée (jours)</label>
-              <input type="number" min="1" {...f("dureeJours")} className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="Ex : 30" />
+              {form.type === "REVENDEUR" && form.formuleRevendeur === "FORMULE_2" ? (
+                <div className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 text-slate-500">
+                  16 jours — fixe (F2)
+                </div>
+              ) : form.type === "ALIMENTAIRE" ? (
+                <select required {...f("dureeJours")}
+                  className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white">
+                  <option value="">— Choisir —</option>
+                  <option value="15">15 jours</option>
+                  <option value="30">30 jours</option>
+                </select>
+              ) : form.type === "FAMILIAL" ? (
+                <div className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 text-slate-500">
+                  30 jours — fixe (1 cycle)
+                </div>
+              ) : form.type === "URGENCE" ? (
+                <select required {...f("dureeJours")}
+                  className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white">
+                  <option value="">— Choisir (7 à 10 j) —</option>
+                  <option value="7">7 jours</option>
+                  <option value="8">8 jours</option>
+                  <option value="9">9 jours</option>
+                  <option value="10">10 jours</option>
+                </select>
+              ) : form.type === "FIDELITE" ? (
+                <div className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 text-slate-400">
+                  Sans durée (fidélité par points)
+                </div>
+              ) : (
+                <input type="number" min="1" {...f("dureeJours")} className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="Ex : 30" />
+              )}
             </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Versement standard (FCFA)</label>
-              <input type="number" min="0" {...f("montantVersement")} className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="Ex : 5000" />
-            </div>
+            {/* Versement standard :
+                - REVENDEUR : géré dans la section F1/F2 ci-dessous
+                - URGENCE   : calculé par souscription (75% ÷ nb_jours), pas fixé au pack
+                - FAMILIAL  : géré dans la section dédiée ci-dessous
+                - FIDELITE  : pas de versement (points) */}
+            {form.type !== "REVENDEUR" && form.type !== "URGENCE" && form.type !== "FAMILIAL" && form.type !== "FIDELITE" && (
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  {form.type === "EPARGNE_PRODUIT" ? "Épargne périodique (FCFA)" : "Versement standard (FCFA)"}
+                </label>
+                <input type="number" min="0" {...f("montantVersement")} className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="Ex : 5000" />
+                {form.type === "EPARGNE_PRODUIT" && (
+                  <p className="text-xs text-slate-400 mt-1">Montant que le client met de côté à chaque échéance</p>
+                )}
+              </div>
+            )}
           </div>
 
-          {/* Champs conditionnels */}
+          {/* Champs conditionnels — REVENDEUR */}
           {form.type === "REVENDEUR" && (
-            <div className="grid grid-cols-2 gap-4 p-4 bg-blue-50 rounded-xl border border-blue-200">
-              <div className="col-span-2">
-                <label className="block text-sm font-medium text-slate-700 mb-1">Formule par défaut</label>
-                <select {...f("formuleRevendeur")} className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white">
-                  <option value="">Non définie</option>
-                  <option value="FORMULE_1">Formule 1 — 50% upfront + tontine hebdo</option>
-                  <option value="FORMULE_2">Formule 2 — Crédit total, remb. quotidien 16j</option>
+            <div className="space-y-4 p-4 bg-blue-50 rounded-xl border border-blue-200">
+              {/* Formule */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Formule *</label>
+                <select required {...f("formuleRevendeur")} className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                  <option value="">— Choisir une formule —</option>
+                  <option value="FORMULE_1">Formule 1 — 50% upfront + remboursement tontine hebdo</option>
+                  <option value="FORMULE_2">Formule 2 — Crédit total, remboursement quotidien 16j</option>
                 </select>
               </div>
-              <div className="col-span-2">
-                <label className="block text-sm font-medium text-slate-700 mb-1">Montant crédit (FCFA)</label>
-                <input type="number" min="0" {...f("montantCredit")} className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="Ex : 50000" />
-              </div>
+
+              {/* Montant du produit (commun F1 et F2) */}
+              {form.formuleRevendeur && (
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Prix du produit (FCFA) *</label>
+                  <input type="number" min="1" required {...f("montantCredit")}
+                    className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Ex : 50 000" />
+                </div>
+              )}
+
+              {/* FORMULE 1 : acompte 50% + tontine hebdo */}
+              {form.formuleRevendeur === "FORMULE_1" && (
+                <>
+                  {form.montantCredit && (
+                    <div className="flex items-center gap-3 p-3 bg-blue-100 rounded-xl text-sm text-blue-800">
+                      <span className="text-lg">💰</span>
+                      <div>
+                        <p className="font-semibold">Acompte initial fixe : 50%</p>
+                        <p className="text-xs text-blue-600">
+                          = {(parseFloat(form.montantCredit) / 2).toLocaleString("fr-FR")} FCFA à verser avant la livraison
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">
+                      Montant tontine hebdo (FCFA) *
+                      {form.montantCredit && (
+                        <span className="ml-1 text-xs font-normal text-slate-400">
+                          — restant : {(parseFloat(form.montantCredit) / 2).toLocaleString("fr-FR")} FCFA à rembourser
+                        </span>
+                      )}
+                    </label>
+                    <input type="number" min="1" required {...f("montantVersement")}
+                      className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Ex : 5 000" />
+                    {form.montantCredit && form.montantVersement && parseFloat(form.montantVersement) > 0 && (
+                      <p className="text-xs text-slate-400 mt-1">
+                        Durée estimée : {Math.ceil((parseFloat(form.montantCredit) / 2) / parseFloat(form.montantVersement))} semaine(s)
+                      </p>
+                    )}
+                  </div>
+                </>
+              )}
+
+              {/* FORMULE 2 : crédit total, remboursement quotidien 16j */}
+              {form.formuleRevendeur === "FORMULE_2" && form.montantCredit && (
+                <div className="p-3 bg-blue-100 rounded-xl text-sm text-blue-800 space-y-1">
+                  <p className="font-semibold">Remboursement automatique</p>
+                  <p className="text-xs text-blue-600">
+                    Durée : <strong>16 jours</strong> — Fréquence : <strong>quotidienne</strong>
+                  </p>
+                  <p className="text-xs text-blue-600">
+                    Versement / jour : <strong>{Math.ceil(parseFloat(form.montantCredit) / 16).toLocaleString("fr-FR")} FCFA</strong>
+                    {" "}(arrondi supérieur)
+                  </p>
+                </div>
+              )}
             </div>
           )}
 
           {form.type === "URGENCE" && (
-            <div className="p-4 bg-red-50 rounded-xl border border-red-200">
-              <label className="block text-sm font-medium text-slate-700 mb-1">Acompte minimum (%)</label>
-              <input type="number" min="0" max="100" {...f("acomptePercent")} className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="Ex : 25" />
+            <div className="p-4 bg-red-50 rounded-xl border border-red-200 space-y-2">
+              <div className="p-3 bg-red-100 rounded-xl text-sm text-red-800">
+                <p className="font-semibold mb-1">Conditions d&apos;urgence — fixe</p>
+                <p className="text-xs text-red-600">Acompte minimum : <strong>25% du montant total</strong></p>
+                <p className="text-xs text-red-600 mt-0.5">Livraison immédiate dès réception de l&apos;acompte</p>
+                <p className="text-xs text-red-600 mt-0.5">Remboursement : <strong>quotidien</strong> sur la durée choisie (7–10 jours)</p>
+              </div>
             </div>
           )}
 
           {form.type === "FAMILIAL" && (
-            <div className="grid grid-cols-2 gap-4 p-4 bg-purple-50 rounded-xl border border-purple-200">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Bonus (%)</label>
-                <input type="number" min="0" max="100" {...f("bonusPourcentage")} className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="Ex : 10" />
+            <div className="p-4 bg-purple-50 rounded-xl border border-purple-200 space-y-3">
+              <div className="p-3 bg-purple-100 rounded-xl text-sm text-purple-800">
+                <p className="font-semibold mb-1">Règles du cycle</p>
+                <p className="text-xs text-purple-600">Durée : <strong>30 jours — fixe</strong></p>
+                <p className="text-xs text-purple-600 mt-0.5">Cotisation : <strong>hebdomadaire ou bimensuelle</strong> (sélectionnée ci-dessus)</p>
               </div>
+              <div className="p-3 bg-purple-100 rounded-xl text-sm text-purple-800">
+                <p className="font-semibold mb-1">Bonus fidélité — fixe</p>
+                <p className="text-xs text-purple-600">
+                  <strong>+10% de produits supplémentaires</strong> offerts après <strong>3 cycles complétés</strong>
+                </p>
+              </div>
+              {/* Champ versement standard pour FAMILIAL */}
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Nb cycles déclencheur</label>
-                <input type="number" min="1" {...f("cyclesBonusTrigger")} className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="Ex : 3" />
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Montant de cotisation (FCFA) *
+                </label>
+                <input type="number" min="1" required {...f("montantVersement")}
+                  className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  placeholder="Ex : 5 000" />
+                <p className="text-xs text-slate-400 mt-1">
+                  Montant versé à chaque {form.frequenceVersement === "HEBDOMADAIRE" ? "semaine" : "quinzaine"}
+                </p>
               </div>
             </div>
           )}
 
           {form.type === "EPARGNE_PRODUIT" && (
             <div className="p-4 bg-amber-50 rounded-xl border border-amber-200">
-              <label className="block text-sm font-medium text-slate-700 mb-1">Seuil d'épargne (FCFA)</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Seuil d&apos;épargne (FCFA)</label>
               <input type="number" min="0" {...f("montantSeuil")} className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="Ex : 30000" />
             </div>
           )}
@@ -1021,7 +1234,7 @@ function ModalNouvelleSouscription({ onClose, onSuccess }: { onClose: () => void
   const { data: packs } = useApi<Pack[]>("/api/admin/packs");
   const selectedPack = (packs ?? []).find((p) => p.id === parseInt(packId));
 
-  // Pré-remplir montant depuis le pack
+  // Pré-remplir montant et formule depuis le pack sélectionné
   useEffect(() => {
     if (!selectedPack) return;
     if (selectedPack.montantCredit) setMontantTotal(String(selectedPack.montantCredit));
@@ -1030,11 +1243,20 @@ function ModalNouvelleSouscription({ onClose, onSuccess }: { onClose: () => void
       const a = (selectedPack.acomptePercent / 100) * selectedPack.montantCredit;
       setAcompte(String(Math.round(a)));
     }
-    if (selectedPack.type === "REVENDEUR" && selectedPack.formuleRevendeur) {
-      setFormuleRevendeur(selectedPack.formuleRevendeur);
+    // Verrouiller la formule si le pack en définit une
+    if (selectedPack.type === "REVENDEUR") {
+      setFormuleRevendeur(selectedPack.formuleRevendeur ?? "");
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [packId]);
+
+  // URGENCE : recalculer l'acompte (25%) quand le montant total change
+  useEffect(() => {
+    if (selectedPack?.type !== "URGENCE" || !selectedPack.acomptePercent || !montantTotal) return;
+    const a = (parseFloat(montantTotal) * selectedPack.acomptePercent) / 100;
+    if (!isNaN(a) && a > 0) setAcompte(String(Math.round(a)));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [montantTotal]);
 
   const { mutate, loading } = useMutation("/api/admin/packs/souscriptions", "POST", {
     successMessage: "Souscription créée !",
@@ -1162,18 +1384,33 @@ function ModalNouvelleSouscription({ onClose, onSuccess }: { onClose: () => void
             {selectedPack?.type === "REVENDEUR" && (
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Formule *</label>
-                <div className="grid grid-cols-2 gap-2">
-                  {[
-                    { val: "FORMULE_1", label: "Formule 1", desc: "50% upfront + tontine hebdo" },
-                    { val: "FORMULE_2", label: "Formule 2", desc: "Crédit total, remb. 16j" },
-                  ].map((f) => (
-                    <button key={f.val} type="button" onClick={() => setFormuleRevendeur(f.val)}
-                      className={`p-3 rounded-xl border text-left text-sm transition-colors ${formuleRevendeur === f.val ? "border-blue-500 bg-blue-50 text-blue-800" : "border-slate-200 text-slate-600 hover:border-slate-300"}`}>
-                      <p className="font-medium">{f.label}</p>
-                      <p className="text-xs mt-0.5 opacity-80">{f.desc}</p>
-                    </button>
-                  ))}
-                </div>
+                {selectedPack.formuleRevendeur ? (
+                  // Formule verrouillée par le modèle de pack
+                  <div className="p-3 rounded-xl border border-blue-300 bg-blue-50 text-blue-800 text-sm">
+                    <p className="font-semibold">
+                      {selectedPack.formuleRevendeur === "FORMULE_1" ? "Formule 1" : "Formule 2"}
+                    </p>
+                    <p className="text-xs mt-0.5 text-blue-600">
+                      {selectedPack.formuleRevendeur === "FORMULE_1"
+                        ? "50% upfront + tontine hebdo — définie par le pack"
+                        : "Crédit total, remb. quotidien 16j — définie par le pack"}
+                    </p>
+                  </div>
+                ) : (
+                  // Formule libre (le pack n'en définit pas)
+                  <div className="grid grid-cols-2 gap-2">
+                    {[
+                      { val: "FORMULE_1", label: "Formule 1", desc: "50% upfront + tontine hebdo" },
+                      { val: "FORMULE_2", label: "Formule 2", desc: "Crédit total, remb. 16j" },
+                    ].map((f) => (
+                      <button key={f.val} type="button" onClick={() => setFormuleRevendeur(f.val)}
+                        className={`p-3 rounded-xl border text-left text-sm transition-colors ${formuleRevendeur === f.val ? "border-blue-500 bg-blue-50 text-blue-800" : "border-slate-200 text-slate-600 hover:border-slate-300"}`}>
+                        <p className="font-medium">{f.label}</p>
+                        <p className="text-xs mt-0.5 opacity-80">{f.desc}</p>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 
@@ -1183,30 +1420,67 @@ function ModalNouvelleSouscription({ onClose, onSuccess }: { onClose: () => void
                 <label className="block text-sm font-medium text-slate-700 mb-1">Fréquence de versement *</label>
                 <select value={frequenceVersement} onChange={(e) => setFrequenceVersement(e.target.value)}
                   className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white">
-                  <option value="QUOTIDIEN">Quotidien</option>
                   <option value="HEBDOMADAIRE">Hebdomadaire</option>
                   <option value="BIMENSUEL">Bimensuel</option>
-                  <option value="MENSUEL">Mensuel</option>
                 </select>
+                <p className="text-xs text-purple-600 mt-1">Cycles de 30 jours — hebdomadaire ou bimensuel uniquement</p>
               </div>
             )}
 
-            {/* Montants */}
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Montant total *</label>
-                <input type="number" min="1" required value={montantTotal} onChange={(e) => setMontantTotal(e.target.value)}
-                  className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="FCFA" />
+            {/* Montants — URGENCE : layout spécial avec récapitulatif */}
+            {selectedPack?.type === "URGENCE" ? (
+              <div className="p-4 bg-red-50 rounded-xl border border-red-200 space-y-3">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    Prix du produit (FCFA) *
+                  </label>
+                  <input type="number" min="1" required value={montantTotal} onChange={(e) => setMontantTotal(e.target.value)}
+                    className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-400 bg-white" placeholder="Ex : 40 000" />
+                  <p className="text-xs text-slate-400 mt-1">Montant total du produit que le client souhaite acquérir</p>
+                </div>
+                {montantTotal && parseFloat(montantTotal) > 0 && selectedPack.acomptePercent && selectedPack.dureeJours && (
+                  <div className="p-3 bg-red-100 rounded-xl text-sm text-red-800 space-y-1">
+                    <p className="font-semibold">Récapitulatif automatique</p>
+                    <div className="flex justify-between text-xs">
+                      <span>Acompte à payer maintenant (25%)</span>
+                      <span className="font-bold">{Math.round(parseFloat(montantTotal) * 0.25).toLocaleString("fr-FR")} FCFA</span>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span>Reste à rembourser (75%)</span>
+                      <span className="font-bold">{Math.round(parseFloat(montantTotal) * 0.75).toLocaleString("fr-FR")} FCFA</span>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span>Versement/jour ({selectedPack.dureeJours} jours)</span>
+                      <span className="font-bold">{Math.ceil((parseFloat(montantTotal) * 0.75) / selectedPack.dureeJours).toLocaleString("fr-FR")} FCFA</span>
+                    </div>
+                    <p className="text-xs text-red-600 mt-1">Livraison immédiate après encaissement de l&apos;acompte</p>
+                  </div>
+                )}
+                {/* Acompte verrouillé — affiché en lecture seule */}
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Acompte initial (25% — calculé automatiquement)</label>
+                  <div className="w-full border border-red-300 rounded-xl px-3 py-2.5 text-sm bg-white text-slate-700 font-semibold">
+                    {acompte ? `${parseFloat(acompte).toLocaleString("fr-FR")} FCFA` : "—"}
+                  </div>
+                </div>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">
-                  Acompte initial
-                  {selectedPack?.acomptePercent && <span className="ml-1 text-xs text-slate-400">({selectedPack.acomptePercent}% min)</span>}
-                </label>
-                <input type="number" min="0" value={acompte} onChange={(e) => setAcompte(e.target.value)}
-                  className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="0" />
+            ) : (
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Montant total *</label>
+                  <input type="number" min="1" required value={montantTotal} onChange={(e) => setMontantTotal(e.target.value)}
+                    className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="FCFA" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    Acompte initial
+                    {selectedPack?.acomptePercent && <span className="ml-1 text-xs text-slate-400">({selectedPack.acomptePercent}% min)</span>}
+                  </label>
+                  <input type="number" min="0" value={acompte} onChange={(e) => setAcompte(e.target.value)}
+                    className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="0" />
+                </div>
               </div>
-            </div>
+            )}
 
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Date de début</label>

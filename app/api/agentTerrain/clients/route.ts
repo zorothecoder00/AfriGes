@@ -38,7 +38,7 @@ export async function GET(req: Request) {
         orderBy: { createdAt: "desc" },
         include: {
           _count: {
-            select: { souscriptions: true },
+            select: { souscriptionsPacks: true },
           },
         },
       }),

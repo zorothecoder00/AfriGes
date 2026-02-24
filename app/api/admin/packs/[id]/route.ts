@@ -49,6 +49,19 @@ export async function PUT(req: Request, { params }: Ctx) {
     const { id } = await params;
     const body = await req.json();
 
+    // Bloquer la désactivation si des souscriptions sont en cours
+    if (body.actif === false) {
+      const actives = await prisma.souscriptionPack.count({
+        where: { packId: parseInt(id), statut: { in: ["EN_ATTENTE", "ACTIF"] } },
+      });
+      if (actives > 0) {
+        return NextResponse.json(
+          { error: `Impossible de désactiver : ${actives} souscription(s) en cours sur ce pack` },
+          { status: 400 }
+        );
+      }
+    }
+
     const pack = await prisma.pack.update({
       where: { id: parseInt(id) },
       data: {

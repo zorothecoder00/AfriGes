@@ -1,2 +1,7 @@
 -Pages user qu'il me reste à créer( types de gestionnaires [ COMMERCIAL, RESPONSABLE_VENTE_CREDIT, RESPONSABLE_ECONOMIQUE, RESPONSABLE_MARKETING ] )
-          
+
+ /dashboard/user/agentsTerrain  au niveau de la collecte , je peux collecter plus que ce que le client doit verser comme montant ( c'est vraiment une mauvais logique ; je pense que tu n'as pas mis assez de robustesse dans les apis en question).
+
+/dashboard/admin/ventes je peux livrer un produit avec une quantité supérieure à celle du stock . Et d'ailleurs le processus de livraison n'est pas bon ( d'abord non c'est pads l'admin le livreur ; lui il donne juste l'autorisation de livrer . Ensuite je pense que quand on demande une livraison pour un produit , il ne devrait pas automatiquement être livré ; on devrait attendre la confirmation de livrer. Tu confonds planifiee et livree)
+
+dashboard/admin/packs lorsqu'il y'a des livraisons complètée , une erreur (completes is not defined)  survient . Toujours à ce niveau mais dans la section versements et échéances , j'ai l'impression que le filtre ne fonctionne pas bien ( le filtre Payée est toujours vide malgré le paiement et en plus le message de fallback reste toujours Aucune échéance en attente )

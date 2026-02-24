@@ -107,15 +107,11 @@ function ModalCollecte({
   onClose: () => void;
   onSuccess: () => void;
 }) {
-  const [montant, setMontant] = useState("");
-  const [notes, setNotes] = useState("");
-
   const prochaine = souscription.echeances[0];
   const type = souscription.pack.type;
 
-  useEffect(() => {
-    if (prochaine) setMontant(String(prochaine.montant));
-  }, [prochaine]);
+  const [montant, setMontant] = useState(prochaine ? String(prochaine.montant) : "");
+  const [notes, setNotes] = useState("");
 
   const { mutate, loading } = useMutation(
     `/api/agentTerrain/packs/${souscription.id}/collecte`,
@@ -188,11 +184,23 @@ function ModalCollecte({
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">Montant collecté (FCFA) *</label>
             <input
-              type="number" min="1" required
+              type="number" min="1" max={Number(souscription.montantRestant)} required
               value={montant} onChange={(e) => setMontant(e.target.value)}
-              className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+              className={`w-full border rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 ${
+                montant && parseFloat(montant) > Number(souscription.montantRestant)
+                  ? "border-red-400 bg-red-50"
+                  : "border-slate-200"
+              }`}
               placeholder="Ex : 5000"
             />
+            <p className="text-xs text-slate-400 mt-1">
+              Maximum autorisé : <span className="font-semibold text-slate-600">{formatCurrency(Number(souscription.montantRestant))}</span>
+            </p>
+            {montant && parseFloat(montant) > Number(souscription.montantRestant) && (
+              <p className="text-xs text-red-600 mt-1 font-medium">
+                Le montant saisi dépasse le restant dû ({formatCurrency(Number(souscription.montantRestant))})
+              </p>
+            )}
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">Notes (optionnel)</label>
@@ -207,7 +215,9 @@ function ModalCollecte({
               className="flex-1 py-2.5 border border-slate-200 text-slate-700 rounded-xl hover:bg-slate-50 text-sm font-medium">
               Annuler
             </button>
-            <button type="submit" disabled={loading || !montant}
+            <button
+              type="submit"
+              disabled={loading || !montant || parseFloat(montant) <= 0 || parseFloat(montant) > Number(souscription.montantRestant)}
               className="flex-1 py-2.5 bg-teal-600 text-white rounded-xl hover:bg-teal-700 disabled:opacity-50 text-sm font-medium flex items-center justify-center gap-2">
               {loading ? <><Loader2 className="w-4 h-4 animate-spin" /> Enregistrement…</> : "Confirmer collecte"}
             </button>

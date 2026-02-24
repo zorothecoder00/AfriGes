@@ -3,8 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { getAgentTerrainSession } from "@/lib/authAgentTerrain";
 import { notifyAdmins } from "@/lib/notifications";
 
-type Ctx = { params: Promise<{ id: string }> };
-
+type Ctx = { params: Promise<{ id: string }> };  
+    
 /**
  * POST /api/agentTerrain/packs/[id]/collecte
  * Enregistre un versement de terrain sur une souscription pack.
@@ -40,6 +40,17 @@ export async function POST(req: Request, { params }: Ctx) {
     }
 
     const montantNum = parseFloat(montant);
+    const montantRestantActuel = Number(souscription.montantRestant);
+
+    if (montantNum > montantRestantActuel) {
+      return NextResponse.json(
+        {
+          error: `Montant trop élevé : le restant dû est de ${montantRestantActuel.toLocaleString("fr-FR")} FCFA`,
+        },
+        { status: 400 }
+      );
+    }
+
     const agentNom = `${session.user.prenom ?? ""} ${session.user.nom ?? ""}`.trim();
     const clientNom = souscription.client
       ? `${souscription.client.prenom} ${souscription.client.nom}`

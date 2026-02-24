@@ -250,12 +250,7 @@ export default function AfriGesDashboard() {
                 <Link href="/dashboard/admin/packs" className="w-full flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-50 rounded-xl transition-all"><Layers size={20} /><span>Packs clients</span></Link>
               </nav>
             </div>
-            <div className="p-4 border-b border-slate-100">
-              <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Historique</h3>
-              <nav className="space-y-1">
-                <Link href="/dashboard/admin/creditsAlimentaires" className="w-full flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-50 rounded-xl transition-all"><CreditCard size={20} /><span>Crédits alimentaires</span></Link>
-              </nav>
-            </div>
+  
             <div className="p-4 border-b border-slate-100">
               <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Commerce</h3>
               <nav className="space-y-1">

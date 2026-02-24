@@ -76,6 +76,23 @@ export async function POST(req: Request, { params }: Ctx) {
         return NextResponse.json({ error: "Au moins une ligne requise" }, { status: 400 });
       }
 
+      // Valider le stock disponible avant de planifier
+      for (const ligne of lignes as { produitId: number; quantite: number; prixUnitaire: number }[]) {
+        const produit = await prisma.produit.findUnique({
+          where: { id: ligne.produitId },
+          select: { nom: true, stock: true },
+        });
+        if (!produit) {
+          return NextResponse.json({ error: `Produit #${ligne.produitId} introuvable` }, { status: 404 });
+        }
+        if (ligne.quantite > produit.stock) {
+          return NextResponse.json(
+            { error: `Stock insuffisant pour "${produit.nom}" : ${produit.stock} disponible(s), ${ligne.quantite} demandé(s)` },
+            { status: 400 }
+          );
+        }
+      }
+
       const reception = await prisma.$transaction(async (tx) => {
         const rec = await tx.receptionProduitPack.create({
           data: {
@@ -121,6 +138,20 @@ export async function POST(req: Request, { params }: Ctx) {
 
         if (!rec || rec.souscriptionId !== souscriptionId) throw new Error("Réception introuvable");
         if (rec.statut !== "PLANIFIEE") throw new Error(`Déjà ${rec.statut.toLowerCase()}`);
+
+        // Vérifier le stock au moment réel de la livraison
+        for (const ligne of rec.lignes) {
+          const produit = await tx.produit.findUnique({
+            where: { id: ligne.produitId },
+            select: { nom: true, stock: true },
+          });
+          if (!produit) throw new Error(`Produit #${ligne.produitId} introuvable`);
+          if (ligne.quantite > produit.stock) {
+            throw new Error(
+              `Stock insuffisant pour "${produit.nom}" : ${produit.stock} disponible(s), ${ligne.quantite} demandé(s)`
+            );
+          }
+        }
 
         for (const ligne of rec.lignes) {
           await tx.produit.update({
@@ -253,6 +284,23 @@ export async function POST(req: Request, { params }: Ctx) {
           },
           { status: 400 }
         );
+      }
+
+      // Valider le stock avant toute écriture
+      for (const ligne of lignes as { produitId: number; quantite: number; prixUnitaire: number }[]) {
+        const produit = await prisma.produit.findUnique({
+          where: { id: ligne.produitId },
+          select: { nom: true, stock: true },
+        });
+        if (!produit) {
+          return NextResponse.json({ error: `Produit #${ligne.produitId} introuvable` }, { status: 404 });
+        }
+        if (ligne.quantite > produit.stock) {
+          return NextResponse.json(
+            { error: `Stock insuffisant pour "${produit.nom}" : ${produit.stock} disponible(s), ${ligne.quantite} demandé(s)` },
+            { status: 400 }
+          );
+        }
       }
 
       const reception = await prisma.$transaction(async (tx) => {
