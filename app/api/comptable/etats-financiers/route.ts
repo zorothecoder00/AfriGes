@@ -5,9 +5,9 @@ import { getComptableSession } from "@/lib/authComptable";
 /**
  * GET /api/comptable/etats-financiers
  *
- * Retourne :
+ * Retourne (basé sur l'architecture packs) :
  * - Bilan simplifié (Actif / Passif snapshot à aujourd'hui)
- * - Compte de résultat (Produits / Charges depuis le 1er janvier de l'année en cours)
+ * - Compte de résultat (Produits / Charges depuis le 1er janvier)
  * - Ratios financiers
  */
 export async function GET() {
@@ -17,19 +17,18 @@ export async function GET() {
       return NextResponse.json({ message: "Accès refusé" }, { status: 403 });
     }
 
-    const now = new Date();
-    const yearStart = new Date(now.getFullYear(), 0, 1); // 1er janvier
-
-    // ── BILAN — ACTIF (snapshot) ───────────────────────────────────────────
+    const now       = new Date();
+    const yearStart = new Date(now.getFullYear(), 0, 1);
 
     const [
       stockValeur,
-      creancesCotisations,
-      creditsAlimRestants,
-      creditsFinanciersNonRembourses,
+      creancesPacks,
+      produitsVersements,
+      chargesAppro,
+      souscriptionsStats,
     ] = await Promise.all([
 
-      // 1. Valeur du stock (actif immobilisé)
+      // 1. Valeur du stock (actif)
       prisma.$queryRaw<{ valeur: string; nb: string }[]>`
         SELECT
           COALESCE(SUM(stock * "prixUnitaire"), 0)::text AS valeur,
@@ -37,96 +36,21 @@ export async function GET() {
         FROM "Produit"
       `,
 
-      // 2. Créances sur cotisations EN_ATTENTE (argent à recevoir)
-      prisma.$queryRaw<{ total: string; cnt: string }[]>`
-        SELECT COALESCE(SUM(montant), 0)::text AS total, COUNT(*)::text AS cnt
-        FROM "Cotisation"
-        WHERE statut = 'EN_ATTENTE'
-      `,
-
-      // 3. Solde crédits alimentaires actifs restants (à consommer par les membres)
+      // 2. Créances packs = montantRestant des souscriptions ACTIF (à encaisser)
       prisma.$queryRaw<{ total: string; cnt: string }[]>`
         SELECT COALESCE(SUM("montantRestant"), 0)::text AS total, COUNT(*)::text AS cnt
-        FROM "CreditAlimentaire"
+        FROM "SouscriptionPack"
         WHERE statut = 'ACTIF'
       `,
 
-      // 4. Crédits financiers accordés non encore remboursés
+      // 3. Versements collectés depuis le 1er janvier (CPC Produits)
       prisma.$queryRaw<{ total: string; cnt: string }[]>`
-        SELECT COALESCE(SUM("montantRestant"), 0)::text AS total, COUNT(*)::text AS cnt
-        FROM "Credit"
-        WHERE statut IN ('APPROUVE', 'REMBOURSE_PARTIEL')
-      `,
-    ]);
-
-    // ── BILAN — PASSIF (snapshot) ──────────────────────────────────────────
-
-    const [
-      engagementsTontines,
-      plafondCreditsAlimAlloues,
-      cotisationsPayeesTotal,
-    ] = await Promise.all([
-
-      // 1. Pots tontines EN_COURS à verser (engagements)
-      prisma.$queryRaw<{ total: string; cnt: string }[]>`
-        SELECT COALESCE(SUM("montantPot"), 0)::text AS total, COUNT(*)::text AS cnt
-        FROM "TontineCycle"
-        WHERE statut = 'EN_COURS'
+        SELECT COALESCE(SUM(montant), 0)::text AS total, COUNT(*)::text AS cnt
+        FROM "VersementPack"
+        WHERE "datePaiement" >= ${yearStart}
       `,
 
-      // 2. Plafond total crédits alimentaires alloués (engagement consommable)
-      prisma.$queryRaw<{ total: string }[]>`
-        SELECT COALESCE(SUM(plafond), 0)::text AS total
-        FROM "CreditAlimentaire"
-        WHERE statut IN ('ACTIF', 'EPUISE')
-      `,
-
-      // 3. Total cotisations collectées (fonds propres de référence)
-      prisma.$queryRaw<{ total: string }[]>`
-        SELECT COALESCE(SUM(montant), 0)::text AS total
-        FROM "Cotisation"
-        WHERE statut = 'PAYEE'
-      `,
-    ]);
-
-    // ── COMPTE DE RÉSULTAT — PRODUITS (année en cours) ────────────────────
-
-    const [
-      produitsVentes,
-      produitsCotisations,
-      produitsContribs,
-      produitsRemb,
-    ] = await Promise.all([
-
-      prisma.$queryRaw<{ total: string }[]>`
-        SELECT COALESCE(SUM(quantite * "prixUnitaire"), 0)::text AS total
-        FROM "VenteCreditAlimentaire"
-        WHERE "createdAt" >= ${yearStart}
-      `,
-
-      prisma.$queryRaw<{ total: string }[]>`
-        SELECT COALESCE(SUM(montant), 0)::text AS total
-        FROM "Cotisation"
-        WHERE statut = 'PAYEE' AND "datePaiement" >= ${yearStart}
-      `,
-
-      prisma.$queryRaw<{ total: string }[]>`
-        SELECT COALESCE(SUM(montant), 0)::text AS total
-        FROM "TontineContribution"
-        WHERE statut = 'PAYEE' AND "datePaiement" >= ${yearStart}
-      `,
-
-      prisma.$queryRaw<{ total: string }[]>`
-        SELECT COALESCE(SUM(montant), 0)::text AS total
-        FROM "CreditTransaction"
-        WHERE type = 'REMBOURSEMENT' AND "createdAt" >= ${yearStart}
-      `,
-    ]);
-
-    // ── COMPTE DE RÉSULTAT — CHARGES (année en cours) ─────────────────────
-
-    const [chargesAppro, chargesCredits, chargesPots] = await Promise.all([
-
+      // 4. Approvisionnements depuis le 1er janvier (CPC Charges)
       prisma.$queryRaw<{ total: string }[]>`
         SELECT COALESCE(SUM(m.quantite * p."prixUnitaire"), 0)::text AS total
         FROM "MouvementStock" m
@@ -134,57 +58,59 @@ export async function GET() {
         WHERE m.type = 'ENTREE' AND m."dateMouvement" >= ${yearStart}
       `,
 
-      prisma.$queryRaw<{ total: string }[]>`
-        SELECT COALESCE(SUM(montant), 0)::text AS total
-        FROM "CreditTransaction"
-        WHERE type = 'DECAISSEMENT' AND "createdAt" >= ${yearStart}
-      `,
-
-      prisma.$queryRaw<{ total: string }[]>`
-        SELECT COALESCE(SUM("montantPot"), 0)::text AS total
-        FROM "TontineCycle"
-        WHERE statut = 'COMPLETE' AND "dateCloture" >= ${yearStart}
+      // 5. Stats souscriptions pour ratios
+      prisma.$queryRaw<{
+        total_montant: string;
+        total_verse:   string;
+        total_cnt:     string;
+        complete_cnt:  string;
+      }[]>`
+        SELECT
+          COALESCE(SUM("montantTotal"), 0)::text  AS total_montant,
+          COALESCE(SUM("montantVerse"), 0)::text  AS total_verse,
+          COUNT(*)::text                          AS total_cnt,
+          COUNT(*) FILTER (WHERE statut = 'COMPLETE')::text AS complete_cnt
+        FROM "SouscriptionPack"
       `,
     ]);
 
-    // ── Calculs ────────────────────────────────────────────────────────────
+    // ── ACTIF ──────────────────────────────────────────────────────────────
 
-    // ACTIF
-    const actifStock              = Number(stockValeur[0].valeur);
-    const actifCreancesCotisations = Number(creancesCotisations[0].total);
-    const actifCreditsAlim        = Number(creditsAlimRestants[0].total);
-    const actifCreditsFinanciers  = Number(creditsFinanciersNonRembourses[0].total);
-    const totalActif = actifStock + actifCreancesCotisations + actifCreditsAlim + actifCreditsFinanciers;
+    const actifStock       = Number(stockValeur[0]?.valeur ?? 0);
+    const actifCreances    = Number(creancesPacks[0]?.total ?? 0);
+    const actifCreancesCnt = Number(creancesPacks[0]?.cnt ?? 0);
+    const totalActif       = actifStock + actifCreances;
 
-    // PASSIF
-    const passifEngagementsTontines = Number(engagementsTontines[0].total);
-    const passifCreditsAlimAlloues  = Number(plafondCreditsAlimAlloues[0].total);
-    const totalPassifEngagements    = passifEngagementsTontines + passifCreditsAlimAlloues;
-    const capitauxPropres           = totalActif - totalPassifEngagements;
-    const totalPassif               = totalPassifEngagements + Math.max(0, capitauxPropres);
+    // ── PASSIF ─────────────────────────────────────────────────────────────
+    // Engagements = montantRestant à encaisser (ce qui reste dû par les membres)
 
-    // CPC — PRODUITS
-    const prodVentes      = Number(produitsVentes[0].total);
-    const prodCotisations = Number(produitsCotisations[0].total);
-    const prodContribs    = Number(produitsContribs[0].total);
-    const prodRemb        = Number(produitsRemb[0].total);
-    const totalProduits   = prodVentes + prodCotisations + prodContribs + prodRemb;
+    const passifEngagements    = actifCreances;
+    const passifEngagementsCnt = actifCreancesCnt;
+    const capitauxPropres      = Math.max(0, totalActif - passifEngagements);
+    const totalPassif          = passifEngagements + capitauxPropres;
 
-    // CPC — CHARGES
-    const chAppro   = Number(chargesAppro[0].total);
-    const chCredits = Number(chargesCredits[0].total);
-    const chPots    = Number(chargesPots[0].total);
-    const totalCharges = chAppro + chCredits + chPots;
+    // ── CPC ────────────────────────────────────────────────────────────────
 
-    const resultatNet = totalProduits - totalCharges;
+    const prodVersements = Number(produitsVersements[0]?.total ?? 0);
+    const totalProduits  = prodVersements;
+    const chAppro        = Number(chargesAppro[0]?.total ?? 0);
+    const totalCharges   = chAppro;
+    const resultatNet    = totalProduits - totalCharges;
 
-    // RATIOS
-    const tauxRecouvrement = (Number(cotisationsPayeesTotal[0].total) + actifCreancesCotisations) > 0
-      ? Math.round((Number(cotisationsPayeesTotal[0].total) / (Number(cotisationsPayeesTotal[0].total) + actifCreancesCotisations)) * 100)
+    // ── RATIOS ─────────────────────────────────────────────────────────────
+
+    const stats        = souscriptionsStats[0];
+    const totalMontant = Number(stats?.total_montant ?? 0);
+    const totalVerse   = Number(stats?.total_verse ?? 0);
+    const totalCnt     = Number(stats?.total_cnt ?? 0);
+    const completeCnt  = Number(stats?.complete_cnt ?? 0);
+
+    const tauxRecouvrement = totalMontant > 0
+      ? Math.round((totalVerse / totalMontant) * 100)
       : 0;
 
-    const tauxUtilisationCreditsAlim = passifCreditsAlimAlloues > 0
-      ? Math.round(((passifCreditsAlimAlloues - actifCreditsAlim) / passifCreditsAlimAlloues) * 100)
+    const tauxCompletion = totalCnt > 0
+      ? Math.round((completeCnt / totalCnt) * 100)
       : 0;
 
     const margeNette = totalProduits > 0
@@ -201,38 +127,30 @@ export async function GET() {
         annee: now.getFullYear(),
         bilan: {
           actif: {
-            stock:                { valeur: actifStock,              nombreProduits: Number(stockValeur[0].nb) },
-            creancesCotisations:  { valeur: actifCreancesCotisations, count: Number(creancesCotisations[0].cnt) },
-            creditsAlimentaires:  { valeur: actifCreditsAlim,         count: Number(creditsAlimRestants[0].cnt) },
-            creditsFinanciers:    { valeur: actifCreditsFinanciers,    count: Number(creditsFinanciersNonRembourses[0].cnt) },
+            stock:         { valeur: actifStock, nombreProduits: Number(stockValeur[0]?.nb ?? 0) },
+            creancesPacks: { valeur: actifCreances, count: actifCreancesCnt },
             total: totalActif,
           },
           passif: {
-            engagementsTontines: { valeur: passifEngagementsTontines, count: Number(engagementsTontines[0].cnt) },
-            creditsAlimAlloues:  { valeur: passifCreditsAlimAlloues },
-            capitauxPropres:     Math.max(0, capitauxPropres),
+            engagementsPacks: { valeur: passifEngagements, count: passifEngagementsCnt },
+            capitauxPropres,
             total: totalPassif,
           },
         },
         compteResultat: {
           produits: {
-            ventes:                  prodVentes,
-            cotisationsCollectees:   prodCotisations,
-            contributionsTontines:   prodContribs,
-            remboursementsCredits:   prodRemb,
+            versementsCollectes: prodVersements,
             total: totalProduits,
           },
           charges: {
             approvisionnements: chAppro,
-            creditsDecaisses:   chCredits,
-            potsTontinesVerses: chPots,
             total: totalCharges,
           },
           resultatNet,
         },
         ratios: {
           tauxRecouvrement,
-          tauxUtilisationCreditsAlim,
+          tauxCompletion,
           margeNette,
           ratioCharges,
         },

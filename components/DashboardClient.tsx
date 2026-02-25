@@ -2,8 +2,8 @@
 
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
-  TrendingUp, Users, UserCheck, Coins, CreditCard,
-  ShoppingCart, Package, MoreVertical, Download, Plus, ChevronDown, Layers,
+  TrendingUp, Users, UserCheck, Package, Layers,
+  ShoppingCart, MoreVertical, Download, Plus, ChevronDown,
 } from 'lucide-react';
 import Link from "next/link";
 import NotificationBell from '@/components/NotificationBell';
@@ -19,28 +19,25 @@ interface DashboardResponse {
   success: boolean;
   data: {
     membresActifs: number;
-    tontinesActives: number;
-    creditsEnCours: number;
-    achatsCreditAlimentaire: { nombreAchats: number; montantTotal: number };
-    evolutionVentes: DayPoint[];
-    evolutionCotisations: DayPoint[];
-    repartitionCotisations: { enAttente: number; payees: number; expirees: number };
+    souscriptionsActives: number;
+    packsTotal: number;
+    versementsTotal: { count: number; montant: number };
+    evolutionVersements: DayPoint[];
+    evolutionSouscriptions: DayPoint[];
+    repartitionSouscriptions: { actives: number; completes: number; annulees: number };
     comparaisons: {
-      membres:     { pct: string; positif: boolean };
-      cotisations: { pct: string; positif: boolean };
-      ventes:      { pct: string; positif: boolean };
-      credits:     { pct: string; positif: boolean };
+      membres:    { pct: string; positif: boolean };
+      versements: { pct: string; positif: boolean };
+      packs:      { pct: string; positif: boolean };
     };
   };
 }
 
 // ─── Helpers graphiques ───────────────────────────────────────────────────────
 
-// Dimensions du système de coordonnées du viewBox SVG
 const VB_W = 1000;
 const VB_H = 200;
 
-/** Construit le path SVG d'une courbe à partir de points normalisés [0..1, 0..1] */
 function buildPath(points: { x: number; y: number }[]): string {
   if (points.length === 0) return '';
   return points
@@ -51,37 +48,36 @@ function buildPath(points: { x: number; y: number }[]): string {
 function buildArea(points: { x: number; y: number }[]): string {
   if (points.length === 0) return '';
   const line = buildPath(points);
-  const last = points[points.length - 1];
+  const last  = points[points.length - 1];
   const first = points[0];
   return `${line} L ${(last.x * VB_W).toFixed(1)} ${VB_H} L ${(first.x * VB_W).toFixed(1)} ${VB_H} Z`;
 }
 
 function normalizePoints(data: DayPoint[]): { x: number; y: number }[] {
   if (data.length === 0) return [];
-  const max = Math.max(...data.map(d => d.montant), 1); // au moins 1 pour éviter /0
+  const max = Math.max(...data.map(d => d.montant), 1);
   return data.map((d, i) => ({
     x: data.length === 1 ? 0.5 : i / (data.length - 1),
-    y: 1 - d.montant / max, // SVG: y=0 est en haut → inverser
+    y: 1 - d.montant / max,
   }));
 }
 
-/** Donut chart : calcule strokeDasharray pour chaque segment */
-const CIRCUMFERENCE = 2 * Math.PI * 80; // r = 80
+/** Donut chart pour les souscriptions */
+const CIRCUMFERENCE = 2 * Math.PI * 80;
 
-function donutSegments(enAttente: number, payees: number, expirees: number) {
-  const total = enAttente + payees + expirees;
+function souscSegments(actives: number, completes: number, annulees: number) {
+  const total = actives + completes + annulees;
   if (total === 0) {
-    return [{ len: CIRCUMFERENCE, color: '#e2e8f0', offset: 0, label: 'Aucune cotisation', pct: '—' }];
+    return [{ len: CIRCUMFERENCE, color: '#e2e8f0', offset: 0, label: 'Aucune souscription', pct: '—' }];
   }
   const seg = (n: number) => (n / total) * CIRCUMFERENCE;
   return [
-    { len: seg(payees),    color: '#10b981', offset: 0,                         label: 'Payées',      pct: `${Math.round((payees    / total) * 100)}%`, count: payees    },
-    { len: seg(enAttente), color: '#f59e0b', offset: -seg(payees),               label: 'En attente',  pct: `${Math.round((enAttente / total) * 100)}%`, count: enAttente },
-    { len: seg(expirees),  color: '#94a3b8', offset: -(seg(payees)+seg(enAttente)), label: 'Expirées', pct: `${Math.round((expirees  / total) * 100)}%`, count: expirees  },
+    { len: seg(actives),   color: '#10b981', offset: 0,                              label: 'Actives',   pct: `${Math.round((actives   / total) * 100)}%`, count: actives   },
+    { len: seg(completes), color: '#6366f1', offset: -seg(actives),                  label: 'Complètes', pct: `${Math.round((completes / total) * 100)}%`, count: completes },
+    { len: seg(annulees),  color: '#94a3b8', offset: -(seg(actives)+seg(completes)), label: 'Annulées',  pct: `${Math.round((annulees  / total) * 100)}%`, count: annulees  },
   ];
 }
 
-/** Formate un label de date (YYYY-MM-DD) → "5 jan", "12 jan"… */
 function fmtDateShort(iso: string) {
   const d = new Date(iso);
   return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
@@ -102,43 +98,39 @@ export default function AfriGesDashboard() {
     return () => document.removeEventListener('mousedown', handleClick);
   }, []);
 
-  // La période est passée dans l'URL → useApi refetch automatiquement quand elle change
   const { data: response, loading, error, refetch } = useApi<DashboardResponse>(
     `/api/admin/dashboard?period=${selectedPeriod}`
   );
   const d = response?.data;
 
   // ── Données normalisées pour les charts ────────────────────────────────────
-  const ventesPoints   = useMemo(() => normalizePoints(d?.evolutionVentes ?? []),       [d]);
-  const cotisPoints    = useMemo(() => normalizePoints(d?.evolutionCotisations ?? []),  [d]);
-  const donuts         = useMemo(() => {
-    const r = d?.repartitionCotisations;
-    return r ? donutSegments(r.enAttente, r.payees, r.expirees) : null;
+  const versementsPoints = useMemo(() => normalizePoints(d?.evolutionVersements ?? []),    [d]);
+  const souscPoints      = useMemo(() => normalizePoints(d?.evolutionSouscriptions ?? []), [d]);
+  const donuts = useMemo(() => {
+    const r = d?.repartitionSouscriptions;
+    return r ? souscSegments(r.actives, r.completes, r.annulees) : null;
   }, [d]);
 
-  // Max value pour l'axe Y du line chart (affichage)
-  const maxVentes = useMemo(() =>
-    Math.max(...(d?.evolutionVentes ?? []).map(p => p.montant), 1),
+  const maxVersements = useMemo(() =>
+    Math.max(...(d?.evolutionVersements ?? []).map(p => p.montant), 1),
     [d]
   );
 
-  // Labels axe X : premier, milieu, dernier jour
   const xLabels = useMemo(() => {
-    const pts = d?.evolutionVentes ?? [];
+    const pts = d?.evolutionVersements ?? [];
     if (pts.length === 0) return [];
     const n = pts.length;
     const indices = [0, Math.floor(n / 4), Math.floor(n / 2), Math.floor(3 * n / 4), n - 1];
     return [...new Set(indices)].map(i => ({ i, label: fmtDateShort(pts[i].date), xPct: (i / (n - 1)) * 100 }));
   }, [d]);
 
-  // Labels axe Y
   const yLabels = useMemo(() => {
     const levels = 4;
     return Array.from({ length: levels + 1 }, (_, i) => {
-      const val = (maxVentes * i) / levels;
+      const val = (maxVersements * i) / levels;
       return { val, yPct: 100 - (i / levels) * 100 };
     });
-  }, [maxVentes]);
+  }, [maxVersements]);
 
   // ── Stats cards ────────────────────────────────────────────────────────────
   const stats = [
@@ -150,25 +142,25 @@ export default function AfriGesDashboard() {
       icon: Users, color: 'bg-blue-500', lightBg: 'bg-blue-50',
     },
     {
-      id: 2, label: 'Tontines actives',
-      value: d ? formatNumber(d.tontinesActives) : '—',
-      change: d?.comparaisons.credits.pct ?? '…',
+      id: 2, label: 'Souscriptions actives',
+      value: d ? formatNumber(d.souscriptionsActives) : '—',
+      change: d?.comparaisons.versements.pct ?? '…',
+      positif: d?.comparaisons.versements.positif ?? true,
+      icon: TrendingUp, color: 'bg-emerald-500', lightBg: 'bg-emerald-50',
+    },
+    {
+      id: 3, label: 'Packs au catalogue',
+      value: d ? formatNumber(d.packsTotal) : '—',
+      change: d?.comparaisons.packs.pct ?? '…',
       positif: true,
-      icon: Coins, color: 'bg-emerald-500', lightBg: 'bg-emerald-50',
+      icon: Layers, color: 'bg-amber-500', lightBg: 'bg-amber-50',
     },
     {
-      id: 3, label: 'Crédits en cours',
-      value: d ? formatNumber(d.creditsEnCours) : '—',
-      change: d?.comparaisons.credits.pct ?? '…',
-      positif: d?.comparaisons.credits.positif ?? true,
-      icon: CreditCard, color: 'bg-amber-500', lightBg: 'bg-amber-50',
-    },
-    {
-      id: 4, label: 'Achats via crédit alimentaire',
-      value: d ? formatCurrency(d.achatsCreditAlimentaire.montantTotal) : '—',
-      change: d?.comparaisons.ventes.pct ?? '…',
-      positif: d?.comparaisons.ventes.positif ?? true,
-      icon: ShoppingCart, color: 'bg-purple-500', lightBg: 'bg-purple-50',
+      id: 4, label: 'Versements (packs)',
+      value: d ? formatCurrency(d.versementsTotal.montant) : '—',
+      change: d?.comparaisons.versements.pct ?? '…',
+      positif: d?.comparaisons.versements.positif ?? true,
+      icon: Package, color: 'bg-purple-500', lightBg: 'bg-purple-50',
     },
   ];
 
@@ -239,9 +231,9 @@ export default function AfriGesDashboard() {
                 <button className="w-full flex items-center gap-3 px-4 py-3 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-xl font-medium transition-all shadow-md shadow-emerald-200">
                   <TrendingUp size={20} /><span>Tableau de bord</span>
                 </button>
-                <Link href="/dashboard/admin/membres"      className="w-full flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-50 rounded-xl transition-all"><Users size={20} /><span>Membres</span></Link>
+                <Link href="/dashboard/admin/membres"       className="w-full flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-50 rounded-xl transition-all"><Users size={20} /><span>Membres</span></Link>
                 <Link href="/dashboard/admin/gestionnaires" className="w-full flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-50 rounded-xl transition-all"><Users size={20} /><span>Gestionnaires</span></Link>
-                <Link href="/dashboard/admin/clients"      className="w-full flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-50 rounded-xl transition-all"><UserCheck size={20} /><span>Clients</span></Link>
+                <Link href="/dashboard/admin/clients"       className="w-full flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-50 rounded-xl transition-all"><UserCheck size={20} /><span>Clients</span></Link>
               </nav>
             </div>
             <div className="p-4 border-b border-slate-100">
@@ -250,7 +242,6 @@ export default function AfriGesDashboard() {
                 <Link href="/dashboard/admin/packs" className="w-full flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-50 rounded-xl transition-all"><Layers size={20} /><span>Packs clients</span></Link>
               </nav>
             </div>
-  
             <div className="p-4 border-b border-slate-100">
               <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Commerce</h3>
               <nav className="space-y-1">
@@ -290,8 +281,8 @@ export default function AfriGesDashboard() {
                 </button>
                 {showMenu && (
                   <div className="absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-slate-200 py-2 z-50">
-                    <Link href="/dashboard/admin/packs"  onClick={() => setShowMenu(false)} className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 transition-colors"><Layers size={18} className="text-blue-500" /><span className="text-sm font-medium text-slate-700">Nouvelle souscription pack</span></Link>
-                    <Link href="/dashboard/admin/ventes" onClick={() => setShowMenu(false)} className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 transition-colors"><Package size={18} className="text-emerald-500" /><span className="text-sm font-medium text-slate-700">Nouvelle vente / livraison</span></Link>
+                    <Link href="/dashboard/admin/packs"   onClick={() => setShowMenu(false)} className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 transition-colors"><Layers size={18} className="text-blue-500" /><span className="text-sm font-medium text-slate-700">Nouvelle souscription pack</span></Link>
+                    <Link href="/dashboard/admin/ventes"  onClick={() => setShowMenu(false)} className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 transition-colors"><Package size={18} className="text-emerald-500" /><span className="text-sm font-medium text-slate-700">Nouvelle vente / livraison</span></Link>
                     <Link href="/dashboard/admin/membres" onClick={() => setShowMenu(false)} className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 transition-colors"><Users size={18} className="text-amber-500" /><span className="text-sm font-medium text-slate-700">Ajouter un membre</span></Link>
                   </div>
                 )}
@@ -329,12 +320,12 @@ export default function AfriGesDashboard() {
           {/* Charts Section */}
           <div className="grid grid-cols-3 gap-5">
 
-            {/* ── Line chart : évolution des ventes ─────────────────────────── */}
+            {/* ── Line chart : évolution des versements ─────────────────────── */}
             <div className="col-span-2 bg-white rounded-2xl p-6 shadow-sm border border-slate-200/60">
               <div className="flex items-center justify-between mb-6">
                 <div>
-                  <h3 className="text-xl font-bold text-slate-800">Évolution des ventes</h3>
-                  <p className="text-xs text-slate-400 mt-0.5">Montants journaliers (crédit alimentaire)</p>
+                  <h3 className="text-xl font-bold text-slate-800">Évolution des versements</h3>
+                  <p className="text-xs text-slate-400 mt-0.5">Montants journaliers (versements packs)</p>
                 </div>
                 <select
                   value={selectedPeriod}
@@ -351,18 +342,17 @@ export default function AfriGesDashboard() {
               <div className="flex items-center gap-5 mb-4">
                 <div className="flex items-center gap-1.5">
                   <div className="w-3 h-3 rounded-full bg-emerald-500" />
-                  <span className="text-xs text-slate-500">Ventes</span>
+                  <span className="text-xs text-slate-500">Versements packs</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <div className="w-3 h-3 rounded-full bg-blue-400" />
-                  <span className="text-xs text-slate-500">Cotisations payées</span>
+                  <span className="text-xs text-slate-500">Souscriptions créées</span>
                 </div>
               </div>
 
               <div className="relative" style={{ height: 220 }}>
-                {ventesPoints.length > 0 ? (
+                {versementsPoints.length > 0 ? (
                   <>
-                    {/* Labels axe Y — positionnés en HTML pour éviter la distorsion du viewBox */}
                     {yLabels.map((lbl) => (
                       <div
                         key={lbl.yPct}
@@ -373,7 +363,6 @@ export default function AfriGesDashboard() {
                       </div>
                     ))}
 
-                    {/* Zone SVG — décalée pour laisser la place aux labels Y */}
                     <div className="absolute left-10 right-0 top-0" style={{ height: 190 }}>
                       <svg
                         width="100%" height="100%"
@@ -389,7 +378,7 @@ export default function AfriGesDashboard() {
                             <stop offset="0%" stopColor="#10b981" stopOpacity="0.15" />
                             <stop offset="100%" stopColor="#10b981" stopOpacity="0.01" />
                           </linearGradient>
-                          <linearGradient id="cotisLineGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                          <linearGradient id="souscLineGrad" x1="0%" y1="0%" x2="100%" y2="0%">
                             <stop offset="0%" stopColor="#60a5fa" />
                             <stop offset="100%" stopColor="#3b82f6" />
                           </linearGradient>
@@ -407,22 +396,22 @@ export default function AfriGesDashboard() {
                           />
                         ))}
 
-                        {/* Zone de remplissage ventes */}
-                        <path d={buildArea(ventesPoints)} fill="url(#areaGrad)" />
+                        {/* Zone de remplissage versements */}
+                        <path d={buildArea(versementsPoints)} fill="url(#areaGrad)" />
 
-                        {/* Courbe cotisations */}
-                        {cotisPoints.length > 0 && (
+                        {/* Courbe souscriptions */}
+                        {souscPoints.length > 0 && (
                           <path
-                            d={buildPath(cotisPoints)}
-                            fill="none" stroke="url(#cotisLineGrad)" strokeWidth="2"
+                            d={buildPath(souscPoints)}
+                            fill="none" stroke="url(#souscLineGrad)" strokeWidth="2"
                             strokeLinecap="round" strokeLinejoin="round" strokeDasharray="4 3"
                             opacity="0.7" vectorEffect="non-scaling-stroke"
                           />
                         )}
 
-                        {/* Courbe ventes */}
+                        {/* Courbe versements */}
                         <path
-                          d={buildPath(ventesPoints)}
+                          d={buildPath(versementsPoints)}
                           fill="none" stroke="url(#lineGrad)" strokeWidth="2.5"
                           strokeLinecap="round" strokeLinejoin="round"
                           vectorEffect="non-scaling-stroke"
@@ -430,7 +419,6 @@ export default function AfriGesDashboard() {
                       </svg>
                     </div>
 
-                    {/* Labels axe X — positionnés en HTML */}
                     <div className="absolute left-10 right-0" style={{ top: 195 }}>
                       {xLabels.map(({ label, xPct }) => (
                         <span
@@ -451,11 +439,11 @@ export default function AfriGesDashboard() {
               </div>
             </div>
 
-            {/* ── Donut : répartition des cotisations ────────────────────────── */}
+            {/* ── Donut : répartition des souscriptions ────────────────────── */}
             <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/60">
               <div className="flex items-center justify-between mb-4">
                 <div>
-                  <h3 className="text-xl font-bold text-slate-800">Cotisations</h3>
+                  <h3 className="text-xl font-bold text-slate-800">Souscriptions</h3>
                   <p className="text-xs text-slate-400 mt-0.5">Répartition par statut</p>
                 </div>
                 <button className="text-slate-400 hover:text-slate-600 transition-colors">
@@ -483,13 +471,11 @@ export default function AfriGesDashboard() {
                     ) : (
                       <circle cx="110" cy="110" r="80" fill="none" stroke="#e2e8f0" strokeWidth="36" />
                     )}
-                    {/* Centre */}
                     <circle cx="110" cy="110" r="60" fill="white" />
-                    {/* Texte centre */}
                     {d && (
                       <>
                         <text x="110" y="106" textAnchor="middle" fill="#1e293b" fontSize="22" fontWeight="bold">
-                          {d.repartitionCotisations.payees + d.repartitionCotisations.enAttente + d.repartitionCotisations.expirees}
+                          {d.repartitionSouscriptions.actives + d.repartitionSouscriptions.completes + d.repartitionSouscriptions.annulees}
                         </text>
                         <text x="110" y="122" textAnchor="middle" fill="#94a3b8" fontSize="10">
                           total

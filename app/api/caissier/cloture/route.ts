@@ -9,78 +9,76 @@ import { notifyRoles, auditLog } from "@/lib/notifications";
  * GET /api/caissier/cloture
  *
  * Retourne :
- *  - L'état de la journée en cours (ventes, montants, etc.)
+ *  - L'état de la journée en cours (versements packs collectés)
  *  - L'historique des clôtures passées (paginé)
  *  - Si la journée en cours a déjà été clôturée
  */
 export async function GET(req: Request) {
   try {
-    // Lecture autorisée pour : Caissier, RPV (supervision), Admin/SuperAdmin
     const session = (await getCaissierSession()) ?? (await getRPVSession());
     if (!session) {
       return NextResponse.json({ message: "Accès refusé" }, { status: 403 });
     }
 
     const { searchParams } = new URL(req.url);
-    const page  = Math.max(1, Number(searchParams.get("page") ?? "1"));
+    const page  = Math.max(1, Number(searchParams.get("page")  ?? "1"));
     const limit = Math.min(30, Math.max(5, Number(searchParams.get("limit") ?? "10")));
 
     const now        = new Date();
     const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
     const endOfDay   = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
 
-    // Ventes du jour
-    const ventesJour = await prisma.venteCreditAlimentaire.findMany({
-      where: { createdAt: { gte: startOfDay, lte: endOfDay } },
-      select: {
-        id: true,
-        quantite: true,
-        prixUnitaire: true,
-        createdAt: true,
-        produit: { select: { nom: true } },
-        creditAlimentaire: {
-          select: {
-            member: { select: { nom: true, prenom: true } },
+    // Versements packs collectés aujourd'hui
+    const versementsJour = await prisma.versementPack.findMany({
+      where: { datePaiement: { gte: startOfDay, lte: endOfDay } },
+      orderBy: { datePaiement: "asc" },
+      include: {
+        souscription: {
+          include: {
+            pack:   { select: { nom: true, type: true } },
             client: { select: { nom: true, prenom: true } },
+            user:   { select: { nom: true, prenom: true } },
           },
         },
       },
-      orderBy: { createdAt: "asc" },
     });
 
-    const totalVentes  = ventesJour.length;
-    const montantTotal = ventesJour.reduce((s, v) => s + Number(v.prixUnitaire) * v.quantite, 0);
+    const totalVentes  = versementsJour.length;
+    const montantTotal = versementsJour.reduce((s, v) => s + Number(v.montant), 0);
     const panierMoyen  = totalVentes > 0 ? montantTotal / totalVentes : 0;
 
-    // Clients distincts
+    // Clients distincts ayant versé aujourd'hui
     const clientsSet = new Set(
-      ventesJour
-        .map((v) => v.creditAlimentaire?.member?.nom ?? v.creditAlimentaire?.client?.nom ?? null)
+      versementsJour
+        .map((v) => {
+          const s = v.souscription;
+          return s.clientId ? `c${s.clientId}` : s.userId ? `u${s.userId}` : null;
+        })
         .filter(Boolean)
     );
     const nbClients = clientsSet.size;
 
-    // Clôture déjà faite aujourd'hui ?
+    // Clôture déjà effectuée aujourd'hui ?
     const clotureDuJour = await prisma.clotureCaisse.findFirst({
       where: { date: { gte: startOfDay, lte: endOfDay } },
     });
 
-    // Bilan par produit
-    const bilanProduits: Record<string, { nom: string; quantite: number; montant: number }> = {};
-    for (const v of ventesJour) {
-      const nom = v.produit.nom;
-      if (!bilanProduits[nom]) bilanProduits[nom] = { nom, quantite: 0, montant: 0 };
-      bilanProduits[nom].quantite += v.quantite;
-      bilanProduits[nom].montant  += Number(v.prixUnitaire) * v.quantite;
+    // Bilan par pack (remplace bilanParProduit)
+    const bilanPacks: Record<string, { nom: string; quantite: number; montant: number }> = {};
+    for (const v of versementsJour) {
+      const nom = v.souscription.pack.nom;
+      if (!bilanPacks[nom]) bilanPacks[nom] = { nom, quantite: 0, montant: 0 };
+      bilanPacks[nom].quantite += 1;
+      bilanPacks[nom].montant  += Number(v.montant);
     }
-    const bilanParProduit = Object.values(bilanProduits).sort((a, b) => b.montant - a.montant);
+    const bilanParProduit = Object.values(bilanPacks).sort((a, b) => b.montant - a.montant);
 
     // Historique clôtures (paginé)
     const [clotures, totalClotures] = await Promise.all([
       prisma.clotureCaisse.findMany({
         orderBy: { date: "desc" },
-        skip:  (page - 1) * limit,
-        take:  limit,
+        skip:    (page - 1) * limit,
+        take:    limit,
       }),
       prisma.clotureCaisse.count(),
     ]);
@@ -88,7 +86,7 @@ export async function GET(req: Request) {
     return NextResponse.json({
       success: true,
       jourEnCours: {
-        date:        startOfDay.toISOString(),
+        date:          startOfDay.toISOString(),
         totalVentes,
         montantTotal,
         panierMoyen,
@@ -103,15 +101,18 @@ export async function GET(req: Request) {
             }
           : null,
         bilanParProduit,
-        ventesDetail: ventesJour.map((v) => {
-          const person = v.creditAlimentaire?.client ?? v.creditAlimentaire?.member;
+        ventesDetail: versementsJour.map((v) => {
+          const person = v.souscription.client ?? v.souscription.user;
           return {
-            id:         v.id,
-            produit:    v.produit.nom,
-            quantite:   v.quantite,
-            montant:    Number(v.prixUnitaire) * v.quantite,
-            clientNom:  person ? `${person.prenom} ${person.nom}` : "—",
-            heure:      new Date(v.createdAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }),
+            id:        v.id,
+            produit:   v.souscription.pack.nom,  // label du pack (affiché comme "produit")
+            quantite:  1,
+            montant:   Number(v.montant),
+            clientNom: person ? `${person.prenom} ${person.nom}` : "—",
+            heure:     new Date(v.datePaiement).toLocaleTimeString("fr-FR", {
+              hour:   "2-digit",
+              minute: "2-digit",
+            }),
           };
         }),
       },
@@ -141,7 +142,8 @@ export async function GET(req: Request) {
  * POST /api/caissier/cloture
  *
  * Crée la clôture de la journée en cours.
- * Idempotent : si la journée est déjà clôturée, retourne une erreur.
+ * Idempotent : erreur 409 si déjà clôturée.
+ * Calcule les stats à partir des VersementPack du jour.
  * Body : { notes? }
  */
 export async function POST(req: Request) {
@@ -169,22 +171,25 @@ export async function POST(req: Request) {
       );
     }
 
-    // Calculer les stats du jour
-    const ventesJour = await prisma.venteCreditAlimentaire.findMany({
-      where: { createdAt: { gte: startOfDay, lte: endOfDay } },
-      select: { quantite: true, prixUnitaire: true, creditAlimentaire: { select: { memberId: true, clientId: true } } },
+    // Stats du jour depuis VersementPack
+    const versementsJour = await prisma.versementPack.findMany({
+      where: { datePaiement: { gte: startOfDay, lte: endOfDay } },
+      include: {
+        souscription: { select: { clientId: true, userId: true } },
+      },
     });
 
-    const totalVentes  = ventesJour.length;
-    const montantTotal = ventesJour.reduce((s, v) => s + Number(v.prixUnitaire) * v.quantite, 0);
+    const totalVentes  = versementsJour.length;
+    const montantTotal = versementsJour.reduce((s, v) => s + Number(v.montant), 0);
     const panierMoyen  = totalVentes > 0 ? montantTotal / totalVentes : 0;
 
     const clientsSet = new Set(
-      ventesJour.map((v) => {
-        const ca = v.creditAlimentaire;
-        if (!ca) return null;
-        return ca.memberId ? `m${ca.memberId}` : ca.clientId ? `c${ca.clientId}` : null;
-      }).filter(Boolean)
+      versementsJour
+        .map((v) => {
+          const s = v.souscription;
+          return s.clientId ? `c${s.clientId}` : s.userId ? `u${s.userId}` : null;
+        })
+        .filter(Boolean)
     );
     const nbClients = clientsSet.size;
 
@@ -206,16 +211,16 @@ export async function POST(req: Request) {
       // Audit log
       await auditLog(tx, parseInt(session.user.id), "CLOTURE_CAISSE", "ClotureCaisse", created.id);
 
-      // Notifications : Admin + RPV + Comptable
+      // Notifications : Admin + RPV (haute priorité) + Comptable
       const dateStr = startOfDay.toLocaleDateString("fr-FR");
       await notifyRoles(
         tx,
         ["RESPONSABLE_POINT_DE_VENTE", "COMPTABLE"],
         {
           titre:    `Clôture de caisse — ${dateStr}`,
-          message:  `${caissierNom} a effectué la clôture de caisse du ${dateStr} : ${totalVentes} vente(s) pour un total de ${montantTotal.toLocaleString("fr-FR")} FCFA (${nbClients} client(s) servi(s)).`,
+          message:  `${caissierNom} a effectué la clôture de caisse du ${dateStr} : ${totalVentes} versement(s) collecté(s) pour un total de ${montantTotal.toLocaleString("fr-FR")} FCFA (${nbClients} client(s) servi(s)).`,
           priorite: PrioriteNotification.HAUTE,
-          actionUrl: `/dashboard/admin/ventes`,
+          actionUrl: "/dashboard/admin/ventes",
         }
       );
 

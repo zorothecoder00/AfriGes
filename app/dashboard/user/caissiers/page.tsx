@@ -3,9 +3,9 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import {
   ShoppingCart, Receipt, TrendingUp, Search, ArrowLeft, RefreshCw,
-  Plus, X, CheckCircle, Clock, Package, Banknote, Printer, BarChart3,
+  Plus, X, CheckCircle, Clock, Banknote, Printer, BarChart3,
   Users, Hash, AlertTriangle, AlertCircle, Info, ChevronLeft, ChevronRight,
-  Lock, Calendar, FileText, Filter, Layers, Eye, XCircle,
+  Lock, Calendar, FileText, Filter, Layers, Eye, XCircle, Package,
 } from "lucide-react";
 import Link from "next/link";
 import SignOutButton from "@/components/SignOutButton";
@@ -42,23 +42,27 @@ interface DashboardData {
 }
 interface DashboardResponse { success: boolean; data: DashboardData }
 
-interface Produit {
-  id: number; nom: string; description: string | null;
-  prixUnitaire: string; stock: number; alerteStock: number;
+interface Versement {
+  id: number;
+  montant: string;
+  type: string;
+  datePaiement: string;
+  notes: string | null;
+  encaisseParNom: string | null;
+  souscription: {
+    id: number;
+    statut: string;
+    montantTotal: string;
+    montantVerse: string;
+    montantRestant: string;
+    pack:   { id: number; nom: string; type: string };
+    client: { id: number; nom: string; prenom: string; telephone: string } | null;
+    user:   { id: number; nom: string; prenom: string; telephone: string } | null;
+  };
 }
-interface StockResponse {
-  data: Produit[];
-  stats: { totalProduits: number; enRupture: number; stockFaible: number; valeurTotale: number | string };
-  meta: { total: number; page: number; limit: number; totalPages: number };
-}
-
-interface Vente {
-  id: number; quantite: number; prixUnitaire: string; createdAt: string;
-  produit: { id: number; nom: string; prixUnitaire: string };
-}
-interface VentesResponse {
+interface VersementsResponse {
   success: boolean;
-  data: Vente[];
+  data: Versement[];
   stats: { totalVentes: number; montantTotal: number; panierMoyen: number; quantiteTotale: number };
   meta: { total: number; page: number; limit: number; totalPages: number };
 }
@@ -82,13 +86,32 @@ interface ClotureData {
   };
 }
 
+interface EcheanceItem {
+  id: number; numero: number; montant: string; datePrevue: string; statut: string;
+}
+interface SouscriptionItem {
+  id: number;
+  statut: string;
+  montantTotal: string;
+  montantVerse: string;
+  montantRestant: string;
+  numeroCycle: number;
+  pack: { nom: string; type: string; frequenceVersement: string };
+  user:   { nom: string; prenom: string; telephone: string } | null;
+  client: { nom: string; prenom: string; telephone: string } | null;
+  _count: { versements: number };
+  echeances: EcheanceItem[];
+}
+interface PackItem { id: number; nom: string; type: string }
+interface PacksResponse { souscriptions: SouscriptionItem[]; packs: PackItem[] }
+
 interface RecuData {
   success: boolean;
   data: {
     recu: { numero: string; date: string; caissier: string };
-    vente: { id: number; produitNom: string; produitDesc: string | null; quantite: number; prixUnitaire: number; montantTotal: number };
-    client: { nom: string; telephone?: string; email?: string };
-    souscriptionPack: { packNom: string; montantRestant: number } | null;
+    versement: { id: number; montant: number; type: string; typeLabel: string; notes: string | null };
+    souscription: { packNom: string; packType: string; montantTotal: number; montantVerse: number; montantRestant: number; statut: string };
+    client: { nom: string; telephone?: string };
     entreprise: { nom: string; adresse: string; telephone: string };
   };
 }
@@ -100,7 +123,7 @@ interface RecuData {
 type TabKey = "synthese" | "encaissement" | "historique" | "recus" | "cloture";
 
 function alertIcon(type: "danger" | "warning" | "info") {
-  if (type === "danger")  return <XCircle    className="w-4 h-4 text-red-500 shrink-0"    />;
+  if (type === "danger")  return <XCircle      className="w-4 h-4 text-red-500 shrink-0"    />;
   if (type === "warning") return <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />;
   return                         <Info          className="w-4 h-4 text-blue-500 shrink-0"  />;
 }
@@ -108,6 +131,30 @@ function alertBg(type: "danger" | "warning" | "info") {
   if (type === "danger")  return "bg-red-50 border-red-200";
   if (type === "warning") return "bg-amber-50 border-amber-200";
   return "bg-blue-50 border-blue-200";
+}
+
+function packTypeBadge(type: string) {
+  const map: Record<string, { label: string; cls: string }> = {
+    ALIMENTAIRE:     { label: "Alimentaire",     cls: "bg-emerald-100 text-emerald-700" },
+    REVENDEUR:       { label: "Revendeur",        cls: "bg-sky-100 text-sky-700"         },
+    FAMILIAL:        { label: "Familial",         cls: "bg-violet-100 text-violet-700"   },
+    URGENCE:         { label: "Urgence",          cls: "bg-red-100 text-red-700"         },
+    EPARGNE_PRODUIT: { label: "Épargne-Produit",  cls: "bg-amber-100 text-amber-700"     },
+    FIDELITE:        { label: "Fidélité",         cls: "bg-pink-100 text-pink-700"       },
+  };
+  const d = map[type] ?? { label: type, cls: "bg-slate-100 text-slate-700" };
+  return <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${d.cls}`}>{d.label}</span>;
+}
+
+function versementTypeLabel(type: string) {
+  const m: Record<string, string> = {
+    COTISATION_INITIALE:  "Acompte",
+    VERSEMENT_PERIODIQUE: "Versement",
+    REMBOURSEMENT:        "Remboursement",
+    BONUS:                "Bonus",
+    AJUSTEMENT:           "Ajustement",
+  };
+  return m[type] ?? type;
 }
 
 // ============================================================================
@@ -132,42 +179,9 @@ function KpiCard({ label, value, sub, icon: Icon, color, bg }: {
   );
 }
 
-function EvolutionBar({ data }: { data: { heure: number; count: number; montant: number }[] }) {
-  const maxMontant = Math.max(...data.map((d) => d.montant), 1);
-  // Afficher uniquement les heures d'activité (6h–22h) pour lisibilité
-  const heuresActives = data.filter((d) => d.heure >= 6 && d.heure <= 22);
-  return (
-    <div className="flex items-end gap-1 h-24">
-      {heuresActives.map((d) => {
-        const pct = (d.montant / maxMontant) * 100;
-        return (
-          <div key={d.heure} className="flex-1 flex flex-col items-center gap-1">
-            <div className="relative group w-full flex items-end justify-center" style={{ height: "72px" }}>
-              {/* Tooltip */}
-              {d.count > 0 && (
-                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 bg-slate-800 text-white text-xs rounded-lg px-2 py-1 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity z-10 pointer-events-none">
-                  {d.count} vente{d.count > 1 ? "s" : ""}<br />{formatCurrency(d.montant)}
-                </div>
-              )}
-              <div
-                className={`w-full rounded-t-md transition-all duration-500 ${
-                  d.count > 0 ? "bg-sky-500" : "bg-slate-100"
-                }`}
-                style={{ height: `${Math.max(pct, d.count > 0 ? 8 : 3)}%` }}
-              />
-            </div>
-            <span className="text-[10px] text-slate-400">{d.heure}h</span>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-// Ticket reçu printable
 function TicketRecu({ data, onClose }: { data: RecuData["data"]; onClose: () => void }) {
   const handlePrint = useCallback(() => {
-    const win = window.open("", "_blank", "width=400,height=600");
+    const win = window.open("", "_blank", "width=400,height=650");
     if (!win) return;
     const html = `<!DOCTYPE html><html><head><meta charset="utf-8"/>
     <title>Reçu ${data.recu.numero}</title>
@@ -182,22 +196,23 @@ function TicketRecu({ data, onClose }: { data: RecuData["data"]; onClose: () => 
     ${data.entreprise.adresse ? `<div class="center">${data.entreprise.adresse}</div>` : ""}
     ${data.entreprise.telephone ? `<div class="center">Tél: ${data.entreprise.telephone}</div>` : ""}
     <div class="line"></div>
-    <div class="center bold">REÇU DE CAISSE</div>
+    <div class="center bold">REÇU DE VERSEMENT</div>
     <div class="center">${data.recu.numero}</div>
     <div class="center">${new Date(data.recu.date).toLocaleString("fr-FR")}</div>
     <div class="center">Caissier: ${data.recu.caissier}</div>
     <div class="line"></div>
-    <div class="row"><span>Client:</span><span class="bold">${data.client.nom}</span></div>
-    ${data.client.telephone ? `<div class="row"><span>Tél:</span><span>${data.client.telephone}</span></div>` : ""}
+    <div class="row"><span>Client :</span><span class="bold">${data.client.nom}</span></div>
+    ${data.client.telephone ? `<div class="row"><span>Tél :</span><span>${data.client.telephone}</span></div>` : ""}
     <div class="line"></div>
-    <div class="row"><span class="bold">${data.vente.produitNom}</span></div>
-    <div class="row"><span>${data.vente.quantite} x ${data.vente.prixUnitaire.toLocaleString("fr-FR")} FCFA</span></div>
+    <div class="row"><span>Pack :</span><span class="bold">${data.souscription.packNom}</span></div>
+    <div class="row"><span>Type versement :</span><span>${data.versement.typeLabel}</span></div>
     <div class="line"></div>
-    <div class="row total"><span>TOTAL</span><span>${data.vente.montantTotal.toLocaleString("fr-FR")} FCFA</span></div>
-    ${data.souscriptionPack ? `
+    <div class="row total"><span>MONTANT VERSÉ</span><span>${data.versement.montant.toLocaleString("fr-FR")} FCFA</span></div>
     <div class="line"></div>
-    <div class="row"><span>Pack souscrit :</span><span>${data.souscriptionPack.packNom}</span></div>
-    ` : ""}
+    <div class="row"><span>Total du pack :</span><span>${data.souscription.montantTotal.toLocaleString("fr-FR")} FCFA</span></div>
+    <div class="row"><span>Total versé :</span><span>${data.souscription.montantVerse.toLocaleString("fr-FR")} FCFA</span></div>
+    <div class="row bold"><span>Reste à verser :</span><span>${data.souscription.montantRestant.toLocaleString("fr-FR")} FCFA</span></div>
+    ${data.versement.notes ? `<div class="line"></div><div class="row"><span>Note :</span><span>${data.versement.notes}</span></div>` : ""}
     <div class="line"></div>
     <div class="center">Merci de votre confiance !</div>
     </body></html>`;
@@ -210,12 +225,11 @@ function TicketRecu({ data, onClose }: { data: RecuData["data"]; onClose: () => 
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm">
-        {/* Header */}
         <div className="flex items-center justify-between p-5 border-b border-slate-100">
           <div className="flex items-center gap-3">
             <div className="bg-emerald-50 p-2.5 rounded-xl"><Receipt className="text-emerald-600 w-5 h-5" /></div>
             <div>
-              <p className="font-bold text-slate-800">Reçu de caisse</p>
+              <p className="font-bold text-slate-800">Reçu de versement</p>
               <p className="text-xs text-slate-500">{data.recu.numero}</p>
             </div>
           </div>
@@ -223,13 +237,12 @@ function TicketRecu({ data, onClose }: { data: RecuData["data"]; onClose: () => 
             <X size={18} />
           </button>
         </div>
-        {/* Ticket preview */}
         <div className="p-5 font-mono text-sm space-y-1">
           <p className="text-center font-bold text-base">{data.entreprise.nom}</p>
           {data.entreprise.adresse && <p className="text-center text-xs text-slate-500">{data.entreprise.adresse}</p>}
           <div className="border-t border-dashed border-slate-300 my-3" />
           <div className="text-center">
-            <p className="font-bold">REÇU DE CAISSE</p>
+            <p className="font-bold">REÇU DE VERSEMENT</p>
             <p className="text-xs text-slate-500">{new Date(data.recu.date).toLocaleString("fr-FR")}</p>
             <p className="text-xs text-slate-500">Caissier : {data.recu.caissier}</p>
           </div>
@@ -237,29 +250,26 @@ function TicketRecu({ data, onClose }: { data: RecuData["data"]; onClose: () => 
           <div className="flex justify-between text-xs"><span className="text-slate-500">Client</span><span className="font-semibold">{data.client.nom}</span></div>
           {data.client.telephone && <div className="flex justify-between text-xs"><span className="text-slate-500">Tél</span><span>{data.client.telephone}</span></div>}
           <div className="border-t border-dashed border-slate-300 my-3" />
-          <p className="font-semibold">{data.vente.produitNom}</p>
-          <div className="flex justify-between text-xs">
-            <span>{data.vente.quantite} × {formatCurrency(data.vente.prixUnitaire)}</span>
-            <span className="font-bold">{formatCurrency(data.vente.montantTotal)}</span>
-          </div>
+          <div className="flex justify-between text-xs"><span className="text-slate-500">Pack</span><span className="font-semibold">{data.souscription.packNom}</span></div>
+          <div className="flex justify-between text-xs"><span className="text-slate-500">Type</span><span>{data.versement.typeLabel}</span></div>
           <div className="border-t border-dashed border-slate-300 my-3" />
           <div className="flex justify-between font-bold text-base">
-            <span>TOTAL</span>
-            <span className="text-emerald-600">{formatCurrency(data.vente.montantTotal)}</span>
+            <span>MONTANT VERSÉ</span>
+            <span className="text-emerald-600">{formatCurrency(data.versement.montant)}</span>
           </div>
-          {data.souscriptionPack && (
+          <div className="border-t border-dashed border-slate-300 my-3" />
+          <div className="flex justify-between text-xs"><span className="text-slate-500">Total pack</span><span>{formatCurrency(data.souscription.montantTotal)}</span></div>
+          <div className="flex justify-between text-xs"><span className="text-slate-500">Total versé</span><span>{formatCurrency(data.souscription.montantVerse)}</span></div>
+          <div className="flex justify-between text-xs font-bold"><span className="text-slate-500">Reste à payer</span><span className={data.souscription.montantRestant > 0 ? "text-amber-600" : "text-emerald-600"}>{formatCurrency(data.souscription.montantRestant)}</span></div>
+          {data.versement.notes && (
             <>
               <div className="border-t border-dashed border-slate-300 my-3" />
-              <div className="flex justify-between text-xs">
-                <span className="text-slate-500">Pack souscrit</span>
-                <span className="font-semibold text-emerald-600">{data.souscriptionPack.packNom}</span>
-              </div>
+              <p className="text-xs text-slate-500">Note : {data.versement.notes}</p>
             </>
           )}
           <div className="border-t border-dashed border-slate-300 my-3" />
           <p className="text-center text-xs text-slate-400">Merci de votre confiance !</p>
         </div>
-        {/* Actions */}
         <div className="p-5 pt-0 flex gap-3">
           <button onClick={onClose} className="flex-1 py-2.5 border border-slate-200 rounded-xl text-slate-600 text-sm font-medium hover:bg-slate-50 transition-colors">
             Fermer
@@ -284,37 +294,49 @@ function TicketRecu({ data, onClose }: { data: RecuData["data"]; onClose: () => 
 export default function CaissierPage() {
   const [activeTab, setActiveTab] = useState<TabKey>("synthese");
 
-  // ── Recherche / filtres ──────────────────────────────────────────────────
-  const [searchQuery, setSearchQuery] = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [dateDebut, setDateDebut] = useState("");
-  const [dateFin,   setDateFin]   = useState("");
+  // ── Recherche / filtres historique ───────────────────────────────────────
+  const [searchQuery,      setSearchQuery]      = useState("");
+  const [debouncedSearch,  setDebouncedSearch]  = useState("");
+  const [dateDebut,        setDateDebut]        = useState("");
+  const [dateFin,          setDateFin]          = useState("");
   const [filtreAujourdHui, setFiltreAujourdHui] = useState(true);
 
+  // ── Recherche encaissement ───────────────────────────────────────────────
+  const [encaissementSearch, setEncaissementSearch] = useState("");
+  const [debouncedEncSearch, setDebouncedEncSearch] = useState("");
+
+  // ── Pagination ───────────────────────────────────────────────────────────
+  const [versementsPage, setVersementsPage] = useState(1);
+  const [cloturePage,    setCloturePage]    = useState(1);
+
+  // ── Modal états ──────────────────────────────────────────────────────────
+  const [versementModal,       setVersementModal]       = useState(false);
+  const [versementSouscriptionId, setVersementSouscriptionId] = useState(0);
+  const [selectedSouscription, setSelectedSouscription] = useState<SouscriptionItem | null>(null);
+  const [versementMontant,     setVersementMontant]     = useState("");
+  const [versementNotes,       setVersementNotes]       = useState("");
+
+  const [recuModal,            setRecuModal]            = useState(false);
+  const [recuData,             setRecuData]             = useState<RecuData["data"] | null>(null);
+
+  const [clotureModal,         setClotureModal]         = useState(false);
+  const [notesClotureInput,    setNotesCloture]         = useState("");
+
+  // ── Debounce recherche historique ────────────────────────────────────────
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(searchQuery), 350);
     return () => clearTimeout(t);
   }, [searchQuery]);
 
-  // ── Pagination ───────────────────────────────────────────────────────────
-  const [ventesPage, setVentesPage]   = useState(1);
-  const [cloturePage, setCloturePage] = useState(1);
+  // ── Debounce recherche encaissement ─────────────────────────────────────
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedEncSearch(encaissementSearch), 350);
+    return () => clearTimeout(t);
+  }, [encaissementSearch]);
 
-  // ── Modal états ──────────────────────────────────────────────────────────
-  const [venteModal,    setVenteModal]    = useState(false);
-  const [recuModal,     setRecuModal]     = useState(false);
-  const [clotureModal,  setClotureModal]  = useState(false);
-  const [recuData,      setRecuData]      = useState<RecuData["data"] | null>(null);
-  const [notesClotureInput, setNotesCloture] = useState("");
-
-  // ── Formulaire nouvelle vente ────────────────────────────────────────────
-  const [selectedProduit,    setSelectedProduit]    = useState("");
-  const [venteQte,           setVenteQte]           = useState("1");
-  const [catalogSearch,      setCatalogSearch]      = useState("");
-
-  // ── Builds API URLs ──────────────────────────────────────────────────────
-  const ventesParams = useMemo(() => {
-    const p = new URLSearchParams({ page: String(ventesPage), limit: "15" });
+  // ── Build API URLs ───────────────────────────────────────────────────────
+  const versementsParams = useMemo(() => {
+    const p = new URLSearchParams({ page: String(versementsPage), limit: "15" });
     if (filtreAujourdHui) {
       p.set("aujourdHui", "true");
     } else {
@@ -323,71 +345,91 @@ export default function CaissierPage() {
     }
     if (debouncedSearch) p.set("search", debouncedSearch);
     return p.toString();
-  }, [ventesPage, filtreAujourdHui, dateDebut, dateFin, debouncedSearch]);
+  }, [versementsPage, filtreAujourdHui, dateDebut, dateFin, debouncedSearch]);
 
   const clotureParams = useMemo(
     () => new URLSearchParams({ page: String(cloturePage), limit: "8" }).toString(),
     [cloturePage]
   );
 
+  const encaissementParams = useMemo(() => {
+    const p = new URLSearchParams({ statut: "ACTIF" });
+    if (debouncedEncSearch) p.set("search", debouncedEncSearch);
+    return p.toString();
+  }, [debouncedEncSearch]);
+
   // ── Fetches ──────────────────────────────────────────────────────────────
   const { data: dashboardRes,  refetch: refetchDashboard  } = useApi<DashboardResponse>("/api/caissier/dashboard");
-  const { data: ventesRes,     refetch: refetchVentes,
-          loading: ventesLoading }                           = useApi<VentesResponse>(`/api/caissier/ventes?${ventesParams}`);
-  const { data: stockRes,      refetch: refetchStock       } = useApi<StockResponse>("/api/admin/stock?limit=100");
+  const { data: versementsRes, refetch: refetchVersements,
+          loading: versementsLoading                        } = useApi<VersementsResponse>(`/api/caissier/ventes?${versementsParams}`);
   const { data: clotureRes,    refetch: refetchCloture     } = useApi<ClotureData>(`/api/caissier/cloture?${clotureParams}`);
+  const { data: packsRes,      refetch: refetchPacks       } = useApi<PacksResponse>(`/api/caissier/packs?${encaissementParams}`);
 
   // ── Mutations ────────────────────────────────────────────────────────────
-  const { mutate: enregistrerVente, loading: enregistrant, error: erreurVente } =
-    useMutation<Vente, { produitId: number; quantite: number }>(
-      "/api/caissier/ventes", "POST", { successMessage: "Vente enregistrée ✓" }
+  const { mutate: collecterVersement, loading: collectant, error: erreurVersement } =
+    useMutation<{ versement: { id: number } }, { montant: number; type: string; notes?: string }>(
+      `/api/caissier/packs/${versementSouscriptionId}/versement`,
+      "POST",
+      { successMessage: "Versement enregistré ✓" }
     );
 
   const { mutate: cloturerCaisse, loading: cloturant } =
     useMutation<ClotureCaisse, { notes?: string }>(
-      "/api/caissier/cloture", "POST", { successMessage: "Caisse clôturée avec succès ✓" }
+      "/api/caissier/cloture",
+      "POST",
+      { successMessage: "Caisse clôturée avec succès ✓" }
     );
 
   // ── Derived data ─────────────────────────────────────────────────────────
-  const dashboard       = dashboardRes?.data;
-  const ventes          = ventesRes?.data ?? [];
-  const ventesStats     = ventesRes?.stats;
-  const ventesMeta      = ventesRes?.meta;
-  const produits        = stockRes?.data ?? [];
-  const jourEnCours     = clotureRes?.jourEnCours;
-  const clotureHisto    = clotureRes?.historique;
-
-  const produitsDisponibles = produits.filter((p) => p.stock > 0);
-  const produitsCatalog     = produitsDisponibles.filter((p) =>
-    !catalogSearch || p.nom.toLowerCase().includes(catalogSearch.toLowerCase())
-  );
-
-  const produitChoisi = produits.find((p) => String(p.id) === selectedProduit);
-  const montantVente  = produitChoisi && venteQte
-    ? Number(produitChoisi.prixUnitaire) * Number(venteQte) : 0;
+  const dashboard    = dashboardRes?.data;
+  const versements   = versementsRes?.data ?? [];
+  const versementsStats = versementsRes?.stats;
+  const versementsMeta  = versementsRes?.meta;
+  const jourEnCours  = clotureRes?.jourEnCours;
+  const clotureHisto = clotureRes?.historique;
+  const souscriptions = packsRes?.souscriptions ?? [];
 
   // ── Handlers ─────────────────────────────────────────────────────────────
-  const handleEnregistrerVente = async (e: React.FormEvent) => {
+  const openVersementModal = (souscription: SouscriptionItem) => {
+    setVersementSouscriptionId(souscription.id);
+    setSelectedSouscription(souscription);
+    const prochaineEcheance = souscription.echeances.find(
+      (e) => e.statut === "EN_ATTENTE" || e.statut === "EN_RETARD"
+    );
+    setVersementMontant(
+      prochaineEcheance
+        ? String(Number(prochaineEcheance.montant))
+        : String(Number(souscription.montantRestant))
+    );
+    setVersementNotes("");
+    setVersementModal(true);
+  };
+
+  const handleCollecterVersement = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedProduit || !venteQte) return;
-    const result = await enregistrerVente({
-      produitId: Number(selectedProduit),
-      quantite:  Number(venteQte),
+    if (!selectedSouscription || !versementMontant) return;
+    const montantNum = parseFloat(versementMontant);
+    if (isNaN(montantNum) || montantNum <= 0) return;
+    const result = await collecterVersement({
+      montant: montantNum,
+      type: "VERSEMENT_PERIODIQUE",
+      notes: versementNotes || undefined,
     });
     if (result) {
-      setVenteModal(false);
-      setSelectedProduit("");
-      setVenteQte("1");
-      refetchVentes();
-      refetchStock();
+      setVersementModal(false);
+      setSelectedSouscription(null);
+      setVersementMontant("");
+      setVersementNotes("");
       refetchDashboard();
-      handleVoirRecu(result.id);
+      refetchVersements();
+      refetchPacks();
+      if (result.versement?.id) handleVoirRecu(result.versement.id);
     }
   };
 
-  const handleVoirRecu = useCallback(async (venteId: number) => {
+  const handleVoirRecu = useCallback(async (versementId: number) => {
     try {
-      const res = await fetch(`/api/caissier/recus?venteId=${venteId}`);
+      const res = await fetch(`/api/caissier/recus?versementId=${versementId}`);
       const json: RecuData = await res.json();
       if (json.success) {
         setRecuData(json.data);
@@ -406,16 +448,11 @@ export default function CaissierPage() {
     }
   };
 
-  const handleOpenVenteModal = (produitId?: string) => {
-    if (produitId) setSelectedProduit(produitId);
-    setVenteModal(true);
-  };
-
   const refetchAll = () => {
     refetchDashboard();
-    refetchVentes();
-    refetchStock();
+    refetchVersements();
     refetchCloture();
+    refetchPacks();
   };
 
   // ============================================================================
@@ -423,92 +460,127 @@ export default function CaissierPage() {
   // ============================================================================
 
   const tabs: { key: TabKey; label: string; icon: React.ElementType }[] = [
-    { key: "synthese",      label: "Synthèse",    icon: BarChart3    },
-    { key: "encaissement",  label: "Encaissement", icon: ShoppingCart },
-    { key: "historique",    label: "Historique",   icon: Clock        },
-    { key: "recus",         label: "Reçus",        icon: Receipt      },
-    { key: "cloture",       label: "Clôture",      icon: Lock         },
+    { key: "synthese",     label: "Synthèse",     icon: BarChart3    },
+    { key: "encaissement", label: "Encaissement", icon: Banknote     },
+    { key: "historique",   label: "Historique",   icon: Clock        },
+    { key: "recus",        label: "Reçus",        icon: Receipt      },
+    { key: "cloture",      label: "Clôture",      icon: Lock         },
   ];
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-sky-50/30 to-indigo-50/20 font-['DM_Sans',sans-serif]">
+
       {/* ── Modals ── */}
       {recuModal && recuData && <TicketRecu data={recuData} onClose={() => setRecuModal(false)} />}
 
-      {/* Modal Nouvelle Vente */}
-      {venteModal && (
+      {/* Modal Versement */}
+      {versementModal && selectedSouscription && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl w-full max-w-lg shadow-xl">
+          <div className="bg-white rounded-2xl w-full max-w-md shadow-xl">
             <div className="flex items-center justify-between p-6 border-b border-slate-100">
               <div className="flex items-center gap-3">
-                <div className="bg-sky-50 p-3 rounded-xl"><ShoppingCart className="text-sky-600 w-6 h-6" /></div>
+                <div className="bg-emerald-50 p-3 rounded-xl"><Banknote className="text-emerald-600 w-6 h-6" /></div>
                 <div>
-                  <h2 className="text-xl font-bold text-slate-800">Nouvelle vente</h2>
-                  <p className="text-sm text-slate-500">Via crédit alimentaire</p>
+                  <h2 className="text-xl font-bold text-slate-800">Encaisser un versement</h2>
+                  <p className="text-sm text-slate-500">
+                    {selectedSouscription.client
+                      ? `${selectedSouscription.client.prenom} ${selectedSouscription.client.nom}`
+                      : selectedSouscription.user
+                      ? `${selectedSouscription.user.prenom} ${selectedSouscription.user.nom}`
+                      : "—"}
+                    {" · "}
+                    {selectedSouscription.pack.nom}
+                  </p>
                 </div>
               </div>
-              <button onClick={() => setVenteModal(false)} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg">
+              <button
+                onClick={() => setVersementModal(false)}
+                className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg"
+              >
                 <X size={20} />
               </button>
             </div>
-            {erreurVente && (
+
+            {erreurVersement && (
               <div className="mx-6 mt-4 p-3 bg-red-50 border border-red-200 rounded-xl flex items-start gap-2">
                 <AlertCircle className="text-red-500 w-4 h-4 shrink-0 mt-0.5" />
-                <p className="text-red-700 text-sm">{erreurVente}</p>
+                <p className="text-red-700 text-sm">{erreurVersement}</p>
               </div>
             )}
-            <form onSubmit={handleEnregistrerVente} className="p-6 space-y-4">
-              {/* Produit */}
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">Produit</label>
-                <select
-                  value={selectedProduit}
-                  onChange={(e) => setSelectedProduit(e.target.value)}
-                  required
-                  className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500 bg-slate-50 text-sm"
-                >
-                  <option value="">— Sélectionner un produit —</option>
-                  {produitsDisponibles.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.nom} — {formatCurrency(p.prixUnitaire)} · {p.stock} en stock
-                    </option>
-                  ))}
-                </select>
+
+            <form onSubmit={handleCollecterVersement} className="p-6 space-y-4">
+              {/* Résumé souscription */}
+              <div className="bg-slate-50 rounded-xl p-4 space-y-2 border border-slate-200">
+                <div className="flex justify-between text-sm">
+                  <span className="text-slate-500">Montant total</span>
+                  <span className="font-semibold">{formatCurrency(Number(selectedSouscription.montantTotal))}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-slate-500">Déjà versé</span>
+                  <span className="font-semibold text-emerald-600">{formatCurrency(Number(selectedSouscription.montantVerse))}</span>
+                </div>
+                <div className="flex justify-between text-sm font-bold">
+                  <span className="text-slate-600">Reste à payer</span>
+                  <span className="text-amber-600">{formatCurrency(Number(selectedSouscription.montantRestant))}</span>
+                </div>
+                {selectedSouscription.echeances.length > 0 && (
+                  <div className="pt-1 border-t border-slate-200">
+                    <p className="text-xs text-slate-500">
+                      Prochaine échéance ({selectedSouscription.echeances[0].statut === "EN_RETARD" ? (
+                        <span className="text-red-500 font-medium">EN RETARD</span>
+                      ) : (
+                        <span>le {formatDate(selectedSouscription.echeances[0].datePrevue)}</span>
+                      )}) : {formatCurrency(Number(selectedSouscription.echeances[0].montant))}
+                    </p>
+                  </div>
+                )}
               </div>
 
-              {/* Quantité */}
+              {/* Montant */}
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">Quantité</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">Montant versé (FCFA)</label>
                 <input
-                  type="number" min="1" max={produitChoisi?.stock ?? 999}
-                  value={venteQte} required
-                  onChange={(e) => setVenteQte(e.target.value)}
-                  className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500 bg-slate-50 text-sm"
+                  type="number"
+                  min="1"
+                  max={Number(selectedSouscription.montantRestant)}
+                  step="1"
+                  value={versementMontant}
+                  onChange={(e) => setVersementMontant(e.target.value)}
+                  required
+                  className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50 text-sm"
+                  placeholder="Ex : 5000"
+                />
+              </div>
+
+              {/* Notes */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">Notes (optionnel)</label>
+                <input
+                  type="text"
+                  value={versementNotes}
+                  onChange={(e) => setVersementNotes(e.target.value)}
+                  className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50 text-sm"
+                  placeholder="Ex : paiement espèces"
                 />
               </div>
 
               {/* Récapitulatif */}
-              {montantVente > 0 && (
-                <div className="rounded-xl p-4 border bg-sky-50 border-sky-200">
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="text-sm font-medium text-slate-700">Montant total</span>
-                    <span className="text-2xl font-bold text-sky-800">{formatCurrency(montantVente)}</span>
-                  </div>
-                  <p className="text-xs text-slate-500">
-                    {venteQte} × {formatCurrency(produitChoisi?.prixUnitaire ?? 0)}
-                  </p>
+              {versementMontant && Number(versementMontant) > 0 && (
+                <div className="rounded-xl p-4 border bg-emerald-50 border-emerald-200 flex justify-between items-center">
+                  <span className="text-sm font-medium text-slate-700">Montant à encaisser</span>
+                  <span className="text-2xl font-bold text-emerald-700">{formatCurrency(Number(versementMontant))}</span>
                 </div>
               )}
 
               <button
                 type="submit"
-                disabled={enregistrant}
-                className="w-full py-3 bg-gradient-to-r from-sky-600 to-indigo-600 text-white rounded-xl hover:from-sky-700 hover:to-indigo-700 transition-all font-semibold flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={collectant}
+                className="w-full py-3 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-xl hover:from-emerald-700 hover:to-teal-700 transition-all font-semibold flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {enregistrant ? (
+                {collectant ? (
                   <><div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />Enregistrement...</>
                 ) : (
-                  <><CheckCircle size={18} />Valider l&apos;encaissement</>
+                  <><CheckCircle size={18} />Valider le versement</>
                 )}
               </button>
             </form>
@@ -533,18 +605,17 @@ export default function CaissierPage() {
               </button>
             </div>
             <div className="p-6 space-y-4">
-              {/* Récapitulatif */}
               <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 space-y-2">
                 <div className="flex justify-between text-sm">
-                  <span className="text-slate-600">Ventes enregistrées</span>
+                  <span className="text-slate-600">Versements collectés</span>
                   <span className="font-bold text-slate-800">{jourEnCours?.totalVentes ?? 0}</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-slate-600">CA total encaissé</span>
+                  <span className="text-slate-600">Total encaissé</span>
                   <span className="font-bold text-emerald-700">{formatCurrency(jourEnCours?.montantTotal ?? 0)}</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-slate-600">Panier moyen</span>
+                  <span className="text-slate-600">Versement moyen</span>
                   <span className="font-semibold text-slate-700">{formatCurrency(jourEnCours?.panierMoyen ?? 0)}</span>
                 </div>
                 <div className="flex justify-between text-sm">
@@ -603,10 +674,10 @@ export default function CaissierPage() {
                 <ArrowLeft className="w-5 h-5 text-slate-600" />
               </Link>
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 bg-gradient-to-r from-sky-500 to-indigo-500 rounded-lg flex items-center justify-center">
-                  <ShoppingCart className="w-4 h-4 text-white" />
+                <div className="w-8 h-8 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-lg flex items-center justify-center">
+                  <Banknote className="w-4 h-4 text-white" />
                 </div>
-                <h1 className="text-xl font-bold bg-gradient-to-r from-sky-600 to-indigo-600 bg-clip-text text-transparent">
+                <h1 className="text-xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
                   Caisse
                 </h1>
               </div>
@@ -620,11 +691,11 @@ export default function CaissierPage() {
                 <RefreshCw size={18} />
               </button>
               <button
-                onClick={() => handleOpenVenteModal()}
-                className="px-4 py-2 bg-gradient-to-r from-sky-600 to-indigo-600 text-white rounded-xl text-sm font-semibold hover:from-sky-700 hover:to-indigo-700 transition-all shadow-sm flex items-center gap-2"
+                onClick={() => setActiveTab("encaissement")}
+                className="px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-xl text-sm font-semibold hover:from-emerald-700 hover:to-teal-700 transition-all shadow-sm flex items-center gap-2"
               >
                 <Plus size={16} />
-                Nouvelle vente
+                Encaisser
               </button>
               <NotificationBell href="/dashboard/user/notifications" />
               <SignOutButton
@@ -658,7 +729,7 @@ export default function CaissierPage() {
               onClick={() => setActiveTab(key)}
               className={`flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-sm font-semibold transition-all whitespace-nowrap ${
                 activeTab === key
-                  ? "bg-sky-600 text-white shadow-lg shadow-sky-200"
+                  ? "bg-emerald-600 text-white shadow-lg shadow-emerald-200"
                   : "text-slate-600 hover:bg-slate-100"
               }`}
             >
@@ -675,15 +746,15 @@ export default function CaissierPage() {
           <div className="space-y-6">
             {/* KPIs */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-              <KpiCard label="Versements du jour"  value={String(dashboard?.versements.total ?? 0)}               icon={CreditCard}   color="text-sky-500"     bg="bg-sky-50"     sub="aujourd'hui" />
-              <KpiCard label="Montant encaissé"   value={formatCurrency(dashboard?.versements.montant ?? 0)}    icon={Banknote}     color="text-emerald-500" bg="bg-emerald-50" sub="total du jour" />
-              <KpiCard label="Souscriptions actives" value={String(dashboard?.souscriptionsActives ?? 0)}       icon={TrendingUp}   color="text-violet-500"  bg="bg-violet-50"  />
-              <KpiCard label="Clients servis"     value={String(dashboard?.versements.nbClients ?? 0)}          icon={Users}        color="text-pink-500"    bg="bg-pink-50"    sub="aujourd'hui" />
+              <KpiCard label="Versements du jour"    value={String(dashboard?.versements.total ?? 0)}             icon={Layers}       color="text-sky-500"     bg="bg-sky-50"     sub="aujourd'hui" />
+              <KpiCard label="Montant encaissé"      value={formatCurrency(dashboard?.versements.montant ?? 0)}  icon={Banknote}     color="text-emerald-500" bg="bg-emerald-50" sub="total du jour" />
+              <KpiCard label="Souscriptions actives" value={String(dashboard?.souscriptionsActives ?? 0)}        icon={TrendingUp}   color="text-violet-500"  bg="bg-violet-50"  />
+              <KpiCard label="Clients servis"        value={String(dashboard?.versements.nbClients ?? 0)}        icon={Users}        color="text-pink-500"    bg="bg-pink-50"    sub="aujourd'hui" />
             </div>
 
-            {/* Bandeaux versements + stock + packs */}
+            {/* Bandeaux */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-2xl p-5 text-white shadow-lg shadow-emerald-200">
+              <div className="bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl p-5 text-white shadow-lg shadow-emerald-200">
                 <p className="text-emerald-100 text-xs mb-1">Total encaissé aujourd&apos;hui</p>
                 <p className="text-3xl font-bold">{formatCurrency(dashboard?.versements.montant ?? 0)}</p>
                 <p className="text-emerald-200 text-sm mt-2">{dashboard?.versements.total ?? 0} versement(s) collecté(s)</p>
@@ -785,7 +856,7 @@ export default function CaissierPage() {
                       </div>
                       <div>
                         <p className="text-sm font-semibold text-slate-800">{v.clientNom} — {v.packNom}</p>
-                        <p className="text-xs text-slate-500">{v.type === "BONUS" ? "Bonus" : v.type === "COTISATION_INITIALE" ? "Acompte" : "Versement"} · {v.heure}</p>
+                        <p className="text-xs text-slate-500">{versementTypeLabel(v.type)} · {v.heure}</p>
                       </div>
                     </div>
                     <span className="font-bold text-emerald-600 text-sm">{formatCurrency(v.montant)}</span>
@@ -801,100 +872,152 @@ export default function CaissierPage() {
         ============================================================ */}
         {activeTab === "encaissement" && (
           <div className="space-y-6">
-            {/* Barre de recherche produit */}
+            {/* Barre de recherche */}
             <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/60">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="font-bold text-slate-800 flex items-center gap-2">
-                  <Package size={20} className="text-sky-600" />
-                  Catalogue — Encaissement rapide
+                  <Banknote size={20} className="text-emerald-600" />
+                  Souscriptions actives — Collecte versements
                 </h3>
-                <span className="text-xs text-slate-400">{produitsDisponibles.length} produit(s) disponible(s)</span>
+                <span className="text-xs text-slate-400">{souscriptions.length} souscription(s)</span>
               </div>
-              <div className="relative mb-4">
+              <div className="relative">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                 <input
                   type="text"
-                  placeholder="Rechercher un produit..."
-                  value={catalogSearch}
-                  onChange={(e) => setCatalogSearch(e.target.value)}
-                  className="w-full pl-11 pr-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500 bg-slate-50 text-sm"
+                  placeholder="Rechercher par client, pack..."
+                  value={encaissementSearch}
+                  onChange={(e) => setEncaissementSearch(e.target.value)}
+                  className="w-full pl-11 pr-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50 text-sm"
                 />
               </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
-                {produitsCatalog.slice(0, 24).map((p) => (
-                  <button
-                    key={p.id}
-                    onClick={() => handleOpenVenteModal(String(p.id))}
-                    className={`rounded-xl p-4 text-left transition-all group border ${
-                      p.stock <= p.alerteStock
-                        ? "bg-amber-50 border-amber-200 hover:border-amber-400"
-                        : "bg-slate-50 border-slate-200 hover:bg-sky-50 hover:border-sky-300"
-                    }`}
-                  >
-                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center mb-2 ${
-                      p.stock <= p.alerteStock ? "bg-amber-100" : "bg-sky-100 group-hover:bg-sky-200"
-                    }`}>
-                      <Package size={18} className={p.stock <= p.alerteStock ? "text-amber-600" : "text-sky-600"} />
-                    </div>
-                    <p className="font-semibold text-slate-800 text-sm truncate">{p.nom}</p>
-                    <p className="text-sky-600 font-bold text-sm mt-1">{formatCurrency(p.prixUnitaire)}</p>
-                    <div className="flex items-center gap-1 mt-0.5">
-                      {p.stock <= p.alerteStock && <AlertTriangle size={10} className="text-amber-500" />}
-                      <p className="text-xs text-slate-500">{p.stock} en stock</p>
-                    </div>
-                  </button>
-                ))}
-                {/* Bouton manuel */}
-                <button
-                  onClick={() => handleOpenVenteModal()}
-                  className="rounded-xl p-4 border-2 border-dashed border-slate-300 hover:border-sky-400 hover:bg-sky-50/50 transition-all flex flex-col items-center justify-center gap-2 text-slate-400 hover:text-sky-600"
-                >
-                  <Plus size={20} />
-                  <span className="text-xs font-medium">Vente manuelle</span>
-                </button>
-              </div>
-              {produitsDisponibles.length === 0 && (
-                <div className="text-center py-10">
-                  <Package className="w-12 h-12 text-slate-200 mx-auto mb-3" />
-                  <p className="text-slate-400 text-sm">Aucun produit disponible en stock</p>
-                </div>
-              )}
             </div>
 
-            {/* Échéances en retard — rappel dans l'onglet encaissement */}
+            {/* Échéances en retard — rappel */}
             {(dashboard?.echeancesEnRetard?.length ?? 0) > 0 && (
-              <div className="bg-white rounded-2xl p-6 shadow-sm border border-red-200">
-                <h3 className="font-bold text-red-700 mb-4 flex items-center gap-2">
-                  <AlertTriangle size={20} className="text-red-500" />
-                  Échéances en retard à régulariser ({dashboard!.echeancesEnRetard.length})
+              <div className="bg-white rounded-2xl p-5 shadow-sm border border-red-200">
+                <h3 className="font-bold text-red-700 mb-3 flex items-center gap-2">
+                  <AlertTriangle size={18} className="text-red-500" />
+                  {dashboard!.echeancesEnRetard.length} échéance(s) en retard
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {dashboard!.echeancesEnRetard.slice(0, 9).map((e) => {
-                    const person = e.client;
+                  {(() => {
+                    const now = new Date();
+                    return dashboard!.echeancesEnRetard.slice(0, 6).map((e) => {
                     const joursRetard = Math.floor(
-                      (Date.now() - new Date(e.datePrevue).getTime()) / (1000 * 60 * 60 * 24)
+                      (now.getTime() - new Date(e.datePrevue).getTime()) / (1000 * 60 * 60 * 24)
+                    );
+                    // Trouver la souscription correspondante pour ouvrir le modal
+                    const souscription = souscriptions.find(
+                      (s) => s.echeances.some((ec) => ec.id === e.id)
                     );
                     return (
                       <div key={e.id} className="bg-red-50 rounded-xl p-4 border border-red-200">
                         <p className="font-semibold text-slate-800 text-sm">
-                          {person ? `${person.prenom} ${person.nom}` : `Éch. #${e.id}`}
+                          {e.client ? `${e.client.prenom} ${e.client.nom}` : `Éch. #${e.id}`}
                         </p>
                         <p className="text-xs text-slate-500 mt-0.5">{e.packNom} — Éch. #{e.numero}</p>
                         <div className="flex items-center justify-between mt-2">
-                          <span className="text-xs text-red-500 font-medium">{joursRetard} jour(s) de retard</span>
+                          <span className="text-xs text-red-500 font-medium">{joursRetard} j de retard</span>
                           <span className="text-red-600 font-bold text-sm">{formatCurrency(e.montant)}</span>
                         </div>
+                        {souscription && (
+                          <button
+                            onClick={() => openVersementModal(souscription)}
+                            className="mt-2 w-full py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-semibold transition-colors"
+                          >
+                            Encaisser →
+                          </button>
+                        )}
                       </div>
                     );
-                  })}
+                  }); })()}
                 </div>
               </div>
             )}
-            {(dashboard?.echeancesEnRetard?.length ?? 0) === 0 && (
-              <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/60 text-center">
-                <CheckCircle className="w-10 h-10 text-emerald-400 mx-auto mb-2" />
-                <p className="text-slate-500 font-medium">Aucune échéance en retard</p>
-                <p className="text-slate-400 text-sm mt-1">Toutes les souscriptions sont à jour</p>
+
+            {/* Liste des souscriptions actives */}
+            {souscriptions.length === 0 ? (
+              <div className="bg-white rounded-2xl p-12 text-center shadow-sm border border-slate-200/60">
+                <ShoppingCart className="w-12 h-12 text-slate-200 mx-auto mb-3" />
+                <p className="text-slate-400 font-medium">Aucune souscription active</p>
+                <p className="text-slate-400 text-sm mt-1">Créez une souscription depuis le panneau admin</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {souscriptions.map((s) => {
+                  const person = s.client ?? s.user;
+                  const pct = Number(s.montantTotal) > 0
+                    ? Math.round((Number(s.montantVerse) / Number(s.montantTotal)) * 100)
+                    : 0;
+                  const prochaine = s.echeances[0];
+                  const estEnRetard = prochaine?.statut === "EN_RETARD";
+
+                  return (
+                    <div
+                      key={s.id}
+                      className={`bg-white rounded-xl shadow-sm border hover:shadow-md transition-all ${
+                        estEnRetard ? "border-red-200" : "border-slate-200"
+                      }`}
+                    >
+                      <div className="p-5">
+                        <div className="flex items-start justify-between mb-3">
+                          <div>
+                            <p className="font-bold text-slate-800 text-sm">
+                              {person ? `${person.prenom} ${person.nom}` : "—"}
+                            </p>
+                            {person?.telephone && (
+                              <p className="text-xs text-slate-400">{person.telephone}</p>
+                            )}
+                          </div>
+                          {packTypeBadge(s.pack.type)}
+                        </div>
+                        <p className="text-sm font-semibold text-slate-700 mb-3">{s.pack.nom}</p>
+
+                        {/* Barre de progression */}
+                        <div className="mb-3">
+                          <div className="flex justify-between text-xs text-slate-500 mb-1">
+                            <span>{formatCurrency(Number(s.montantVerse))}</span>
+                            <span>{formatCurrency(Number(s.montantTotal))}</span>
+                          </div>
+                          <div className="w-full bg-slate-100 rounded-full h-2">
+                            <div
+                              className={`h-2 rounded-full transition-all ${pct >= 100 ? "bg-emerald-500" : pct >= 50 ? "bg-sky-500" : "bg-amber-400"}`}
+                              style={{ width: `${Math.min(pct, 100)}%` }}
+                            />
+                          </div>
+                          <p className="text-xs text-slate-500 mt-1 text-right">{pct}% versé</p>
+                        </div>
+
+                        <div className="flex justify-between text-xs text-slate-500">
+                          <span>Restant</span>
+                          <span className="font-bold text-amber-600">{formatCurrency(Number(s.montantRestant))}</span>
+                        </div>
+
+                        {prochaine && (
+                          <div className={`mt-2 p-2 rounded-lg text-xs ${
+                            estEnRetard ? "bg-red-50 text-red-600" : "bg-slate-50 text-slate-500"
+                          }`}>
+                            {estEnRetard ? "⚠ " : ""}
+                            Éch. #{prochaine.numero} · {formatCurrency(Number(prochaine.montant))}
+                            {!estEnRetard && ` · ${formatDate(prochaine.datePrevue)}`}
+                            {estEnRetard && " · EN RETARD"}
+                          </div>
+                        )}
+                      </div>
+                      <div className="px-5 pb-5">
+                        <button
+                          onClick={() => openVersementModal(s)}
+                          disabled={Number(s.montantRestant) <= 0}
+                          className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-semibold transition-colors flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
+                        >
+                          <Plus size={15} />
+                          {Number(s.montantRestant) <= 0 ? "Pack soldé" : "Encaisser versement"}
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -913,18 +1036,18 @@ export default function CaissierPage() {
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                     <input
                       type="text"
-                      placeholder="Produit, client..."
+                      placeholder="Pack, client..."
                       value={searchQuery}
-                      onChange={(e) => { setSearchQuery(e.target.value); setVentesPage(1); }}
-                      className="w-full pl-9 pr-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500 bg-slate-50 text-sm"
+                      onChange={(e) => { setSearchQuery(e.target.value); setVersementsPage(1); }}
+                      className="w-full pl-9 pr-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50 text-sm"
                     />
                   </div>
                 </div>
                 <button
-                  onClick={() => { setFiltreAujourdHui(!filtreAujourdHui); setVentesPage(1); }}
+                  onClick={() => { setFiltreAujourdHui(!filtreAujourdHui); setVersementsPage(1); }}
                   className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border text-sm font-medium transition-all ${
                     filtreAujourdHui
-                      ? "bg-sky-600 text-white border-sky-600 shadow-sm"
+                      ? "bg-emerald-600 text-white border-emerald-600 shadow-sm"
                       : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
                   }`}
                 >
@@ -933,25 +1056,21 @@ export default function CaissierPage() {
                 </button>
                 {!filtreAujourdHui && (
                   <>
-                    <div>
-                      <input
-                        type="date"
-                        value={dateDebut}
-                        onChange={(e) => { setDateDebut(e.target.value); setVentesPage(1); }}
-                        className="px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 bg-slate-50"
-                      />
-                    </div>
-                    <div>
-                      <input
-                        type="date"
-                        value={dateFin}
-                        onChange={(e) => { setDateFin(e.target.value); setVentesPage(1); }}
-                        className="px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 bg-slate-50"
-                      />
-                    </div>
+                    <input
+                      type="date"
+                      value={dateDebut}
+                      onChange={(e) => { setDateDebut(e.target.value); setVersementsPage(1); }}
+                      className="px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50"
+                    />
+                    <input
+                      type="date"
+                      value={dateFin}
+                      onChange={(e) => { setDateFin(e.target.value); setVersementsPage(1); }}
+                      className="px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50"
+                    />
                     {(dateDebut || dateFin) && (
                       <button
-                        onClick={() => { setDateDebut(""); setDateFin(""); setVentesPage(1); }}
+                        onClick={() => { setDateDebut(""); setDateFin(""); setVersementsPage(1); }}
                         className="p-2.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl"
                       >
                         <X size={16} />
@@ -963,13 +1082,13 @@ export default function CaissierPage() {
             </div>
 
             {/* Stats période */}
-            {ventesStats && (
+            {versementsStats && (
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 {[
-                  { label: "Transactions",    value: String(ventesStats.totalVentes),                color: "text-sky-600"     },
-                  { label: "CA total",        value: formatCurrency(ventesStats.montantTotal),        color: "text-emerald-600" },
-                  { label: "Panier moyen",    value: formatCurrency(ventesStats.panierMoyen),         color: "text-violet-600"  },
-                  { label: "Qté totale",      value: String(ventesStats.quantiteTotale ?? "—"),      color: "text-amber-600"   },
+                  { label: "Versements",     value: String(versementsStats.totalVentes),            color: "text-sky-600"     },
+                  { label: "Total encaissé", value: formatCurrency(versementsStats.montantTotal),    color: "text-emerald-600" },
+                  { label: "Moy. versement", value: formatCurrency(versementsStats.panierMoyen),     color: "text-violet-600"  },
+                  { label: "Nb total",       value: String(versementsStats.quantiteTotale ?? "—"),   color: "text-amber-600"   },
                 ].map((s) => (
                   <div key={s.label} className="bg-white rounded-xl p-4 shadow-sm border border-slate-200/60">
                     <p className="text-xs text-slate-500">{s.label}</p>
@@ -979,11 +1098,11 @@ export default function CaissierPage() {
               </div>
             )}
 
-            {/* Tableau ventes */}
+            {/* Tableau versements */}
             <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 overflow-hidden">
-              {ventesLoading ? (
+              {versementsLoading ? (
                 <div className="flex items-center justify-center py-16">
-                  <div className="w-8 h-8 border-3 border-sky-200 border-t-sky-600 rounded-full animate-spin" />
+                  <div className="w-8 h-8 border-2 border-emerald-200 border-t-emerald-600 rounded-full animate-spin" />
                 </div>
               ) : (
                 <>
@@ -991,32 +1110,37 @@ export default function CaissierPage() {
                     <table className="w-full">
                       <thead className="bg-slate-50 border-b border-slate-200">
                         <tr>
-                          {["N°", "Produit", "Client", "Qté", "P. Unit.", "Montant", "Date/Heure", ""].map((h) => (
+                          {["N°", "Pack", "Client", "Type", "Montant", "Date/Heure", ""].map((h) => (
                             <th key={h} className="px-5 py-3.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">{h}</th>
                           ))}
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100">
-                        {ventes.map((v) => {
-                          const person = v.creditAlimentaire?.client ?? v.creditAlimentaire?.member;
-                          const montant = Number(v.prixUnitaire) * v.quantite;
+                        {versements.map((v) => {
+                          const person = v.souscription.client ?? v.souscription.user;
                           return (
                             <tr key={v.id} className="hover:bg-slate-50 transition-colors">
                               <td className="px-5 py-3.5 text-xs font-mono text-slate-400 flex items-center gap-1">
                                 <Hash size={12} />{v.id}
                               </td>
-                              <td className="px-5 py-3.5 font-semibold text-slate-800 text-sm">{v.produit?.nom ?? "—"}</td>
-                              <td className="px-5 py-3.5 text-sm text-slate-600">{person ? `${person.prenom} ${person.nom}` : "—"}</td>
                               <td className="px-5 py-3.5">
-                                <span className="bg-sky-100 text-sky-700 px-2 py-0.5 rounded-full text-xs font-bold">{v.quantite}</span>
+                                <p className="font-semibold text-slate-800 text-sm">{v.souscription.pack.nom}</p>
+                                <div className="mt-0.5">{packTypeBadge(v.souscription.pack.type)}</div>
                               </td>
-                              <td className="px-5 py-3.5 text-sm text-slate-700">{formatCurrency(v.prixUnitaire)}</td>
-                              <td className="px-5 py-3.5 font-bold text-emerald-600">{formatCurrency(montant)}</td>
-                              <td className="px-5 py-3.5 text-xs text-slate-500">{formatDateTime(v.createdAt)}</td>
+                              <td className="px-5 py-3.5 text-sm text-slate-600">
+                                {person ? `${person.prenom} ${person.nom}` : "—"}
+                              </td>
+                              <td className="px-5 py-3.5">
+                                <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full text-xs font-medium">
+                                  {versementTypeLabel(v.type)}
+                                </span>
+                              </td>
+                              <td className="px-5 py-3.5 font-bold text-emerald-600">{formatCurrency(Number(v.montant))}</td>
+                              <td className="px-5 py-3.5 text-xs text-slate-500">{formatDateTime(v.datePaiement)}</td>
                               <td className="px-5 py-3.5">
                                 <button
                                   onClick={() => handleVoirRecu(v.id)}
-                                  className="p-1.5 text-slate-400 hover:text-sky-600 hover:bg-sky-50 rounded-lg transition-colors"
+                                  className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
                                   title="Voir le reçu"
                                 >
                                   <Eye size={15} />
@@ -1025,10 +1149,10 @@ export default function CaissierPage() {
                             </tr>
                           );
                         })}
-                        {ventes.length === 0 && (
+                        {versements.length === 0 && (
                           <tr>
-                            <td colSpan={8} className="px-5 py-12 text-center text-slate-400 text-sm">
-                              Aucune vente trouvée pour cette période
+                            <td colSpan={7} className="px-5 py-12 text-center text-slate-400 text-sm">
+                              Aucun versement trouvé pour cette période
                             </td>
                           </tr>
                         )}
@@ -1036,24 +1160,24 @@ export default function CaissierPage() {
                     </table>
                   </div>
                   {/* Pagination */}
-                  {ventesMeta && ventesMeta.totalPages > 1 && (
+                  {versementsMeta && versementsMeta.totalPages > 1 && (
                     <div className="px-5 py-4 border-t border-slate-100 flex items-center justify-between">
                       <p className="text-sm text-slate-500">
-                        Page <span className="font-semibold">{ventesMeta.page}</span> / <span className="font-semibold">{ventesMeta.totalPages}</span>
-                        <span className="text-slate-400"> ({ventesMeta.total} ventes)</span>
+                        Page <span className="font-semibold">{versementsMeta.page}</span> / <span className="font-semibold">{versementsMeta.totalPages}</span>
+                        <span className="text-slate-400"> ({versementsMeta.total} versements)</span>
                       </p>
                       <div className="flex items-center gap-2">
                         <button
-                          onClick={() => setVentesPage((p) => Math.max(1, p - 1))}
-                          disabled={ventesPage <= 1}
+                          onClick={() => setVersementsPage((p) => Math.max(1, p - 1))}
+                          disabled={versementsPage <= 1}
                           className="p-2 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 disabled:opacity-40"
                         >
                           <ChevronLeft size={16} />
                         </button>
-                        <span className="px-3 py-1 bg-sky-600 text-white rounded-lg text-sm font-medium">{ventesPage}</span>
+                        <span className="px-3 py-1 bg-emerald-600 text-white rounded-lg text-sm font-medium">{versementsPage}</span>
                         <button
-                          onClick={() => setVentesPage((p) => Math.min(ventesMeta.totalPages, p + 1))}
-                          disabled={ventesPage >= ventesMeta.totalPages}
+                          onClick={() => setVersementsPage((p) => Math.min(versementsMeta.totalPages, p + 1))}
+                          disabled={versementsPage >= versementsMeta.totalPages}
                           className="p-2 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 disabled:opacity-40"
                         >
                           <ChevronRight size={16} />
@@ -1080,14 +1204,14 @@ export default function CaissierPage() {
                 </h3>
                 <div className="flex items-center gap-2">
                   <Filter size={15} className="text-slate-400" />
-                  <span className="text-sm text-slate-500">{ventes.length} reçu(s)</span>
+                  <span className="text-sm text-slate-500">{versements.length} reçu(s)</span>
                 </div>
               </div>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                 <input
                   type="text"
-                  placeholder="Rechercher par client, produit ou n° reçu..."
+                  placeholder="Rechercher par client, pack ou n° reçu..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full pl-9 pr-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500 bg-slate-50 text-sm"
@@ -1096,59 +1220,64 @@ export default function CaissierPage() {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {ventes.filter((v) => {
-                if (!debouncedSearch) return true;
-                const q = debouncedSearch.toLowerCase();
-                const person = v.creditAlimentaire?.client ?? v.creditAlimentaire?.member;
-                const name = person ? `${person.prenom} ${person.nom}`.toLowerCase() : "";
-                return name.includes(q) || v.produit?.nom.toLowerCase().includes(q) || String(v.id).includes(q);
-              }).map((vente) => {
-                const person = vente.creditAlimentaire?.client ?? vente.creditAlimentaire?.member;
-                const montant = Number(vente.prixUnitaire) * vente.quantite;
-                return (
-                  <div key={vente.id} className="bg-white rounded-xl shadow-sm border border-slate-200 hover:shadow-md transition-all">
-                    <div className="p-5">
-                      <div className="flex items-center justify-between mb-3">
-                        <span className="inline-flex items-center gap-1.5 bg-sky-100 text-sky-700 px-3 py-1 rounded-full text-xs font-bold">
-                          <Receipt size={11} />
-                          REC-{String(vente.id).padStart(6, "0")}
-                        </span>
-                        <span className="text-xs text-slate-400">{formatDateTime(vente.createdAt)}</span>
-                      </div>
-                      <div className="space-y-2">
-                        <div className="flex justify-between text-sm">
-                          <span className="text-slate-500">Client</span>
-                          <span className="font-semibold text-slate-800 text-right max-w-[130px] truncate">
-                            {person ? `${person.prenom} ${person.nom}` : "—"}
+              {versements
+                .filter((v) => {
+                  if (!debouncedSearch) return true;
+                  const q = debouncedSearch.toLowerCase();
+                  const person = v.souscription.client ?? v.souscription.user;
+                  const name = person ? `${person.prenom} ${person.nom}`.toLowerCase() : "";
+                  return (
+                    name.includes(q) ||
+                    v.souscription.pack.nom.toLowerCase().includes(q) ||
+                    String(v.id).includes(q)
+                  );
+                })
+                .map((v) => {
+                  const person = v.souscription.client ?? v.souscription.user;
+                  return (
+                    <div key={v.id} className="bg-white rounded-xl shadow-sm border border-slate-200 hover:shadow-md transition-all">
+                      <div className="p-5">
+                        <div className="flex items-center justify-between mb-3">
+                          <span className="inline-flex items-center gap-1.5 bg-sky-100 text-sky-700 px-3 py-1 rounded-full text-xs font-bold">
+                            <Receipt size={11} />
+                            VER-{String(v.id).padStart(6, "0")}
                           </span>
+                          <span className="text-xs text-slate-400">{formatDateTime(v.datePaiement)}</span>
                         </div>
-                        <div className="flex justify-between text-sm">
-                          <span className="text-slate-500">Produit</span>
-                          <span className="font-semibold text-slate-800">{vente.produit?.nom ?? "—"}</span>
-                        </div>
-                        <div className="flex justify-between text-sm">
-                          <span className="text-slate-500">Quantité</span>
-                          <span className="font-semibold text-slate-800">{vente.quantite}</span>
-                        </div>
-                        <div className="border-t border-dashed border-slate-200 pt-2 flex justify-between">
-                          <span className="text-slate-600 font-medium text-sm">Total</span>
-                          <span className="text-lg font-bold text-emerald-600">{formatCurrency(montant)}</span>
+                        <div className="space-y-2">
+                          <div className="flex justify-between text-sm">
+                            <span className="text-slate-500">Client</span>
+                            <span className="font-semibold text-slate-800 text-right max-w-[130px] truncate">
+                              {person ? `${person.prenom} ${person.nom}` : "—"}
+                            </span>
+                          </div>
+                          <div className="flex justify-between text-sm">
+                            <span className="text-slate-500">Pack</span>
+                            <span className="font-semibold text-slate-800 text-right max-w-[130px] truncate">{v.souscription.pack.nom}</span>
+                          </div>
+                          <div className="flex justify-between text-sm">
+                            <span className="text-slate-500">Type</span>
+                            <span className="text-slate-600">{versementTypeLabel(v.type)}</span>
+                          </div>
+                          <div className="border-t border-dashed border-slate-200 pt-2 flex justify-between">
+                            <span className="text-slate-600 font-medium text-sm">Versé</span>
+                            <span className="text-lg font-bold text-emerald-600">{formatCurrency(Number(v.montant))}</span>
+                          </div>
                         </div>
                       </div>
+                      <div className="px-5 pb-5">
+                        <button
+                          onClick={() => handleVoirRecu(v.id)}
+                          className="w-full py-2.5 bg-slate-50 hover:bg-sky-50 hover:text-sky-700 text-slate-600 rounded-xl text-sm font-medium transition-colors flex items-center justify-center gap-2 border border-slate-200 hover:border-sky-200"
+                        >
+                          <Printer size={15} />
+                          Voir &amp; imprimer
+                        </button>
+                      </div>
                     </div>
-                    <div className="px-5 pb-5">
-                      <button
-                        onClick={() => handleVoirRecu(vente.id)}
-                        className="w-full py-2.5 bg-slate-50 hover:bg-sky-50 hover:text-sky-700 text-slate-600 rounded-xl text-sm font-medium transition-colors flex items-center justify-center gap-2 border border-slate-200 hover:border-sky-200"
-                      >
-                        <Printer size={15} />
-                        Voir &amp; imprimer
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-              {ventes.length === 0 && (
+                  );
+                })}
+              {versements.length === 0 && (
                 <div className="col-span-full bg-white rounded-xl p-12 text-center shadow-sm border border-slate-200">
                   <Receipt className="w-12 h-12 text-slate-200 mx-auto mb-4" />
                   <p className="text-slate-400">Aucun reçu pour cette période</p>
@@ -1188,10 +1317,10 @@ export default function CaissierPage() {
 
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                 {[
-                  { label: "Ventes",        value: String(jourEnCours?.totalVentes ?? 0),                    color: "text-sky-600"     },
-                  { label: "CA encaissé",   value: formatCurrency(jourEnCours?.montantTotal ?? 0),           color: "text-emerald-600" },
-                  { label: "Panier moyen",  value: formatCurrency(jourEnCours?.panierMoyen ?? 0),            color: "text-violet-600"  },
-                  { label: "Clients",       value: String(jourEnCours?.nbClients ?? 0),                      color: "text-pink-600"    },
+                  { label: "Versements",    value: String(jourEnCours?.totalVentes ?? 0),          color: "text-sky-600"     },
+                  { label: "Total encaissé", value: formatCurrency(jourEnCours?.montantTotal ?? 0), color: "text-emerald-600" },
+                  { label: "Moy. versement", value: formatCurrency(jourEnCours?.panierMoyen ?? 0),  color: "text-violet-600"  },
+                  { label: "Clients",        value: String(jourEnCours?.nbClients ?? 0),            color: "text-pink-600"    },
                 ].map((s) => (
                   <div key={s.label} className="bg-slate-50 rounded-xl p-4 text-center border border-slate-200">
                     <p className="text-xs text-slate-500 mb-1">{s.label}</p>
@@ -1200,19 +1329,19 @@ export default function CaissierPage() {
                 ))}
               </div>
 
-              {/* Bilan par produit */}
+              {/* Bilan par pack */}
               {(jourEnCours?.bilanParProduit ?? []).length > 0 && (
                 <div>
                   <h4 className="text-sm font-semibold text-slate-600 mb-3 flex items-center gap-2">
                     <Package size={15} />
-                    Répartition par produit
+                    Répartition par pack
                   </h4>
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="border-b border-slate-200">
-                          <th className="text-left py-2 text-xs font-semibold text-slate-500 uppercase">Produit</th>
-                          <th className="text-right py-2 text-xs font-semibold text-slate-500 uppercase">Qté</th>
+                          <th className="text-left py-2 text-xs font-semibold text-slate-500 uppercase">Pack</th>
+                          <th className="text-right py-2 text-xs font-semibold text-slate-500 uppercase">Versements</th>
                           <th className="text-right py-2 text-xs font-semibold text-slate-500 uppercase">Montant</th>
                           <th className="text-right py-2 text-xs font-semibold text-slate-500 uppercase">%</th>
                         </tr>
@@ -1238,7 +1367,7 @@ export default function CaissierPage() {
                 </div>
               )}
 
-              {/* Note de clôture si déjà clôturée */}
+              {/* Note de clôture */}
               {jourEnCours?.clotureDuJour?.notes && (
                 <div className="mt-4 p-3 bg-slate-50 rounded-xl border border-slate-200">
                   <p className="text-xs font-semibold text-slate-500 mb-1">Notes du caissier</p>
@@ -1247,18 +1376,18 @@ export default function CaissierPage() {
               )}
             </div>
 
-            {/* Détail des ventes du jour */}
+            {/* Détail des versements du jour */}
             {(jourEnCours?.ventesDetail ?? []).length > 0 && (
               <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/60">
                 <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
                   <Clock size={20} className="text-slate-600" />
-                  Détail des {jourEnCours?.totalVentes ?? 0} vente(s) du jour
+                  Détail des {jourEnCours?.totalVentes ?? 0} versement(s) du jour
                 </h3>
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b border-slate-200">
-                        {["Heure", "Produit", "Client", "Qté", "Montant"].map((h) => (
+                        {["Heure", "Pack", "Client", "Montant"].map((h) => (
                           <th key={h} className="text-left py-2.5 pr-4 text-xs font-semibold text-slate-500 uppercase">{h}</th>
                         ))}
                       </tr>
@@ -1269,9 +1398,6 @@ export default function CaissierPage() {
                           <td className="py-2.5 pr-4 text-slate-400 font-mono text-xs">{v.heure}</td>
                           <td className="py-2.5 pr-4 font-medium text-slate-800">{v.produit}</td>
                           <td className="py-2.5 pr-4 text-slate-600">{v.clientNom}</td>
-                          <td className="py-2.5 pr-4">
-                            <span className="bg-sky-100 text-sky-700 px-2 py-0.5 rounded-full text-xs font-bold">{v.quantite}</span>
-                          </td>
                           <td className="py-2.5 font-bold text-emerald-600">{formatCurrency(v.montant)}</td>
                         </tr>
                       ))}
@@ -1295,7 +1421,7 @@ export default function CaissierPage() {
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="border-b border-slate-200">
-                          {["Date", "Caissier", "Ventes", "CA", "Panier moy.", "Clients", "Notes"].map((h) => (
+                          {["Date", "Caissier", "Versements", "Total encaissé", "Moy.", "Clients", "Notes"].map((h) => (
                             <th key={h} className="text-left py-2.5 pr-4 text-xs font-semibold text-slate-500 uppercase">{h}</th>
                           ))}
                         </tr>
@@ -1317,7 +1443,6 @@ export default function CaissierPage() {
                       </tbody>
                     </table>
                   </div>
-                  {/* Pagination historique */}
                   {clotureHisto && clotureHisto.meta.totalPages > 1 && (
                     <div className="pt-4 border-t border-slate-100 flex items-center justify-between mt-4">
                       <p className="text-sm text-slate-400">

@@ -1,7 +1,7 @@
 -Pages user qu'il me reste à créer( types de gestionnaires [ COMMERCIAL, RESPONSABLE_VENTE_CREDIT, RESPONSABLE_ECONOMIQUE, RESPONSABLE_MARKETING ] )
 
- /dashboard/user/agentsTerrain  au niveau de la collecte , je peux collecter plus que ce que le client doit verser comme montant ( c'est vraiment une mauvais logique ; je pense que tu n'as pas mis assez de robustesse dans les apis en question).
-
-/dashboard/admin/ventes je peux livrer un produit avec une quantité supérieure à celle du stock . Et d'ailleurs le processus de livraison n'est pas bon ( d'abord non c'est pads l'admin le livreur ; lui il donne juste l'autorisation de livrer . Ensuite je pense que quand on demande une livraison pour un produit , il ne devrait pas automatiquement être livré ; on devrait attendre la confirmation de livrer. Tu confonds planifiee et livree)
-
 dashboard/admin/packs lorsqu'il y'a des livraisons complètée , une erreur (completes is not defined)  survient . Toujours à ce niveau mais dans la section versements et échéances , j'ai l'impression que le filtre ne fonctionne pas bien ( le filtre Payée est toujours vide malgré le paiement et en plus le message de fallback reste toujours Aucune échéance en attente )
+Toujours ici , pour la création de pack ,c'est normal de donner la main pour la sélection de la durée de jours ?? Et aussi pour la fréquence ( normalement ça dépend du type de pack pourtant on dirait que je peux choisir n'importe quelle fréquence)
+Pour la création de pack revendeur , je peux créer avec la formule 1 mais lors de la souscription d'un client , je peux choisir la formule 2 ( est ce normal ???)
+pour la souscription du pack revendeur de la formule 1 aussi je PEUX verser n'importe quel montant ( pourtant ce qui était attendu c'est 50% du prix du produit avant livraison possible mais ici je peux livrer même en ayant payé moins de 50%)
+Pour les autres types de pack aussi essaie de vérifier la robustesse et la logique client ( j'ai l'impression que tu as juste crée les api sans les conneter et surtout sans aucune logique métier comparé aux types attendus par les packs et les conditions de vente et d'éligibilité qui ont l'air mal codé)

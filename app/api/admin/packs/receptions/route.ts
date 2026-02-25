@@ -37,7 +37,12 @@ export async function GET(req: Request) {
         : {};
 
     const where: Prisma.ReceptionProduitPackWhereInput = {
-      ...(statutFilter !== "ALL" ? { statut: statutFilter as "PLANIFIEE" | "LIVREE" } : {}),
+      // Par défaut (ALL), on exclut les annulées pour ne pas polluer l'historique
+      ...(statutFilter === "ANNULEE"
+        ? { statut: "ANNULEE" }
+        : statutFilter !== "ALL"
+        ? { statut: statutFilter as "PLANIFIEE" | "LIVREE" }
+        : { NOT: { statut: "ANNULEE" } }),
       ...searchWhere,
     };
 

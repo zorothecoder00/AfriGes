@@ -76,7 +76,72 @@ export async function POST(req: Request, { params }: Ctx) {
         return NextResponse.json({ error: "Au moins une ligne requise" }, { status: 400 });
       }
 
-      // Valider le stock disponible avant de planifier
+      // ── 1. Éligibilité par type de pack ───────────────────────────────────
+      const isF2 =
+        souscription.pack.type === "REVENDEUR" &&
+        souscription.formuleRevendeur === "FORMULE_2";
+
+      const statutsEligibles: string[] =
+        souscription.pack.type === "URGENCE" ||
+        (souscription.pack.type === "REVENDEUR" && !isF2)
+          ? ["ACTIF", "COMPLETE"]
+          : isF2
+          ? ["EN_ATTENTE", "ACTIF", "COMPLETE"]
+          : ["COMPLETE"]; // ALIMENTAIRE, FAMILIAL, EPARGNE_PRODUIT, FIDELITE
+
+      if (!statutsEligibles.includes(souscription.statut)) {
+        const typeLabel: Record<string, string> = {
+          ALIMENTAIRE: "Alimentaire", REVENDEUR: "Revendeur", FAMILIAL: "Familial",
+          URGENCE: "Urgence", EPARGNE_PRODUIT: "Épargne-Produit", FIDELITE: "Fidélité",
+        };
+        const condMsg =
+          souscription.pack.type === "URGENCE"
+            ? "la souscription doit être active (acompte versé)"
+            : souscription.pack.type === "REVENDEUR" && !isF2
+            ? "la souscription doit être active (50 % upfront versé)"
+            : isF2
+            ? "statut invalide"
+            : "la souscription doit être entièrement soldée (COMPLETE)";
+        return NextResponse.json(
+          {
+            error: `Livraison impossible (Pack ${typeLabel[souscription.pack.type] ?? souscription.pack.type}) : ${condMsg}. Statut actuel : ${souscription.statut}`,
+          },
+          { status: 400 }
+        );
+      }
+
+      // ── 2. Montant total de la livraison ≤ montant du pack ───────────────
+      const montantPack = Number(souscription.montantTotal);
+      const montantNouvellesLignes = (lignes as { quantite: number; prixUnitaire: number }[]).reduce(
+        (sum, l) => sum + l.quantite * l.prixUnitaire,
+        0
+      );
+
+      // Inclure les réceptions déjà PLANIFIEE pour éviter le double-booking
+      const receptionsEnAttente = await prisma.receptionProduitPack.findMany({
+        where: { souscriptionId, statut: "PLANIFIEE" },
+        include: { lignes: { select: { quantite: true, prixUnitaire: true } } },
+      });
+      const montantDejaPlanifie = receptionsEnAttente.reduce(
+        (sum, rec) =>
+          sum + rec.lignes.reduce((s, l) => s + l.quantite * Number(l.prixUnitaire), 0),
+        0
+      );
+
+      if (montantNouvellesLignes + montantDejaPlanifie > montantPack) {
+        const fmt = (n: number) =>
+          new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 0 }).format(n) + " FCFA";
+        const detail =
+          montantDejaPlanifie > 0
+            ? `nouvelle livraison (${fmt(montantNouvellesLignes)}) + déjà planifié (${fmt(montantDejaPlanifie)}) = ${fmt(montantNouvellesLignes + montantDejaPlanifie)}`
+            : fmt(montantNouvellesLignes);
+        return NextResponse.json(
+          { error: `Montant excédé : ${detail} > budget pack (${fmt(montantPack)})` },
+          { status: 400 }
+        );
+      }
+
+      // ── Valider le stock disponible avant de planifier ────────────────────
       for (const ligne of lignes as { produitId: number; quantite: number; prixUnitaire: number }[]) {
         const produit = await prisma.produit.findUnique({
           where: { id: ligne.produitId },

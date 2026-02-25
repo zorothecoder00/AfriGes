@@ -8,7 +8,7 @@ import { getLogistiqueSession } from "@/lib/authLogistique";
  * Journal complet de tous les mouvements de stock (ENTREE, SORTIE, AJUSTEMENT).
  * Utilisé pour l'onglet suivi des livraisons et journal d'audit.
  */
-export async function GET(req: Request) {
+export async function GET(req: Request) {     
   try {
     const session = await getLogistiqueSession();
     if (!session) return NextResponse.json({ error: "Acces refuse" }, { status: 403 });

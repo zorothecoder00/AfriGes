@@ -68,6 +68,51 @@ interface AffectationsResponse {
   meta:  { total: number; page: number; limit: number; totalPages: number };
 }
 
+type TypePack = "ALIMENTAIRE" | "REVENDEUR" | "FAMILIAL" | "URGENCE" | "EPARGNE_PRODUIT" | "FIDELITE";
+
+interface LigneLivraisonPack {
+  id: number;
+  quantite: number;
+  prixUnitaire: string;
+  produit: { nom: string; prixUnitaire: string };
+}
+
+interface ReceptionPack {
+  id: number;
+  statut: "PLANIFIEE" | "LIVREE";
+  datePrevisionnelle: string;
+  dateLivraison?: string;
+  livreurNom?: string;
+  notes?: string;
+  souscription: {
+    id: number;
+    pack: { nom: string; type: TypePack };
+    client?: { nom: string; prenom: string; telephone: string } | null;
+    user?: { nom: string; prenom: string } | null;
+  };
+  lignes: LigneLivraisonPack[];
+}
+
+interface LivraisonsPackResponse {
+  planifiees: ReceptionPack[];
+  livreesRecentes: ReceptionPack[];
+  stats: { totalPlanifiees: number; totalLivrees: number };
+}
+
+const PACK_LABELS: Record<TypePack, string> = {
+  ALIMENTAIRE: "Alimentaire", REVENDEUR: "Revendeur", FAMILIAL: "Familial",
+  URGENCE: "Urgence", EPARGNE_PRODUIT: "Épargne-Produit", FIDELITE: "Fidélité",
+};
+
+const PACK_BADGE: Record<TypePack, string> = {
+  ALIMENTAIRE:    "bg-green-100 text-green-800",
+  REVENDEUR:      "bg-blue-100 text-blue-800",
+  FAMILIAL:       "bg-purple-100 text-purple-800",
+  URGENCE:        "bg-red-100 text-red-800",
+  EPARGNE_PRODUIT:"bg-amber-100 text-amber-800",
+  FIDELITE:       "bg-pink-100 text-pink-800",
+};
+
 type StatutStock = "EN_STOCK" | "STOCK_FAIBLE" | "RUPTURE";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -138,6 +183,33 @@ export default function LogistiqueApprovisionnementPage() {
   const stats    = stockRes?.stats;
   const meta     = stockRes?.meta;
 
+  // ── Livraisons Packs (confirmation) ──────────────────────────────────────
+  const { data: livraisonsPackRes, loading: livraisonsPackLoading, refetch: refetchLivraisonsPack } =
+    useApi<LivraisonsPackResponse>("/api/logistique/livraisons-packs");
+
+  const [confirmingPackId, setConfirmingPackId] = useState<number | null>(null);
+
+  const { mutate: doConfirmPack } = useMutation(
+    confirmingPackId !== null
+      ? `/api/logistique/livraisons-packs/${confirmingPackId}/confirmer`
+      : "",
+    "POST",
+    { successMessage: "Livraison pack confirmée !" }
+  );
+
+  useEffect(() => {
+    if (confirmingPackId === null) return;
+    doConfirmPack({}).then((res) => {
+      if (res) {
+        refetchLivraisonsPack(); // liste des planifiées
+        refetchJournal();        // journal des mouvements (tab 4)
+        refetchStock();          // stock mis à jour (tab 1)
+      }
+      setConfirmingPackId(null);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [confirmingPackId]);
+
   // ── Réceptions ─────────────────────────────────────────────────────────────
   const [livrPage, setLivrPage]           = useState(1);
   const [livrSearch, setLivrSearch]       = useState("");
@@ -184,7 +256,7 @@ export default function LogistiqueApprovisionnementPage() {
   const journalParams = new URLSearchParams({ page: String(journalPage), limit: "20" });
   if (journalType)     journalParams.set("type",   journalType);
   if (journalDebounced) journalParams.set("search", journalDebounced);
-  const { data: journalRes } =
+  const { data: journalRes, refetch: refetchJournal } =
     useApi<MouvementsResponse>(`/api/logistique/mouvements?${journalParams}`);
 
   // ── Modal Réception ───────────────────────────────────────────────────────
@@ -728,7 +800,78 @@ export default function LogistiqueApprovisionnementPage() {
         {/* ══════════════════════════════════════════════════════════════════ */}
         {activeTab === "livraisons" && (
           <div className="space-y-5">
-            {/* Stats réceptions */}
+
+            {/* ── Livraisons Packs à confirmer ── */}
+            <div className="bg-white rounded-2xl shadow-sm border border-amber-200 overflow-hidden">
+              <div className="px-6 py-4 border-b border-amber-200 bg-amber-50 flex items-center gap-2">
+                <Truck size={18} className="text-amber-600" />
+                <h3 className="font-bold text-slate-800">Livraisons packs à confirmer</h3>
+                {(livraisonsPackRes?.stats.totalPlanifiees ?? 0) > 0 && (
+                  <span className="bg-amber-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">
+                    {livraisonsPackRes!.stats.totalPlanifiees}
+                  </span>
+                )}
+              </div>
+
+              {livraisonsPackLoading ? (
+                <div className="p-8 text-center text-slate-400 text-sm">Chargement…</div>
+              ) : (livraisonsPackRes?.planifiees.length ?? 0) === 0 ? (
+                <div className="p-8 text-center">
+                  <CheckCircle className="w-8 h-8 text-emerald-300 mx-auto mb-2" />
+                  <p className="text-slate-500 text-sm">Aucune livraison pack en attente de confirmation</p>
+                </div>
+              ) : (
+                <div className="divide-y divide-slate-100">
+                  {livraisonsPackRes!.planifiees.map((rec) => {
+                    const s = rec.souscription;
+                    const beneficiaire = s.client
+                      ? `${s.client.prenom} ${s.client.nom}`
+                      : s.user ? `${s.user.prenom} ${s.user.nom}` : "—";
+                    const telephone = s.client?.telephone ?? "";
+                    const montantTotal = rec.lignes.reduce(
+                      (acc, l) => acc + Number(l.prixUnitaire) * l.quantite, 0
+                    );
+                    return (
+                      <div key={rec.id} className="p-5 flex items-start justify-between gap-4">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1 flex-wrap">
+                            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${PACK_BADGE[s.pack.type]}`}>
+                              {PACK_LABELS[s.pack.type]}
+                            </span>
+                            <span className="font-semibold text-slate-800 text-sm">{s.pack.nom}</span>
+                          </div>
+                          <p className="text-sm text-slate-700">
+                            {beneficiaire}
+                            {telephone && <span className="text-slate-400 ml-2 text-xs">{telephone}</span>}
+                          </p>
+                          <div className="mt-1.5 flex flex-wrap gap-1.5">
+                            {rec.lignes.map((l) => (
+                              <span key={l.id} className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-lg">
+                                {l.produit.nom} × {l.quantite}
+                              </span>
+                            ))}
+                          </div>
+                          <p className="text-xs text-slate-400 mt-1">
+                            Prévu le {formatDate(rec.datePrevisionnelle)} —{" "}
+                            {new Intl.NumberFormat("fr-FR", { style: "currency", currency: "XOF" }).format(montantTotal)}
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => setConfirmingPackId(rec.id)}
+                          disabled={confirmingPackId === rec.id}
+                          className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 text-sm font-medium transition-all shadow-md shadow-emerald-200 shrink-0 disabled:opacity-60"
+                        >
+                          <CheckCircle size={15} />
+                          {confirmingPackId === rec.id ? "En cours…" : "Confirmer"}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* ── Stats réceptions fournisseurs ── */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
               <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/60 flex items-center gap-4">
                 <div className="w-14 h-14 bg-emerald-50 rounded-xl flex items-center justify-center shrink-0">

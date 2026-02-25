@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { MemberStatus, StatutTontine, StatutCredit, StatutCotisation } from "@prisma/client";
+import { MemberStatus } from "@prisma/client";
 
 // ─── Helper ──────────────────────────────────────────────────────────────────
 
@@ -27,125 +27,99 @@ export async function getDashboardAdmin(period: number = 30) {
 
   // ── 1. Compteurs principaux ──────────────────────────────────────────────
 
-  const [
-    membresActifs,
-    tontinesActives,
-    creditsEnCours,
-  ] = await Promise.all([
+  const [membresActifs, souscriptionsActives, packsTotal] = await Promise.all([
     prisma.user.count({ where: { etat: MemberStatus.ACTIF } }),
-    prisma.tontine.count({ where: { statut: StatutTontine.ACTIVE } }),
-    prisma.credit.count({
-      where: {
-        statut: { in: [StatutCredit.EN_ATTENTE, StatutCredit.APPROUVE, StatutCredit.REMBOURSE_PARTIEL] },
-      },
-    }),
+    prisma.souscriptionPack.count({ where: { statut: "ACTIF" } }),
+    prisma.pack.count(),
   ]);
 
-  // ── 2. Montant total achats (quantite × prixUnitaire) ────────────────────
-  // Prisma ne supporte pas les colonnes calculées en aggregate → on utilise $queryRaw
-  const [achatsTotal] = await prisma.$queryRaw<{ total: string }[]>`
-    SELECT COALESCE(SUM(quantite * "prixUnitaire"), 0)::text AS total
-    FROM "VenteCreditAlimentaire"
-  `;
-  const [nombreAchats] = await prisma.$queryRaw<{ cnt: string }[]>`
-    SELECT COUNT(*)::text AS cnt FROM "VenteCreditAlimentaire"
-  `;
+  // ── 2. Agrégat global des versements ────────────────────────────────────
 
-  // ── 3. Évolution des ventes (par jour sur la période) ───────────────────
-  const ventesRecentes = await prisma.venteCreditAlimentaire.findMany({
-    where: { createdAt: { gte: since } },
-    select: { createdAt: true, quantite: true, prixUnitaire: true },
-    orderBy: { createdAt: "asc" },
+  const versementsAgg = await prisma.versementPack.aggregate({
+    _sum: { montant: true },
+    _count: { id: true },
   });
 
-  const ventesMap: Record<string, number> = {};
-  for (const v of ventesRecentes) {
-    const k = v.createdAt.toISOString().split("T")[0];
-    ventesMap[k] = (ventesMap[k] ?? 0) + v.quantite * Number(v.prixUnitaire);
-  }
+  // ── 3. Évolution des versements (par jour sur la période) ────────────────
 
-  // ── 4. Évolution des cotisations payées (par jour) ───────────────────────
-  const cotisationsRecentes = await prisma.cotisation.findMany({
-    where: {
-      statut: StatutCotisation.PAYEE,
-      datePaiement: { gte: since },
-    },
+  const versementsRecents = await prisma.versementPack.findMany({
+    where: { datePaiement: { gte: since } },
     select: { datePaiement: true, montant: true },
     orderBy: { datePaiement: "asc" },
   });
 
-  const cotisMap: Record<string, number> = {};
-  for (const c of cotisationsRecentes) {
-    if (!c.datePaiement) continue;
-    const k = c.datePaiement.toISOString().split("T")[0];
-    cotisMap[k] = (cotisMap[k] ?? 0) + Number(c.montant);
+  const versMap: Record<string, number> = {};
+  for (const v of versementsRecents) {
+    const k = v.datePaiement.toISOString().split("T")[0];
+    versMap[k] = (versMap[k] ?? 0) + Number(v.montant);
   }
 
-  // Tableau jour par jour (un point par jour du plus ancien au plus récent)
-  const evolutionVentes: { date: string; montant: number }[] = [];
-  const evolutionCotisations: { date: string; montant: number }[] = [];
+  // ── 4. Évolution des montants versés sur souscriptions créées ────────────
+
+  const souscRecentes = await prisma.souscriptionPack.findMany({
+    where: { createdAt: { gte: since } },
+    select: { createdAt: true, montantVerse: true },
+    orderBy: { createdAt: "asc" },
+  });
+
+  const souscMap: Record<string, number> = {};
+  for (const s of souscRecentes) {
+    const k = s.createdAt.toISOString().split("T")[0];
+    souscMap[k] = (souscMap[k] ?? 0) + Number(s.montantVerse);
+  }
+
+  // Tableau jour par jour
+  const evolutionVersements: { date: string; montant: number }[] = [];
+  const evolutionSouscriptions: { date: string; montant: number }[] = [];
   for (let i = period; i >= 0; i--) {
     const d = new Date(now);
     d.setDate(d.getDate() - i);
     const k = d.toISOString().split("T")[0];
-    evolutionVentes.push({ date: k, montant: ventesMap[k] ?? 0 });
-    evolutionCotisations.push({ date: k, montant: cotisMap[k] ?? 0 });
+    evolutionVersements.push({ date: k, montant: versMap[k] ?? 0 });
+    evolutionSouscriptions.push({ date: k, montant: souscMap[k] ?? 0 });
   }
 
-  // ── 5. Répartition des cotisations par statut ────────────────────────────
-  const [nbEnAttente, nbPayees, nbExpirees] = await Promise.all([
-    prisma.cotisation.count({ where: { statut: StatutCotisation.EN_ATTENTE } }),
-    prisma.cotisation.count({ where: { statut: StatutCotisation.PAYEE } }),
-    prisma.cotisation.count({ where: { statut: StatutCotisation.EXPIREE } }),
+  // ── 5. Répartition des souscriptions par statut ──────────────────────────
+
+  const [souscActives, souscCompletes, souscAnnulees] = await Promise.all([
+    prisma.souscriptionPack.count({ where: { statut: "ACTIF" } }),
+    prisma.souscriptionPack.count({ where: { statut: "COMPLETE" } }),
+    prisma.souscriptionPack.count({ where: { statut: "ANNULE" } }),
   ]);
 
-  // ── 6. Comparaisons période actuelle vs précédente (pour badges %) ────────
-  const [
-    nouvMembresCurr,
-    nouvMembresPrec,
-    nouvCotisCurr,
-    nouvCotisPrec,
-  ] = await Promise.all([
+  // ── 6. Comparaisons période actuelle vs précédente ───────────────────────
+
+  const [nouvMembresCurr, nouvMembresPrec, versCurr, versPrec] = await Promise.all([
     prisma.user.count({ where: { createdAt: { gte: since } } }),
     prisma.user.count({ where: { createdAt: { gte: prevSince, lt: since } } }),
-    prisma.cotisation.count({ where: { statut: StatutCotisation.PAYEE, datePaiement: { gte: since } } }),
-    prisma.cotisation.count({ where: { statut: StatutCotisation.PAYEE, datePaiement: { gte: prevSince, lt: since } } }),
+    prisma.versementPack.aggregate({ where: { datePaiement: { gte: since } },             _sum: { montant: true } }),
+    prisma.versementPack.aggregate({ where: { datePaiement: { gte: prevSince, lt: since } }, _sum: { montant: true } }),
   ]);
 
-  const ventesCurr = ventesRecentes.reduce((acc, v) => acc + v.quantite * Number(v.prixUnitaire), 0);
-
-  const ventesPrec = await prisma.venteCreditAlimentaire.findMany({
-    where: { createdAt: { gte: prevSince, lt: since } },
-    select: { quantite: true, prixUnitaire: true },
-  });
-  const ventesPrecTotal = ventesPrec.reduce((acc, v) => acc + v.quantite * Number(v.prixUnitaire), 0);
+  const versCurrTotal = Number(versCurr._sum.montant ?? 0);
+  const versPrecTotal = Number(versPrec._sum.montant ?? 0);
 
   // ── 7. Retour ────────────────────────────────────────────────────────────
+
   return {
-    // Compteurs
     membresActifs,
-    tontinesActives,
-    creditsEnCours,
-    achatsCreditAlimentaire: {
-      nombreAchats: Number(nombreAchats.cnt),
-      montantTotal: Number(achatsTotal.total),
+    souscriptionsActives,
+    packsTotal,
+    versementsTotal: {
+      count:   versementsAgg._count.id,
+      montant: Number(versementsAgg._sum.montant ?? 0),
     },
-
-    // Charts
-    evolutionVentes,
-    evolutionCotisations,
-    repartitionCotisations: {
-      enAttente: nbEnAttente,
-      payees: nbPayees,
-      expirees: nbExpirees,
+    evolutionVersements,
+    evolutionSouscriptions,
+    repartitionSouscriptions: {
+      actives:   souscActives,
+      completes: souscCompletes,
+      annulees:  souscAnnulees,
     },
-
-    // % comparaisons (pour les badges sur les stats cards)
     comparaisons: {
-      membres:    { pct: pctChange(nouvMembresCurr, nouvMembresPrec),  positif: isPositiveChange(nouvMembresCurr, nouvMembresPrec) },
-      cotisations:{ pct: pctChange(nouvCotisCurr,   nouvCotisPrec),    positif: isPositiveChange(nouvCotisCurr,   nouvCotisPrec)  },
-      ventes:     { pct: pctChange(ventesCurr,       ventesPrecTotal),  positif: isPositiveChange(ventesCurr,       ventesPrecTotal) },
-      credits:    { pct: "—", positif: true }, // snapshot, pas de comparaison pertinente
+      membres:    { pct: pctChange(nouvMembresCurr, nouvMembresPrec), positif: isPositiveChange(nouvMembresCurr, nouvMembresPrec) },
+      versements: { pct: pctChange(versCurrTotal, versPrecTotal),      positif: isPositiveChange(versCurrTotal, versPrecTotal) },
+      packs:      { pct: "—", positif: true },
     },
   };
 }

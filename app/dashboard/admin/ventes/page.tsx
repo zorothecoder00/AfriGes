@@ -21,7 +21,7 @@ interface LigneReception {
 
 interface Reception {
   id: number;
-  statut: 'PLANIFIEE' | 'LIVREE';
+  statut: 'PLANIFIEE' | 'LIVREE' | 'ANNULEE';
   dateLivraison?: string;
   datePrevisionnelle?: string;
   livreurNom?: string;
@@ -120,6 +120,8 @@ export default function VentesPage() {
 
   // Confirmation livraison (PLANIFIEE → LIVREE)
   const [confirmingId, setConfirmingId] = useState<number | null>(null);
+  // Annulation livraison (PLANIFIEE → ANNULEE)
+  const [cancellingId, setCancellingId] = useState<number | null>(null);
 
   // ── Data ────────────────────────────────────────────────────────────────────
 
@@ -221,6 +223,17 @@ export default function VentesPage() {
       if (res.ok) { refetch(); }
     } finally {
       setConfirmingId(null);
+    }
+  };
+
+  const handleAnnulerLivraison = async (receptionId: number) => {
+    if (cancellingId) return;
+    setCancellingId(receptionId);
+    try {
+      const res = await fetch(`/api/admin/packs/receptions/${receptionId}`, { method: 'DELETE' });
+      if (res.ok) { refetch(); }
+    } finally {
+      setCancellingId(null);
     }
   };
 
@@ -635,11 +648,19 @@ export default function VentesPage() {
                             </span>
                             <button
                               onClick={() => handleConfirmerLivraison(r)}
-                              disabled={confirmingId === r.id}
+                              disabled={confirmingId === r.id || cancellingId === r.id}
                               className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-600 text-white rounded-lg text-xs font-medium hover:bg-emerald-700 disabled:opacity-50 transition-colors"
                             >
                               <CheckCircle size={11} />
                               {confirmingId === r.id ? 'En cours…' : 'Confirmer livraison'}
+                            </button>
+                            <button
+                              onClick={() => handleAnnulerLivraison(r.id)}
+                              disabled={cancellingId === r.id || confirmingId === r.id}
+                              className="inline-flex items-center gap-1 px-2 py-1 bg-red-50 border border-red-200 text-red-700 rounded-lg text-xs font-medium hover:bg-red-100 disabled:opacity-50 transition-colors"
+                            >
+                              <XCircle size={11} />
+                              {cancellingId === r.id ? 'Annulation…' : 'Annuler'}
                             </button>
                           </div>
                         ) : (

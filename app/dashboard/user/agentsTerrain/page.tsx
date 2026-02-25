@@ -5,7 +5,7 @@ import {
   Users, MapPin, Phone, TrendingUp, Clock, CheckCircle,
   AlertCircle, Search, ArrowLeft, RefreshCw, UserPlus,
   Banknote, Calendar, LucideIcon, Layers, Plus, ChevronRight,
-  Loader2,
+  Loader2, Truck, Package,
 } from "lucide-react";
 import Link from "next/link";
 import SignOutButton from "@/components/SignOutButton";
@@ -61,6 +61,35 @@ interface Client {
 interface ClientsResponse {
   data: Client[];
   meta: { total: number; page: number; limit: number; totalPages: number };
+}
+
+interface LigneLivraison {
+  id: number;
+  quantite: number;
+  prixUnitaire: string;
+  produit: { nom: string; prixUnitaire: string };
+}
+
+interface ReceptionPack {
+  id: number;
+  statut: "PLANIFIEE" | "LIVREE";
+  datePrevisionnelle: string;
+  dateLivraison?: string;
+  livreurNom?: string;
+  notes?: string;
+  souscription: {
+    id: number;
+    pack: { nom: string; type: TypePack };
+    client?: { nom: string; prenom: string; telephone: string } | null;
+    user?: { nom: string; prenom: string } | null;
+  };
+  lignes: LigneLivraison[];
+}
+
+interface LivraisonsResponse {
+  planifiees: ReceptionPack[];
+  livreesRecentes: ReceptionPack[];
+  stats: { totalPlanifiees: number; totalLivrees: number };
 }
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
@@ -230,7 +259,7 @@ function ModalCollecte({
 
 // ─── Page principale ──────────────────────────────────────────────────────────
 
-type TabKey = "prospects" | "packs";
+type TabKey = "prospects" | "packs" | "livraisons";
 
 export default function AgentTerrainPage() {
   const [searchQuery, setSearchQuery]   = useState("");
@@ -259,6 +288,25 @@ export default function AgentTerrainPage() {
     useApi<ClientsResponse>(`/api/agentTerrain/clients?${clientParams}`);
   const { data: packsResponse, loading: packsLoading, refetch: refetchPacks } =
     useApi<PacksResponse>(`/api/agentTerrain/packs?${packParams}`);
+  const { data: livraisonsResponse, loading: livraisonsLoading, refetch: refetchLivraisons } =
+    useApi<LivraisonsResponse>("/api/agentTerrain/livraisons");
+
+  const [confirmingId, setConfirmingId] = useState<number | null>(null);
+
+  const { mutate: doConfirm } = useMutation(
+    confirmingId !== null ? `/api/agentTerrain/livraisons/${confirmingId}/confirmer` : "",
+    "POST",
+    { successMessage: "Livraison confirmée !" }
+  );
+
+  useEffect(() => {
+    if (confirmingId === null) return;
+    doConfirm({}).then((res) => {
+      if (res) refetchLivraisons();
+      setConfirmingId(null);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [confirmingId]);
 
   const { mutate: addClient, loading: addingClient } = useMutation(
     "/api/agentTerrain/clients", "POST", { successMessage: "Client ajouté !" }
@@ -290,9 +338,11 @@ export default function AgentTerrainPage() {
     { label: "En retard", value: String(packStats?.enRetard ?? 0), subtitle: "Échéances dépassées", icon: AlertCircle, color: "text-red-500", lightBg: "bg-red-50" },
   ];
 
-  const tabs: { key: TabKey; label: string; icon: LucideIcon }[] = [
-    { key: "packs",     label: "Collecte Packs", icon: Banknote },
-    { key: "prospects", label: "Clients",        icon: Users },
+  const tabs: { key: TabKey; label: string; icon: LucideIcon; badge?: number }[] = [
+    { key: "packs",       label: "Collecte Packs",  icon: Banknote },
+    { key: "livraisons",  label: "Livraisons",       icon: Truck,
+      badge: livraisonsResponse?.stats.totalPlanifiees ?? 0 },
+    { key: "prospects",   label: "Clients",          icon: Users },
   ];
 
   if (clientsLoading && !clientsResponse && !packsResponse) {
@@ -358,6 +408,11 @@ export default function AgentTerrainPage() {
                   activeTab === tab.key ? "bg-teal-600 text-white shadow-lg shadow-teal-200" : "text-slate-600 hover:bg-slate-100"
                 }`}>
                 <Icon size={18} />{tab.label}
+                {tab.badge !== undefined && tab.badge > 0 && (
+                  <span className={`text-xs font-bold px-1.5 py-0.5 rounded-full ${activeTab === tab.key ? "bg-white/20 text-white" : "bg-amber-500 text-white"}`}>
+                    {tab.badge}
+                  </span>
+                )}
               </button>
             );
           })}
@@ -485,6 +540,154 @@ export default function AgentTerrainPage() {
                 </div>
               );
             })}
+          </div>
+        )}
+
+        {/* ── TAB : LIVRAISONS PACKS ── */}
+        {activeTab === "livraisons" && (
+          <div className="space-y-5">
+            {/* Stats */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="bg-white rounded-2xl p-5 shadow-sm border border-amber-200 flex items-center gap-4">
+                <div className="w-12 h-12 bg-amber-50 rounded-xl flex items-center justify-center shrink-0">
+                  <Clock className="w-6 h-6 text-amber-600" />
+                </div>
+                <div>
+                  <p className="text-slate-500 text-sm">À confirmer</p>
+                  <p className="text-3xl font-bold text-amber-600">
+                    {livraisonsResponse?.stats.totalPlanifiees ?? 0}
+                  </p>
+                </div>
+              </div>
+              <div className="bg-white rounded-2xl p-5 shadow-sm border border-emerald-200 flex items-center gap-4">
+                <div className="w-12 h-12 bg-emerald-50 rounded-xl flex items-center justify-center shrink-0">
+                  <CheckCircle className="w-6 h-6 text-emerald-600" />
+                </div>
+                <div>
+                  <p className="text-slate-500 text-sm">Total livrées</p>
+                  <p className="text-3xl font-bold text-emerald-600">
+                    {livraisonsResponse?.stats.totalLivrees ?? 0}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Livraisons planifiées — à confirmer */}
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 overflow-hidden">
+              <div className="px-6 py-4 border-b border-slate-200 bg-amber-50 flex items-center gap-2">
+                <Truck size={18} className="text-amber-600" />
+                <h3 className="font-bold text-slate-800">Livraisons à confirmer</h3>
+                {(livraisonsResponse?.planifiees.length ?? 0) > 0 && (
+                  <span className="bg-amber-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">
+                    {livraisonsResponse!.planifiees.length}
+                  </span>
+                )}
+              </div>
+
+              {livraisonsLoading ? (
+                <div className="p-12 text-center">
+                  <Loader2 className="w-8 h-8 text-teal-500 animate-spin mx-auto" />
+                </div>
+              ) : (livraisonsResponse?.planifiees.length ?? 0) === 0 ? (
+                <div className="p-12 text-center">
+                  <Truck className="w-10 h-10 text-slate-200 mx-auto mb-3" />
+                  <p className="text-slate-500">Aucune livraison planifiée en attente</p>
+                </div>
+              ) : (
+                <div className="divide-y divide-slate-100">
+                  {livraisonsResponse!.planifiees.map((rec) => {
+                    const s = rec.souscription;
+                    const beneficiaire = s.client
+                      ? `${s.client.prenom} ${s.client.nom}`
+                      : s.user ? `${s.user.prenom} ${s.user.nom}` : "—";
+                    const telephone = s.client?.telephone ?? "";
+                    const montantTotal = rec.lignes.reduce(
+                      (acc, l) => acc + Number(l.prixUnitaire) * l.quantite, 0
+                    );
+                    const colors = PACK_COLORS[s.pack.type];
+                    return (
+                      <div key={rec.id} className="p-5 flex items-start justify-between gap-4">
+                        <div className="flex items-start gap-4 flex-1 min-w-0">
+                          <div className="w-10 h-10 bg-amber-50 rounded-xl flex items-center justify-center shrink-0">
+                            <Package className="w-5 h-5 text-amber-600" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1 flex-wrap">
+                              <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${colors.badge}`}>
+                                {PACK_LABELS[s.pack.type]}
+                              </span>
+                              <span className="font-semibold text-slate-800 text-sm">{s.pack.nom}</span>
+                            </div>
+                            <p className="text-sm text-slate-700 font-medium">{beneficiaire}</p>
+                            {telephone && (
+                              <p className="text-xs text-slate-500 flex items-center gap-1 mt-0.5">
+                                <Phone size={11} />{telephone}
+                              </p>
+                            )}
+                            <div className="mt-2 flex flex-wrap gap-2">
+                              {rec.lignes.map((l) => (
+                                <span key={l.id} className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-lg">
+                                  {l.produit.nom} × {l.quantite}
+                                </span>
+                              ))}
+                            </div>
+                            <p className="text-xs text-slate-400 mt-1.5">
+                              Prévu le {formatDate(rec.datePrevisionnelle)} — {
+                                new Intl.NumberFormat("fr-FR", { style: "currency", currency: "XOF" }).format(montantTotal)
+                              }
+                            </p>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => setConfirmingId(rec.id)}
+                          disabled={confirmingId === rec.id}
+                          className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 text-sm font-medium transition-all shadow-md shadow-emerald-200 shrink-0 disabled:opacity-60"
+                        >
+                          <CheckCircle size={15} />
+                          {confirmingId === rec.id ? "En cours…" : "Confirmer"}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Historique récent (LIVREE 30j) */}
+            {(livraisonsResponse?.livreesRecentes.length ?? 0) > 0 && (
+              <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 overflow-hidden">
+                <div className="px-6 py-4 border-b border-slate-200 bg-emerald-50 flex items-center gap-2">
+                  <CheckCircle size={18} className="text-emerald-600" />
+                  <h3 className="font-bold text-slate-800">Confirmées récemment (30j)</h3>
+                </div>
+                <div className="divide-y divide-slate-100">
+                  {livraisonsResponse!.livreesRecentes.map((rec) => {
+                    const s = rec.souscription;
+                    const beneficiaire = s.client
+                      ? `${s.client.prenom} ${s.client.nom}`
+                      : s.user ? `${s.user.prenom} ${s.user.nom}` : "—";
+                    const colors = PACK_COLORS[s.pack.type];
+                    return (
+                      <div key={rec.id} className="px-5 py-3 flex items-center gap-3">
+                        <CheckCircle size={16} className="text-emerald-500 shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className={`text-xs font-semibold px-1.5 py-0.5 rounded-full ${colors.badge}`}>
+                              {PACK_LABELS[s.pack.type]}
+                            </span>
+                            <span className="text-sm font-medium text-slate-800 truncate">{s.pack.nom}</span>
+                            <span className="text-sm text-slate-500">— {beneficiaire}</span>
+                          </div>
+                        </div>
+                        <span className="text-xs text-slate-400 shrink-0">
+                          {rec.dateLivraison ? formatDate(rec.dateLivraison) : "—"}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
         )}
 

@@ -3,7 +3,7 @@
 import React, { useState, useCallback, useEffect } from "react";
 import {
   Briefcase, TrendingUp, ArrowLeft, RefreshCw, DollarSign,
-  PieChart, Users, Calendar, Building2, Clock, CreditCard as CreditCardIcon,
+  PieChart, Users, Calendar, Building2, Clock, Package,
   BarChart3, LucideIcon, FileText, Star, Target, CheckCircle,
   ThumbsUp, ThumbsDown, Minus, ChevronDown, ChevronUp, AlertCircle, Loader2,
 } from "lucide-react";
@@ -17,33 +17,28 @@ import { formatCurrency, formatDate } from "@/lib/format";
 // TYPES
 // ============================================================================
 
-interface VentesResponse {
-  stats: { totalVentes: number; montantTotal: number | string; clientsActifs: number };
-}
-interface StockResponse {
-  stats: { totalProduits: number; enRupture: number; stockFaible: number; valeurTotale: number | string };
-}
-interface CreditsResponse {
-  stats: {
-    totalActifs: number; totalEpuises: number; totalExpires: number;
-    montantTotalPlafond: number | string; montantTotalUtilise: number | string; montantTotalRestant: number | string;
+interface ActionnaireStatsResponse {
+  packsStats: {
+    total: number;
+    parType: Record<string, number>;
+  };
+  souscriptionsStats: {
+    total: number;
+    actives: number;
+    completes: number;
+    annulees: number;
+    montantTotalVerse: number;
+    montantRestant: number;
+  };
+  versementsStats: {
+    count30j: number;
+    montant30j: number;
+  };
+  stockStats: {
+    valeurTotale: number;
+    totalProduits: number;
   };
 }
-interface CotisationsResponse {
-  stats: { totalCotisations: number; montantTotal: number | string; enAttente: number; payees: number };
-}
-
-interface Tontine {
-  id: number;
-  nom: string;
-  description: string | null;
-  montantCycle: string;
-  frequence: string;
-  dateDebut: string;
-  dateFin: string | null;
-  membres: { id: number; client: { id: number; nom: string; prenom: string } }[];
-}
-interface TontinesResponse { data: Tontine[] }
 
 interface Dividende {
   id: number;
@@ -109,6 +104,14 @@ const typeAssembleeLabel: Record<Assemblee["type"], string> = {
   AGO: "AGO", AGE: "AGE", CS: "CS", CA: "CA",
 };
 
+const typePackLabel: Record<string, { label: string; color: string }> = {
+  ALIMENTAIRE: { label: "Alimentaire", color: "bg-emerald-100 text-emerald-700" },
+  REVENDEUR:   { label: "Revendeur",   color: "bg-blue-100 text-blue-700" },
+  FAMILIAL:    { label: "Familial",    color: "bg-purple-100 text-purple-700" },
+  URGENCE:     { label: "Urgence",     color: "bg-red-100 text-red-700" },
+  FIDELITE:    { label: "Fidélité",    color: "bg-amber-100 text-amber-700" },
+};
+
 // ============================================================================
 // SUB-COMPONENTS
 // ============================================================================
@@ -133,15 +136,12 @@ const StatCard = ({ label, value, subtitle, icon: Icon, color, lightBg }: {
 // ============================================================================
 
 export default function ActionnairePage() {
-  const [activeTab, setActiveTab] = useState<"rapports" | "dividendes" | "assemblees" | "projets">("rapports");
+  const [activeTab, setActiveTab] = useState<"rapports" | "dividendes" | "assemblees" | "packs">("rapports");
   const [expandedAssemblee, setExpandedAssemblee] = useState<number | null>(null);
 
-  // ── Données financières ─────────────────────────────────────────────────────
-  const { data: ventesResponse, loading: ventesLoading } = useApi<VentesResponse>("/api/admin/ventes?limit=1");
-  const { data: stockResponse } = useApi<StockResponse>("/api/admin/stock?limit=1");
-  const { data: creditsResponse } = useApi<CreditsResponse>("/api/admin/creditsAlimentaires?limit=1");
-  const { data: cotisationsResponse } = useApi<CotisationsResponse>("/api/admin/cotisations?limit=1");
-  const { data: tontinesResponse, refetch: refetchTontines } = useApi<TontinesResponse>("/api/admin/tontines");
+  // ── Données packs / stats ───────────────────────────────────────────────────
+  const { data: statsResponse, loading: statsLoading, refetch: refetchStats } =
+    useApi<ActionnaireStatsResponse>("/api/actionnaire/stats");
 
   // ── Dividendes ─────────────────────────────────────────────────────────────
   const { data: dividendesResponse, loading: dividendesLoading, refetch: refetchDividendes } =
@@ -151,10 +151,7 @@ export default function ActionnairePage() {
   const { data: assemResponse, loading: assemLoading, refetch: refetchAssemblees } =
     useApi<AssembleesResponse>("/api/actionnaire/assemblees");
 
-  // ── Mutations dynamiques (URL pilotée par état) ────────────────────────────
-  // Pattern : on stocke la cible dans un état ; useEffect déclenche mutate
-  // une fois que le composant s'est re-rendu avec la bonne URL.
-
+  // ── Mutations dynamiques ───────────────────────────────────────────────────
   const [pendingParticiId, setPendingParticiId] = useState<number | null>(null);
   const { mutate: doParticiper, loading: confirmLoading } = useMutation<unknown, Record<string, never>>(
     pendingParticiId !== null
@@ -190,27 +187,22 @@ export default function ActionnairePage() {
   }, [pendingVote]);
 
   // ── Données calculées ──────────────────────────────────────────────────────
-  const ventesStats = ventesResponse?.stats;
-  const stockStats = stockResponse?.stats;
-  const creditsStats = creditsResponse?.stats;
-  const cotisationsStats = cotisationsResponse?.stats;
-  const tontines = tontinesResponse?.data ?? [];
-  const tontinesActives = tontines.filter((t) => !t.dateFin || new Date(t.dateFin) > new Date());
+  const packsStats        = statsResponse?.packsStats;
+  const souscStats        = statsResponse?.souscriptionsStats;
+  const versStats         = statsResponse?.versementsStats;
+  const stockStats        = statsResponse?.stockStats;
 
   const valeurPortefeuille =
-    Number(stockStats?.valeurTotale ?? 0) +
-    Number(cotisationsStats?.montantTotal ?? 0) +
-    Number(creditsStats?.montantTotalPlafond ?? 0);
+    (stockStats?.valeurTotale ?? 0) + (souscStats?.montantTotalVerse ?? 0);
 
-  const dividendes = dividendesResponse?.data ?? [];
-  const totalVerse = dividendesResponse?.totalVerse ?? 0;
-
-  const assemblees = assemResponse?.data ?? [];
+  const dividendes   = dividendesResponse?.data ?? [];
+  const totalVerse   = dividendesResponse?.totalVerse ?? 0;
+  const assemblees   = assemResponse?.data ?? [];
   const gestionnaireId = assemResponse?.gestionnaireId ?? null;
-  const prochaines = assemblees.filter((a) => a.statut !== "TERMINEE" && a.statut !== "ANNULEE");
-  const passees = assemblees.filter((a) => a.statut === "TERMINEE" || a.statut === "ANNULEE");
+  const prochaines   = assemblees.filter((a) => a.statut !== "TERMINEE" && a.statut !== "ANNULEE");
+  const passees      = assemblees.filter((a) => a.statut === "TERMINEE" || a.statut === "ANNULEE");
 
-  const isLoading = ventesLoading && !ventesResponse;
+  const isLoading = statsLoading && !statsResponse;
 
   // ── Handlers ───────────────────────────────────────────────────────────────
   const handleParticiper = useCallback((assembleeId: number) => {
@@ -222,10 +214,10 @@ export default function ActionnairePage() {
   }, []);
 
   const handleRefreshAll = useCallback(() => {
-    refetchTontines();
+    refetchStats();
     refetchDividendes();
     refetchAssemblees();
-  }, [refetchTontines, refetchDividendes, refetchAssemblees]);
+  }, [refetchStats, refetchDividendes, refetchAssemblees]);
 
   if (isLoading) {
     return (
@@ -239,20 +231,20 @@ export default function ActionnairePage() {
   }
 
   const statCards = [
-    { label: "Valeur Portefeuille", value: formatCurrency(valeurPortefeuille), icon: Briefcase, color: "text-indigo-500", lightBg: "bg-indigo-50" },
-    { label: "Revenus Cotisations", value: formatCurrency(cotisationsStats?.montantTotal ?? 0), subtitle: `${cotisationsStats?.totalCotisations ?? 0} cotisations`, icon: DollarSign, color: "text-emerald-500", lightBg: "bg-emerald-50" },
-    { label: "Crédits Actifs", value: String(creditsStats?.totalActifs ?? 0), subtitle: formatCurrency(creditsStats?.montantTotalPlafond ?? 0), icon: CreditCardIcon, color: "text-blue-500", lightBg: "bg-blue-50" },
-    { label: "Tontines Actives", value: String(tontinesActives.length), subtitle: `${tontines.length} au total`, icon: Users, color: "text-purple-500", lightBg: "bg-purple-50" },
+    { label: "Valeur Portefeuille",    value: formatCurrency(valeurPortefeuille),           icon: Briefcase, color: "text-indigo-500", lightBg: "bg-indigo-50" },
+    { label: "Versements (30j)",       value: formatCurrency(versStats?.montant30j ?? 0),   subtitle: `${versStats?.count30j ?? 0} versements`, icon: DollarSign, color: "text-emerald-500", lightBg: "bg-emerald-50" },
+    { label: "Souscriptions Actives",  value: String(souscStats?.actives ?? 0),             subtitle: `${souscStats?.total ?? 0} au total`, icon: Users, color: "text-blue-500", lightBg: "bg-blue-50" },
+    { label: "Packs Catalogue",        value: String(packsStats?.total ?? 0),               subtitle: `${Object.keys(packsStats?.parType ?? {}).length} type(s)`, icon: Package, color: "text-purple-500", lightBg: "bg-purple-50" },
   ];
 
   const tabs = [
-    { key: "rapports" as const, label: "Rapports Financiers", icon: BarChart3 },
-    { key: "dividendes" as const, label: "Dividendes", icon: DollarSign },
-    { key: "assemblees" as const, label: "Assemblées", icon: Calendar },
-    { key: "projets" as const, label: "Projets", icon: Target },
+    { key: "rapports"  as const, label: "Rapports Financiers", icon: BarChart3 },
+    { key: "dividendes" as const, label: "Dividendes",         icon: DollarSign },
+    { key: "assemblees" as const, label: "Assemblées",         icon: Calendar },
+    { key: "packs"     as const, label: "Catalogue Packs",     icon: Package },
   ];
 
-  // ── Render résolutions d'une assemblée ─────────────────────────────────────
+  // ── Render résolutions ─────────────────────────────────────────────────────
   const renderResolutions = (assemblee: Assemblee) => {
     const myParticipation = assemblee.participants[0] ?? null;
     const peutVoter =
@@ -289,22 +281,18 @@ export default function ActionnairePage() {
               {res.description && (
                 <p className="text-xs text-slate-500 mb-3">{res.description}</p>
               )}
-
-              {/* Vote rendu */}
               {monVote && (
                 <div className="flex items-center gap-2 mb-2">
                   <span className="text-xs text-slate-500">Mon vote :</span>
                   <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
-                    monVote.decision === "POUR"       ? "bg-emerald-100 text-emerald-700" :
-                    monVote.decision === "CONTRE"     ? "bg-red-100 text-red-700" :
+                    monVote.decision === "POUR"   ? "bg-emerald-100 text-emerald-700" :
+                    monVote.decision === "CONTRE" ? "bg-red-100 text-red-700" :
                     "bg-slate-100 text-slate-600"
                   }`}>
                     {monVote.decision === "POUR" ? "Pour" : monVote.decision === "CONTRE" ? "Contre" : "Abstention"}
                   </span>
                 </div>
               )}
-
-              {/* Boutons vote */}
               {peutVoter && !monVote && (
                 <div className="flex gap-2 mt-2">
                   <button
@@ -330,9 +318,7 @@ export default function ActionnairePage() {
                   </button>
                 </div>
               )}
-
-              {/* Pas encore invité */}
-              {!myParticipation && peutVoter === false && assemblee.statut !== "TERMINEE" && assemblee.statut !== "ANNULEE" && (
+              {!myParticipation && !peutVoter && assemblee.statut !== "TERMINEE" && assemblee.statut !== "ANNULEE" && (
                 <p className="text-xs text-amber-600 italic mt-1">Vous n&apos;êtes pas encore invité à cette assemblée.</p>
               )}
             </div>
@@ -342,7 +328,7 @@ export default function ActionnairePage() {
     );
   };
 
-  // ── Render une carte d'assemblée ───────────────────────────────────────────
+  // ── Render assemblée ────────────────────────────────────────────────────────
   const renderAssemblee = (assemblee: Assemblee) => {
     const myParticipation = assemblee.participants[0] ?? null;
     const isExpanded = expandedAssemblee === assemblee.id;
@@ -406,7 +392,6 @@ export default function ActionnairePage() {
           </div>
         </div>
 
-        {/* Résolutions expandées */}
         {isExpanded && (
           <div className="px-5 pb-5 border-t border-slate-100">
             {assemblee.ordreJour && (
@@ -495,29 +480,31 @@ export default function ActionnairePage() {
         {/* ================================================================ */}
         {activeTab === "rapports" && (
           <div className="space-y-6">
+            {/* KPIs banner */}
             <div className="bg-gradient-to-br from-indigo-600 to-blue-700 rounded-2xl p-8 text-white shadow-lg shadow-indigo-200">
               <h3 className="text-lg font-semibold text-indigo-100 mb-6">Indicateurs Clés de Performance</h3>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
                 <div>
-                  <p className="text-indigo-200 text-sm">Revenus Cotisations</p>
-                  <p className="text-2xl font-bold mt-1">{formatCurrency(cotisationsStats?.montantTotal ?? 0)}</p>
+                  <p className="text-indigo-200 text-sm">Versements Packs (30j)</p>
+                  <p className="text-2xl font-bold mt-1">{formatCurrency(versStats?.montant30j ?? 0)}</p>
                 </div>
                 <div>
-                  <p className="text-indigo-200 text-sm">Montant Crédits</p>
-                  <p className="text-2xl font-bold mt-1">{formatCurrency(creditsStats?.montantTotalPlafond ?? 0)}</p>
+                  <p className="text-indigo-200 text-sm">Total Encaissé (Packs)</p>
+                  <p className="text-2xl font-bold mt-1">{formatCurrency(souscStats?.montantTotalVerse ?? 0)}</p>
                 </div>
                 <div>
                   <p className="text-indigo-200 text-sm">Valeur Stock</p>
                   <p className="text-2xl font-bold mt-1">{formatCurrency(stockStats?.valeurTotale ?? 0)}</p>
                 </div>
                 <div>
-                  <p className="text-indigo-200 text-sm">Chiffre Ventes</p>
-                  <p className="text-2xl font-bold mt-1">{formatCurrency(ventesStats?.montantTotal ?? 0)}</p>
+                  <p className="text-indigo-200 text-sm">Restant à Percevoir</p>
+                  <p className="text-2xl font-bold mt-1">{formatCurrency(souscStats?.montantRestant ?? 0)}</p>
                 </div>
               </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              {/* Répartition financière */}
               <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 p-6">
                 <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
                   <PieChart size={20} className="text-indigo-600" />
@@ -525,12 +512,11 @@ export default function ActionnairePage() {
                 </h3>
                 <div className="space-y-4">
                   {[
-                    { label: "Cotisations", value: Number(cotisationsStats?.montantTotal ?? 0), color: "bg-emerald-500" },
-                    { label: "Crédits Alimentaires", value: Number(creditsStats?.montantTotalPlafond ?? 0), color: "bg-blue-500" },
-                    { label: "Stock", value: Number(stockStats?.valeurTotale ?? 0), color: "bg-indigo-500" },
-                    { label: "Ventes", value: Number(ventesStats?.montantTotal ?? 0), color: "bg-purple-500" },
+                    { label: "Versements encaissés (packs)", value: souscStats?.montantTotalVerse ?? 0, color: "bg-emerald-500" },
+                    { label: "Restant à percevoir",          value: souscStats?.montantRestant ?? 0,    color: "bg-indigo-500" },
+                    { label: "Valeur Stock",                 value: stockStats?.valeurTotale ?? 0,      color: "bg-blue-500" },
                   ].map((item, i) => {
-                    const total = valeurPortefeuille + Number(ventesStats?.montantTotal ?? 0);
+                    const total = (souscStats?.montantTotalVerse ?? 0) + (souscStats?.montantRestant ?? 0) + (stockStats?.valeurTotale ?? 0);
                     const pct = total > 0 ? (item.value / total) * 100 : 0;
                     return (
                       <div key={i}>
@@ -547,6 +533,7 @@ export default function ActionnairePage() {
                 </div>
               </div>
 
+              {/* Statistiques clés */}
               <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 p-6">
                 <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
                   <TrendingUp size={20} className="text-emerald-600" />
@@ -554,11 +541,12 @@ export default function ActionnairePage() {
                 </h3>
                 <div className="space-y-3">
                   {[
-                    { label: "Total Ventes", value: ventesStats?.totalVentes ?? 0 },
-                    { label: "Produits en Stock", value: stockStats?.totalProduits ?? 0 },
-                    { label: "Cotisations Payées", value: cotisationsStats?.payees ?? 0 },
-                    { label: "Crédits Actifs", value: creditsStats?.totalActifs ?? 0 },
-                    { label: "Tontines Actives", value: tontinesActives.length },
+                    { label: "Versements ce mois",       value: versStats?.count30j ?? 0 },
+                    { label: "Souscriptions actives",    value: souscStats?.actives ?? 0 },
+                    { label: "Souscriptions complètes",  value: souscStats?.completes ?? 0 },
+                    { label: "Souscriptions annulées",   value: souscStats?.annulees ?? 0 },
+                    { label: "Produits en stock",        value: stockStats?.totalProduits ?? 0 },
+                    { label: "Packs au catalogue",       value: packsStats?.total ?? 0 },
                   ].map((row, i) => (
                     <div key={i} className="flex items-center justify-between py-2.5 border-b border-slate-100 last:border-0">
                       <span className="text-slate-600 text-sm">{row.label}</span>
@@ -662,7 +650,6 @@ export default function ActionnairePage() {
         {/* ================================================================ */}
         {activeTab === "assemblees" && (
           <div className="space-y-6">
-            {/* Prochaines */}
             <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 p-6">
               <div className="flex items-center justify-between mb-5">
                 <h3 className="font-bold text-slate-800 flex items-center gap-2">
@@ -687,7 +674,6 @@ export default function ActionnairePage() {
               )}
             </div>
 
-            {/* Passées */}
             {passees.length > 0 && (
               <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 p-6">
                 <h3 className="font-bold text-slate-700 flex items-center gap-2 mb-5">
@@ -720,69 +706,82 @@ export default function ActionnairePage() {
         )}
 
         {/* ================================================================ */}
-        {/* TAB: Projets (Tontines)                                           */}
+        {/* TAB: Catalogue Packs                                              */}
         {/* ================================================================ */}
-        {activeTab === "projets" && (
+        {activeTab === "packs" && (
           <div className="space-y-6">
-            <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl p-6 text-white shadow-lg shadow-purple-200">
+            {/* Bannière résumé */}
+            <div className="bg-gradient-to-br from-purple-500 to-indigo-600 rounded-2xl p-6 text-white shadow-lg shadow-purple-200">
               <div className="flex items-center gap-3 mb-3">
                 <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
-                  <Target size={24} />
+                  <Package size={24} />
                 </div>
                 <div>
-                  <p className="text-purple-100 text-sm">Tontines Actives</p>
-                  <p className="text-3xl font-bold">{tontinesActives.length}</p>
+                  <p className="text-purple-100 text-sm">Packs au Catalogue</p>
+                  <p className="text-3xl font-bold">{packsStats?.total ?? 0}</p>
                 </div>
               </div>
               <p className="text-purple-100 text-sm">
-                {tontines.length} tontines au total — {tontines.reduce((sum, t) => sum + t.membres.length, 0)} membres
+                {souscStats?.total ?? 0} souscriptions au total —{" "}
+                {souscStats?.actives ?? 0} actives
               </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              {tontines.map((tontine) => {
-                const isActive = !tontine.dateFin || new Date(tontine.dateFin) > new Date();
-                return (
-                  <div key={tontine.id} className="bg-white rounded-2xl shadow-sm border border-slate-200/60 p-6 hover:shadow-md transition-all">
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="flex items-center gap-3">
-                        <div className={`${isActive ? "bg-purple-100" : "bg-slate-100"} rounded-xl p-3`}>
-                          <Users className={`${isActive ? "text-purple-600" : "text-slate-400"} w-6 h-6`} />
-                        </div>
-                        <div>
-                          <h4 className="font-bold text-slate-800">{tontine.nom}</h4>
-                          {tontine.description && (
-                            <p className="text-xs text-slate-500 mt-0.5">{tontine.description}</p>
-                          )}
-                        </div>
+            {/* Répartition par type */}
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 p-6">
+              <h3 className="font-bold text-slate-800 mb-5 flex items-center gap-2">
+                <BarChart3 size={20} className="text-purple-600" />
+                Répartition des Packs par Type
+              </h3>
+              {Object.keys(packsStats?.parType ?? {}).length === 0 ? (
+                <div className="text-center py-10">
+                  <Package className="w-12 h-12 text-slate-300 mx-auto mb-4" />
+                  <p className="text-slate-500">Aucun pack dans le catalogue</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+                  {Object.entries(packsStats?.parType ?? {}).map(([type, count]) => {
+                    const meta = typePackLabel[type] ?? { label: type, color: "bg-slate-100 text-slate-700" };
+                    return (
+                      <div key={type} className={`${meta.color} rounded-2xl p-5 text-center`}>
+                        <p className="text-3xl font-black">{count}</p>
+                        <p className="text-sm font-semibold mt-1">{meta.label}</p>
                       </div>
-                      <span className={`px-3 py-1 rounded-full text-xs font-bold ${isActive ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-600"}`}>
-                        {isActive ? "Active" : "Terminée"}
-                      </span>
-                    </div>
-                    <div className="space-y-2">
-                      {[
-                        { label: "Montant/cycle", value: formatCurrency(tontine.montantCycle) },
-                        { label: "Fréquence", value: tontine.frequence },
-                        { label: "Membres", value: String(tontine.membres.length) },
-                        { label: "Début", value: formatDate(tontine.dateDebut) },
-                        ...(tontine.dateFin ? [{ label: "Fin", value: formatDate(tontine.dateFin) }] : []),
-                      ].map((row, i) => (
-                        <div key={i} className="flex justify-between text-sm">
-                          <span className="text-slate-600">{row.label}</span>
-                          <span className="font-semibold text-slate-800">{row.value}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                );
-              })}
-              {tontines.length === 0 && (
-                <div className="col-span-full bg-white rounded-2xl p-12 text-center shadow-sm border border-slate-200">
-                  <Target className="w-12 h-12 text-slate-300 mx-auto mb-4" />
-                  <p className="text-slate-500">Aucune tontine enregistrée</p>
+                    );
+                  })}
                 </div>
               )}
+            </div>
+
+            {/* Souscriptions par statut */}
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 p-6">
+              <h3 className="font-bold text-slate-800 mb-5 flex items-center gap-2">
+                <Target size={20} className="text-indigo-600" />
+                Souscriptions — Vue d&apos;ensemble
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+                {[
+                  { label: "Actives",   count: souscStats?.actives ?? 0,   extra: "En cours de versement", bg: "bg-emerald-50 border-emerald-200", cls: "text-emerald-700" },
+                  { label: "Complètes", count: souscStats?.completes ?? 0,  extra: "Entièrement réglées",   bg: "bg-slate-50 border-slate-200",    cls: "text-slate-700" },
+                  { label: "Annulées",  count: souscStats?.annulees ?? 0,   extra: "Non poursuivies",       bg: "bg-red-50 border-red-200",        cls: "text-red-700" },
+                ].map((item, i) => (
+                  <div key={i} className={`${item.bg} rounded-xl p-5 border`}>
+                    <p className={`text-3xl font-bold ${item.cls}`}>{item.count}</p>
+                    <p className={`font-semibold ${item.cls} mt-1`}>{item.label}</p>
+                    <p className="text-xs text-slate-500 mt-1">{item.extra}</p>
+                  </div>
+                ))}
+              </div>
+              <div className="grid grid-cols-2 gap-3 text-center bg-slate-50 rounded-xl p-4">
+                <div>
+                  <p className="text-slate-500 text-xs">Total versé (tous packs)</p>
+                  <p className="font-bold text-slate-800 text-lg">{formatCurrency(souscStats?.montantTotalVerse ?? 0)}</p>
+                </div>
+                <div>
+                  <p className="text-slate-500 text-xs">Restant à percevoir</p>
+                  <p className="font-bold text-emerald-600 text-lg">{formatCurrency(souscStats?.montantRestant ?? 0)}</p>
+                </div>
+              </div>
             </div>
           </div>
         )}

@@ -5,8 +5,7 @@ import {
   Calculator, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight,
   ArrowLeft, RefreshCw, Download, Search, ChevronLeft, ChevronRight,
   FileText, BarChart3, BookOpen, Wallet, Package, Calendar,
-  ShoppingCart, CreditCard, Banknote, Users, Coins, AlertCircle,
-  CheckCircle, Clock, Filter, X,
+  AlertCircle, CheckCircle, Filter, X, Users,
 } from "lucide-react";
 import Link from "next/link";
 import SignOutButton from "@/components/SignOutButton";
@@ -23,40 +22,37 @@ interface SyntheseResponse {
   data: {
     periode: { debut: string; fin: string; jours: number };
     encaissements: {
-      cotisations:            { montant: number; count: number };
-      contributions_tontines: { montant: number; count: number };
-      remboursements_credits: { montant: number };
+      versements_packs: { montant: number; count: number };
+      cotisations_init: { montant: number; count: number };
+      versements_peri:  { montant: number; count: number };
+      remboursements:   { montant: number; count: number };
+      autres:           { montant: number; count: number };
       total: number;
-    };
-    activiteProduits: {
-      ventes: { montant: number; count: number };
     };
     decaissements: {
       approvisionnements: { montant: number; count: number };
-      credits_decaisses:  { montant: number };
-      pots_tontines:      { montant: number };
       total: number;
     };
     resultat_net: number;
     taux_utilisation: number;
     evolution: EvolutionPoint[];
     snapshot: {
-      stock:          { valeur: number; nombreProduits: number };
-      membresActifs:  number;
-      tontinesActives: number;
-      creditsEnCours: number;
+      stock:                { valeur: number; nombreProduits: number };
+      souscriptionsActives: number;
+      packs:                number;
+      versementsTotal:      number;
     };
   };
 }
 
 interface JournalEntry {
-  id: string;
-  sourceId: number;
-  date: string;
-  type: "ENCAISSEMENT" | "DECAISSEMENT" | "ACTIVITE";
+  id:        string;
+  sourceId:  number;
+  date:      string;
+  type:      "ENCAISSEMENT" | "DECAISSEMENT";
   categorie: string;
-  libelle: string;
-  montant: number;
+  libelle:   string;
+  montant:   number;
   reference: string;
 }
 
@@ -73,29 +69,26 @@ interface EtatsFinanciersResponse {
     annee: number;
     bilan: {
       actif: {
-        stock:               { valeur: number; nombreProduits: number };
-        creancesCotisations: { valeur: number; count: number };
-        creditsAlimentaires: { valeur: number; count: number };
-        creditsFinanciers:   { valeur: number; count: number };
+        stock:         { valeur: number; nombreProduits: number };
+        creancesPacks: { valeur: number; count: number };
         total: number;
       };
       passif: {
-        engagementsTontines: { valeur: number; count: number };
-        creditsAlimAlloues:  { valeur: number };
-        capitauxPropres:     number;
+        engagementsPacks: { valeur: number; count: number };
+        capitauxPropres:  number;
         total: number;
       };
     };
     compteResultat: {
-      produits: { ventes: number; cotisationsCollectees: number; contributionsTontines: number; remboursementsCredits: number; total: number };
-      charges:  { approvisionnements: number; creditsDecaisses: number; potsTontinesVerses: number; total: number };
+      produits: { versementsCollectes: number; total: number };
+      charges:  { approvisionnements: number; total: number };
       resultatNet: number;
     };
     ratios: {
       tauxRecouvrement: number;
-      tauxUtilisationCreditsAlim: number;
-      margeNette: number;
-      ratioCharges: number;
+      tauxCompletion:   number;
+      margeNette:       number;
+      ratioCharges:     number;
     };
   };
 }
@@ -112,8 +105,8 @@ function buildLine(pts: { x: number; y: number }[]): string {
 
 function buildArea(pts: { x: number; y: number }[]): string {
   if (pts.length === 0) return "";
-  const line = buildLine(pts);
-  const last = pts[pts.length - 1];
+  const line  = buildLine(pts);
+  const last  = pts[pts.length - 1];
   const first = pts[0];
   return `${line} L ${(last.x * VB_W).toFixed(1)} ${VB_H} L ${(first.x * VB_W).toFixed(1)} ${VB_H} Z`;
 }
@@ -192,23 +185,21 @@ function BilanRow({ label, sub, valeur, type }: {
 }
 
 const CAT_META: Record<string, { label: string; color: string; bg: string; icon: React.ElementType }> = {
-  VENTE:                { label: "Ventes",               color: "text-emerald-600", bg: "bg-emerald-100", icon: ShoppingCart },
-  COTISATION:           { label: "Cotisations",           color: "text-blue-600",   bg: "bg-blue-100",   icon: Calendar },
-  CONTRIBUTION_TONTINE: { label: "Contributions tontine", color: "text-violet-600", bg: "bg-violet-100", icon: Coins },
-  REMBOURSEMENT_CREDIT: { label: "Remb. crédit",          color: "text-teal-600",   bg: "bg-teal-100",   icon: TrendingUp },
-  APPROVISIONNEMENT:    { label: "Approvisionnement",     color: "text-orange-600", bg: "bg-orange-100", icon: Package },
-  CREDIT_DECAISSE:      { label: "Crédit décaissé",       color: "text-red-600",    bg: "bg-red-100",    icon: CreditCard },
-  POT_TONTINE:          { label: "Pot tontine versé",     color: "text-pink-600",   bg: "bg-pink-100",   icon: Banknote },
+  COTISATION_INITIALE:  { label: "Acompte initial",      color: "text-blue-600",    bg: "bg-blue-100",    icon: Calendar },
+  VERSEMENT_PERIODIQUE: { label: "Versement périodique", color: "text-emerald-600", bg: "bg-emerald-100", icon: TrendingUp },
+  REMBOURSEMENT:        { label: "Remboursement",        color: "text-teal-600",    bg: "bg-teal-100",    icon: CheckCircle },
+  VERSEMENT_PACK:       { label: "Bonus / Ajustement",   color: "text-violet-600",  bg: "bg-violet-100",  icon: BookOpen },
+  APPROVISIONNEMENT:    { label: "Approvisionnement",    color: "text-orange-600",  bg: "bg-orange-100",  icon: Package },
 };
 
 // ── Main Page ─────────────────────────────────────────────────────────────
 
 type Period = "7" | "30" | "90" | "365";
-type Tab = "synthese" | "journal" | "tresorerie" | "etats";
+type Tab    = "synthese" | "journal" | "tresorerie" | "etats";
 
 export default function ComptablePage() {
   const [selectedPeriod, setSelectedPeriod] = useState<Period>("30");
-  const [activeTab, setActiveTab] = useState<Tab>("synthese");
+  const [activeTab, setActiveTab]           = useState<Tab>("synthese");
 
   // Journal state
   const [journalPage, setJournalPage]           = useState(1);
@@ -290,16 +281,15 @@ export default function ComptablePage() {
     );
   }
 
-  const enc = sd?.encaissements;
-  const act = sd?.activiteProduits;
-  const dec = sd?.decaissements;
+  const enc  = sd?.encaissements;
+  const dec  = sd?.decaissements;
   const snap = sd?.snapshot;
 
   const tabs: { key: Tab; label: string; icon: React.ElementType }[] = [
-    { key: "synthese",   label: "Synthèse",          icon: BarChart3  },
-    { key: "journal",    label: "Journal",            icon: BookOpen   },
-    { key: "tresorerie", label: "Trésorerie",         icon: Wallet     },
-    { key: "etats",      label: "États Financiers",   icon: FileText   },
+    { key: "synthese",   label: "Synthèse",        icon: BarChart3 },
+    { key: "journal",    label: "Journal",          icon: BookOpen  },
+    { key: "tresorerie", label: "Trésorerie",       icon: Wallet    },
+    { key: "etats",      label: "États Financiers", icon: FileText  },
   ];
 
   return (
@@ -365,13 +355,13 @@ export default function ComptablePage() {
           <KpiCard
             label="Total Encaissements"
             value={enc ? formatCurrency(enc.total) : "…"}
-            sub={`${enc?.cotisations.count ?? 0} cotisations · ${enc?.contributions_tontines.count ?? 0} contributions`}
+            sub={`${enc?.versements_packs.count ?? 0} versements packs collectés`}
             icon={TrendingUp} color="text-emerald-600" bg="bg-emerald-50" trend="up"
           />
           <KpiCard
             label="Total Décaissements"
             value={dec ? formatCurrency(dec.total) : "…"}
-            sub={`Dont appro : ${formatCurrency(dec?.approvisionnements.montant ?? 0)}`}
+            sub={`Approvisionnements : ${dec?.approvisionnements.count ?? 0} entrées`}
             icon={TrendingDown} color="text-red-500" bg="bg-red-50" trend="down"
           />
           <KpiCard
@@ -386,7 +376,7 @@ export default function ComptablePage() {
           <KpiCard
             label="Valeur du Stock"
             value={snap ? formatCurrency(snap.stock.valeur) : "…"}
-            sub={`${snap?.stock.nombreProduits ?? 0} produits — ${snap?.membresActifs ?? 0} membres actifs`}
+            sub={`${snap?.stock.nombreProduits ?? 0} produits — ${snap?.souscriptionsActives ?? 0} souscriptions actives`}
             icon={Package} color="text-blue-600" bg="bg-blue-50"
           />
         </div>
@@ -490,30 +480,39 @@ export default function ComptablePage() {
                   <div className="w-2 h-2 rounded-full bg-emerald-500" />
                   <h3 className="font-bold text-slate-800">Détail Encaissements</h3>
                 </div>
-                <p className="text-xs text-slate-400 mb-2">Cash réellement reçu</p>
+                <p className="text-xs text-slate-400 mb-2">Versements packs collectés</p>
                 <p className="text-2xl font-bold text-emerald-600 mb-5">{formatCurrency(enc?.total ?? 0)}</p>
                 <div className="space-y-1 divide-y divide-slate-100">
-                  <BarBreakdown label={`Cotisations (${enc?.cotisations.count ?? 0})`} montant={enc?.cotisations.montant ?? 0}             total={enc?.total ?? 1} color="bg-blue-500" />
-                  <BarBreakdown label={`Contributions tontines (${enc?.contributions_tontines.count ?? 0})`} montant={enc?.contributions_tontines.montant ?? 0} total={enc?.total ?? 1} color="bg-violet-500" />
-                  <BarBreakdown label="Remboursements crédits"                          montant={enc?.remboursements_credits.montant ?? 0} total={enc?.total ?? 1} color="bg-teal-500" />
+                  <BarBreakdown label={`Acomptes initiaux (${enc?.cotisations_init.count ?? 0})`}     montant={enc?.cotisations_init.montant ?? 0} total={enc?.total ?? 1} color="bg-blue-500" />
+                  <BarBreakdown label={`Versements périodiques (${enc?.versements_peri.count ?? 0})`} montant={enc?.versements_peri.montant ?? 0}  total={enc?.total ?? 1} color="bg-emerald-500" />
+                  <BarBreakdown label={`Remboursements (${enc?.remboursements.count ?? 0})`}           montant={enc?.remboursements.montant ?? 0}   total={enc?.total ?? 1} color="bg-teal-500" />
+                  <BarBreakdown label={`Bonus / Ajust. (${enc?.autres.count ?? 0})`}                  montant={enc?.autres.montant ?? 0}           total={enc?.total ?? 1} color="bg-violet-500" />
                 </div>
               </div>
 
-              {/* Activité Produits */}
+              {/* Activité Packs */}
               <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/60">
                 <div className="flex items-center gap-2 mb-1">
                   <div className="w-2 h-2 rounded-full bg-blue-500" />
-                  <h3 className="font-bold text-slate-800">Activité Produits</h3>
+                  <h3 className="font-bold text-slate-800">Activité Packs</h3>
                 </div>
-                <p className="text-xs text-slate-400 mb-2">Consommation de crédits pré-financés</p>
-                <p className="text-2xl font-bold text-blue-600 mb-5">{formatCurrency(act?.ventes.montant ?? 0)}</p>
-                <div className="space-y-1 divide-y divide-slate-100">
-                  <BarBreakdown label={`Ventes crédit alim. (${act?.ventes.count ?? 0})`} montant={act?.ventes.montant ?? 0} total={act?.ventes.montant ?? 1} color="bg-blue-500" />
-                </div>
-                <div className="mt-4 p-3 bg-blue-50 rounded-xl border border-blue-200">
-                  <p className="text-xs text-blue-700 leading-relaxed">
-                    Ces ventes consomment des crédits pré-financés par les cotisations. Elles ne représentent pas un nouvel encaissement de trésorerie.
-                  </p>
+                <p className="text-xs text-slate-400 mb-2">Versements collectés sur la période</p>
+                <p className="text-2xl font-bold text-blue-600 mb-5">{enc?.versements_packs.count ?? 0} versements</p>
+                <div className="space-y-0 divide-y divide-slate-100">
+                  {[
+                    { label: "Acomptes initiaux",   count: enc?.cotisations_init.count ?? 0, montant: enc?.cotisations_init.montant ?? 0 },
+                    { label: "Versements pério.",    count: enc?.versements_peri.count ?? 0,  montant: enc?.versements_peri.montant ?? 0 },
+                    { label: "Remboursements",       count: enc?.remboursements.count ?? 0,   montant: enc?.remboursements.montant ?? 0 },
+                    { label: "Bonus / Ajustements",  count: enc?.autres.count ?? 0,           montant: enc?.autres.montant ?? 0 },
+                  ].map((item) => (
+                    <div key={item.label} className="flex justify-between items-center py-3">
+                      <span className="text-sm text-slate-600">{item.label}</span>
+                      <div className="text-right">
+                        <p className="text-sm font-bold text-slate-800">{formatCurrency(item.montant)}</p>
+                        <p className="text-xs text-slate-400">{item.count} opé.</p>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
 
@@ -525,9 +524,12 @@ export default function ComptablePage() {
                 </div>
                 <p className="text-2xl font-bold text-red-500 mb-5">{formatCurrency(dec?.total ?? 0)}</p>
                 <div className="space-y-1 divide-y divide-slate-100">
-                  <BarBreakdown label={`Approvisionnements (${dec?.approvisionnements.count ?? 0})`} montant={dec?.approvisionnements.montant ?? 0} total={dec?.total ?? 1} color="bg-orange-500" />
-                  <BarBreakdown label="Crédits décaissés"   montant={dec?.credits_decaisses.montant ?? 0}  total={dec?.total ?? 1} color="bg-red-500" />
-                  <BarBreakdown label="Pots tontines versés" montant={dec?.pots_tontines.montant ?? 0}      total={dec?.total ?? 1} color="bg-pink-500" />
+                  <BarBreakdown
+                    label={`Approvisionnements (${dec?.approvisionnements.count ?? 0})`}
+                    montant={dec?.approvisionnements.montant ?? 0}
+                    total={dec?.total ?? 1}
+                    color="bg-orange-500"
+                  />
                 </div>
 
                 {/* Résultat net */}
@@ -545,10 +547,10 @@ export default function ComptablePage() {
             {/* Indicateurs snapshot */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               {[
-                { label: "Membres actifs",    value: snap?.membresActifs ?? 0,   icon: Users,    color: "text-blue-600",   bg: "bg-blue-50" },
-                { label: "Tontines actives",  value: snap?.tontinesActives ?? 0, icon: Coins,    color: "text-violet-600", bg: "bg-violet-50" },
-                { label: "Crédits en cours",  value: snap?.creditsEnCours ?? 0,  icon: CreditCard, color: "text-amber-600", bg: "bg-amber-50" },
-                { label: "Produits en stock", value: snap?.stock.nombreProduits ?? 0, icon: Package, color: "text-slate-600", bg: "bg-slate-100" },
+                { label: "Souscriptions actives", value: snap?.souscriptionsActives ?? 0, icon: Users,       color: "text-blue-600",    bg: "bg-blue-50" },
+                { label: "Packs disponibles",     value: snap?.packs ?? 0,               icon: BookOpen,    color: "text-violet-600",  bg: "bg-violet-50" },
+                { label: "Versements collectés",  value: snap?.versementsTotal ?? 0,     icon: CheckCircle, color: "text-emerald-600", bg: "bg-emerald-50" },
+                { label: "Produits en stock",     value: snap?.stock.nombreProduits ?? 0, icon: Package,    color: "text-slate-600",   bg: "bg-slate-100" },
               ].map((item) => (
                 <div key={item.label} className="bg-white rounded-xl p-4 shadow-sm border border-slate-200/60 flex items-center gap-3">
                   <div className={`${item.bg} p-2.5 rounded-xl`}><item.icon className={`${item.color} w-5 h-5`} /></div>
@@ -593,7 +595,6 @@ export default function ComptablePage() {
                   <option value="TOUS">Tous les types</option>
                   <option value="ENCAISSEMENT">Encaissements</option>
                   <option value="DECAISSEMENT">Décaissements</option>
-                  <option value="ACTIVITE">Activité produits</option>
                 </select>
 
                 {/* Catégorie */}
@@ -626,19 +627,12 @@ export default function ComptablePage() {
 
             {/* Totaux du filtre */}
             {journalData && (
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                 <div className="bg-emerald-50 rounded-xl p-4 border border-emerald-200 flex items-center gap-3">
                   <ArrowUpRight className="w-5 h-5 text-emerald-600 flex-shrink-0" />
                   <div>
                     <p className="text-xs text-emerald-700 font-medium">Encaissements filtrés</p>
                     <p className="text-lg font-bold text-emerald-700">{formatCurrency(journalData.totaux.encaissements)}</p>
-                  </div>
-                </div>
-                <div className="bg-blue-50 rounded-xl p-4 border border-blue-200 flex items-center gap-3">
-                  <ShoppingCart className="w-5 h-5 text-blue-600 flex-shrink-0" />
-                  <div>
-                    <p className="text-xs text-blue-700 font-medium">Activité produits filtrée</p>
-                    <p className="text-lg font-bold text-blue-700">{formatCurrency(journalData.totaux.activite ?? 0)}</p>
                   </div>
                 </div>
                 <div className="bg-red-50 rounded-xl p-4 border border-red-200 flex items-center gap-3">
@@ -685,7 +679,7 @@ export default function ComptablePage() {
                     </thead>
                     <tbody className="divide-y divide-slate-100">
                       {(journalData?.data ?? []).map((entry) => {
-                        const meta = CAT_META[entry.categorie] ?? { label: entry.categorie, color: "text-slate-600", bg: "bg-slate-100", icon: Filter };
+                        const meta    = CAT_META[entry.categorie] ?? { label: entry.categorie, color: "text-slate-600", bg: "bg-slate-100", icon: Filter };
                         const CatIcon = meta.icon;
                         return (
                           <tr key={entry.id} className="hover:bg-slate-50 transition-colors">
@@ -699,20 +693,16 @@ export default function ComptablePage() {
                             </td>
                             <td className="px-5 py-3">
                               <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold ${
-                                entry.type === "ENCAISSEMENT" ? "bg-emerald-100 text-emerald-700"
-                                  : entry.type === "ACTIVITE" ? "bg-blue-100 text-blue-700"
-                                  : "bg-red-100 text-red-700"
+                                entry.type === "ENCAISSEMENT" ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"
                               }`}>
-                                {entry.type === "ENCAISSEMENT" ? <ArrowUpRight size={11} /> : entry.type === "ACTIVITE" ? <ShoppingCart size={11} /> : <ArrowDownRight size={11} />}
-                                {entry.type === "ENCAISSEMENT" ? "Encaiss." : entry.type === "ACTIVITE" ? "Activité" : "Décaiss."}
+                                {entry.type === "ENCAISSEMENT" ? <ArrowUpRight size={11} /> : <ArrowDownRight size={11} />}
+                                {entry.type === "ENCAISSEMENT" ? "Encaiss." : "Décaiss."}
                               </span>
                             </td>
                             <td className={`px-5 py-3 text-right font-bold ${
-                              entry.type === "ENCAISSEMENT" ? "text-emerald-600"
-                                : entry.type === "ACTIVITE" ? "text-blue-600"
-                                : "text-red-600"
+                              entry.type === "ENCAISSEMENT" ? "text-emerald-600" : "text-red-600"
                             }`}>
-                              {entry.type === "ENCAISSEMENT" ? "+" : entry.type === "ACTIVITE" ? "~" : "-"}{formatCurrency(entry.montant)}
+                              {entry.type === "ENCAISSEMENT" ? "+" : "-"}{formatCurrency(entry.montant)}
                             </td>
                           </tr>
                         );
@@ -765,10 +755,10 @@ export default function ComptablePage() {
                   </div>
                 </div>
                 <div className="text-xs text-emerald-100 space-y-0.5">
-                  <p>Cotisations : {formatCurrency(enc?.cotisations.montant ?? 0)}</p>
-                  <p>Contributions : {formatCurrency(enc?.contributions_tontines.montant ?? 0)}</p>
-                  <p>Remboursements : {formatCurrency(enc?.remboursements_credits.montant ?? 0)}</p>
-                  <p className="mt-1 opacity-70">+ Activité produits : {formatCurrency(act?.ventes.montant ?? 0)}</p>
+                  <p>Acomptes initiaux : {formatCurrency(enc?.cotisations_init.montant ?? 0)}</p>
+                  <p>Versements périodiques : {formatCurrency(enc?.versements_peri.montant ?? 0)}</p>
+                  <p>Remboursements : {formatCurrency(enc?.remboursements.montant ?? 0)}</p>
+                  <p className="opacity-70">Bonus / Ajustements : {formatCurrency(enc?.autres.montant ?? 0)}</p>
                 </div>
               </div>
 
@@ -782,8 +772,7 @@ export default function ComptablePage() {
                 </div>
                 <div className="text-xs text-red-100 space-y-0.5">
                   <p>Approvisionnements : {formatCurrency(dec?.approvisionnements.montant ?? 0)}</p>
-                  <p>Crédits décaissés : {formatCurrency(dec?.credits_decaisses.montant ?? 0)}</p>
-                  <p>Pots tontines : {formatCurrency(dec?.pots_tontines.montant ?? 0)}</p>
+                  <p className="opacity-70">{dec?.approvisionnements.count ?? 0} entrées en stock</p>
                 </div>
               </div>
 
@@ -802,28 +791,30 @@ export default function ComptablePage() {
               </div>
             </div>
 
-            {/* Détail encaissements */}
+            {/* Détail */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+              {/* Encaissements par type */}
               <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/60">
                 <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
-                  <ArrowUpRight size={20} className="text-emerald-600" />Encaissements par source
+                  <ArrowUpRight size={20} className="text-emerald-600" />Encaissements par type de versement
                 </h3>
                 {[
-                  { label: `Cotisations payées (${enc?.cotisations.count ?? 0})`,                montant: enc?.cotisations.montant ?? 0,             icon: Calendar,     color: "bg-blue-500",   text: "text-blue-600" },
-                  { label: `Contributions tontines (${enc?.contributions_tontines.count ?? 0})`, montant: enc?.contributions_tontines.montant ?? 0,  icon: Coins,        color: "bg-violet-500", text: "text-violet-600" },
-                  { label: "Remboursements crédits",                                              montant: enc?.remboursements_credits.montant ?? 0, icon: TrendingUp,   color: "bg-teal-500",   text: "text-teal-600" },
+                  { label: `Acomptes initiaux (${enc?.cotisations_init.count ?? 0})`,     montant: enc?.cotisations_init.montant ?? 0, icon: Calendar,    color: "bg-blue-100",    text: "text-blue-600",    bar: "bg-blue-500" },
+                  { label: `Versements périodiques (${enc?.versements_peri.count ?? 0})`,  montant: enc?.versements_peri.montant ?? 0,  icon: TrendingUp,  color: "bg-emerald-100", text: "text-emerald-600", bar: "bg-emerald-500" },
+                  { label: `Remboursements (${enc?.remboursements.count ?? 0})`,           montant: enc?.remboursements.montant ?? 0,   icon: CheckCircle, color: "bg-teal-100",    text: "text-teal-600",    bar: "bg-teal-500" },
+                  { label: `Bonus / Ajust. (${enc?.autres.count ?? 0})`,                  montant: enc?.autres.montant ?? 0,           icon: BookOpen,    color: "bg-violet-100",  text: "text-violet-600",  bar: "bg-violet-500" },
                 ].map((item) => {
-                  const pct = (enc?.total ?? 0) > 0 ? Math.round((item.montant / (enc?.total ?? 1)) * 100) : 0;
+                  const pct  = (enc?.total ?? 0) > 0 ? Math.round((item.montant / (enc?.total ?? 1)) * 100) : 0;
                   const Icon = item.icon;
                   return (
                     <div key={item.label} className="flex items-center gap-3 py-3 border-b border-slate-100 last:border-0">
-                      <div className={`${item.color.replace("bg-", "bg-").replace("500", "100")} p-2 rounded-lg`}>
+                      <div className={`${item.color} p-2 rounded-lg`}>
                         <Icon className={`${item.text} w-4 h-4`} />
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm text-slate-600 truncate">{item.label}</p>
                         <div className="h-1.5 bg-slate-100 rounded-full mt-1.5 overflow-hidden">
-                          <div className={`h-full ${item.color} rounded-full`} style={{ width: `${pct}%` }} />
+                          <div className={`h-full ${item.bar} rounded-full`} style={{ width: `${pct}%` }} />
                         </div>
                       </div>
                       <div className="text-right flex-shrink-0">
@@ -835,27 +826,25 @@ export default function ComptablePage() {
                 })}
               </div>
 
-              {/* Détail décaissements */}
+              {/* Décaissements par destination */}
               <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/60">
                 <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
                   <ArrowDownRight size={20} className="text-red-600" />Décaissements par destination
                 </h3>
                 {[
-                  { label: `Approvisionnements stock (${dec?.approvisionnements.count ?? 0})`, montant: dec?.approvisionnements.montant ?? 0, icon: Package,    color: "bg-orange-500", text: "text-orange-600" },
-                  { label: "Crédits décaissés aux membres",                                      montant: dec?.credits_decaisses.montant ?? 0,  icon: CreditCard, color: "bg-red-500",    text: "text-red-600" },
-                  { label: "Pots tontines versés",                                               montant: dec?.pots_tontines.montant ?? 0,      icon: Banknote,   color: "bg-pink-500",   text: "text-pink-600" },
+                  { label: `Approvisionnements stock (${dec?.approvisionnements.count ?? 0})`, montant: dec?.approvisionnements.montant ?? 0, icon: Package, color: "bg-orange-100", text: "text-orange-600", bar: "bg-orange-500" },
                 ].map((item) => {
-                  const pct = (dec?.total ?? 0) > 0 ? Math.round((item.montant / (dec?.total ?? 1)) * 100) : 0;
+                  const pct  = (dec?.total ?? 0) > 0 ? Math.round((item.montant / (dec?.total ?? 1)) * 100) : 0;
                   const Icon = item.icon;
                   return (
                     <div key={item.label} className="flex items-center gap-3 py-3 border-b border-slate-100 last:border-0">
-                      <div className={`${item.color.replace("bg-", "bg-").replace("500", "100")} p-2 rounded-lg`}>
+                      <div className={`${item.color} p-2 rounded-lg`}>
                         <Icon className={`${item.text} w-4 h-4`} />
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm text-slate-600 truncate">{item.label}</p>
                         <div className="h-1.5 bg-slate-100 rounded-full mt-1.5 overflow-hidden">
-                          <div className={`h-full ${item.color} rounded-full`} style={{ width: `${pct}%` }} />
+                          <div className={`h-full ${item.bar} rounded-full`} style={{ width: `${pct}%` }} />
                         </div>
                       </div>
                       <div className="text-right flex-shrink-0">
@@ -866,14 +855,13 @@ export default function ComptablePage() {
                   );
                 })}
 
-                {/* Approvisionnements détail */}
                 <div className="mt-4 p-4 bg-orange-50 rounded-xl border border-orange-200">
                   <p className="text-xs font-semibold text-orange-700 mb-1 flex items-center gap-1.5">
-                    <Clock size={12} />Contrôle Approvisionnements
+                    <Package size={12} />Contrôle Approvisionnements
                   </p>
                   <p className="text-xs text-orange-600">
                     {dec?.approvisionnements.count ?? 0} entrées en stock sur la période
-                    — représentent {dec?.total ?? 0 > 0 ? Math.round(((dec?.approvisionnements.montant ?? 0) / (dec?.total ?? 1)) * 100) : 0}% des décaissements.
+                    — représentent {(dec?.total ?? 0) > 0 ? Math.round(((dec?.approvisionnements.montant ?? 0) / (dec?.total ?? 1)) * 100) : 0}% des décaissements.
                   </p>
                 </div>
               </div>
@@ -900,10 +888,8 @@ export default function ComptablePage() {
                       <h3 className="font-bold text-emerald-800">ACTIF — Bilan {ed.annee}</h3>
                     </div>
                     <div className="p-6">
-                      <BilanRow label="Stock (valeur comptable)" sub={`${ed.bilan.actif.stock.nombreProduits} produits`} valeur={ed.bilan.actif.stock.valeur} />
-                      <BilanRow label="Créances sur cotisations" sub={`${ed.bilan.actif.creancesCotisations.count} cotis. EN_ATTENTE`} valeur={ed.bilan.actif.creancesCotisations.valeur} />
-                      <BilanRow label="Crédits alimentaires actifs" sub={`${ed.bilan.actif.creditsAlimentaires.count} crédits`} valeur={ed.bilan.actif.creditsAlimentaires.valeur} />
-                      <BilanRow label="Crédits financiers accordés" sub={`${ed.bilan.actif.creditsFinanciers.count} crédits en cours`} valeur={ed.bilan.actif.creditsFinanciers.valeur} />
+                      <BilanRow label="Stock (valeur comptable)"    sub={`${ed.bilan.actif.stock.nombreProduits} produits`}       valeur={ed.bilan.actif.stock.valeur} />
+                      <BilanRow label="Créances packs (à encaisser)" sub={`${ed.bilan.actif.creancesPacks.count} souscriptions ACTIF`} valeur={ed.bilan.actif.creancesPacks.valeur} />
                       <BilanRow label="TOTAL ACTIF" valeur={ed.bilan.actif.total} type="total" />
                     </div>
                   </div>
@@ -915,8 +901,7 @@ export default function ComptablePage() {
                       <h3 className="font-bold text-red-800">PASSIF — Bilan {ed.annee}</h3>
                     </div>
                     <div className="p-6">
-                      <BilanRow label="Engagements tontines" sub={`${ed.bilan.passif.engagementsTontines.count} cycles EN_COURS`} valeur={ed.bilan.passif.engagementsTontines.valeur} />
-                      <BilanRow label="Crédits alim. alloués (total)" valeur={ed.bilan.passif.creditsAlimAlloues.valeur} />
+                      <BilanRow label="Engagements packs" sub={`${ed.bilan.passif.engagementsPacks.count} souscriptions actives`} valeur={ed.bilan.passif.engagementsPacks.valeur} />
                       <BilanRow label="Capitaux propres (résiduel)" sub="Actif — Engagements" valeur={ed.bilan.passif.capitauxPropres} />
                       <BilanRow label="TOTAL PASSIF" valeur={ed.bilan.passif.total} type="total" />
                     </div>
@@ -933,10 +918,7 @@ export default function ComptablePage() {
                       <span className="text-xs text-blue-600">Depuis le 1er janvier</span>
                     </div>
                     <div className="p-6">
-                      <BilanRow label="Revenus des ventes"           valeur={ed.compteResultat.produits.ventes} />
-                      <BilanRow label="Cotisations collectées"       valeur={ed.compteResultat.produits.cotisationsCollectees} />
-                      <BilanRow label="Contributions tontines"       valeur={ed.compteResultat.produits.contributionsTontines} />
-                      <BilanRow label="Remboursements crédits reçus" valeur={ed.compteResultat.produits.remboursementsCredits} />
+                      <BilanRow label="Versements packs collectés" valeur={ed.compteResultat.produits.versementsCollectes} />
                       <BilanRow label="TOTAL PRODUITS" valeur={ed.compteResultat.produits.total} type="total" />
                     </div>
                   </div>
@@ -948,9 +930,7 @@ export default function ComptablePage() {
                       <span className="text-xs text-orange-600">Depuis le 1er janvier</span>
                     </div>
                     <div className="p-6">
-                      <BilanRow label="Coût des approvisionnements"   valeur={ed.compteResultat.charges.approvisionnements} />
-                      <BilanRow label="Crédits décaissés"             valeur={ed.compteResultat.charges.creditsDecaisses} />
-                      <BilanRow label="Pots tontines versés"          valeur={ed.compteResultat.charges.potsTontinesVerses} />
+                      <BilanRow label="Coût des approvisionnements" valeur={ed.compteResultat.charges.approvisionnements} />
                       <BilanRow label="TOTAL CHARGES" valeur={ed.compteResultat.charges.total} type="total" />
                     </div>
 
@@ -975,31 +955,31 @@ export default function ComptablePage() {
                     {[
                       {
                         label: "Taux de recouvrement",
-                        sub:   "Cotisations payées / total",
+                        sub:   "Versé / Total souscriptions",
                         value: `${ed.ratios.tauxRecouvrement}%`,
                         color: ed.ratios.tauxRecouvrement >= 70 ? "text-emerald-600" : ed.ratios.tauxRecouvrement >= 40 ? "text-amber-600" : "text-red-600",
-                        icon: CheckCircle,
+                        icon:  CheckCircle,
                       },
                       {
-                        label: "Utilisation crédits alim.",
-                        sub:   "Montant consommé / alloué",
-                        value: `${ed.ratios.tauxUtilisationCreditsAlim}%`,
-                        color: "text-violet-600",
-                        icon: CreditCard,
+                        label: "Taux de complétion",
+                        sub:   "Souscriptions COMPLETE / total",
+                        value: `${ed.ratios.tauxCompletion}%`,
+                        color: ed.ratios.tauxCompletion >= 60 ? "text-emerald-600" : ed.ratios.tauxCompletion >= 30 ? "text-amber-600" : "text-violet-600",
+                        icon:  BookOpen,
                       },
                       {
                         label: "Marge nette",
                         sub:   "Résultat / Total produits",
                         value: `${ed.ratios.margeNette}%`,
                         color: ed.ratios.margeNette >= 20 ? "text-emerald-600" : ed.ratios.margeNette >= 0 ? "text-amber-600" : "text-red-600",
-                        icon: TrendingUp,
+                        icon:  TrendingUp,
                       },
                       {
                         label: "Ratio charges",
                         sub:   "Charges / Produits",
                         value: `${ed.ratios.ratioCharges}%`,
                         color: ed.ratios.ratioCharges <= 70 ? "text-emerald-600" : ed.ratios.ratioCharges <= 90 ? "text-amber-600" : "text-red-600",
-                        icon: AlertCircle,
+                        icon:  AlertCircle,
                       },
                     ].map((r) => {
                       const Icon = r.icon;

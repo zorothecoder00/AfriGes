@@ -35,26 +35,14 @@ interface ProduitAudit {
   alerteStock: number;
 }
 
-interface VenteAudit {
+interface VersementAudit {
   id: number;
-  produitNom: string;
-  quantite: number;
-  prixUnitaire: string;
-  prixCatalogue: string;
+  packNom: string;
+  packType: string;
   montant: string;
-  createdAt: string;
-  client: string;
-  hasAnomalie: boolean;
-}
-
-interface PrixAnomalie {
-  id: number;
-  produitNom: string;
-  prixVente: string;
-  prixCatalogue: string;
-  quantite: number;
-  createdAt: string;
-  client: string;
+  type: string;
+  datePaiement: string;
+  beneficiaire: string;
 }
 
 interface LivraisonAudit {
@@ -110,8 +98,7 @@ interface DashboardData {
   ventes: {
     totalCe30Jours: number;
     montantTotal30Jours: number;
-    anomaliesPrix: PrixAnomalie[];
-    recentes: VenteAudit[];
+    recentes: VersementAudit[];
   };
   livraisons: {
     stats: Record<string, number>;
@@ -124,12 +111,12 @@ interface DashboardData {
     historique: ClotureCaisseItem[];
   };
   finances: {
-    creditsAlim: {
-      actifs: number; epuises: number; expires: number;
-      montantTotal: number; montantUtilise: number; montantRestant: number;
+    souscriptions: {
+      actives: number; completes: number; annulees: number;
+      montantTotalVerse: number; montantRestant: number;
     };
-    cotisations: { payees: number; enAttente: number; expirees: number; montantTotal: number };
-    tontines: { actives: number; terminees: number; total: number };
+    packs: { actifs: number; total: number };
+    echeancesEnRetard: number;
   };
   gestionnaireActivite: GestionnaireActivite[];
 }
@@ -560,7 +547,7 @@ export default function AuditeurInternePage() {
                   className="border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 bg-slate-50 text-slate-700"
                 >
                   <option value="">Toutes les entités</option>
-                  {["Produit", "CreditAlimentaire", "Cotisation", "Tontine", "Livraison", "User", "Vente", "Credit", "Cloture"].map((e) => (
+                  {["Produit", "SouscriptionPack", "VersementPack", "EcheancePack", "Livraison", "User", "ClotureCaisse", "Pack"].map((e) => (
                     <option key={e} value={e}>{e}</option>
                   ))}
                 </select>
@@ -763,17 +750,17 @@ export default function AuditeurInternePage() {
         {/* ================================================================== */}
         {activeTab === "finances" && (
           <div className="space-y-6">
-            {/* Crédits alimentaires */}
+            {/* Souscriptions Packs */}
             <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 p-6">
               <h3 className="font-bold text-slate-800 mb-5 flex items-center gap-2">
-                <CreditCardIcon size={20} className="text-emerald-600" />
-                Crédits Alimentaires
+                <Package size={20} className="text-emerald-600" />
+                Souscriptions aux Packs
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
                 {[
-                  { label: "Actifs", count: d?.finances.creditsAlim.actifs ?? 0, extra: formatCurrency(d?.finances.creditsAlim.montantRestant ?? 0) + " restant", bg: "bg-emerald-50 border-emerald-200", cls: "text-emerald-700" },
-                  { label: "Épuisés", count: d?.finances.creditsAlim.epuises ?? 0, extra: "Entièrement utilisés", bg: "bg-slate-50 border-slate-200", cls: "text-slate-700" },
-                  { label: "Expirés", count: d?.finances.creditsAlim.expires ?? 0, extra: "Non réglés", bg: "bg-red-50 border-red-200", cls: "text-red-700" },
+                  { label: "Actives",   count: d?.finances.souscriptions.actives ?? 0,   extra: formatCurrency(d?.finances.souscriptions.montantRestant ?? 0) + " restant", bg: "bg-emerald-50 border-emerald-200", cls: "text-emerald-700" },
+                  { label: "Complètes", count: d?.finances.souscriptions.completes ?? 0,  extra: "Entièrement réglées", bg: "bg-slate-50 border-slate-200", cls: "text-slate-700" },
+                  { label: "Annulées",  count: d?.finances.souscriptions.annulees ?? 0,   extra: "Non poursuivies", bg: "bg-red-50 border-red-200", cls: "text-red-700" },
                 ].map((item, i) => (
                   <div key={i} className={`${item.bg} rounded-xl p-5 border`}>
                     <p className={`text-3xl font-bold ${item.cls}`}>{item.count}</p>
@@ -782,61 +769,50 @@ export default function AuditeurInternePage() {
                   </div>
                 ))}
               </div>
-              <div className="grid grid-cols-3 gap-3 text-center text-sm bg-slate-50 rounded-xl p-4">
+              <div className="grid grid-cols-2 gap-3 text-center text-sm bg-slate-50 rounded-xl p-4">
                 <div>
-                  <p className="text-slate-500 text-xs">Plafond total</p>
-                  <p className="font-bold text-slate-800">{formatCurrency(d?.finances.creditsAlim.montantTotal ?? 0)}</p>
+                  <p className="text-slate-500 text-xs">Total versé</p>
+                  <p className="font-bold text-slate-800">{formatCurrency(d?.finances.souscriptions.montantTotalVerse ?? 0)}</p>
                 </div>
                 <div>
-                  <p className="text-slate-500 text-xs">Utilisé</p>
-                  <p className="font-bold text-red-600">{formatCurrency(d?.finances.creditsAlim.montantUtilise ?? 0)}</p>
-                </div>
-                <div>
-                  <p className="text-slate-500 text-xs">Restant</p>
-                  <p className="font-bold text-emerald-600">{formatCurrency(d?.finances.creditsAlim.montantRestant ?? 0)}</p>
+                  <p className="text-slate-500 text-xs">Restant à percevoir</p>
+                  <p className="font-bold text-emerald-600">{formatCurrency(d?.finances.souscriptions.montantRestant ?? 0)}</p>
                 </div>
               </div>
             </div>
 
-            {/* Cotisations + Tontines */}
+            {/* Packs & Échéances */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 p-6">
                 <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
-                  <Users size={20} className="text-purple-600" /> Cotisations
+                  <TrendingUp size={20} className="text-purple-600" /> Packs
                 </h3>
                 <div className="space-y-3">
                   {[
-                    { label: "Payées",     count: d?.finances.cotisations.payees ?? 0,    cls: "text-emerald-700", bg: "bg-emerald-100" },
-                    { label: "En attente", count: d?.finances.cotisations.enAttente ?? 0,  cls: "text-amber-700",   bg: "bg-amber-100" },
-                    { label: "Expirées",   count: d?.finances.cotisations.expirees ?? 0,   cls: "text-red-700",     bg: "bg-red-100" },
+                    { label: "Packs actifs",     count: d?.finances.packs.actifs ?? 0, cls: "text-emerald-700", bg: "bg-emerald-100" },
+                    { label: "Total catalogues", count: d?.finances.packs.total ?? 0,  cls: "text-indigo-700",  bg: "bg-indigo-100" },
                   ].map((item, i) => (
                     <div key={i} className="flex items-center justify-between py-2 border-b border-slate-100 last:border-0">
                       <span className="text-slate-600 text-sm">{item.label}</span>
                       <span className={`${item.bg} ${item.cls} font-bold px-3 py-0.5 rounded-full text-sm`}>{item.count}</span>
                     </div>
                   ))}
-                  <div className="flex items-center justify-between py-2 mt-1 bg-slate-50 rounded-lg px-3">
-                    <span className="text-slate-600 text-sm font-medium">Total encaissé</span>
-                    <span className="font-bold text-slate-800">{formatCurrency(d?.finances.cotisations.montantTotal ?? 0)}</span>
-                  </div>
                 </div>
               </div>
 
               <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 p-6">
                 <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
-                  <Activity size={20} className="text-indigo-600" /> Tontines
+                  <AlertTriangle size={20} className="text-amber-600" /> Échéances en Retard
                 </h3>
-                <div className="space-y-3">
-                  {[
-                    { label: "Actives",    count: d?.finances.tontines.actives ?? 0,   cls: "text-emerald-700", bg: "bg-emerald-100" },
-                    { label: "Terminées",  count: d?.finances.tontines.terminees ?? 0, cls: "text-slate-700",   bg: "bg-slate-100" },
-                    { label: "Total",      count: d?.finances.tontines.total ?? 0,     cls: "text-indigo-700",  bg: "bg-indigo-100" },
-                  ].map((item, i) => (
-                    <div key={i} className="flex items-center justify-between py-2 border-b border-slate-100 last:border-0">
-                      <span className="text-slate-600 text-sm">{item.label}</span>
-                      <span className={`${item.bg} ${item.cls} font-bold px-3 py-0.5 rounded-full text-sm`}>{item.count}</span>
-                    </div>
-                  ))}
+                <div className="flex items-center gap-4 py-2">
+                  <span className={`text-5xl font-black ${(d?.finances.echeancesEnRetard ?? 0) > 0 ? "text-red-600" : "text-emerald-600"}`}>
+                    {d?.finances.echeancesEnRetard ?? 0}
+                  </span>
+                  <p className="text-sm text-slate-500">
+                    {(d?.finances.echeancesEnRetard ?? 0) === 0
+                      ? "Aucune échéance en retard — situation nominale"
+                      : "échéance(s) de packs non honorées à ce jour"}
+                  </p>
                 </div>
               </div>
             </div>
@@ -909,24 +885,24 @@ export default function AuditeurInternePage() {
                     <BarChart3 size={22} />
                   </div>
                   <div>
-                    <p className="text-amber-100 text-xs">Ventes (30j)</p>
+                    <p className="text-amber-100 text-xs">Versements (30j)</p>
                     <p className="text-2xl font-bold">{formatCurrency(d?.ventes.montantTotal30Jours ?? 0)}</p>
                   </div>
                 </div>
-                <p className="text-amber-100 text-sm">{d?.ventes.totalCe30Jours ?? 0} transactions</p>
+                <p className="text-amber-100 text-sm">{d?.ventes.totalCe30Jours ?? 0} versements</p>
               </div>
-              <div className={`rounded-2xl p-6 text-white shadow-lg ${(d?.ventes.anomaliesPrix.length ?? 0) > 0 ? "bg-gradient-to-br from-red-500 to-red-600 shadow-red-200" : "bg-gradient-to-br from-emerald-500 to-emerald-600 shadow-emerald-200"}`}>
+              <div className={`rounded-2xl p-6 text-white shadow-lg ${(d?.finances.echeancesEnRetard ?? 0) > 0 ? "bg-gradient-to-br from-red-500 to-red-600 shadow-red-200" : "bg-gradient-to-br from-emerald-500 to-emerald-600 shadow-emerald-200"}`}>
                 <div className="flex items-center gap-3 mb-2">
                   <div className="w-11 h-11 bg-white/20 rounded-xl flex items-center justify-center">
-                    {(d?.ventes.anomaliesPrix.length ?? 0) > 0 ? <AlertTriangle size={22} /> : <CheckCircle size={22} />}
+                    {(d?.finances.echeancesEnRetard ?? 0) > 0 ? <AlertTriangle size={22} /> : <CheckCircle size={22} />}
                   </div>
                   <div>
-                    <p className="text-white/80 text-xs">Anomalies Prix</p>
-                    <p className="text-2xl font-bold">{d?.ventes.anomaliesPrix.length ?? 0}</p>
+                    <p className="text-white/80 text-xs">Échéances en retard</p>
+                    <p className="text-2xl font-bold">{d?.finances.echeancesEnRetard ?? 0}</p>
                   </div>
                 </div>
                 <p className="text-white/80 text-sm">
-                  {(d?.ventes.anomaliesPrix.length ?? 0) === 0 ? "Aucun écart détecté" : "Prix ≠ catalogue"}
+                  {(d?.finances.echeancesEnRetard ?? 0) === 0 ? "Toutes échéances à jour" : "packs avec retard de paiement"}
                 </p>
               </div>
               <div className={`rounded-2xl p-6 text-white shadow-lg ${(d?.livraisons.enRetard ?? 0) > 0 ? "bg-gradient-to-br from-orange-500 to-red-500 shadow-orange-200" : "bg-gradient-to-br from-slate-600 to-slate-700"}`}>
@@ -945,96 +921,44 @@ export default function AuditeurInternePage() {
               </div>
             </div>
 
-            {/* Anomalies de prix */}
-            {(d?.ventes.anomaliesPrix.length ?? 0) > 0 && (
-              <div className="bg-white rounded-2xl shadow-sm border border-red-200 overflow-hidden">
-                <div className="px-6 py-4 bg-red-50 border-b border-red-200 flex items-center gap-2">
-                  <AlertTriangle size={18} className="text-red-600" />
-                  <h3 className="font-bold text-red-800">
-                    Ventes avec prix hors catalogue — {d?.ventes.anomaliesPrix.length} cas détecté(s)
-                  </h3>
-                </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead className="bg-slate-50 border-b border-slate-200">
-                      <tr>
-                        <th className="px-5 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Produit</th>
-                        <th className="px-5 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Client</th>
-                        <th className="px-5 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Qté</th>
-                        <th className="px-5 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Prix vendu</th>
-                        <th className="px-5 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Prix catalogue</th>
-                        <th className="px-5 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Écart</th>
-                        <th className="px-5 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Date</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {d?.ventes.anomaliesPrix.map((v) => {
-                        const ecart = Number(v.prixVente) - Number(v.prixCatalogue);
-                        return (
-                          <tr key={v.id} className="bg-red-50/30 hover:bg-red-50 transition-colors">
-                            <td className="px-5 py-3 font-semibold text-slate-800 text-sm">{v.produitNom}</td>
-                            <td className="px-5 py-3 text-sm text-slate-600">{v.client}</td>
-                            <td className="px-5 py-3 text-sm text-slate-700">{v.quantite}</td>
-                            <td className="px-5 py-3 text-sm font-bold text-red-600">{formatCurrency(v.prixVente)}</td>
-                            <td className="px-5 py-3 text-sm text-slate-600">{formatCurrency(v.prixCatalogue)}</td>
-                            <td className="px-5 py-3">
-                              <span className={`text-xs font-bold ${ecart > 0 ? "text-emerald-600" : "text-red-600"}`}>
-                                {ecart > 0 ? "+" : ""}{formatCurrency(ecart)}
-                              </span>
-                            </td>
-                            <td className="px-5 py-3 text-xs text-slate-500">{formatDate(v.createdAt)}</td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
-
-            {/* Ventes récentes */}
+            {/* Versements récents */}
             <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 overflow-hidden">
               <div className="px-6 py-4 border-b border-slate-100">
                 <h3 className="font-bold text-slate-800 flex items-center gap-2">
                   <Clock size={18} className="text-amber-600" />
-                  Ventes Récentes (30 jours)
+                  Versements Récents — Packs (30 jours)
                 </h3>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead className="bg-slate-50 border-b border-slate-200">
                     <tr>
-                      <th className="px-5 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Produit</th>
-                      <th className="px-5 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Client</th>
-                      <th className="px-5 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Qté</th>
+                      <th className="px-5 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Pack</th>
+                      <th className="px-5 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Bénéficiaire</th>
+                      <th className="px-5 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Type</th>
                       <th className="px-5 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Montant</th>
                       <th className="px-5 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Date</th>
-                      <th className="px-5 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Conformité</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     {(d?.ventes.recentes ?? []).map((v) => (
-                      <tr key={v.id} className={`transition-colors ${v.hasAnomalie ? "bg-red-50/20 hover:bg-red-50/40" : "hover:bg-slate-50"}`}>
-                        <td className="px-5 py-3 font-semibold text-slate-800 text-sm">{v.produitNom}</td>
-                        <td className="px-5 py-3 text-sm text-slate-600">{v.client}</td>
-                        <td className="px-5 py-3 text-sm text-slate-700">{v.quantite}</td>
-                        <td className="px-5 py-3 font-bold text-emerald-600 text-sm">{formatCurrency(v.montant)}</td>
-                        <td className="px-5 py-3 text-xs text-slate-500">{formatDateTime(v.createdAt)}</td>
-                        <td className="px-5 py-3">
-                          {v.hasAnomalie ? (
-                            <span className="bg-red-100 text-red-700 px-2 py-0.5 rounded-full text-xs font-bold flex items-center gap-1 w-fit">
-                              <AlertTriangle size={11} /> Écart prix
-                            </span>
-                          ) : (
-                            <span className="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full text-xs font-bold flex items-center gap-1 w-fit">
-                              <CheckCircle size={11} /> Conforme
-                            </span>
-                          )}
+                      <tr key={v.id} className="hover:bg-slate-50 transition-colors">
+                        <td className="px-5 py-3 font-semibold text-slate-800 text-sm">
+                          {v.packNom}
+                          <span className="ml-1 text-xs text-slate-400">({v.packType})</span>
                         </td>
+                        <td className="px-5 py-3 text-sm text-slate-600">{v.beneficiaire}</td>
+                        <td className="px-5 py-3">
+                          <span className="text-xs bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full font-medium">
+                            {v.type}
+                          </span>
+                        </td>
+                        <td className="px-5 py-3 font-bold text-emerald-600 text-sm">{formatCurrency(v.montant)}</td>
+                        <td className="px-5 py-3 text-xs text-slate-500">{formatDateTime(v.datePaiement)}</td>
                       </tr>
                     ))}
                     {(d?.ventes.recentes.length ?? 0) === 0 && (
-                      <tr><td colSpan={6} className="px-6 py-10 text-center text-slate-400">Aucune vente ce mois-ci</td></tr>
+                      <tr><td colSpan={5} className="px-6 py-10 text-center text-slate-400">Aucun versement ce mois-ci</td></tr>
                     )}
                   </tbody>
                 </table>

@@ -3,12 +3,13 @@ import { prisma } from "@/lib/prisma";
 import { getCaissierSession } from "@/lib/authCaissier";
 
 /**
- * GET /api/caissier/recus?venteId=XXX
+ * GET /api/caissier/recus?versementId=XXX
  *
- * Retourne toutes les informations nécessaires à la génération d'un reçu :
- *  - Détails de la vente
- *  - Infos client / bénéficiaire
- *  - État du crédit alimentaire après la vente
+ * Retourne toutes les informations nécessaires à la génération d'un reçu
+ * pour un versement pack :
+ *  - Détails du versement (montant, type, date)
+ *  - Souscription associée (pack, solde avant/après)
+ *  - Client / bénéficiaire
  *  - Nom de l'application (depuis Parametre si disponible)
  */
 export async function GET(req: Request) {
@@ -19,38 +20,31 @@ export async function GET(req: Request) {
     }
 
     const { searchParams } = new URL(req.url);
-    const venteId = searchParams.get("venteId");
+    const versementId = searchParams.get("versementId");
 
-    if (!venteId) {
-      return NextResponse.json({ message: "venteId requis" }, { status: 400 });
+    if (!versementId) {
+      return NextResponse.json({ message: "versementId requis" }, { status: 400 });
     }
 
-    const vente = await prisma.venteCreditAlimentaire.findUnique({
-      where: { id: Number(venteId) },
+    const versement = await prisma.versementPack.findUnique({
+      where: { id: Number(versementId) },
       include: {
-        produit: { select: { id: true, nom: true, prixUnitaire: true, description: true } },
-        creditAlimentaire: {
-          select: {
-            id: true,
-            plafond: true,
-            montantUtilise: true,
-            montantRestant: true,
-            statut: true,
-            source: true,
-            member: { select: { id: true, nom: true, prenom: true, email: true, telephone: true } },
+        souscription: {
+          include: {
+            pack:   { select: { id: true, nom: true, type: true } },
             client: { select: { id: true, nom: true, prenom: true, telephone: true } },
+            user:   { select: { id: true, nom: true, prenom: true, telephone: true } },
           },
         },
       },
     });
 
-    if (!vente) {
-      return NextResponse.json({ message: "Vente introuvable" }, { status: 404 });
+    if (!versement) {
+      return NextResponse.json({ message: "Versement introuvable" }, { status: 404 });
     }
 
-    const ca     = vente.creditAlimentaire;
-    const person = ca?.client ?? ca?.member;
-    const montantVente = Number(vente.prixUnitaire) * vente.quantite;
+    const souscription = versement.souscription;
+    const person = souscription.client ?? souscription.user;
 
     // Paramètres app (nom entreprise, etc.)
     const params = await prisma.parametre.findMany({
@@ -58,36 +52,43 @@ export async function GET(req: Request) {
     });
     const getParam = (cle: string) => params.find((p) => p.cle === cle)?.valeur ?? "";
 
+    const typeLabel: Record<string, string> = {
+      COTISATION_INITIALE:  "Acompte initial",
+      VERSEMENT_PERIODIQUE: "Versement périodique",
+      REMBOURSEMENT:        "Remboursement",
+      BONUS:                "Bonus",
+      AJUSTEMENT:           "Ajustement",
+    };
+
     return NextResponse.json({
       success: true,
       data: {
         recu: {
-          numero:    `REC-${String(vente.id).padStart(6, "0")}`,
-          date:      vente.createdAt.toISOString(),
-          caissier:  session.user.name ?? "Caissier",
+          numero:   `VER-${String(versement.id).padStart(6, "0")}`,
+          date:     versement.datePaiement.toISOString(),
+          caissier: versement.encaisseParNom ?? session.user.name ?? "Caissier",
         },
-        vente: {
-          id:           vente.id,
-          produitNom:   vente.produit.nom,
-          produitDesc:  vente.produit.description,
-          quantite:     vente.quantite,
-          prixUnitaire: Number(vente.prixUnitaire),
-          montantTotal: montantVente,
+        versement: {
+          id:        versement.id,
+          montant:   Number(versement.montant),
+          type:      versement.type,
+          typeLabel: typeLabel[versement.type] ?? versement.type,
+          notes:     versement.notes,
+        },
+        souscription: {
+          packNom:        souscription.pack.nom,
+          packType:       souscription.pack.type,
+          montantTotal:   Number(souscription.montantTotal),
+          montantVerse:   Number(souscription.montantVerse),
+          montantRestant: Number(souscription.montantRestant),
+          statut:         souscription.statut,
         },
         client: {
-          nom:        person ? `${person.prenom} ${person.nom}` : "—",
-          telephone:  "telephone" in (person ?? {}) ? (person as { telephone?: string })?.telephone : undefined,
-          email:      "email" in (person ?? {})     ? (person as { email?:     string })?.email     : undefined,
+          nom:       person ? `${person.prenom} ${person.nom}` : "—",
+          telephone: person && "telephone" in person
+            ? (person as { telephone?: string }).telephone
+            : undefined,
         },
-        creditAlimentaire: ca
-          ? {
-              id:             ca.id,
-              plafond:        Number(ca.plafond),
-              montantUtilise: Number(ca.montantUtilise),
-              montantRestant: Number(ca.montantRestant),
-              statut:         ca.statut,
-            }
-          : null,
         entreprise: {
           nom:       getParam("APP_NOM")       || "AfriGes",
           adresse:   getParam("APP_ADRESSE")   || "",

@@ -5,97 +5,75 @@ import { getComptableSession } from "@/lib/authComptable";
 /**
  * GET /api/comptable/journal
  *
- * Journal comptable unifié (toutes les opérations financières).
+ * Journal comptable basé sur les packs.
  * Paramètres :
  *   - page, limit
  *   - type: TOUS | ENCAISSEMENT | DECAISSEMENT
- *   - categorie: VENTE | COTISATION | CONTRIBUTION_TONTINE | REMBOURSEMENT_CREDIT
- *                | APPROVISIONNEMENT | CREDIT_DECAISSE | POT_TONTINE
+ *   - categorie: COTISATION_INITIALE | VERSEMENT_PERIODIQUE | REMBOURSEMENT
+ *                | VERSEMENT_PACK | APPROVISIONNEMENT
  *   - search: recherche dans le libellé
- *   - dateDebut, dateFin (ISO strings, défaut : 30 derniers jours)
+ *   - dateDebut, dateFin
  */
 
-type JournalType = "ENCAISSEMENT" | "DECAISSEMENT" | "ACTIVITE";
+type JournalType     = "ENCAISSEMENT" | "DECAISSEMENT";
 type JournalCategory =
-  | "VENTE"
-  | "COTISATION"
-  | "CONTRIBUTION_TONTINE"
-  | "REMBOURSEMENT_CREDIT"
-  | "APPROVISIONNEMENT"
-  | "CREDIT_DECAISSE"
-  | "POT_TONTINE";
+  | "COTISATION_INITIALE"
+  | "VERSEMENT_PERIODIQUE"
+  | "REMBOURSEMENT"
+  | "VERSEMENT_PACK"
+  | "APPROVISIONNEMENT";
 
 interface JournalEntry {
-  id: string;
-  sourceId: number;
-  date: Date;
-  type: JournalType;
+  id:        string;
+  sourceId:  number;
+  date:      Date;
+  type:      JournalType;
   categorie: JournalCategory;
-  libelle: string;
-  montant: number;
+  libelle:   string;
+  montant:   number;
   reference: string;
 }
 
-// Types explicites pour chaque résultat de requête
-interface VenteResult {
-  id: number;
-  createdAt: Date;
-  quantite: number;
-  prixUnitaire: { toNumber(): number } | number;
-  produit: { nom: string };
-  creditAlimentaire: {
-    member: { nom: string; prenom: string } | null;
+interface VersementResult {
+  id:            number;
+  datePaiement:  Date;
+  montant:       { toNumber(): number } | number;
+  type:          string;
+  notes:         string | null;
+  encaisseParNom: string | null;
+  souscription: {
+    pack:   { nom: string; type: string };
     client: { nom: string; prenom: string } | null;
-  } | null;
-}
-
-interface CotisationResult {
-  id: number;
-  montant: { toNumber(): number } | number;
-  datePaiement: Date | null;
-  periode: string;
-  member: { nom: string; prenom: string } | null;
-  client: { nom: string; prenom: string } | null;
-}
-
-interface ContributionResult {
-  id: number;
-  montant: { toNumber(): number } | number;
-  datePaiement: Date | null;
-  cycle: { tontine: { nom: string } };
-}
-
-interface CreditTransactionResult {
-  id: number;
-  montant: { toNumber(): number } | number;
-  createdAt: Date;
-  creditId: number;
-  credit: {
-    member: { nom: string; prenom: string } | null;
-    client: { nom: string; prenom: string } | null;
+    user:   { nom: string; prenom: string } | null;
   };
 }
 
 interface ApproResult {
-  id: number;
-  quantite: number;
+  id:            number;
+  quantite:      number;
   dateMouvement: Date;
-  reference: string;
-  motif: string | null;
-  produit: { nom: string; prixUnitaire: { toNumber(): number } | number };
+  reference:     string;
+  motif:         string | null;
+  produit:       { nom: string; prixUnitaire: { toNumber(): number } | number };
 }
 
-interface PotTontineResult {
-  id: number;
-  montantPot: { toNumber(): number } | number;
-  numeroCycle: number;
-  dateCloture: Date | null;
-  tontine: { nom: string };
-  beneficiaire: {
-    member: { nom: string; prenom: string } | null;
-    client: { nom: string; prenom: string } | null;
-  };
+// TypeVersement → JournalCategory
+function typeToCategorie(type: string): JournalCategory {
+  switch (type) {
+    case "COTISATION_INITIALE":  return "COTISATION_INITIALE";
+    case "VERSEMENT_PERIODIQUE": return "VERSEMENT_PERIODIQUE";
+    case "REMBOURSEMENT":        return "REMBOURSEMENT";
+    default:                     return "VERSEMENT_PACK"; // BONUS, AJUSTEMENT
+  }
 }
+
+const TYPE_LABELS: Record<string, string> = {
+  COTISATION_INITIALE:  "Acompte initial",
+  VERSEMENT_PERIODIQUE: "Versement périodique",
+  REMBOURSEMENT:        "Remboursement",
+  BONUS:                "Bonus",
+  AJUSTEMENT:           "Ajustement",
+};
 
 export async function GET(req: Request) {
   try {
@@ -121,244 +99,96 @@ export async function GET(req: Request) {
 
     const includeEnc = typeFilter === "TOUS" || typeFilter === "ENCAISSEMENT";
     const includeDec = typeFilter === "TOUS" || typeFilter === "DECAISSEMENT";
-    const includeAct = typeFilter === "TOUS" || typeFilter === "ACTIVITE";
 
     const matchCat = (cat: JournalCategory) => !catFilter || catFilter === cat;
 
-    // ── Requêtes parallèles ─────────────────────────────────────────────────
+    // Determine which VersementPack types to query
+    const versPackTypes: string[] =
+      catFilter === "COTISATION_INITIALE"  ? ["COTISATION_INITIALE"] :
+      catFilter === "VERSEMENT_PERIODIQUE" ? ["VERSEMENT_PERIODIQUE"] :
+      catFilter === "REMBOURSEMENT"        ? ["REMBOURSEMENT"] :
+      catFilter === "VERSEMENT_PACK"       ? ["BONUS", "AJUSTEMENT"] :
+      catFilter === "APPROVISIONNEMENT"    ? [] :
+      ["COTISATION_INITIALE", "VERSEMENT_PERIODIQUE", "REMBOURSEMENT", "BONUS", "AJUSTEMENT"];
 
-    const [ventes, cotisations, contributions, rembCredits, decaisCredits, appros, potsTontines] =
-      await Promise.all([
+    const [versements, appros] = await Promise.all([
 
-        // VENTE (activité produits — consommation de crédits pré-financés)
-        includeAct && matchCat("VENTE")
-          ? prisma.venteCreditAlimentaire.findMany({
-              where: { createdAt: { gte: dateDebut, lte: dateFin } },
-              select: {
-                id: true,
-                createdAt: true,
-                quantite: true,
-                prixUnitaire: true,
-                produit: { select: { nom: true } },
-                creditAlimentaire: {
-                  select: {
-                    member: { select: { nom: true, prenom: true } },
-                    client: { select: { nom: true, prenom: true } },
-                  },
+      // VersementPack → ENCAISSEMENT
+      includeEnc && versPackTypes.length > 0 && catFilter !== "APPROVISIONNEMENT"
+        ? prisma.versementPack.findMany({
+            where: {
+              datePaiement: { gte: dateDebut, lte: dateFin },
+              ...(versPackTypes.length < 5
+                ? { type: { in: versPackTypes as ("COTISATION_INITIALE" | "VERSEMENT_PERIODIQUE" | "REMBOURSEMENT" | "BONUS" | "AJUSTEMENT")[] } }
+                : {}),
+            },
+            select: {
+              id: true,
+              datePaiement: true,
+              montant: true,
+              type: true,
+              notes: true,
+              encaisseParNom: true,
+              souscription: {
+                select: {
+                  pack:   { select: { nom: true, type: true } },
+                  client: { select: { nom: true, prenom: true } },
+                  user:   { select: { nom: true, prenom: true } },
                 },
               },
-              orderBy: { createdAt: "desc" },
-            }).then((rows) => rows as VenteResult[])
-          : Promise.resolve([] as VenteResult[]),
+            },
+            orderBy: { datePaiement: "desc" },
+          }).then((rows) => rows as VersementResult[])
+        : Promise.resolve([] as VersementResult[]),
 
-        // COTISATION payée (encaissement)
-        includeEnc && matchCat("COTISATION")
-          ? prisma.cotisation.findMany({
-              where: { statut: "PAYEE", datePaiement: { gte: dateDebut, lte: dateFin } },
-              select: {
-                id: true,
-                montant: true,
-                datePaiement: true,
-                periode: true,
-                member: { select: { nom: true, prenom: true } },
-                client: { select: { nom: true, prenom: true } },
-              },
-              orderBy: { datePaiement: "desc" },
-            }).then((rows) => rows as CotisationResult[])
-          : Promise.resolve([] as CotisationResult[]),
-
-        // CONTRIBUTION TONTINE payée (encaissement)
-        includeEnc && matchCat("CONTRIBUTION_TONTINE")
-          ? prisma.tontineContribution.findMany({
-              where: { statut: "PAYEE", datePaiement: { gte: dateDebut, lte: dateFin } },
-              select: {
-                id: true,
-                montant: true,
-                datePaiement: true,
-                cycle: { select: { tontine: { select: { nom: true } } } },
-              },
-              orderBy: { datePaiement: "desc" },
-            }).then((rows) => rows as ContributionResult[])
-          : Promise.resolve([] as ContributionResult[]),
-
-        // REMBOURSEMENT CRÉDIT (encaissement)
-        includeEnc && matchCat("REMBOURSEMENT_CREDIT")
-          ? prisma.creditTransaction.findMany({
-              where: { type: "REMBOURSEMENT", createdAt: { gte: dateDebut, lte: dateFin } },
-              select: {
-                id: true,
-                montant: true,
-                createdAt: true,
-                creditId: true,
-                credit: {
-                  select: {
-                    member: { select: { nom: true, prenom: true } },
-                    client: { select: { nom: true, prenom: true } },
-                  },
-                },
-              },
-              orderBy: { createdAt: "desc" },
-            }).then((rows) => rows as CreditTransactionResult[])
-          : Promise.resolve([] as CreditTransactionResult[]),
-
-        // CRÉDIT DÉCAISSÉ (décaissement)
-        includeDec && matchCat("CREDIT_DECAISSE")
-          ? prisma.creditTransaction.findMany({
-              where: { type: "DECAISSEMENT", createdAt: { gte: dateDebut, lte: dateFin } },
-              select: {
-                id: true,
-                montant: true,
-                createdAt: true,
-                creditId: true,
-                credit: {
-                  select: {
-                    member: { select: { nom: true, prenom: true } },
-                    client: { select: { nom: true, prenom: true } },
-                  },
-                },
-              },
-              orderBy: { createdAt: "desc" },
-            }).then((rows) => rows as CreditTransactionResult[])
-          : Promise.resolve([] as CreditTransactionResult[]),
-
-        // APPROVISIONNEMENT (décaissement)
-        includeDec && matchCat("APPROVISIONNEMENT")
-          ? prisma.mouvementStock.findMany({
-              where: { type: "ENTREE", dateMouvement: { gte: dateDebut, lte: dateFin } },
-              select: {
-                id: true,
-                quantite: true,
-                dateMouvement: true,
-                reference: true,
-                motif: true,
-                produit: { select: { nom: true, prixUnitaire: true } },
-              },
-              orderBy: { dateMouvement: "desc" },
-            }).then((rows) => rows as ApproResult[])
-          : Promise.resolve([] as ApproResult[]),
-
-        // POT TONTINE versé (décaissement)
-        includeDec && matchCat("POT_TONTINE")
-          ? prisma.tontineCycle.findMany({
-              where: { statut: "COMPLETE", dateCloture: { gte: dateDebut, lte: dateFin } },
-              select: {
-                id: true,
-                montantPot: true,
-                numeroCycle: true,
-                dateCloture: true,
-                tontine: { select: { nom: true } },
-                beneficiaire: {
-                  select: {
-                    member: { select: { nom: true, prenom: true } },
-                    client: { select: { nom: true, prenom: true } },
-                  },
-                },
-              },
-              orderBy: { dateCloture: "desc" },
-            }).then((rows) => rows as PotTontineResult[])
-          : Promise.resolve([] as PotTontineResult[]),
-      ]);
+      // MouvementStock ENTREE → DECAISSEMENT
+      includeDec && matchCat("APPROVISIONNEMENT")
+        ? prisma.mouvementStock.findMany({
+            where: { type: "ENTREE", dateMouvement: { gte: dateDebut, lte: dateFin } },
+            select: {
+              id: true,
+              quantite: true,
+              dateMouvement: true,
+              reference: true,
+              motif: true,
+              produit: { select: { nom: true, prixUnitaire: true } },
+            },
+            orderBy: { dateMouvement: "desc" },
+          }).then((rows) => rows as ApproResult[])
+        : Promise.resolve([] as ApproResult[]),
+    ]);
 
     // ── Transformation en écritures uniformes ──────────────────────────────
 
     const entries: JournalEntry[] = [];
 
-    for (const v of ventes) {
-      const who = v.creditAlimentaire?.member ?? v.creditAlimentaire?.client;
+    for (const v of versements) {
+      const cat = typeToCategorie(v.type);
+      if (!matchCat(cat)) continue;
+      const person    = v.souscription.client ?? v.souscription.user;
+      const packLabel = `${v.souscription.pack.nom} (${v.souscription.pack.type})`;
       entries.push({
-        id: `VENTE-${v.id}`,
-        sourceId: v.id,
-        date: v.createdAt,
-        type: "ACTIVITE",
-        categorie: "VENTE",
-        libelle: `Vente ${v.produit.nom} ×${v.quantite}${who ? ` — ${who.prenom} ${who.nom}` : ""}`,
-        montant: v.quantite * Number(v.prixUnitaire),
-        reference: `V#${v.id}`,
-      });
-    }
-
-    for (const c of cotisations) {
-      if (!c.datePaiement) continue;
-      const who = c.member ?? c.client;
-      entries.push({
-        id: `COT-${c.id}`,
-        sourceId: c.id,
-        date: c.datePaiement,
-        type: "ENCAISSEMENT",
-        categorie: "COTISATION",
-        libelle: `Cotisation ${c.periode.toLowerCase()}${who ? ` — ${who.prenom} ${who.nom}` : ""}`,
-        montant: Number(c.montant),
-        reference: `COT#${c.id}`,
-      });
-    }
-
-    for (const ct of contributions) {
-      if (!ct.datePaiement) continue;
-      entries.push({
-        id: `CONTRIB-${ct.id}`,
-        sourceId: ct.id,
-        date: ct.datePaiement,
-        type: "ENCAISSEMENT",
-        categorie: "CONTRIBUTION_TONTINE",
-        libelle: `Contribution tontine "${ct.cycle.tontine.nom}"`,
-        montant: Number(ct.montant),
-        reference: `CONTRIB#${ct.id}`,
-      });
-    }
-
-    for (const cr of rembCredits) {
-      const who = cr.credit.member ?? cr.credit.client;
-      entries.push({
-        id: `RMB-${cr.id}`,
-        sourceId: cr.id,
-        date: cr.createdAt,
-        type: "ENCAISSEMENT",
-        categorie: "REMBOURSEMENT_CREDIT",
-        libelle: `Remboursement crédit #${cr.creditId}${who ? ` — ${who.prenom} ${who.nom}` : ""}`,
-        montant: Number(cr.montant),
-        reference: `RMB#${cr.id}`,
-      });
-    }
-
-    for (const cd of decaisCredits) {
-      const who = cd.credit.member ?? cd.credit.client;
-      entries.push({
-        id: `DEC-${cd.id}`,
-        sourceId: cd.id,
-        date: cd.createdAt,
-        type: "DECAISSEMENT",
-        categorie: "CREDIT_DECAISSE",
-        libelle: `Décaissement crédit #${cd.creditId}${who ? ` — ${who.prenom} ${who.nom}` : ""}`,
-        montant: Number(cd.montant),
-        reference: `DEC#${cd.id}`,
+        id:        `VER-${v.id}`,
+        sourceId:  v.id,
+        date:      v.datePaiement,
+        type:      "ENCAISSEMENT",
+        categorie: cat,
+        libelle:   `${TYPE_LABELS[v.type] ?? v.type} — ${packLabel}${person ? ` — ${person.prenom} ${person.nom}` : ""}`,
+        montant:   Number(v.montant),
+        reference: `VER-${String(v.id).padStart(6, "0")}`,
       });
     }
 
     for (const m of appros) {
       entries.push({
-        id: `APPRO-${m.id}`,
-        sourceId: m.id,
-        date: m.dateMouvement,
-        type: "DECAISSEMENT",
+        id:        `APPRO-${m.id}`,
+        sourceId:  m.id,
+        date:      m.dateMouvement,
+        type:      "DECAISSEMENT",
         categorie: "APPROVISIONNEMENT",
-        libelle: `Appro. ${m.produit.nom} ×${m.quantite}${m.motif ? ` (${m.motif})` : ""}`,
-        montant: m.quantite * Number(m.produit.prixUnitaire),
+        libelle:   `Appro. ${m.produit.nom} ×${m.quantite}${m.motif ? ` (${m.motif})` : ""}`,
+        montant:   m.quantite * Number(m.produit.prixUnitaire),
         reference: m.reference,
-      });
-    }
-
-    for (const pt of potsTontines) {
-      if (!pt.dateCloture) continue;
-      const who = pt.beneficiaire.member ?? pt.beneficiaire.client;
-      entries.push({
-        id: `POT-${pt.id}`,
-        sourceId: pt.id,
-        date: pt.dateCloture,
-        type: "DECAISSEMENT",
-        categorie: "POT_TONTINE",
-        libelle: `Versement pot "${pt.tontine.nom}" cycle #${pt.numeroCycle}${who ? ` — ${who.prenom} ${who.nom}` : ""}`,
-        montant: Number(pt.montantPot),
-        reference: `POT#${pt.id}`,
       });
     }
 
@@ -376,16 +206,13 @@ export async function GET(req: Request) {
 
     filtered.sort((a, b) => b.date.getTime() - a.date.getTime());
 
-    // ── Totaux (sur tout le résultat filtré avant pagination) ──────────────
+    // ── Totaux ────────────────────────────────────────────────────────────
 
     const totalEncaissements = filtered
       .filter((e) => e.type === "ENCAISSEMENT")
       .reduce((s, e) => s + e.montant, 0);
     const totalDecaissements = filtered
       .filter((e) => e.type === "DECAISSEMENT")
-      .reduce((s, e) => s + e.montant, 0);
-    const totalActivite = filtered
-      .filter((e) => e.type === "ACTIVITE")
       .reduce((s, e) => s + e.montant, 0);
 
     // ── Pagination ────────────────────────────────────────────────────────
@@ -400,7 +227,7 @@ export async function GET(req: Request) {
       totaux: {
         encaissements: totalEncaissements,
         decaissements: totalDecaissements,
-        activite: totalActivite,
+        activite: 0,
         net: totalEncaissements - totalDecaissements,
       },
       meta: {
