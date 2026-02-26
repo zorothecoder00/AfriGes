@@ -39,7 +39,7 @@ export async function GET(req: Request) {
       ...(actif !== undefined && { actif }),
     };
 
-    const [gestionnaires, total] = await Promise.all([
+    const [gestionnaires, total, totalActifs, totalInactifs, rolesDistincts] = await Promise.all([
       prisma.gestionnaire.findMany({
         where,
         skip,
@@ -58,6 +58,9 @@ export async function GET(req: Request) {
         },
       }),
       prisma.gestionnaire.count({ where }),
+      prisma.gestionnaire.count({ where: { actif: true } }),
+      prisma.gestionnaire.count({ where: { actif: false } }),
+      prisma.gestionnaire.groupBy({ by: ["role"] }),
     ]);
 
     return NextResponse.json({
@@ -67,6 +70,11 @@ export async function GET(req: Request) {
         page,
         limit,
         totalPages: Math.ceil(total / limit),
+      },
+      stats: {
+        totalActifs,
+        totalInactifs,
+        totalRoles: rolesDistincts.length,
       },
     });
   } catch (error) {

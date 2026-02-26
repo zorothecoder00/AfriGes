@@ -5,7 +5,7 @@ import { MemberStatus } from "@prisma/client";
 
 function pctChange(curr: number, prev: number): string {
   if (prev === 0 && curr === 0) return "=";
-  if (prev === 0) return "+100%";
+  if (prev === 0) return "Nouveau";
   const p = ((curr - prev) / prev) * 100;
   return `${p >= 0 ? "+" : ""}${Math.round(p)}%`;
 }
@@ -27,8 +27,8 @@ export async function getDashboardAdmin(period: number = 30) {
 
   // ── 1. Compteurs principaux ──────────────────────────────────────────────
 
-  const [membresActifs, souscriptionsActives, packsTotal] = await Promise.all([
-    prisma.user.count({ where: { etat: MemberStatus.ACTIF } }),
+  const [clientsActifs, souscriptionsActives, packsTotal] = await Promise.all([
+    prisma.client.count({ where: { etat: MemberStatus.ACTIF } }),
     prisma.souscriptionPack.count({ where: { statut: "ACTIF" } }),
     prisma.pack.count(),
   ]);
@@ -90,8 +90,8 @@ export async function getDashboardAdmin(period: number = 30) {
   // ── 6. Comparaisons période actuelle vs précédente ───────────────────────
 
   const [nouvMembresCurr, nouvMembresPrec, versCurr, versPrec] = await Promise.all([
-    prisma.user.count({ where: { createdAt: { gte: since } } }),
-    prisma.user.count({ where: { createdAt: { gte: prevSince, lt: since } } }),
+    prisma.client.count({ where: { createdAt: { gte: since } } }),
+    prisma.client.count({ where: { createdAt: { gte: prevSince, lt: since } } }),
     prisma.versementPack.aggregate({ where: { datePaiement: { gte: since } },             _sum: { montant: true } }),
     prisma.versementPack.aggregate({ where: { datePaiement: { gte: prevSince, lt: since } }, _sum: { montant: true } }),
   ]);
@@ -102,7 +102,7 @@ export async function getDashboardAdmin(period: number = 30) {
   // ── 7. Retour ────────────────────────────────────────────────────────────
 
   return {
-    membresActifs,
+    clientsActifs,
     souscriptionsActives,
     packsTotal,
     versementsTotal: {
@@ -117,7 +117,7 @@ export async function getDashboardAdmin(period: number = 30) {
       annulees:  souscAnnulees,
     },
     comparaisons: {
-      membres:    { pct: pctChange(nouvMembresCurr, nouvMembresPrec), positif: isPositiveChange(nouvMembresCurr, nouvMembresPrec) },
+      clients:    { pct: pctChange(nouvMembresCurr, nouvMembresPrec), positif: isPositiveChange(nouvMembresCurr, nouvMembresPrec) },
       versements: { pct: pctChange(versCurrTotal, versPrecTotal),      positif: isPositiveChange(versCurrTotal, versPrecTotal) },
       packs:      { pct: "—", positif: true },
     },

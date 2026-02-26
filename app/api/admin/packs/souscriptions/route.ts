@@ -8,7 +8,7 @@ import { notifyAdmins } from "@/lib/notifications";
  *   ?statut=ACTIF&type=REVENDEUR&search=jean
  * POST — Crée une nouvelle souscription client.
  */
-export async function GET(req: Request) {
+export async function GET(req: Request) {  
   try {
     const session = await getAuthSession();
     if (!session || !["ADMIN", "SUPER_ADMIN"].includes(session.user.role ?? "")) {

@@ -3,11 +3,12 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
   TrendingUp, Users, UserCheck, Package, Layers,
-  ShoppingCart, MoreVertical, Download, Plus, ChevronDown,
+  ShoppingCart, MoreVertical, Download, Plus, ChevronDown, MessageSquare,
 } from 'lucide-react';
 import Link from "next/link";
 import NotificationBell from '@/components/NotificationBell';
 import SignOutButton from '@/components/SignOutButton';
+import MessageModal from '@/components/MessageModal';
 import { useApi } from '@/hooks/useApi';
 import { formatCurrency, formatNumber } from '@/lib/format';
 
@@ -18,7 +19,7 @@ interface DayPoint { date: string; montant: number; }
 interface DashboardResponse {
   success: boolean;
   data: {
-    membresActifs: number;
+    clientsActifs: number;
     souscriptionsActives: number;
     packsTotal: number;
     versementsTotal: { count: number; montant: number };
@@ -26,7 +27,7 @@ interface DashboardResponse {
     evolutionSouscriptions: DayPoint[];
     repartitionSouscriptions: { actives: number; completes: number; annulees: number };
     comparaisons: {
-      membres:    { pct: string; positif: boolean };
+      clients:    { pct: string; positif: boolean };
       versements: { pct: string; positif: boolean };
       packs:      { pct: string; positif: boolean };
     };
@@ -88,6 +89,7 @@ function fmtDateShort(iso: string) {
 export default function AfriGesDashboard() {
   const [selectedPeriod, setSelectedPeriod] = useState<'7' | '30' | '90'>('30');
   const [showMenu, setShowMenu] = useState(false);
+  const [showMessageModal, setShowMessageModal] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -135,10 +137,10 @@ export default function AfriGesDashboard() {
   // ── Stats cards ────────────────────────────────────────────────────────────
   const stats = [
     {
-      id: 1, label: 'Membres actifs',
-      value: d ? formatNumber(d.membresActifs) : '—',
-      change: d?.comparaisons.membres.pct ?? '…',
-      positif: d?.comparaisons.membres.positif ?? true,
+      id: 1, label: 'Clients actifs',
+      value: d ? formatNumber(d.clientsActifs) : '—',
+      change: d?.comparaisons.clients.pct ?? '…',
+      positif: d?.comparaisons.clients.positif ?? true,
       icon: Users, color: 'bg-blue-500', lightBg: 'bg-blue-50',
     },
     {
@@ -234,6 +236,7 @@ export default function AfriGesDashboard() {
                 <Link href="/dashboard/admin/membres"       className="w-full flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-50 rounded-xl transition-all"><Users size={20} /><span>Membres</span></Link>
                 <Link href="/dashboard/admin/gestionnaires" className="w-full flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-50 rounded-xl transition-all"><Users size={20} /><span>Gestionnaires</span></Link>
                 <Link href="/dashboard/admin/clients"       className="w-full flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-50 rounded-xl transition-all"><UserCheck size={20} /><span>Clients</span></Link>
+                <Link href="/dashboard/admin/messages"      className="w-full flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-50 rounded-xl transition-all"><MessageSquare size={20} /><span>Messages</span></Link>
               </nav>
             </div>
             <div className="p-4 border-b border-slate-100">
@@ -284,6 +287,14 @@ export default function AfriGesDashboard() {
                     <Link href="/dashboard/admin/packs"   onClick={() => setShowMenu(false)} className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 transition-colors"><Layers size={18} className="text-blue-500" /><span className="text-sm font-medium text-slate-700">Nouvelle souscription pack</span></Link>
                     <Link href="/dashboard/admin/ventes"  onClick={() => setShowMenu(false)} className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 transition-colors"><Package size={18} className="text-emerald-500" /><span className="text-sm font-medium text-slate-700">Nouvelle vente / livraison</span></Link>
                     <Link href="/dashboard/admin/membres" onClick={() => setShowMenu(false)} className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 transition-colors"><Users size={18} className="text-amber-500" /><span className="text-sm font-medium text-slate-700">Ajouter un membre</span></Link>
+                    <div className="border-t border-slate-100 my-1" />
+                    <button
+                      onClick={() => { setShowMenu(false); setShowMessageModal(true); }}
+                      className="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-50 transition-colors"
+                    >
+                      <MessageSquare size={18} className="text-purple-500" />
+                      <span className="text-sm font-medium text-slate-700">Envoyer un message</span>
+                    </button>
                   </div>
                 )}
               </div>
@@ -506,6 +517,10 @@ export default function AfriGesDashboard() {
           </div>
         </main>
       </div>
+
+      {showMessageModal && (
+        <MessageModal onClose={() => setShowMessageModal(false)} />
+      )}
     </div>
   );
 }

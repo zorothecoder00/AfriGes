@@ -29,6 +29,11 @@ interface GestionnairesResponse {
     limit: number;
     totalPages: number;
   };
+  stats: {
+    totalActifs: number;
+    totalInactifs: number;
+    totalRoles: number;
+  };
 }   
 
 interface MemberOption {
@@ -99,15 +104,13 @@ export default function GestionnairesPage() {
     g.member.email.toLowerCase().includes(debouncedSearch.toLowerCase())
   );
 
-  const totalActifs = allGestionnaires.filter((g) => g.actif).length;
-  const totalInactifs = allGestionnaires.filter((g) => !g.actif).length;
-  const totalRoles = new Set(allGestionnaires.map(g => g.role)).size;
+  const apiStats = response?.stats;
 
   const stats = [
     { label: 'Total Gestionnaires', value: String(meta?.total ?? 0), icon: Users, color: 'bg-blue-500', lightBg: 'bg-blue-50' },
-    { label: 'Actifs', value: String(totalActifs), icon: CheckCircle, color: 'bg-emerald-500', lightBg: 'bg-emerald-50' },
-    { label: 'Inactifs', value: String(totalInactifs), icon: Clock, color: 'bg-amber-500', lightBg: 'bg-amber-50' },
-    { label: 'Roles', value: String(totalRoles), icon: Shield, color: 'bg-purple-500', lightBg: 'bg-purple-50' },
+    { label: 'Actifs', value: String(apiStats?.totalActifs ?? 0), icon: CheckCircle, color: 'bg-emerald-500', lightBg: 'bg-emerald-50' },
+    { label: 'Inactifs', value: String(apiStats?.totalInactifs ?? 0), icon: Clock, color: 'bg-amber-500', lightBg: 'bg-amber-50' },
+    { label: 'Rôles distincts', value: String(apiStats?.totalRoles ?? 0), icon: Shield, color: 'bg-purple-500', lightBg: 'bg-purple-50' },
   ];
 
   const getInitials = (nom: string, prenom: string) => `${prenom?.[0] ?? ''}${nom?.[0] ?? ''}`.toUpperCase();

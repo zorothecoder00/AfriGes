@@ -43,6 +43,8 @@ model User {
   notifications       Notification[]
   souscriptionsPacks  SouscriptionPack[]
   pointsFidelite      PointsFidelite?
+  messagesEnvoyes     Message[]         @relation("MessagesEnvoyes")
+  messagesRecus       Message[]         @relation("MessagesRecus")
 
   createdAt           DateTime          @default(now())
   updatedAt           DateTime          @updatedAt
@@ -997,4 +999,25 @@ model UtilisationRecompense {
   notes               String?
 
   createdAt           DateTime             @default(now())
+}
+
+// ── Messagerie Admin ↔ Gestionnaires ─────────────────────────────────────────
+
+model Message {
+  id             Int       @id @default(autoincrement())
+  expediteurId   Int
+  destinataireId Int
+  sujet          String
+  contenu        String
+  lu             Boolean   @default(false)
+  dateLecture    DateTime?
+  parentId       Int?      // null = message original, renseigné = réponse
+
+  expediteur     User      @relation("MessagesEnvoyes",  fields: [expediteurId],   references: [id])
+  destinataire   User      @relation("MessagesRecus",    fields: [destinataireId], references: [id])
+  parent         Message?  @relation("Reponses",         fields: [parentId],       references: [id])
+  reponses       Message[] @relation("Reponses")
+
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 }
