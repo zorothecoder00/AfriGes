@@ -10,6 +10,7 @@ import {
 import Link from "next/link";
 import SignOutButton from "@/components/SignOutButton";
 import NotificationBell from "@/components/NotificationBell";
+import MessagesLink from "@/components/MessagesLink";
 import { useApi } from "@/hooks/useApi";
 import { formatCurrency, formatDateShort, formatDateTime } from "@/lib/format";
 
@@ -334,6 +335,7 @@ export default function ComptablePage() {
             <button className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-slate-700 hover:bg-slate-50 transition-all shadow-sm text-sm font-medium">
               <Download size={16} />Exporter
             </button>
+            <MessagesLink />
             <NotificationBell href="/dashboard/user/notifications" />
             <SignOutButton redirectTo="/auth/login?logout=success" className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50 rounded-lg transition-colors" />
           </div>

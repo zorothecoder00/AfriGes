@@ -1,8 +1,40 @@
 "use client";
 
 import React, { useState } from "react";
-import { X, Send, Search } from "lucide-react";
+import { X, Send, Search, Smile } from "lucide-react";
 import { useApi, useMutation } from "@/hooks/useApi";
+
+const EMOJIS = ["👋","😊","✅","❌","⚠️","📦","💰","📝","🔔","👍","👎","🎉","📊","🤝","💬","📞","✉️","🕐","🔍","📋","💡","🚀","✨","🙏","😅","🤔","👏","🎯","📈","📉"];
+
+function EmojiPicker({ onPick }: { onPick: (e: string) => void }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="p-2 text-slate-400 hover:text-amber-500 hover:bg-amber-50 rounded-lg transition-colors"
+        title="Emojis"
+      >
+        <Smile size={18} />
+      </button>
+      {open && (
+        <div className="absolute bottom-full left-0 mb-1 bg-white border border-slate-200 rounded-xl shadow-lg p-2 z-10 w-64 flex flex-wrap gap-1">
+          {EMOJIS.map((e) => (
+            <button
+              key={e}
+              type="button"
+              onClick={() => { onPick(e); setOpen(false); }}
+              className="w-8 h-8 flex items-center justify-center text-lg hover:bg-slate-100 rounded-lg transition-colors"
+            >
+              {e}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 interface Gestionnaire {
   id: number;
@@ -166,7 +198,10 @@ export default function MessageModal({ onClose }: Props) {
 
             {/* Contenu */}
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">Message</label>
+              <div className="flex items-center justify-between mb-2">
+                <label className="block text-sm font-medium text-slate-700">Message</label>
+                <EmojiPicker onPick={(e) => setContenu((c) => c + e)} />
+              </div>
               <textarea
                 required
                 rows={5}

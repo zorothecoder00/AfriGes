@@ -1,1 +1,7 @@
 -Pages user qu'il me reste à créer( types de gestionnaires [ COMMERCIAL, RESPONSABLE_VENTE_CREDIT, RESPONSABLE_ECONOMIQUE, RESPONSABLE_MARKETING ] )
+
+-sur les dashboard/user/... au niveau de MessageLink ou plutôt dashboard/gestionnaire/messages , J'ai pas les infos d'heure d'envoi du message admin + L'heure à laquelle j'ai envoyé le message côté gestionnaire 
+
+-Aussi au niveau de dashboard/admin et /dashboard/admin/messages , lorsque j'ouvre MessageModal et que j'appuie sur les émojis , ça créé un défilement qui n'est pas très fluide ( je préfère que tu décales peut être la zone des émojis ou si tu as une meilleure idée tu peux le faire aussi)
+
+    

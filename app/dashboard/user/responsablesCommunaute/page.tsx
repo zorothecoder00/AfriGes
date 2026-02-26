@@ -9,6 +9,7 @@ import {
 import Link from 'next/link';
 import SignOutButton from '@/components/SignOutButton';
 import NotificationBell from '@/components/NotificationBell';
+import MessagesLink from '@/components/MessagesLink';
 import { useApi } from '@/hooks/useApi';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { getStatusStyle, getStatusLabel } from '@/lib/status';
@@ -230,6 +231,7 @@ export default function ResponsableCommunautePage() {
               </h1>
             </div>
             <div className="flex items-center gap-3">
+              <MessagesLink />
               <NotificationBell href="/dashboard/user/notifications" />
               <div className="w-9 h-9 rounded-full bg-gradient-to-r from-emerald-500 to-green-500 flex items-center justify-center text-white font-bold text-sm">C</div>
               <SignOutButton redirectTo="/auth/login?logout=success" className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50 rounded-lg transition-colors" />

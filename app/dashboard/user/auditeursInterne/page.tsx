@@ -10,6 +10,8 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import SignOutButton from "@/components/SignOutButton";
+import NotificationBell from "@/components/NotificationBell";
+import MessagesLink from "@/components/MessagesLink";
 import { useApi } from "@/hooks/useApi";
 import { formatCurrency, formatDate, formatDateTime } from "@/lib/format";
 
@@ -59,6 +61,20 @@ interface LivraisonAudit {
   nbLignes: number;
 }
 
+interface ReceptionPackAudit {
+  id: number;
+  statut: string;
+  packNom: string;
+  packType: string;
+  souscriptionId: number;
+  beneficiaire: string;
+  livreurNom: string;
+  datePrevisionnelle: string;
+  dateLivraison: string | null;
+  notes: string | null;
+  produits: string;
+}
+
 interface ClotureCaisseItem {
   id: number;
   date: string;
@@ -104,6 +120,10 @@ interface DashboardData {
     stats: Record<string, number>;
     enRetard: number;
     recentes: LivraisonAudit[];
+  };
+  receptionsPack: {
+    stats: Record<string, number>;
+    recentes: ReceptionPackAudit[];
   };
   clotureCaisse: {
     derniere: ClotureCaisseItem | null;
@@ -321,6 +341,8 @@ export default function AuditeurInternePage() {
               </h1>
             </div>
             <div className="flex items-center gap-3">
+              <MessagesLink />
+              <NotificationBell href="/dashboard/user/notifications" />
               <div className="w-9 h-9 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 flex items-center justify-center text-white font-bold text-sm">A</div>
               <SignOutButton redirectTo="/auth/login?logout=success" className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50 rounded-lg transition-colors" />
             </div>
@@ -547,7 +569,7 @@ export default function AuditeurInternePage() {
                   className="border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 bg-slate-50 text-slate-700"
                 >
                   <option value="">Toutes les entités</option>
-                  {["Produit", "SouscriptionPack", "VersementPack", "EcheancePack", "Livraison", "User", "ClotureCaisse", "Pack"].map((e) => (
+                  {["Produit", "SouscriptionPack", "VersementPack", "EcheancePack", "Livraison", "ReceptionProduitPack", "MouvementStock", "User", "ClotureCaisse", "Pack"].map((e) => (
                     <option key={e} value={e}>{e}</option>
                   ))}
                 </select>
@@ -1012,6 +1034,69 @@ export default function AuditeurInternePage() {
                             </span>
                           </td>
                           <td className="px-5 py-3 text-sm text-slate-600">{l.nbLignes}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            {/* Livraisons de packs clients */}
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 overflow-hidden">
+              <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+                <h3 className="font-bold text-slate-800 flex items-center gap-2">
+                  <Package size={18} className="text-amber-600" />
+                  Livraisons de Packs Clients (30 jours)
+                </h3>
+                <div className="flex gap-2 flex-wrap">
+                  {Object.entries(d?.receptionsPack.stats ?? {}).map(([statut, count]) => (
+                    <span
+                      key={statut}
+                      className={`text-xs font-bold px-2 py-0.5 rounded-full ${statutLivraisonCls[statut] ?? "bg-slate-100 text-slate-600"}`}
+                    >
+                      {count} {statut.replace("_", " ")}
+                    </span>
+                  ))}
+                </div>
+              </div>
+              {(d?.receptionsPack.recentes.length ?? 0) === 0 ? (
+                <p className="text-center text-slate-400 py-10 text-sm">Aucune livraison de pack ce mois-ci.</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-slate-50 border-b border-slate-200">
+                      <tr>
+                        <th className="px-5 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Pack</th>
+                        <th className="px-5 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Bénéficiaire</th>
+                        <th className="px-5 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Produits</th>
+                        <th className="px-5 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Livreur</th>
+                        <th className="px-5 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Date prév.</th>
+                        <th className="px-5 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Date livr.</th>
+                        <th className="px-5 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Statut</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {d?.receptionsPack.recentes.map((r) => (
+                        <tr key={r.id} className="hover:bg-slate-50 transition-colors">
+                          <td className="px-5 py-3">
+                            <span className="font-semibold text-slate-800 text-sm">{r.packNom}</span>
+                            <span className="ml-1 text-xs text-slate-400">({r.packType})</span>
+                          </td>
+                          <td className="px-5 py-3 text-sm text-slate-600">{r.beneficiaire}</td>
+                          <td className="px-5 py-3 text-xs text-slate-500 max-w-[200px] truncate" title={r.produits}>
+                            {r.produits || "—"}
+                          </td>
+                          <td className="px-5 py-3 text-sm text-slate-600">{r.livreurNom}</td>
+                          <td className="px-5 py-3 text-xs text-slate-500">{formatDate(r.datePrevisionnelle)}</td>
+                          <td className="px-5 py-3 text-xs text-slate-500">
+                            {r.dateLivraison ? formatDate(r.dateLivraison) : "—"}
+                          </td>
+                          <td className="px-5 py-3">
+                            <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${statutLivraisonCls[r.statut] ?? "bg-slate-100 text-slate-600"}`}>
+                              {r.statut.replace("_", " ")}
+                            </span>
+                          </td>
                         </tr>
                       ))}
                     </tbody>

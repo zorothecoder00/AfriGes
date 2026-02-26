@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthSession } from "@/lib/auth";
-import { notifyAdmins } from "@/lib/notifications";
+import { notifyAdmins, auditLog } from "@/lib/notifications";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -51,6 +51,8 @@ export async function DELETE(_req: Request, { params }: Ctx) {
         priorite: "HAUTE",
         actionUrl: "/dashboard/admin/packs",
       });
+
+      await auditLog(tx, parseInt(session.user.id), "LIVRAISON_PACK_ANNULEE", "ReceptionProduitPack", receptionId);
 
       return u;
     });

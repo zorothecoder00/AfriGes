@@ -10,6 +10,7 @@ import {
 import Link from "next/link";
 import SignOutButton from "@/components/SignOutButton";
 import NotificationBell from "@/components/NotificationBell";
+import MessagesLink from "@/components/MessagesLink";
 import { useApi, useMutation } from "@/hooks/useApi";
 import { formatCurrency, formatDate, formatDateTime } from "@/lib/format";
 
@@ -378,6 +379,7 @@ export default function LogistiqueApprovisionnementPage() {
               </div>
             </div>
             <div className="flex items-center gap-3">
+              <MessagesLink />
               <NotificationBell href="/dashboard/user/notifications" />
               <SignOutButton
                 redirectTo="/auth/login?logout=success"

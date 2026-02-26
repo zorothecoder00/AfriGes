@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthSession } from "@/lib/auth";
-import { notifyAdmins } from "@/lib/notifications";
+import { notifyAdmins, auditLog } from "@/lib/notifications";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -164,7 +164,7 @@ export async function POST(req: Request, { params }: Ctx) {
             souscriptionId,
             statut: "PLANIFIEE",
             datePrevisionnelle: datePrevisionnelle ? new Date(datePrevisionnelle) : new Date(),
-            livreurNom: livreurNom ?? adminNom,
+            livreurNom: livreurNom ?? null,
             notes,
             lignes: {
               create: lignes.map((l: { produitId: number; quantite: number; prixUnitaire: number }) => ({
@@ -179,10 +179,12 @@ export async function POST(req: Request, { params }: Ctx) {
 
         await notifyAdmins(tx, {
           titre: `Livraison planifiée — ${souscription.pack.nom}`,
-          message: `Une livraison pour la souscription #${souscriptionId} a été planifiée par ${adminNom}.`,
+          message: `${adminNom} a planifié une livraison pour la souscription #${souscriptionId}${livreurNom ? ` (livreur : ${livreurNom})` : ""}.`,
           priorite: "NORMAL",
           actionUrl: "/dashboard/admin/packs",
         });
+
+        await auditLog(tx, parseInt(session.user.id), "LIVRAISON_PACK_PLANIFIEE", "ReceptionProduitPack", rec.id);
 
         return rec;
       });
@@ -236,7 +238,7 @@ export async function POST(req: Request, { params }: Ctx) {
 
         const updated = await tx.receptionProduitPack.update({
           where: { id: rec.id },
-          data: { statut: "LIVREE", dateLivraison: new Date(), livreurNom: livreurNom ?? adminNom },
+          data: { statut: "LIVREE", dateLivraison: new Date(), ...(livreurNom ? { livreurNom } : {}) },
         });
 
         await notifyAdmins(tx, {
@@ -245,6 +247,8 @@ export async function POST(req: Request, { params }: Ctx) {
           priorite: "HAUTE",
           actionUrl: "/dashboard/admin/packs",
         });
+
+        await auditLog(tx, parseInt(session.user.id), "LIVRAISON_PACK_LIVREE", "ReceptionProduitPack", updated.id);
 
         // ── Renouvellement de cycle ────────────────────────────────────────
         // FAMILIAL : nouveau cycle après chaque livraison (pour accumuler
@@ -375,7 +379,7 @@ export async function POST(req: Request, { params }: Ctx) {
             statut: "LIVREE",
             datePrevisionnelle: new Date(),
             dateLivraison: new Date(),
-            livreurNom: adminNom,
+            livreurNom: livreurNom ?? null,
             notes,
             lignes: {
               create: lignes.map((l: { produitId: number; quantite: number; prixUnitaire: number }) => ({
@@ -410,6 +414,8 @@ export async function POST(req: Request, { params }: Ctx) {
           priorite: "NORMAL",
           actionUrl: "/dashboard/admin/ventes",
         });
+
+        await auditLog(tx, parseInt(session.user.id), "LIVRAISON_PACK_VENTE_DIRECTE", "ReceptionProduitPack", rec.id);
 
         return rec;
       });

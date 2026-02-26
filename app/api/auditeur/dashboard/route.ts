@@ -30,6 +30,8 @@ export async function GET() {
       gestionnaireActifsCount,
       auditCountByUser,
       auditLastByUser,
+      receptionsPackRecentes,
+      receptionsPackGrouped,
     ] = await Promise.all([
 
       prisma.auditLog.count(),
@@ -116,6 +118,29 @@ export async function GET() {
         where: { createdAt: { gte: sevenDaysAgo }, userId: { not: null } },
         _max: { createdAt: true },
       }),
+
+      // Réceptions de produits liées aux packs (30 derniers jours)
+      prisma.receptionProduitPack.findMany({
+        take: 15,
+        orderBy: { createdAt: "desc" },
+        where: { createdAt: { gte: thirtyDaysAgo } },
+        include: {
+          souscription: {
+            include: {
+              pack:   { select: { id: true, nom: true, type: true } },
+              client: { select: { id: true, nom: true, prenom: true } },
+              user:   { select: { id: true, nom: true, prenom: true } },
+            },
+          },
+          lignes: { include: { produit: { select: { nom: true } } } },
+        },
+      }),
+
+      // Stats des réceptions pack par statut
+      prisma.receptionProduitPack.groupBy({
+        by: ["statut"],
+        _count: { id: true },
+      }),
     ]);
 
     // ── Stock ─────────────────────────────────────────────────────────────────
@@ -140,6 +165,11 @@ export async function GET() {
 
     const livraisonsStats: Record<string, number> = {};
     livraisonsGrouped.forEach((g) => { livraisonsStats[g.statut] = g._count.id; });
+
+    // ── Réceptions pack stats ─────────────────────────────────────────────────
+
+    const receptionsPackStats: Record<string, number> = {};
+    receptionsPackGrouped.forEach((g) => { receptionsPackStats[g.statut] = g._count.id; });
 
     // ── Clôtures manquantes ───────────────────────────────────────────────────
 
@@ -181,8 +211,8 @@ export async function GET() {
       anomalies.push({ type: "SUPPRESSIONS_MASSIVES", niveau: suppressionsAujourdhui >= 6 ? "CRITIQUE" : "HAUTE", description: `${suppressionsAujourdhui} opération(s) de suppression/annulation aujourd'hui`, entite: "AuditLog" });
     }
 
-    if (echeancesEnRetard > 5) {
-      anomalies.push({ type: "ECHEANCES_RETARD", niveau: echeancesEnRetard > 20 ? "HAUTE" : "MOYENNE", description: `${echeancesEnRetard} échéance(s) de packs en retard de paiement`, entite: "EcheancePack" });
+    if (echeancesEnRetard >= 1) {
+      anomalies.push({ type: "ECHEANCES_RETARD", niveau: echeancesEnRetard > 20 ? "HAUTE" : echeancesEnRetard > 5 ? "MOYENNE" : "BASSE", description: `${echeancesEnRetard} échéance(s) de packs en retard de paiement`, entite: "EcheancePack" });
     }
 
     const niveauOrder: Record<NiveauAnomalie, number> = { CRITIQUE: 0, HAUTE: 1, MOYENNE: 2, BASSE: 3 };
@@ -278,6 +308,25 @@ export async function GET() {
           isEnRetard: l.datePrevisionnelle < now && ["EN_ATTENTE", "EN_COURS"].includes(l.statut),
           nbLignes: l.lignes.length,
         })),
+      },
+      receptionsPack: {
+        stats: receptionsPackStats,
+        recentes: receptionsPackRecentes.map((r) => {
+          const person = r.souscription.client ?? r.souscription.user;
+          return {
+            id: r.id,
+            statut: r.statut,
+            packNom: r.souscription.pack.nom,
+            packType: r.souscription.pack.type,
+            souscriptionId: r.souscriptionId,
+            beneficiaire: person ? `${person.prenom} ${person.nom}` : "—",
+            livreurNom: r.livreurNom,
+            datePrevisionnelle: r.datePrevisionnelle.toISOString(),
+            dateLivraison: r.dateLivraison?.toISOString() ?? null,
+            notes: r.notes,
+            produits: r.lignes.map((l) => `${l.produit.nom} ×${l.quantite}`).join(", "),
+          };
+        }),
       },
       clotureCaisse: {
         derniere: cloturesRecentes[0]

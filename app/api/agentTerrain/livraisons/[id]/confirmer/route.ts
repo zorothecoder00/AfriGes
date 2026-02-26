@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAgentTerrainSession } from "@/lib/authAgentTerrain";
-import { notifyAdmins } from "@/lib/notifications";
+import { notifyAdmins, auditLog } from "@/lib/notifications";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -86,6 +86,8 @@ export async function POST(_req: Request, { params }: Ctx) {
         priorite: "HAUTE",
         actionUrl: "/dashboard/admin/ventes",
       });
+
+      await auditLog(tx, parseInt(session.user.id), "LIVRAISON_PACK_CONFIRMEE_AGENT_TERRAIN", "ReceptionProduitPack", rec.id);
 
       // ── Renouvellement de cycle ─────────────────────────────────────────────
       if (souscription.pack.type === "FAMILIAL") {

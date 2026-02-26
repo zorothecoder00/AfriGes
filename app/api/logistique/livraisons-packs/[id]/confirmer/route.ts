@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getLogistiqueSession } from "@/lib/authLogistique";
-import { notifyAdmins } from "@/lib/notifications";
+import { notifyAdmins, auditLog } from "@/lib/notifications";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -76,7 +76,7 @@ export async function POST(_req: Request, { params }: Ctx) {
       // ── Statut LIVREE ───────────────────────────────────────────────────────
       const updated = await tx.receptionProduitPack.update({
         where: { id: rec.id },
-        data: { statut: "LIVREE", dateLivraison: new Date(), livreurNom: agentNom },
+        data: { statut: "LIVREE", dateLivraison: new Date() },
       });
 
       // ── Notification admins ─────────────────────────────────────────────────
@@ -86,6 +86,8 @@ export async function POST(_req: Request, { params }: Ctx) {
         priorite: "HAUTE",
         actionUrl: "/dashboard/admin/ventes",
       });
+
+      await auditLog(tx, parseInt(session.user.id), "LIVRAISON_PACK_CONFIRMEE_LOGISTIQUE", "ReceptionProduitPack", rec.id);
 
       // ── Renouvellement de cycle ─────────────────────────────────────────────
       if (souscription.pack.type === "FAMILIAL") {

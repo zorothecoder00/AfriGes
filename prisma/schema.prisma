@@ -73,7 +73,7 @@ model Client {
 
   createdAt           DateTime          @default(now())
   updatedAt           DateTime          @updatedAt
-}
+}  
 
 model Wallet {
   id                  Int               @id @default(autoincrement())
@@ -148,132 +148,6 @@ enum RoleGestionnaire {
   ACTIONNAIRE
 }
   
-model Cotisation {
-  id                  Int               @id @default(autoincrement())
-  memberId            Int?
-  member              User?             @relation(fields: [memberId], references: [id])
-
-  clientId            Int?
-  client              Client?           @relation(fields: [clientId], references: [id])
-
-  montant             Decimal
-  periode             PeriodeCotisation
-  datePaiement        DateTime?
-  dateExpiration      DateTime
-
-  statut              StatutCotisation  @default(EN_ATTENTE)
-
-  createdAt           DateTime          @default(now())
-  updatedAt           DateTime          @updatedAt
-}
-
-enum PeriodeCotisation {   
-  MENSUEL
-  ANNUEL
-}
-
-enum StatutCotisation {
-  EN_ATTENTE
-  PAYEE
-  EXPIREE              
-}
- 
-model Tontine {
-  id                  Int               @id @default(autoincrement())
-  nom                 String
-  description         String?
-  montantCycle        Decimal
-  frequence           Frequence
-  statut              StatutTontine     @default(ACTIVE)
-  dateDebut           DateTime
-  dateFin             DateTime?
-
-  membres             TontineMembre[]
-  cycles              TontineCycle[]
-
-  createdAt           DateTime          @default(now())
-  updatedAt           DateTime          @updatedAt
-}
-
-model TontineMembre {
-  id                  Int               @id @default(autoincrement())
-  tontineId           Int
-  memberId            Int?
-  ordreTirage         Int?
-  dateEntree          DateTime          @default(now())
-  dateSortie          DateTime?
-
-  clientId            Int?
-  client              Client?           @relation(fields: [clientId], references: [id])
-
-  tontine             Tontine           @relation(fields: [tontineId], references: [id])
-  member              User?             @relation(fields: [memberId], references: [id])
-  contributions       TontineContribution[]
-  cyclesBeneficiaire  TontineCycle[]    @relation("CycleBeneficiaire")
-
-  @@unique([tontineId, clientId])
-}
-
-enum Frequence {
-  HEBDOMADAIRE
-  MENSUEL
-}
-
-enum StatutTontine {
-  ACTIVE
-  TERMINEE
-  SUSPENDUE
-}
-
-enum StatutCycle {
-  EN_COURS
-  COMPLETE
-  ANNULE
-}
-
-enum StatutContribution {
-  EN_ATTENTE
-  PAYEE
-}
-
-model TontineCycle {
-  id              Int                   @id @default(autoincrement())
-  tontineId       Int
-  numeroCycle     Int
-  beneficiaireId  Int
-  montantPot      Decimal 
-  statut          StatutCycle           @default(EN_COURS)
-  dateDebut       DateTime              @default(now())
-  dateCloture     DateTime?
-
-  tontine         Tontine               @relation(fields: [tontineId], references: [id])
-  beneficiaire    TontineMembre         @relation("CycleBeneficiaire", fields: [beneficiaireId], references: [id])
-  contributions   TontineContribution[]
-
-  createdAt       DateTime              @default(now())
-  updatedAt       DateTime              @updatedAt
-
-  @@unique([tontineId, numeroCycle])
-}
-
-model TontineContribution {
-  id              Int                   @id @default(autoincrement())
-  cycleId         Int
-  membreId        Int
-  montant         Decimal
-  statut          StatutContribution    @default(EN_ATTENTE)
-  datePaiement    DateTime?
-  notePaiement    String?
-
-  cycle           TontineCycle          @relation(fields: [cycleId], references: [id])
-  membre          TontineMembre         @relation(fields: [membreId], references: [id])
-
-  createdAt       DateTime              @default(now())
-  updatedAt       DateTime              @updatedAt
-
-  @@unique([cycleId, membreId])
-}
-
 model Credit {
   id                  Int               @id @default(autoincrement())
   memberId            Int?
@@ -319,76 +193,6 @@ enum TransactionCreditType {
   REMBOURSEMENT
 }
 
-enum SourceCreditAlim {   
-  COTISATION
-  TONTINE   
-}
-
-model CreditAlimentaire {
-  id                  Int               @id @default(autoincrement())
-  memberId            Int?
-  member              User?             @relation(fields: [memberId], references: [id])
-
-  clientId            Int?
-  client              Client?           @relation(fields: [clientId], references: [id])
-
-  plafond             Decimal
-  montantUtilise      Decimal           @default(0)
-  montantRestant      Decimal // Calculé automatiquement
-
-  source              SourceCreditAlim  @default(COTISATION)
-  sourceId            Int // ID de la cotisation ou de la tontine
-
-  dateAttribution     DateTime          @default(now())
-  dateExpiration      DateTime?
-
-  statut              StatutCreditAlim  @default(ACTIF)
-
-  transactions        CreditAlimentaireTransaction[]
-  ventes              VenteCreditAlimentaire[] // ✅ AJOUTÉ
-
-  createdAt           DateTime          @default(now())
-  updatedAt           DateTime          @updatedAt
-}
-
-model VenteCreditAlimentaire {
-  id                  Int                @id @default(autoincrement())
-  creditAlimentaireId Int
-  produitId           Int
-  quantite            Int
-  prixUnitaire        Decimal
-
-  creditAlimentaire   CreditAlimentaire  @relation(fields: [creditAlimentaireId], references: [id])
-  produit             Produit            @relation(fields: [produitId], references: [id])
-
-  createdAt           DateTime           @default(now())
-}
-
-model CreditAlimentaireTransaction {
-  id                  Int                @id @default(autoincrement())
-  creditId            Int
-  montant             Decimal
-  type                TypeCreditAlim
-  description         String?
-
-  credit              CreditAlimentaire  @relation(fields: [creditId], references: [id])
-
-  createdAt           DateTime           @default(now())
-  updatedAt           DateTime           @updatedAt
-}
-
-enum StatutCreditAlim {
-  ACTIF
-  EPUISE
-  EXPIRE
-}
-
-enum TypeCreditAlim {  
-  UTILISATION
-  ANNULATION
-  AJUSTEMENT
-}
-  
 /**
  * ========= STOCK (facultatif mais prêt) ==========
  */

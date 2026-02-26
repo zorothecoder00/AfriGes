@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getRPVSession } from "@/lib/authRPV";
-import { notifyAdmins } from "@/lib/notifications";
+import { notifyAdmins, auditLog } from "@/lib/notifications";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -45,7 +45,7 @@ export async function POST(req: Request, { params }: Ctx) {
             souscriptionId,
             statut: "PLANIFIEE",
             datePrevisionnelle: datePrevisionnelle ? new Date(datePrevisionnelle) : new Date(),
-            livreurNom: livreurNom ?? rpvNom,
+            livreurNom: livreurNom ?? null,
             notes,
             lignes: {
               create: lignes.map((l: { produitId: number; quantite: number; prixUnitaire: number }) => ({
@@ -64,6 +64,8 @@ export async function POST(req: Request, { params }: Ctx) {
           priorite: "NORMAL",
           actionUrl: "/dashboard/user/packs",
         });
+
+        await auditLog(tx, parseInt(session.user.id), "LIVRAISON_PACK_PLANIFIEE", "ReceptionProduitPack", rec.id);
 
         return rec;
       });
@@ -108,7 +110,7 @@ export async function POST(req: Request, { params }: Ctx) {
 
         const updated = await tx.receptionProduitPack.update({
           where: { id: rec.id },
-          data: { statut: "LIVREE", dateLivraison: new Date(), livreurNom: livreurNom ?? rpvNom },
+          data: { statut: "LIVREE", dateLivraison: new Date(), ...(livreurNom ? { livreurNom } : {}) },
         });
 
         await notifyAdmins(tx, {
@@ -117,6 +119,8 @@ export async function POST(req: Request, { params }: Ctx) {
           priorite: "HAUTE",
           actionUrl: "/dashboard/user/packs",
         });
+
+        await auditLog(tx, parseInt(session.user.id), "LIVRAISON_PACK_LIVREE", "ReceptionProduitPack", updated.id);
 
         // ── Renouvellement de cycle ────────────────────────────────────────
         if (souscription.pack.type === "FAMILIAL") {
