@@ -28,8 +28,10 @@ export async function GET(req: Request) {
 
     return NextResponse.json({
       success: true,
-      message: "Traitement des expirations termine",
-      ...result,
+      message: "Traitement des expirations packs terminé",
+      echeancesEnRetard: result.echeancesEnRetard,
+      souscriptionsCompletes: result.souscriptionsCompletes,
+      souscriptionsAnnulees: result.souscriptionsAnnulees,
     });
   } catch (error) {
     console.error("CRON /expirations error:", error);

@@ -11,12 +11,12 @@ generator client {
 datasource db {                              
   provider = "postgresql"              
 }                           
-                  
+                      
 enum Role {         
   SUPER_ADMIN                  
   ADMIN                 
   USER                          
-}    
+}          
    
 model User {
   id                  Int               @id @default(autoincrement())

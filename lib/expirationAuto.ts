@@ -1,69 +1,80 @@
-import { StatutCotisation, StatutCreditAlim, PrioriteNotification, Role } from "@prisma/client";
+import { StatutVersementPack, StatutSouscription, PrioriteNotification, Role } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 
 interface ExpirationResult {
-  cotisationsExpirees: number;
-  creditsExpires: number;
+  echeancesEnRetard: number;
+  souscriptionsCompletes: number;
+  souscriptionsAnnulees: number;
 }
-  
+
 /**
- * Expire automatiquement :
- * - Les cotisations EN_ATTENTE dont dateExpiration est dépassée → EXPIREE
- * - Les crédits alimentaires ACTIF dont dateExpiration est dépassée → EXPIRE
+ * Traite quotidiennement les expirations automatiques liées aux packs :
+ *
+ * 1. Échéances EN_ATTENTE dont datePrevue est dépassée → EN_RETARD
+ * 2. Souscriptions ACTIF dont dateFin est dépassée ET montantRestant <= 0 → COMPLETE
+ * 3. Souscriptions EN_ATTENTE dont dateFin est dépassée → ANNULE (jamais activées)
  *
  * Appelé quotidiennement via /api/cron/expirations
  */
 export async function traiterExpirations(): Promise<ExpirationResult> {
   const now = new Date();
 
-  // 1. Cotisations expirées (seulement EN_ATTENTE, pas PAYEE)
-  const cotisationsAExpirer = await prisma.cotisation.findMany({
+  // ─── 1. Échéances EN_ATTENTE dont datePrevue est dépassée → EN_RETARD ──────
+  const echeancesARetarder = await prisma.echeancePack.findMany({
     where: {
-      statut: StatutCotisation.EN_ATTENTE,
-      dateExpiration: { lt: now },
+      statut: StatutVersementPack.EN_ATTENTE,
+      datePrevue: { lt: now },
     },
-    include: {
-      client: { select: { nom: true, prenom: true } },
-    },
+    select: { id: true },
   });
 
-  if (cotisationsAExpirer.length > 0) {
-    await prisma.cotisation.updateMany({
-      where: {
-        id: { in: cotisationsAExpirer.map((c) => c.id) },
-      },
-      data: {
-        statut: StatutCotisation.EXPIREE,
-      },
+  if (echeancesARetarder.length > 0) {
+    await prisma.echeancePack.updateMany({
+      where: { id: { in: echeancesARetarder.map((e) => e.id) } },
+      data: { statut: StatutVersementPack.EN_RETARD },
     });
   }
 
-  // 2. Crédits alimentaires expirés
-  const creditsAExpirer = await prisma.creditAlimentaire.findMany({
+  // ─── 2. Souscriptions ACTIF expirées + soldées → COMPLETE ──────────────────
+  const souscriptionsACompleter = await prisma.souscriptionPack.findMany({
     where: {
-      statut: StatutCreditAlim.ACTIF,
-      dateExpiration: { not: null, lt: now },
+      statut: StatutSouscription.ACTIF,
+      dateFin: { not: null, lt: now },
+      montantRestant: { lte: 0 },
     },
-    include: {
-      client: { select: { nom: true, prenom: true } },
-    },
+    select: { id: true },
   });
 
-  if (creditsAExpirer.length > 0) {
-    await prisma.creditAlimentaire.updateMany({
-      where: {
-        id: { in: creditsAExpirer.map((c) => c.id) },
-      },
-      data: {
-        statut: StatutCreditAlim.EXPIRE,
-      },
+  if (souscriptionsACompleter.length > 0) {
+    await prisma.souscriptionPack.updateMany({
+      where: { id: { in: souscriptionsACompleter.map((s) => s.id) } },
+      data: { statut: StatutSouscription.COMPLETE, dateCloture: now },
     });
   }
 
-  // 3. Notifications aux admins si des expirations ont eu lieu
-  const totalExpirations = cotisationsAExpirer.length + creditsAExpirer.length;
+  // ─── 3. Souscriptions EN_ATTENTE expirées → ANNULE (jamais activées) ────────
+  const souscriptionsAnnulees = await prisma.souscriptionPack.findMany({
+    where: {
+      statut: StatutSouscription.EN_ATTENTE,
+      dateFin: { not: null, lt: now },
+    },
+    select: { id: true },
+  });
 
-  if (totalExpirations > 0) {
+  if (souscriptionsAnnulees.length > 0) {
+    await prisma.souscriptionPack.updateMany({
+      where: { id: { in: souscriptionsAnnulees.map((s) => s.id) } },
+      data: { statut: StatutSouscription.ANNULE, dateCloture: now },
+    });
+  }
+
+  // ─── 4. Notifications admins si des changements ont eu lieu ─────────────────
+  const totalModifications =
+    echeancesARetarder.length +
+    souscriptionsACompleter.length +
+    souscriptionsAnnulees.length;
+
+  if (totalModifications > 0) {
     const admins = await prisma.user.findMany({
       where: { role: { in: [Role.ADMIN, Role.SUPER_ADMIN] } },
       select: { id: true },
@@ -71,38 +82,38 @@ export async function traiterExpirations(): Promise<ExpirationResult> {
 
     if (admins.length > 0) {
       const lignes: string[] = [];
-
-      if (cotisationsAExpirer.length > 0) {
-        lignes.push(`${cotisationsAExpirer.length} cotisation(s) expiree(s)`);
-      }
-      if (creditsAExpirer.length > 0) {
-        lignes.push(`${creditsAExpirer.length} credit(s) alimentaire(s) expire(s)`);
-      }
+      if (echeancesARetarder.length > 0)
+        lignes.push(`${echeancesARetarder.length} échéance(s) passée(s) EN_RETARD`);
+      if (souscriptionsACompleter.length > 0)
+        lignes.push(`${souscriptionsACompleter.length} souscription(s) complétée(s) automatiquement`);
+      if (souscriptionsAnnulees.length > 0)
+        lignes.push(`${souscriptionsAnnulees.length} souscription(s) annulée(s) (jamais activées)`);
 
       await prisma.notification.createMany({
         data: admins.map((admin) => ({
           userId: admin.id,
-          titre: "Expirations automatiques",
+          titre: "Expirations packs — traitement automatique",
           message: `Traitement quotidien : ${lignes.join(", ")}.`,
           priorite: PrioriteNotification.NORMAL,
-          actionUrl: "/dashboard/admin",
+          actionUrl: "/dashboard/admin/packs",
         })),
       });
     }
   }
 
-  // 4. Audit log
-  if (totalExpirations > 0) {
+  // ─── 5. Audit log ────────────────────────────────────────────────────────────
+  if (totalModifications > 0) {
     await prisma.auditLog.create({
       data: {
-        action: "EXPIRATION_AUTOMATIQUE",
-        entite: "Systeme",
+        action: "EXPIRATION_AUTOMATIQUE_PACKS",
+        entite: "Pack",
       },
     });
   }
 
   return {
-    cotisationsExpirees: cotisationsAExpirer.length,
-    creditsExpires: creditsAExpirer.length,
+    echeancesEnRetard: echeancesARetarder.length,
+    souscriptionsCompletes: souscriptionsACompleter.length,
+    souscriptionsAnnulees: souscriptionsAnnulees.length,
   };
 }
