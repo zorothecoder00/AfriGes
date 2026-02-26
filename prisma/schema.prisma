@@ -8,7 +8,7 @@ generator client {
   provider = "prisma-client-js"                                                                      
 }                                                       
                       
-datasource db {                              
+datasource db {                                
   provider = "postgresql"              
 }                           
                       
@@ -34,10 +34,6 @@ model User {
 
   wallet              Wallet?
   gestionnaire        Gestionnaire?
-  tontines            TontineMembre[]
-  credits             Credit[]
-  creditsAlim         CreditAlimentaire[]
-  cotisations         Cotisation[]
   factures            Facture[] // ✅ AJOUTÉ
   auditLogs           AuditLog[] // ✅ (pour erreur suivante)
   notifications       Notification[]
@@ -63,11 +59,6 @@ model Client {
   telephone           String            @unique
   adresse             String?
   etat                MemberStatus      @default(ACTIF)
-
-  credits             Credit[]
-  creditsAlim         CreditAlimentaire[]
-  cotisations         Cotisation[]
-  tontines            TontineMembre[]
   souscriptionsPacks  SouscriptionPack[]
   pointsFidelite      PointsFidelite?
 
@@ -147,51 +138,6 @@ enum RoleGestionnaire {
   RESPONSABLE_MARKETING
   ACTIONNAIRE
 }
-  
-model Credit {
-  id                  Int               @id @default(autoincrement())
-  memberId            Int?
-  montant             Decimal
-  montantRestant      Decimal
-  dateDemande         DateTime          @default(now())
-  statut              StatutCredit      @default(EN_ATTENTE)
-  scoreRisque         Decimal?
-
-  clientId            Int?
-  client              Client?           @relation(fields: [clientId], references: [id])
-
-  member              User?             @relation(fields: [memberId], references: [id])
-  transactions        CreditTransaction[]
-
-  createdAt           DateTime          @default(now())
-  updatedAt           DateTime          @updatedAt
-}    
-  
-model CreditTransaction {  
-  id                  Int               @id @default(autoincrement())
-  creditId            Int
-  montant             Decimal
-  type                TransactionCreditType
-  description         String?
-
-  credit              Credit            @relation(fields: [creditId], references: [id])
-
-  createdAt           DateTime          @default(now())
-  updatedAt           DateTime          @updatedAt
-}
- 
-enum StatutCredit {
-  EN_ATTENTE
-  APPROUVE
-  REJETE
-  REMBOURSE_PARTIEL
-  REMBOURSE_TOTAL
-}
-
-enum TransactionCreditType {
-  DECAISSEMENT
-  REMBOURSEMENT
-}
 
 /**
  * ========= STOCK (facultatif mais prêt) ==========
@@ -206,7 +152,6 @@ model Produit {
   alerteStock         Int                  @default(0)
 
   mouvements          MouvementStock[]
-  ventesCreditAlim    VenteCreditAlimentaire[]
   livraisonsLignes    LivraisonLigne[]
   lignesReceptionPack LigneReceptionPack[]
   recompensesFidelite RecompenseFidelite[]
@@ -809,7 +754,7 @@ model UtilisationRecompense {
 
 model Message {
   id             Int       @id @default(autoincrement())
-  expediteurId   Int
+  expediteurId   Int  
   destinataireId Int
   sujet          String
   contenu        String
