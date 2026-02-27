@@ -141,11 +141,10 @@ export async function DELETE(_req: Request, { params }: Ctx) {
     const id = Number(idStr);
     const produit = await prisma.produit.findUnique({
       where:  { id },
-      include: { ventesCreditAlim: { take: 1 }, livraisonsLignes: { take: 1 } },
+      include: { livraisonsLignes: { take: 1 } },
     });
     if (!produit) return NextResponse.json({ message: "Produit introuvable" }, { status: 404 });
-    if (produit.ventesCreditAlim.length > 0)
-      return NextResponse.json({ message: "Impossible de supprimer : des ventes sont liées à ce produit" }, { status: 409 });
+
     if (produit.livraisonsLignes.length > 0)
       return NextResponse.json({ message: "Impossible de supprimer : ce produit est présent dans des livraisons" }, { status: 409 });
 

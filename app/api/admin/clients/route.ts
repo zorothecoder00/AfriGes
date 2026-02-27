@@ -33,16 +33,6 @@ export async function GET(req: Request) {
         skip,
         take: limit,
         orderBy: { createdAt: "desc" },
-        include: {
-          _count: {
-            select: {
-              credits: true,
-              creditsAlim: true,
-              cotisations: true,
-              tontines: true,
-            },
-          },
-        },
       }),
       prisma.client.count({ where }),
     ]);

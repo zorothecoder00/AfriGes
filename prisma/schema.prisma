@@ -7,7 +7,7 @@
 generator client {
   provider = "prisma-client-js"                                                                      
 }                                                       
-                      
+                        
 datasource db {                                
   provider = "postgresql"              
 }                           
@@ -568,9 +568,9 @@ model Pack {
   createdAt           DateTime           @default(now())
   updatedAt           DateTime           @updatedAt
 }
-
+  
 // Souscription d'un client/membre à un pack
-model SouscriptionPack {
+model SouscriptionPack { 
   id                  Int                @id @default(autoincrement())
   packId              Int
   pack                Pack               @relation(fields: [packId], references: [id])

@@ -152,18 +152,6 @@ export async function DELETE(
       return NextResponse.json({ error: "ID invalide" }, { status: 400 });
     }
 
-    // Verifier qu'il n'y a pas de ventes liees
-    const ventesCount = await prisma.venteCreditAlimentaire.count({
-      where: { produitId: numericId },
-    });
-
-    if (ventesCount > 0) {
-      return NextResponse.json(
-        { error: "Impossible de supprimer ce produit : des ventes y sont associees" },
-        { status: 400 }
-      );
-    }
-
     // Supprimer les mouvements puis le produit
     await prisma.$transaction(async (tx) => {
       await tx.mouvementStock.deleteMany({ where: { produitId: numericId } });

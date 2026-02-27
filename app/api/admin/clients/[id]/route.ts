@@ -34,16 +34,6 @@ export async function GET(
 
     const client = await prisma.client.findUnique({
       where: { id: clientId },
-      include: {
-        _count: {
-          select: {
-            credits: true,
-            creditsAlim: true,
-            cotisations: true,
-            tontines: true,
-          },
-        },
-      },
     });
 
     if (!client) {
@@ -205,31 +195,10 @@ export async function DELETE(
     const result = await prisma.$transaction(async (tx) => {
       const client = await tx.client.findUnique({
         where: { id: clientId },
-        include: {
-          _count: {
-            select: {
-              credits: true,
-              creditsAlim: true,
-              cotisations: true,
-              tontines: true,
-            },
-          },
-        },
       });
 
       if (!client) {
         throw new Error("Client introuvable");
-      }
-
-      // Verifier les relations actives
-      const totalRelations =
-        client._count.credits +
-        client._count.creditsAlim +
-        client._count.cotisations +
-        client._count.tontines;
-
-      if (totalRelations > 0) {
-        throw new Error("RELATIONS_EXIST");
       }
 
       await tx.client.delete({
@@ -277,12 +246,6 @@ export async function DELETE(
         return NextResponse.json(
           { message: error.message },
           { status: 404 }
-        );
-      }
-      if (error.message === "RELATIONS_EXIST") {
-        return NextResponse.json(
-          { message: "Impossible de supprimer ce client car il a des activites associees (credits, cotisations, tontines)" },
-          { status: 409 }
         );
       }
     }

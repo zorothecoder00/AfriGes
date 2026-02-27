@@ -2,6 +2,10 @@
 
 -sur les dashboard/user/... au niveau de MessageLink ou plutôt dashboard/gestionnaire/messages , J'ai pas les infos d'heure d'envoi du message admin + L'heure à laquelle j'ai envoyé le message côté gestionnaire 
 
--Aussi au niveau de dashboard/admin et /dashboard/admin/messages , lorsque j'ouvre MessageModal et que j'appuie sur les émojis , ça créé un défilement qui n'est pas très fluide ( je préfère que tu décales peut être la zone des émojis ou si tu as une meilleure idée tu peux le faire aussi)
+-Aussi au niveau de dashboard/admin et /dashboard/admin/messages , lorsque j'ouvre MessageModal et que j'appuie sur les émojis , ça créé un défilement qui n'est pas très fluide ( je préfère que tu décales peut être la zone des émojis ou si tu as une meilleure idée tu peux le faire aussi)  
 
-    
+-vérifie mes apis pour voir celles qui utilisent encore des requêtes sur credit alimentaire , credits , tontines ou contisations et tu les supprimes s'il te plait
+
+-supprimer le dashboard/user simple qui ne sert plus à rien ; c'est qu'une page vide ( ou si tu préfères on peut essayer de créer quelque chose avec .??? Mais je ne sais pas trop vu que ce que j'utilise vraiment ce sont les dashbaord/user/......)
+
+-Corrige moi tout le /api/rpv/dashboard/ qui utilise encore crédits alimentaires ( et n'oublie pad de vérifier dashboard/user/responsablesPointDeVente pour voir si l'api correspond finalement)
