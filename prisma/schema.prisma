@@ -287,19 +287,101 @@ model LivraisonLigne {
   produit         Produit   @relation(fields: [produitId], references: [id])
 }
 
+// ── Gestion de caisse ─────────────────────────────────────────────────────────
+
+enum StatutSessionCaisse {
+  OUVERTE
+  SUSPENDUE
+  FERMEE
+}
+
+enum ModePaiement {
+  ESPECES
+  VIREMENT
+  CHEQUE
+}
+
+enum TypeOperationCaisse {
+  ENCAISSEMENT
+  DECAISSEMENT
+}
+
+enum CategorieDecaissement {
+  SALAIRE
+  AVANCE
+  FOURNISSEUR
+  AUTRE
+}
+
+model SessionCaisse {
+  id            Int                 @id @default(autoincrement())
+  caissierNom   String
+  caissierId    Int
+  fondsCaisse   Decimal             @default(0)
+  statut        StatutSessionCaisse @default(OUVERTE)
+  dateOuverture DateTime            @default(now())
+  dateFermeture DateTime?
+  notes         String?
+  operations    OperationCaisse[]
+  transferts    TransfertCaisse[]
+  clotures      ClotureCaisse[]
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+}
+
+model OperationCaisse {
+  id           Int                    @id @default(autoincrement())
+  sessionId    Int
+  session      SessionCaisse          @relation(fields: [sessionId], references: [id])
+  type         TypeOperationCaisse
+  mode         ModePaiement?
+  categorie    CategorieDecaissement?
+  montant      Decimal
+  motif        String
+  reference    String                 @unique
+  pieceJointe  String?
+  operateurNom String
+  operateurId  Int
+  createdAt    DateTime               @default(now())
+}
+
+model TransfertCaisse {
+  id           Int           @id @default(autoincrement())
+  sessionId    Int
+  session      SessionCaisse @relation(fields: [sessionId], references: [id])
+  origine      String
+  destination  String
+  montant      Decimal
+  motif        String?
+  reference    String        @unique
+  operateurNom String
+  operateurId  Int
+  createdAt    DateTime      @default(now())
+}
+
 // ── Clôture de caisse ────────────────────────────────────────────────────────
 
 model ClotureCaisse {
-  id            Int      @id @default(autoincrement())
-  date          DateTime @unique          // Date du jour clôturé (minuit)
-  caissierNom   String                    // Nom affiché du caissier
-  totalVentes   Int                       // Nombre de ventes dans la journée
-  montantTotal  Decimal                   // Total encaissé
-  panierMoyen   Decimal                   // Montant moyen par vente
-  nbClients     Int                       // Clients distincts servis
-  notes         String?                   // Observations libres
-  createdAt     DateTime @default(now())
-}    
+  id                       Int            @id @default(autoincrement())
+  date                     DateTime       @unique
+  caissierNom              String
+  totalVentes              Int
+  montantTotal             Decimal
+  panierMoyen              Decimal
+  nbClients                Int
+  notes                    String?
+  // Champs session (nullable pour rétrocompatibilité)
+  sessionId                Int?
+  session                  SessionCaisse? @relation(fields: [sessionId], references: [id])
+  fondsCaisse              Decimal        @default(0)
+  totalEncaissementsAutres Decimal        @default(0)
+  totalDecaissements       Decimal        @default(0)
+  totalTransferts          Decimal        @default(0)
+  soldeTheorique           Decimal        @default(0)
+  soldeReel                Decimal?
+  ecart                    Decimal?
+  createdAt                DateTime       @default(now())
+}
   
 model Notification {
   id                  Int                   @id @default(autoincrement())

@@ -30,6 +30,12 @@ export async function GET() {
       data: { statut: "EN_RETARD" },
     });
 
+    // ── Session active ─────────────────────────────────────────────────────
+    const sessionActive = await prisma.sessionCaisse.findFirst({
+      where: { statut: { in: ["OUVERTE", "SUSPENDUE"] } },
+      orderBy: { createdAt: "desc" },
+    });
+
     // ── Requêtes parallèles ────────────────────────────────────────────────
     const [
       versementsAujourdhui,
@@ -110,6 +116,12 @@ export async function GET() {
 
     // ── Alertes ────────────────────────────────────────────────────────────
     const alertes: { type: "danger" | "warning" | "info"; message: string }[] = [];
+    if (!sessionActive)
+      alertes.push({ type: "warning", message: "Aucune session de caisse ouverte — veuillez ouvrir la caisse" });
+    if (sessionActive?.statut === "SUSPENDUE")
+      alertes.push({ type: "warning", message: "Session de caisse suspendue — reprenez la session pour continuer" });
+    if (derniereCloture && derniereCloture.ecart !== null && Number(derniereCloture.ecart) !== 0)
+      alertes.push({ type: "danger",  message: `Écart de caisse détecté lors de la dernière clôture : ${Number(derniereCloture.ecart).toLocaleString("fr-FR")} FCFA` });
     if (echeancesEnRetard.length > 0)
       alertes.push({ type: "danger",  message: `${echeancesEnRetard.length} échéance(s) en retard à régulariser` });
     if (enRupture > 0)
@@ -135,12 +147,50 @@ export async function GET() {
       };
     });
 
+    // ── Solde temps réel ───────────────────────────────────────────────────
+    const fondsCaisse = sessionActive ? Number(sessionActive.fondsCaisse) : 0;
+
+    const [encaissAgg, decaissAgg, transfertAgg] = await Promise.all([
+      prisma.operationCaisse.aggregate({
+        _sum: { montant: true },
+        where: { type: "ENCAISSEMENT", createdAt: { gte: startOfDay, lte: endOfDay } },
+      }),
+      prisma.operationCaisse.aggregate({
+        _sum: { montant: true },
+        where: { type: "DECAISSEMENT", createdAt: { gte: startOfDay, lte: endOfDay } },
+      }),
+      prisma.transfertCaisse.aggregate({
+        _sum: { montant: true },
+        where: { createdAt: { gte: startOfDay, lte: endOfDay } },
+      }),
+    ]);
+
+    const encaissJour   = Number(encaissAgg._sum.montant ?? 0);
+    const decaissJour   = Number(decaissAgg._sum.montant ?? 0);
+    const transfertJour = Number(transfertAgg._sum.montant ?? 0);
+    const soldeTempsReel = fondsCaisse + montantJour + encaissJour - decaissJour - transfertJour;
+
     return NextResponse.json({
       success: true,
       data: {
         today: {
           date:       now.toISOString(),
           startOfDay: startOfDay.toISOString(),
+        },
+        sessionActive: sessionActive
+          ? {
+              id:            sessionActive.id,
+              statut:        sessionActive.statut,
+              fondsCaisse,
+              dateOuverture: sessionActive.dateOuverture.toISOString(),
+              caissierNom:   sessionActive.caissierNom,
+            }
+          : null,
+        soldeTempsReel,
+        operationsJour: {
+          encaissements: encaissJour,
+          decaissements: decaissJour,
+          transferts:    transfertJour,
         },
         versements: {
           total:    totalVersements,

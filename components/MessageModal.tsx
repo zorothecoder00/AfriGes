@@ -9,7 +9,7 @@ const EMOJIS = ["👋","😊","✅","❌","⚠️","📦","💰","📝","🔔","
 function EmojiPicker({ onPick }: { onPick: (e: string) => void }) {
   const [open, setOpen] = useState(false);
   return (
-    <div className="relative">
+    <div className="relative flex-shrink-0">
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
@@ -19,7 +19,7 @@ function EmojiPicker({ onPick }: { onPick: (e: string) => void }) {
         <Smile size={18} />
       </button>
       {open && (
-        <div className="absolute bottom-full left-0 mb-1 bg-white border border-slate-200 rounded-xl shadow-lg p-2 z-10 w-64 flex flex-wrap gap-1">
+        <div className="absolute bottom-full left-0 mb-2 bg-white border border-slate-200 rounded-xl shadow-xl p-2 z-[60] w-64 flex flex-wrap gap-1">
           {EMOJIS.map((e) => (
             <button
               key={e}
@@ -198,10 +198,7 @@ export default function MessageModal({ onClose }: Props) {
 
             {/* Contenu */}
             <div>
-              <div className="flex items-center justify-between mb-2">
-                <label className="block text-sm font-medium text-slate-700">Message</label>
-                <EmojiPicker onPick={(e) => setContenu((c) => c + e)} />
-              </div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">Message</label>
               <textarea
                 required
                 rows={5}
@@ -214,7 +211,8 @@ export default function MessageModal({ onClose }: Props) {
           </div>
 
           {/* Footer */}
-          <div className="p-6 border-t border-slate-100 flex gap-3">
+          <div className="p-6 border-t border-slate-100 flex items-center gap-3">
+            <EmojiPicker onPick={(e) => setContenu((c) => c + e)} />
             <button
               type="button"
               onClick={onClose}

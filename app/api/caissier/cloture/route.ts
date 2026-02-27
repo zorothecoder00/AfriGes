@@ -143,8 +143,7 @@ export async function GET(req: Request) {
  *
  * Crée la clôture de la journée en cours.
  * Idempotent : erreur 409 si déjà clôturée.
- * Calcule les stats à partir des VersementPack du jour.
- * Body : { notes? }
+ * Body : { notes?, soldeReel? }
  */
 export async function POST(req: Request) {
   try {
@@ -153,8 +152,9 @@ export async function POST(req: Request) {
       return NextResponse.json({ message: "Accès refusé" }, { status: 403 });
     }
 
-    const body  = await req.json().catch(() => ({}));
-    const notes = typeof body.notes === "string" ? body.notes.trim() : null;
+    const body     = await req.json().catch(() => ({}));
+    const notes    = typeof body.notes === "string" ? body.notes.trim() || null : null;
+    const soldeReel = body.soldeReel !== undefined && body.soldeReel !== "" ? Number(body.soldeReel) : null;
 
     const now        = new Date();
     const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
@@ -171,19 +171,15 @@ export async function POST(req: Request) {
       );
     }
 
-    // Stats du jour depuis VersementPack
+    // Stats VersementPack du jour
     const versementsJour = await prisma.versementPack.findMany({
       where: { datePaiement: { gte: startOfDay, lte: endOfDay } },
-      include: {
-        souscription: { select: { clientId: true, userId: true } },
-      },
+      include: { souscription: { select: { clientId: true, userId: true } } },
     });
-
     const totalVentes  = versementsJour.length;
     const montantTotal = versementsJour.reduce((s, v) => s + Number(v.montant), 0);
     const panierMoyen  = totalVentes > 0 ? montantTotal / totalVentes : 0;
-
-    const clientsSet = new Set(
+    const clientsSet   = new Set(
       versementsJour
         .map((v) => {
           const s = v.souscription;
@@ -193,32 +189,75 @@ export async function POST(req: Request) {
     );
     const nbClients = clientsSet.size;
 
+    // Session active → fonds de caisse
+    const sessionActive = await prisma.sessionCaisse.findFirst({
+      where: { statut: { in: ["OUVERTE", "SUSPENDUE"] } },
+      orderBy: { createdAt: "desc" },
+    });
+    const fondsCaisse = sessionActive ? Number(sessionActive.fondsCaisse) : 0;
+
+    // Agrégats OperationCaisse du jour
+    const [encaissAgg, decaissAgg, transfertAgg] = await Promise.all([
+      prisma.operationCaisse.aggregate({
+        _sum: { montant: true },
+        where: { type: "ENCAISSEMENT", createdAt: { gte: startOfDay, lte: endOfDay } },
+      }),
+      prisma.operationCaisse.aggregate({
+        _sum: { montant: true },
+        where: { type: "DECAISSEMENT", createdAt: { gte: startOfDay, lte: endOfDay } },
+      }),
+      prisma.transfertCaisse.aggregate({
+        _sum: { montant: true },
+        where: { createdAt: { gte: startOfDay, lte: endOfDay } },
+      }),
+    ]);
+
+    const totalEncaissementsAutres = Number(encaissAgg._sum.montant ?? 0);
+    const totalDecaissements       = Number(decaissAgg._sum.montant ?? 0);
+    const totalTransferts          = Number(transfertAgg._sum.montant ?? 0);
+    const soldeTheorique           = fondsCaisse + montantTotal + totalEncaissementsAutres - totalDecaissements - totalTransferts;
+    const ecart                    = soldeReel !== null ? soldeReel - soldeTheorique : null;
+
     const caissierNom = session.user.name ?? "Caissier";
 
     const cloture = await prisma.$transaction(async (tx) => {
       const created = await tx.clotureCaisse.create({
         data: {
-          date:         startOfDay,
+          date:                    startOfDay,
           caissierNom,
           totalVentes,
-          montantTotal: new Prisma.Decimal(montantTotal),
-          panierMoyen:  new Prisma.Decimal(panierMoyen),
+          montantTotal:            new Prisma.Decimal(montantTotal),
+          panierMoyen:             new Prisma.Decimal(panierMoyen),
           nbClients,
-          notes:        notes ?? undefined,
+          notes,
+          sessionId:               sessionActive?.id ?? null,
+          fondsCaisse:             new Prisma.Decimal(fondsCaisse),
+          totalEncaissementsAutres: new Prisma.Decimal(totalEncaissementsAutres),
+          totalDecaissements:      new Prisma.Decimal(totalDecaissements),
+          totalTransferts:         new Prisma.Decimal(totalTransferts),
+          soldeTheorique:          new Prisma.Decimal(soldeTheorique),
+          soldeReel:               soldeReel !== null ? new Prisma.Decimal(soldeReel) : null,
+          ecart:                   ecart !== null ? new Prisma.Decimal(ecart) : null,
         },
       });
 
-      // Audit log
+      // Fermer la session si elle existe
+      if (sessionActive) {
+        await tx.sessionCaisse.update({
+          where: { id: sessionActive.id },
+          data:  { statut: "FERMEE", dateFermeture: now },
+        });
+      }
+
       await auditLog(tx, parseInt(session.user.id), "CLOTURE_CAISSE", "ClotureCaisse", created.id);
 
-      // Notifications : Admin + RPV (haute priorité) + Comptable
       const dateStr = startOfDay.toLocaleDateString("fr-FR");
       await notifyRoles(
         tx,
         ["RESPONSABLE_POINT_DE_VENTE", "COMPTABLE"],
         {
           titre:    `Clôture de caisse — ${dateStr}`,
-          message:  `${caissierNom} a effectué la clôture de caisse du ${dateStr} : ${totalVentes} versement(s) collecté(s) pour un total de ${montantTotal.toLocaleString("fr-FR")} FCFA (${nbClients} client(s) servi(s)).`,
+          message:  `${caissierNom} a clôturé la caisse du ${dateStr}. Solde théorique : ${soldeTheorique.toLocaleString("fr-FR")} FCFA${ecart !== null ? ` | Écart : ${ecart.toLocaleString("fr-FR")} FCFA` : ""}.`,
           priorite: PrioriteNotification.HAUTE,
           actionUrl: "/dashboard/admin/ventes",
         }
@@ -233,10 +272,17 @@ export async function POST(req: Request) {
         message: "Clôture de caisse enregistrée avec succès",
         data: {
           ...cloture,
-          date:         cloture.date.toISOString(),
-          montantTotal: Number(cloture.montantTotal),
-          panierMoyen:  Number(cloture.panierMoyen),
-          createdAt:    cloture.createdAt.toISOString(),
+          date:                    cloture.date.toISOString(),
+          montantTotal:            Number(cloture.montantTotal),
+          panierMoyen:             Number(cloture.panierMoyen),
+          fondsCaisse:             Number(cloture.fondsCaisse),
+          totalEncaissementsAutres: Number(cloture.totalEncaissementsAutres),
+          totalDecaissements:      Number(cloture.totalDecaissements),
+          totalTransferts:         Number(cloture.totalTransferts),
+          soldeTheorique:          Number(cloture.soldeTheorique),
+          soldeReel:               cloture.soldeReel !== null ? Number(cloture.soldeReel) : null,
+          ecart:                   cloture.ecart !== null ? Number(cloture.ecart) : null,
+          createdAt:               cloture.createdAt.toISOString(),
         },
       },
       { status: 201 }

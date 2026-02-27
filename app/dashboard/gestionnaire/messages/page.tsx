@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import { ArrowLeft, Send, MessageSquare, ChevronDown, ChevronUp, Clock, Smile } from "lucide-react";
 import Link from "next/link";
 import { useApi, useMutation } from "@/hooks/useApi";
-import { formatDate } from "@/lib/format";  
+import { formatDateTime } from "@/lib/format";
 
 const EMOJIS = ["👋","😊","✅","❌","⚠️","📦","💰","📝","🔔","👍","👎","🎉","📊","🤝","💬","📞","✉️","🕐","🔍","📋","💡","🚀","✨","🙏","😅","🤔","👏","🎯","📈","📉"];
 
@@ -120,7 +120,7 @@ function MessageCard({ message, onReplied }: { message: MessageOriginal; onRepli
             )}
             <div className="flex items-center gap-1.5 text-xs text-slate-400">
               <Clock size={12} />
-              {formatDate(message.createdAt)}
+              {formatDateTime(message.createdAt)}
             </div>
             {open
               ? <ChevronUp size={16} className="text-slate-400" />
@@ -160,7 +160,7 @@ function MessageCard({ message, onReplied }: { message: MessageOriginal; onRepli
                         <p className={`text-xs font-semibold ${isAdmin ? "text-slate-700" : "text-emerald-700"}`}>
                           {rep.expediteur.prenom} {rep.expediteur.nom}
                         </p>
-                        <p className="text-xs text-slate-400">{formatDate(rep.createdAt)}</p>
+                        <p className="text-xs text-slate-400">{formatDateTime(rep.createdAt)}</p>
                       </div>
                       <p className="text-sm text-slate-700 whitespace-pre-wrap">{rep.contenu}</p>
                     </div>

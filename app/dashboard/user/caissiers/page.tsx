@@ -6,6 +6,8 @@ import {
   Plus, X, CheckCircle, Clock, Banknote, Printer, BarChart3,
   Users, Hash, AlertTriangle, AlertCircle, Info, ChevronLeft, ChevronRight,
   Lock, Calendar, FileText, Filter, Layers, Eye, XCircle, Package,
+  Wallet, Power, Pause, Play, ArrowDownCircle, ArrowUpCircle,
+  ArrowLeftRight, CreditCard, Building2, Send,
 } from "lucide-react";
 import Link from "next/link";
 import SignOutButton from "@/components/SignOutButton";
@@ -24,8 +26,37 @@ interface EcheanceRetard {
   client: { nom: string; prenom: string; telephone: string } | null;
 }
 
+interface SessionCaisse {
+  id: number; caissierNom: string; caissierId: number;
+  fondsCaisse: number; statut: "OUVERTE" | "SUSPENDUE" | "FERMEE";
+  dateOuverture: string; dateFermeture: string | null;
+  notes: string | null; createdAt: string; updatedAt: string;
+}
+
+interface OperationCaisse {
+  id: number; sessionId: number;
+  type: "ENCAISSEMENT" | "DECAISSEMENT";
+  mode: "ESPECES" | "VIREMENT" | "CHEQUE" | null;
+  categorie: "SALAIRE" | "AVANCE" | "FOURNISSEUR" | "AUTRE" | null;
+  montant: number; motif: string; reference: string;
+  operateurNom: string; createdAt: string;
+}
+
+interface TransfertCaisse {
+  id: number; sessionId: number;
+  origine: string; destination: string;
+  montant: number; motif: string | null;
+  reference: string; operateurNom: string; createdAt: string;
+}
+
 interface DashboardData {
   today: { date: string; startOfDay: string };
+  sessionActive: {
+    id: number; statut: "OUVERTE" | "SUSPENDUE" | "FERMEE";
+    fondsCaisse: number; dateOuverture: string; caissierNom: string;
+  } | null;
+  soldeTempsReel: number;
+  operationsJour: { encaissements: number; decaissements: number; transferts: number };
   versements: { total: number; montant: number; nbClients: number };
   stock: {
     total: number; faible: number; rupture: number; valeur: number;
@@ -72,6 +103,13 @@ interface ClotureCaisse {
   id: number; date: string; caissierNom: string;
   totalVentes: number; montantTotal: number; panierMoyen: number;
   nbClients: number; notes: string | null; createdAt: string;
+  fondsCaisse?: number;
+  totalEncaissementsAutres?: number;
+  totalDecaissements?: number;
+  totalTransferts?: number;
+  soldeTheorique?: number;
+  soldeReel?: number | null;
+  ecart?: number | null;
 }
 interface ClotureData {
   success: boolean;
@@ -121,7 +159,7 @@ interface RecuData {
 // HELPERS
 // ============================================================================
 
-type TabKey = "synthese" | "encaissement" | "historique" | "recus" | "cloture";
+type TabKey = "synthese" | "session" | "encaissement_caisse" | "decaissement" | "transferts" | "packs" | "historique" | "recus" | "cloture";
 
 function alertIcon(type: "danger" | "warning" | "info") {
   if (type === "danger")  return <XCircle      className="w-4 h-4 text-red-500 shrink-0"    />;
@@ -156,6 +194,16 @@ function versementTypeLabel(type: string) {
     AJUSTEMENT:           "Ajustement",
   };
   return m[type] ?? type;
+}
+
+function modePaiementLabel(mode: string | null) {
+  const m: Record<string, string> = { ESPECES: "Espèces", VIREMENT: "Virement", CHEQUE: "Chèque" };
+  return mode ? (m[mode] ?? mode) : "—";
+}
+
+function categorieLabel(cat: string | null) {
+  const m: Record<string, string> = { SALAIRE: "Salaire", AVANCE: "Avance", FOURNISSEUR: "Fournisseur", AUTRE: "Autre" };
+  return cat ? (m[cat] ?? cat) : "—";
 }
 
 // ============================================================================
@@ -319,9 +367,27 @@ export default function CaissierPage() {
 
   const [recuModal,            setRecuModal]            = useState(false);
   const [recuData,             setRecuData]             = useState<RecuData["data"] | null>(null);
-
-  const [clotureModal,         setClotureModal]         = useState(false);
   const [notesClotureInput,    setNotesCloture]         = useState("");
+  const [soldeReel,         setSoldeReel]    = useState("");
+
+  // ── Session caisse
+  const [sessionFondsCaisse, setSessionFondsCaisse] = useState("");
+  const [sessionNotes,       setSessionNotes]       = useState("");
+  // ── Encaissement financier
+  const [opMode,    setOpMode]    = useState<"ESPECES" | "VIREMENT" | "CHEQUE">("ESPECES");
+  const [opMontant, setOpMontant] = useState("");
+  const [opMotif,   setOpMotif]   = useState("");
+
+  // ── Décaissement
+  const [decCategorie, setDecCategorie] = useState<"SALAIRE" | "AVANCE" | "FOURNISSEUR" | "AUTRE">("AUTRE");
+  const [decMontant,   setDecMontant]   = useState("");
+  const [decMotif,     setDecMotif]     = useState("");
+
+  // ── Transfert
+  const [trfOrigine,     setTrfOrigine]     = useState("Caisse principale");
+  const [trfDestination, setTrfDestination] = useState("");
+  const [trfMontant,     setTrfMontant]     = useState("");
+  const [trfMotif,       setTrfMotif]       = useState("");
 
   // ── Debounce recherche historique ────────────────────────────────────────
   useEffect(() => {
@@ -366,6 +432,20 @@ export default function CaissierPage() {
   const { data: clotureRes,    refetch: refetchCloture     } = useApi<ClotureData>(`/api/caissier/cloture?${clotureParams}`);
   const { data: packsRes,      refetch: refetchPacks       } = useApi<PacksResponse>(`/api/caissier/packs?${encaissementParams}`);
 
+  const { data: operationsRes, refetch: refetchOperations  } = useApi<{
+    success: boolean;
+    data: OperationCaisse[];
+    totalsJour: { encaissements: number; decaissements: number };
+    meta: { total: number; page: number; limit: number; totalPages: number };
+  }>("/api/caissier/operations?limit=50");
+
+  const { data: transfertsRes, refetch: refetchTransferts  } = useApi<{
+    success: boolean;
+    data: TransfertCaisse[];
+    totalJour: number;
+    meta: { total: number; page: number; limit: number; totalPages: number };
+  }>("/api/caissier/transferts?limit=50");
+
   // ── Mutations ────────────────────────────────────────────────────────────
   const { mutate: collecterVersement, loading: collectant, error: erreurVersement } =
     useMutation<{ versement: { id: number } }, { montant: number; type: string; notes?: string }>(
@@ -375,20 +455,61 @@ export default function CaissierPage() {
     );
 
   const { mutate: cloturerCaisse, loading: cloturant } =
-    useMutation<ClotureCaisse, { notes?: string }>(
+    useMutation<ClotureCaisse, { notes?: string; soldeReel?: number }>(
       "/api/caissier/cloture",
       "POST",
       { successMessage: "Caisse clôturée avec succès ✓" }
     );
 
+  const { mutate: ouvrirSession, loading: ouvrantSession } =
+    useMutation<{ success: boolean; data: SessionCaisse }, { fondsCaisse: number; notes?: string }>(
+      "/api/caissier/session",
+      "POST",
+      { successMessage: "Caisse ouverte ✓" }
+    );
+
+  const sessionPatchUrl = `/api/caissier/session/${dashboardRes?.data?.sessionActive?.id ?? 0}`;
+  const { mutate: changerStatutSession, loading: changingStatut } =
+    useMutation<{ success: boolean }, { action: "SUSPENDRE" | "ROUVRIR" }>(
+      sessionPatchUrl,
+      "PATCH",
+      { successMessage: "Statut de session modifié ✓" }
+    );
+
+  const { mutate: creerOperation, loading: creantOp } =
+    useMutation<{ success: boolean }, { type: string; mode?: string; categorie?: string; montant: number; motif: string }>(
+      "/api/caissier/operations",
+      "POST",
+      { successMessage: "Opération enregistrée ✓" }
+    );
+
+  const { mutate: creerTransfert, loading: creantTrf } =
+    useMutation<{ success: boolean }, { origine: string; destination: string; montant: number; motif?: string }>(
+      "/api/caissier/transferts",
+      "POST",
+      { successMessage: "Transfert enregistré ✓" }
+    );
+
   // ── Derived data ─────────────────────────────────────────────────────────
   const dashboard    = dashboardRes?.data;
+  const sessionActive = dashboard?.sessionActive ?? null;
   const versements   = versementsRes?.data ?? [];
   const versementsStats = versementsRes?.stats;
   const versementsMeta  = versementsRes?.meta;
   const jourEnCours  = clotureRes?.jourEnCours;
   const clotureHisto = clotureRes?.historique;
   const souscriptions = packsRes?.souscriptions ?? [];
+  const operations  = operationsRes?.data ?? [];
+  const transferts  = transfertsRes?.data ?? [];
+
+  // Calcul solde théorique pour la clôture
+  const fondsCaisseInitial  = dashboard?.sessionActive?.fondsCaisse ?? 0;
+  const versementsPacks     = jourEnCours?.montantTotal ?? 0;
+  const encaissementsAutres = dashboard?.operationsJour?.encaissements ?? 0;
+  const decaissementsTotal  = dashboard?.operationsJour?.decaissements ?? 0;
+  const transfertsTotal     = dashboard?.operationsJour?.transferts ?? 0;
+  const soldeTheorique      = fondsCaisseInitial + versementsPacks + encaissementsAutres - decaissementsTotal - transfertsTotal;
+  const ecartCaisse         = soldeReel !== "" ? Number(soldeReel) - soldeTheorique : null;
 
   // ── Handlers ─────────────────────────────────────────────────────────────
   const openVersementModal = (souscription: SouscriptionItem) => {
@@ -440,13 +561,158 @@ export default function CaissierPage() {
   }, []);
 
   const handleCloturerCaisse = async () => {
-    const result = await cloturerCaisse({ notes: notesClotureInput || undefined });
+    const result = await cloturerCaisse({
+      notes: notesClotureInput || undefined,
+      soldeReel: soldeReel !== "" ? Number(soldeReel) : undefined,
+    });
     if (result) {
-      setClotureModal(false);
       setNotesCloture("");
+      setSoldeReel("");
       refetchCloture();
       refetchDashboard();
+      refetchOperations();
+      refetchTransferts();
     }
+  };
+
+  const handleOuvrirSession = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const montant = parseFloat(sessionFondsCaisse);
+    if (isNaN(montant) || montant < 0) return;
+    const result = await ouvrirSession({
+      fondsCaisse: montant,
+      notes: sessionNotes || undefined,
+    });
+    if (result) {
+      setSessionFondsCaisse("");
+      setSessionNotes("");
+      refetchDashboard();
+    }
+  };
+
+  const handleChangerStatut = async (action: "SUSPENDRE" | "ROUVRIR") => {
+    if (!sessionActive) return;
+    const result = await changerStatutSession({ action });
+    if (result) {
+      refetchDashboard();
+    }
+  };
+
+  const handleEncaisser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const montant = parseFloat(opMontant);
+    if (isNaN(montant) || montant <= 0 || !opMotif.trim()) return;
+    const result = await creerOperation({ type: "ENCAISSEMENT", mode: opMode, montant, motif: opMotif.trim() });
+    if (result) {
+      setOpMontant("");
+      setOpMotif("");
+      refetchOperations();
+      refetchDashboard();
+    }
+  };
+
+  const handleDecaisser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const montant = parseFloat(decMontant);
+    if (isNaN(montant) || montant <= 0 || !decMotif.trim()) return;
+    const result = await creerOperation({ type: "DECAISSEMENT", categorie: decCategorie, montant, motif: decMotif.trim() });
+    if (result) {
+      setDecMontant("");
+      setDecMotif("");
+      refetchOperations();
+      refetchDashboard();
+    }
+  };
+
+  const handleTransferer = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const montant = parseFloat(trfMontant);
+    if (isNaN(montant) || montant <= 0 || !trfOrigine.trim() || !trfDestination.trim()) return;
+    const result = await creerTransfert({
+      origine: trfOrigine.trim(),
+      destination: trfDestination.trim(),
+      montant,
+      motif: trfMotif.trim() || undefined,
+    });
+    if (result) {
+      setTrfMontant("");
+      setTrfMotif("");
+      setTrfDestination("");
+      refetchTransferts();
+      refetchDashboard();
+    }
+  };
+
+  const handlePrintRapport = () => {
+    const win = window.open("", "_blank", "width=700,height=900");
+    if (!win) return;
+    const now = new Date().toLocaleString("fr-FR");
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"/>
+    <title>Rapport de clôture</title>
+    <style>
+      body{font-family:Arial,sans-serif;font-size:13px;max-width:600px;margin:0 auto;padding:24px;color:#1e293b}
+      h1{font-size:20px;text-align:center;margin-bottom:4px}
+      .sub{text-align:center;color:#64748b;font-size:12px;margin-bottom:24px}
+      table{width:100%;border-collapse:collapse;margin-bottom:16px}
+      td,th{padding:8px 12px;border-bottom:1px solid #e2e8f0}
+      th{background:#f8fafc;font-size:11px;text-transform:uppercase;color:#64748b}
+      .total-row td{font-weight:bold;font-size:15px;border-top:2px solid #1e293b;background:#f0fdf4}
+      .right{text-align:right}
+      .sign{margin-top:32px;border-top:1px solid #e2e8f0;padding-top:12px;display:flex;justify-content:space-between}
+    </style></head><body>
+    <h1>RAPPORT DE CLÔTURE DE CAISSE</h1>
+    <div class="sub">Édité le ${now}</div>
+    <table>
+      <tr><th>Poste</th><th class="right">Montant (FCFA)</th></tr>
+      <tr><td>Fonds de caisse initial</td><td class="right">${fondsCaisseInitial.toLocaleString("fr-FR")}</td></tr>
+      <tr><td>+ Versements packs collectés</td><td class="right">${versementsPacks.toLocaleString("fr-FR")}</td></tr>
+      <tr><td>+ Encaissements financiers</td><td class="right">${encaissementsAutres.toLocaleString("fr-FR")}</td></tr>
+      <tr><td>− Décaissements</td><td class="right">${decaissementsTotal.toLocaleString("fr-FR")}</td></tr>
+      <tr><td>− Transferts</td><td class="right">${transfertsTotal.toLocaleString("fr-FR")}</td></tr>
+      <tr class="total-row"><td>= Solde théorique</td><td class="right">${soldeTheorique.toLocaleString("fr-FR")}</td></tr>
+      ${soldeReel !== "" ? `<tr><td>Solde réel compté</td><td class="right">${Number(soldeReel).toLocaleString("fr-FR")}</td></tr>` : ""}
+      ${ecartCaisse !== null ? `<tr><td>Écart de caisse</td><td class="right" style="color:${ecartCaisse >= 0 ? "#16a34a" : "#dc2626"}">${ecartCaisse >= 0 ? "+" : ""}${ecartCaisse.toLocaleString("fr-FR")}</td></tr>` : ""}
+    </table>
+    ${notesClotureInput ? `<p><strong>Notes :</strong> ${notesClotureInput}</p>` : ""}
+    <div class="sign">
+      <div>Caissier : ____________________</div>
+      <div>Signature : ____________________</div>
+    </div>
+    </body></html>`;
+    win.document.write(html);
+    win.document.close();
+    setTimeout(() => win.print(), 300);
+  };
+
+  const handlePrintBonTransfert = (t: TransfertCaisse) => {
+    const win = window.open("", "_blank", "width=500,height=600");
+    if (!win) return;
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"/>
+    <title>Bon de transfert ${t.reference}</title>
+    <style>
+      body{font-family:Arial,sans-serif;font-size:13px;max-width:400px;margin:0 auto;padding:20px}
+      h1{font-size:16px;text-align:center;border-bottom:2px solid #1e293b;padding-bottom:8px;margin-bottom:16px}
+      .row{display:flex;justify-content:space-between;margin:6px 0}
+      .label{color:#64748b} .bold{font-weight:bold}
+      .big{font-size:18px;font-weight:bold;color:#059669}
+      .line{border-top:1px dashed #cbd5e1;margin:12px 0}
+      .sign{display:flex;justify-content:space-between;margin-top:24px;font-size:12px;color:#64748b}
+    </style></head><body>
+    <h1>BON DE TRANSFERT</h1>
+    <div class="row"><span class="label">Référence</span><span class="bold">${t.reference}</span></div>
+    <div class="row"><span class="label">Date</span><span>${new Date(t.createdAt).toLocaleString("fr-FR")}</span></div>
+    <div class="row"><span class="label">Opérateur</span><span>${t.operateurNom}</span></div>
+    <div class="line"></div>
+    <div class="row"><span class="label">Origine</span><span class="bold">${t.origine}</span></div>
+    <div class="row"><span class="label">Destination</span><span class="bold">${t.destination}</span></div>
+    <div class="line"></div>
+    <div class="row"><span>MONTANT TRANSFÉRÉ</span><span class="big">${t.montant.toLocaleString("fr-FR")} FCFA</span></div>
+    ${t.motif ? `<div class="line"></div><div class="row"><span class="label">Motif</span><span>${t.motif}</span></div>` : ""}
+    <div class="sign"><div>Remis par : _______________</div><div>Reçu par : _______________</div></div>
+    </body></html>`;
+    win.document.write(html);
+    win.document.close();
+    setTimeout(() => win.print(), 300);
   };
 
   const refetchAll = () => {
@@ -454,6 +720,8 @@ export default function CaissierPage() {
     refetchVersements();
     refetchCloture();
     refetchPacks();
+    refetchOperations();
+    refetchTransferts();
   };
 
   // ============================================================================
@@ -461,11 +729,15 @@ export default function CaissierPage() {
   // ============================================================================
 
   const tabs: { key: TabKey; label: string; icon: React.ElementType }[] = [
-    { key: "synthese",     label: "Synthèse",     icon: BarChart3    },
-    { key: "encaissement", label: "Encaissement", icon: Banknote     },
-    { key: "historique",   label: "Historique",   icon: Clock        },
-    { key: "recus",        label: "Reçus",        icon: Receipt      },
-    { key: "cloture",      label: "Clôture",      icon: Lock         },
+    { key: "synthese",            label: "Synthèse",        icon: BarChart3       },
+    { key: "session",             label: "Session",         icon: Power           },
+    { key: "encaissement_caisse", label: "Encaissements",   icon: ArrowUpCircle   },
+    { key: "decaissement",        label: "Décaissements",   icon: ArrowDownCircle },
+    { key: "transferts",          label: "Transferts",      icon: ArrowLeftRight  },
+    { key: "packs",               label: "Packs",           icon: Banknote        },
+    { key: "historique",          label: "Historique",      icon: Clock           },
+    { key: "recus",               label: "Reçus",           icon: Receipt         },
+    { key: "cloture",             label: "Clôture",         icon: Lock            },
   ];
 
   return (
@@ -589,83 +861,6 @@ export default function CaissierPage() {
         </div>
       )}
 
-      {/* Modal Clôture */}
-      {clotureModal && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl w-full max-w-md shadow-xl">
-            <div className="flex items-center justify-between p-6 border-b border-slate-100">
-              <div className="flex items-center gap-3">
-                <div className="bg-amber-50 p-3 rounded-xl"><Lock className="text-amber-600 w-6 h-6" /></div>
-                <div>
-                  <h2 className="text-xl font-bold text-slate-800">Clôture de caisse</h2>
-                  <p className="text-sm text-slate-500">{formatDate(new Date().toISOString())}</p>
-                </div>
-              </div>
-              <button onClick={() => setClotureModal(false)} className="p-2 text-slate-400 hover:text-slate-600 rounded-lg">
-                <X size={20} />
-              </button>
-            </div>
-            <div className="p-6 space-y-4">
-              <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span className="text-slate-600">Versements collectés</span>
-                  <span className="font-bold text-slate-800">{jourEnCours?.totalVentes ?? 0}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-slate-600">Total encaissé</span>
-                  <span className="font-bold text-emerald-700">{formatCurrency(jourEnCours?.montantTotal ?? 0)}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-slate-600">Versement moyen</span>
-                  <span className="font-semibold text-slate-700">{formatCurrency(jourEnCours?.panierMoyen ?? 0)}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-slate-600">Clients servis</span>
-                  <span className="font-semibold text-slate-700">{jourEnCours?.nbClients ?? 0}</span>
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                  Notes / observations (optionnel)
-                </label>
-                <textarea
-                  rows={3}
-                  value={notesClotureInput}
-                  onChange={(e) => setNotesCloture(e.target.value)}
-                  placeholder="Ex : Aucun incident. Fond de caisse vérifié."
-                  className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 bg-slate-50 text-sm resize-none"
-                />
-              </div>
-              <div className="bg-red-50 border border-red-200 rounded-xl p-3 flex items-start gap-2">
-                <AlertTriangle className="text-red-500 w-4 h-4 shrink-0 mt-0.5" />
-                <p className="text-red-700 text-xs font-medium">
-                  Cette action est irréversible. La caisse sera marquée comme clôturée pour aujourd&apos;hui.
-                </p>
-              </div>
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setClotureModal(false)}
-                  className="flex-1 py-3 border border-slate-200 rounded-xl text-slate-600 font-medium text-sm hover:bg-slate-50"
-                >
-                  Annuler
-                </button>
-                <button
-                  onClick={handleCloturerCaisse}
-                  disabled={cloturant}
-                  className="flex-1 py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-semibold text-sm transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
-                >
-                  {cloturant ? (
-                    <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />Clôture...</>
-                  ) : (
-                    <><Lock size={16} />Confirmer la clôture</>
-                  )}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* ── Navbar ── */}
       <nav className="bg-white shadow-sm border-b border-slate-200 sticky top-0 z-40">
         <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8">
@@ -692,7 +887,7 @@ export default function CaissierPage() {
                 <RefreshCw size={18} />
               </button>
               <button
-                onClick={() => setActiveTab("encaissement")}
+                onClick={() => setActiveTab("packs")}
                 className="px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-xl text-sm font-semibold hover:from-emerald-700 hover:to-teal-700 transition-all shadow-sm flex items-center gap-2"
               >
                 <Plus size={16} />
@@ -747,7 +942,40 @@ export default function CaissierPage() {
         {activeTab === "synthese" && (
           <div className="space-y-6">
             {/* KPIs */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* Bandeau session */}
+            {sessionActive && (
+              <div className={`rounded-2xl p-4 flex items-center justify-between border ${
+                sessionActive.statut === "OUVERTE"
+                  ? "bg-emerald-50 border-emerald-200"
+                  : "bg-amber-50 border-amber-200"
+              }`}>
+                <div className="flex items-center gap-3">
+                  <div className={`p-2 rounded-xl ${sessionActive.statut === "OUVERTE" ? "bg-emerald-100" : "bg-amber-100"}`}>
+                    <Power className={`w-5 h-5 ${sessionActive.statut === "OUVERTE" ? "text-emerald-600" : "text-amber-600"}`} />
+                  </div>
+                  <div>
+                    <p className={`text-sm font-semibold ${sessionActive.statut === "OUVERTE" ? "text-emerald-800" : "text-amber-800"}`}>
+                      Session {sessionActive.statut === "OUVERTE" ? "ouverte" : "suspendue"} — {sessionActive.caissierNom}
+                    </p>
+                    <p className="text-xs text-slate-500">
+                      Depuis {formatDateTime(sessionActive.dateOuverture)} · Fonds : {formatCurrency(sessionActive.fondsCaisse)}
+                    </p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-xs text-slate-500">Solde temps réel</p>
+                  <p className="text-xl font-bold text-slate-800">{formatCurrency(dashboard?.soldeTempsReel ?? 0)}</p>
+                </div>
+              </div>
+            )}
+            {!sessionActive && (
+              <div className="rounded-2xl p-4 bg-slate-50 border border-slate-200 flex items-center gap-3">
+                <Power className="w-5 h-5 text-slate-400" />
+                <p className="text-sm text-slate-500">Aucune session de caisse ouverte — <button onClick={() => setActiveTab("session")} className="text-emerald-600 font-semibold hover:underline">Ouvrir la caisse</button></p>
+              </div>
+            )}
+            <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+              <KpiCard label="Solde temps réel"      value={formatCurrency(dashboard?.soldeTempsReel ?? 0)}      icon={Wallet}       color="text-teal-500"    bg="bg-teal-50"    sub="en caisse" />
               <KpiCard label="Versements du jour"    value={String(dashboard?.versements.total ?? 0)}             icon={Layers}       color="text-sky-500"     bg="bg-sky-50"     sub="aujourd'hui" />
               <KpiCard label="Montant encaissé"      value={formatCurrency(dashboard?.versements.montant ?? 0)}  icon={Banknote}     color="text-emerald-500" bg="bg-emerald-50" sub="total du jour" />
               <KpiCard label="Souscriptions actives" value={String(dashboard?.souscriptionsActives ?? 0)}        icon={TrendingUp}   color="text-violet-500"  bg="bg-violet-50"  />
@@ -868,18 +1096,549 @@ export default function CaissierPage() {
             </div>
           </div>
         )}
+        {/* ============================================================
+            TAB : SESSION DE CAISSE
+        ============================================================ */}
+        {activeTab === "session" && (
+          <div className="space-y-6">
+            {/* État de la session */}
+            {!sessionActive && (
+              <div className="bg-white rounded-2xl p-8 shadow-sm border border-slate-200/60">
+                <div className="max-w-md mx-auto">
+                  <div className="flex flex-col items-center text-center mb-6">
+                    <div className="bg-slate-100 p-4 rounded-2xl mb-4">
+                      <Power className="w-10 h-10 text-slate-400" />
+                    </div>
+                    <h3 className="text-xl font-bold text-slate-800">Ouvrir la caisse</h3>
+                    <p className="text-slate-500 text-sm mt-1">Saisissez le fonds initial pour démarrer votre session</p>
+                  </div>
+                  <form onSubmit={handleOuvrirSession} className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1.5">Fonds de caisse initial (FCFA)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="1"
+                        value={sessionFondsCaisse}
+                        onChange={(e) => setSessionFondsCaisse(e.target.value)}
+                        required
+                        placeholder="Ex : 50000"
+                        className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50 text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1.5">Notes (optionnel)</label>
+                      <input
+                        type="text"
+                        value={sessionNotes}
+                        onChange={(e) => setSessionNotes(e.target.value)}
+                        placeholder="Ex : Ouverture standard"
+                        className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50 text-sm"
+                      />
+                    </div>
+                    <button
+                      type="submit"
+                      disabled={ouvrantSession}
+                      className="w-full py-3 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-xl font-semibold text-sm hover:from-emerald-700 hover:to-teal-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                    >
+                      {ouvrantSession ? (
+                        <><div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />Ouverture...</>
+                      ) : (
+                        <><Power size={18} />Ouvrir la caisse</>
+                      )}
+                    </button>
+                  </form>
+                </div>
+              </div>
+            )}
+
+            {sessionActive?.statut === "OUVERTE" && (
+              <div className="space-y-4">
+                <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-6">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className="bg-emerald-100 p-3 rounded-xl">
+                        <Power className="text-emerald-600 w-6 h-6" />
+                      </div>
+                      <div>
+                        <p className="font-bold text-emerald-800 text-lg">Session ouverte</p>
+                        <p className="text-emerald-700 text-sm">Caissier : {sessionActive.caissierNom}</p>
+                        <p className="text-emerald-600 text-xs mt-0.5">Depuis le {formatDateTime(sessionActive.dateOuverture)}</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xs text-emerald-600">Fonds initiaux</p>
+                      <p className="text-2xl font-bold text-emerald-800">{formatCurrency(sessionActive.fondsCaisse)}</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60 col-span-2">
+                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Solde en temps réel</p>
+                    <p className="text-4xl font-bold text-slate-800">{formatCurrency(dashboard?.soldeTempsReel ?? 0)}</p>
+                    <div className="mt-3 grid grid-cols-3 gap-2 text-xs text-slate-500">
+                      <div>
+                        <p>+ Versements packs</p>
+                        <p className="font-semibold text-emerald-600">{formatCurrency(versementsPacks)}</p>
+                      </div>
+                      <div>
+                        <p>+ Encaissements</p>
+                        <p className="font-semibold text-emerald-600">{formatCurrency(encaissementsAutres)}</p>
+                      </div>
+                      <div>
+                        <p>− Sorties</p>
+                        <p className="font-semibold text-red-500">{formatCurrency(decaissementsTotal + transfertsTotal)}</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex flex-col gap-3">
+                    <button
+                      onClick={() => handleChangerStatut("SUSPENDRE")}
+                      disabled={changingStatut}
+                      className="flex-1 py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-semibold text-sm transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                    >
+                      <Pause size={16} />Suspendre
+                    </button>
+                    <button
+                      onClick={() => setActiveTab("cloture")}
+                      className="flex-1 py-3 bg-slate-700 hover:bg-slate-800 text-white rounded-xl font-semibold text-sm transition-colors flex items-center justify-center gap-2"
+                    >
+                      <Lock size={16} />Procéder à la clôture
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {sessionActive?.statut === "SUSPENDUE" && (
+              <div className="bg-amber-50 border border-amber-200 rounded-2xl p-6">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="bg-amber-100 p-3 rounded-xl">
+                      <Pause className="text-amber-600 w-6 h-6" />
+                    </div>
+                    <div>
+                      <p className="font-bold text-amber-800 text-lg">Session suspendue</p>
+                      <p className="text-amber-700 text-sm">Caissier : {sessionActive.caissierNom}</p>
+                      <p className="text-amber-600 text-xs mt-0.5">Ouverte le {formatDateTime(sessionActive.dateOuverture)}</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => handleChangerStatut("ROUVRIR")}
+                    disabled={changingStatut}
+                    className="px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-semibold text-sm transition-colors flex items-center gap-2 disabled:opacity-50"
+                  >
+                    <Play size={16} />Reprendre la session
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ============================================================
+            TAB : ENCAISSEMENTS FINANCIERS
+        ============================================================ */}
+        {activeTab === "encaissement_caisse" && (
+          <div className="space-y-6">
+            {/* Bandeau total jour */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="bg-emerald-600 text-white rounded-2xl p-5 shadow-lg">
+                <p className="text-emerald-100 text-xs mb-1">Total encaissé aujourd&apos;hui</p>
+                <p className="text-3xl font-bold">{formatCurrency(operationsRes?.totalsJour?.encaissements ?? 0)}</p>
+              </div>
+              <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60">
+                <p className="text-xs text-slate-500 mb-1">Nombre d&apos;opérations</p>
+                <p className="text-2xl font-bold text-slate-800">{operations.filter(o => o.type === "ENCAISSEMENT").length}</p>
+              </div>
+              <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60">
+                <p className="text-xs text-slate-500 mb-1">Session</p>
+                <p className={`text-sm font-semibold ${sessionActive ? "text-emerald-600" : "text-red-500"}`}>
+                  {sessionActive ? `${sessionActive.statut}` : "Aucune session"}
+                </p>
+              </div>
+            </div>
+
+            {/* Formulaire */}
+            <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/60">
+              <h3 className="font-bold text-slate-800 flex items-center gap-2 mb-5">
+                <ArrowUpCircle size={20} className="text-emerald-600" />
+                Nouvel encaissement
+              </h3>
+              {/* Toggle mode */}
+              <div className="flex gap-2 mb-5">
+                {(["ESPECES", "VIREMENT", "CHEQUE"] as const).map((m) => (
+                  <button
+                    key={m}
+                    onClick={() => setOpMode(m)}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold border transition-all ${
+                      opMode === m
+                        ? "bg-emerald-600 text-white border-emerald-600 shadow-sm"
+                        : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
+                    }`}
+                  >
+                    {m === "ESPECES" && <Banknote size={15} />}
+                    {m === "VIREMENT" && <Building2 size={15} />}
+                    {m === "CHEQUE" && <CreditCard size={15} />}
+                    {modePaiementLabel(m)}
+                  </button>
+                ))}
+              </div>
+              <form onSubmit={handleEncaisser} className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">Montant (FCFA)</label>
+                  <input
+                    type="number"
+                    min="1"
+                    step="1"
+                    value={opMontant}
+                    onChange={(e) => setOpMontant(e.target.value)}
+                    required
+                    placeholder="Ex : 10000"
+                    className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50 text-sm"
+                  />
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">Motif</label>
+                  <div className="flex gap-3">
+                    <input
+                      type="text"
+                      value={opMotif}
+                      onChange={(e) => setOpMotif(e.target.value)}
+                      required
+                      placeholder="Ex : Paiement client Dupont"
+                      className="flex-1 px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50 text-sm"
+                    />
+                    <button
+                      type="submit"
+                      disabled={creantOp || !sessionActive}
+                      className="px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-semibold text-sm transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                    >
+                      {creantOp ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Plus size={16} />}
+                      Enregistrer
+                    </button>
+                  </div>
+                </div>
+              </form>
+              {!sessionActive && (
+                <p className="mt-3 text-xs text-amber-600 flex items-center gap-1">
+                  <AlertTriangle size={13} />Ouvrez d&apos;abord une session de caisse
+                </p>
+              )}
+            </div>
+
+            {/* Tableau */}
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 overflow-hidden">
+              <div className="px-6 py-4 border-b border-slate-100">
+                <h3 className="font-bold text-slate-800">Encaissements du jour</h3>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-slate-50 border-b border-slate-200">
+                    <tr>
+                      {["Référence", "Mode", "Montant", "Motif", "Opérateur", "Heure"].map((h) => (
+                        <th key={h} className="px-5 py-3.5 text-left text-xs font-semibold text-slate-500 uppercase">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {operations.filter(o => o.type === "ENCAISSEMENT").map((op) => (
+                      <tr key={op.id} className="hover:bg-slate-50">
+                        <td className="px-5 py-3 font-mono text-xs text-slate-500">{op.reference}</td>
+                        <td className="px-5 py-3">
+                          <span className="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full text-xs font-semibold">{modePaiementLabel(op.mode)}</span>
+                        </td>
+                        <td className="px-5 py-3 font-bold text-emerald-600">{formatCurrency(op.montant)}</td>
+                        <td className="px-5 py-3 text-slate-600">{op.motif}</td>
+                        <td className="px-5 py-3 text-slate-500 text-xs">{op.operateurNom}</td>
+                        <td className="px-5 py-3 text-slate-400 text-xs">{formatDateTime(op.createdAt)}</td>
+                      </tr>
+                    ))}
+                    {operations.filter(o => o.type === "ENCAISSEMENT").length === 0 && (
+                      <tr>
+                        <td colSpan={6} className="px-5 py-12 text-center text-slate-400 text-sm">
+                          Aucun encaissement enregistré aujourd&apos;hui
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ============================================================
+            TAB : DÉCAISSEMENTS
+        ============================================================ */}
+        {activeTab === "decaissement" && (
+          <div className="space-y-6">
+            {/* Bandeau */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="bg-red-600 text-white rounded-2xl p-5 shadow-lg">
+                <p className="text-red-100 text-xs mb-1">Total décaissé aujourd&apos;hui</p>
+                <p className="text-3xl font-bold">{formatCurrency(operationsRes?.totalsJour?.decaissements ?? 0)}</p>
+              </div>
+              <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 flex items-center gap-3">
+                <AlertTriangle className="text-amber-500 w-5 h-5 shrink-0" />
+                <p className="text-amber-800 text-sm font-medium">
+                  Tout décaissement notifie automatiquement l&apos;administrateur.
+                </p>
+              </div>
+            </div>
+
+            {/* Formulaire */}
+            <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/60">
+              <h3 className="font-bold text-slate-800 flex items-center gap-2 mb-5">
+                <ArrowDownCircle size={20} className="text-red-500" />
+                Nouveau décaissement
+              </h3>
+              {/* Toggle catégorie */}
+              <div className="flex flex-wrap gap-2 mb-5">
+                {(["SALAIRE", "AVANCE", "FOURNISSEUR", "AUTRE"] as const).map((c) => (
+                  <button
+                    key={c}
+                    onClick={() => setDecCategorie(c)}
+                    className={`px-4 py-2 rounded-xl text-sm font-semibold border transition-all ${
+                      decCategorie === c
+                        ? "bg-red-600 text-white border-red-600"
+                        : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
+                    }`}
+                  >
+                    {categorieLabel(c)}
+                  </button>
+                ))}
+              </div>
+              <form onSubmit={handleDecaisser} className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">Montant (FCFA)</label>
+                  <input
+                    type="number"
+                    min="1"
+                    step="1"
+                    value={decMontant}
+                    onChange={(e) => setDecMontant(e.target.value)}
+                    required
+                    placeholder="Ex : 5000"
+                    className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 bg-slate-50 text-sm"
+                  />
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">Motif</label>
+                  <div className="flex gap-3">
+                    <input
+                      type="text"
+                      value={decMotif}
+                      onChange={(e) => setDecMotif(e.target.value)}
+                      required
+                      placeholder="Ex : Salaire gardien"
+                      className="flex-1 px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 bg-slate-50 text-sm"
+                    />
+                    <button
+                      type="submit"
+                      disabled={creantOp || !sessionActive}
+                      className="px-6 py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl font-semibold text-sm transition-colors flex items-center gap-2 disabled:opacity-50 whitespace-nowrap"
+                    >
+                      {creantOp ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Plus size={16} />}
+                      Enregistrer
+                    </button>
+                  </div>
+                </div>
+              </form>
+              {!sessionActive && (
+                <p className="mt-3 text-xs text-amber-600 flex items-center gap-1">
+                  <AlertTriangle size={13} />Ouvrez d&apos;abord une session de caisse
+                </p>
+              )}
+            </div>
+
+            {/* Tableau par catégorie */}
+            {(["SALAIRE", "AVANCE", "FOURNISSEUR", "AUTRE"] as const).map((cat) => {
+              const catOps = operations.filter(o => o.type === "DECAISSEMENT" && o.categorie === cat);
+              if (catOps.length === 0) return null;
+              const total = catOps.reduce((s, o) => s + o.montant, 0);
+              return (
+                <div key={cat} className="bg-white rounded-2xl shadow-sm border border-slate-200/60 overflow-hidden">
+                  <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+                    <h3 className="font-bold text-slate-800">{categorieLabel(cat)}</h3>
+                    <span className="font-bold text-red-600">{formatCurrency(total)}</span>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead className="bg-slate-50 border-b border-slate-200">
+                        <tr>
+                          {["Référence", "Montant", "Motif", "Heure"].map((h) => (
+                            <th key={h} className="px-5 py-3 text-left text-xs font-semibold text-slate-500 uppercase">{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {catOps.map((op) => (
+                          <tr key={op.id} className="hover:bg-slate-50">
+                            <td className="px-5 py-3 font-mono text-xs text-slate-500">{op.reference}</td>
+                            <td className="px-5 py-3 font-bold text-red-600">{formatCurrency(op.montant)}</td>
+                            <td className="px-5 py-3 text-slate-600">{op.motif}</td>
+                            <td className="px-5 py-3 text-slate-400 text-xs">{formatDateTime(op.createdAt)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              );
+            })}
+
+            {operations.filter(o => o.type === "DECAISSEMENT").length === 0 && (
+              <div className="bg-white rounded-2xl p-12 text-center shadow-sm border border-slate-200/60">
+                <ArrowDownCircle className="w-12 h-12 text-slate-200 mx-auto mb-3" />
+                <p className="text-slate-400">Aucun décaissement enregistré aujourd&apos;hui</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ============================================================
+            TAB : TRANSFERTS
+        ============================================================ */}
+        {activeTab === "transferts" && (
+          <div className="space-y-6">
+            {/* Bandeau */}
+            <div className="bg-sky-600 text-white rounded-2xl p-5 shadow-lg">
+              <p className="text-sky-100 text-xs mb-1">Total transféré aujourd&apos;hui</p>
+              <p className="text-3xl font-bold">{formatCurrency(transfertsRes?.totalJour ?? 0)}</p>
+            </div>
+
+            {/* Formulaire */}
+            <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/60">
+              <h3 className="font-bold text-slate-800 flex items-center gap-2 mb-5">
+                <ArrowLeftRight size={20} className="text-sky-600" />
+                Nouveau transfert
+              </h3>
+              <form onSubmit={handleTransferer} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">Origine</label>
+                  <input
+                    type="text"
+                    value={trfOrigine}
+                    onChange={(e) => setTrfOrigine(e.target.value)}
+                    required
+                    placeholder="Ex : Caisse principale"
+                    className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500 bg-slate-50 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">Destination</label>
+                  <input
+                    type="text"
+                    value={trfDestination}
+                    onChange={(e) => setTrfDestination(e.target.value)}
+                    required
+                    placeholder="Ex : Compte bancaire BNI"
+                    className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500 bg-slate-50 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">Montant (FCFA)</label>
+                  <input
+                    type="number"
+                    min="1"
+                    step="1"
+                    value={trfMontant}
+                    onChange={(e) => setTrfMontant(e.target.value)}
+                    required
+                    placeholder="Ex : 20000"
+                    className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500 bg-slate-50 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">Motif (optionnel)</label>
+                  <div className="flex gap-3">
+                    <input
+                      type="text"
+                      value={trfMotif}
+                      onChange={(e) => setTrfMotif(e.target.value)}
+                      placeholder="Ex : Versement banque"
+                      className="flex-1 px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500 bg-slate-50 text-sm"
+                    />
+                    <button
+                      type="submit"
+                      disabled={creantTrf || !sessionActive}
+                      className="px-5 py-3 bg-sky-600 hover:bg-sky-700 text-white rounded-xl font-semibold text-sm transition-colors flex items-center gap-2 disabled:opacity-50 whitespace-nowrap"
+                    >
+                      {creantTrf ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Send size={16} />}
+                      Envoyer
+                    </button>
+                  </div>
+                </div>
+              </form>
+              {!sessionActive && (
+                <p className="mt-3 text-xs text-amber-600 flex items-center gap-1">
+                  <AlertTriangle size={13} />Ouvrez d&apos;abord une session de caisse
+                </p>
+              )}
+            </div>
+
+            {/* Tableau */}
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 overflow-hidden">
+              <div className="px-6 py-4 border-b border-slate-100">
+                <h3 className="font-bold text-slate-800">Transferts du jour</h3>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-slate-50 border-b border-slate-200">
+                    <tr>
+                      {["Référence", "Origine → Destination", "Montant", "Motif", "Heure", ""].map((h) => (
+                        <th key={h} className="px-5 py-3.5 text-left text-xs font-semibold text-slate-500 uppercase">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {transferts.map((t) => (
+                      <tr key={t.id} className="hover:bg-slate-50">
+                        <td className="px-5 py-3 font-mono text-xs text-slate-500">{t.reference}</td>
+                        <td className="px-5 py-3">
+                          <p className="text-sm font-semibold text-slate-800">{t.origine}</p>
+                          <p className="text-xs text-slate-400">→ {t.destination}</p>
+                        </td>
+                        <td className="px-5 py-3 font-bold text-sky-600">{formatCurrency(t.montant)}</td>
+                        <td className="px-5 py-3 text-slate-500 text-xs">{t.motif ?? "—"}</td>
+                        <td className="px-5 py-3 text-slate-400 text-xs">{formatDateTime(t.createdAt)}</td>
+                        <td className="px-5 py-3">
+                          <button
+                            onClick={() => handlePrintBonTransfert(t)}
+                            className="p-1.5 text-slate-400 hover:text-sky-600 hover:bg-sky-50 rounded-lg transition-colors"
+                            title="Imprimer le bon"
+                          >
+                            <Printer size={15} />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                    {transferts.length === 0 && (
+                      <tr>
+                        <td colSpan={6} className="px-5 py-12 text-center text-slate-400 text-sm">
+                          Aucun transfert effectué aujourd&apos;hui
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* ============================================================
             TAB : ENCAISSEMENT
         ============================================================ */}
-        {activeTab === "encaissement" && (
+        {activeTab === "packs" && (
           <div className="space-y-6">
             {/* Barre de recherche */}
             <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/60">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="font-bold text-slate-800 flex items-center gap-2">
                   <Banknote size={20} className="text-emerald-600" />
-                  Souscriptions actives — Collecte versements
+                  Souscriptions actives — Collecte de versements packs
                 </h3>
                 <span className="text-xs text-slate-400">{souscriptions.length} souscription(s)</span>
               </div>
@@ -1301,28 +2060,20 @@ export default function CaissierPage() {
                   <FileText size={22} className="text-amber-500" />
                   Bilan de la journée — {formatDate(new Date().toISOString())}
                 </h3>
-                {jourEnCours?.dejaClothuree ? (
+                {jourEnCours?.dejaClothuree && (
                   <span className="inline-flex items-center gap-2 bg-emerald-100 text-emerald-700 px-4 py-2 rounded-full text-sm font-semibold">
                     <CheckCircle size={16} />
                     Clôturée
                   </span>
-                ) : (
-                  <button
-                    onClick={() => setClotureModal(true)}
-                    className="px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-semibold text-sm transition-colors flex items-center gap-2 shadow-sm"
-                  >
-                    <Lock size={16} />
-                    Clôturer la caisse
-                  </button>
                 )}
               </div>
 
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                 {[
-                  { label: "Versements",    value: String(jourEnCours?.totalVentes ?? 0),          color: "text-sky-600"     },
-                  { label: "Total encaissé", value: formatCurrency(jourEnCours?.montantTotal ?? 0), color: "text-emerald-600" },
-                  { label: "Moy. versement", value: formatCurrency(jourEnCours?.panierMoyen ?? 0),  color: "text-violet-600"  },
-                  { label: "Clients",        value: String(jourEnCours?.nbClients ?? 0),            color: "text-pink-600"    },
+                  { label: "Versements packs",  value: String(jourEnCours?.totalVentes ?? 0),           color: "text-sky-600"     },
+                  { label: "Total versements",   value: formatCurrency(jourEnCours?.montantTotal ?? 0),  color: "text-emerald-600" },
+                  { label: "Moy. versement",     value: formatCurrency(jourEnCours?.panierMoyen ?? 0),   color: "text-violet-600"  },
+                  { label: "Clients",            value: String(jourEnCours?.nbClients ?? 0),             color: "text-pink-600"    },
                 ].map((s) => (
                   <div key={s.label} className="bg-slate-50 rounded-xl p-4 text-center border border-slate-200">
                     <p className="text-xs text-slate-500 mb-1">{s.label}</p>
@@ -1333,7 +2084,7 @@ export default function CaissierPage() {
 
               {/* Bilan par pack */}
               {(jourEnCours?.bilanParProduit ?? []).length > 0 && (
-                <div>
+                <div className="mb-6">
                   <h4 className="text-sm font-semibold text-slate-600 mb-3 flex items-center gap-2">
                     <Package size={15} />
                     Répartition par pack
@@ -1369,11 +2120,147 @@ export default function CaissierPage() {
                 </div>
               )}
 
-              {/* Note de clôture */}
-              {jourEnCours?.clotureDuJour?.notes && (
-                <div className="mt-4 p-3 bg-slate-50 rounded-xl border border-slate-200">
-                  <p className="text-xs font-semibold text-slate-500 mb-1">Notes du caissier</p>
-                  <p className="text-sm text-slate-700">{jourEnCours.clotureDuJour.notes}</p>
+              {/* Formulaire de clôture inline (si pas encore clôturée) */}
+              {!jourEnCours?.dejaClothuree && (
+                <div className="border-t border-slate-200 pt-6 space-y-5">
+                  <h4 className="font-bold text-slate-800 flex items-center gap-2">
+                    <Lock size={18} className="text-amber-500" />
+                    Calcul de la clôture
+                  </h4>
+
+                  {/* Récapitulatif solde */}
+                  <div className="bg-slate-50 rounded-xl p-5 border border-slate-200 space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-slate-600">Fonds de caisse initial</span>
+                      <span className="font-semibold">{formatCurrency(fondsCaisseInitial)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm text-emerald-700">
+                      <span>+ Versements packs collectés</span>
+                      <span className="font-semibold">{formatCurrency(versementsPacks)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm text-emerald-700">
+                      <span>+ Encaissements financiers</span>
+                      <span className="font-semibold">{formatCurrency(encaissementsAutres)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm text-red-600">
+                      <span>− Décaissements</span>
+                      <span className="font-semibold">{formatCurrency(decaissementsTotal)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm text-orange-600">
+                      <span>− Transferts</span>
+                      <span className="font-semibold">{formatCurrency(transfertsTotal)}</span>
+                    </div>
+                    <div className="flex justify-between font-bold text-lg border-t border-slate-300 pt-3 mt-1">
+                      <span className="text-slate-800">= Solde théorique</span>
+                      <span className="text-emerald-700">{formatCurrency(soldeTheorique)}</span>
+                    </div>
+                  </div>
+
+                  {/* Solde réel + écart */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1.5">Solde réel compté (FCFA)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="1"
+                        value={soldeReel}
+                        onChange={(e) => setSoldeReel(e.target.value)}
+                        placeholder="Montant compté physiquement en caisse"
+                        className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 bg-slate-50 text-sm"
+                      />
+                    </div>
+                    {ecartCaisse !== null && (
+                      <div className={`rounded-xl p-4 border flex flex-col justify-center ${
+                        ecartCaisse === 0
+                          ? "bg-emerald-50 border-emerald-200"
+                          : "bg-red-50 border-red-200"
+                      }`}>
+                        <p className="text-xs text-slate-500 mb-1">Écart de caisse</p>
+                        <p className={`text-2xl font-bold ${ecartCaisse === 0 ? "text-emerald-700" : "text-red-600"}`}>
+                          {ecartCaisse >= 0 ? "+" : ""}{formatCurrency(ecartCaisse)}
+                        </p>
+                        <p className="text-xs text-slate-500 mt-1">
+                          {ecartCaisse === 0 ? "Aucun écart ✓" : ecartCaisse > 0 ? "Excédent de caisse" : "Déficit de caisse"}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Notes */}
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1.5">Notes / observations</label>
+                    <textarea
+                      rows={3}
+                      value={notesClotureInput}
+                      onChange={(e) => setNotesCloture(e.target.value)}
+                      placeholder="Ex : Aucun incident. Fond de caisse vérifié."
+                      className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 bg-slate-50 text-sm resize-none"
+                    />
+                  </div>
+
+                  <div className="bg-red-50 border border-red-200 rounded-xl p-3 flex items-start gap-2">
+                    <AlertTriangle className="text-red-500 w-4 h-4 shrink-0 mt-0.5" />
+                    <p className="text-red-700 text-xs font-medium">
+                      La clôture est irréversible. Elle fermera la session de caisse en cours.
+                    </p>
+                  </div>
+
+                  {/* Boutons */}
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <button
+                      onClick={handlePrintRapport}
+                      className="flex-1 py-3 border border-slate-300 rounded-xl text-slate-700 font-semibold text-sm hover:bg-slate-50 transition-colors flex items-center justify-center gap-2"
+                    >
+                      <Printer size={16} />
+                      Imprimer le rapport
+                    </button>
+                    <button
+                      onClick={handleCloturerCaisse}
+                      disabled={cloturant}
+                      className="flex-1 py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-semibold text-sm transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                    >
+                      {cloturant ? (
+                        <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />Clôture en cours...</>
+                      ) : (
+                        <><Lock size={16} />Valider la clôture</>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Note de clôture si déjà clôturée */}
+              {jourEnCours?.clotureDuJour && (
+                <div className="mt-4 space-y-3">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4">
+                    {jourEnCours.clotureDuJour.soldeTheorique !== undefined && (
+                      <div className="bg-slate-50 rounded-xl p-3 border border-slate-200">
+                        <p className="text-xs text-slate-500">Solde théorique</p>
+                        <p className="font-bold text-slate-800">{formatCurrency(jourEnCours.clotureDuJour.soldeTheorique ?? 0)}</p>
+                      </div>
+                    )}
+                    {jourEnCours.clotureDuJour.soldeReel !== null && jourEnCours.clotureDuJour.soldeReel !== undefined && (
+                      <div className="bg-slate-50 rounded-xl p-3 border border-slate-200">
+                        <p className="text-xs text-slate-500">Solde réel</p>
+                        <p className="font-bold text-slate-800">{formatCurrency(jourEnCours.clotureDuJour.soldeReel)}</p>
+                      </div>
+                    )}
+                    {jourEnCours.clotureDuJour.ecart !== null && jourEnCours.clotureDuJour.ecart !== undefined && (
+                      <div className={`rounded-xl p-3 border ${(jourEnCours.clotureDuJour.ecart ?? 0) === 0 ? "bg-emerald-50 border-emerald-200" : "bg-red-50 border-red-200"}`}>
+                        <p className="text-xs text-slate-500">Écart</p>
+                        <p className={`font-bold ${(jourEnCours.clotureDuJour.ecart ?? 0) === 0 ? "text-emerald-700" : "text-red-600"}`}>
+                          {(jourEnCours.clotureDuJour.ecart ?? 0) >= 0 ? "+" : ""}{formatCurrency(jourEnCours.clotureDuJour.ecart ?? 0)}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                  {jourEnCours.clotureDuJour.notes && (
+                    <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
+                      <p className="text-xs font-semibold text-slate-500 mb-1">Notes du caissier</p>
+                      <p className="text-sm text-slate-700">{jourEnCours.clotureDuJour.notes}</p>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -1423,7 +2310,7 @@ export default function CaissierPage() {
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="border-b border-slate-200">
-                          {["Date", "Caissier", "Versements", "Total encaissé", "Moy.", "Clients", "Notes"].map((h) => (
+                          {["Date", "Caissier", "Versements", "Total", "S. Théorique", "S. Réel", "Écart", "Notes"].map((h) => (
                             <th key={h} className="text-left py-2.5 pr-4 text-xs font-semibold text-slate-500 uppercase">{h}</th>
                           ))}
                         </tr>
@@ -1437,9 +2324,16 @@ export default function CaissierPage() {
                               <span className="bg-sky-100 text-sky-700 px-2 py-0.5 rounded-full text-xs font-bold">{c.totalVentes}</span>
                             </td>
                             <td className="py-3 pr-4 font-bold text-emerald-600">{formatCurrency(c.montantTotal)}</td>
-                            <td className="py-3 pr-4 text-slate-600">{formatCurrency(c.panierMoyen)}</td>
-                            <td className="py-3 pr-4 text-slate-600">{c.nbClients}</td>
-                            <td className="py-3 text-slate-500 text-xs max-w-[150px] truncate">{c.notes ?? "—"}</td>
+                            <td className="py-3 pr-4 text-slate-600">{c.soldeTheorique !== undefined ? formatCurrency(c.soldeTheorique) : "—"}</td>
+                            <td className="py-3 pr-4 text-slate-600">{c.soldeReel != null ? formatCurrency(c.soldeReel) : "—"}</td>
+                            <td className="py-3 pr-4">
+                              {c.ecart != null ? (
+                                <span className={`font-bold text-xs ${c.ecart === 0 ? "text-emerald-600" : "text-red-600"}`}>
+                                  {c.ecart >= 0 ? "+" : ""}{formatCurrency(c.ecart)}
+                                </span>
+                              ) : "—"}
+                            </td>
+                            <td className="py-3 text-slate-500 text-xs max-w-[120px] truncate">{c.notes ?? "—"}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -1447,23 +2341,13 @@ export default function CaissierPage() {
                   </div>
                   {clotureHisto && clotureHisto.meta.totalPages > 1 && (
                     <div className="pt-4 border-t border-slate-100 flex items-center justify-between mt-4">
-                      <p className="text-sm text-slate-400">
-                        Page {clotureHisto.meta.page} / {clotureHisto.meta.totalPages}
-                      </p>
+                      <p className="text-sm text-slate-400">Page {clotureHisto.meta.page} / {clotureHisto.meta.totalPages}</p>
                       <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => setCloturePage((p) => Math.max(1, p - 1))}
-                          disabled={cloturePage <= 1}
-                          className="p-1.5 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 disabled:opacity-40"
-                        >
+                        <button onClick={() => setCloturePage((p) => Math.max(1, p - 1))} disabled={cloturePage <= 1} className="p-1.5 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 disabled:opacity-40">
                           <ChevronLeft size={14} />
                         </button>
                         <span className="px-3 py-1 bg-slate-800 text-white rounded-lg text-sm">{cloturePage}</span>
-                        <button
-                          onClick={() => setCloturePage((p) => Math.min(clotureHisto.meta.totalPages, p + 1))}
-                          disabled={cloturePage >= clotureHisto.meta.totalPages}
-                          className="p-1.5 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 disabled:opacity-40"
-                        >
+                        <button onClick={() => setCloturePage((p) => Math.min(clotureHisto.meta.totalPages, p + 1))} disabled={cloturePage >= clotureHisto.meta.totalPages} className="p-1.5 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 disabled:opacity-40">
                           <ChevronRight size={14} />
                         </button>
                       </div>
