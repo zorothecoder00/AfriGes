@@ -1,11 +1,12 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { Search, Filter, Download, Plus, Mail, Phone, Eye, Edit, Trash2, ArrowLeft } from 'lucide-react';
+import { Search, Filter, Download, Plus, Mail, Eye, Edit, Trash2, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { useApi, useMutation } from '@/hooks/useApi';
 import { formatDate } from '@/lib/format';
 import { getStatusStyle, getStatusLabel } from '@/lib/status';
+import { exportToCsv } from '@/lib/exportCsv';
 
 interface Member {
   id: number;  
@@ -49,6 +50,19 @@ export default function MembresPage() {
   const { data: response, loading, error, refetch } = useApi<MembresResponse>(`/api/admin/membres?${params}`);
   const membres = response?.data ?? [];
   const meta = response?.meta;
+
+  const handleExport = () => exportToCsv(
+    membres,
+    [
+      { label: "ID",       key: "id" },
+      { label: "Prénom",   key: "prenom" },
+      { label: "Nom",      key: "nom" },
+      { label: "Email",    key: "email" },
+      { label: "Rôle",     key: "role" },
+      { label: "Inscrit le", key: "createdAt", format: (v) => formatDate(String(v)) },
+    ],
+    "membres.csv"
+  );
 
   // -------------------------------
   // Mutation pour ajouter un membre
@@ -255,7 +269,7 @@ export default function MembresPage() {
               <Filter size={18} />
               Filtres
             </button>
-            <button className="px-5 py-3 bg-slate-100 border border-slate-200 rounded-xl text-slate-700 hover:bg-slate-200 transition-all flex items-center gap-2 font-medium">
+            <button onClick={handleExport} className="px-5 py-3 bg-slate-100 border border-slate-200 rounded-xl text-slate-700 hover:bg-slate-200 transition-all flex items-center gap-2 font-medium">
               <Download size={18} />
               Exporter
             </button>

@@ -621,6 +621,7 @@ function TabLivraisons() {
     { successMessage: "Livraison annulée" }
   );
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (cancellingId === null) return;
     doCancel({}).then((res) => {
@@ -1055,7 +1056,6 @@ function ModalCreerPack({ pack, onClose, onSuccess }: { pack: Pack | null; onClo
         dureeJours: ["7","8","9","10"].includes(p.dureeJours) ? p.dureeJours : "",
       }));
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.type, form.formuleRevendeur]);
 
   // F2 : recalculer le versement quotidien quand le montant crédit change

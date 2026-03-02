@@ -11,6 +11,7 @@ import SignOutButton from '@/components/SignOutButton';
 import MessageModal from '@/components/MessageModal';
 import { useApi } from '@/hooks/useApi';
 import { formatCurrency, formatNumber } from '@/lib/format';
+import { exportToCsv } from '@/lib/exportCsv';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -104,6 +105,18 @@ export default function AfriGesDashboard() {
     `/api/admin/dashboard?period=${selectedPeriod}`
   );
   const d = response?.data;
+
+  const handleExport = () => {
+    const points = d?.evolutionVersements ?? [];
+    exportToCsv(
+      points,
+      [
+        { label: "Date",    key: "date",    format: (v) => new Date(String(v)).toLocaleDateString("fr-FR") },
+        { label: "Montant", key: "montant", format: (v) => formatCurrency(Number(v)) },
+      ],
+      `dashboard-versements-${selectedPeriod}.csv`
+    );
+  };
 
   // ── Données normalisées pour les charts ────────────────────────────────────
   const versementsPoints = useMemo(() => normalizePoints(d?.evolutionVersements ?? []),    [d]);
@@ -271,7 +284,7 @@ export default function AfriGesDashboard() {
               <p className="text-slate-500">Vue d&apos;ensemble des activités AfriGes</p>
             </div>
             <div className="flex gap-3">
-              <button className="px-5 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-700 hover:bg-slate-50 transition-all shadow-sm flex items-center gap-2 font-medium">
+              <button onClick={handleExport} className="px-5 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-700 hover:bg-slate-50 transition-all shadow-sm flex items-center gap-2 font-medium">
                 <Download size={18} />Exporter
               </button>
               <div className="relative" ref={menuRef}>

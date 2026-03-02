@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { Plus, Search, Shield, Users, Key, Eye, Edit, MoreVertical, CheckCircle, Clock, Mail, Phone, Trash2, X, ArrowLeft } from 'lucide-react';
+import { Plus, Search, Shield, Users, Eye, Edit, CheckCircle, Clock, Mail, Phone, Trash2, X, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { useApi, useMutation } from '@/hooks/useApi';
 import { formatDate } from '@/lib/format';
@@ -52,7 +52,6 @@ export default function GestionnairesPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [formData, setFormData] = useState({ memberId: '', role: 'RESPONSABLE_POINT_DE_VENTE' });
   const [deleteId, setDeleteId] = useState<number | null>(null);
-  const [menuOpenId, setMenuOpenId] = useState<number | null>(null);
   const limit = 10;
 
   useEffect(() => {

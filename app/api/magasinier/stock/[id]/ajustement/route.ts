@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { Prisma, TypeMouvement, PrioriteNotification } from "@prisma/client";
+import { TypeMouvement, PrioriteNotification } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getMagasinierSession } from "@/lib/authMagasinier";
 import { randomUUID } from "crypto";

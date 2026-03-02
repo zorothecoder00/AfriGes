@@ -33,6 +33,9 @@ export async function GET(req: Request) {
         skip,
         take: limit,
         orderBy: { createdAt: "desc" },
+        include: {
+          _count: { select: { souscriptionsPacks: true } },
+        },
       }),
       prisma.client.count({ where }),
     ]);

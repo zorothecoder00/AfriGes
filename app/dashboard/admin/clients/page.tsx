@@ -15,10 +15,7 @@ interface Client {
   etat: string;
   createdAt: string;
   _count: {
-    credits: number;
-    creditsAlim: number;
-    cotisations: number;
-    tontines: number;
+    souscriptionsPacks: number;
   };
 }
 
@@ -240,23 +237,13 @@ export default function ClientsPage() {
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <div className="flex gap-2 flex-wrap">
-                        {client._count.credits > 0 && (
-                          <span className="px-2 py-0.5 bg-blue-50 text-blue-700 text-xs rounded-full font-medium">{client._count.credits} credit{client._count.credits > 1 ? 's' : ''}</span>
-                        )}
-                        {client._count.creditsAlim > 0 && (
-                          <span className="px-2 py-0.5 bg-purple-50 text-purple-700 text-xs rounded-full font-medium">{client._count.creditsAlim} cr. alim.</span>
-                        )}
-                        {client._count.cotisations > 0 && (
-                          <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 text-xs rounded-full font-medium">{client._count.cotisations} cotis.</span>
-                        )}
-                        {client._count.tontines > 0 && (
-                          <span className="px-2 py-0.5 bg-amber-50 text-amber-700 text-xs rounded-full font-medium">{client._count.tontines} tontine{client._count.tontines > 1 ? 's' : ''}</span>
-                        )}
-                        {client._count.credits === 0 && client._count.creditsAlim === 0 && client._count.cotisations === 0 && client._count.tontines === 0 && (
-                          <span className="text-xs text-slate-400">Aucune</span>
-                        )}
-                      </div>
+                      {client._count.souscriptionsPacks > 0 ? (
+                        <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 text-xs rounded-full font-medium">
+                          {client._count.souscriptionsPacks} souscription{client._count.souscriptionsPacks > 1 ? 's' : ''}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-slate-400">Aucune</span>
+                      )}
                     </td>
                     <td className="px-6 py-4">
                       <span className="text-sm text-slate-600">{formatDate(client.createdAt)}</span>

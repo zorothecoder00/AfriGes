@@ -92,20 +92,41 @@ export async function POST(req: Request, { params }: Ctx) {
         },
       });
 
-      // 3. Marquer l'échéance comme payée
+      // 3. Marquer les échéances comme payées
       if (echeanceId) {
+        // Échéance explicitement désignée
         await tx.echeancePack.update({
           where: { id: parseInt(echeanceId) },
           data: { statut: "PAYE", datePaiement: new Date() },
         });
+      } else if (estSolde) {
+        // Souscription entièrement soldée → toutes les échéances restantes sont soldées
+        await tx.echeancePack.updateMany({
+          where: { souscriptionId, statut: { in: ["EN_ATTENTE", "EN_RETARD"] } },
+          data: { statut: "PAYE", datePaiement: new Date() },
+        });
       } else {
-        const prochaine = await tx.echeancePack.findFirst({
+        // Paiement partiel → marquer toutes les échéances couvertes par le montant versé
+        const nonPayees = await tx.echeancePack.findMany({
           where: { souscriptionId, statut: { in: ["EN_ATTENTE", "EN_RETARD"] } },
           orderBy: { numero: "asc" },
         });
-        if (prochaine) {
-          await tx.echeancePack.update({
-            where: { id: prochaine.id },
+        const idsAPayer: number[] = [];
+        let budget = montantNum;
+        for (const ec of nonPayees) {
+          if (budget >= Number(ec.montant) - 0.01) { // tolérance arrondi
+            idsAPayer.push(ec.id);
+            budget -= Number(ec.montant);
+          } else {
+            break;
+          }
+        }
+        if (idsAPayer.length === 0 && nonPayees.length > 0) {
+          idsAPayer.push(nonPayees[0].id);
+        }
+        if (idsAPayer.length > 0) {
+          await tx.echeancePack.updateMany({
+            where: { id: { in: idsAPayer } },
             data: { statut: "PAYE", datePaiement: new Date() },
           });
         }

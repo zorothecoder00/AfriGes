@@ -11,6 +11,7 @@ import SignOutButton from '@/components/SignOutButton';
 import NotificationBell from '@/components/NotificationBell';
 import { useApi } from '@/hooks/useApi';
 import { formatCurrency } from '@/lib/format';
+import { exportToCsv } from '@/lib/exportCsv';
 
 // ============================================================================
 // TYPES
@@ -128,6 +129,18 @@ export default function UserDashboard() {
   const dashData     = dashResponse?.data;
   const transactions = txResponse?.data ?? [];
 
+  const handleExport = () => exportToCsv(
+    transactions,
+    [
+      { label: "Référence",    key: "reference" },
+      { label: "Type",         key: "type" },
+      { label: "Montant",      key: "montant",     format: (v) => formatCurrency(Number(v)) },
+      { label: "Description",  key: "description", format: (v) => String(v ?? "—") },
+      { label: "Date",         key: "createdAt",   format: (v) => new Date(String(v)).toLocaleString("fr-FR") },
+    ],
+    "transactions.csv"
+  );
+
   if (dashLoading && !dashResponse) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -202,7 +215,7 @@ export default function UserDashboard() {
             <h2 className="text-3xl font-bold text-gray-900">Mon Tableau de Bord</h2>
             <p className="text-gray-600 mt-1">Vue d&apos;ensemble de vos activités AfriGes</p>
           </div>
-          <button className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-6 py-3 rounded-lg transition-colors duration-150 flex items-center justify-center shadow-sm hover:shadow">
+          <button onClick={handleExport} className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-6 py-3 rounded-lg transition-colors duration-150 flex items-center justify-center shadow-sm hover:shadow">
             <Download className="w-5 h-5 mr-2" />
             Exporter
           </button>

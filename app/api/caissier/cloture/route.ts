@@ -6,7 +6,7 @@ import { getRPVSession } from "@/lib/authRPV";
 import { notifyRoles, auditLog } from "@/lib/notifications";
 
 /**
- * GET /api/caissier/cloture
+ * GET /api/caissier/cloture  
  *
  * Retourne :
  *  - L'état de la journée en cours (versements packs collectés)
@@ -42,6 +42,16 @@ export async function GET(req: Request) {
         },
       },
     });
+
+    // Opérations caisse du jour (encaissements + décaissements)
+    const operationsJour = await prisma.operationCaisse.findMany({
+      where: { createdAt: { gte: startOfDay, lte: endOfDay } },
+      orderBy: { createdAt: "asc" },
+    });
+    const encaissementsJour = operationsJour.filter((o) => o.type === "ENCAISSEMENT");
+    const decaissementsJour = operationsJour.filter((o) => o.type === "DECAISSEMENT");
+    const totalEncaissementsAutres = encaissementsJour.reduce((s, o) => s + Number(o.montant), 0);
+    const totalDecaissements       = decaissementsJour.reduce((s, o) => s + Number(o.montant), 0);
 
     const totalVentes  = versementsJour.length;
     const montantTotal = versementsJour.reduce((s, v) => s + Number(v.montant), 0);
@@ -101,6 +111,8 @@ export async function GET(req: Request) {
             }
           : null,
         bilanParProduit,
+        totalEncaissementsAutres,
+        totalDecaissements,
         ventesDetail: versementsJour.map((v) => {
           const person = v.souscription.client ?? v.souscription.user;
           return {
@@ -115,6 +127,24 @@ export async function GET(req: Request) {
             }),
           };
         }),
+        encaissementsDetail: encaissementsJour.map((o) => ({
+          id:        o.id,
+          reference: o.reference,
+          montant:   Number(o.montant),
+          motif:     o.motif,
+          mode:      o.mode,
+          operateur: o.operateurNom,
+          heure:     new Date(o.createdAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }),
+        })),
+        decaissementsDetail: decaissementsJour.map((o) => ({
+          id:             o.id,
+          reference:      o.reference,
+          montant:        Number(o.montant),
+          motif:          o.motif,
+          categorie:      o.categorie,
+          operateur:      o.operateurNom,
+          heure:          new Date(o.createdAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }),
+        })),
       },
       historique: {
         data: clotures.map((c) => ({

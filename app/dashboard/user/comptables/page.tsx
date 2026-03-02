@@ -5,14 +5,15 @@ import {
   Calculator, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight,
   ArrowLeft, RefreshCw, Download, Search, ChevronLeft, ChevronRight,
   FileText, BarChart3, BookOpen, Wallet, Package, Calendar,
-  AlertCircle, CheckCircle, Filter, X, Users,
+  AlertCircle, CheckCircle, Filter, X, Users, Lock, LockOpen, Plus,
 } from "lucide-react";
 import Link from "next/link";
 import SignOutButton from "@/components/SignOutButton";
 import NotificationBell from "@/components/NotificationBell";
 import MessagesLink from "@/components/MessagesLink";
-import { useApi } from "@/hooks/useApi";
+import { useApi, useMutation } from "@/hooks/useApi";
 import { formatCurrency, formatDateShort, formatDateTime } from "@/lib/format";
+import { exportToCsv } from "@/lib/exportCsv";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -23,15 +24,20 @@ interface SyntheseResponse {
   data: {
     periode: { debut: string; fin: string; jours: number };
     encaissements: {
-      versements_packs: { montant: number; count: number };
-      cotisations_init: { montant: number; count: number };
-      versements_peri:  { montant: number; count: number };
-      remboursements:   { montant: number; count: number };
-      autres:           { montant: number; count: number };
+      versements_packs:     { montant: number; count: number };
+      cotisations_init:     { montant: number; count: number };
+      versements_peri:      { montant: number; count: number };
+      remboursements:       { montant: number; count: number };
+      autres:               { montant: number; count: number };
+      caisse_encaissements: { montant: number; count: number };
       total: number;
     };
     decaissements: {
       approvisionnements: { montant: number; count: number };
+      salaires:           { montant: number; count: number };
+      avances:            { montant: number; count: number };
+      fournisseurs:       { montant: number; count: number };
+      autres_caisse:      { montant: number; count: number };
       total: number;
     };
     resultat_net: number;
@@ -64,6 +70,16 @@ interface JournalResponse {
   meta: { total: number; page: number; limit: number; totalPages: number; dateDebut: string; dateFin: string };
 }
 
+interface ClotureEntry {
+  id:         number;
+  annee:      number;
+  mois:       number;
+  notes:      string | null;
+  cloturePar: string;
+  createdAt:  string;
+}
+interface CloturesResponse { success: boolean; data: ClotureEntry[] }
+
 interface EtatsFinanciersResponse {
   success: boolean;
   data: {
@@ -81,8 +97,8 @@ interface EtatsFinanciersResponse {
       };
     };
     compteResultat: {
-      produits: { versementsCollectes: number; total: number };
-      charges:  { approvisionnements: number; total: number };
+      produits: { versementsCollectes: number; encaissementsCaisse: number; total: number };
+      charges:  { approvisionnements: number; salaires: number; avances: number; fournisseurs: number; autresCaisse: number; totalCaisse: number; total: number };
       resultatNet: number;
     };
     ratios: {
@@ -186,17 +202,26 @@ function BilanRow({ label, sub, valeur, type }: {
 }
 
 const CAT_META: Record<string, { label: string; color: string; bg: string; icon: React.ElementType }> = {
-  COTISATION_INITIALE:  { label: "Acompte initial",      color: "text-blue-600",    bg: "bg-blue-100",    icon: Calendar },
-  VERSEMENT_PERIODIQUE: { label: "Versement périodique", color: "text-emerald-600", bg: "bg-emerald-100", icon: TrendingUp },
-  REMBOURSEMENT:        { label: "Remboursement",        color: "text-teal-600",    bg: "bg-teal-100",    icon: CheckCircle },
-  VERSEMENT_PACK:       { label: "Bonus / Ajustement",   color: "text-violet-600",  bg: "bg-violet-100",  icon: BookOpen },
-  APPROVISIONNEMENT:    { label: "Approvisionnement",    color: "text-orange-600",  bg: "bg-orange-100",  icon: Package },
+  // VersementPack
+  COTISATION_INITIALE:  { label: "Acompte initial",        color: "text-blue-600",    bg: "bg-blue-100",    icon: Calendar },
+  VERSEMENT_PERIODIQUE: { label: "Versement périodique",   color: "text-emerald-600", bg: "bg-emerald-100", icon: TrendingUp },
+  REMBOURSEMENT:        { label: "Remboursement",          color: "text-teal-600",    bg: "bg-teal-100",    icon: CheckCircle },
+  VERSEMENT_PACK:       { label: "Bonus / Ajustement",     color: "text-violet-600",  bg: "bg-violet-100",  icon: BookOpen },
+  // MouvementStock
+  APPROVISIONNEMENT:    { label: "Approvisionnement",      color: "text-orange-600",  bg: "bg-orange-100",  icon: Package },
+  // OperationCaisse encaissements
+  CAISSE_ENCAISSEMENT:  { label: "Encaissement caisse",    color: "text-cyan-600",    bg: "bg-cyan-100",    icon: Wallet },
+  // OperationCaisse décaissements
+  SALAIRE:              { label: "Salaire",                color: "text-red-600",     bg: "bg-red-100",     icon: Users },
+  AVANCE:               { label: "Avance",                 color: "text-rose-600",    bg: "bg-rose-100",    icon: ArrowDownRight },
+  FOURNISSEUR:          { label: "Fournisseur",            color: "text-amber-600",   bg: "bg-amber-100",   icon: Package },
+  CAISSE_AUTRE:         { label: "Autre décaissement",     color: "text-slate-600",   bg: "bg-slate-100",   icon: Filter },
 };
 
 // ── Main Page ─────────────────────────────────────────────────────────────
 
 type Period = "7" | "30" | "90" | "365";
-type Tab    = "synthese" | "journal" | "tresorerie" | "etats";
+type Tab    = "synthese" | "journal" | "tresorerie" | "balance" | "grandlivre" | "etats";
 
 export default function ComptablePage() {
   const [selectedPeriod, setSelectedPeriod] = useState<Period>("30");
@@ -210,6 +235,21 @@ export default function ComptablePage() {
   const [debouncedSearch, setDebouncedSearch]   = useState("");
   const [journalDateDebut, setJournalDateDebut] = useState("");
   const [journalDateFin, setJournalDateFin]     = useState("");
+  const [journalView, setJournalView]           = useState("TOUT");
+
+  const JOURNAL_VIEWS = [
+    { key: "TOUT",   label: "Tout le journal",     type: "TOUS",         cat: "" },
+    { key: "VENTES", label: "Journal des Ventes",  type: "ENCAISSEMENT", cat: "" },
+    { key: "ACHATS", label: "Journal des Achats",  type: "DECAISSEMENT", cat: "APPROVISIONNEMENT" },
+    { key: "OD",     label: "Journal OD",          type: "TOUS",         cat: "VERSEMENT_PACK" },
+  ];
+
+  function selectJournalView(key: string, type: string, cat: string) {
+    setJournalView(key);
+    setJournalType(type);
+    setJournalCategorie(cat);
+    setJournalPage(1);
+  }
 
   useEffect(() => {
     const t = setTimeout(() => { setDebouncedSearch(journalSearch); setJournalPage(1); }, 400);
@@ -235,14 +275,77 @@ export default function ComptablePage() {
     activeTab === "journal" ? journalUrl : null
   );
 
+  const [etatsAnnee, setEtatsAnnee] = useState(new Date().getFullYear());
+
   const { data: etatsData, loading: etatsLoading } = useApi<EtatsFinanciersResponse>(
-    activeTab === "etats" ? "/api/comptable/etats-financiers" : null
+    activeTab === "etats" ? `/api/comptable/etats-financiers?annee=${etatsAnnee}` : null
   );
+
+  const { data: etatsN1Data } = useApi<EtatsFinanciersResponse>(
+    activeTab === "etats" ? `/api/comptable/etats-financiers?annee=${etatsAnnee - 1}` : null
+  );
+
+  const { data: cloturesData, refetch: refetchClotures } = useApi<CloturesResponse>(
+    activeTab === "etats" ? `/api/comptable/clotures?annee=${etatsAnnee}` : null
+  );
+
+  const { mutate: creerCloture,  loading: clotureLoading  } = useMutation<CloturesResponse, { annee: number; mois: number; notes?: string }>(
+    "/api/comptable/clotures", "POST",
+    { successMessage: "Période clôturée avec succès" }
+  );
+  const { mutate: suppCloture, loading: suppClotureLoading } = useMutation<CloturesResponse, { annee: number; mois: number }>(
+    "/api/comptable/clotures", "DELETE",
+    { successMessage: "Période déverrouillée" }
+  );
+
+  const [clotureModal, setClotureModal] = useState<{ mois: number } | null>(null);
+  const [clotureNotes, setClotureNotes] = useState("");
+
+  async function handleCloture(mois: number) {
+    await creerCloture({ annee: etatsAnnee, mois, notes: clotureNotes || undefined });
+    setClotureModal(null);
+    setClotureNotes("");
+    refetchClotures();
+  }
+
+  async function handleOuverture(mois: number) {
+    await suppCloture({ annee: etatsAnnee, mois });
+    refetchClotures();
+  }
+
+  const grandLivreUrl = useMemo(() => {
+    const p = new URLSearchParams({ grandlivre: "1" });
+    if (journalDateDebut) p.set("dateDebut", journalDateDebut);
+    if (journalDateFin)   p.set("dateFin",   journalDateFin);
+    return `/api/comptable/journal?${p.toString()}`;
+  }, [journalDateDebut, journalDateFin]);
+
+  const { data: grandLivreData, loading: grandLivreLoading } = useApi<JournalResponse>(
+    activeTab === "grandlivre" ? grandLivreUrl : null
+  );
+
+  const handleExport = () => {
+    const entries = journalData?.data ?? [];
+    if (entries.length === 0) return;
+    exportToCsv(
+      entries,
+      [
+        { label: "Référence",  key: "reference" },
+        { label: "Date",       key: "date",      format: (v) => formatDateTime(String(v)) },
+        { label: "Type",       key: "type",      format: (v) => v === "ENCAISSEMENT" ? "Encaissement" : "Décaissement" },
+        { label: "Catégorie",  key: "categorie" },
+        { label: "Libellé",    key: "libelle" },
+        { label: "Montant",    key: "montant",   format: (v) => formatCurrency(Number(v)) },
+      ],
+      `journal-comptable-${selectedPeriod}.csv`
+    );
+  };
 
   // ── Computed ──────────────────────────────────────────────────────────
 
-  const sd = synthData?.data;
-  const ed = etatsData?.data;
+  const sd   = synthData?.data;
+  const ed   = etatsData?.data;
+  const edN1 = etatsN1Data?.data;
 
   const globalMax = useMemo(() => {
     if (!sd) return 1;
@@ -289,8 +392,10 @@ export default function ComptablePage() {
   const tabs: { key: Tab; label: string; icon: React.ElementType }[] = [
     { key: "synthese",   label: "Synthèse",        icon: BarChart3 },
     { key: "journal",    label: "Journal",          icon: BookOpen  },
-    { key: "tresorerie", label: "Trésorerie",       icon: Wallet    },
-    { key: "etats",      label: "États Financiers", icon: FileText  },
+    { key: "tresorerie", label: "Trésorerie",        icon: Wallet    },
+    { key: "balance",    label: "Balance",            icon: Calculator },
+    { key: "grandlivre", label: "Grand Livre",        icon: BookOpen  },
+    { key: "etats",      label: "États Financiers",   icon: FileText  },
   ];
 
   return (
@@ -332,7 +437,7 @@ export default function ComptablePage() {
             <button onClick={refetchSynth} className="p-2 text-slate-500 hover:bg-slate-100 rounded-lg transition-colors">
               <RefreshCw size={18} />
             </button>
-            <button className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-slate-700 hover:bg-slate-50 transition-all shadow-sm text-sm font-medium">
+            <button onClick={handleExport} className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-slate-700 hover:bg-slate-50 transition-all shadow-sm text-sm font-medium">
               <Download size={16} />Exporter
             </button>
             <MessagesLink />
@@ -384,14 +489,14 @@ export default function ComptablePage() {
         </div>
 
         {/* ── Tabs ── */}
-        <div className="bg-white rounded-2xl p-1.5 flex gap-1 shadow-sm border border-slate-200/60">
+        <div className="bg-white rounded-2xl p-1.5 flex gap-1 shadow-sm border border-slate-200/60 overflow-x-auto">
           {tabs.map((t) => {
             const Icon = t.icon;
             return (
               <button
                 key={t.key}
                 onClick={() => setActiveTab(t.key)}
-                className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-sm font-semibold transition-all ${
+                className={`flex-shrink-0 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-sm font-semibold transition-all ${
                   activeTab === t.key
                     ? "bg-violet-600 text-white shadow-md shadow-violet-200"
                     : "text-slate-600 hover:bg-slate-50"
@@ -572,6 +677,26 @@ export default function ComptablePage() {
         {activeTab === "journal" && (
           <div className="space-y-4">
 
+            {/* Sélecteur de vue journal */}
+            <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-200/60">
+              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-3">Vue journal</p>
+              <div className="flex gap-2 flex-wrap">
+                {JOURNAL_VIEWS.map((v) => (
+                  <button
+                    key={v.key}
+                    onClick={() => selectJournalView(v.key, v.type, v.cat)}
+                    className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all border ${
+                      journalView === v.key
+                        ? "bg-violet-600 text-white border-violet-600 shadow-sm"
+                        : "bg-slate-50 text-slate-600 border-slate-200 hover:border-violet-300 hover:text-violet-700"
+                    }`}
+                  >
+                    {v.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             {/* Filtres */}
             <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -591,7 +716,7 @@ export default function ComptablePage() {
                 {/* Type */}
                 <select
                   value={journalType}
-                  onChange={(e) => { setJournalType(e.target.value); setJournalPage(1); }}
+                  onChange={(e) => { setJournalView("TOUT"); setJournalType(e.target.value); setJournalPage(1); }}
                   className="px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-violet-500"
                 >
                   <option value="TOUS">Tous les types</option>
@@ -602,7 +727,7 @@ export default function ComptablePage() {
                 {/* Catégorie */}
                 <select
                   value={journalCategorie}
-                  onChange={(e) => { setJournalCategorie(e.target.value); setJournalPage(1); }}
+                  onChange={(e) => { setJournalView("TOUT"); setJournalCategorie(e.target.value); setJournalPage(1); }}
                   className="px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-violet-500"
                 >
                   <option value="">Toutes catégories</option>
@@ -618,7 +743,7 @@ export default function ComptablePage() {
                   <input type="date" value={journalDateFin} onChange={(e) => { setJournalDateFin(e.target.value); setJournalPage(1); }}
                     className="flex-1 px-2 py-2.5 border border-slate-200 rounded-xl text-xs bg-slate-50 focus:outline-none focus:ring-2 focus:ring-violet-500" />
                   {(journalType !== "TOUS" || journalCategorie || debouncedSearch || journalDateDebut || journalDateFin) && (
-                    <button onClick={() => { setJournalType("TOUS"); setJournalCategorie(""); setJournalSearch(""); setJournalDateDebut(""); setJournalDateFin(""); setJournalPage(1); }}
+                    <button onClick={() => { setJournalView("TOUT"); setJournalType("TOUS"); setJournalCategorie(""); setJournalSearch(""); setJournalDateDebut(""); setJournalDateFin(""); setJournalPage(1); }}
                       className="p-2.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition-colors">
                       <X size={16} />
                     </button>
@@ -760,6 +885,7 @@ export default function ComptablePage() {
                   <p>Acomptes initiaux : {formatCurrency(enc?.cotisations_init.montant ?? 0)}</p>
                   <p>Versements périodiques : {formatCurrency(enc?.versements_peri.montant ?? 0)}</p>
                   <p>Remboursements : {formatCurrency(enc?.remboursements.montant ?? 0)}</p>
+                  <p>Encaissements caisse : {formatCurrency(enc?.caisse_encaissements.montant ?? 0)}</p>
                   <p className="opacity-70">Bonus / Ajustements : {formatCurrency(enc?.autres.montant ?? 0)}</p>
                 </div>
               </div>
@@ -774,7 +900,10 @@ export default function ComptablePage() {
                 </div>
                 <div className="text-xs text-red-100 space-y-0.5">
                   <p>Approvisionnements : {formatCurrency(dec?.approvisionnements.montant ?? 0)}</p>
-                  <p className="opacity-70">{dec?.approvisionnements.count ?? 0} entrées en stock</p>
+                  {(dec?.salaires.montant ?? 0) > 0    && <p>Salaires : {formatCurrency(dec?.salaires.montant ?? 0)}</p>}
+                  {(dec?.avances.montant ?? 0) > 0     && <p>Avances : {formatCurrency(dec?.avances.montant ?? 0)}</p>}
+                  {(dec?.fournisseurs.montant ?? 0) > 0 && <p>Fournisseurs : {formatCurrency(dec?.fournisseurs.montant ?? 0)}</p>}
+                  {(dec?.autres_caisse.montant ?? 0) > 0 && <p className="opacity-70">Autres : {formatCurrency(dec?.autres_caisse.montant ?? 0)}</p>}
                 </div>
               </div>
 
@@ -801,10 +930,11 @@ export default function ComptablePage() {
                   <ArrowUpRight size={20} className="text-emerald-600" />Encaissements par type de versement
                 </h3>
                 {[
-                  { label: `Acomptes initiaux (${enc?.cotisations_init.count ?? 0})`,     montant: enc?.cotisations_init.montant ?? 0, icon: Calendar,    color: "bg-blue-100",    text: "text-blue-600",    bar: "bg-blue-500" },
-                  { label: `Versements périodiques (${enc?.versements_peri.count ?? 0})`,  montant: enc?.versements_peri.montant ?? 0,  icon: TrendingUp,  color: "bg-emerald-100", text: "text-emerald-600", bar: "bg-emerald-500" },
-                  { label: `Remboursements (${enc?.remboursements.count ?? 0})`,           montant: enc?.remboursements.montant ?? 0,   icon: CheckCircle, color: "bg-teal-100",    text: "text-teal-600",    bar: "bg-teal-500" },
-                  { label: `Bonus / Ajust. (${enc?.autres.count ?? 0})`,                  montant: enc?.autres.montant ?? 0,           icon: BookOpen,    color: "bg-violet-100",  text: "text-violet-600",  bar: "bg-violet-500" },
+                  { label: `Acomptes initiaux (${enc?.cotisations_init.count ?? 0})`,          montant: enc?.cotisations_init.montant ?? 0,           icon: Calendar,    color: "bg-blue-100",    text: "text-blue-600",    bar: "bg-blue-500" },
+                  { label: `Versements périodiques (${enc?.versements_peri.count ?? 0})`,       montant: enc?.versements_peri.montant ?? 0,            icon: TrendingUp,  color: "bg-emerald-100", text: "text-emerald-600", bar: "bg-emerald-500" },
+                  { label: `Remboursements (${enc?.remboursements.count ?? 0})`,                montant: enc?.remboursements.montant ?? 0,             icon: CheckCircle, color: "bg-teal-100",    text: "text-teal-600",    bar: "bg-teal-500" },
+                  { label: `Bonus / Ajust. (${enc?.autres.count ?? 0})`,                       montant: enc?.autres.montant ?? 0,                    icon: BookOpen,    color: "bg-violet-100",  text: "text-violet-600",  bar: "bg-violet-500" },
+                  { label: `Encaissements caisse (${enc?.caisse_encaissements.count ?? 0})`,   montant: enc?.caisse_encaissements.montant ?? 0,       icon: Wallet,      color: "bg-cyan-100",    text: "text-cyan-600",    bar: "bg-cyan-500" },
                 ].map((item) => {
                   const pct  = (enc?.total ?? 0) > 0 ? Math.round((item.montant / (enc?.total ?? 1)) * 100) : 0;
                   const Icon = item.icon;
@@ -834,8 +964,12 @@ export default function ComptablePage() {
                   <ArrowDownRight size={20} className="text-red-600" />Décaissements par destination
                 </h3>
                 {[
-                  { label: `Approvisionnements stock (${dec?.approvisionnements.count ?? 0})`, montant: dec?.approvisionnements.montant ?? 0, icon: Package, color: "bg-orange-100", text: "text-orange-600", bar: "bg-orange-500" },
-                ].map((item) => {
+                  { label: `Approvisionnements stock (${dec?.approvisionnements.count ?? 0})`, montant: dec?.approvisionnements.montant ?? 0, icon: Package,        color: "bg-orange-100", text: "text-orange-600", bar: "bg-orange-500" },
+                  { label: `Salaires (${dec?.salaires.count ?? 0})`,                           montant: dec?.salaires.montant ?? 0,           icon: Users,          color: "bg-red-100",    text: "text-red-600",    bar: "bg-red-500" },
+                  { label: `Avances (${dec?.avances.count ?? 0})`,                             montant: dec?.avances.montant ?? 0,            icon: ArrowDownRight, color: "bg-rose-100",   text: "text-rose-600",   bar: "bg-rose-500" },
+                  { label: `Fournisseurs (${dec?.fournisseurs.count ?? 0})`,                   montant: dec?.fournisseurs.montant ?? 0,       icon: Package,        color: "bg-amber-100",  text: "text-amber-600",  bar: "bg-amber-500" },
+                  { label: `Autres décaissements (${dec?.autres_caisse.count ?? 0})`,          montant: dec?.autres_caisse.montant ?? 0,      icon: Filter,         color: "bg-slate-100",  text: "text-slate-600",  bar: "bg-slate-400" },
+                ].filter((item) => item.montant > 0).map((item) => {
                   const pct  = (dec?.total ?? 0) > 0 ? Math.round((item.montant / (dec?.total ?? 1)) * 100) : 0;
                   const Icon = item.icon;
                   return (
@@ -856,51 +990,379 @@ export default function ComptablePage() {
                     </div>
                   );
                 })}
-
-                <div className="mt-4 p-4 bg-orange-50 rounded-xl border border-orange-200">
-                  <p className="text-xs font-semibold text-orange-700 mb-1 flex items-center gap-1.5">
-                    <Package size={12} />Contrôle Approvisionnements
-                  </p>
-                  <p className="text-xs text-orange-600">
-                    {dec?.approvisionnements.count ?? 0} entrées en stock sur la période
-                    — représentent {(dec?.total ?? 0) > 0 ? Math.round(((dec?.approvisionnements.montant ?? 0) / (dec?.total ?? 1)) * 100) : 0}% des décaissements.
-                  </p>
-                </div>
+                {(dec?.total ?? 0) === 0 && (
+                  <p className="text-sm text-slate-400 py-4 text-center">Aucun décaissement sur la période</p>
+                )}
               </div>
             </div>
           </div>
         )}
 
         {/* ════════════════════════════════════════════════════════════════ */}
-        {/* TAB 4 : ÉTATS FINANCIERS                                       */}
+        {/* TAB 4 : BALANCE COMPTABLE                                      */}
+        {/* ════════════════════════════════════════════════════════════════ */}
+        {activeTab === "balance" && (
+          <div className="space-y-5">
+            {/* En-tête */}
+            <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60 flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                  <Calculator size={20} className="text-violet-600" />
+                  Balance Comptable — Période {selectedPeriod === "365" ? "1 an" : `${selectedPeriod} jours`}
+                </h3>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  {sd ? `${formatDateShort(sd.periode.debut)} → ${formatDateShort(sd.periode.fin)}` : "…"}
+                  &nbsp;·&nbsp;Comptes SYSCOHADA simplifiés
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  const rows = [
+                    { compte: "701", libelle: "Acomptes initiaux packs",             debit: 0,                                       credit: enc?.cotisations_init.montant ?? 0 },
+                    { compte: "702", libelle: "Versements périodiques",               debit: 0,                                       credit: enc?.versements_peri.montant ?? 0 },
+                    { compte: "703", libelle: "Remboursements packs",                 debit: 0,                                       credit: enc?.remboursements.montant ?? 0 },
+                    { compte: "706", libelle: "Encaissements caisse — produits divers", debit: 0,                                     credit: enc?.caisse_encaissements.montant ?? 0 },
+                    { compte: "708", libelle: "Bonus / Ajustements",                  debit: 0,                                       credit: enc?.autres.montant ?? 0 },
+                    { compte: "601", libelle: "Approvisionnements — achats stock",    debit: dec?.approvisionnements.montant ?? 0,    credit: 0 },
+                    { compte: "641", libelle: "Salaires et traitements",              debit: dec?.salaires.montant ?? 0,              credit: 0 },
+                    { compte: "422", libelle: "Avances au personnel",                 debit: dec?.avances.montant ?? 0,               credit: 0 },
+                    { compte: "604", libelle: "Paiements fournisseurs",               debit: dec?.fournisseurs.montant ?? 0,          credit: 0 },
+                    { compte: "658", libelle: "Autres charges diverses",              debit: dec?.autres_caisse.montant ?? 0,         credit: 0 },
+                  ].filter((r) => r.debit > 0 || r.credit > 0);
+                  exportToCsv(rows, [
+                    { label: "N° Compte", key: "compte" },
+                    { label: "Libellé", key: "libelle" },
+                    { label: "Débit", key: "debit", format: (v) => formatCurrency(Number(v)) },
+                    { label: "Crédit", key: "credit", format: (v) => formatCurrency(Number(v)) },
+                  ], `balance-comptable-${selectedPeriod}j.csv`);
+                }}
+                className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-slate-700 hover:bg-slate-50 text-sm font-medium shadow-sm"
+              >
+                <Download size={15} />Exporter
+              </button>
+            </div>
+
+            {/* Table balance */}
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 overflow-hidden">
+              <table className="w-full">
+                <thead className="bg-slate-50 border-b border-slate-200">
+                  <tr>
+                    <th className="px-5 py-3 text-left text-xs font-semibold text-slate-500 uppercase w-24">N° Compte</th>
+                    <th className="px-5 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Libellé du compte</th>
+                    <th className="px-5 py-3 text-right text-xs font-semibold text-slate-500 uppercase">Mouvement Débit</th>
+                    <th className="px-5 py-3 text-right text-xs font-semibold text-slate-500 uppercase">Mouvement Crédit</th>
+                    <th className="px-5 py-3 text-right text-xs font-semibold text-slate-500 uppercase">Solde</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {([
+                    { compte: "701", libelle: "Acomptes initiaux (souscriptions packs)",   classe: "Classe 7 — Produits", debit: 0,                                    credit: enc?.cotisations_init.montant ?? 0,      count: enc?.cotisations_init.count },
+                    { compte: "702", libelle: "Versements périodiques packs",              classe: "Classe 7 — Produits", debit: 0,                                    credit: enc?.versements_peri.montant ?? 0,       count: enc?.versements_peri.count },
+                    { compte: "703", libelle: "Remboursements packs",                      classe: "Classe 7 — Produits", debit: 0,                                    credit: enc?.remboursements.montant ?? 0,        count: enc?.remboursements.count },
+                    { compte: "706", libelle: "Encaissements caisse — produits divers",   classe: "Classe 7 — Produits", debit: 0,                                    credit: enc?.caisse_encaissements.montant ?? 0,  count: enc?.caisse_encaissements.count },
+                    { compte: "708", libelle: "Bonus / Ajustements",                       classe: "Classe 7 — Produits", debit: 0,                                    credit: enc?.autres.montant ?? 0,                count: enc?.autres.count },
+                    { compte: "601", libelle: "Approvisionnements — achats stock",         classe: "Classe 6 — Charges",  debit: dec?.approvisionnements.montant ?? 0, credit: 0,                                       count: dec?.approvisionnements.count },
+                    { compte: "641", libelle: "Salaires et traitements",                   classe: "Classe 6 — Charges",  debit: dec?.salaires.montant ?? 0,           credit: 0,                                       count: dec?.salaires.count },
+                    { compte: "422", libelle: "Avances au personnel",                      classe: "Classe 4 — Tiers",    debit: dec?.avances.montant ?? 0,            credit: 0,                                       count: dec?.avances.count },
+                    { compte: "604", libelle: "Paiements fournisseurs",                    classe: "Classe 6 — Charges",  debit: dec?.fournisseurs.montant ?? 0,       credit: 0,                                       count: dec?.fournisseurs.count },
+                    { compte: "658", libelle: "Autres charges diverses",                   classe: "Classe 6 — Charges",  debit: dec?.autres_caisse.montant ?? 0,      credit: 0,                                       count: dec?.autres_caisse.count },
+                  ] as { compte: string; libelle: string; classe: string; debit: number; credit: number; count?: number }[])
+                  .filter((row) => row.debit > 0 || row.credit > 0)
+                  .map((row) => {
+                    const solde = row.credit - row.debit;
+                    return (
+                      <tr key={row.compte} className="hover:bg-slate-50 transition-colors">
+                        <td className="px-5 py-3 font-mono text-sm font-bold text-violet-700">{row.compte}</td>
+                        <td className="px-5 py-3">
+                          <p className="text-sm font-medium text-slate-800">{row.libelle}</p>
+                          <p className="text-xs text-slate-400">{row.classe}{row.count !== undefined ? ` — ${row.count} opérations` : ""}</p>
+                        </td>
+                        <td className="px-5 py-3 text-right font-semibold text-red-600">
+                          {row.debit > 0 ? formatCurrency(row.debit) : <span className="text-slate-300">—</span>}
+                        </td>
+                        <td className="px-5 py-3 text-right font-semibold text-emerald-600">
+                          {row.credit > 0 ? formatCurrency(row.credit) : <span className="text-slate-300">—</span>}
+                        </td>
+                        <td className={`px-5 py-3 text-right font-bold ${solde >= 0 ? "text-emerald-700" : "text-red-700"}`}>
+                          {solde >= 0 ? "+" : ""}{formatCurrency(solde)}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+                <tfoot className="bg-slate-50 border-t-2 border-slate-300">
+                  <tr>
+                    <td className="px-5 py-4" colSpan={2}>
+                      <span className="font-bold text-slate-800 uppercase text-sm">TOTAUX</span>
+                    </td>
+                    <td className="px-5 py-4 text-right font-bold text-red-700 text-base">
+                      {formatCurrency(dec?.total ?? 0)}
+                    </td>
+                    <td className="px-5 py-4 text-right font-bold text-emerald-700 text-base">
+                      {formatCurrency(enc?.total ?? 0)}
+                    </td>
+                    <td className={`px-5 py-4 text-right font-bold text-base ${(sd?.resultat_net ?? 0) >= 0 ? "text-emerald-700" : "text-red-700"}`}>
+                      {(sd?.resultat_net ?? 0) >= 0 ? "+" : ""}{formatCurrency(sd?.resultat_net ?? 0)}
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+
+            {/* Note d'équilibre */}
+            <div className={`rounded-2xl p-4 border flex items-start gap-3 ${Math.abs((enc?.total ?? 0) - (dec?.total ?? 0) - (sd?.resultat_net ?? 0)) < 1 ? "bg-emerald-50 border-emerald-200" : "bg-amber-50 border-amber-200"}`}>
+              <CheckCircle size={18} className="text-emerald-600 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-semibold text-emerald-800">Contrôle de cohérence</p>
+                <p className="text-xs text-emerald-700 mt-0.5">
+                  Total Produits (Crédit) : <strong>{formatCurrency(enc?.total ?? 0)}</strong>
+                  &nbsp;·&nbsp;Total Charges (Débit) : <strong>{formatCurrency(dec?.total ?? 0)}</strong>
+                  &nbsp;·&nbsp;Résultat net : <strong>{formatCurrency(sd?.resultat_net ?? 0)}</strong>
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ════════════════════════════════════════════════════════════════ */}
+        {/* TAB 5 : GRAND LIVRE                                            */}
+        {/* ════════════════════════════════════════════════════════════════ */}
+        {activeTab === "grandlivre" && (
+          <div className="space-y-5">
+            {/* En-tête + filtre dates */}
+            <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60">
+              <div className="flex items-start justify-between gap-4 flex-wrap">
+                <div>
+                  <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                    <BookOpen size={20} className="text-violet-600" />Grand Livre des Comptes
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-0.5">Toutes les écritures regroupées par compte</p>
+                </div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <input type="date" value={journalDateDebut}
+                    onChange={(e) => setJournalDateDebut(e.target.value)}
+                    className="px-3 py-2 border border-slate-200 rounded-xl text-xs bg-slate-50 focus:outline-none focus:ring-2 focus:ring-violet-500" />
+                  <span className="text-slate-400 text-xs">→</span>
+                  <input type="date" value={journalDateFin}
+                    onChange={(e) => setJournalDateFin(e.target.value)}
+                    className="px-3 py-2 border border-slate-200 rounded-xl text-xs bg-slate-50 focus:outline-none focus:ring-2 focus:ring-violet-500" />
+                </div>
+              </div>
+            </div>
+
+            {grandLivreLoading ? (
+              <div className="p-16 text-center"><div className="w-10 h-10 border-4 border-violet-200 border-t-violet-600 rounded-full animate-spin mx-auto" /></div>
+            ) : (
+              (() => {
+                const entries = grandLivreData?.data ?? [];
+                // Group by categorie
+                const groups = new Map<string, JournalEntry[]>();
+                for (const e of entries) {
+                  const list = groups.get(e.categorie) ?? [];
+                  list.push(e);
+                  groups.set(e.categorie, list);
+                }
+                const sortedGroups = Array.from(groups.entries()).sort(([a], [b]) => a.localeCompare(b));
+
+                if (sortedGroups.length === 0) {
+                  return (
+                    <div className="bg-white rounded-2xl p-12 text-center text-slate-400 shadow-sm border border-slate-200/60">
+                      Aucune écriture pour cette période
+                    </div>
+                  );
+                }
+
+                return (
+                  <div className="space-y-5">
+                    {sortedGroups.map(([cat, catEntries]) => {
+                      const meta      = CAT_META[cat] ?? { label: cat, color: "text-slate-600", bg: "bg-slate-100", icon: Filter };
+                      const CatIcon   = meta.icon;
+                      let runningBal  = 0;
+                      const totalDeb  = catEntries.filter((e) => e.type === "DECAISSEMENT").reduce((s, e) => s + e.montant, 0);
+                      const totalCred = catEntries.filter((e) => e.type === "ENCAISSEMENT").reduce((s, e) => s + e.montant, 0);
+
+                      return (
+                        <div key={cat} className="bg-white rounded-2xl shadow-sm border border-slate-200/60 overflow-hidden">
+                          {/* Compte header */}
+                          <div className={`px-6 py-3 border-b border-slate-200 flex items-center justify-between ${meta.bg}`}>
+                            <div className="flex items-center gap-2">
+                              <CatIcon size={16} className={meta.color} />
+                              <span className={`font-bold ${meta.color}`}>{meta.label}</span>
+                              <span className="text-xs text-slate-500 ml-2">{catEntries.length} écritures</span>
+                            </div>
+                            <div className="flex items-center gap-4 text-xs font-semibold">
+                              <span className="text-red-600">Débit : {formatCurrency(totalDeb)}</span>
+                              <span className="text-emerald-600">Crédit : {formatCurrency(totalCred)}</span>
+                              <span className={`${(totalCred - totalDeb) >= 0 ? "text-emerald-700" : "text-red-700"} font-bold`}>
+                                Solde : {(totalCred - totalDeb) >= 0 ? "+" : ""}{formatCurrency(totalCred - totalDeb)}
+                              </span>
+                            </div>
+                          </div>
+                          {/* Écritures */}
+                          <div className="overflow-x-auto">
+                            <table className="w-full text-sm">
+                              <thead className="bg-slate-50 border-b border-slate-100">
+                                <tr>
+                                  <th className="px-4 py-2 text-left text-xs font-semibold text-slate-500">Date</th>
+                                  <th className="px-4 py-2 text-left text-xs font-semibold text-slate-500">Référence</th>
+                                  <th className="px-4 py-2 text-left text-xs font-semibold text-slate-500">Libellé</th>
+                                  <th className="px-4 py-2 text-right text-xs font-semibold text-slate-500">Débit</th>
+                                  <th className="px-4 py-2 text-right text-xs font-semibold text-slate-500">Crédit</th>
+                                  <th className="px-4 py-2 text-right text-xs font-semibold text-slate-500">Solde cumulé</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-slate-50">
+                                {catEntries.map((e) => {
+                                  const deb  = e.type === "DECAISSEMENT" ? e.montant : 0;
+                                  const cred = e.type === "ENCAISSEMENT" ? e.montant : 0;
+                                  runningBal += (cred - deb);
+                                  return (
+                                    <tr key={e.id} className="hover:bg-slate-50">
+                                      <td className="px-4 py-2 text-slate-500 whitespace-nowrap">{formatDateShort(e.date)}</td>
+                                      <td className="px-4 py-2 font-mono text-xs text-slate-500">{e.reference}</td>
+                                      <td className="px-4 py-2 text-slate-700 max-w-xs truncate" title={e.libelle}>{e.libelle}</td>
+                                      <td className="px-4 py-2 text-right text-red-600">{deb > 0 ? formatCurrency(deb) : <span className="text-slate-200">—</span>}</td>
+                                      <td className="px-4 py-2 text-right text-emerald-600">{cred > 0 ? formatCurrency(cred) : <span className="text-slate-200">—</span>}</td>
+                                      <td className={`px-4 py-2 text-right font-semibold ${runningBal >= 0 ? "text-emerald-700" : "text-red-700"}`}>
+                                        {runningBal >= 0 ? "+" : ""}{formatCurrency(runningBal)}
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })()
+            )}
+          </div>
+        )}
+
+        {/* ════════════════════════════════════════════════════════════════ */}
+        {/* TAB 6 : ÉTATS FINANCIERS                                       */}
         {/* ════════════════════════════════════════════════════════════════ */}
         {activeTab === "etats" && (
           <div className="space-y-5">
+
+            {/* En-tête + sélecteur d'année */}
+            <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60 flex items-center justify-between flex-wrap gap-3">
+              <div>
+                <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                  <FileText size={20} className="text-violet-600" />États Financiers — Exercice {etatsAnnee}
+                </h3>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Bilan : snapshot actuel &nbsp;·&nbsp; CPC : 01/01/{etatsAnnee} → 31/12/{etatsAnnee}
+                </p>
+              </div>
+              <div className="flex items-center gap-2 bg-slate-100 rounded-xl p-1">
+                <button
+                  onClick={() => setEtatsAnnee((y) => y - 1)}
+                  disabled={etatsAnnee <= 2020}
+                  className="p-2 rounded-lg text-slate-600 hover:bg-white disabled:opacity-40 transition-all"
+                >
+                  <ChevronLeft size={18} />
+                </button>
+                <span className="px-4 py-1.5 bg-violet-600 text-white text-sm font-bold rounded-lg min-w-[64px] text-center">
+                  {etatsAnnee}
+                </span>
+                <button
+                  onClick={() => setEtatsAnnee((y) => y + 1)}
+                  disabled={etatsAnnee >= new Date().getFullYear()}
+                  className="p-2 rounded-lg text-slate-600 hover:bg-white disabled:opacity-40 transition-all"
+                >
+                  <ChevronRight size={18} />
+                </button>
+              </div>
+            </div>
+
             {etatsLoading && !ed ? (
               <div className="p-16 text-center"><div className="w-10 h-10 border-4 border-violet-200 border-t-violet-600 rounded-full animate-spin mx-auto" /></div>
             ) : ed ? (
               <>
-                {/* Bilan */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                {/* ── Comparaison N / N-1 ─────────────────────────────────── */}
+                <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 overflow-hidden">
+                  <div className="px-6 py-4 bg-violet-50 border-b border-violet-200 flex items-center gap-2">
+                    <BarChart3 size={18} className="text-violet-600" />
+                    <h3 className="font-bold text-violet-800">
+                      Comparaison {etatsAnnee} / {etatsAnnee - 1}
+                    </h3>
+                    {!edN1 && <span className="ml-auto text-xs text-slate-400 italic">Chargement N-1…</span>}
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead className="bg-slate-50 border-b border-slate-200">
+                        <tr>
+                          <th className="px-5 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Indicateur</th>
+                          <th className="px-5 py-3 text-right text-xs font-semibold text-violet-600 uppercase">N ({etatsAnnee})</th>
+                          <th className="px-5 py-3 text-right text-xs font-semibold text-slate-400 uppercase">N-1 ({etatsAnnee - 1})</th>
+                          <th className="px-5 py-3 text-right text-xs font-semibold text-slate-500 uppercase">Évolution</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {([
+                          { label: "Total Produits",        n: ed.compteResultat.produits.total,   n1: edN1?.compteResultat.produits.total   ?? null, isPct: false },
+                          { label: "Total Charges",         n: ed.compteResultat.charges.total,    n1: edN1?.compteResultat.charges.total    ?? null, isPct: false },
+                          { label: "Résultat Net",          n: ed.compteResultat.resultatNet,      n1: edN1?.compteResultat.resultatNet      ?? null, isPct: false },
+                          { label: "Taux de recouvrement",  n: ed.ratios.tauxRecouvrement,         n1: edN1?.ratios.tauxRecouvrement         ?? null, isPct: true  },
+                          { label: "Marge nette",           n: ed.ratios.margeNette,               n1: edN1?.ratios.margeNette               ?? null, isPct: true  },
+                          { label: "Ratio charges",         n: ed.ratios.ratioCharges,             n1: edN1?.ratios.ratioCharges             ?? null, isPct: true  },
+                        ] as { label: string; n: number; n1: number | null; isPct: boolean }[]).map((row) => {
+                          const delta     = row.n1 !== null ? row.n - row.n1 : null;
+                          const deltaPct  = (delta !== null && row.n1 !== null && row.n1 !== 0)
+                            ? Math.round((delta / Math.abs(row.n1)) * 100)
+                            : null;
+                          const isPositive = row.label === "Total Charges" || row.label === "Ratio charges"
+                            ? (delta ?? 0) <= 0
+                            : (delta ?? 0) >= 0;
+                          return (
+                            <tr key={row.label} className="hover:bg-slate-50">
+                              <td className="px-5 py-3 font-medium text-slate-700 text-sm">{row.label}</td>
+                              <td className="px-5 py-3 text-right font-bold text-slate-800">
+                                {row.isPct ? `${row.n}%` : formatCurrency(row.n)}
+                              </td>
+                              <td className="px-5 py-3 text-right text-slate-400 text-sm">
+                                {row.n1 !== null ? (row.isPct ? `${row.n1}%` : formatCurrency(row.n1)) : "—"}
+                              </td>
+                              <td className="px-5 py-3 text-right">
+                                {delta !== null ? (
+                                  <span className={`inline-flex items-center gap-0.5 font-semibold text-sm ${isPositive ? "text-emerald-600" : "text-red-600"}`}>
+                                    {delta >= 0 ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}
+                                    {row.isPct
+                                      ? `${delta >= 0 ? "+" : ""}${delta}pp`
+                                      : `${delta >= 0 ? "+" : ""}${formatCurrency(delta)}`}
+                                    {deltaPct !== null && <span className="text-xs opacity-60 ml-0.5">({deltaPct > 0 ? "+" : ""}{deltaPct}%)</span>}
+                                  </span>
+                                ) : <span className="text-slate-300 text-sm">—</span>}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
 
-                  {/* ACTIF */}
+                {/* ── Bilan ──────────────────────────────────────────────── */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
                   <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 overflow-hidden">
                     <div className="px-6 py-4 bg-emerald-50 border-b border-emerald-200 flex items-center gap-2">
                       <ArrowUpRight size={18} className="text-emerald-600" />
-                      <h3 className="font-bold text-emerald-800">ACTIF — Bilan {ed.annee}</h3>
+                      <h3 className="font-bold text-emerald-800">ACTIF — Bilan (snapshot actuel)</h3>
                     </div>
                     <div className="p-6">
-                      <BilanRow label="Stock (valeur comptable)"    sub={`${ed.bilan.actif.stock.nombreProduits} produits`}       valeur={ed.bilan.actif.stock.valeur} />
+                      <BilanRow label="Stock (valeur comptable)" sub={`${ed.bilan.actif.stock.nombreProduits} produits`} valeur={ed.bilan.actif.stock.valeur} />
                       <BilanRow label="Créances packs (à encaisser)" sub={`${ed.bilan.actif.creancesPacks.count} souscriptions ACTIF`} valeur={ed.bilan.actif.creancesPacks.valeur} />
                       <BilanRow label="TOTAL ACTIF" valeur={ed.bilan.actif.total} type="total" />
                     </div>
                   </div>
-
-                  {/* PASSIF */}
                   <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 overflow-hidden">
                     <div className="px-6 py-4 bg-red-50 border-b border-red-200 flex items-center gap-2">
                       <ArrowDownRight size={18} className="text-red-600" />
-                      <h3 className="font-bold text-red-800">PASSIF — Bilan {ed.annee}</h3>
+                      <h3 className="font-bold text-red-800">PASSIF — Bilan (snapshot actuel)</h3>
                     </div>
                     <div className="p-6">
                       <BilanRow label="Engagements packs" sub={`${ed.bilan.passif.engagementsPacks.count} souscriptions actives`} valeur={ed.bilan.passif.engagementsPacks.valeur} />
@@ -910,36 +1372,35 @@ export default function ComptablePage() {
                   </div>
                 </div>
 
-                {/* Compte de Résultat */}
+                {/* ── CPC ────────────────────────────────────────────────── */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-
-                  {/* PRODUITS */}
                   <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 overflow-hidden">
                     <div className="px-6 py-4 bg-blue-50 border-b border-blue-200 flex items-center justify-between">
-                      <h3 className="font-bold text-blue-800 flex items-center gap-2"><TrendingUp size={18} />Produits — CPC {ed.annee}</h3>
-                      <span className="text-xs text-blue-600">Depuis le 1er janvier</span>
+                      <h3 className="font-bold text-blue-800 flex items-center gap-2"><TrendingUp size={18} />Produits — CPC {etatsAnnee}</h3>
+                      <span className="text-xs text-blue-600">01/01/{etatsAnnee} → 31/12/{etatsAnnee}</span>
                     </div>
                     <div className="p-6">
-                      <BilanRow label="Versements packs collectés" valeur={ed.compteResultat.produits.versementsCollectes} />
+                      <BilanRow label="Versements packs collectés"   valeur={ed.compteResultat.produits.versementsCollectes} />
+                      <BilanRow label="Encaissements caisse"          valeur={ed.compteResultat.produits.encaissementsCaisse} />
                       <BilanRow label="TOTAL PRODUITS" valeur={ed.compteResultat.produits.total} type="total" />
                     </div>
                   </div>
-
-                  {/* CHARGES */}
                   <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 overflow-hidden">
                     <div className="px-6 py-4 bg-orange-50 border-b border-orange-200 flex items-center justify-between">
-                      <h3 className="font-bold text-orange-800 flex items-center gap-2"><TrendingDown size={18} />Charges — CPC {ed.annee}</h3>
-                      <span className="text-xs text-orange-600">Depuis le 1er janvier</span>
+                      <h3 className="font-bold text-orange-800 flex items-center gap-2"><TrendingDown size={18} />Charges — CPC {etatsAnnee}</h3>
+                      <span className="text-xs text-orange-600">01/01/{etatsAnnee} → 31/12/{etatsAnnee}</span>
                     </div>
                     <div className="p-6">
-                      <BilanRow label="Coût des approvisionnements" valeur={ed.compteResultat.charges.approvisionnements} />
+                      <BilanRow label="Coût des approvisionnements"  valeur={ed.compteResultat.charges.approvisionnements} />
+                      {ed.compteResultat.charges.salaires    > 0 && <BilanRow label="Salaires"              valeur={ed.compteResultat.charges.salaires} />}
+                      {ed.compteResultat.charges.avances     > 0 && <BilanRow label="Avances"               valeur={ed.compteResultat.charges.avances} />}
+                      {ed.compteResultat.charges.fournisseurs > 0 && <BilanRow label="Paiements fournisseurs" valeur={ed.compteResultat.charges.fournisseurs} />}
+                      {ed.compteResultat.charges.autresCaisse > 0 && <BilanRow label="Autres décaissements"  valeur={ed.compteResultat.charges.autresCaisse} />}
                       <BilanRow label="TOTAL CHARGES" valeur={ed.compteResultat.charges.total} type="total" />
                     </div>
-
-                    {/* Résultat net */}
                     <div className={`mx-6 mb-6 p-4 rounded-xl border-2 ${ed.compteResultat.resultatNet >= 0 ? "border-emerald-300 bg-emerald-50" : "border-red-300 bg-red-50"}`}>
                       <div className="flex justify-between items-center">
-                        <span className="font-bold text-slate-800">Résultat Net {ed.annee}</span>
+                        <span className="font-bold text-slate-800">Résultat Net {etatsAnnee}</span>
                         <span className={`text-xl font-bold ${ed.compteResultat.resultatNet >= 0 ? "text-emerald-600" : "text-red-600"}`}>
                           {ed.compteResultat.resultatNet >= 0 ? "+" : ""}{formatCurrency(ed.compteResultat.resultatNet)}
                         </span>
@@ -948,41 +1409,17 @@ export default function ComptablePage() {
                   </div>
                 </div>
 
-                {/* Ratios */}
+                {/* ── Ratios ─────────────────────────────────────────────── */}
                 <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/60">
                   <h3 className="font-bold text-slate-800 mb-5 flex items-center gap-2">
-                    <BarChart3 size={20} className="text-violet-600" />Ratios &amp; Indicateurs Financiers
+                    <BarChart3 size={20} className="text-violet-600" />Ratios &amp; Indicateurs — {etatsAnnee}
                   </h3>
                   <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                     {[
-                      {
-                        label: "Taux de recouvrement",
-                        sub:   "Versé / Total souscriptions",
-                        value: `${ed.ratios.tauxRecouvrement}%`,
-                        color: ed.ratios.tauxRecouvrement >= 70 ? "text-emerald-600" : ed.ratios.tauxRecouvrement >= 40 ? "text-amber-600" : "text-red-600",
-                        icon:  CheckCircle,
-                      },
-                      {
-                        label: "Taux de complétion",
-                        sub:   "Souscriptions COMPLETE / total",
-                        value: `${ed.ratios.tauxCompletion}%`,
-                        color: ed.ratios.tauxCompletion >= 60 ? "text-emerald-600" : ed.ratios.tauxCompletion >= 30 ? "text-amber-600" : "text-violet-600",
-                        icon:  BookOpen,
-                      },
-                      {
-                        label: "Marge nette",
-                        sub:   "Résultat / Total produits",
-                        value: `${ed.ratios.margeNette}%`,
-                        color: ed.ratios.margeNette >= 20 ? "text-emerald-600" : ed.ratios.margeNette >= 0 ? "text-amber-600" : "text-red-600",
-                        icon:  TrendingUp,
-                      },
-                      {
-                        label: "Ratio charges",
-                        sub:   "Charges / Produits",
-                        value: `${ed.ratios.ratioCharges}%`,
-                        color: ed.ratios.ratioCharges <= 70 ? "text-emerald-600" : ed.ratios.ratioCharges <= 90 ? "text-amber-600" : "text-red-600",
-                        icon:  AlertCircle,
-                      },
+                      { label: "Taux de recouvrement", sub: "Versé / Total souscriptions", value: `${ed.ratios.tauxRecouvrement}%`, color: ed.ratios.tauxRecouvrement >= 70 ? "text-emerald-600" : ed.ratios.tauxRecouvrement >= 40 ? "text-amber-600" : "text-red-600", icon: CheckCircle },
+                      { label: "Taux de complétion",   sub: "Souscriptions COMPLETE / total", value: `${ed.ratios.tauxCompletion}%`, color: ed.ratios.tauxCompletion >= 60 ? "text-emerald-600" : ed.ratios.tauxCompletion >= 30 ? "text-amber-600" : "text-violet-600", icon: BookOpen },
+                      { label: "Marge nette",          sub: "Résultat / Total produits",      value: `${ed.ratios.margeNette}%`,    color: ed.ratios.margeNette >= 20 ? "text-emerald-600" : ed.ratios.margeNette >= 0 ? "text-amber-600" : "text-red-600", icon: TrendingUp },
+                      { label: "Ratio charges",        sub: "Charges / Produits",             value: `${ed.ratios.ratioCharges}%`,  color: ed.ratios.ratioCharges <= 70 ? "text-emerald-600" : ed.ratios.ratioCharges <= 90 ? "text-amber-600" : "text-red-600", icon: AlertCircle },
                     ].map((r) => {
                       const Icon = r.icon;
                       return (
@@ -996,10 +1433,125 @@ export default function ComptablePage() {
                     })}
                   </div>
                 </div>
+
+                {/* ── Clôtures mensuelles ────────────────────────────────── */}
+                {(() => {
+                  const moisNoms = ["Janv.", "Févr.", "Mars", "Avr.", "Mai", "Juin", "Juil.", "Août", "Sept.", "Oct.", "Nov.", "Déc."];
+                  const cloturesMap = new Map<number, ClotureEntry>(
+                    (cloturesData?.data ?? []).map((c) => [c.mois, c])
+                  );
+                  const currentMois = etatsAnnee === new Date().getFullYear() ? new Date().getMonth() + 1 : 12;
+
+                  return (
+                    <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 overflow-hidden">
+                      <div className="px-6 py-4 bg-slate-50 border-b border-slate-200 flex items-center gap-2">
+                        <Lock size={18} className="text-slate-600" />
+                        <h3 className="font-bold text-slate-800">Clôtures Mensuelles — {etatsAnnee}</h3>
+                        <span className="ml-auto text-xs text-slate-400">
+                          {cloturesMap.size} / {currentMois} mois clôturé{cloturesMap.size > 1 ? "s" : ""}
+                        </span>
+                      </div>
+                      <div className="p-5 grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-3">
+                        {Array.from({ length: 12 }, (_, i) => i + 1).map((mois) => {
+                          const cloture   = cloturesMap.get(mois);
+                          const isPast    = mois <= currentMois;
+                          const isFuture  = mois > currentMois;
+                          return (
+                            <div
+                              key={mois}
+                              className={`rounded-xl p-3 border text-center transition-all ${
+                                cloture
+                                  ? "bg-emerald-50 border-emerald-300"
+                                  : isFuture
+                                  ? "bg-slate-50 border-slate-100 opacity-40"
+                                  : "bg-white border-slate-200 hover:border-amber-300"
+                              }`}
+                            >
+                              <div className="flex justify-center mb-1.5">
+                                {cloture
+                                  ? <Lock size={16} className="text-emerald-600" />
+                                  : <LockOpen size={16} className={isFuture ? "text-slate-300" : "text-amber-500"} />
+                                }
+                              </div>
+                              <p className="text-xs font-bold text-slate-700">{moisNoms[mois - 1]}</p>
+                              {cloture ? (
+                                <>
+                                  <p className="text-[10px] text-emerald-600 mt-0.5 leading-tight">{cloture.cloturePar}</p>
+                                  <button
+                                    onClick={() => handleOuverture(mois)}
+                                    disabled={suppClotureLoading}
+                                    className="mt-1.5 text-[10px] text-red-500 hover:underline disabled:opacity-40"
+                                  >
+                                    Ouvrir
+                                  </button>
+                                </>
+                              ) : isPast ? (
+                                <button
+                                  onClick={() => { setClotureModal({ mois }); setClotureNotes(""); }}
+                                  className="mt-1.5 flex items-center justify-center gap-0.5 text-[10px] text-violet-600 hover:text-violet-800 font-semibold mx-auto"
+                                >
+                                  <Plus size={10} />Clôturer
+                                </button>
+                              ) : null}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })()}
               </>
             ) : (
               <div className="p-12 text-center text-slate-400">Erreur de chargement des états financiers</div>
             )}
+          </div>
+        )}
+
+        {/* ── Modal confirmation clôture ── */}
+        {clotureModal && (
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 bg-violet-100 rounded-xl flex items-center justify-center">
+                  <Lock size={20} className="text-violet-600" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-slate-800">Clôturer la période</h3>
+                  <p className="text-xs text-slate-500">
+                    {["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"][clotureModal.mois - 1]} {etatsAnnee}
+                  </p>
+                </div>
+              </div>
+              <p className="text-sm text-slate-600 mb-4">
+                La clôture verrouille cette période. Elle restera modifiable par un comptable autorisé.
+              </p>
+              <textarea
+                value={clotureNotes}
+                onChange={(e) => setClotureNotes(e.target.value)}
+                placeholder="Notes de clôture (optionnel)…"
+                rows={3}
+                className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 bg-slate-50 resize-none mb-4"
+              />
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setClotureModal(null)}
+                  className="flex-1 px-4 py-2.5 border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 text-sm font-medium"
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={() => handleCloture(clotureModal.mois)}
+                  disabled={clotureLoading}
+                  className="flex-1 px-4 py-2.5 bg-violet-600 text-white rounded-xl text-sm font-semibold hover:bg-violet-700 disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {clotureLoading
+                    ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    : <Lock size={15} />
+                  }
+                  Clôturer
+                </button>
+              </div>
+            </div>
           </div>
         )}
 

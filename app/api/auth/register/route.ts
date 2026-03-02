@@ -78,7 +78,7 @@ export async function POST(req: Request) {
     })
 
     // Supprimer le hash avant réponse
-    const { passwordHash: _, ...userSafe } = newUser
+    const { passwordHash: _ph, ...userSafe } = newUser
 
     return NextResponse.json(
       { data: userSafe },

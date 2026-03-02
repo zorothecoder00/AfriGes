@@ -35,7 +35,7 @@ export async function GET(req: Request) {
   return NextResponse.json({ data: notifications });
 }
 
-export async function DELETE(req: Request) {
+export async function DELETE(_req: Request) {
   const session = await getAuthSession();
 
   if (!session || !session.user?.id) {

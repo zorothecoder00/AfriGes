@@ -20,10 +20,57 @@ export async function GET(req: Request) {
     }
 
     const { searchParams } = new URL(req.url);
-    const versementId = searchParams.get("versementId");
+    const versementId  = searchParams.get("versementId");
+    const operationId  = searchParams.get("operationId");
 
-    if (!versementId) {
-      return NextResponse.json({ message: "versementId requis" }, { status: 400 });
+    if (!versementId && !operationId) {
+      return NextResponse.json({ message: "versementId ou operationId requis" }, { status: 400 });
+    }
+
+    // ── Reçu pour une opération caisse (décaissement / encaissement) ──────
+    if (operationId) {
+      const operation = await prisma.operationCaisse.findUnique({
+        where: { id: Number(operationId) },
+      });
+      if (!operation) {
+        return NextResponse.json({ message: "Opération introuvable" }, { status: 404 });
+      }
+
+      const params = await prisma.parametre.findMany({
+        where: { cle: { in: ["APP_NOM", "APP_ADRESSE", "APP_TELEPHONE"] } },
+      });
+      const getParam = (cle: string) => params.find((p) => p.cle === cle)?.valeur ?? "";
+
+      const categorieLabel: Record<string, string> = {
+        SALAIRE:     "Salaire",
+        AVANCE:      "Avance sur salaire",
+        FOURNISSEUR: "Paiement fournisseur",
+        AUTRE:       "Autre dépense",
+      };
+
+      return NextResponse.json({
+        success: true,
+        type: "operation",
+        data: {
+          recu: {
+            numero:   operation.reference,
+            date:     operation.createdAt.toISOString(),
+            caissier: operation.operateurNom,
+          },
+          operation: {
+            montant:        Number(operation.montant),
+            motif:          operation.motif,
+            categorieLabel: categorieLabel[operation.categorie ?? "AUTRE"] ?? "Décaissement",
+            reference:      operation.reference,
+            type:           operation.type,
+          },
+          entreprise: {
+            nom:       getParam("APP_NOM")       || "AfriGes",
+            adresse:   getParam("APP_ADRESSE")   || "",
+            telephone: getParam("APP_TELEPHONE") || "",
+          },
+        },
+      });
     }
 
     const versement = await prisma.versementPack.findUnique({

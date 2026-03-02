@@ -9,6 +9,7 @@ import {
 import Link from 'next/link';
 import { useApi, useMutation } from '@/hooks/useApi';
 import { formatCurrency, formatDateTime } from '@/lib/format';
+import { exportToCsv } from '@/lib/exportCsv';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -134,6 +135,37 @@ export default function VentesPage() {
   const receptions = response?.receptions ?? [];
   const stats      = response?.stats;
   const meta       = response?.meta;
+
+  const handleExport = () => {
+    const rows = receptions.map((r) => ({
+      id:       r.id,
+      pack:     r.souscription.pack.nom,
+      type:     PACK_LABELS[r.souscription.pack.type] ?? r.souscription.pack.type,
+      client:   r.souscription.client
+        ? `${r.souscription.client.prenom} ${r.souscription.client.nom}`
+        : r.souscription.user
+          ? `${r.souscription.user.prenom} ${r.souscription.user.nom}`
+          : "—",
+      statut:   r.statut,
+      montant:  r.lignes.reduce((s, l) => s + l.quantite * Number(l.prixUnitaire), 0),
+      date:     r.dateLivraison ?? r.datePrevisionnelle ?? r.createdAt,
+      livreur:  r.livreurNom ?? "—",
+    }));
+    exportToCsv(
+      rows,
+      [
+        { label: "ID",       key: "id" },
+        { label: "Pack",     key: "pack" },
+        { label: "Type",     key: "type" },
+        { label: "Client",   key: "client" },
+        { label: "Statut",   key: "statut" },
+        { label: "Montant",  key: "montant", format: (v) => formatCurrency(Number(v)) },
+        { label: "Date",     key: "date",    format: (v) => formatDateTime(String(v)) },
+        { label: "Livreur",  key: "livreur" },
+      ],
+      "livraisons.csv"
+    );
+  };
 
   const { data: clientsResponse } = useApi<{ data: ClientOption[] }>(
     modalOpen && step === 1 && debouncedClientSearch.length >= 2
@@ -287,7 +319,7 @@ export default function VentesPage() {
             </div>
           </div>
           <div className="flex gap-3">
-            <button className="px-5 py-3 bg-white border border-slate-200 rounded-xl text-slate-700 hover:bg-slate-50 transition-all shadow-sm flex items-center gap-2 font-medium">
+            <button onClick={handleExport} className="px-5 py-3 bg-white border border-slate-200 rounded-xl text-slate-700 hover:bg-slate-50 transition-all shadow-sm flex items-center gap-2 font-medium">
               <Download size={18} /> Exporter
             </button>
             <button

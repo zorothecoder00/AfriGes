@@ -5,6 +5,7 @@ import { Plus, Search, Download, Package, TrendingUp, AlertTriangle, Archive, Ey
 import Link from 'next/link';
 import { useApi, useMutation } from '@/hooks/useApi';
 import { formatCurrency, formatDate } from '@/lib/format';
+import { exportToCsv } from '@/lib/exportCsv';
 
 interface Produit {
   id: number;
@@ -67,6 +68,24 @@ export default function GestionStockPage() {
   const { data: response, loading, error, refetch } = useApi<StockResponse>(`/api/admin/stock?${params}`);
   const produits = response?.data ?? [];
   const stats = response?.stats;
+
+  const handleExport = () => exportToCsv(
+    produits,
+    [
+      { label: "ID",           key: "id" },
+      { label: "Nom",          key: "nom" },
+      { label: "Prix unitaire", key: "prixUnitaire", format: (v) => formatCurrency(Number(v)) },
+      { label: "Stock",        key: "stock" },
+      { label: "Alerte stock", key: "alerteStock" },
+      { label: "Statut", key: "stock", format: (_v, row) => {
+          const s = getStockStatut(Number(row.stock), Number(row.alerteStock));
+          return statutStyles[s].label;
+        }
+      },
+      { label: "Créé le",      key: "createdAt", format: (v) => formatDate(String(v)) },
+    ],
+    "stock.csv"
+  );
   const meta = response?.meta;
 
   // Mutations
@@ -160,7 +179,7 @@ export default function GestionStockPage() {
               <RefreshCw size={18} />
               Actualiser
             </button>
-            <button className="px-5 py-3 bg-white border border-slate-200 rounded-xl text-slate-700 hover:bg-slate-50 transition-all shadow-sm flex items-center gap-2 font-medium">
+            <button onClick={handleExport} className="px-5 py-3 bg-white border border-slate-200 rounded-xl text-slate-700 hover:bg-slate-50 transition-all shadow-sm flex items-center gap-2 font-medium">
               <Download size={18} />
               Exporter
             </button>

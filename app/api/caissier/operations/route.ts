@@ -21,14 +21,22 @@ export async function GET(req: Request) {
     if (!auth) return NextResponse.json({ message: "Accès refusé" }, { status: 403 });
 
     const { searchParams } = new URL(req.url);
-    const sessionId = searchParams.get("sessionId") ? parseInt(searchParams.get("sessionId")!) : undefined;
-    const type      = searchParams.get("type") as "ENCAISSEMENT" | "DECAISSEMENT" | null;
-    const page      = Math.max(1, parseInt(searchParams.get("page") ?? "1"));
-    const limit     = Math.min(50, parseInt(searchParams.get("limit") ?? "20"));
+    const sessionId  = searchParams.get("sessionId") ? parseInt(searchParams.get("sessionId")!) : undefined;
+    const type       = searchParams.get("type") as "ENCAISSEMENT" | "DECAISSEMENT" | null;
+    const page       = Math.max(1, parseInt(searchParams.get("page") ?? "1"));
+    const limit      = Math.min(500, parseInt(searchParams.get("limit") ?? "20"));
+    const aujourdHui = searchParams.get("aujourdHui") === "true";
 
     const where: Record<string, unknown> = {};
     if (sessionId) where.sessionId = sessionId;
     if (type)      where.type      = type;
+    if (aujourdHui) {
+      const now = new Date();
+      where.createdAt = {
+        gte: new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0),
+        lte: new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999),
+      };
+    }
 
     const [operations, total] = await Promise.all([
       prisma.operationCaisse.findMany({
