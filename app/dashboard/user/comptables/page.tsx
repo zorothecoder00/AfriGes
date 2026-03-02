@@ -909,12 +909,14 @@ export default function ComptablePage() {
                         <th className="px-5 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Catégorie</th>
                         <th className="px-5 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Type</th>
                         <th className="px-5 py-3 text-right text-xs font-semibold text-slate-600 uppercase">Montant</th>
+                        <th className="px-3 py-3 text-center text-xs font-semibold text-slate-600 uppercase">PJ</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
                       {(journalData?.data ?? []).map((entry) => {
                         const meta    = CAT_META[entry.categorie] ?? { label: entry.categorie, color: "text-slate-600", bg: "bg-slate-100", icon: Filter };
                         const CatIcon = meta.icon;
+                        const src     = parseJournalSource(entry.id);
                         return (
                           <tr key={entry.id} className="hover:bg-slate-50 transition-colors">
                             <td className="px-5 py-3 text-sm text-slate-500 whitespace-nowrap">{formatDateTime(entry.date)}</td>
@@ -938,11 +940,22 @@ export default function ComptablePage() {
                             }`}>
                               {entry.type === "ENCAISSEMENT" ? "+" : "-"}{formatCurrency(entry.montant)}
                             </td>
+                            <td className="px-3 py-3 text-center">
+                              {src ? (
+                                <button
+                                  onClick={() => openPiecesModal(src.sourceType, src.sourceId, entry.libelle)}
+                                  title="Pièces justificatives"
+                                  className="p-1.5 text-slate-400 hover:text-violet-600 hover:bg-violet-50 rounded-lg transition-colors"
+                                >
+                                  <Paperclip size={15} />
+                                </button>
+                              ) : <span className="text-slate-200">—</span>}
+                            </td>
                           </tr>
                         );
                       })}
                       {(journalData?.data ?? []).length === 0 && !journalLoading && (
-                        <tr><td colSpan={6} className="px-5 py-12 text-center text-slate-400">Aucune écriture pour ces filtres</td></tr>
+                        <tr><td colSpan={7} className="px-5 py-12 text-center text-slate-400">Aucune écriture pour ces filtres</td></tr>
                       )}
                     </tbody>
                   </table>
@@ -1585,9 +1598,15 @@ export default function ComptablePage() {
                                 <>
                                   <p className="text-[10px] text-emerald-600 mt-0.5 leading-tight">{cloture.cloturePar}</p>
                                   <button
+                                    onClick={() => openPiecesModal("CLOTURE_COMPTABLE", cloture.id, `Clôture ${moisNoms[mois - 1]} ${etatsAnnee}`)}
+                                    className="mt-1 flex items-center justify-center gap-0.5 text-[10px] text-violet-600 hover:text-violet-800 font-semibold mx-auto"
+                                  >
+                                    <Paperclip size={9} />PJ
+                                  </button>
+                                  <button
                                     onClick={() => handleOuverture(mois)}
                                     disabled={suppClotureLoading}
-                                    className="mt-1.5 text-[10px] text-red-500 hover:underline disabled:opacity-40"
+                                    className="mt-0.5 text-[10px] text-red-500 hover:underline disabled:opacity-40"
                                   >
                                     Ouvrir
                                   </button>
@@ -1614,7 +1633,244 @@ export default function ComptablePage() {
           </div>
         )}
 
+        {/* ════════════════════════════════════════════════════════════════ */}
+        {/* TAB 7 : PIÈCES JUSTIFICATIVES                                  */}
+        {/* ════════════════════════════════════════════════════════════════ */}
+        {activeTab === "pieces" && (
+          <div className="space-y-5">
+
+            {/* En-tête + filtres */}
+            <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60">
+              <div className="flex items-start justify-between gap-4 flex-wrap mb-4">
+                <div>
+                  <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                    <Paperclip size={20} className="text-violet-600" />Archive des Pièces Justificatives
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-0.5">Tous les documents attachés aux écritures — archivage 10 ans</p>
+                </div>
+                {piecesAllData && (
+                  <span className="text-xs text-slate-500 bg-slate-100 px-3 py-1 rounded-full">
+                    {piecesAllData.meta.total} document{piecesAllData.meta.total > 1 ? "s" : ""}
+                  </span>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+                {/* Recherche */}
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
+                  <input type="text" placeholder="Rechercher un fichier…" value={piecesSearch}
+                    onChange={(e) => setPiecesSearch(e.target.value)}
+                    className="w-full pl-9 pr-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 bg-slate-50" />
+                </div>
+
+                {/* Type de source */}
+                <select value={piecesSourceType} onChange={(e) => { setPiecesSourceType(e.target.value); setPiecesPage(1); }}
+                  className="px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-violet-500">
+                  <option value="">Toutes sources</option>
+                  {Object.entries(SOURCE_TYPE_LABELS).map(([k, v]) => (
+                    <option key={k} value={k}>{v}</option>
+                  ))}
+                </select>
+
+                {/* Dates */}
+                <input type="date" value={piecesDateDebut} onChange={(e) => { setPiecesDateDebut(e.target.value); setPiecesPage(1); }}
+                  className="px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-violet-500" />
+                <div className="flex gap-2">
+                  <input type="date" value={piecesDateFin} onChange={(e) => { setPiecesDateFin(e.target.value); setPiecesPage(1); }}
+                    className="flex-1 px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-violet-500" />
+                  {(piecesSearch || piecesSourceType || piecesDateDebut || piecesDateFin) && (
+                    <button onClick={() => { setPiecesSearch(""); setPiecesSearchDebounced(""); setPiecesSourceType(""); setPiecesDateDebut(""); setPiecesDateFin(""); setPiecesPage(1); }}
+                      className="p-2.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl">
+                      <X size={16} />
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Table */}
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 overflow-hidden">
+              {piecesAllLoading ? (
+                <div className="p-12 text-center"><div className="w-8 h-8 border-4 border-violet-200 border-t-violet-600 rounded-full animate-spin mx-auto" /></div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-slate-50 border-b border-slate-200">
+                      <tr>
+                        <th className="px-5 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Date dépôt</th>
+                        <th className="px-5 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Fichier</th>
+                        <th className="px-5 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Source</th>
+                        <th className="px-5 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Type</th>
+                        <th className="px-5 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Taille</th>
+                        <th className="px-5 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Déposé par</th>
+                        <th className="px-5 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Archive jusqu&apos;au</th>
+                        <th className="px-5 py-3 text-center text-xs font-semibold text-slate-500 uppercase">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {(piecesAllData?.data ?? []).map((piece) => (
+                        <tr key={piece.id} className="hover:bg-slate-50 transition-colors">
+                          <td className="px-5 py-3 text-sm text-slate-500 whitespace-nowrap">{formatDateShort(piece.createdAt)}</td>
+                          <td className="px-5 py-3">
+                            <p className="text-sm font-medium text-slate-800 truncate max-w-xs" title={piece.nom}>{piece.nom}</p>
+                            {piece.description && <p className="text-xs text-slate-400 truncate">{piece.description}</p>}
+                          </td>
+                          <td className="px-5 py-3">
+                            <span className="text-xs bg-violet-100 text-violet-700 px-2 py-1 rounded-full font-semibold">
+                              {SOURCE_TYPE_LABELS[piece.sourceType] ?? piece.sourceType}
+                            </span>
+                            <p className="text-xs text-slate-400 mt-0.5">#{piece.sourceId}</p>
+                          </td>
+                          <td className="px-5 py-3 text-xs text-slate-500">
+                            {piece.type.includes("pdf") ? "📄 PDF" : piece.type.includes("image") ? "🖼️ Image" : piece.type}
+                          </td>
+                          <td className="px-5 py-3 text-xs text-slate-500">{formatTaille(piece.taille)}</td>
+                          <td className="px-5 py-3 text-sm text-slate-600">{piece.uploadeUser.prenom} {piece.uploadeUser.nom}</td>
+                          <td className="px-5 py-3 text-xs text-slate-400">{formatDateShort(piece.archiverJusquau)}</td>
+                          <td className="px-5 py-3 text-center">
+                            <div className="flex items-center justify-center gap-2">
+                              <a href={piece.url} target="_blank" rel="noopener noreferrer"
+                                className="p-1.5 text-blue-500 hover:bg-blue-50 rounded-lg transition-colors" title="Télécharger">
+                                <ExternalLink size={15} />
+                              </a>
+                              <button onClick={() => supprimerPiece(piece.id)}
+                                disabled={piecesSuppLoading === piece.id}
+                                className="p-1.5 text-red-400 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-40" title="Supprimer">
+                                {piecesSuppLoading === piece.id
+                                  ? <div className="w-3.5 h-3.5 border-2 border-red-300 border-t-red-500 rounded-full animate-spin" />
+                                  : <Trash2 size={15} />}
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                      {(piecesAllData?.data ?? []).length === 0 && !piecesAllLoading && (
+                        <tr><td colSpan={8} className="px-5 py-12 text-center text-slate-400">Aucune pièce justificative trouvée</td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {/* Pagination */}
+              {piecesAllData && piecesAllData.meta.totalPages > 1 && (
+                <div className="px-6 py-4 border-t border-slate-200 flex items-center justify-between">
+                  <p className="text-sm text-slate-500">Page <b>{piecesAllData.meta.page}</b> / <b>{piecesAllData.meta.totalPages}</b></p>
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => setPiecesPage((p) => Math.max(1, p - 1))} disabled={piecesPage <= 1}
+                      className="p-2 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 disabled:opacity-40">
+                      <ChevronLeft size={16} />
+                    </button>
+                    <span className="px-3 py-1.5 bg-violet-600 text-white rounded-lg text-sm font-semibold">{piecesPage}</span>
+                    <button onClick={() => setPiecesPage((p) => Math.min(piecesAllData.meta.totalPages, p + 1))} disabled={piecesPage >= piecesAllData.meta.totalPages}
+                      className="p-2 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 disabled:opacity-40">
+                      <ChevronRight size={16} />
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* ── Modal confirmation clôture ── */}
+        {/* ── Modal pièces justificatives ── */}
+        {piecesModal && (
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xl flex flex-col max-h-[80vh]">
+
+              {/* Header */}
+              <div className="flex items-center gap-3 px-6 py-4 border-b border-slate-200 flex-shrink-0">
+                <div className="w-9 h-9 bg-violet-100 rounded-xl flex items-center justify-center">
+                  <Paperclip size={18} className="text-violet-600" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-bold text-slate-800 text-sm">Pièces justificatives</h3>
+                  <p className="text-xs text-slate-400 truncate">{piecesModal.libelle}</p>
+                </div>
+                <button onClick={() => setPiecesModal(null)} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg">
+                  <X size={18} />
+                </button>
+              </div>
+
+              {/* Liste des fichiers */}
+              <div className="flex-1 overflow-y-auto px-6 py-4 space-y-2 min-h-0">
+                {piecesLoading ? (
+                  <div className="py-6 text-center"><div className="w-7 h-7 border-4 border-violet-200 border-t-violet-600 rounded-full animate-spin mx-auto" /></div>
+                ) : piecesLocalList.length === 0 ? (
+                  <div className="py-8 text-center text-slate-400 text-sm">
+                    <Paperclip size={32} className="mx-auto mb-2 opacity-30" />
+                    Aucune pièce jointe pour cette écriture
+                  </div>
+                ) : (
+                  piecesLocalList.map((piece) => (
+                    <div key={piece.id} className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100 hover:border-slate-200 transition-colors">
+                      <div className="w-9 h-9 bg-white border border-slate-200 rounded-lg flex items-center justify-center flex-shrink-0 text-lg">
+                        {piece.type.includes("pdf") ? "📄" : "🖼️"}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-slate-800 truncate">{piece.nom}</p>
+                        <p className="text-xs text-slate-400">
+                          {formatTaille(piece.taille)} · {piece.uploadeUser.prenom} {piece.uploadeUser.nom} · {formatDateShort(piece.createdAt)}
+                        </p>
+                        {piece.description && <p className="text-xs text-slate-500 italic mt-0.5">{piece.description}</p>}
+                      </div>
+                      <div className="flex items-center gap-1 flex-shrink-0">
+                        <a href={piece.url} target="_blank" rel="noopener noreferrer"
+                          className="p-1.5 text-blue-500 hover:bg-blue-50 rounded-lg" title="Ouvrir">
+                          <ExternalLink size={15} />
+                        </a>
+                        <button onClick={() => supprimerPiece(piece.id)}
+                          disabled={piecesSuppLoading === piece.id}
+                          className="p-1.5 text-red-400 hover:bg-red-50 rounded-lg disabled:opacity-40" title="Supprimer">
+                          {piecesSuppLoading === piece.id
+                            ? <div className="w-3.5 h-3.5 border-2 border-red-300 border-t-red-500 rounded-full animate-spin" />
+                            : <Trash2 size={15} />}
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              {/* Zone upload */}
+              <div className="px-6 py-4 border-t border-slate-100 flex-shrink-0">
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3 flex items-center gap-1.5">
+                  <Upload size={12} />Ajouter un document (PDF ou image, max 16 Mo)
+                </p>
+                <UploadButton
+                  endpoint="justificatif"
+                  onClientUploadComplete={async (res) => {
+                    for (const file of res) {
+                      await fetch("/api/comptable/pieces", {
+                        method:  "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body:    JSON.stringify({
+                          sourceType:     piecesModal.sourceType,
+                          sourceId:       piecesModal.sourceId,
+                          nom:            file.name,
+                          url:            file.url,
+                          uploadthingKey: file.key,
+                          type:           file.type ?? "application/octet-stream",
+                          taille:         file.size,
+                        }),
+                      });
+                    }
+                    fetchPiecesModal(piecesModal.sourceType, piecesModal.sourceId);
+                    refetchPiecesAll();
+                  }}
+                  onUploadError={(err) => console.error("Upload error:", err)}
+                  appearance={{
+                    button: "bg-violet-600 hover:bg-violet-700 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors",
+                    allowedContent: "text-slate-400 text-xs mt-1",
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
         {clotureModal && (
           <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
             <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
