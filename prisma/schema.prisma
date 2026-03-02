@@ -868,3 +868,26 @@ model Message {
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 }
+
+// ── Pièces justificatives ──────────────────────────────────────────────────
+
+model PieceJustificative {
+  id              Int      @id @default(autoincrement())
+  nom             String                   // nom original du fichier
+  url             String                   // URL publique UploadThing
+  uploadthingKey  String                   // clé UploadThing (pour suppression)
+  type            String                   // MIME type (application/pdf, image/jpeg…)
+  taille          Int                      // taille en octets
+  // Association polymorphique avec les écritures comptables
+  sourceType      String                   // VERSEMENT_PACK | OPERATION_CAISSE | MOUVEMENT_STOCK | CLOTURE_COMPTABLE
+  sourceId        Int
+  // Métadonnées
+  description     String?                  // note optionnelle du comptable
+  uploadePar      Int
+  uploadeUser     User     @relation(fields: [uploadePar], references: [id])
+  // Archivage longue durée (10 ans réglementaires)
+  archiverJusquau DateTime
+  createdAt       DateTime @default(now())
+
+  @@index([sourceType, sourceId])
+}

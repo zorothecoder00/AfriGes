@@ -1,11 +1,12 @@
 "use client";
 
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useCallback } from "react";
 import {
   Calculator, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight,
   ArrowLeft, RefreshCw, Download, Search, ChevronLeft, ChevronRight,
   FileText, BarChart3, BookOpen, Wallet, Package, Calendar,
   AlertCircle, CheckCircle, Filter, X, Users, Lock, LockOpen, Plus,
+  Paperclip, Trash2, ExternalLink, Upload,
 } from "lucide-react";
 import Link from "next/link";
 import SignOutButton from "@/components/SignOutButton";
@@ -14,10 +15,53 @@ import MessagesLink from "@/components/MessagesLink";
 import { useApi, useMutation } from "@/hooks/useApi";
 import { formatCurrency, formatDateShort, formatDateTime } from "@/lib/format";
 import { exportToCsv } from "@/lib/exportCsv";
+import { generateUploadButton } from "@uploadthing/react";
+import type { OurFileRouter } from "@/app/api/uploadthing/core";
+
+const UploadButton = generateUploadButton<OurFileRouter>();
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
 interface EvolutionPoint { date: string; encaissements: number; decaissements: number; }
+
+interface PieceEntry {
+  id:             number;
+  nom:            string;
+  url:            string;
+  uploadthingKey: string;
+  type:           string;
+  taille:         number;
+  sourceType:     string;
+  sourceId:       number;
+  description:    string | null;
+  archiverJusquau: string;
+  createdAt:      string;
+  uploadeUser:    { nom: string; prenom: string };
+}
+interface PiecesResponse       { success: boolean; data: PieceEntry[] }
+interface PiecesAllResponse    { success: boolean; data: PieceEntry[]; meta: { total: number; page: number; limit: number; totalPages: number } }
+
+// Déduit sourceType et sourceId à partir du format d'id de JournalEntry
+function parseJournalSource(entryId: string): { sourceType: string; sourceId: number } | null {
+  if (entryId.startsWith("VER-"))       return { sourceType: "VERSEMENT_PACK",   sourceId: Number(entryId.replace("VER-", "")) };
+  if (entryId.startsWith("APPRO-"))     return { sourceType: "MOUVEMENT_STOCK",   sourceId: Number(entryId.replace("APPRO-", "")) };
+  if (entryId.startsWith("OPC-ENC-"))   return { sourceType: "OPERATION_CAISSE",  sourceId: Number(entryId.replace("OPC-ENC-", "")) };
+  if (entryId.startsWith("OPC-DEC-"))   return { sourceType: "OPERATION_CAISSE",  sourceId: Number(entryId.replace("OPC-DEC-", "")) };
+  return null;
+}
+
+function formatTaille(octets: number): string {
+  if (octets >= 1024 * 1024) return `${(octets / (1024 * 1024)).toFixed(1)} Mo`;
+  if (octets >= 1024)        return `${Math.round(octets / 1024)} Ko`;
+  return `${octets} o`;
+}
+
+const SOURCE_TYPE_LABELS: Record<string, string> = {
+  VERSEMENT_PACK:      "Versement pack",
+  OPERATION_CAISSE:    "Opération caisse",
+  MOUVEMENT_STOCK:     "Mouvement stock",
+  CLOTURE_COMPTABLE:   "Clôture comptable",
+};
 
 interface SyntheseResponse {
   success: boolean;
@@ -221,7 +265,7 @@ const CAT_META: Record<string, { label: string; color: string; bg: string; icon:
 // ── Main Page ─────────────────────────────────────────────────────────────
 
 type Period = "7" | "30" | "90" | "365";
-type Tab    = "synthese" | "journal" | "tresorerie" | "balance" | "grandlivre" | "etats";
+type Tab    = "synthese" | "journal" | "tresorerie" | "balance" | "grandlivre" | "etats" | "pieces";
 
 export default function ComptablePage() {
   const [selectedPeriod, setSelectedPeriod] = useState<Period>("30");
@@ -313,6 +357,68 @@ export default function ComptablePage() {
     refetchClotures();
   }
 
+  // ── Pièces justificatives ───────────────────────────────────────────────
+
+  const [piecesModal, setPiecesModal] = useState<{ sourceType: string; sourceId: number; libelle: string } | null>(null);
+  const [piecesLocalList, setPiecesLocalList] = useState<PieceEntry[]>([]);
+  const [piecesLoading, setPiecesLoading] = useState(false);
+  const [piecesSuppLoading, setPiecesSuppLoading] = useState<number | null>(null);
+
+  // Onglet Pièces — filtres
+  const [piecesPage, setPiecesPage]             = useState(1);
+  const [piecesSearch, setPiecesSearch]         = useState("");
+  const [piecesSearchDebounced, setPiecesSearchDebounced] = useState("");
+  const [piecesSourceType, setPiecesSourceType] = useState("");
+  const [piecesDateDebut, setPiecesDateDebut]   = useState("");
+  const [piecesDateFin, setPiecesDateFin]       = useState("");
+
+  useEffect(() => {
+    const t = setTimeout(() => { setPiecesSearchDebounced(piecesSearch); setPiecesPage(1); }, 400);
+    return () => clearTimeout(t);
+  }, [piecesSearch]);
+
+  const piecesAllUrl = useMemo(() => {
+    const p = new URLSearchParams({ all: "1", page: String(piecesPage), limit: "20" });
+    if (piecesSearchDebounced) p.set("search",     piecesSearchDebounced);
+    if (piecesSourceType)      p.set("sourceType", piecesSourceType);
+    if (piecesDateDebut)       p.set("dateDebut",  piecesDateDebut);
+    if (piecesDateFin)         p.set("dateFin",    piecesDateFin);
+    return `/api/comptable/pieces?${p.toString()}`;
+  }, [piecesPage, piecesSearchDebounced, piecesSourceType, piecesDateDebut, piecesDateFin]);
+
+  const { data: piecesAllData, loading: piecesAllLoading, refetch: refetchPiecesAll } =
+    useApi<PiecesAllResponse>(activeTab === "pieces" ? piecesAllUrl : null);
+
+  // Charger les pièces d'une écriture spécifique (pour le modal)
+  const fetchPiecesModal = useCallback(async (sourceType: string, sourceId: number) => {
+    setPiecesLoading(true);
+    try {
+      const res = await fetch(`/api/comptable/pieces?sourceType=${sourceType}&sourceId=${sourceId}`);
+      const json: PiecesResponse = await res.json();
+      setPiecesLocalList(json.data ?? []);
+    } catch {
+      setPiecesLocalList([]);
+    } finally {
+      setPiecesLoading(false);
+    }
+  }, []);
+
+  function openPiecesModal(sourceType: string, sourceId: number, libelle: string) {
+    setPiecesModal({ sourceType, sourceId, libelle });
+    fetchPiecesModal(sourceType, sourceId);
+  }
+
+  async function supprimerPiece(pieceId: number) {
+    setPiecesSuppLoading(pieceId);
+    try {
+      await fetch(`/api/comptable/pieces/${pieceId}`, { method: "DELETE" });
+      setPiecesLocalList((prev) => prev.filter((p) => p.id !== pieceId));
+      refetchPiecesAll();
+    } finally {
+      setPiecesSuppLoading(null);
+    }
+  }
+
   const grandLivreUrl = useMemo(() => {
     const p = new URLSearchParams({ grandlivre: "1" });
     if (journalDateDebut) p.set("dateDebut", journalDateDebut);
@@ -390,12 +496,13 @@ export default function ComptablePage() {
   const snap = sd?.snapshot;
 
   const tabs: { key: Tab; label: string; icon: React.ElementType }[] = [
-    { key: "synthese",   label: "Synthèse",        icon: BarChart3 },
-    { key: "journal",    label: "Journal",          icon: BookOpen  },
-    { key: "tresorerie", label: "Trésorerie",        icon: Wallet    },
-    { key: "balance",    label: "Balance",            icon: Calculator },
-    { key: "grandlivre", label: "Grand Livre",        icon: BookOpen  },
-    { key: "etats",      label: "États Financiers",   icon: FileText  },
+    { key: "synthese",   label: "Synthèse",           icon: BarChart3  },
+    { key: "journal",    label: "Journal",             icon: BookOpen   },
+    { key: "tresorerie", label: "Trésorerie",           icon: Wallet     },
+    { key: "balance",    label: "Balance",              icon: Calculator },
+    { key: "grandlivre", label: "Grand Livre",          icon: BookOpen   },
+    { key: "etats",      label: "États Financiers",    icon: FileText   },
+    { key: "pieces",     label: "Pièces justificatives", icon: Paperclip },
   ];
 
   return (
