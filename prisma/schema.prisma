@@ -50,6 +50,7 @@ model User {
   ecrituresComptables     EcritureComptable[]
   rapprochements          RapprochementBancaire[]
   declarationsTVA         DeclarationTVA[]
+  journalValidations      JournalValidation[]
 
   createdAt           DateTime          @default(now())
   updatedAt           DateTime          @updatedAt
@@ -1100,6 +1101,18 @@ model LigneEcriture {
 
   @@index([ecritureId])
   @@index([compteId])
+}
+
+// Validation des entrées du journal de flux (VER-xxx, APPRO-xxx, OPC-ENC-xxx, OPC-DEC-xxx)
+model JournalValidation {
+  id          Int      @id @default(autoincrement())
+  entryId     String   @unique  // ex: "VER-123", "APPRO-456", "OPC-ENC-789"
+  notes       String?
+  valideParId Int
+  validePar   User     @relation(fields: [valideParId], references: [id])
+  createdAt   DateTime @default(now())
+
+  @@index([entryId])
 }
 
 model RapprochementBancaire {

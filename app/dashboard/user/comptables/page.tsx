@@ -1,12 +1,14 @@
 "use client";
 
-import React, { useState, useMemo, useEffect, useCallback } from "react";
+import React, { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import {
   Calculator, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight,
   ArrowLeft, RefreshCw, Download, Search, ChevronLeft, ChevronRight,
   FileText, BarChart3, BookOpen, Wallet, Package, Calendar,
   AlertCircle, CheckCircle, Filter, X, Users, Lock, LockOpen, Plus,
   Paperclip, Trash2, ExternalLink, Upload,
+  BookMarked, Percent, Building2, PlusCircle, Edit2, Save,
+  ToggleLeft, ToggleRight, ListChecks, BadgeCheck, ChevronsUpDown,
 } from "lucide-react";
 import Link from "next/link";
 import SignOutButton from "@/components/SignOutButton";
@@ -97,14 +99,17 @@ interface SyntheseResponse {
 }
 
 interface JournalEntry {
-  id:        string;
-  sourceId:  number;
-  date:      string;
-  type:      "ENCAISSEMENT" | "DECAISSEMENT";
-  categorie: string;
-  libelle:   string;
-  montant:   number;
-  reference: string;
+  id:              string;
+  sourceId:        number;
+  date:            string;
+  type:            "ENCAISSEMENT" | "DECAISSEMENT";
+  categorie:       string;
+  libelle:         string;
+  montant:         number;
+  reference:       string;
+  valide?:         boolean;
+  valideParNom?:   string;
+  dateValidation?: string;
 }
 
 interface JournalResponse {
@@ -153,6 +158,83 @@ interface EtatsFinanciersResponse {
     };
   };
 }
+
+// ── Types comptabilité générale ────────────────────────────────────────────
+
+interface CompteComptable {
+  id: number; numero: string; libelle: string; classe: number;
+  type: string; nature: string; sens: string; actif: boolean;
+  tiersType: string | null; tiersNom: string | null;
+  compteParent?: { numero: string; libelle: string } | null;
+}
+interface ComptesResponse {
+  data: CompteComptable[];
+  stats: { classe: number; count: number }[];
+  meta: { total: number; page: number; limit: number; totalPages: number };
+}
+
+interface LigneEcritureForm {
+  compteId: number | ""; libelle: string; debit: string; credit: string;
+  isTva: boolean; tauxTva: string; montantTva: string;
+}
+interface LigneEcritureData {
+  id: number; compteId: number; libelle: string;
+  debit: number; credit: number; isTva: boolean;
+  tauxTva: number | null; montantTva: number | null;
+  compte: { id: number; numero: string; libelle: string; type: string };
+}
+interface EcritureComptable {
+  id: number; reference: string; date: string; libelle: string;
+  journal: string; statut: string; notes: string | null;
+  user?: { id: number; nom: string; prenom: string };
+  lignes: LigneEcritureData[];
+}
+interface EcrituresResponse {
+  data: EcritureComptable[];
+  totaux: { debit: number; credit: number };
+  meta: { total: number; page: number; limit: number; totalPages: number };
+}
+
+interface DeclarationTVA {
+  id: number; periode: string; tvaCollectee: number; tvaDeductible: number;
+  tvaDue: number; statut: string; notes: string | null;
+  user?: { id: number; nom: string; prenom: string };
+}
+interface TVAResponse {
+  data: DeclarationTVA[];
+  meta: { total: number; page: number; limit: number; totalPages: number };
+}
+
+interface RapprochementBancaire {
+  id: number; periode: string; soldeBancaireReel: number;
+  soldeComptable: number; ecart: number; statut: string; notes: string | null;
+  user?: { id: number; nom: string; prenom: string };
+}
+interface RapprochementResponse {
+  data: RapprochementBancaire[];
+  meta: { total: number; page: number; limit: number; totalPages: number };
+}
+
+const JOURNAL_LABELS: Record<string, string> = {
+  CAISSE: "Caisse", BANQUE: "Banque", VENTES: "Ventes",
+  ACHATS: "Achats", OD: "Opérations diverses", PAIE: "Paie",
+};
+const TYPE_COMPTE_LABELS: Record<string, string> = {
+  ACTIF: "Actif", PASSIF: "Passif", CHARGES: "Charges",
+  PRODUITS: "Produits", TRESORERIE: "Trésorerie",
+};
+interface SyncApercu {
+  caisse: { total: number; dejaSyncees: number; aSyncer: number };
+  ventes: { total: number; dejaSyncees: number; aSyncer: number };
+  achats: { total: number; dejaSyncees: number; aSyncer: number };
+}
+interface SyncApercuResponse { apercu: SyncApercu }
+
+const STATUT_ECRITURE_COLORS: Record<string, string> = {
+  BROUILLON: "bg-amber-50 text-amber-700 border-amber-200",
+  VALIDE:    "bg-emerald-50 text-emerald-700 border-emerald-200",
+  ANNULE:    "bg-red-50 text-red-600 border-red-200",
+};
 
 // ── Helpers chart SVG ─────────────────────────────────────────────────────
 
@@ -265,7 +347,8 @@ const CAT_META: Record<string, { label: string; color: string; bg: string; icon:
 // ── Main Page ─────────────────────────────────────────────────────────────
 
 type Period = "7" | "30" | "90" | "365";
-type Tab    = "synthese" | "journal" | "tresorerie" | "balance" | "grandlivre" | "etats" | "pieces";
+type Tab    = "synthese" | "journal" | "tresorerie" | "balance" | "grandlivre" | "etats" | "pieces"
+            | "plan" | "saisie" | "tva" | "rapprochement";
 
 export default function ComptablePage() {
   const [selectedPeriod, setSelectedPeriod] = useState<Period>("30");
@@ -280,18 +363,32 @@ export default function ComptablePage() {
   const [journalDateDebut, setJournalDateDebut] = useState("");
   const [journalDateFin, setJournalDateFin]     = useState("");
   const [journalView, setJournalView]           = useState("TOUT");
+  const [journalSource, setJournalSource]       = useState("");
+  const [showJournalOD, setShowJournalOD]       = useState(false);
+  const [journalODForm, setJournalODForm]       = useState({
+    date: new Date().toISOString().slice(0, 10),
+    libelle: "", journal: "OD", notes: "",
+  });
+  const [journalODLignes, setJournalODLignes]   = useState<LigneEcritureForm[]>([
+    { compteId: "", libelle: "", debit: "", credit: "", isTva: false, tauxTva: "18", montantTva: "" },
+    { compteId: "", libelle: "", debit: "", credit: "", isTva: false, tauxTva: "18", montantTva: "" },
+  ]);
 
   const JOURNAL_VIEWS = [
-    { key: "TOUT",   label: "Tout le journal",     type: "TOUS",         cat: "" },
-    { key: "VENTES", label: "Journal des Ventes",  type: "ENCAISSEMENT", cat: "" },
-    { key: "ACHATS", label: "Journal des Achats",  type: "DECAISSEMENT", cat: "APPROVISIONNEMENT" },
-    { key: "OD",     label: "Journal OD",          type: "TOUS",         cat: "VERSEMENT_PACK" },
+    { key: "TOUT",   label: "Tout le journal",     type: "TOUS",         cat: "",               source: "" },
+    { key: "CAISSE", label: "Journal de Caisse",   type: "TOUS",         cat: "",               source: "caisse" },
+    { key: "BANQUE", label: "Journal de Banque",   type: "ENCAISSEMENT", cat: "CAISSE_ENCAISSEMENT", source: "caisse" },
+    { key: "VENTES", label: "Journal des Ventes",  type: "ENCAISSEMENT", cat: "",               source: "ventes" },
+    { key: "ACHATS", label: "Journal des Achats",  type: "DECAISSEMENT", cat: "APPROVISIONNEMENT", source: "achats" },
+    { key: "OD",     label: "Journal OD",          type: "TOUS",         cat: "VERSEMENT_PACK", source: "" },
+    { key: "PAIE",   label: "Journal de Paie",     type: "DECAISSEMENT", cat: "SALAIRE",        source: "paie" },
   ];
 
-  function selectJournalView(key: string, type: string, cat: string) {
+  function selectJournalView(key: string, type: string, cat: string, source: string) {
     setJournalView(key);
     setJournalType(type);
     setJournalCategorie(cat);
+    setJournalSource(source);
     setJournalPage(1);
   }
 
@@ -299,6 +396,56 @@ export default function ComptablePage() {
     const t = setTimeout(() => { setDebouncedSearch(journalSearch); setJournalPage(1); }, 400);
     return () => clearTimeout(t);
   }, [journalSearch]);
+
+  // ── État Plan comptable ──────────────────────────────────────────────
+  const [planPage, setPlanPage]             = useState(1);
+  const [planSearch, setPlanSearch]         = useState("");
+  const [planSearchDebounced, setPlanSearchDebounced] = useState("");
+  const [planClasse, setPlanClasse]         = useState("");
+  const [planType, setPlanType]             = useState("");
+  const [showAddCompte, setShowAddCompte]   = useState(false);
+  const [editCompte, setEditCompte]         = useState<CompteComptable | null>(null);
+  const [newCompte, setNewCompte]           = useState({ numero: "", libelle: "", classe: "4", type: "ACTIF", nature: "DETAIL", sens: "DEBITEUR" });
+
+  useEffect(() => {
+    const t = setTimeout(() => { setPlanSearchDebounced(planSearch); setPlanPage(1); }, 400);
+    return () => clearTimeout(t);
+  }, [planSearch]);
+
+  // ── État Saisie des écritures ────────────────────────────────────────
+  const [ecrituresPage, setEcrituresPage]     = useState(1);
+  const [ecrituresJournal, setEcrituresJournal] = useState("");
+  const [ecrituresStatut, setEcrituresStatut] = useState("");
+  const [ecrituresDateMin, setEcrituresDateMin] = useState("");
+  const [ecrituresDateMax, setEcrituresDateMax] = useState("");
+  const [showSaisie, setShowSaisie]           = useState(false);
+  const [editEcriture, setEditEcriture]       = useState<EcritureComptable | null>(null);
+  const [saisieForm, setSaisieForm]           = useState({
+    date: new Date().toISOString().slice(0, 10),
+    libelle: "", journal: "CAISSE", notes: "",
+  });
+  const [saisieLignes, setSaisieLignes]       = useState<LigneEcritureForm[]>([
+    { compteId: "", libelle: "", debit: "", credit: "", isTva: false, tauxTva: "18", montantTva: "" },
+    { compteId: "", libelle: "", debit: "", credit: "", isTva: false, tauxTva: "18", montantTva: "" },
+  ]);
+
+  // ── État TVA ─────────────────────────────────────────────────────────
+  const [tvaPage, setTvaPage]               = useState(1);
+  const [tvaPeriode, setTvaPeriode]         = useState(() => {
+    const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  });
+  const [tvaCollecteeInput, setTvaCollecteeInput] = useState("");
+  const [tvaDeductibleInput, setTvaDeductibleInput] = useState("");
+  const [tvaNotes, setTvaNotes]             = useState("");
+  const [tvaCalcResult, setTvaCalcResult]   = useState<{ tvaCollectee: number; tvaDeductible: number; tvaDue: number } | null>(null);
+
+  // ── État Rapprochement ───────────────────────────────────────────────
+  const [rapproPage, setRapproPage]         = useState(1);
+  const [rapproPeriode, setRapproPeriode]   = useState(() => {
+    const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  });
+  const [soldeBancaireInput, setSoldeBancaireInput] = useState("");
+  const [rapproNotes, setRapproNotes]       = useState("");
 
   // ── API calls ─────────────────────────────────────────────────────────
 
@@ -309,13 +456,14 @@ export default function ComptablePage() {
     const p = new URLSearchParams({ page: String(journalPage), limit: "20" });
     if (journalType !== "TOUS") p.set("type", journalType);
     if (journalCategorie)       p.set("categorie", journalCategorie);
+    if (journalSource)          p.set("source", journalSource);
     if (debouncedSearch)        p.set("search", debouncedSearch);
     if (journalDateDebut)       p.set("dateDebut", journalDateDebut);
     if (journalDateFin)         p.set("dateFin", journalDateFin);
     return `/api/comptable/journal?${p.toString()}`;
-  }, [journalPage, journalType, journalCategorie, debouncedSearch, journalDateDebut, journalDateFin]);
+  }, [journalPage, journalType, journalCategorie, journalSource, debouncedSearch, journalDateDebut, journalDateFin]);
 
-  const { data: journalData, loading: journalLoading } = useApi<JournalResponse>(
+  const { data: journalData, loading: journalLoading, refetch: refetchJournal } = useApi<JournalResponse>(
     activeTab === "journal" ? journalUrl : null
   );
 
@@ -430,6 +578,231 @@ export default function ComptablePage() {
     activeTab === "grandlivre" ? grandLivreUrl : null
   );
 
+  // ── Plan comptable API ────────────────────────────────────────────────
+  const planUrl = useMemo(() => {
+    const p = new URLSearchParams({ page: String(planPage), limit: "100" });
+    if (planSearchDebounced) p.set("search", planSearchDebounced);
+    if (planClasse)          p.set("classe", planClasse);
+    if (planType)            p.set("type",   planType);
+    return `/api/comptable/plan-comptable?${p.toString()}`;
+  }, [planPage, planSearchDebounced, planClasse, planType]);
+
+  const { data: planData, loading: planLoading, refetch: refetchPlan } =
+    useApi<ComptesResponse>(activeTab === "plan" ? planUrl : null);
+
+  const { mutate: importSyscohada, loading: importLoading } = useMutation<unknown, object>(
+    "/api/comptable/plan-comptable", "POST",
+    { successMessage: "Plan SYSCOHADA importé avec succès !" }
+  );
+  const { mutate: createCompte, loading: creatingCompte } = useMutation<unknown, object>(
+    "/api/comptable/plan-comptable", "POST",
+    { successMessage: "Compte créé" }
+  );
+  const { mutate: patchCompte, loading: patchingCompte } = useMutation<unknown, object>(
+    "/api/comptable/plan-comptable", "PATCH",
+    { successMessage: "Compte mis à jour" }
+  );
+
+  async function handleImportSyscohada() {
+    await importSyscohada({ action: "import_syscohada" });
+    refetchPlan();
+  }
+  async function handleCreateCompte() {
+    const res = await createCompte({ ...newCompte, classe: Number(newCompte.classe) });
+    if (res) { refetchPlan(); setShowAddCompte(false); setNewCompte({ numero: "", libelle: "", classe: "4", type: "ACTIF", nature: "DETAIL", sens: "DEBITEUR" }); }
+  }
+  async function handleToggleCompte(compte: CompteComptable) {
+    await patchCompte({ id: compte.id, actif: !compte.actif });
+    refetchPlan();
+  }
+  async function handleSaveEditCompte() {
+    if (!editCompte) return;
+    await patchCompte({ id: editCompte.id, libelle: editCompte.libelle, nature: editCompte.nature });
+    refetchPlan();
+    setEditCompte(null);
+  }
+
+  // ── Écritures API ─────────────────────────────────────────────────────
+  const ecrituresUrl = useMemo(() => {
+    const p = new URLSearchParams({ page: String(ecrituresPage), limit: "30" });
+    if (ecrituresJournal) p.set("journal", ecrituresJournal);
+    if (ecrituresStatut)  p.set("statut",  ecrituresStatut);
+    if (ecrituresDateMin) p.set("dateMin", ecrituresDateMin);
+    if (ecrituresDateMax) p.set("dateMax", ecrituresDateMax);
+    return `/api/comptable/ecritures?${p.toString()}`;
+  }, [ecrituresPage, ecrituresJournal, ecrituresStatut, ecrituresDateMin, ecrituresDateMax]);
+
+  const { data: ecrituresData, loading: ecrituresLoading, refetch: refetchEcritures } =
+    useApi<EcrituresResponse>(activeTab === "saisie" ? ecrituresUrl : null);
+
+  const { mutate: createEcriture, loading: creatingEcriture } = useMutation<unknown, object>(
+    "/api/comptable/ecritures", "POST",
+    { successMessage: "Écriture enregistrée" }
+  );
+
+  // Ref pour les mutations dynamiques écriture (pattern useMutation)
+  const ecritureActionIdRef = useRef<number | null>(null);
+  const { mutate: validerEcriture } = useMutation<unknown, object>(
+    () => `/api/comptable/ecritures/${ecritureActionIdRef.current}`, "PUT",
+    { successMessage: "Écriture validée" }
+  );
+  const { mutate: annulerEcriture } = useMutation<unknown, object>(
+    () => `/api/comptable/ecritures/${ecritureActionIdRef.current}`, "PUT",
+    { successMessage: "Écriture annulée" }
+  );
+  const { mutate: supprimerEcriture } = useMutation<unknown, object>(
+    () => `/api/comptable/ecritures/${ecritureActionIdRef.current}`, "DELETE",
+    { successMessage: "Écriture supprimée" }
+  );
+
+  const { mutate: validerEntreeJournal, loading: validatingJournalEntry } = useMutation<unknown, object>(
+    "/api/comptable/journal/valider", "POST",
+    { successMessage: "Ligne validée" }
+  );
+  const { mutate: annulerValidationJournal } = useMutation<unknown, object>(
+    "/api/comptable/journal/valider", "DELETE",
+    { successMessage: "Validation annulée" }
+  );
+
+  async function handleValiderEntree(entryId: string) {
+    const res = await validerEntreeJournal({ entryId });
+    if (res) refetchJournal();
+  }
+  async function handleAnnulerValidationEntree(entryId: string) {
+    const res = await annulerValidationJournal({ entryId });
+    if (res) refetchJournal();
+  }
+
+  async function handleSaisieSubmit() {
+    const lignes = saisieLignes
+      .filter((l) => l.compteId !== "" && (Number(l.debit) > 0 || Number(l.credit) > 0))
+      .map((l) => ({
+        compteId: Number(l.compteId), libelle: l.libelle || saisieForm.libelle,
+        debit: Number(l.debit || 0), credit: Number(l.credit || 0),
+        isTva: l.isTva, tauxTva: l.isTva ? Number(l.tauxTva) : null,
+        montantTva: l.isTva && l.montantTva ? Number(l.montantTva) : null,
+      }));
+    const res = await createEcriture({ ...saisieForm, lignes });
+    if (res) {
+      refetchEcritures();
+      setShowSaisie(false);
+      setSaisieForm({ date: new Date().toISOString().slice(0, 10), libelle: "", journal: "CAISSE", notes: "" });
+      setSaisieLignes([
+        { compteId: "", libelle: "", debit: "", credit: "", isTva: false, tauxTva: "18", montantTva: "" },
+        { compteId: "", libelle: "", debit: "", credit: "", isTva: false, tauxTva: "18", montantTva: "" },
+      ]);
+    }
+  }
+  async function handleJournalODSubmit() {
+    const lignes = journalODLignes
+      .filter((l) => l.compteId !== "" && (Number(l.debit) > 0 || Number(l.credit) > 0))
+      .map((l) => ({
+        compteId: Number(l.compteId), libelle: l.libelle || journalODForm.libelle,
+        debit: Number(l.debit || 0), credit: Number(l.credit || 0),
+        isTva: l.isTva, tauxTva: l.isTva ? Number(l.tauxTva) : null,
+        montantTva: l.isTva && l.montantTva ? Number(l.montantTva) : null,
+      }));
+    const res = await createEcriture({ ...journalODForm, lignes });
+    if (res) {
+      setShowJournalOD(false);
+      setJournalODForm({ date: new Date().toISOString().slice(0, 10), libelle: "", journal: "OD", notes: "" });
+      setJournalODLignes([
+        { compteId: "", libelle: "", debit: "", credit: "", isTva: false, tauxTva: "18", montantTva: "" },
+        { compteId: "", libelle: "", debit: "", credit: "", isTva: false, tauxTva: "18", montantTva: "" },
+      ]);
+    }
+  }
+
+  async function handleValider(id: number) {
+    ecritureActionIdRef.current = id;
+    const res = await validerEcriture({ statut: "VALIDE" });
+    if (res) refetchEcritures();
+  }
+  async function handleAnnulerEcriture(id: number) {
+    ecritureActionIdRef.current = id;
+    const res = await annulerEcriture({ statut: "ANNULE" });
+    if (res) refetchEcritures();
+  }
+  async function handleSupprimerEcriture(id: number) {
+    ecritureActionIdRef.current = id;
+    const res = await supprimerEcriture({});
+    if (res) refetchEcritures();
+  }
+
+  // ── TVA API ───────────────────────────────────────────────────────────
+  const { data: tvaData, loading: tvaLoading, refetch: refetchTva } =
+    useApi<TVAResponse>(activeTab === "tva" ? `/api/comptable/tva?page=${tvaPage}&limit=24` : null);
+
+  const { mutate: calculerTva } = useMutation<{ data: { tvaCollectee: number; tvaDeductible: number; tvaDue: number } }, object>(
+    "/api/comptable/tva", "POST"
+  );
+  const { mutate: enregistrerTva, loading: enregistrantTva } = useMutation<unknown, object>(
+    "/api/comptable/tva", "POST",
+    { successMessage: "Déclaration TVA enregistrée" }
+  );
+  const { mutate: validerTva } = useMutation<unknown, object>(
+    "/api/comptable/tva", "PATCH",
+    { successMessage: "Déclaration validée" }
+  );
+
+  async function handleCalculerTva() {
+    const res = await calculerTva({ action: "calculer", periode: tvaPeriode }) as { data?: { tvaCollectee: number; tvaDeductible: number; tvaDue: number } } | null;
+    if (res?.data) {
+      setTvaCalcResult(res.data);
+      setTvaCollecteeInput(String(res.data.tvaCollectee));
+      setTvaDeductibleInput(String(res.data.tvaDeductible));
+    }
+  }
+  async function handleEnregistrerTva() {
+    const res = await enregistrerTva({ periode: tvaPeriode, tvaCollectee: Number(tvaCollecteeInput), tvaDeductible: Number(tvaDeductibleInput), notes: tvaNotes || null });
+    if (res) { refetchTva(); setTvaCalcResult(null); setTvaCollecteeInput(""); setTvaDeductibleInput(""); setTvaNotes(""); }
+  }
+
+  // ── Rapprochement API ─────────────────────────────────────────────────
+  const { data: rapproData, loading: rapproLoading, refetch: refetchRappro } =
+    useApi<RapprochementResponse>(activeTab === "rapprochement" ? `/api/comptable/rapprochement?page=${rapproPage}&limit=24` : null);
+
+  const { mutate: enregistrerRappro, loading: enregistrantRappro } = useMutation<unknown, object>(
+    "/api/comptable/rapprochement", "POST",
+    { successMessage: "Rapprochement enregistré" }
+  );
+
+  async function handleEnregistrerRappro() {
+    const res = await enregistrerRappro({ periode: rapproPeriode, soldeBancaireReel: Number(soldeBancaireInput), notes: rapproNotes || null });
+    if (res) { refetchRappro(); setSoldeBancaireInput(""); setRapproNotes(""); }
+  }
+
+  // ── Synchronisation journaux ──────────────────────────────────────────
+  const [syncDateMin, setSyncDateMin] = useState("");
+  const [syncDateMax, setSyncDateMax] = useState("");
+  const [syncResult, setSyncResult]   = useState<{ message: string; resultats: Record<string, { created: number; skipped: number }> } | null>(null);
+  const [syncing, setSyncing]         = useState<string | null>(null);
+
+  const { data: syncApercuData, refetch: refetchSyncApercu } =
+    useApi<SyncApercuResponse>(activeTab === "saisie" ? "/api/comptable/sync-journals" : null);
+
+  async function handleSync(action: string) {
+    setSyncing(action);
+    setSyncResult(null);
+    try {
+      const res = await fetch("/api/comptable/sync-journals", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action, dateMin: syncDateMin || undefined, dateMax: syncDateMax || undefined }),
+      });
+      const json = await res.json();
+      if (res.ok) {
+        setSyncResult(json);
+        refetchEcritures();
+        refetchSyncApercu();
+      } else {
+        setSyncResult({ message: json.error ?? "Erreur", resultats: {} });
+      }
+    } finally {
+      setSyncing(null);
+    }
+  }
+
   const handleExport = () => {
     const entries = journalData?.data ?? [];
     if (entries.length === 0) return;
@@ -496,13 +869,17 @@ export default function ComptablePage() {
   const snap = sd?.snapshot;
 
   const tabs: { key: Tab; label: string; icon: React.ElementType }[] = [
-    { key: "synthese",   label: "Synthèse",           icon: BarChart3  },
-    { key: "journal",    label: "Journal",             icon: BookOpen   },
-    { key: "tresorerie", label: "Trésorerie",           icon: Wallet     },
-    { key: "balance",    label: "Balance",              icon: Calculator },
-    { key: "grandlivre", label: "Grand Livre",          icon: BookOpen   },
-    { key: "etats",      label: "États Financiers",    icon: FileText   },
-    { key: "pieces",     label: "Pièces justificatives", icon: Paperclip },
+    { key: "synthese",       label: "Synthèse",              icon: BarChart3    },
+    { key: "plan",           label: "Plan Comptable",        icon: BookMarked   },
+    { key: "saisie",         label: "Écritures",             icon: Edit2        },
+    { key: "journal",        label: "Journal",               icon: BookOpen     },
+    { key: "tresorerie",     label: "Trésorerie",            icon: Wallet       },
+    { key: "balance",        label: "Balance",               icon: Calculator   },
+    { key: "grandlivre",     label: "Grand Livre",           icon: BookOpen     },
+    { key: "tva",            label: "TVA",                   icon: Percent      },
+    { key: "rapprochement",  label: "Rapprochement",         icon: Building2    },
+    { key: "etats",          label: "États Financiers",      icon: FileText     },
+    { key: "pieces",         label: "Pièces justificatives", icon: Paperclip    },
   ];
 
   return (
@@ -791,7 +1168,7 @@ export default function ComptablePage() {
                 {JOURNAL_VIEWS.map((v) => (
                   <button
                     key={v.key}
-                    onClick={() => selectJournalView(v.key, v.type, v.cat)}
+                    onClick={() => selectJournalView(v.key, v.type, v.cat, v.source)}
                     className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all border ${
                       journalView === v.key
                         ? "bg-violet-600 text-white border-violet-600 shadow-sm"
@@ -850,7 +1227,7 @@ export default function ComptablePage() {
                   <input type="date" value={journalDateFin} onChange={(e) => { setJournalDateFin(e.target.value); setJournalPage(1); }}
                     className="flex-1 px-2 py-2.5 border border-slate-200 rounded-xl text-xs bg-slate-50 focus:outline-none focus:ring-2 focus:ring-violet-500" />
                   {(journalType !== "TOUS" || journalCategorie || debouncedSearch || journalDateDebut || journalDateFin) && (
-                    <button onClick={() => { setJournalView("TOUT"); setJournalType("TOUS"); setJournalCategorie(""); setJournalSearch(""); setJournalDateDebut(""); setJournalDateFin(""); setJournalPage(1); }}
+                    <button onClick={() => { setJournalView("TOUT"); setJournalType("TOUS"); setJournalCategorie(""); setJournalSource(""); setJournalSearch(""); setJournalDateDebut(""); setJournalDateFin(""); setJournalPage(1); }}
                       className="p-2.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition-colors">
                       <X size={16} />
                     </button>
@@ -888,12 +1265,127 @@ export default function ComptablePage() {
               </div>
             )}
 
+            {/* Écriture OD manuelle */}
+            {showJournalOD && (
+              <div className="bg-white rounded-2xl p-5 shadow-sm border border-violet-200">
+                <div className="flex items-center justify-between mb-4">
+                  <h4 className="font-semibold text-slate-800 flex items-center gap-2">
+                    <PlusCircle size={16} className="text-violet-600" /> Nouvelle écriture OD manuelle
+                  </h4>
+                  <button onClick={() => setShowJournalOD(false)} className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg">
+                    <X size={16} />
+                  </button>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                  <div>
+                    <label className="text-xs font-medium text-slate-600 mb-1 block">Date *</label>
+                    <input type="date" value={journalODForm.date} onChange={(e) => setJournalODForm(p => ({ ...p, date: e.target.value }))}
+                      className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500" />
+                  </div>
+                  <div className="col-span-2">
+                    <label className="text-xs font-medium text-slate-600 mb-1 block">Libellé *</label>
+                    <input value={journalODForm.libelle} onChange={(e) => setJournalODForm(p => ({ ...p, libelle: e.target.value }))}
+                      placeholder="ex: Régularisation…"
+                      className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500" />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-slate-600 mb-1 block">Journal *</label>
+                    <select value={journalODForm.journal} onChange={(e) => setJournalODForm(p => ({ ...p, journal: e.target.value }))}
+                      className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500">
+                      {Object.entries(JOURNAL_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="border border-slate-200 rounded-xl overflow-hidden mb-3">
+                  <table className="w-full text-sm">
+                    <thead className="bg-slate-50 border-b border-slate-200">
+                      <tr>
+                        <th className="text-left px-3 py-2 text-xs font-semibold text-slate-600">N° Compte</th>
+                        <th className="text-left px-3 py-2 text-xs font-semibold text-slate-600">Libellé ligne</th>
+                        <th className="text-right px-3 py-2 text-xs font-semibold text-slate-600">Débit</th>
+                        <th className="text-right px-3 py-2 text-xs font-semibold text-slate-600">Crédit</th>
+                        <th className="px-2 py-2"></th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {journalODLignes.map((ligne, i) => (
+                        <tr key={i} className="hover:bg-slate-50">
+                          <td className="px-3 py-2">
+                            <input value={String(ligne.compteId)} onChange={(e) => setJournalODLignes(ls => ls.map((l, j) => j === i ? { ...l, compteId: e.target.value as unknown as number | "" } : l))}
+                              placeholder="411" className="w-20 px-2 py-1 border border-slate-200 rounded-lg text-sm font-mono focus:outline-none focus:ring-1 focus:ring-violet-400" />
+                          </td>
+                          <td className="px-3 py-2">
+                            <input value={ligne.libelle} onChange={(e) => setJournalODLignes(ls => ls.map((l, j) => j === i ? { ...l, libelle: e.target.value } : l))}
+                              placeholder="Libellé…" className="w-full px-2 py-1 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-violet-400" />
+                          </td>
+                          <td className="px-3 py-2">
+                            <input type="number" min="0" value={ligne.debit} onChange={(e) => setJournalODLignes(ls => ls.map((l, j) => j === i ? { ...l, debit: e.target.value, credit: e.target.value ? "" : l.credit } : l))}
+                              placeholder="0" className="w-28 px-2 py-1 border border-slate-200 rounded-lg text-sm text-right focus:outline-none focus:ring-1 focus:ring-blue-400 [appearance:textfield]" />
+                          </td>
+                          <td className="px-3 py-2">
+                            <input type="number" min="0" value={ligne.credit} onChange={(e) => setJournalODLignes(ls => ls.map((l, j) => j === i ? { ...l, credit: e.target.value, debit: e.target.value ? "" : l.debit } : l))}
+                              placeholder="0" className="w-28 px-2 py-1 border border-slate-200 rounded-lg text-sm text-right focus:outline-none focus:ring-1 focus:ring-emerald-400 [appearance:textfield]" />
+                          </td>
+                          <td className="px-2 py-2">
+                            {journalODLignes.length > 2 && (
+                              <button onClick={() => setJournalODLignes(ls => ls.filter((_, j) => j !== i))}
+                                className="p-1 text-red-400 hover:bg-red-50 rounded-lg"><X size={13} /></button>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot className="bg-slate-50 border-t-2 border-slate-200">
+                      <tr>
+                        <td colSpan={2} className="px-3 py-2 text-xs font-bold text-slate-600">TOTAUX</td>
+                        <td className="px-3 py-2 text-right font-bold text-blue-700">
+                          {formatCurrency(journalODLignes.reduce((s, l) => s + Number(l.debit || 0), 0))}
+                        </td>
+                        <td className="px-3 py-2 text-right font-bold text-emerald-700">
+                          {formatCurrency(journalODLignes.reduce((s, l) => s + Number(l.credit || 0), 0))}
+                        </td>
+                        <td className="px-3 py-2 text-center">
+                          {Math.abs(journalODLignes.reduce((s, l) => s + Number(l.debit || 0), 0) - journalODLignes.reduce((s, l) => s + Number(l.credit || 0), 0)) < 0.01 && journalODLignes.some(l => Number(l.debit) > 0 || Number(l.credit) > 0) ? (
+                            <span className="text-xs text-emerald-600 font-semibold flex items-center justify-center gap-1"><CheckCircle size={12} /> Équilibré</span>
+                          ) : (
+                            <span className="text-xs text-red-500 font-semibold flex items-center justify-center gap-1"><AlertCircle size={12} /> Non équilibré</span>
+                          )}
+                        </td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+
+                <div className="flex items-center justify-between gap-3">
+                  <button onClick={() => setJournalODLignes(ls => [...ls, { compteId: "", libelle: "", debit: "", credit: "", isTva: false, tauxTva: "18", montantTva: "" }])}
+                    className="flex items-center gap-1.5 text-sm text-violet-600 hover:text-violet-700 font-medium">
+                    <Plus size={14} /> Ajouter une ligne
+                  </button>
+                  <div className="flex gap-2">
+                    <button onClick={() => setShowJournalOD(false)} className="px-4 py-2 border border-slate-200 rounded-xl text-sm text-slate-600 hover:bg-slate-50">Annuler</button>
+                    <button onClick={handleJournalODSubmit}
+                      disabled={creatingEcriture || !journalODForm.libelle || !journalODForm.date}
+                      className="flex items-center gap-2 px-4 py-2 bg-violet-600 text-white rounded-xl text-sm font-semibold hover:bg-violet-700 disabled:opacity-50">
+                      {creatingEcriture ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Save size={15} />} Enregistrer OD
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Table journal */}
             <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 overflow-hidden">
               <div className="px-6 py-4 border-b border-slate-200 bg-slate-50 flex items-center gap-2">
                 <BookOpen size={18} className="text-violet-600" />
                 <h3 className="font-bold text-slate-800">Journal des Opérations</h3>
-                {journalData && <span className="ml-auto text-xs text-slate-500">{journalData.meta.total} écritures</span>}
+                {journalData && <span className="text-xs text-slate-500">{journalData.meta.total} écritures</span>}
+                <button
+                  onClick={() => { setShowJournalOD(true); setJournalODForm({ date: new Date().toISOString().slice(0, 10), libelle: "", journal: "OD", notes: "" }); setJournalODLignes([{ compteId: "", libelle: "", debit: "", credit: "", isTva: false, tauxTva: "18", montantTva: "" }, { compteId: "", libelle: "", debit: "", credit: "", isTva: false, tauxTva: "18", montantTva: "" }]); }}
+                  className="ml-auto flex items-center gap-1.5 px-3 py-1.5 bg-violet-600 text-white rounded-lg text-xs font-semibold hover:bg-violet-700 transition-colors"
+                >
+                  <PlusCircle size={13} /> Écriture OD
+                </button>
               </div>
 
               {journalLoading ? (
@@ -910,6 +1402,7 @@ export default function ComptablePage() {
                         <th className="px-5 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Type</th>
                         <th className="px-5 py-3 text-right text-xs font-semibold text-slate-600 uppercase">Montant</th>
                         <th className="px-3 py-3 text-center text-xs font-semibold text-slate-600 uppercase">PJ</th>
+                        <th className="px-3 py-3 text-center text-xs font-semibold text-slate-600 uppercase">Val.</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
@@ -951,11 +1444,31 @@ export default function ComptablePage() {
                                 </button>
                               ) : <span className="text-slate-200">—</span>}
                             </td>
+                            <td className="px-3 py-3 text-center">
+                              {entry.valide ? (
+                                <button
+                                  onClick={() => handleAnnulerValidationEntree(entry.id)}
+                                  title={`Validé par ${entry.valideParNom ?? ""}${entry.dateValidation ? ` le ${formatDateShort(entry.dateValidation)}` : ""}\nCliquer pour annuler`}
+                                  className="inline-flex items-center justify-center w-7 h-7 bg-emerald-100 text-emerald-600 hover:bg-red-100 hover:text-red-500 rounded-full transition-colors"
+                                >
+                                  <CheckCircle size={14} />
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={() => handleValiderEntree(entry.id)}
+                                  disabled={validatingJournalEntry}
+                                  title="Valider cette ligne"
+                                  className="inline-flex items-center justify-center w-7 h-7 bg-slate-100 text-slate-400 hover:bg-emerald-100 hover:text-emerald-600 rounded-full transition-colors disabled:opacity-40"
+                                >
+                                  <BadgeCheck size={14} />
+                                </button>
+                              )}
+                            </td>
                           </tr>
                         );
                       })}
                       {(journalData?.data ?? []).length === 0 && !journalLoading && (
-                        <tr><td colSpan={7} className="px-5 py-12 text-center text-slate-400">Aucune écriture pour ces filtres</td></tr>
+                        <tr><td colSpan={8} className="px-5 py-12 text-center text-slate-400">Aucune écriture pour ces filtres</td></tr>
                       )}
                     </tbody>
                   </table>
@@ -1866,6 +2379,718 @@ export default function ComptablePage() {
                     allowedContent: "text-slate-400 text-xs mt-1",
                   }}
                 />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ════════════════════════════════════════════════════════════════ */}
+        {/* TAB : PLAN COMPTABLE                                          */}
+        {/* ════════════════════════════════════════════════════════════════ */}
+        {activeTab === "plan" && (
+          <div className="space-y-4">
+            {/* Header */}
+            <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60 flex items-center justify-between gap-4 flex-wrap">
+              <div>
+                <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                  <BookMarked className="text-violet-600" size={20} /> Plan Comptable SYSCOHADA
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  {planData?.meta.total ?? "…"} comptes · {planData?.stats.length ?? 0} classes
+                </p>
+              </div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <button
+                  onClick={handleImportSyscohada}
+                  disabled={importLoading}
+                  className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-semibold hover:bg-indigo-700 disabled:opacity-50"
+                >
+                  {importLoading
+                    ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    : <ListChecks size={15} />}
+                  Importer SYSCOHADA
+                </button>
+                <button
+                  onClick={() => setShowAddCompte(!showAddCompte)}
+                  className="flex items-center gap-2 px-4 py-2 bg-violet-600 text-white rounded-xl text-sm font-semibold hover:bg-violet-700"
+                >
+                  <PlusCircle size={15} /> Nouveau compte
+                </button>
+              </div>
+            </div>
+
+            {/* Formulaire ajout */}
+            {showAddCompte && (
+              <div className="bg-white rounded-2xl p-5 shadow-sm border border-violet-200">
+                <h4 className="font-semibold text-slate-800 mb-4 flex items-center gap-2"><PlusCircle size={16} className="text-violet-600" /> Nouveau compte</h4>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  <div>
+                    <label className="text-xs font-medium text-slate-600 mb-1 block">Numéro *</label>
+                    <input value={newCompte.numero} onChange={(e) => setNewCompte(p => ({ ...p, numero: e.target.value }))}
+                      placeholder="ex: 411" className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500" />
+                  </div>
+                  <div className="col-span-2">
+                    <label className="text-xs font-medium text-slate-600 mb-1 block">Libellé *</label>
+                    <input value={newCompte.libelle} onChange={(e) => setNewCompte(p => ({ ...p, libelle: e.target.value }))}
+                      placeholder="ex: Clients" className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500" />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-slate-600 mb-1 block">Classe</label>
+                    <select value={newCompte.classe} onChange={(e) => setNewCompte(p => ({ ...p, classe: e.target.value }))}
+                      className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500">
+                      {[1,2,3,4,5,6,7,8,9].map(c => <option key={c} value={c}>{c} — {["Ressources durables","Actifs immobilisés","Stocks","Comptes de tiers","Trésorerie","Charges","Produits","Comptes spéciaux","Hors bilan"][c-1]}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-slate-600 mb-1 block">Type</label>
+                    <select value={newCompte.type} onChange={(e) => setNewCompte(p => ({ ...p, type: e.target.value }))}
+                      className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500">
+                      {Object.entries(TYPE_COMPTE_LABELS).map(([k,v]) => <option key={k} value={k}>{v}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-slate-600 mb-1 block">Sens</label>
+                    <select value={newCompte.sens} onChange={(e) => setNewCompte(p => ({ ...p, sens: e.target.value }))}
+                      className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500">
+                      <option value="DEBITEUR">Débiteur</option>
+                      <option value="CREDITEUR">Créditeur</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="flex gap-3 mt-4">
+                  <button onClick={() => setShowAddCompte(false)} className="px-4 py-2 border border-slate-200 rounded-xl text-sm text-slate-600 hover:bg-slate-50">Annuler</button>
+                  <button onClick={handleCreateCompte} disabled={creatingCompte || !newCompte.numero || !newCompte.libelle}
+                    className="flex items-center gap-2 px-4 py-2 bg-violet-600 text-white rounded-xl text-sm font-semibold hover:bg-violet-700 disabled:opacity-50">
+                    {creatingCompte ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Save size={15} />} Créer
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Filtres */}
+            <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-200/60 flex gap-3 flex-wrap">
+              <div className="relative flex-1 min-w-[180px]">
+                <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input value={planSearch} onChange={(e) => setPlanSearch(e.target.value)}
+                  placeholder="Rechercher numéro ou libellé…"
+                  className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500" />
+              </div>
+              <select value={planClasse} onChange={(e) => { setPlanClasse(e.target.value); setPlanPage(1); }}
+                className="px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500">
+                <option value="">Toutes les classes</option>
+                {[1,2,3,4,5,6,7].map(c => <option key={c} value={c}>Classe {c}</option>)}
+              </select>
+              <select value={planType} onChange={(e) => { setPlanType(e.target.value); setPlanPage(1); }}
+                className="px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500">
+                <option value="">Tous types</option>
+                {Object.entries(TYPE_COMPTE_LABELS).map(([k,v]) => <option key={k} value={k}>{v}</option>)}
+              </select>
+            </div>
+
+            {/* Tableau plan */}
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 overflow-hidden">
+              {planLoading ? (
+                <div className="flex items-center justify-center p-12">
+                  <div className="w-8 h-8 border-3 border-violet-200 border-t-violet-600 rounded-full animate-spin" />
+                </div>
+              ) : (
+                <table className="w-full text-sm">
+                  <thead className="bg-slate-50 border-b border-slate-200">
+                    <tr>
+                      <th className="text-left px-4 py-3 font-semibold text-slate-600 text-xs uppercase">Numéro</th>
+                      <th className="text-left px-4 py-3 font-semibold text-slate-600 text-xs uppercase">Libellé</th>
+                      <th className="text-left px-4 py-3 font-semibold text-slate-600 text-xs uppercase hidden md:table-cell">Classe</th>
+                      <th className="text-left px-4 py-3 font-semibold text-slate-600 text-xs uppercase hidden lg:table-cell">Type</th>
+                      <th className="text-left px-4 py-3 font-semibold text-slate-600 text-xs uppercase hidden lg:table-cell">Sens</th>
+                      <th className="text-center px-4 py-3 font-semibold text-slate-600 text-xs uppercase">Statut</th>
+                      <th className="text-right px-4 py-3 font-semibold text-slate-600 text-xs uppercase">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {(planData?.data ?? []).map((c) => (
+                      <tr key={c.id} className={`hover:bg-slate-50 transition-colors ${!c.actif ? "opacity-50" : ""}`}>
+                        <td className="px-4 py-3 font-mono font-bold text-violet-700">{c.numero}</td>
+                        <td className="px-4 py-3 text-slate-800">
+                          {editCompte?.id === c.id ? (
+                            <input value={editCompte.libelle} onChange={(e) => setEditCompte({ ...editCompte, libelle: e.target.value })}
+                              className="w-full px-2 py-1 border border-violet-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500" />
+                          ) : c.libelle}
+                        </td>
+                        <td className="px-4 py-3 text-slate-500 hidden md:table-cell">{c.classe}</td>
+                        <td className="px-4 py-3 hidden lg:table-cell">
+                          <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                            c.type === "ACTIF" ? "bg-blue-50 text-blue-700" :
+                            c.type === "PASSIF" ? "bg-purple-50 text-purple-700" :
+                            c.type === "CHARGES" ? "bg-red-50 text-red-700" :
+                            c.type === "PRODUITS" ? "bg-emerald-50 text-emerald-700" :
+                            "bg-amber-50 text-amber-700"
+                          }`}>{TYPE_COMPTE_LABELS[c.type] ?? c.type}</span>
+                        </td>
+                        <td className="px-4 py-3 text-slate-500 text-xs hidden lg:table-cell">{c.sens === "DEBITEUR" ? "Débiteur" : "Créditeur"}</td>
+                        <td className="px-4 py-3 text-center">
+                          <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${c.actif ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500"}`}>
+                            {c.actif ? "Actif" : "Inactif"}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            {editCompte?.id === c.id ? (
+                              <>
+                                <button onClick={handleSaveEditCompte} disabled={patchingCompte}
+                                  className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-lg"><Save size={14} /></button>
+                                <button onClick={() => setEditCompte(null)}
+                                  className="p-1.5 text-slate-400 hover:bg-slate-100 rounded-lg"><X size={14} /></button>
+                              </>
+                            ) : (
+                              <button onClick={() => setEditCompte(c)}
+                                className="p-1.5 text-blue-500 hover:bg-blue-50 rounded-lg"><Edit2 size={14} /></button>
+                            )}
+                            <button onClick={() => handleToggleCompte(c)}
+                              className={`p-1.5 rounded-lg ${c.actif ? "text-amber-500 hover:bg-amber-50" : "text-emerald-500 hover:bg-emerald-50"}`}
+                              title={c.actif ? "Désactiver" : "Activer"}>
+                              {c.actif ? <ToggleRight size={16} /> : <ToggleLeft size={16} />}
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                    {(planData?.data ?? []).length === 0 && !planLoading && (
+                      <tr>
+                        <td colSpan={7} className="px-4 py-12 text-center text-slate-400">
+                          <BookMarked size={32} className="mx-auto mb-2 opacity-30" />
+                          <p>Aucun compte. Importez le plan SYSCOHADA ou ajoutez des comptes manuellement.</p>
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              )}
+              {/* Pagination */}
+              {planData && planData.meta.totalPages > 1 && (
+                <div className="flex items-center justify-between px-4 py-3 border-t border-slate-100 bg-slate-50">
+                  <span className="text-xs text-slate-500">{planData.meta.total} comptes · page {planPage}/{planData.meta.totalPages}</span>
+                  <div className="flex gap-2">
+                    <button onClick={() => setPlanPage(p => Math.max(1, p - 1))} disabled={planPage === 1}
+                      className="p-1.5 border border-slate-200 rounded-lg hover:bg-white disabled:opacity-40"><ChevronLeft size={14} /></button>
+                    <button onClick={() => setPlanPage(p => Math.min(planData.meta.totalPages, p + 1))} disabled={planPage === planData.meta.totalPages}
+                      className="p-1.5 border border-slate-200 rounded-lg hover:bg-white disabled:opacity-40"><ChevronRight size={14} /></button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ════════════════════════════════════════════════════════════════ */}
+        {/* TAB : SAISIE DES ÉCRITURES                                    */}
+        {/* ════════════════════════════════════════════════════════════════ */}
+        {activeTab === "saisie" && (
+          <div className="space-y-4">
+            {/* Header */}
+            <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60 flex items-center justify-between gap-4 flex-wrap">
+              <div>
+                <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                  <Edit2 className="text-violet-600" size={20} /> Saisie des écritures comptables
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">Double entrée · {ecrituresData?.meta.total ?? "…"} écritures</p>
+              </div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <div className="flex items-center gap-2 text-sm font-semibold">
+                  <span className="text-slate-500">Total débit :</span>
+                  <span className="text-blue-700">{formatCurrency(Number(ecrituresData?.totaux.debit ?? 0))}</span>
+                  <span className="text-slate-300">|</span>
+                  <span className="text-slate-500">crédit :</span>
+                  <span className="text-emerald-700">{formatCurrency(Number(ecrituresData?.totaux.credit ?? 0))}</span>
+                </div>
+                <button onClick={() => setShowSaisie(!showSaisie)}
+                  className="flex items-center gap-2 px-4 py-2 bg-violet-600 text-white rounded-xl text-sm font-semibold hover:bg-violet-700">
+                  <PlusCircle size={15} /> Nouvelle écriture
+                </button>
+              </div>
+            </div>
+
+            {/* Formulaire saisie */}
+            {showSaisie && (
+              <div className="bg-white rounded-2xl p-5 shadow-sm border border-violet-200">
+                <h4 className="font-semibold text-slate-800 mb-4 flex items-center gap-2"><Edit2 size={16} className="text-violet-600" /> Saisie d&apos;écriture</h4>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                  <div>
+                    <label className="text-xs font-medium text-slate-600 mb-1 block">Date *</label>
+                    <input type="date" value={saisieForm.date} onChange={(e) => setSaisieForm(p => ({ ...p, date: e.target.value }))}
+                      className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500" />
+                  </div>
+                  <div className="col-span-2">
+                    <label className="text-xs font-medium text-slate-600 mb-1 block">Libellé *</label>
+                    <input value={saisieForm.libelle} onChange={(e) => setSaisieForm(p => ({ ...p, libelle: e.target.value }))}
+                      placeholder="ex: Règlement fournisseur DUPONT…"
+                      className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500" />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-slate-600 mb-1 block">Journal *</label>
+                    <select value={saisieForm.journal} onChange={(e) => setSaisieForm(p => ({ ...p, journal: e.target.value }))}
+                      className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500">
+                      {Object.entries(JOURNAL_LABELS).map(([k,v]) => <option key={k} value={k}>{v}</option>)}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Lignes d'écriture */}
+                <div className="border border-slate-200 rounded-xl overflow-hidden mb-3">
+                  <table className="w-full text-sm">
+                    <thead className="bg-slate-50 border-b border-slate-200">
+                      <tr>
+                        <th className="text-left px-3 py-2 text-xs font-semibold text-slate-600">N° Compte</th>
+                        <th className="text-left px-3 py-2 text-xs font-semibold text-slate-600">Libellé ligne</th>
+                        <th className="text-right px-3 py-2 text-xs font-semibold text-slate-600">Débit</th>
+                        <th className="text-right px-3 py-2 text-xs font-semibold text-slate-600">Crédit</th>
+                        <th className="text-center px-3 py-2 text-xs font-semibold text-slate-600">TVA</th>
+                        <th className="px-2 py-2"></th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {saisieLignes.map((ligne, i) => (
+                        <tr key={i} className="hover:bg-slate-50">
+                          <td className="px-3 py-2">
+                            <input value={String(ligne.compteId)} onChange={(e) => setSaisieLignes(ls => ls.map((l, j) => j === i ? { ...l, compteId: e.target.value as unknown as number | "" } : l))}
+                              placeholder="411" className="w-20 px-2 py-1 border border-slate-200 rounded-lg text-sm font-mono focus:outline-none focus:ring-1 focus:ring-violet-400" />
+                          </td>
+                          <td className="px-3 py-2">
+                            <input value={ligne.libelle} onChange={(e) => setSaisieLignes(ls => ls.map((l, j) => j === i ? { ...l, libelle: e.target.value } : l))}
+                              placeholder="Libellé…" className="w-full px-2 py-1 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-violet-400" />
+                          </td>
+                          <td className="px-3 py-2">
+                            <input type="number" min="0" value={ligne.debit} onChange={(e) => setSaisieLignes(ls => ls.map((l, j) => j === i ? { ...l, debit: e.target.value, credit: e.target.value ? "" : l.credit } : l))}
+                              placeholder="0" className="w-28 px-2 py-1 border border-slate-200 rounded-lg text-sm text-right focus:outline-none focus:ring-1 focus:ring-blue-400 [appearance:textfield]" />
+                          </td>
+                          <td className="px-3 py-2">
+                            <input type="number" min="0" value={ligne.credit} onChange={(e) => setSaisieLignes(ls => ls.map((l, j) => j === i ? { ...l, credit: e.target.value, debit: e.target.value ? "" : l.debit } : l))}
+                              placeholder="0" className="w-28 px-2 py-1 border border-slate-200 rounded-lg text-sm text-right focus:outline-none focus:ring-1 focus:ring-emerald-400 [appearance:textfield]" />
+                          </td>
+                          <td className="px-3 py-2 text-center">
+                            <input type="checkbox" checked={ligne.isTva} onChange={(e) => setSaisieLignes(ls => ls.map((l, j) => j === i ? { ...l, isTva: e.target.checked } : l))}
+                              className="w-4 h-4 accent-violet-600 rounded" />
+                          </td>
+                          <td className="px-2 py-2">
+                            {saisieLignes.length > 2 && (
+                              <button onClick={() => setSaisieLignes(ls => ls.filter((_, j) => j !== i))}
+                                className="p-1 text-red-400 hover:bg-red-50 rounded-lg"><X size={13} /></button>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot className="bg-slate-50 border-t-2 border-slate-200">
+                      <tr>
+                        <td colSpan={2} className="px-3 py-2 text-xs font-bold text-slate-600">TOTAUX</td>
+                        <td className="px-3 py-2 text-right font-bold text-blue-700">
+                          {formatCurrency(saisieLignes.reduce((s, l) => s + Number(l.debit || 0), 0))}
+                        </td>
+                        <td className="px-3 py-2 text-right font-bold text-emerald-700">
+                          {formatCurrency(saisieLignes.reduce((s, l) => s + Number(l.credit || 0), 0))}
+                        </td>
+                        <td colSpan={2} className="px-3 py-2 text-center">
+                          {Math.abs(saisieLignes.reduce((s, l) => s + Number(l.debit || 0), 0) - saisieLignes.reduce((s, l) => s + Number(l.credit || 0), 0)) < 0.01 && saisieLignes.some(l => Number(l.debit) > 0 || Number(l.credit) > 0) ? (
+                            <span className="text-xs text-emerald-600 font-semibold flex items-center justify-center gap-1"><CheckCircle size={12} /> Équilibré</span>
+                          ) : (
+                            <span className="text-xs text-red-500 font-semibold flex items-center justify-center gap-1"><AlertCircle size={12} /> Non équilibré</span>
+                          )}
+                        </td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+
+                <div className="flex items-center justify-between gap-3">
+                  <button onClick={() => setSaisieLignes(ls => [...ls, { compteId: "", libelle: "", debit: "", credit: "", isTva: false, tauxTva: "18", montantTva: "" }])}
+                    className="flex items-center gap-1.5 text-sm text-violet-600 hover:text-violet-700 font-medium">
+                    <Plus size={14} /> Ajouter une ligne
+                  </button>
+                  <div className="flex gap-2">
+                    <button onClick={() => setShowSaisie(false)} className="px-4 py-2 border border-slate-200 rounded-xl text-sm text-slate-600 hover:bg-slate-50">Annuler</button>
+                    <button onClick={handleSaisieSubmit}
+                      disabled={creatingEcriture || !saisieForm.libelle || !saisieForm.date}
+                      className="flex items-center gap-2 px-4 py-2 bg-violet-600 text-white rounded-xl text-sm font-semibold hover:bg-violet-700 disabled:opacity-50">
+                      {creatingEcriture ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Save size={15} />} Enregistrer
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ── Bloc synchronisation automatique ── */}
+            <div className="bg-gradient-to-r from-indigo-50 to-violet-50 rounded-2xl p-5 border border-indigo-200 shadow-sm">
+              <div className="flex items-center gap-2 mb-3">
+                <RefreshCw size={18} className="text-indigo-600" />
+                <h4 className="font-bold text-indigo-900">Alimentation automatique des journaux</h4>
+              </div>
+              <p className="text-xs text-indigo-700 mb-4">
+                Importe les opérations des modules (Caisse, Ventes, Achats) et génère les écritures SYSCOHADA en double entrée.
+                Les doublons sont automatiquement ignorés. Les écritures créées sont en <strong>brouillon</strong> — vous devez les valider.
+              </p>
+
+              {/* Aperçu des opérations non encore importées */}
+              {syncApercuData?.apercu && (
+                <div className="grid grid-cols-3 gap-3 mb-4">
+                  {[
+                    { key: "caisse", label: "Journal Caisse", color: "bg-amber-100 text-amber-800 border-amber-200" },
+                    { key: "ventes", label: "Journal Ventes", color: "bg-emerald-100 text-emerald-800 border-emerald-200" },
+                    { key: "achats", label: "Journal Achats", color: "bg-blue-100 text-blue-800 border-blue-200" },
+                  ].map((j) => {
+                    const stat = syncApercuData.apercu[j.key as keyof SyncApercu];
+                    return (
+                      <div key={j.key} className={`rounded-xl p-3 border ${j.color}`}>
+                        <p className="text-xs font-semibold">{j.label}</p>
+                        <p className="text-xl font-bold mt-0.5">{stat.aSyncer}</p>
+                        <p className="text-xs opacity-70">opérations à importer</p>
+                        <p className="text-xs opacity-60 mt-0.5">{stat.dejaSyncees} déjà importées</p>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Filtre date optionnel */}
+              <div className="flex gap-3 flex-wrap mb-4">
+                <div className="flex items-center gap-2">
+                  <label className="text-xs text-indigo-700 font-medium">Du</label>
+                  <input type="date" value={syncDateMin} onChange={(e) => setSyncDateMin(e.target.value)}
+                    className="px-3 py-1.5 border border-indigo-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+                </div>
+                <div className="flex items-center gap-2">
+                  <label className="text-xs text-indigo-700 font-medium">Au</label>
+                  <input type="date" value={syncDateMax} onChange={(e) => setSyncDateMax(e.target.value)}
+                    className="px-3 py-1.5 border border-indigo-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+                </div>
+              </div>
+
+              {/* Boutons sync par journal */}
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { action: "caisse", label: "Caisse", icon: Wallet,    color: "bg-amber-500 hover:bg-amber-600" },
+                  { action: "ventes", label: "Ventes", icon: TrendingUp,color: "bg-emerald-600 hover:bg-emerald-700" },
+                  { action: "achats", label: "Achats", icon: Package,   color: "bg-blue-600 hover:bg-blue-700" },
+                  { action: "all",    label: "Tout synchroniser", icon: RefreshCw, color: "bg-indigo-600 hover:bg-indigo-700" },
+                ].map(({ action, label, icon: Icon, color }) => (
+                  <button
+                    key={action}
+                    onClick={() => handleSync(action)}
+                    disabled={!!syncing}
+                    className={`flex items-center gap-2 px-4 py-2 ${color} text-white rounded-xl text-sm font-semibold disabled:opacity-50 transition-colors`}
+                  >
+                    {syncing === action
+                      ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      : <Icon size={14} />}
+                    {label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Résultat de la synchronisation */}
+              {syncResult && (
+                <div className={`mt-3 rounded-xl p-3 text-sm ${syncResult.resultats && Object.keys(syncResult.resultats).length > 0 ? "bg-emerald-50 border border-emerald-200 text-emerald-800" : "bg-red-50 border border-red-200 text-red-800"}`}>
+                  <p className="font-semibold">{syncResult.message}</p>
+                  {syncResult.resultats && Object.entries(syncResult.resultats).map(([k, v]) => (
+                    <p key={k} className="text-xs mt-1">
+                      <strong>{k.charAt(0).toUpperCase() + k.slice(1)} :</strong> {v.created} créée(s) · {v.skipped} ignorée(s)
+                    </p>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Filtres écritures */}
+            <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-200/60 flex gap-3 flex-wrap">
+              <select value={ecrituresJournal} onChange={(e) => { setEcrituresJournal(e.target.value); setEcrituresPage(1); }}
+                className="px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500">
+                <option value="">Tous les journaux</option>
+                {Object.entries(JOURNAL_LABELS).map(([k,v]) => <option key={k} value={k}>{v}</option>)}
+              </select>
+              <select value={ecrituresStatut} onChange={(e) => { setEcrituresStatut(e.target.value); setEcrituresPage(1); }}
+                className="px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500">
+                <option value="">Tous statuts</option>
+                <option value="BROUILLON">Brouillon</option>
+                <option value="VALIDE">Validé</option>
+                <option value="ANNULE">Annulé</option>
+              </select>
+              <input type="date" value={ecrituresDateMin} onChange={(e) => { setEcrituresDateMin(e.target.value); setEcrituresPage(1); }}
+                className="px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500" placeholder="Du" />
+              <input type="date" value={ecrituresDateMax} onChange={(e) => { setEcrituresDateMax(e.target.value); setEcrituresPage(1); }}
+                className="px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500" placeholder="Au" />
+              <button onClick={() => exportToCsv(ecrituresData?.data?.flatMap(e => e.lignes.map(l => ({ ref: e.reference, date: e.date.slice(0,10), journal: e.journal, libelle: l.libelle, compte: l.compte.numero, debit: l.debit, credit: l.credit }))) ?? [], [{ label: "Référence", key: "ref" }, { label: "Date", key: "date" }, { label: "Journal", key: "journal" }, { label: "Libellé", key: "libelle" }, { label: "Compte", key: "compte" }, { label: "Débit", key: "debit" }, { label: "Crédit", key: "credit" }], "ecritures.csv")}
+                className="flex items-center gap-2 px-3 py-2 border border-slate-200 rounded-xl text-sm text-slate-600 hover:bg-slate-50">
+                <Download size={14} /> CSV
+              </button>
+            </div>
+
+            {/* Liste écritures */}
+            <div className="space-y-3">
+              {ecrituresLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="w-8 h-8 border-3 border-violet-200 border-t-violet-600 rounded-full animate-spin" />
+                </div>
+              ) : (ecrituresData?.data ?? []).length === 0 ? (
+                <div className="bg-white rounded-2xl p-12 text-center border border-slate-200/60 shadow-sm">
+                  <Edit2 size={32} className="mx-auto mb-2 text-slate-300" />
+                  <p className="text-slate-400">Aucune écriture. Saisissez votre première écriture.</p>
+                </div>
+              ) : (
+                (ecrituresData?.data ?? []).map((e) => {
+                  const totalD = e.lignes.reduce((s, l) => s + Number(l.debit), 0);
+                  return (
+                    <div key={e.id} className="bg-white rounded-2xl shadow-sm border border-slate-200/60 overflow-hidden">
+                      <div className="flex items-center justify-between px-5 py-3 bg-slate-50 border-b border-slate-100">
+                        <div className="flex items-center gap-3 flex-wrap">
+                          <span className="font-mono text-sm font-bold text-violet-700">{e.reference}</span>
+                          <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${STATUT_ECRITURE_COLORS[e.statut] ?? "bg-slate-100 text-slate-600"}`}>{e.statut}</span>
+                          <span className="text-xs bg-blue-50 text-blue-700 font-medium px-2 py-0.5 rounded-full">{JOURNAL_LABELS[e.journal] ?? e.journal}</span>
+                          <span className="text-xs text-slate-400">{formatDateShort(e.date)}</span>
+                          {e.user && <span className="text-xs text-slate-400">{e.user.prenom} {e.user.nom}</span>}
+                        </div>
+                        <div className="flex items-center gap-1">
+                          {e.statut === "BROUILLON" && (
+                            <>
+                              <button onClick={() => handleValider(e.id)}
+                                className="flex items-center gap-1 px-2.5 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-semibold hover:bg-emerald-700">
+                                <BadgeCheck size={13} /> Valider
+                              </button>
+                              <button onClick={() => handleSupprimerEcriture(e.id)}
+                                className="p-1.5 text-red-400 hover:bg-red-50 rounded-lg"><Trash2 size={14} /></button>
+                            </>
+                          )}
+                          {e.statut === "VALIDE" && (
+                            <button onClick={() => handleAnnulerEcriture(e.id)}
+                              className="flex items-center gap-1 px-2.5 py-1.5 border border-red-200 text-red-600 rounded-lg text-xs font-semibold hover:bg-red-50">
+                              <X size={13} /> Annuler
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                      <div className="px-5 py-2 border-b border-slate-100">
+                        <p className="text-sm text-slate-700 font-medium">{e.libelle}</p>
+                        {e.notes && <p className="text-xs text-slate-400 italic">{e.notes}</p>}
+                      </div>
+                      <table className="w-full text-xs">
+                        <thead className="border-b border-slate-100 bg-slate-50/50">
+                          <tr>
+                            <th className="text-left px-5 py-1.5 font-semibold text-slate-500">Compte</th>
+                            <th className="text-left px-3 py-1.5 font-semibold text-slate-500">Libellé</th>
+                            <th className="text-right px-5 py-1.5 font-semibold text-blue-600">Débit</th>
+                            <th className="text-right px-5 py-1.5 font-semibold text-emerald-600">Crédit</th>
+                            <th className="text-center px-3 py-1.5 font-semibold text-slate-400">TVA</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-50">
+                          {e.lignes.map((l) => (
+                            <tr key={l.id} className={`hover:bg-slate-50 ${l.isTva ? "bg-amber-50/40" : ""}`}>
+                              <td className="px-5 py-1.5 font-mono text-slate-700">{l.compte.numero} <span className="text-slate-400 font-sans">{l.compte.libelle}</span></td>
+                              <td className="px-3 py-1.5 text-slate-600">{l.libelle}</td>
+                              <td className="px-5 py-1.5 text-right font-medium text-blue-700">{Number(l.debit) > 0 ? formatCurrency(Number(l.debit)) : ""}</td>
+                              <td className="px-5 py-1.5 text-right font-medium text-emerald-700">{Number(l.credit) > 0 ? formatCurrency(Number(l.credit)) : ""}</td>
+                              <td className="px-3 py-1.5 text-center">{l.isTva && <span className="text-amber-600 font-semibold">TVA {l.tauxTva}%</span>}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                        <tfoot className="border-t-2 border-slate-200 bg-slate-50">
+                          <tr>
+                            <td colSpan={2} className="px-5 py-1.5 font-bold text-slate-600 text-xs">Total</td>
+                            <td className="px-5 py-1.5 text-right font-bold text-blue-700">{formatCurrency(totalD)}</td>
+                            <td className="px-5 py-1.5 text-right font-bold text-emerald-700">{formatCurrency(e.lignes.reduce((s, l) => s + Number(l.credit), 0))}</td>
+                            <td></td>
+                          </tr>
+                        </tfoot>
+                      </table>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            {/* Pagination écritures */}
+            {ecrituresData && ecrituresData.meta.totalPages > 1 && (
+              <div className="flex items-center justify-between bg-white rounded-xl px-4 py-3 border border-slate-200/60">
+                <span className="text-xs text-slate-500">Page {ecrituresPage}/{ecrituresData.meta.totalPages} · {ecrituresData.meta.total} écritures</span>
+                <div className="flex gap-2">
+                  <button onClick={() => setEcrituresPage(p => Math.max(1, p - 1))} disabled={ecrituresPage === 1}
+                    className="p-1.5 border border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-40"><ChevronLeft size={14} /></button>
+                  <button onClick={() => setEcrituresPage(p => Math.min(ecrituresData.meta.totalPages, p + 1))} disabled={ecrituresPage === ecrituresData.meta.totalPages}
+                    className="p-1.5 border border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-40"><ChevronRight size={14} /></button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ════════════════════════════════════════════════════════════════ */}
+        {/* TAB : TVA                                                      */}
+        {/* ════════════════════════════════════════════════════════════════ */}
+        {activeTab === "tva" && (
+          <div className="space-y-4">
+            <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60">
+              <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2 mb-4">
+                <Percent className="text-violet-600" size={20} /> Déclaration TVA — Taux 18% (Togo)
+              </h3>
+
+              {/* Formulaire */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-3">
+                  <h4 className="font-semibold text-slate-700 text-sm">Nouvelle déclaration</h4>
+                  <div>
+                    <label className="text-xs font-medium text-slate-600 mb-1 block">Période (mois)</label>
+                    <input type="month" value={tvaPeriode} onChange={(e) => setTvaPeriode(e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500" />
+                  </div>
+                  <button onClick={handleCalculerTva}
+                    className="flex items-center gap-2 w-full justify-center px-4 py-2.5 bg-indigo-100 text-indigo-700 rounded-xl text-sm font-semibold hover:bg-indigo-200">
+                    <ChevronsUpDown size={15} /> Calculer auto depuis les écritures validées
+                  </button>
+                  {tvaCalcResult && (
+                    <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-3 text-sm space-y-1">
+                      <p className="font-semibold text-indigo-800">Résultat du calcul :</p>
+                      <p>TVA collectée : <strong>{formatCurrency(tvaCalcResult.tvaCollectee)}</strong></p>
+                      <p>TVA déductible : <strong>{formatCurrency(tvaCalcResult.tvaDeductible)}</strong></p>
+                      <p className="font-bold text-indigo-900">TVA due : {formatCurrency(tvaCalcResult.tvaDue)}</p>
+                    </div>
+                  )}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs font-medium text-slate-600 mb-1 block">TVA collectée (FCFA)</label>
+                      <input type="number" min="0" value={tvaCollecteeInput} onChange={(e) => setTvaCollecteeInput(e.target.value)}
+                        placeholder="0" className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 [appearance:textfield]" />
+                    </div>
+                    <div>
+                      <label className="text-xs font-medium text-slate-600 mb-1 block">TVA déductible (FCFA)</label>
+                      <input type="number" min="0" value={tvaDeductibleInput} onChange={(e) => setTvaDeductibleInput(e.target.value)}
+                        placeholder="0" className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 [appearance:textfield]" />
+                    </div>
+                  </div>
+                  {tvaCollecteeInput !== "" && tvaDeductibleInput !== "" && (
+                    <div className={`rounded-xl p-3 text-sm font-semibold ${Number(tvaCollecteeInput) >= Number(tvaDeductibleInput) ? "bg-emerald-50 text-emerald-800" : "bg-blue-50 text-blue-800"}`}>
+                      TVA nette due : {formatCurrency(Math.max(0, Number(tvaCollecteeInput) - Number(tvaDeductibleInput)))}
+                      {Number(tvaDeductibleInput) > Number(tvaCollecteeInput) && (
+                        <span className="ml-2 text-xs font-normal text-blue-600">(crédit de TVA : {formatCurrency(Number(tvaDeductibleInput) - Number(tvaCollecteeInput))})</span>
+                      )}
+                    </div>
+                  )}
+                  <textarea value={tvaNotes} onChange={(e) => setTvaNotes(e.target.value)}
+                    placeholder="Notes…" rows={2}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 resize-none" />
+                  <button onClick={handleEnregistrerTva}
+                    disabled={enregistrantTva || !tvaPeriode || tvaCollecteeInput === "" || tvaDeductibleInput === ""}
+                    className="flex items-center gap-2 w-full justify-center px-4 py-2.5 bg-violet-600 text-white rounded-xl text-sm font-semibold hover:bg-violet-700 disabled:opacity-50">
+                    {enregistrantTva ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Save size={15} />} Enregistrer la déclaration
+                  </button>
+                </div>
+
+                {/* Historique TVA */}
+                <div>
+                  <h4 className="font-semibold text-slate-700 text-sm mb-3">Historique des déclarations</h4>
+                  {tvaLoading ? (
+                    <div className="flex items-center justify-center p-8"><div className="w-7 h-7 border-3 border-violet-200 border-t-violet-600 rounded-full animate-spin" /></div>
+                  ) : (tvaData?.data ?? []).length === 0 ? (
+                    <p className="text-slate-400 text-sm text-center py-8">Aucune déclaration enregistrée.</p>
+                  ) : (
+                    <div className="space-y-2 max-h-96 overflow-y-auto pr-1">
+                      {(tvaData?.data ?? []).map((d) => (
+                        <div key={d.id} className="border border-slate-100 rounded-xl p-3 hover:border-slate-200">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="font-semibold text-slate-800">{d.periode}</span>
+                            <div className="flex items-center gap-2">
+                              <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${d.statut === "SOUMIS" ? "bg-emerald-50 text-emerald-700" : d.statut === "EN_ATTENTE" ? "bg-amber-50 text-amber-700" : "bg-blue-50 text-blue-700"}`}>{d.statut}</span>
+                              {d.statut === "EN_ATTENTE" && (
+                                <button onClick={() => validerTva({ id: d.id, statut: "SOUMIS" }).then(() => refetchTva())}
+                                  className="text-xs px-2 py-0.5 bg-violet-600 text-white rounded-lg hover:bg-violet-700">Valider</button>
+                              )}
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-3 gap-2 text-xs text-slate-600">
+                            <div><span className="text-slate-400">Collectée</span><br /><strong className="text-red-600">{formatCurrency(Number(d.tvaCollectee))}</strong></div>
+                            <div><span className="text-slate-400">Déductible</span><br /><strong className="text-blue-600">{formatCurrency(Number(d.tvaDeductible))}</strong></div>
+                            <div><span className="text-slate-400">Nette due</span><br /><strong className="text-emerald-700">{formatCurrency(Number(d.tvaDue))}</strong></div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ════════════════════════════════════════════════════════════════ */}
+        {/* TAB : RAPPROCHEMENT BANCAIRE                                  */}
+        {/* ════════════════════════════════════════════════════════════════ */}
+        {activeTab === "rapprochement" && (
+          <div className="space-y-4">
+            <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60">
+              <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2 mb-4">
+                <Building2 className="text-violet-600" size={20} /> Rapprochement Bancaire
+              </h3>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Formulaire */}
+                <div className="space-y-3">
+                  <h4 className="font-semibold text-slate-700 text-sm">Nouveau rapprochement</h4>
+                  <div>
+                    <label className="text-xs font-medium text-slate-600 mb-1 block">Période (mois)</label>
+                    <input type="month" value={rapproPeriode} onChange={(e) => setRapproPeriode(e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500" />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-slate-600 mb-1 block">Solde bancaire réel (relevé de compte)</label>
+                    <input type="number" value={soldeBancaireInput} onChange={(e) => setSoldeBancaireInput(e.target.value)}
+                      placeholder="ex: 1500000" className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 [appearance:textfield]" />
+                    <p className="text-xs text-slate-400 mt-1">Le solde comptable sera calculé automatiquement depuis les écritures validées du compte 521 (Banque).</p>
+                  </div>
+                  <textarea value={rapproNotes} onChange={(e) => setRapproNotes(e.target.value)}
+                    placeholder="Notes ou observations…" rows={2}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 resize-none" />
+                  <button onClick={handleEnregistrerRappro}
+                    disabled={enregistrantRappro || !rapproPeriode || soldeBancaireInput === ""}
+                    className="flex items-center gap-2 w-full justify-center px-4 py-2.5 bg-violet-600 text-white rounded-xl text-sm font-semibold hover:bg-violet-700 disabled:opacity-50">
+                    {enregistrantRappro ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <ChevronsUpDown size={15} />} Calculer & Enregistrer
+                  </button>
+                </div>
+
+                {/* Historique rapprochements */}
+                <div>
+                  <h4 className="font-semibold text-slate-700 text-sm mb-3">Historique des rapprochements</h4>
+                  {rapproLoading ? (
+                    <div className="flex items-center justify-center p-8"><div className="w-7 h-7 border-3 border-violet-200 border-t-violet-600 rounded-full animate-spin" /></div>
+                  ) : (rapproData?.data ?? []).length === 0 ? (
+                    <p className="text-slate-400 text-sm text-center py-8">Aucun rapprochement enregistré.</p>
+                  ) : (
+                    <div className="space-y-2 max-h-96 overflow-y-auto pr-1">
+                      {(rapproData?.data ?? []).map((r) => {
+                        const rapproche = Math.abs(Number(r.ecart)) < 0.01;
+                        return (
+                          <div key={r.id} className={`border rounded-xl p-3 hover:border-slate-200 ${rapproche ? "border-emerald-200 bg-emerald-50/30" : "border-amber-200 bg-amber-50/30"}`}>
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="font-semibold text-slate-800">{r.periode}</span>
+                              <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${rapproche ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}>
+                                {rapproche ? "Rapproché" : `Écart : ${formatCurrency(Math.abs(Number(r.ecart)))}`}
+                              </span>
+                            </div>
+                            <div className="grid grid-cols-3 gap-2 text-xs">
+                              <div><span className="text-slate-400">Solde bancaire</span><br /><strong className="text-slate-800">{formatCurrency(Number(r.soldeBancaireReel))}</strong></div>
+                              <div><span className="text-slate-400">Solde comptable</span><br /><strong className="text-slate-800">{formatCurrency(Number(r.soldeComptable))}</strong></div>
+                              <div><span className="text-slate-400">Écart</span><br /><strong className={rapproche ? "text-emerald-600" : "text-red-600"}>{formatCurrency(Number(r.ecart))}</strong></div>
+                            </div>
+                            {r.notes && <p className="text-xs text-slate-400 italic mt-1.5">{r.notes}</p>}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                  {rapproData && rapproData.meta.totalPages > 1 && (
+                    <div className="flex justify-end gap-2 mt-2">
+                      <button onClick={() => setRapproPage(p => Math.max(1, p - 1))} disabled={rapproPage === 1}
+                        className="p-1.5 border border-slate-200 rounded-lg hover:bg-white disabled:opacity-40"><ChevronLeft size={13} /></button>
+                      <button onClick={() => setRapproPage(p => Math.min(rapproData.meta.totalPages, p + 1))} disabled={rapproPage === rapproData.meta.totalPages}
+                        className="p-1.5 border border-slate-200 rounded-lg hover:bg-white disabled:opacity-40"><ChevronRight size={13} /></button>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </div>

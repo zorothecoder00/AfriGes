@@ -43,6 +43,9 @@ interface JournalEntry {
   libelle:   string;
   montant:   number;
   reference: string;
+  valide?:   boolean;
+  valideParNom?: string;
+  dateValidation?: string;
 }
 
 // Catégories qui proviennent exclusivement de l'OperationCaisse
@@ -90,6 +93,8 @@ export async function GET(req: Request) {
     const typeFilter = searchParams.get("type") ?? "TOUS";
     const catFilter  = searchParams.get("categorie") ?? "";
     const search     = (searchParams.get("search") ?? "").trim().toLowerCase();
+    // Nouveau paramètre source : "caisse" | "ventes" | "achats" | "paie" | ""
+    const source     = searchParams.get("source") ?? "";
 
     const dateFinParam   = searchParams.get("dateFin");
     const dateDebutParam = searchParams.get("dateDebut");
@@ -102,12 +107,23 @@ export async function GET(req: Request) {
     const includeEnc = typeFilter === "TOUS" || typeFilter === "ENCAISSEMENT";
     const includeDec = typeFilter === "TOUS" || typeFilter === "DECAISSEMENT";
 
+    // Résoudre les sources à interroger selon le nouveau paramètre "source"
+    // source="" → tout (comportement historique)
+    // source="caisse" → OperationCaisse uniquement (enc + dec)
+    // source="ventes" → VersementPack uniquement
+    // source="achats" → MouvementStock uniquement
+    // source="paie"   → OperationCaisse SALAIRE uniquement
+    const sourceIsCaisse = source === "caisse" || source === "paie";
+    const sourceIsVentes = source === "ventes";
+    const sourceIsAchats = source === "achats";
+    const sourceIsAll    = source === "";
+
     // Est-ce qu'on doit interroger chaque source ?
     const queryCaisseOnly = catFilter !== "" && CAISSE_CATS.has(catFilter);
     const queryPackOnly   = catFilter !== "" && PACK_CATS.has(catFilter);
-    const queryAppro      = catFilter === "" || catFilter === "APPROVISIONNEMENT";
-    const queryPack       = catFilter === "" || queryPackOnly;
-    const queryCaisse     = catFilter === "" || queryCaisseOnly;
+    const queryAppro      = (sourceIsAll || sourceIsAchats) && (catFilter === "" || catFilter === "APPROVISIONNEMENT");
+    const queryPack       = (sourceIsAll || sourceIsVentes) && (catFilter === "" || queryPackOnly);
+    const queryCaisse     = (sourceIsAll || sourceIsCaisse) && (catFilter === "" || queryCaisseOnly || source !== "");
 
     // VersementPack types à récupérer
     const versPackTypes: string[] =
@@ -117,8 +133,10 @@ export async function GET(req: Request) {
       catFilter === "VERSEMENT_PACK"       ? ["BONUS", "AJUSTEMENT"] :
       ["COTISATION_INITIALE", "VERSEMENT_PERIODIQUE", "REMBOURSEMENT", "BONUS", "AJUSTEMENT"];
 
-    // OperationCaisse : filtre sur catégorie DECAISSEMENT si applicable
+    // OperationCaisse : filtre sur catégorie DECAISSEMENT
+    // source=paie → forcer SALAIRE uniquement
     const caisseCatFilter: string[] =
+      source === "paie"           ? ["SALAIRE"] :
       catFilter === "SALAIRE"     ? ["SALAIRE"] :
       catFilter === "AVANCE"      ? ["AVANCE"] :
       catFilter === "FOURNISSEUR" ? ["FOURNISSEUR"] :
@@ -274,6 +292,26 @@ export async function GET(req: Request) {
         montant:   Number(op.montant),
         reference: op.reference,
       });
+    }
+
+    // ── Statuts de validation ─────────────────────────────────────────────────
+    const entryIds = entries.map((e) => e.id);
+    const validations = entryIds.length > 0
+      ? await prisma.journalValidation.findMany({
+          where: { entryId: { in: entryIds } },
+          include: { validePar: { select: { nom: true, prenom: true } } },
+        })
+      : [];
+    const validationMap = new Map(
+      validations.map((v) => [v.entryId, v])
+    );
+    for (const e of entries) {
+      const v = validationMap.get(e.id);
+      if (v) {
+        e.valide = true;
+        e.valideParNom = `${v.validePar.prenom} ${v.validePar.nom}`;
+        e.dateValidation = v.createdAt.toISOString();
+      }
     }
 
     // ── Filtre search ─────────────────────────────────────────────────────────
