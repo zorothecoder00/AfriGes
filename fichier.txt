@@ -11,6 +11,6 @@ Ce code :
  a.click();
  permet de créer un téléchargement via un clic sur une URL ( utile pour les exports)
 
- 
+  
 
     
