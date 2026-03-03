@@ -43,6 +43,10 @@ model User {
   messagesRecus       Message[]         @relation("MessagesRecus")
   cloturesComptables      ClotureComptable[]
   piecesJustificatives    PieceJustificative[]
+  anomaliesSignalees      AnomalieStock[]     @relation("AnomaliesSignalees")
+  anomaliesTraitees       AnomalieStock[]     @relation("AnomaliesTraitees")
+  bonsSortieCreés         BonSortie[]         @relation("BonsSortieCreés")
+  bonsSortieValidés       BonSortie[]         @relation("BonsSortieValidés")
 
   createdAt           DateTime          @default(now())
   updatedAt           DateTime          @updatedAt
@@ -158,6 +162,8 @@ model Produit {
   lignesReceptionPack LigneReceptionPack[]
   recompensesFidelite RecompenseFidelite[]
   packsCibleProduit   Pack[]               @relation("PackProduitCible")
+  anomalies           AnomalieStock[]
+  lignesBonSortie     LigneBonSortie[]
 
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt
@@ -890,4 +896,92 @@ model PieceJustificative {
   createdAt       DateTime @default(now())
 
   @@index([sourceType, sourceId])
+}
+
+// ── Anomalies Stock (magasinier) ─────────────────────────────────────────────
+
+enum TypeAnomalie {
+  MANQUANT
+  SURPLUS
+  DEFECTUEUX
+}
+
+enum StatutAnomalie {
+  EN_ATTENTE
+  EN_COURS
+  TRAITEE
+  TRANSMISE
+}
+
+model AnomalieStock {
+  id            Int            @id @default(autoincrement())
+  reference     String         @unique
+  produitId     Int
+  type          TypeAnomalie
+  quantite      Int
+  description   String
+  statut        StatutAnomalie @default(EN_ATTENTE)
+  signalePar    Int            // userId du magasinier
+  traitePar     Int?           // userId qui a traité
+  commentaire   String?        // commentaire lors du traitement
+
+  produit       Produit        @relation(fields: [produitId], references: [id])
+  magasinier    User           @relation("AnomaliesSignalees", fields: [signalePar], references: [id])
+  traiteur      User?          @relation("AnomaliesTraitees", fields: [traitePar], references: [id])
+
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@index([produitId])
+  @@index([statut])
+}
+
+// ── Bons de Sortie Stock (magasinier) ────────────────────────────────────────
+
+enum TypeBonSortie {
+  PDV           // vers Point de Vente
+  PERTE
+  CASSE
+  DON
+  COMMANDE_INTERNE
+}
+
+enum StatutBonSortie {
+  EN_COURS
+  EXPEDIE
+  RECU
+  ANNULE
+}
+
+model BonSortie {
+  id            Int             @id @default(autoincrement())
+  reference     String          @unique
+  type          TypeBonSortie
+  statut        StatutBonSortie @default(EN_COURS)
+  destinataire  String?         // nom du point de vente ou bénéficiaire
+  motif         String
+  creePar       Int             // userId du magasinier
+  validePar     Int?            // userId qui a validé (réception)
+  notes         String?
+
+  lignes        LigneBonSortie[]
+  magasinier    User            @relation("BonsSortieCreés", fields: [creePar], references: [id])
+  valideur      User?           @relation("BonsSortieValidés", fields: [validePar], references: [id])
+
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  @@index([statut])
+  @@index([type])
+}
+
+model LigneBonSortie {
+  id          Int       @id @default(autoincrement())
+  bonSortieId Int
+  produitId   Int
+  quantite    Int
+  prixUnit    Decimal
+
+  bonSortie   BonSortie @relation(fields: [bonSortieId], references: [id], onDelete: Cascade)
+  produit     Produit   @relation(fields: [produitId], references: [id])
 }

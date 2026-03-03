@@ -5,7 +5,8 @@ import {
   Package, Archive, AlertTriangle, TrendingUp, Search, ArrowLeft,
   RefreshCw, Eye, ClipboardList, ArrowUpCircle, ArrowDownCircle,
   BarChart3, Boxes, LucideIcon, CheckCircle, X, Plus, ArrowRightLeft,
-  ChevronDown, ChevronUp
+  ChevronDown, ChevronUp, Truck, FileText, Printer, ShieldAlert,
+  Trash2, Gift, MinusCircle, Send, Clock, CheckSquare, XCircle
 } from 'lucide-react';
 import Link from 'next/link';
 import SignOutButton from '@/components/SignOutButton';
@@ -65,6 +66,52 @@ interface ProduitDetailResponse {
   data: ProduitDetail;
 }
 
+interface AnomalieStock {
+  id: number;
+  reference: string;
+  produitId: number;
+  type: 'MANQUANT' | 'SURPLUS' | 'DEFECTUEUX';
+  quantite: number;
+  description: string;
+  statut: 'EN_ATTENTE' | 'EN_COURS' | 'TRAITEE' | 'TRANSMISE';
+  produit: { id: number; nom: string; stock: number };
+  magasinier: { id: number; nom: string; prenom: string };
+  traiteur: { id: number; nom: string; prenom: string } | null;
+  commentaire: string | null;
+  createdAt: string;
+}
+
+interface AnomaliesResponse {
+  data: AnomalieStock[];
+  meta: { total: number; page: number; limit: number; totalPages: number };
+}
+
+interface LigneBonSortie {
+  id: number;
+  produitId: number;
+  quantite: number;
+  prixUnit: string;
+  produit: { id: number; nom: string; prixUnitaire: string };
+}
+
+interface BonSortie {
+  id: number;
+  reference: string;
+  type: 'PDV' | 'PERTE' | 'CASSE' | 'DON' | 'COMMANDE_INTERNE';
+  statut: 'EN_COURS' | 'EXPEDIE' | 'RECU' | 'ANNULE';
+  destinataire: string | null;
+  motif: string;
+  notes: string | null;
+  lignes: LigneBonSortie[];
+  magasinier: { id: number; nom: string; prenom: string };
+  createdAt: string;
+}
+
+interface BonsSortieResponse {
+  data: BonSortie[];
+  meta: { total: number; page: number; limit: number; totalPages: number };
+}
+
 type StatutStock = 'EN_STOCK' | 'STOCK_FAIBLE' | 'RUPTURE';
 
 const getStockStatut = (stock: number, alerte: number): StatutStock => {
@@ -111,7 +158,7 @@ export default function MagasinierPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [page, setPage] = useState(1);
-  const [activeTab, setActiveTab] = useState<'inventaire' | 'journal' | 'reception' | 'alertes'>('inventaire');
+  const [activeTab, setActiveTab] = useState<'inventaire' | 'journal' | 'reception' | 'alertes' | 'sorties' | 'anomalies'>('inventaire');
   const [filterStatut, setFilterStatut] = useState<StatutStock | ''>('');
   const [filterType, setFilterType] = useState<'ENTREE' | 'SORTIE' | 'AJUSTEMENT' | ''>('');
   const [journalPage, setJournalPage] = useState(1);
@@ -130,6 +177,26 @@ export default function MagasinierPage() {
   const [recType, setRecType] = useState<'ENTREE' | 'AJUSTEMENT'>('ENTREE');
   const [recQuantite, setRecQuantite] = useState('');
   const [recMotif, setRecMotif] = useState('');
+
+  // Anomalie form state
+  const [anomalieProduitId, setAnomalieProduitId] = useState('');
+  const [anomalieType, setAnomalieType] = useState<'MANQUANT' | 'SURPLUS' | 'DEFECTUEUX'>('MANQUANT');
+  const [anomalieQuantite, setAnomalieQuantite] = useState('');
+  const [anomalieDescription, setAnomalieDescription] = useState('');
+  const [anomalieFilterStatut, setAnomalieFilterStatut] = useState('');
+  const [showAnomalieForm, setShowAnomalieForm] = useState(false);
+
+  // Bon de sortie form state
+  const [showBonSortieForm, setShowBonSortieForm] = useState(false);
+  const [bsType, setBsType] = useState<'PDV' | 'PERTE' | 'CASSE' | 'DON' | 'COMMANDE_INTERNE'>('PDV');
+  const [bsDestinaire, setBsDestinaire] = useState('');
+  const [bsMotif, setBsMotif] = useState('');
+  const [bsNotes, setBsNotes] = useState('');
+  const [bsLignes, setBsLignes] = useState<{ produitId: string; quantite: string }[]>([{ produitId: '', quantite: '' }]);
+  const [bonsSortieFilterStatut, setBonsSortieFilterStatut] = useState('');
+  const [bonsSortiePage, setBonsSortiePage] = useState(1);
+  const [anomaliesPage, setAnomaliesPage] = useState(1);
+  const [selectedBon, setSelectedBon] = useState<BonSortie | null>(null);
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(searchQuery), 400);
