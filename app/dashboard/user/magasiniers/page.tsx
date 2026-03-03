@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Package, Archive, AlertTriangle, TrendingUp, Search, ArrowLeft,
   RefreshCw, Eye, ClipboardList, ArrowUpCircle, ArrowDownCircle,
@@ -185,6 +185,8 @@ export default function MagasinierPage() {
   const [anomalieDescription, setAnomalieDescription] = useState('');
   const [anomalieFilterStatut, setAnomalieFilterStatut] = useState('');
   const [showAnomalieForm, setShowAnomalieForm] = useState(false);
+  // Ref pour update statut anomalie sans re-render
+  const anomalieUpdateIdRef = useRef<number | null>(null);
 
   // Bon de sortie form state
   const [showBonSortieForm, setShowBonSortieForm] = useState(false);
@@ -197,6 +199,8 @@ export default function MagasinierPage() {
   const [bonsSortiePage, setBonsSortiePage] = useState(1);
   const [anomaliesPage, setAnomaliesPage] = useState(1);
   const [selectedBon, setSelectedBon] = useState<BonSortie | null>(null);
+  // Ref pour update statut bon de sortie sans re-render
+  const bonSortieUpdateIdRef = useRef<number | null>(null);
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(searchQuery), 400);
@@ -234,6 +238,44 @@ export default function MagasinierPage() {
     `/api/magasinier/stock/${recProduitId}/ajustement`,
     'POST',
     { successMessage: 'Operation effectuee avec succes' }
+  );
+
+  // Anomalies
+  const anomaliesParams = new URLSearchParams({ page: String(anomaliesPage), limit: '15' });
+  if (anomalieFilterStatut) anomaliesParams.set('statut', anomalieFilterStatut);
+  const { data: anomaliesResponse, loading: anomaliesLoading, refetch: refetchAnomalies } = useApi<AnomaliesResponse>(
+    activeTab === 'anomalies' ? `/api/magasinier/anomalies?${anomaliesParams}` : null
+  );
+
+  const { mutate: submitAnomalie, loading: anomalieLoading } = useMutation<unknown, { produitId: number; type: string; quantite: number; description: string }>(
+    '/api/magasinier/anomalies',
+    'POST',
+    { successMessage: 'Anomalie signalee avec succes' }
+  );
+
+  const { mutate: updateAnomalie } = useMutation<unknown, { statut: string; commentaire?: string }>(
+    () => `/api/magasinier/anomalies/${anomalieUpdateIdRef.current}`,
+    'PATCH',
+    { successMessage: 'Statut de l\'anomalie mis a jour' }
+  );
+
+  const { mutate: updateBonSortie } = useMutation<unknown, { statut: string }>(
+    () => `/api/magasinier/bons-sortie/${bonSortieUpdateIdRef.current}`,
+    'PATCH',
+    { successMessage: 'Statut du bon de sortie mis a jour' }
+  );
+
+  // Bons de sortie
+  const bonsSortieParams = new URLSearchParams({ page: String(bonsSortiePage), limit: '15' });
+  if (bonsSortieFilterStatut) bonsSortieParams.set('statut', bonsSortieFilterStatut);
+  const { data: bonsSortieResponse, loading: bonsSortieLoading, refetch: refetchBonsSortie } = useApi<BonsSortieResponse>(
+    activeTab === 'sorties' ? `/api/magasinier/bons-sortie?${bonsSortieParams}` : null
+  );
+
+  const { mutate: submitBonSortie, loading: bonSortieLoading } = useMutation<{ data: BonSortie }, { type: string; destinataire?: string; motif: string; notes?: string; lignes: { produitId: number; quantite: number }[] }>(
+    '/api/magasinier/bons-sortie',
+    'POST',
+    { successMessage: 'Bon de sortie cree avec succes' }
   );
 
   // Filtrage local par statut stock
@@ -279,6 +321,92 @@ export default function MagasinierPage() {
     }
   };
 
+  const handleSignalerAnomalie = async () => {
+    if (!anomalieProduitId || !anomalieQuantite || !anomalieDescription) return;
+    const result = await submitAnomalie({
+      produitId: Number(anomalieProduitId),
+      type: anomalieType,
+      quantite: Number(anomalieQuantite),
+      description: anomalieDescription,
+    });
+    if (result) {
+      setShowAnomalieForm(false);
+      setAnomalieProduitId('');
+      setAnomalieQuantite('');
+      setAnomalieDescription('');
+      refetchAnomalies();
+    }
+  };
+
+  const handleUpdateAnomalieStatut = async (id: number, statut: string) => {
+    anomalieUpdateIdRef.current = id;
+    const result = await updateAnomalie({ statut });
+    if (result) refetchAnomalies();
+  };
+
+  const handleCreateBonSortie = async () => {
+    const lignesValides = bsLignes.filter(l => l.produitId && l.quantite);
+    if (!bsMotif || lignesValides.length === 0) return;
+    const result = await submitBonSortie({
+      type: bsType,
+      destinataire: bsDestinaire || undefined,
+      motif: bsMotif,
+      notes: bsNotes || undefined,
+      lignes: lignesValides.map(l => ({ produitId: Number(l.produitId), quantite: Number(l.quantite) })),
+    });
+    if (result) {
+      setShowBonSortieForm(false);
+      setBsMotif('');
+      setBsDestinaire('');
+      setBsNotes('');
+      setBsLignes([{ produitId: '', quantite: '' }]);
+      refetchBonsSortie();
+      refetchStock();
+    }
+  };
+
+  const handleUpdateBonStatut = async (id: number, statut: string) => {
+    bonSortieUpdateIdRef.current = id;
+    const result = await updateBonSortie({ statut });
+    if (result) refetchBonsSortie();
+  };
+
+  const handlePrintBon = (bon: BonSortie) => {
+    const total = bon.lignes.reduce((s, l) => s + l.quantite * Number(l.prixUnit), 0);
+    const lignesHtml = bon.lignes.map(l =>
+      `<tr><td>${l.produit.nom}</td><td style="text-align:center">${l.quantite}</td><td style="text-align:right">${Number(l.prixUnit).toLocaleString('fr-FR')} FCFA</td><td style="text-align:right">${(l.quantite * Number(l.prixUnit)).toLocaleString('fr-FR')} FCFA</td></tr>`
+    ).join('');
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Bon de Sortie ${bon.reference}</title>
+    <style>body{font-family:sans-serif;padding:20px;color:#111}h1{font-size:18px;margin-bottom:4px}.meta{color:#555;font-size:13px;margin-bottom:16px}table{width:100%;border-collapse:collapse;margin-top:16px}th,td{border:1px solid #ddd;padding:8px;font-size:13px}th{background:#f3f4f6;font-weight:600}.total{text-align:right;font-weight:bold;margin-top:8px;font-size:14px}.badge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;background:#fef3c7;color:#92400e}</style>
+    </head><body>
+    <h1>Bon de Sortie — ${bon.reference}</h1>
+    <div class="meta">Type : ${bon.type} &nbsp;|&nbsp; Statut : <span class="badge">${bon.statut}</span> &nbsp;|&nbsp; Date : ${new Date(bon.createdAt).toLocaleDateString('fr-FR')}</div>
+    <div class="meta">Motif : ${bon.motif}${bon.destinataire ? ' — Destinataire : ' + bon.destinataire : ''}</div>
+    <table><thead><tr><th>Produit</th><th>Quantite</th><th>Prix unit.</th><th>Sous-total</th></tr></thead>
+    <tbody>${lignesHtml}</tbody></table>
+    <div class="total">Total : ${total.toLocaleString('fr-FR')} FCFA</div>
+    ${bon.notes ? `<p style="margin-top:12px;font-size:12px;color:#555">Notes : ${bon.notes}</p>` : ''}
+    </body></html>`;
+    const w = window.open('', '_blank');
+    if (w) { w.document.write(html); w.document.close(); w.print(); }
+  };
+
+  const handlePrintInventaire = () => {
+    const rows = filteredProduits.map(p =>
+      `<tr><td>${p.nom}</td><td style="text-align:center">${p.stock}</td><td style="text-align:center">${p.alerteStock}</td><td style="text-align:right">${Number(p.prixUnitaire).toLocaleString('fr-FR')} FCFA</td><td style="text-align:right">${(p.stock * Number(p.prixUnitaire)).toLocaleString('fr-FR')} FCFA</td></tr>`
+    ).join('');
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Rapport Inventaire</title>
+    <style>body{font-family:sans-serif;padding:20px;color:#111}h1{font-size:18px;margin-bottom:4px}.meta{color:#555;font-size:13px;margin-bottom:16px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #ddd;padding:8px;font-size:13px}th{background:#f3f4f6;font-weight:600}</style>
+    </head><body>
+    <h1>Rapport d'Inventaire</h1>
+    <div class="meta">Date : ${new Date().toLocaleDateString('fr-FR')} — ${filteredProduits.length} produit(s)</div>
+    <table><thead><tr><th>Produit</th><th>Stock</th><th>Seuil alerte</th><th>Prix unit.</th><th>Valeur</th></tr></thead>
+    <tbody>${rows}</tbody></table>
+    </body></html>`;
+    const w = window.open('', '_blank');
+    if (w) { w.document.write(html); w.document.close(); w.print(); }
+  };
+
   if (stockLoading && !stockResponse) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-orange-50/30 to-amber-50/20 flex items-center justify-center">
@@ -298,10 +426,12 @@ export default function MagasinierPage() {
   ];
 
   const tabs = [
-    { key: 'inventaire' as const, label: 'Inventaire', icon: ClipboardList },
-    { key: 'journal' as const, label: 'Journal', icon: BarChart3 },
-    { key: 'reception' as const, label: 'Reception', icon: Plus },
-    { key: 'alertes' as const, label: 'Alertes', icon: AlertTriangle, badge: (stats?.enRupture ?? 0) + (stats?.stockFaible ?? 0) },
+    { key: 'inventaire'  as const, label: 'Inventaire',  icon: ClipboardList },
+    { key: 'journal'     as const, label: 'Journal',     icon: BarChart3 },
+    { key: 'reception'   as const, label: 'Reception',   icon: Plus },
+    { key: 'sorties'     as const, label: 'Sorties',     icon: Truck },
+    { key: 'anomalies'   as const, label: 'Anomalies',   icon: ShieldAlert },
+    { key: 'alertes'     as const, label: 'Alertes',     icon: AlertTriangle, badge: (stats?.enRupture ?? 0) + (stats?.stockFaible ?? 0) },
   ];
 
   const detailProduit = detailResponse?.data;
@@ -337,10 +467,18 @@ export default function MagasinierPage() {
             <h2 className="text-3xl font-bold text-slate-800 mb-2">Tableau de Bord - Magasinier</h2>
             <p className="text-slate-500">Gerez l&apos;inventaire, suivez les mouvements et receptionnez le stock</p>
           </div>
-          <button onClick={() => { refetchStock(); if (activeTab === 'journal') refetchJournal(); }} className="px-5 py-3 bg-white border border-slate-200 rounded-xl text-slate-700 hover:bg-slate-50 transition-all shadow-sm flex items-center gap-2 font-medium">
-            <RefreshCw size={18} />
-            Actualiser
-          </button>
+          <div className="flex gap-2">
+            {activeTab === 'inventaire' && (
+              <button onClick={handlePrintInventaire} className="px-4 py-3 bg-white border border-slate-200 rounded-xl text-slate-700 hover:bg-slate-50 transition-all shadow-sm flex items-center gap-2 font-medium text-sm">
+                <Printer size={16} />
+                Rapport inventaire
+              </button>
+            )}
+            <button onClick={() => { refetchStock(); if (activeTab === 'journal') refetchJournal(); if (activeTab === 'anomalies') refetchAnomalies(); if (activeTab === 'sorties') refetchBonsSortie(); }} className="px-5 py-3 bg-white border border-slate-200 rounded-xl text-slate-700 hover:bg-slate-50 transition-all shadow-sm flex items-center gap-2 font-medium">
+              <RefreshCw size={18} />
+              Actualiser
+            </button>
+          </div>
         </div>
 
         {/* Stats Cards */}
@@ -788,6 +926,310 @@ export default function MagasinierPage() {
                     );
                   })}
                 </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ================================================================ */}
+        {/* TAB: Bons de Sortie */}
+        {/* ================================================================ */}
+        {activeTab === 'sorties' && (
+          <div className="space-y-6">
+            {/* Bouton créer */}
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-xl font-bold text-slate-800">Bons de Sortie</h3>
+                <p className="text-sm text-slate-500">Gérez les sorties de stock (PDV, pertes, casses, dons)</p>
+              </div>
+              <button
+                onClick={() => setShowBonSortieForm(true)}
+                className="px-5 py-3 bg-orange-600 text-white rounded-xl hover:bg-orange-700 transition-colors font-semibold flex items-center gap-2"
+              >
+                <Plus size={18} />
+                Nouveau bon de sortie
+              </button>
+            </div>
+
+            {/* Formulaire de création */}
+            {showBonSortieForm && (
+              <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <h4 className="font-bold text-slate-800 flex items-center gap-2"><Truck size={18} className="text-orange-600" /> Nouveau Bon de Sortie</h4>
+                  <button onClick={() => setShowBonSortieForm(false)} className="p-2 hover:bg-slate-100 rounded-lg"><X size={18} /></button>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">Type de sortie</label>
+                    <select value={bsType} onChange={e => setBsType(e.target.value as typeof bsType)} className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 bg-slate-50">
+                      <option value="PDV">Vers Point de Vente</option>
+                      <option value="PERTE">Perte</option>
+                      <option value="CASSE">Casse</option>
+                      <option value="DON">Don</option>
+                      <option value="COMMANDE_INTERNE">Commande interne</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">Destinataire {bsType === 'PDV' ? '(obligatoire)' : '(optionnel)'}</label>
+                    <input value={bsDestinaire} onChange={e => setBsDestinaire(e.target.value)} placeholder={bsType === 'PDV' ? 'Nom du point de vente' : 'Bénéficiaire / destination'} className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 bg-slate-50" />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-slate-700 mb-2">Motif (obligatoire)</label>
+                    <input value={bsMotif} onChange={e => setBsMotif(e.target.value)} placeholder="Justification de la sortie" className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 bg-slate-50" />
+                  </div>
+                </div>
+
+                {/* Lignes produits */}
+                <div className="mb-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="text-sm font-medium text-slate-700">Produits</label>
+                    <button onClick={() => setBsLignes([...bsLignes, { produitId: '', quantite: '' }])} className="text-sm text-orange-600 hover:text-orange-700 flex items-center gap-1">
+                      <Plus size={14} /> Ajouter une ligne
+                    </button>
+                  </div>
+                  <div className="space-y-2">
+                    {bsLignes.map((ligne, i) => (
+                      <div key={i} className="flex gap-2 items-center">
+                        <select value={ligne.produitId} onChange={e => { const n = [...bsLignes]; n[i].produitId = e.target.value; setBsLignes(n); }} className="flex-1 px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 bg-slate-50 text-sm">
+                          <option value="">Sélectionner un produit</option>
+                          {produits.map(p => <option key={p.id} value={p.id}>{p.nom} (stock: {p.stock})</option>)}
+                        </select>
+                        <input type="number" min="1" value={ligne.quantite} onChange={e => { const n = [...bsLignes]; n[i].quantite = e.target.value; setBsLignes(n); }} placeholder="Qté" className="w-24 px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 bg-slate-50 text-sm" />
+                        {bsLignes.length > 1 && (
+                          <button onClick={() => setBsLignes(bsLignes.filter((_, j) => j !== i))} className="p-2 text-red-500 hover:bg-red-50 rounded-lg"><Trash2 size={16} /></button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Notes (optionnel)</label>
+                  <textarea value={bsNotes} onChange={e => setBsNotes(e.target.value)} rows={2} placeholder="Informations complémentaires..." className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 bg-slate-50 text-sm resize-none" />
+                </div>
+
+                <div className="flex justify-end gap-3">
+                  <button onClick={() => setShowBonSortieForm(false)} className="px-5 py-3 border border-slate-200 rounded-xl text-slate-700 hover:bg-slate-50 font-medium">Annuler</button>
+                  <button
+                    onClick={handleCreateBonSortie}
+                    disabled={!bsMotif || bsLignes.every(l => !l.produitId) || bonSortieLoading}
+                    className="px-6 py-3 bg-orange-600 text-white rounded-xl hover:bg-orange-700 font-semibold disabled:opacity-50 flex items-center gap-2"
+                  >
+                    {bonSortieLoading ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Send size={16} />}
+                    Émettre le bon
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Filtre statut */}
+            <div className="flex gap-2 flex-wrap">
+              {['', 'EN_COURS', 'EXPEDIE', 'RECU', 'ANNULE'].map(s => (
+                <button key={s} onClick={() => setBonsSortieFilterStatut(s)} className={`px-4 py-2 rounded-xl text-sm font-medium border transition-colors ${bonsSortieFilterStatut === s ? 'bg-orange-600 text-white border-orange-600' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}>
+                  {s === '' ? 'Tous' : s === 'EN_COURS' ? 'En cours' : s === 'EXPEDIE' ? 'Expédié' : s === 'RECU' ? 'Reçu' : 'Annulé'}
+                </button>
+              ))}
+            </div>
+
+            {/* Liste des bons */}
+            {bonsSortieLoading ? (
+              <div className="flex items-center justify-center py-12"><div className="w-8 h-8 border-4 border-orange-200 border-t-orange-600 rounded-full animate-spin" /></div>
+            ) : (bonsSortieResponse?.data.length ?? 0) === 0 ? (
+              <div className="bg-white rounded-2xl p-12 text-center border border-slate-200">
+                <Truck size={40} className="text-slate-300 mx-auto mb-3" />
+                <p className="text-slate-500 font-medium">Aucun bon de sortie</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {bonsSortieResponse!.data.map(bon => {
+                  const statutColors: Record<string, string> = { EN_COURS: 'bg-blue-100 text-blue-700', EXPEDIE: 'bg-amber-100 text-amber-700', RECU: 'bg-emerald-100 text-emerald-700', ANNULE: 'bg-red-100 text-red-700' };
+                  const typeIcons: Record<string, typeof Truck> = { PDV: Truck, PERTE: MinusCircle, CASSE: Trash2, DON: Gift, COMMANDE_INTERNE: ClipboardList };
+                  const TypeIcon = typeIcons[bon.type] ?? Truck;
+                  const total = bon.lignes.reduce((s, l) => s + l.quantite * Number(l.prixUnit), 0);
+                  return (
+                    <div key={bon.id} className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60 hover:shadow-md transition-all">
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-orange-100 rounded-xl flex items-center justify-center">
+                            <TypeIcon size={20} className="text-orange-600" />
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <p className="font-semibold text-slate-800 font-mono text-sm">{bon.reference}</p>
+                              <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${statutColors[bon.statut]}`}>{bon.statut.replace('_', ' ')}</span>
+                            </div>
+                            <p className="text-xs text-slate-500">{bon.type} — {bon.motif}{bon.destinataire ? ` → ${bon.destinataire}` : ''}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-bold text-slate-700">{total.toLocaleString('fr-FR')} FCFA</span>
+                          <button onClick={() => handlePrintBon(bon)} title="Imprimer" className="p-2 hover:bg-slate-100 rounded-lg transition-colors"><Printer size={16} className="text-slate-500" /></button>
+                        </div>
+                      </div>
+                      <div className="mt-3 flex items-center gap-2 flex-wrap">
+                        <span className="text-xs text-slate-500">{bon.lignes.length} produit(s)</span>
+                        <span className="text-xs text-slate-400">|</span>
+                        <span className="text-xs text-slate-500">{new Date(bon.createdAt).toLocaleDateString('fr-FR')}</span>
+                        {bon.statut === 'EN_COURS' && (
+                          <>
+                            <button onClick={() => handleUpdateBonStatut(bon.id, 'EXPEDIE')} className="ml-auto text-xs px-3 py-1.5 bg-amber-100 text-amber-700 rounded-lg hover:bg-amber-200 transition-colors font-medium flex items-center gap-1"><Send size={12} /> Marquer expédié</button>
+                            <button onClick={() => handleUpdateBonStatut(bon.id, 'ANNULE')} className="text-xs px-3 py-1.5 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors font-medium flex items-center gap-1"><XCircle size={12} /> Annuler</button>
+                          </>
+                        )}
+                        {bon.statut === 'EXPEDIE' && (
+                          <button onClick={() => handleUpdateBonStatut(bon.id, 'RECU')} className="ml-auto text-xs px-3 py-1.5 bg-emerald-100 text-emerald-700 rounded-lg hover:bg-emerald-200 transition-colors font-medium flex items-center gap-1"><CheckSquare size={12} /> Marquer reçu</button>
+                        )}
+                      </div>
+                      {/* Lignes détail */}
+                      <div className="mt-3 pt-3 border-t border-slate-100">
+                        <div className="space-y-1">
+                          {bon.lignes.map(l => (
+                            <div key={l.id} className="flex justify-between text-xs text-slate-600">
+                              <span>{l.produit.nom}</span>
+                              <span className="font-medium">× {l.quantite}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Pagination */}
+            {(bonsSortieResponse?.meta.totalPages ?? 0) > 1 && (
+              <div className="flex justify-center gap-2">
+                <button onClick={() => setBonsSortiePage(p => Math.max(1, p - 1))} disabled={bonsSortiePage === 1} className="px-4 py-2 border border-slate-200 rounded-xl text-sm disabled:opacity-40">Précédent</button>
+                <span className="px-4 py-2 text-sm text-slate-600">{bonsSortiePage} / {bonsSortieResponse!.meta.totalPages}</span>
+                <button onClick={() => setBonsSortiePage(p => p + 1)} disabled={bonsSortiePage >= (bonsSortieResponse?.meta.totalPages ?? 1)} className="px-4 py-2 border border-slate-200 rounded-xl text-sm disabled:opacity-40">Suivant</button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ================================================================ */}
+        {/* TAB: Anomalies */}
+        {/* ================================================================ */}
+        {activeTab === 'anomalies' && (
+          <div className="space-y-6">
+            {/* En-tête */}
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-xl font-bold text-slate-800">Anomalies Stock</h3>
+                <p className="text-sm text-slate-500">Signalez et suivez les manquants, surplus et produits défectueux</p>
+              </div>
+              <button onClick={() => setShowAnomalieForm(!showAnomalieForm)} className="px-5 py-3 bg-orange-600 text-white rounded-xl hover:bg-orange-700 transition-colors font-semibold flex items-center gap-2">
+                <Plus size={18} />
+                Signaler une anomalie
+              </button>
+            </div>
+
+            {/* Formulaire */}
+            {showAnomalieForm && (
+              <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h4 className="font-bold text-slate-800 flex items-center gap-2"><ShieldAlert size={18} className="text-orange-600" /> Signaler une anomalie</h4>
+                  <button onClick={() => setShowAnomalieForm(false)} className="p-2 hover:bg-slate-100 rounded-lg"><X size={18} /></button>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">Produit concerné</label>
+                    <select value={anomalieProduitId} onChange={e => setAnomalieProduitId(e.target.value)} className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 bg-slate-50">
+                      <option value="">Sélectionner un produit</option>
+                      {produits.map(p => <option key={p.id} value={p.id}>{p.nom} (stock: {p.stock})</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">Type d&apos;anomalie</label>
+                    <select value={anomalieType} onChange={e => setAnomalieType(e.target.value as typeof anomalieType)} className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 bg-slate-50">
+                      <option value="MANQUANT">Manquant (produit introuvable)</option>
+                      <option value="SURPLUS">Surplus (produit en excédent)</option>
+                      <option value="DEFECTUEUX">Défectueux (produit endommagé)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">Quantité concernée</label>
+                    <input type="number" min="1" value={anomalieQuantite} onChange={e => setAnomalieQuantite(e.target.value)} placeholder="Ex: 5" className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 bg-slate-50" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">Description détaillée</label>
+                    <input value={anomalieDescription} onChange={e => setAnomalieDescription(e.target.value)} placeholder="Décrivez l'anomalie constatée..." className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 bg-slate-50" />
+                  </div>
+                </div>
+                <div className="mt-4 flex justify-end gap-3">
+                  <button onClick={() => setShowAnomalieForm(false)} className="px-5 py-3 border border-slate-200 rounded-xl text-slate-700 hover:bg-slate-50 font-medium">Annuler</button>
+                  <button
+                    onClick={handleSignalerAnomalie}
+                    disabled={!anomalieProduitId || !anomalieQuantite || !anomalieDescription || anomalieLoading}
+                    className="px-6 py-3 bg-orange-600 text-white rounded-xl hover:bg-orange-700 font-semibold disabled:opacity-50 flex items-center gap-2"
+                  >
+                    {anomalieLoading ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Send size={16} />}
+                    Transmettre
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Filtres statut */}
+            <div className="flex gap-2 flex-wrap">
+              {['', 'EN_ATTENTE', 'EN_COURS', 'TRAITEE', 'TRANSMISE'].map(s => (
+                <button key={s} onClick={() => setAnomalieFilterStatut(s)} className={`px-4 py-2 rounded-xl text-sm font-medium border transition-colors ${anomalieFilterStatut === s ? 'bg-orange-600 text-white border-orange-600' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}>
+                  {s === '' ? 'Toutes' : s === 'EN_ATTENTE' ? 'En attente' : s === 'EN_COURS' ? 'En cours' : s === 'TRAITEE' ? 'Traitée' : 'Transmise'}
+                </button>
+              ))}
+            </div>
+
+            {/* Liste */}
+            {anomaliesLoading ? (
+              <div className="flex items-center justify-center py-12"><div className="w-8 h-8 border-4 border-orange-200 border-t-orange-600 rounded-full animate-spin" /></div>
+            ) : (anomaliesResponse?.data.length ?? 0) === 0 ? (
+              <div className="bg-white rounded-2xl p-12 text-center border border-slate-200">
+                <ShieldAlert size={40} className="text-slate-300 mx-auto mb-3" />
+                <p className="text-slate-500 font-medium">Aucune anomalie enregistrée</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {anomaliesResponse!.data.map(anomalie => {
+                  const typeColors: Record<string, string> = { MANQUANT: 'bg-red-100 text-red-700', SURPLUS: 'bg-blue-100 text-blue-700', DEFECTUEUX: 'bg-amber-100 text-amber-700' };
+                  const statutColors: Record<string, string> = { EN_ATTENTE: 'bg-slate-100 text-slate-600', EN_COURS: 'bg-blue-100 text-blue-700', TRAITEE: 'bg-emerald-100 text-emerald-700', TRANSMISE: 'bg-purple-100 text-purple-700' };
+                  return (
+                    <div key={anomalie.id} className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className={`text-xs font-bold px-2 py-1 rounded-full ${typeColors[anomalie.type]}`}>{anomalie.type}</span>
+                            <span className={`text-xs font-semibold px-2 py-1 rounded-full ${statutColors[anomalie.statut]}`}>{anomalie.statut.replace('_', ' ')}</span>
+                            <span className="text-xs font-mono text-slate-400">{anomalie.reference}</span>
+                          </div>
+                          <p className="font-semibold text-slate-800">{anomalie.produit.nom}</p>
+                          <p className="text-sm text-slate-600 mt-1">{anomalie.description}</p>
+                          <p className="text-xs text-slate-400 mt-1">Quantité : {anomalie.quantite} — Signalé le {new Date(anomalie.createdAt).toLocaleDateString('fr-FR')} par {anomalie.magasinier.prenom} {anomalie.magasinier.nom}</p>
+                        </div>
+                        <div className="flex flex-col gap-2 ml-4">
+                          {anomalie.statut === 'EN_ATTENTE' && (
+                            <button onClick={() => handleUpdateAnomalieStatut(anomalie.id, 'EN_COURS')} className="text-xs px-3 py-1.5 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors font-medium flex items-center gap-1 whitespace-nowrap"><Clock size={12} /> Prendre en charge</button>
+                          )}
+                          {anomalie.statut === 'EN_COURS' && (
+                            <>
+                              <button onClick={() => handleUpdateAnomalieStatut(anomalie.id, 'TRANSMISE')} className="text-xs px-3 py-1.5 bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition-colors font-medium flex items-center gap-1 whitespace-nowrap"><Send size={12} /> Transmettre</button>
+                              <button onClick={() => handleUpdateAnomalieStatut(anomalie.id, 'TRAITEE')} className="text-xs px-3 py-1.5 bg-emerald-100 text-emerald-700 rounded-lg hover:bg-emerald-200 transition-colors font-medium flex items-center gap-1 whitespace-nowrap"><CheckSquare size={12} /> Marquer traitée</button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Pagination */}
+            {(anomaliesResponse?.meta.totalPages ?? 0) > 1 && (
+              <div className="flex justify-center gap-2">
+                <button onClick={() => setAnomaliesPage(p => Math.max(1, p - 1))} disabled={anomaliesPage === 1} className="px-4 py-2 border border-slate-200 rounded-xl text-sm disabled:opacity-40">Précédent</button>
+                <span className="px-4 py-2 text-sm text-slate-600">{anomaliesPage} / {anomaliesResponse!.meta.totalPages}</span>
+                <button onClick={() => setAnomaliesPage(p => p + 1)} disabled={anomaliesPage >= (anomaliesResponse?.meta.totalPages ?? 1)} className="px-4 py-2 border border-slate-200 rounded-xl text-sm disabled:opacity-40">Suivant</button>
               </div>
             )}
           </div>

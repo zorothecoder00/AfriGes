@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   Plus, Search, ArrowLeft, Package, Layers, Users, CheckCircle,
   Clock, AlertTriangle, XCircle, ChevronRight, ChevronDown, ChevronUp,
@@ -615,20 +615,20 @@ function TabLivraisons() {
     "/api/admin/packs/receptions?statut=PLANIFIEE&limit=100"
   );
 
+  const cancellingIdRef = useRef<number | null>(null);
   const { mutate: doCancel } = useMutation<ReceptionPack, object>(
-    cancellingId !== null ? `/api/admin/packs/receptions/${cancellingId}` : "",
+    () => `/api/admin/packs/receptions/${cancellingIdRef.current}`,
     "DELETE",
     { successMessage: "Livraison annulée" }
   );
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => {
-    if (cancellingId === null) return;
-    doCancel({}).then((res) => {
-      if (res) { refetchS(); refetchR(); }
-      setCancellingId(null);
-    });
-  }, [cancellingId]);
+  const handleCancel = async (id: number) => {
+    cancellingIdRef.current = id;
+    setCancellingId(id);
+    const res = await doCancel({});
+    if (res) { refetchS(); refetchR(); }
+    setCancellingId(null);
+  };
 
   const planifiees = recData?.receptions ?? [];
   // Souscriptions qui ont déjà une livraison PLANIFIEE en cours
@@ -705,7 +705,7 @@ function TabLivraisons() {
                     </div>
                   </div>
                   <button
-                    onClick={() => setCancellingId(rec.id)}
+                    onClick={() => handleCancel(rec.id)}
                     disabled={cancellingId === rec.id}
                     className="flex items-center gap-2 px-4 py-2 bg-red-50 border border-red-200 text-red-700 rounded-xl hover:bg-red-100 text-sm font-medium transition-all shrink-0 disabled:opacity-50"
                   >
@@ -796,37 +796,34 @@ function TabModeles() {
   const [showCreate, setShowCreate] = useState(false);
   const [editTarget, setEditTarget] = useState<Pack | null>(null);
   const [togglePackId, setTogglePackId] = useState<number | null>(null);
-  const [toggleActif, setToggleActif] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Pack | null>(null);
 
   const { data: packs, loading, refetch } = useApi<Pack[]>("/api/admin/packs");
 
+  const togglePackIdRef = useRef<number | null>(null);
   const { mutate: doToggle } = useMutation(
-    togglePackId !== null ? `/api/admin/packs/${togglePackId}` : "",
+    () => `/api/admin/packs/${togglePackIdRef.current}`,
     "PUT"
   );
 
+  const deleteTargetRef = useRef<Pack | null>(null);
   const { mutate: doDelete, loading: deleting } = useMutation(
-    deleteTarget !== null ? `/api/admin/packs/${deleteTarget.id}` : "",
+    () => `/api/admin/packs/${deleteTargetRef.current?.id}`,
     "DELETE"
   );
 
-  useEffect(() => {
-    if (togglePackId === null) return;
-    doToggle({ actif: toggleActif }).then((res) => {
+  function handleToggle(pack: Pack) {
+    togglePackIdRef.current = pack.id;
+    setTogglePackId(pack.id);
+    doToggle({ actif: !pack.actif }).then((res) => {
       if (res) refetch();
       setTogglePackId(null);
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [togglePackId]);
-
-  function handleToggle(pack: Pack) {
-    setToggleActif(!pack.actif);
-    setTogglePackId(pack.id);
   }
 
   function handleDeleteConfirm() {
     if (!deleteTarget) return;
+    deleteTargetRef.current = deleteTarget;
     doDelete({}).then((res) => {
       if (res) {
         refetch();

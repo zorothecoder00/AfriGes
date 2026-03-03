@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Plus, Search, Download, Package, TrendingUp, AlertTriangle, Archive, Eye, Edit, Trash2, RefreshCw, X, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { useApi, useMutation } from '@/hooks/useApi';
@@ -90,7 +90,8 @@ export default function GestionStockPage() {
 
   // Mutations
   const { mutate: addProduit, loading: adding, error: addError } = useMutation('/api/admin/stock', 'POST', { successMessage: 'Produit ajouté avec succès', errorMessage: 'Erreur lors de l\'ajout du produit' });
-  const { mutate: deleteProduit, loading: deleting } = useMutation(`/api/admin/stock/${deleteId}`, 'DELETE', { successMessage: 'Produit supprimé avec succès' });
+  const deleteIdRef = useRef<number | null>(null);
+  const { mutate: deleteProduit, loading: deleting } = useMutation(() => `/api/admin/stock/${deleteIdRef.current}`, 'DELETE', { successMessage: 'Produit supprimé avec succès' });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -110,6 +111,7 @@ export default function GestionStockPage() {
 
   const handleDelete = async () => {
     if (!deleteId) return;
+    deleteIdRef.current = deleteId;
     const result = await deleteProduit({});
     if (result) {
       setDeleteId(null);

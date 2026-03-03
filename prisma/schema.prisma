@@ -47,6 +47,9 @@ model User {
   anomaliesTraitees       AnomalieStock[]     @relation("AnomaliesTraitees")
   bonsSortieCreés         BonSortie[]         @relation("BonsSortieCreés")
   bonsSortieValidés       BonSortie[]         @relation("BonsSortieValidés")
+  ecrituresComptables     EcritureComptable[]
+  rapprochements          RapprochementBancaire[]
+  declarationsTVA         DeclarationTVA[]
 
   createdAt           DateTime          @default(now())
   updatedAt           DateTime          @updatedAt
@@ -984,4 +987,152 @@ model LigneBonSortie {
 
   bonSortie   BonSortie @relation(fields: [bonSortieId], references: [id], onDelete: Cascade)
   produit     Produit   @relation(fields: [produitId], references: [id])
+}
+
+// ── COMPTABILITÉ SYSCOHADA ───────────────────────────────────────────────────
+
+enum TypeCompte {
+  ACTIF
+  PASSIF
+  CHARGES
+  PRODUITS
+  TRESORERIE
+}
+
+enum NatureCompte {
+  DETAIL        // compte de détail (saisissable)
+  REGROUPEMENT  // compte de regroupement (non saisissable)
+  AUXILIAIRE    // compte de tiers (clients, fournisseurs, employés)
+}
+
+enum SensCompte {
+  DEBITEUR
+  CREDITEUR
+}
+
+enum TypeJournalComptable {
+  CAISSE
+  BANQUE
+  VENTES
+  ACHATS
+  OD        // Opérations Diverses
+  PAIE
+}
+
+enum StatutEcriture {
+  BROUILLON
+  VALIDE
+  CLOTURE
+}
+
+enum StatutRapprochement {
+  EN_COURS
+  VALIDE
+}
+
+enum StatutTVA {
+  BROUILLON
+  VALIDE
+}
+
+model CompteComptable {
+  id             Int           @id @default(autoincrement())
+  numero         String        @unique  // ex: "411", "521", "7011"
+  libelle        String
+  classe         Int           // 1 à 9 (SYSCOHADA)
+  type           TypeCompte
+  nature         NatureCompte  @default(DETAIL)
+  sens           SensCompte    @default(DEBITEUR)
+  actif          Boolean       @default(true)
+  // Hiérarchie
+  compteParentId Int?
+  compteParent   CompteComptable?  @relation("HierarchieComptes", fields: [compteParentId], references: [id])
+  sousComptes    CompteComptable[] @relation("HierarchieComptes")
+  // Tiers (pour comptes auxiliaires)
+  tiersType      String?       // "CLIENT" | "FOURNISSEUR" | "EMPLOYE"
+  tiersNom       String?
+  // Relations
+  lignesEcriture LigneEcriture[]
+
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@index([classe])
+  @@index([type])
+  @@index([nature])
+}
+
+model EcritureComptable {
+  id          Int                  @id @default(autoincrement())
+  reference   String               @unique
+  date        DateTime
+  libelle     String
+  journal     TypeJournalComptable
+  statut      StatutEcriture       @default(BROUILLON)
+  notes       String?
+  // Auteur
+  userId      Int?
+  user        User?                @relation(fields: [userId], references: [id])
+  // Lignes (débit/crédit)
+  lignes      LigneEcriture[]
+
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+
+  @@index([journal])
+  @@index([statut])
+  @@index([date])
+}
+
+model LigneEcriture {
+  id            Int               @id @default(autoincrement())
+  ecritureId    Int
+  ecriture      EcritureComptable @relation(fields: [ecritureId], references: [id], onDelete: Cascade)
+  compteId      Int
+  compte        CompteComptable   @relation(fields: [compteId], references: [id])
+  libelle       String
+  debit         Decimal           @default(0)
+  credit        Decimal           @default(0)
+  // TVA
+  isTva         Boolean           @default(false)
+  tauxTva       Decimal?          // 18 pour 18%
+  montantTva    Decimal?
+
+  @@index([ecritureId])
+  @@index([compteId])
+}
+
+model RapprochementBancaire {
+  id                  Int                 @id @default(autoincrement())
+  periode             String              // format "YYYY-MM"
+  soldeBancaireReel   Decimal
+  soldeComptable      Decimal
+  ecart               Decimal
+  notes               String?
+  statut              StatutRapprochement @default(EN_COURS)
+  userId              Int?
+  user                User?               @relation(fields: [userId], references: [id])
+
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+
+  @@unique([periode])
+  @@index([statut])
+}
+
+model DeclarationTVA {
+  id              Int        @id @default(autoincrement())
+  periode         String     // format "YYYY-MM"
+  tvaCollectee    Decimal    @default(0)  // TVA sur ventes
+  tvaDeductible   Decimal    @default(0)  // TVA sur achats
+  tvaDue          Decimal    @default(0)  // = collectée - déductible
+  statut          StatutTVA  @default(BROUILLON)
+  notes           String?
+  userId          Int?
+  user            User?      @relation(fields: [userId], references: [id])
+
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  @@unique([periode])
 }

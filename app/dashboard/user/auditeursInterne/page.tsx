@@ -6,7 +6,8 @@ import {
   FileText, Package, CreditCard as CreditCardIcon, Users, TrendingUp,
   BarChart3, LucideIcon, ChevronLeft, ChevronRight, Calendar, Truck,
   CheckCircle, XCircle, Clock, Eye, Loader2, Filter, BadgeAlert,
-  ShieldAlert, ShieldCheck,
+  ShieldAlert, ShieldCheck, Download, Layers, ClipboardList, PenLine,
+  AlertOctagon, ArrowUpCircle, ArrowDownCircle, ArrowRightLeft,
 } from "lucide-react";
 import Link from "next/link";
 import SignOutButton from "@/components/SignOutButton";
@@ -14,6 +15,7 @@ import NotificationBell from "@/components/NotificationBell";
 import MessagesLink from "@/components/MessagesLink";
 import { useApi } from "@/hooks/useApi";
 import { formatCurrency, formatDate, formatDateTime } from "@/lib/format";
+import { exportToCsv } from "@/lib/exportCsv";
 
 // ============================================================================
 // TYPES
@@ -157,6 +159,62 @@ interface AuditLogsResponse {
   meta: { total: number; page: number; limit: number; totalPages: number };
 }
 
+interface MouvementStockAudit {
+  id: number;
+  type: "ENTREE" | "SORTIE" | "AJUSTEMENT";
+  quantite: number;
+  motif: string | null;
+  reference: string;
+  dateMouvement: string;
+  produit: { id: number; nom: string };
+}
+interface MouvementsStockResponse {
+  data: MouvementStockAudit[];
+  stats: Record<string, number>;
+  meta: { total: number; page: number; limit: number; totalPages: number };
+}
+
+interface AnomalieStockAudit {
+  id: number;
+  reference: string;
+  type: "MANQUANT" | "SURPLUS" | "DEFECTUEUX";
+  quantite: number;
+  description: string;
+  statut: "EN_ATTENTE" | "EN_COURS" | "TRAITEE" | "TRANSMISE";
+  commentaire: string | null;
+  createdAt: string;
+  produit: { id: number; nom: string; stock: number };
+  magasinier: { id: number; nom: string; prenom: string };
+  traiteur: { id: number; nom: string; prenom: string } | null;
+}
+interface AnomaliesStockResponse {
+  data: AnomalieStockAudit[];
+  meta: { total: number; page: number; limit: number; totalPages: number };
+}
+
+interface LigneBonSortieAudit {
+  id: number;
+  quantite: number;
+  prixUnit: string;
+  produit: { id: number; nom: string };
+}
+interface BonSortieAudit {
+  id: number;
+  reference: string;
+  type: string;
+  statut: string;
+  destinataire: string | null;
+  motif: string;
+  notes: string | null;
+  createdAt: string;
+  magasinier: { id: number; nom: string; prenom: string };
+  lignes: LigneBonSortieAudit[];
+}
+interface BonsSortieResponse {
+  data: BonSortieAudit[];
+  meta: { total: number; page: number; limit: number; totalPages: number };
+}
+
 // ============================================================================
 // HELPERS
 // ============================================================================
@@ -232,7 +290,7 @@ const StatCard = ({
 
 export default function AuditeurInternePage() {
   const [activeTab, setActiveTab] = useState<
-    "overview" | "journal" | "stock" | "finances" | "ventes"
+    "overview" | "journal" | "stock" | "finances" | "ventes" | "mouvements" | "rapports"
   >("overview");
 
   // ── Journal filters ─────────────────────────────────────────────────────────
@@ -266,6 +324,42 @@ export default function AuditeurInternePage() {
 
   const logs = auditResponse?.data ?? [];
   const auditMeta = auditResponse?.meta;
+
+  // ── Mouvements stock ────────────────────────────────────────────────────────
+  const [mouvPage, setMouvPage] = useState(1);
+  const [mouvType, setMouvType] = useState("");
+  const mouvParams = new URLSearchParams({ page: String(mouvPage), limit: "20" });
+  if (mouvType) mouvParams.set("type", mouvType);
+  const { data: mouvResponse, loading: mouvLoading } = useApi<MouvementsStockResponse>(
+    activeTab === "mouvements" ? `/api/auditeur/mouvements-stock?${mouvParams}` : null
+  );
+
+  // ── Anomalies stock ─────────────────────────────────────────────────────────
+  const [anomaliesPage, setAnomaliesPage] = useState(1);
+  const [anomaliesStatut, setAnomaliesStatut] = useState("");
+  const anomaliesParams = new URLSearchParams({ page: String(anomaliesPage), limit: "20" });
+  if (anomaliesStatut) anomaliesParams.set("statut", anomaliesStatut);
+  const { data: anomaliesResponse, loading: anomaliesLoading } = useApi<AnomaliesStockResponse>(
+    activeTab === "mouvements" ? `/api/auditeur/anomalies-stock?${anomaliesParams}` : null
+  );
+
+  // ── Bons de sortie ──────────────────────────────────────────────────────────
+  const [bonsPage, setBonsPage] = useState(1);
+  const [bonsStatut, setBonsStatut] = useState("");
+  const bonsParams = new URLSearchParams({ page: String(bonsPage), limit: "20" });
+  if (bonsStatut) bonsParams.set("statut", bonsStatut);
+  const { data: bonsResponse, loading: bonsLoading } = useApi<BonsSortieResponse>(
+    activeTab === "mouvements" ? `/api/auditeur/bons-sortie?${bonsParams}` : null
+  );
+
+  // ── Sous-onglet dans "mouvements" ───────────────────────────────────────────
+  const [mouvSubTab, setMouvSubTab] = useState<"mouvements" | "anomalies" | "bons">("mouvements");
+
+  // ── Rapport form state ──────────────────────────────────────────────────────
+  const [rapportType, setRapportType] = useState<"AUDIT" | "ANOMALIES" | "RECOMMANDATIONS" | "CONSOLIDE">("AUDIT");
+  const [rapportTitre, setRapportTitre] = useState("");
+  const [rapportContenu, setRapportContenu] = useState("");
+  const [rapportPeriode, setRapportPeriode] = useState("");
 
   const handleRefreshAll = useCallback(() => {
     refetchDashboard();
@@ -317,12 +411,82 @@ export default function AuditeurInternePage() {
     { label: "Gestionnaires Actifs", value: String(d?.stats.gestionnaireActifs ?? 0), icon: Users, color: "text-indigo-500", lightBg: "bg-indigo-50" },
   ];
 
+  // ── Export CSV logs ─────────────────────────────────────────────────────────
+  const handleExportLogs = () => {
+    if (!logs.length) return;
+    exportToCsv(
+      logs.map((l) => ({
+        date: formatDateTime(l.createdAt),
+        utilisateur: l.user ? `${l.user.prenom} ${l.user.nom}` : "Système",
+        email: l.user?.email ?? "",
+        action: l.action,
+        entite: l.entite,
+        entiteId: l.entiteId ?? "",
+      })),
+      [
+        { label: "Date & Heure",  key: "date" },
+        { label: "Utilisateur",   key: "utilisateur" },
+        { label: "Email",         key: "email" },
+        { label: "Action",        key: "action" },
+        { label: "Entité",        key: "entite" },
+        { label: "ID Entité",     key: "entiteId" },
+      ],
+      "journal-audit.csv"
+    );
+  };
+
+  // ── Export CSV mouvements ───────────────────────────────────────────────────
+  const handleExportMouvements = () => {
+    const data = mouvResponse?.data ?? [];
+    if (!data.length) return;
+    exportToCsv(
+      data.map((m) => ({
+        date: formatDateTime(m.dateMouvement),
+        reference: m.reference,
+        type: m.type,
+        produit: m.produit.nom,
+        quantite: m.quantite,
+        motif: m.motif ?? "",
+      })),
+      [
+        { label: "Date",       key: "date" },
+        { label: "Référence",  key: "reference" },
+        { label: "Type",       key: "type" },
+        { label: "Produit",    key: "produit" },
+        { label: "Quantité",   key: "quantite" },
+        { label: "Motif",      key: "motif" },
+      ],
+      "mouvements-stock.csv"
+    );
+  };
+
+  // ── Génération rapport texte ────────────────────────────────────────────────
+  const handleGenerateRapport = () => {
+    const now = new Date().toLocaleDateString("fr-FR");
+    const score = d?.stats.scoreConformite ?? 100;
+    const templates: Record<string, string> = {
+      AUDIT: `RAPPORT D'AUDIT INTERNE\n${"=".repeat(40)}\nDate : ${now}\nPériode : ${rapportPeriode || "Non précisée"}\nTitre : ${rapportTitre || "Rapport d'audit"}\n\nSCORE DE CONFORMITÉ : ${score}/100\nAnomalies détectées : ${d?.stats.anomaliesCount ?? 0}\n\nCONTENU :\n${rapportContenu || "[Saisir le contenu du rapport]"}\n\n--- Généré par AfriGes Audit Interne ---`,
+      ANOMALIES: `RAPPORT D'ANOMALIES DÉTECTÉES\n${"=".repeat(40)}\nDate : ${now}\nPériode : ${rapportPeriode || "Non précisée"}\nTitre : ${rapportTitre || "Rapport d'anomalies"}\n\nANOMALIES IDENTIFIÉES :\n${(d?.anomalies ?? []).map((a, i) => `${i + 1}. [${a.niveau}] ${a.description} (${a.entite})`).join("\n") || "Aucune anomalie détectée."}\n\nOBSERVATIONS :\n${rapportContenu || "[Saisir les observations]"}\n\n--- Généré par AfriGes Audit Interne ---`,
+      RECOMMANDATIONS: `RAPPORT DE RECOMMANDATIONS\n${"=".repeat(40)}\nDate : ${now}\nPériode : ${rapportPeriode || "Non précisée"}\nTitre : ${rapportTitre || "Recommandations"}\n\nRECOMMANDATIONS :\n${rapportContenu || "[Saisir les recommandations]"}\n\n--- Généré par AfriGes Audit Interne ---`,
+      CONSOLIDE: `RAPPORT CONSOLIDÉ\n${"=".repeat(40)}\nDate : ${now}\nPériode : ${rapportPeriode || "Non précisée"}\nTitre : ${rapportTitre || "Rapport consolidé"}\n\nSYNTHÈSE STOCK :\n- Produits : ${d?.stock.totalProduits ?? 0} | Ruptures : ${d?.stock.enRupture ?? 0} | Stock faible : ${d?.stock.stockFaible ?? 0}\n- Valeur totale : ${formatCurrency(d?.stock.valeurTotale ?? 0)}\n\nSYNTHÈSE FINANCES :\n- Souscriptions actives : ${d?.finances.souscriptions.actives ?? 0}\n- Montant versé : ${formatCurrency(d?.finances.souscriptions.montantTotalVerse ?? 0)}\n- Échéances en retard : ${d?.finances.echeancesEnRetard ?? 0}\n\nSYNTHÈSE CAISSE (7j) :\n${(d?.clotureCaisse.historique ?? []).map((c) => `  ${formatDate(c.date)} — ${c.totalVentes} ventes — ${formatCurrency(c.montantTotal)}`).join("\n") || "  Aucune clôture."}\n\nCONTENU LIBRE :\n${rapportContenu || "[Saisir le contenu]"}\n\n--- Généré par AfriGes Audit Interne ---`,
+    };
+    const blob = new Blob([templates[rapportType]], { type: "text/plain;charset=utf-8" });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement("a");
+    a.href = url;
+    a.download = `rapport-${rapportType.toLowerCase()}-${now.replace(/\//g, "-")}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const tabs = [
-    { key: "overview" as const,  label: "Vue Générale",        icon: Shield },
-    { key: "journal"  as const,  label: "Journal d'Audit",     icon: FileText },
-    { key: "stock"    as const,  label: "Stock & Inventaire",  icon: Package },
-    { key: "finances" as const,  label: "Finances & Caisse",   icon: CreditCardIcon },
-    { key: "ventes"   as const,  label: "Ventes & Logistique", icon: Truck },
+    { key: "overview"    as const, label: "Vue Générale",        icon: Shield },
+    { key: "journal"     as const, label: "Journal d'Audit",     icon: FileText },
+    { key: "stock"       as const, label: "Stock & Inventaire",  icon: Package },
+    { key: "finances"    as const, label: "Finances & Caisse",   icon: CreditCardIcon },
+    { key: "ventes"      as const, label: "Ventes & Logistique", icon: Truck },
+    { key: "mouvements"  as const, label: "Mouvements & Sorties", icon: Layers },
+    { key: "rapports"    as const, label: "Rapports",            icon: ClipboardList },
   ];
 
   // ── Render ──────────────────────────────────────────────────────────────────
@@ -601,7 +765,16 @@ export default function AuditeurInternePage() {
                 <p className="text-sm text-slate-600">
                   {auditMeta ? <>{auditMeta.total} entrée(s) trouvée(s)</> : "Chargement…"}
                 </p>
-                {auditLoading && <Loader2 size={16} className="animate-spin text-amber-500" />}
+                <div className="flex items-center gap-3">
+                  {auditLoading && <Loader2 size={16} className="animate-spin text-amber-500" />}
+                  <button
+                    onClick={handleExportLogs}
+                    disabled={!logs.length}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 border border-amber-200 text-amber-700 rounded-lg text-xs font-medium hover:bg-amber-100 disabled:opacity-40 transition-colors"
+                  >
+                    <Download size={13} /> Export CSV
+                  </button>
+                </div>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full">
@@ -1103,6 +1276,334 @@ export default function AuditeurInternePage() {
                   </table>
                 </div>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* ================================================================== */}
+        {/* TAB: Mouvements & Sorties (stock)                                   */}
+        {/* ================================================================== */}
+        {activeTab === "mouvements" && (
+          <div className="space-y-5">
+            {/* Sous-onglets */}
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 p-1.5 flex gap-1">
+              {[
+                { key: "mouvements" as const, label: "Mouvements de stock",  icon: ArrowRightLeft },
+                { key: "anomalies"  as const, label: "Anomalies signalées",  icon: AlertOctagon },
+                { key: "bons"       as const, label: "Bons de sortie",       icon: FileText },
+              ].map((s) => {
+                const Icon = s.icon;
+                return (
+                  <button key={s.key} onClick={() => setMouvSubTab(s.key)}
+                    className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-sm font-semibold transition-all ${mouvSubTab === s.key ? "bg-amber-600 text-white shadow" : "text-slate-600 hover:bg-slate-100"}`}
+                  >
+                    <Icon size={15} /> {s.label}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* ── Mouvements de stock ── */}
+            {mouvSubTab === "mouvements" && (
+              <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 overflow-hidden">
+                <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between flex-wrap gap-3">
+                  <div>
+                    <h3 className="font-bold text-slate-800 flex items-center gap-2"><ArrowRightLeft size={18} className="text-amber-600" />Historique complet des mouvements</h3>
+                    <p className="text-sm text-slate-500 mt-0.5">{mouvResponse?.meta.total ?? 0} enregistrements</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <select value={mouvType} onChange={(e) => { setMouvType(e.target.value); setMouvPage(1); }} className="border border-slate-200 rounded-xl px-3 py-2 text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-amber-500">
+                      <option value="">Tous types</option>
+                      <option value="ENTREE">Entrées</option>
+                      <option value="SORTIE">Sorties</option>
+                      <option value="AJUSTEMENT">Ajustements</option>
+                    </select>
+                    <button onClick={handleExportMouvements} disabled={!(mouvResponse?.data.length)} className="flex items-center gap-1.5 px-3 py-2 bg-amber-50 border border-amber-200 text-amber-700 rounded-xl text-xs font-medium hover:bg-amber-100 disabled:opacity-40">
+                      <Download size={13} /> Export CSV
+                    </button>
+                  </div>
+                </div>
+                {mouvResponse?.stats && (
+                  <div className="px-6 py-3 border-b border-slate-100 flex gap-3 flex-wrap">
+                    {[
+                      { label: "Entrées",     key: "ENTREE",     cls: "bg-emerald-100 text-emerald-700", icon: ArrowUpCircle },
+                      { label: "Sorties",     key: "SORTIE",     cls: "bg-red-100 text-red-700",         icon: ArrowDownCircle },
+                      { label: "Ajustements", key: "AJUSTEMENT", cls: "bg-blue-100 text-blue-700",       icon: ArrowRightLeft },
+                    ].map(({ label, key, cls, icon: Icon }) => (
+                      <span key={key} className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold ${cls}`}>
+                        <Icon size={12} /> {label} : {mouvResponse.stats[key] ?? 0}
+                      </span>
+                    ))}
+                  </div>
+                )}
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-slate-50 border-b border-slate-200">
+                      <tr>
+                        <th className="px-5 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Date</th>
+                        <th className="px-5 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Référence</th>
+                        <th className="px-5 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Type</th>
+                        <th className="px-5 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Produit</th>
+                        <th className="px-5 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Qté</th>
+                        <th className="px-5 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Motif</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {mouvLoading ? (
+                        <tr><td colSpan={6} className="py-10 text-center"><Loader2 className="animate-spin text-amber-500 mx-auto" /></td></tr>
+                      ) : (mouvResponse?.data ?? []).length === 0 ? (
+                        <tr><td colSpan={6} className="py-10 text-center text-slate-400">Aucun mouvement</td></tr>
+                      ) : (mouvResponse?.data ?? []).map((m) => {
+                        const typeCls = m.type === "ENTREE" ? "bg-emerald-100 text-emerald-700" : m.type === "SORTIE" ? "bg-red-100 text-red-700" : "bg-blue-100 text-blue-700";
+                        const TypeIcon = m.type === "ENTREE" ? ArrowUpCircle : m.type === "SORTIE" ? ArrowDownCircle : ArrowRightLeft;
+                        return (
+                          <tr key={m.id} className="hover:bg-slate-50">
+                            <td className="px-5 py-3 text-xs text-slate-500 whitespace-nowrap">{formatDateTime(m.dateMouvement)}</td>
+                            <td className="px-5 py-3 font-mono text-xs text-slate-600">{m.reference}</td>
+                            <td className="px-5 py-3"><span className={`flex items-center gap-1 w-fit px-2 py-0.5 rounded-full text-xs font-bold ${typeCls}`}><TypeIcon size={11} /> {m.type}</span></td>
+                            <td className="px-5 py-3 font-semibold text-slate-800 text-sm">{m.produit.nom}</td>
+                            <td className="px-5 py-3 font-bold text-slate-700">{m.quantite}</td>
+                            <td className="px-5 py-3 text-sm text-slate-500">{m.motif ?? "—"}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+                {(mouvResponse?.meta?.totalPages ?? 0) > 1 && (
+                  <div className="px-6 py-4 border-t border-slate-100 flex items-center justify-between">
+                    <p className="text-sm text-slate-600">Page <b>{mouvPage}</b> / <b>{mouvResponse!.meta.totalPages}</b></p>
+                    <div className="flex gap-2">
+                      <button onClick={() => setMouvPage((p) => Math.max(1, p - 1))} disabled={mouvPage <= 1} className="px-3 py-1.5 border border-slate-200 rounded-lg text-sm disabled:opacity-40 flex items-center gap-1"><ChevronLeft size={14} /> Préc.</button>
+                      <button onClick={() => setMouvPage((p) => Math.min(mouvResponse!.meta.totalPages, p + 1))} disabled={mouvPage >= mouvResponse!.meta.totalPages} className="px-3 py-1.5 border border-slate-200 rounded-lg text-sm disabled:opacity-40 flex items-center gap-1">Suiv. <ChevronRight size={14} /></button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ── Anomalies stock ── */}
+            {mouvSubTab === "anomalies" && (
+              <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 overflow-hidden">
+                <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between flex-wrap gap-3">
+                  <h3 className="font-bold text-slate-800 flex items-center gap-2">
+                    <AlertOctagon size={18} className="text-red-600" />
+                    Anomalies de stock signalées
+                    <span className="text-sm text-slate-500 font-normal">{anomaliesResponse?.meta.total ?? 0} au total</span>
+                  </h3>
+                  <select value={anomaliesStatut} onChange={(e) => { setAnomaliesStatut(e.target.value); setAnomaliesPage(1); }} className="border border-slate-200 rounded-xl px-3 py-2 text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-amber-500">
+                    <option value="">Tous les statuts</option>
+                    <option value="EN_ATTENTE">En attente</option>
+                    <option value="EN_COURS">En cours</option>
+                    <option value="TRAITEE">Traitée</option>
+                    <option value="TRANSMISE">Transmise</option>
+                  </select>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-slate-50 border-b border-slate-200">
+                      <tr>
+                        <th className="px-5 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Référence</th>
+                        <th className="px-5 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Type</th>
+                        <th className="px-5 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Produit</th>
+                        <th className="px-5 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Qté</th>
+                        <th className="px-5 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Magasinier</th>
+                        <th className="px-5 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Statut</th>
+                        <th className="px-5 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Date</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {anomaliesLoading ? (
+                        <tr><td colSpan={7} className="py-10 text-center"><Loader2 className="animate-spin text-amber-500 mx-auto" /></td></tr>
+                      ) : (anomaliesResponse?.data ?? []).length === 0 ? (
+                        <tr><td colSpan={7} className="py-10 text-center text-slate-400">Aucune anomalie</td></tr>
+                      ) : (anomaliesResponse?.data ?? []).map((a) => {
+                        const typeCls = a.type === "MANQUANT" ? "bg-red-100 text-red-700" : a.type === "SURPLUS" ? "bg-blue-100 text-blue-700" : "bg-orange-100 text-orange-700";
+                        const statutCls = a.statut === "TRAITEE" ? "bg-emerald-100 text-emerald-700" : a.statut === "EN_ATTENTE" ? "bg-amber-100 text-amber-700" : a.statut === "TRANSMISE" ? "bg-indigo-100 text-indigo-700" : "bg-blue-100 text-blue-700";
+                        return (
+                          <tr key={a.id} className="hover:bg-slate-50">
+                            <td className="px-5 py-3 font-mono text-xs text-slate-600">{a.reference}</td>
+                            <td className="px-5 py-3"><span className={`px-2 py-0.5 rounded-full text-xs font-bold ${typeCls}`}>{a.type}</span></td>
+                            <td className="px-5 py-3 font-semibold text-slate-800 text-sm">{a.produit.nom}</td>
+                            <td className="px-5 py-3 font-bold text-slate-700">{a.quantite}</td>
+                            <td className="px-5 py-3 text-sm text-slate-600">{a.magasinier.prenom} {a.magasinier.nom}</td>
+                            <td className="px-5 py-3"><span className={`px-2 py-0.5 rounded-full text-xs font-bold ${statutCls}`}>{a.statut.replace("_", " ")}</span></td>
+                            <td className="px-5 py-3 text-xs text-slate-500 whitespace-nowrap">{formatDate(a.createdAt)}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+                {(anomaliesResponse?.meta?.totalPages ?? 0) > 1 && (
+                  <div className="px-6 py-4 border-t border-slate-100 flex items-center justify-between">
+                    <p className="text-sm text-slate-600">Page <b>{anomaliesPage}</b> / <b>{anomaliesResponse!.meta.totalPages}</b></p>
+                    <div className="flex gap-2">
+                      <button onClick={() => setAnomaliesPage((p) => Math.max(1, p - 1))} disabled={anomaliesPage <= 1} className="px-3 py-1.5 border border-slate-200 rounded-lg text-sm disabled:opacity-40 flex items-center gap-1"><ChevronLeft size={14} /> Préc.</button>
+                      <button onClick={() => setAnomaliesPage((p) => Math.min(anomaliesResponse!.meta.totalPages, p + 1))} disabled={anomaliesPage >= anomaliesResponse!.meta.totalPages} className="px-3 py-1.5 border border-slate-200 rounded-lg text-sm disabled:opacity-40 flex items-center gap-1">Suiv. <ChevronRight size={14} /></button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ── Bons de sortie ── */}
+            {mouvSubTab === "bons" && (
+              <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 overflow-hidden">
+                <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between flex-wrap gap-3">
+                  <h3 className="font-bold text-slate-800 flex items-center gap-2">
+                    <FileText size={18} className="text-slate-600" />
+                    Bons de sortie — Rapport complet
+                    <span className="text-sm text-slate-500 font-normal">{bonsResponse?.meta.total ?? 0} au total</span>
+                  </h3>
+                  <select value={bonsStatut} onChange={(e) => { setBonsStatut(e.target.value); setBonsPage(1); }} className="border border-slate-200 rounded-xl px-3 py-2 text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-amber-500">
+                    <option value="">Tous les statuts</option>
+                    <option value="EN_COURS">En cours</option>
+                    <option value="EXPEDIE">Expédié</option>
+                    <option value="RECU">Reçu</option>
+                    <option value="ANNULE">Annulé</option>
+                  </select>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-slate-50 border-b border-slate-200">
+                      <tr>
+                        <th className="px-5 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Référence</th>
+                        <th className="px-5 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Type</th>
+                        <th className="px-5 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Motif</th>
+                        <th className="px-5 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Magasinier</th>
+                        <th className="px-5 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Lignes</th>
+                        <th className="px-5 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Montant</th>
+                        <th className="px-5 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Statut</th>
+                        <th className="px-5 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Date</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {bonsLoading ? (
+                        <tr><td colSpan={8} className="py-10 text-center"><Loader2 className="animate-spin text-amber-500 mx-auto" /></td></tr>
+                      ) : (bonsResponse?.data ?? []).length === 0 ? (
+                        <tr><td colSpan={8} className="py-10 text-center text-slate-400">Aucun bon de sortie</td></tr>
+                      ) : (bonsResponse?.data ?? []).map((b) => {
+                        const total = b.lignes.reduce((s, l) => s + l.quantite * Number(l.prixUnit), 0);
+                        const statutCls = b.statut === "ANNULE" ? "bg-red-100 text-red-700" : b.statut === "RECU" ? "bg-emerald-100 text-emerald-700" : b.statut === "EXPEDIE" ? "bg-blue-100 text-blue-700" : "bg-amber-100 text-amber-700";
+                        return (
+                          <tr key={b.id} className={`hover:bg-slate-50 ${b.statut === "ANNULE" ? "bg-red-50/30" : ""}`}>
+                            <td className="px-5 py-3 font-mono text-xs text-slate-600">{b.reference}</td>
+                            <td className="px-5 py-3"><span className="text-xs bg-slate-100 text-slate-700 px-2 py-0.5 rounded-full font-medium">{b.type}</span></td>
+                            <td className="px-5 py-3 text-sm text-slate-600 max-w-[140px] truncate" title={b.motif}>{b.motif}</td>
+                            <td className="px-5 py-3 text-sm text-slate-600">{b.magasinier.prenom} {b.magasinier.nom}</td>
+                            <td className="px-5 py-3 text-sm text-slate-700">{b.lignes.length}</td>
+                            <td className="px-5 py-3 font-bold text-slate-700 text-sm">{total > 0 ? formatCurrency(total) : "—"}</td>
+                            <td className="px-5 py-3"><span className={`px-2 py-0.5 rounded-full text-xs font-bold ${statutCls}`}>{b.statut.replace("_", " ")}</span></td>
+                            <td className="px-5 py-3 text-xs text-slate-500 whitespace-nowrap">{formatDate(b.createdAt)}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+                {(bonsResponse?.meta?.totalPages ?? 0) > 1 && (
+                  <div className="px-6 py-4 border-t border-slate-100 flex items-center justify-between">
+                    <p className="text-sm text-slate-600">Page <b>{bonsPage}</b> / <b>{bonsResponse!.meta.totalPages}</b></p>
+                    <div className="flex gap-2">
+                      <button onClick={() => setBonsPage((p) => Math.max(1, p - 1))} disabled={bonsPage <= 1} className="px-3 py-1.5 border border-slate-200 rounded-lg text-sm disabled:opacity-40 flex items-center gap-1"><ChevronLeft size={14} /> Préc.</button>
+                      <button onClick={() => setBonsPage((p) => Math.min(bonsResponse!.meta.totalPages, p + 1))} disabled={bonsPage >= bonsResponse!.meta.totalPages} className="px-3 py-1.5 border border-slate-200 rounded-lg text-sm disabled:opacity-40 flex items-center gap-1">Suiv. <ChevronRight size={14} /></button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ================================================================== */}
+        {/* TAB: Rapports d'audit                                               */}
+        {/* ================================================================== */}
+        {activeTab === "rapports" && (
+          <div className="space-y-6">
+            {/* Formulaire de création */}
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 p-6">
+              <h3 className="font-bold text-slate-800 mb-5 flex items-center gap-2">
+                <PenLine size={20} className="text-amber-600" />
+                Créer un rapport d&apos;audit
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Type de rapport</label>
+                  <select value={rapportType} onChange={(e) => setRapportType(e.target.value as typeof rapportType)} className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white">
+                    <option value="AUDIT">Rapport d&apos;audit interne</option>
+                    <option value="ANOMALIES">Rapport d&apos;anomalies détectées</option>
+                    <option value="RECOMMANDATIONS">Rapport de recommandations</option>
+                    <option value="CONSOLIDE">Rapport consolidé (trimestriel / annuel)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Titre du rapport</label>
+                  <input type="text" value={rapportTitre} onChange={(e) => setRapportTitre(e.target.value)} placeholder="Ex : Audit Q1 2026 — Point de vente Nord" className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Période couverte</label>
+                  <input type="text" value={rapportPeriode} onChange={(e) => setRapportPeriode(e.target.value)} placeholder="Ex : Janvier — Mars 2026" className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500" />
+                </div>
+              </div>
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-slate-700 mb-1">Contenu / Observations / Recommandations</label>
+                <textarea rows={8} value={rapportContenu} onChange={(e) => setRapportContenu(e.target.value)} placeholder="Saisir le contenu détaillé du rapport, les observations, les anomalies constatées, les recommandations..." className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 resize-y" />
+              </div>
+              <div className="flex items-center gap-3 flex-wrap">
+                <button onClick={handleGenerateRapport} className="flex items-center gap-2 px-6 py-3 bg-amber-600 text-white rounded-xl hover:bg-amber-700 transition-all shadow-lg shadow-amber-200 font-semibold">
+                  <Download size={18} /> Générer &amp; Télécharger (.txt)
+                </button>
+                <p className="text-xs text-slate-400">Pré-rempli avec les données actuelles du tableau de bord</p>
+              </div>
+            </div>
+
+            {/* Exports disponibles */}
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 p-6">
+              <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
+                <Download size={20} className="text-slate-600" /> Exports CSV disponibles
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {[
+                  { label: "Journal d'audit",      desc: "Tous les logs système",              action: () => setActiveTab("journal"),                                              icon: FileText,       color: "bg-amber-50 border-amber-200 text-amber-700" },
+                  { label: "Mouvements de stock",  desc: "Historique entrées/sorties/ajust.",  action: () => { setActiveTab("mouvements"); setMouvSubTab("mouvements"); },         icon: ArrowRightLeft, color: "bg-blue-50 border-blue-200 text-blue-700" },
+                  { label: "Anomalies de stock",   desc: "Toutes les anomalies signalées",     action: () => { setActiveTab("mouvements"); setMouvSubTab("anomalies"); },          icon: AlertOctagon,   color: "bg-red-50 border-red-200 text-red-700" },
+                  { label: "Bons de sortie",       desc: "Rapport complet des sorties stock",  action: () => { setActiveTab("mouvements"); setMouvSubTab("bons"); },               icon: CheckCircle,    color: "bg-emerald-50 border-emerald-200 text-emerald-700" },
+                ].map((item, i) => {
+                  const Icon = item.icon;
+                  return (
+                    <button key={i} onClick={item.action} className={`flex items-start gap-4 p-4 rounded-xl border text-left hover:opacity-80 transition-opacity ${item.color}`}>
+                      <Icon size={22} className="flex-shrink-0 mt-0.5" />
+                      <div>
+                        <p className="font-semibold text-sm">{item.label}</p>
+                        <p className="text-xs opacity-70 mt-0.5">{item.desc} — cliquer pour aller à l&apos;onglet et exporter</p>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Synthèse auto pour rapport consolidé */}
+            <div className="bg-gradient-to-br from-slate-700 to-slate-800 rounded-2xl p-6 text-white shadow-lg">
+              <h3 className="font-bold mb-4 flex items-center gap-2 text-lg"><BarChart3 size={20} /> Synthèse automatique — données actuelles</h3>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+                {[
+                  { label: "Score conformité", value: `${d?.stats.scoreConformite ?? 100}/100` },
+                  { label: "Anomalies",         value: String(d?.stats.anomaliesCount ?? 0) },
+                  { label: "Logs système",      value: String(d?.stats.totalAuditLogs ?? 0) },
+                  { label: "Gestionnaires",     value: String(d?.stats.gestionnaireActifs ?? 0) },
+                  { label: "Produits stock",    value: String(d?.stock.totalProduits ?? 0) },
+                  { label: "Ruptures stock",    value: String(d?.stock.enRupture ?? 0) },
+                  { label: "Valeur stock",      value: formatCurrency(d?.stock.valeurTotale ?? 0) },
+                  { label: "Éch. en retard",    value: String(d?.finances.echeancesEnRetard ?? 0) },
+                ].map((item, i) => (
+                  <div key={i} className="bg-white/10 rounded-xl p-3">
+                    <p className="text-2xl font-bold">{item.value}</p>
+                    <p className="text-white/60 text-xs mt-1">{item.label}</p>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         )}

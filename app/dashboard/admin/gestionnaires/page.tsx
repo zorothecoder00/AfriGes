@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Plus, Search, Shield, Users, Eye, Edit, CheckCircle, Clock, Mail, Phone, Trash2, X, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { useApi, useMutation } from '@/hooks/useApi';
@@ -74,7 +74,8 @@ export default function GestionnairesPage() {
 
   // Mutations
   const { mutate: addGestionnaire, loading: adding, error: addError } = useMutation('/api/admin/gestionnaires', 'POST', { successMessage: 'Gestionnaire ajouté avec succès' });
-  const { mutate: deleteGestionnaire, loading: deleting } = useMutation(`/api/admin/gestionnaires/${deleteId}`, 'DELETE', { successMessage: 'Gestionnaire supprimé avec succès' });
+  const deleteIdRef = useRef<number | null>(null);
+  const { mutate: deleteGestionnaire, loading: deleting } = useMutation(() => `/api/admin/gestionnaires/${deleteIdRef.current}`, 'DELETE', { successMessage: 'Gestionnaire supprimé avec succès' });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -88,6 +89,7 @@ export default function GestionnairesPage() {
 
   const handleDelete = async () => {
     if (!deleteId) return;
+    deleteIdRef.current = deleteId;
     const result = await deleteGestionnaire({});
     if (result) {
       setDeleteId(null);

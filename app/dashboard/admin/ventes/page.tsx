@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Plus, Search, Download, ShoppingCart, TrendingUp, DollarSign,
   Users, Calendar, CheckCircle, XCircle, ChevronRight, AlertCircle,
@@ -180,12 +180,25 @@ export default function VentesPage() {
   const produits = (produitsResponse?.data ?? []).filter(p => p.stock > 0);
 
   // Mutation planification livraison
+  const souscriptionIdRef = useRef('');
+  souscriptionIdRef.current = formPack.souscriptionId;
   const { mutate: addVente, loading: adding, error: addError } = useMutation(
-    formPack.souscriptionId
-      ? `/api/admin/packs/souscriptions/${formPack.souscriptionId}/livrer`
-      : '',
+    () => souscriptionIdRef.current ? `/api/admin/packs/souscriptions/${souscriptionIdRef.current}/livrer` : '',
     'POST',
     { successMessage: 'Livraison planifiée !' }
+  );
+
+  const confirmingSouscriptionIdRef = useRef<number | null>(null);
+  const { mutate: doConfirmer } = useMutation<unknown, { action: string; receptionId: number }>(
+    () => `/api/admin/packs/souscriptions/${confirmingSouscriptionIdRef.current}/livrer`,
+    'POST'
+  );
+
+  const cancellingIdRef = useRef<number | null>(null);
+  const { mutate: doAnnuler } = useMutation(
+    () => `/api/admin/packs/receptions/${cancellingIdRef.current}`,
+    'DELETE',
+    { successMessage: 'Livraison annulée !' }
   );
 
   // ── Handlers ────────────────────────────────────────────────────────────────
@@ -242,31 +255,20 @@ export default function VentesPage() {
 
   const handleConfirmerLivraison = async (reception: Reception) => {
     if (confirmingId) return;
+    confirmingSouscriptionIdRef.current = reception.souscription.id;
     setConfirmingId(reception.id);
-    try {
-      const res = await fetch(
-        `/api/admin/packs/souscriptions/${reception.souscription.id}/livrer`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'livrer', receptionId: reception.id }),
-        }
-      );
-      if (res.ok) { refetch(); }
-    } finally {
-      setConfirmingId(null);
-    }
+    const res = await doConfirmer({ action: 'livrer', receptionId: reception.id });
+    if (res) { refetch(); }
+    setConfirmingId(null);
   };
 
   const handleAnnulerLivraison = async (receptionId: number) => {
     if (cancellingId) return;
+    cancellingIdRef.current = receptionId;
     setCancellingId(receptionId);
-    try {
-      const res = await fetch(`/api/admin/packs/receptions/${receptionId}`, { method: 'DELETE' });
-      if (res.ok) { refetch(); }
-    } finally {
-      setCancellingId(null);
-    }
+    const res = await doAnnuler({});
+    if (res) { refetch(); }
+    setCancellingId(null);
   };
 
   // ── Loading / Error ──────────────────────────────────────────────────────────

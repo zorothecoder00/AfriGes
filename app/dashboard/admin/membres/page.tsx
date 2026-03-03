@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Search, Filter, Download, Plus, Mail, Eye, Edit, Trash2, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { useApi, useMutation } from '@/hooks/useApi';
@@ -80,10 +80,12 @@ export default function MembresPage() {
   };
 
   // Mutation pour supprimer un membre
-  const { mutate: deleteMember, loading: deletingMember } = useMutation(`/api/admin/membres/${deleteId}`, 'DELETE', { successMessage: 'Membre supprimé avec succès' });
+  const deleteIdRef = useRef<number | null>(null);
+  const { mutate: deleteMember, loading: deletingMember } = useMutation(() => `/api/admin/membres/${deleteIdRef.current}`, 'DELETE', { successMessage: 'Membre supprimé avec succès' });
 
   const handleDelete = async () => {
     if (!deleteId) return;
+    deleteIdRef.current = deleteId;
     const result = await deleteMember({});
     if (result) {
       setDeleteId(null);

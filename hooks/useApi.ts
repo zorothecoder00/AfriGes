@@ -54,7 +54,7 @@ interface UseMutationResult<TData, TBody> {
 }
 
 export function useMutation<TData = unknown, TBody = unknown>(
-  url: string,
+  url: string | (() => string),
   method: "POST" | "PUT" | "PATCH" | "DELETE" = "POST",
   options?: { successMessage?: string; errorMessage?: string }
 ): UseMutationResult<TData, TBody> {
@@ -62,12 +62,20 @@ export function useMutation<TData = unknown, TBody = unknown>(
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Stocke toujours la valeur la plus récente sans déclencher de re-render
+  const urlRef = useRef(url);
+  urlRef.current = url;
+  const optionsRef = useRef(options);
+  optionsRef.current = options;
+
   const mutate = useCallback(
     async (body: TBody): Promise<TData | null> => {
+      const resolvedUrl =
+        typeof urlRef.current === "function" ? urlRef.current() : urlRef.current;
       setLoading(true);
       setError(null);
       try {
-        const res = await fetch(url, {
+        const res = await fetch(resolvedUrl, {
           method,
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(body),
@@ -79,18 +87,18 @@ export function useMutation<TData = unknown, TBody = unknown>(
         const json = await res.json();
         const result = json.data ?? json;
         setData(result);
-        if (options?.successMessage) toast.success(options.successMessage);
+        if (optionsRef.current?.successMessage) toast.success(optionsRef.current.successMessage);
         return result;
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : "Erreur inconnue";
         setError(msg);
-        toast.error(options?.errorMessage ?? msg);
+        toast.error(optionsRef.current?.errorMessage ?? msg);
         return null;
       } finally {
         setLoading(false);
       }
     },
-    [url, method, options?.successMessage, options?.errorMessage]
+    [method] // url et options lus via refs — plus besoin dans les deps
   );
 
   return { mutate, data, loading, error };
