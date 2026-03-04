@@ -277,9 +277,10 @@ export default function ResponsablePDVPage() {
   // Modals
   const [modalProduit,    setModalProduit]    = useState<"create" | "edit" | null>(null);
   const [modalMvt,        setModalMvt]        = useState(false);
-  const [modalLivraison,  setModalLivraison]  = useState<"create" | "detail" | null>(null);
+  const [modalLivraison,  setModalLivraison]  = useState<"create" | "detail" | "valider" | null>(null);
   const [selectedProduit, setSelectedProduit] = useState<Produit | null>(null);
   const [selectedLiv,     setSelectedLiv]     = useState<Livraison | null>(null);
+  const [validerLignes,   setValiderLignes]   = useState<Record<number, string>>({});
 
   // Modals livraisons packs
   const [modalAnnulPack,    setModalAnnulPack]    = useState(false);
