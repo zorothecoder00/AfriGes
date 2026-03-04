@@ -5,7 +5,7 @@ import {
   Truck, Package, ArrowUpCircle, ArrowDownCircle, Search, ArrowLeft,
   RefreshCw, AlertTriangle, Archive, CheckCircle, ClipboardList,
   Boxes, BarChart3, Plus, X, MapPin, ClipboardCheck, Filter,
-  TrendingUp, LucideIcon,
+  TrendingUp, LucideIcon, PlayCircle, ChevronDown, ChevronUp,
 } from "lucide-react";
 import Link from "next/link";
 import SignOutButton from "@/components/SignOutButton";
@@ -184,6 +184,39 @@ export default function LogistiqueApprovisionnementPage() {
   const stats    = stockRes?.stats;
   const meta     = stockRes?.meta;
 
+  // ── Livraisons RPV (démarrer EN_ATTENTE → EN_COURS) ──────────────────────
+  interface LivraisonRpvLigne {
+    id: number; produitId: number; quantitePrevue: number; quantiteRecue: number | null;
+    produit: { id: number; nom: string; stock: number; prixUnitaire: string };
+  }
+  interface LivraisonRpv {
+    id: number; reference: string; type: "RECEPTION" | "EXPEDITION";
+    statut: "EN_ATTENTE" | "EN_COURS" | "LIVREE" | "ANNULEE";
+    datePrevisionnelle: string; dateLivraison: string | null;
+    fournisseurNom: string | null; destinataireNom: string | null; notes: string | null;
+    lignes: LivraisonRpvLigne[];
+  }
+  interface LivraisonsRpvResponse {
+    success: boolean; data: LivraisonRpv[];
+    stats: { enAttente: number; enCours: number };
+  }
+
+  const { data: livraisonsRpvRes, loading: livraisonsRpvLoading, refetch: refetchLivraisonsRpv } =
+    useApi<LivraisonsRpvResponse>("/api/logistique/livraisons-rpv");
+
+  const [demarrantId, setDemarrantId] = useState<number | null>(null);
+  const { mutate: doDemarrer, loading: demarrerLoading } = useMutation<unknown, { id: number; action: string }>(
+    "/api/logistique/livraisons-rpv",
+    "PATCH",
+    { successMessage: "Livraison démarrée — le Magasinier peut maintenant valider la réception." }
+  );
+  const handleDemarrer = async (liv: LivraisonRpv) => {
+    setDemarrantId(liv.id);
+    const r = await doDemarrer({ id: liv.id, action: "demarrer" });
+    if (r) refetchLivraisonsRpv();
+    setDemarrantId(null);
+  };
+
   // ── Livraisons Packs (confirmation) ──────────────────────────────────────
   const { data: livraisonsPackRes, loading: livraisonsPackLoading, refetch: refetchLivraisonsPack } =
     useApi<LivraisonsPackResponse>("/api/logistique/livraisons-packs");
@@ -340,7 +373,19 @@ export default function LogistiqueApprovisionnementPage() {
     refetchStock();
     refetchReceptions();
     refetchAffectations();
-  }, [refetchStock, refetchReceptions, refetchAffectations]);
+    refetchLivraisonsRpv();
+    refetchLivraisonsPack();
+  }, [refetchStock, refetchReceptions, refetchAffectations, refetchLivraisonsRpv, refetchLivraisonsPack]);
+
+  const [expandedRpvId, setExpandedRpvId] = useState<number | null>(null);
+
+  const livraisonsRpv = livraisonsRpvRes?.data ?? [];
+  // Réceptions d'approvisionnement (stock entrant, depuis fournisseurs)
+  const receptionsEnAttente = livraisonsRpv.filter(l => l.statut === "EN_ATTENTE" && l.type === "RECEPTION");
+  const receptionsEnCours   = livraisonsRpv.filter(l => l.statut === "EN_COURS"   && l.type === "RECEPTION");
+  // Livraisons clients (stock sortant, vers clients)
+  const livraisonsEnAttente = livraisonsRpv.filter(l => l.statut === "EN_ATTENTE" && l.type === "EXPEDITION");
+  const livraisonsEnCours   = livraisonsRpv.filter(l => l.statut === "EN_COURS"   && l.type === "EXPEDITION");
 
   const produitsUrgents = produits.filter(p => {
     const s = getStatut(p.stock, p.alerteStock);
@@ -802,6 +847,224 @@ export default function LogistiqueApprovisionnementPage() {
         {/* ══════════════════════════════════════════════════════════════════ */}
         {activeTab === "livraisons" && (
           <div className="space-y-5">
+
+            {/* ── Stats ── */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 flex items-center gap-3">
+                <ArrowUpCircle className="text-emerald-600 w-5 h-5 shrink-0" />
+                <div>
+                  <p className="text-xs text-emerald-700 font-medium">Réceptions en attente</p>
+                  <p className="text-2xl font-bold text-emerald-800">{receptionsEnAttente.length}</p>
+                </div>
+              </div>
+              <div className="bg-teal-50 border border-teal-200 rounded-2xl p-4 flex items-center gap-3">
+                <PlayCircle className="text-teal-600 w-5 h-5 shrink-0" />
+                <div>
+                  <p className="text-xs text-teal-700 font-medium">Réceptions en cours</p>
+                  <p className="text-2xl font-bold text-teal-800">{receptionsEnCours.length}</p>
+                </div>
+              </div>
+              <div className="bg-orange-50 border border-orange-200 rounded-2xl p-4 flex items-center gap-3">
+                <Truck className="text-orange-600 w-5 h-5 shrink-0" />
+                <div>
+                  <p className="text-xs text-orange-700 font-medium">Livraisons en attente</p>
+                  <p className="text-2xl font-bold text-orange-800">{livraisonsEnAttente.length}</p>
+                </div>
+              </div>
+              <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 flex items-center gap-3">
+                <PlayCircle className="text-blue-600 w-5 h-5 shrink-0" />
+                <div>
+                  <p className="text-xs text-blue-700 font-medium">Livraisons en cours</p>
+                  <p className="text-2xl font-bold text-blue-800">{livraisonsEnCours.length}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* ── helper card réutilisable ── */}
+            {/* Section Réceptions d'approvisionnement à démarrer */}
+            <div className="bg-white rounded-2xl shadow-sm border border-emerald-200 overflow-hidden">
+              <div className="px-6 py-4 border-b border-emerald-200 bg-emerald-50 flex items-center gap-2">
+                <ArrowUpCircle size={18} className="text-emerald-600" />
+                <h3 className="font-bold text-slate-800">Réceptions d&apos;approvisionnement — à démarrer</h3>
+                {receptionsEnAttente.length > 0 && (
+                  <span className="bg-emerald-600 text-white text-xs font-bold px-2 py-0.5 rounded-full">
+                    {receptionsEnAttente.length}
+                  </span>
+                )}
+                {livraisonsRpvLoading && <span className="text-xs text-slate-400 ml-auto">Chargement…</span>}
+              </div>
+              {receptionsEnAttente.length === 0 && !livraisonsRpvLoading ? (
+                <div className="p-8 text-center">
+                  <CheckCircle className="w-8 h-8 text-emerald-300 mx-auto mb-2" />
+                  <p className="text-slate-500 text-sm">Aucune réception d&apos;approvisionnement en attente</p>
+                </div>
+              ) : (
+                <div className="divide-y divide-slate-100">
+                  {receptionsEnAttente.map((liv) => (
+                    <div key={liv.id} className="p-5 flex items-start justify-between gap-4">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap mb-1">
+                          <span className="font-mono text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded">{liv.reference}</span>
+                          <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">En attente</span>
+                        </div>
+                        <p className="text-sm font-medium text-slate-700">Fournisseur : {liv.fournisseurNom ?? "Non précisé"}</p>
+                        <p className="text-xs text-slate-400 mt-0.5">Prévu le {formatDate(liv.datePrevisionnelle)} — {liv.lignes.length} produit(s)</p>
+                        <div className="flex flex-wrap gap-1.5 mt-1.5">
+                          {liv.lignes.map(l => (
+                            <span key={l.id} className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-lg">
+                              {l.produit.nom} × {l.quantitePrevue}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => handleDemarrer(liv)}
+                        disabled={demarrerLoading && demarrantId === liv.id}
+                        className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 text-sm font-medium transition-all shadow-md shadow-emerald-200 shrink-0 disabled:opacity-60"
+                      >
+                        {demarrerLoading && demarrantId === liv.id
+                          ? <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Démarrage…</>
+                          : <><PlayCircle size={15} /> Démarrer</>}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Réceptions en cours — attente Magasinier */}
+            {receptionsEnCours.length > 0 && (
+              <div className="bg-white rounded-2xl shadow-sm border border-teal-200 overflow-hidden">
+                <div className="px-6 py-4 border-b border-teal-200 bg-teal-50 flex items-center gap-2">
+                  <ArrowUpCircle size={18} className="text-teal-600" />
+                  <h3 className="font-bold text-slate-800">Réceptions en cours — attente validation Magasinier</h3>
+                  <span className="bg-teal-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">{receptionsEnCours.length}</span>
+                </div>
+                <div className="divide-y divide-slate-100">
+                  {receptionsEnCours.map((liv) => (
+                    <div key={liv.id}>
+                      <div
+                        className="p-5 flex items-start justify-between gap-4 cursor-pointer hover:bg-slate-50"
+                        onClick={() => setExpandedRpvId(expandedRpvId === liv.id ? null : liv.id)}
+                      >
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap mb-1">
+                            <span className="font-mono text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded">{liv.reference}</span>
+                            <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-teal-100 text-teal-700">En cours</span>
+                          </div>
+                          <p className="text-sm text-slate-700">Fournisseur : {liv.fournisseurNom ?? "—"}</p>
+                          <p className="text-xs text-slate-400 mt-0.5">Prévu le {formatDate(liv.datePrevisionnelle)} — en attente de confirmation par le Magasinier</p>
+                        </div>
+                        {expandedRpvId === liv.id ? <ChevronUp size={16} className="text-slate-400 shrink-0" /> : <ChevronDown size={16} className="text-slate-400 shrink-0" />}
+                      </div>
+                      {expandedRpvId === liv.id && (
+                        <div className="px-5 pb-5 border-t border-slate-100">
+                          <div className="flex flex-wrap gap-1.5 mt-3">
+                            {liv.lignes.map(l => (
+                              <span key={l.id} className="text-xs bg-teal-50 text-teal-700 border border-teal-200 px-2 py-1 rounded-lg">
+                                {l.produit.nom} — prévu : {l.quantitePrevue} | stock actuel : {l.produit.stock}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Section Livraisons clients à démarrer */}
+            <div className="bg-white rounded-2xl shadow-sm border border-orange-200 overflow-hidden">
+              <div className="px-6 py-4 border-b border-orange-200 bg-orange-50 flex items-center gap-2">
+                <Truck size={18} className="text-orange-600" />
+                <h3 className="font-bold text-slate-800">Livraisons clients — à démarrer</h3>
+                {livraisonsEnAttente.length > 0 && (
+                  <span className="bg-orange-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">
+                    {livraisonsEnAttente.length}
+                  </span>
+                )}
+              </div>
+              {livraisonsEnAttente.length === 0 && !livraisonsRpvLoading ? (
+                <div className="p-8 text-center">
+                  <CheckCircle className="w-8 h-8 text-emerald-300 mx-auto mb-2" />
+                  <p className="text-slate-500 text-sm">Aucune livraison client en attente</p>
+                </div>
+              ) : (
+                <div className="divide-y divide-slate-100">
+                  {livraisonsEnAttente.map((liv) => (
+                    <div key={liv.id} className="p-5 flex items-start justify-between gap-4">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap mb-1">
+                          <span className="font-mono text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded">{liv.reference}</span>
+                          <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">En attente</span>
+                        </div>
+                        <p className="text-sm font-medium text-slate-700">Destinataire : {liv.destinataireNom ?? "Non précisé"}</p>
+                        <p className="text-xs text-slate-400 mt-0.5">Prévu le {formatDate(liv.datePrevisionnelle)} — {liv.lignes.length} produit(s)</p>
+                        <div className="flex flex-wrap gap-1.5 mt-1.5">
+                          {liv.lignes.map(l => (
+                            <span key={l.id} className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-lg">
+                              {l.produit.nom} × {l.quantitePrevue}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => handleDemarrer(liv)}
+                        disabled={demarrerLoading && demarrantId === liv.id}
+                        className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-xl hover:bg-orange-700 text-sm font-medium transition-all shadow-md shadow-orange-200 shrink-0 disabled:opacity-60"
+                      >
+                        {demarrerLoading && demarrantId === liv.id
+                          ? <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Démarrage…</>
+                          : <><PlayCircle size={15} /> Démarrer</>}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Livraisons clients en cours — attente Magasinier */}
+            {livraisonsEnCours.length > 0 && (
+              <div className="bg-white rounded-2xl shadow-sm border border-blue-200 overflow-hidden">
+                <div className="px-6 py-4 border-b border-blue-200 bg-blue-50 flex items-center gap-2">
+                  <Truck size={18} className="text-blue-600" />
+                  <h3 className="font-bold text-slate-800">Livraisons clients en cours — attente Magasinier</h3>
+                  <span className="bg-blue-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">{livraisonsEnCours.length}</span>
+                </div>
+                <div className="divide-y divide-slate-100">
+                  {livraisonsEnCours.map((liv) => (
+                    <div key={liv.id}>
+                      <div
+                        className="p-5 flex items-start justify-between gap-4 cursor-pointer hover:bg-slate-50"
+                        onClick={() => setExpandedRpvId(expandedRpvId === liv.id ? null : liv.id)}
+                      >
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap mb-1">
+                            <span className="font-mono text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded">{liv.reference}</span>
+                            <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">En cours</span>
+                          </div>
+                          <p className="text-sm text-slate-700">Destinataire : {liv.destinataireNom ?? "—"}</p>
+                          <p className="text-xs text-slate-400 mt-0.5">Prévu le {formatDate(liv.datePrevisionnelle)} — en attente de confirmation par le Magasinier</p>
+                        </div>
+                        {expandedRpvId === liv.id ? <ChevronUp size={16} className="text-slate-400 shrink-0" /> : <ChevronDown size={16} className="text-slate-400 shrink-0" />}
+                      </div>
+                      {expandedRpvId === liv.id && (
+                        <div className="px-5 pb-5 border-t border-slate-100">
+                          <div className="flex flex-wrap gap-1.5 mt-3">
+                            {liv.lignes.map(l => (
+                              <span key={l.id} className="text-xs bg-blue-50 text-blue-700 border border-blue-200 px-2 py-1 rounded-lg">
+                                {l.produit.nom} — prévu : {l.quantitePrevue} | stock actuel : {l.produit.stock}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* ── Livraisons Packs à confirmer ── */}
             <div className="bg-white rounded-2xl shadow-sm border border-amber-200 overflow-hidden">

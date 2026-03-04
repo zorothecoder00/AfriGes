@@ -6,7 +6,7 @@ import {
   RefreshCw, Eye, ClipboardList, ArrowUpCircle, ArrowDownCircle,
   BarChart3, Boxes, LucideIcon, CheckCircle, X, Plus, ArrowRightLeft,
   ChevronDown, ChevronUp, Truck, FileText, Printer, ShieldAlert,
-  Trash2, Gift, MinusCircle, Send, Clock, CheckSquare, XCircle
+  Trash2, Gift, MinusCircle, Send, Clock, CheckSquare, XCircle, PackageCheck
 } from 'lucide-react';
 import Link from 'next/link';
 import SignOutButton from '@/components/SignOutButton';
@@ -158,7 +158,7 @@ export default function MagasinierPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [page, setPage] = useState(1);
-  const [activeTab, setActiveTab] = useState<'inventaire' | 'journal' | 'reception' | 'alertes' | 'sorties' | 'anomalies'>('inventaire');
+  const [activeTab, setActiveTab] = useState<'inventaire' | 'journal' | 'reception' | 'livraisons' | 'alertes' | 'sorties' | 'anomalies'>('inventaire');
   const [filterStatut, setFilterStatut] = useState<StatutStock | ''>('');
   const [filterType, setFilterType] = useState<'ENTREE' | 'SORTIE' | 'AJUSTEMENT' | ''>('');
   const [journalPage, setJournalPage] = useState(1);
@@ -187,6 +187,11 @@ export default function MagasinierPage() {
   const [showAnomalieForm, setShowAnomalieForm] = useState(false);
   // Ref pour update statut anomalie sans re-render
   const anomalieUpdateIdRef = useRef<number | null>(null);
+
+  // Livraisons RPV (validation magasinier)
+  const [validerLivId, setValiderLivId] = useState<number | null>(null);
+  const [validerLignes, setValiderLignes] = useState<Record<number, string>>({});
+  const [expandedLivId, setExpandedLivId] = useState<number | null>(null);
 
   // Bon de sortie form state
   const [showBonSortieForm, setShowBonSortieForm] = useState(false);
@@ -277,6 +282,66 @@ export default function MagasinierPage() {
     'POST',
     { successMessage: 'Bon de sortie cree avec succes' }
   );
+
+  // Livraisons RPV
+  interface LivraisonRpvLigne {
+    id: number; quantitePrevue: number; quantiteRecue: number | null;
+    produit: { id: number; nom: string; stock: number; prixUnitaire: string };
+  }
+  interface LivraisonRpv {
+    id: number; reference: string; type: 'RECEPTION' | 'EXPEDITION';
+    statut: 'EN_ATTENTE' | 'EN_COURS' | 'LIVREE' | 'ANNULEE';
+    datePrevisionnelle: string; dateLivraison: string | null;
+    fournisseurNom: string | null; destinataireNom: string | null; notes: string | null;
+    lignes: LivraisonRpvLigne[];
+  }
+  interface LivraisonsRpvResponse {
+    success: boolean;
+    enCours: LivraisonRpv[];
+    livreesRecentes: LivraisonRpv[];
+    stats: { totalEnCours: number };
+  }
+
+  const { data: livraisonsRpvRes, loading: livraisonsRpvLoading, refetch: refetchLivraisonsRpv } =
+    useApi<LivraisonsRpvResponse>('/api/magasinier/livraisons-rpv');
+
+  const toutesEnCours       = livraisonsRpvRes?.enCours ?? [];
+  const toutesLivrees       = livraisonsRpvRes?.livreesRecentes ?? [];
+  const nbLivraisonsEnCours = livraisonsRpvRes?.stats.totalEnCours ?? 0;
+  // Réceptions d'approvisionnement (stock entrant)
+  const receptionsEnCours   = toutesEnCours.filter(l => l.type === 'RECEPTION');
+  const receptionsLivrees   = toutesLivrees.filter(l => l.type === 'RECEPTION');
+  // Livraisons clients (stock sortant)
+  const livraisonsClEnCours = toutesEnCours.filter(l => l.type === 'EXPEDITION');
+  const livraisonsClLivrees = toutesLivrees.filter(l => l.type === 'EXPEDITION');
+
+  const { mutate: validerLivraison, loading: validerLoading } = useMutation<unknown, { action: string; lignes: { ligneId: number; quantiteRecue: number }[] }>(
+    validerLivId ? `/api/magasinier/livraisons-rpv/${validerLivId}` : '',
+    'PATCH',
+    { successMessage: 'Réception validée — stock mis à jour !' }
+  );
+
+  const openValiderModal = (liv: LivraisonRpv) => {
+    const init: Record<number, string> = {};
+    liv.lignes.forEach(lg => { init[lg.id] = String(lg.quantitePrevue); });
+    setValiderLignes(init);
+    setValiderLivId(liv.id);
+  };
+
+  const handleValiderLivraison = async (liv: LivraisonRpv) => {
+    const lignesPayload = liv.lignes.map(l => ({
+      ligneId: l.id,
+      quantiteRecue: Number(validerLignes[l.id] ?? l.quantitePrevue),
+    }));
+    const r = await validerLivraison({ action: 'valider', lignes: lignesPayload });
+    if (r) {
+      setValiderLivId(null);
+      setValiderLignes({});
+      refetchLivraisonsRpv();
+      refetchStock();
+      if (activeTab === 'journal') refetchJournal();
+    }
+  };
 
   // Filtrage local par statut stock
   const filteredProduits = filterStatut
@@ -429,7 +494,8 @@ export default function MagasinierPage() {
     { key: 'inventaire'  as const, label: 'Inventaire',  icon: ClipboardList },
     { key: 'journal'     as const, label: 'Journal',     icon: BarChart3 },
     { key: 'reception'   as const, label: 'Reception',   icon: Plus },
-    { key: 'sorties'     as const, label: 'Sorties',     icon: Truck },
+    { key: 'livraisons'  as const, label: 'Récep. & Livr.', icon: Truck, badge: nbLivraisonsEnCours },
+    { key: 'sorties'     as const, label: 'Sorties',     icon: Send },
     { key: 'anomalies'   as const, label: 'Anomalies',   icon: ShieldAlert },
     { key: 'alertes'     as const, label: 'Alertes',     icon: AlertTriangle, badge: (stats?.enRupture ?? 0) + (stats?.stockFaible ?? 0) },
   ];
@@ -797,6 +863,376 @@ export default function MagasinierPage() {
                 </>
               )}
             </div>
+          </div>
+        )}
+
+        {/* ================================================================ */}
+        {/* TAB: Réceptions & Livraisons                                      */}
+        {/* ================================================================ */}
+        {activeTab === 'livraisons' && (
+          <div className="space-y-6">
+
+            {/* Modal Valider */}
+            {validerLivId !== null && (() => {
+              const liv = toutesEnCours.find(l => l.id === validerLivId);
+              if (!liv) return null;
+              return (
+                <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 overflow-y-auto">
+                  <div className="bg-white rounded-2xl w-full max-w-lg shadow-xl my-4">
+                    <div className="flex items-center justify-between p-5 border-b border-slate-100">
+                      <div className="flex items-center gap-3">
+                        <div className="bg-emerald-50 p-2.5 rounded-xl">
+                          <CheckCircle className="text-emerald-600 w-5 h-5" />
+                        </div>
+                        <div>
+                          <h2 className="font-bold text-slate-800">
+                            {liv.type === 'RECEPTION' ? 'Confirmer la réception' : 'Confirmer la livraison'}
+                          </h2>
+                          <p className="text-xs text-slate-500">{liv.reference}</p>
+                        </div>
+                      </div>
+                      <button onClick={() => { setValiderLivId(null); setValiderLignes({}); }} className="p-2 text-slate-400 hover:text-slate-600 rounded-lg">
+                        <X size={18} />
+                      </button>
+                    </div>
+                    <div className="p-5 space-y-4">
+                      <p className="text-sm text-slate-600 bg-blue-50 border border-blue-200 rounded-xl p-3">
+                        {liv.type === 'RECEPTION'
+                          ? 'Saisissez les quantités réellement reçues du fournisseur. Le stock sera incrémenté.'
+                          : 'Saisissez les quantités réellement expédiées au client. Le stock sera décrémenté.'}
+                      </p>
+                      <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                        {liv.lignes.map(lg => (
+                          <div key={lg.id} className="flex items-center gap-3 bg-slate-50 rounded-xl px-4 py-2.5">
+                            <div className="flex-1">
+                              <p className="font-medium text-slate-800 text-sm">{lg.produit.nom}</p>
+                              <p className="text-xs text-slate-400">Prévu : {lg.quantitePrevue} | Stock actuel : {lg.produit.stock}</p>
+                            </div>
+                            <div>
+                              <label className="block text-xs text-slate-500 mb-0.5">Reçu</label>
+                              <input
+                                type="number" min="0"
+                                value={validerLignes[lg.id] ?? String(lg.quantitePrevue)}
+                                onChange={e => setValiderLignes(prev => ({ ...prev, [lg.id]: e.target.value }))}
+                                className="w-24 px-2 py-1.5 border border-slate-200 rounded-lg text-sm text-center focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
+                              />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="flex gap-3">
+                        <button
+                          onClick={() => { setValiderLivId(null); setValiderLignes({}); }}
+                          className="flex-1 py-2.5 border border-slate-200 rounded-xl text-slate-600 text-sm hover:bg-slate-50"
+                        >
+                          Annuler
+                        </button>
+                        <button
+                          onClick={() => handleValiderLivraison(liv)}
+                          disabled={validerLoading}
+                          className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-semibold disabled:opacity-50 flex items-center justify-center gap-2"
+                        >
+                          {validerLoading
+                            ? <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Validation…</>
+                            : <><CheckCircle size={15} /> Confirmer la réception</>}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Stats */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 flex items-center gap-3">
+                <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center shrink-0">
+                  <Truck className="text-blue-600 w-5 h-5" />
+                </div>
+                <div>
+                  <p className="text-xs text-blue-700 font-medium">En cours — à valider</p>
+                  <p className="text-2xl font-bold text-blue-800">{nbLivraisonsEnCours}</p>
+                </div>
+              </div>
+              <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 flex items-center gap-3">
+                <div className="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center shrink-0">
+                  <CheckCircle className="text-emerald-600 w-5 h-5" />
+                </div>
+                <div>
+                  <p className="text-xs text-emerald-700 font-medium">Validées (30 derniers jours)</p>
+                  <p className="text-2xl font-bold text-emerald-800">{receptionsLivrees.length + livraisonsClLivrees.length}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Réceptions d'approvisionnement — à confirmer */}
+            <div className="bg-white rounded-2xl shadow-sm border border-emerald-200 overflow-hidden">
+              <div className="px-6 py-4 border-b border-emerald-200 bg-emerald-50 flex items-center gap-2">
+                <PackageCheck size={18} className="text-emerald-600" />
+                <h3 className="font-bold text-slate-800">Réceptions d&apos;approvisionnement — à confirmer</h3>
+                {receptionsEnCours.length > 0 && (
+                  <span className="bg-emerald-600 text-white text-xs font-bold px-2 py-0.5 rounded-full">
+                    {receptionsEnCours.length}
+                  </span>
+                )}
+                {livraisonsRpvLoading && <span className="text-xs text-slate-400 ml-auto">Chargement…</span>}
+              </div>
+              {receptionsEnCours.length === 0 && !livraisonsRpvLoading ? (
+                <div className="p-8 text-center">
+                  <CheckCircle className="w-10 h-10 text-emerald-200 mx-auto mb-3" />
+                  <p className="text-slate-500 text-sm">Aucune réception en attente.</p>
+                  <p className="text-slate-400 text-xs mt-1">Les approvisionnements démarrés par la Logistique apparaîtront ici.</p>
+                </div>
+              ) : (
+                <div className="divide-y divide-slate-100">
+                  {receptionsEnCours.map(liv => (
+                    <div key={liv.id}>
+                      <div
+                        className="p-5 flex items-start justify-between gap-4 cursor-pointer hover:bg-slate-50"
+                        onClick={() => setExpandedLivId(expandedLivId === liv.id ? null : liv.id)}
+                      >
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap mb-1">
+                            <span className="font-mono text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded">
+                              {liv.reference}
+                            </span>
+                            <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
+                              Réception
+                            </span>
+                            <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">
+                              En cours
+                            </span>
+                          </div>
+                          <p className="text-sm text-slate-700">{liv.fournisseurNom ?? 'Fournisseur non précisé'}</p>
+                          <p className="text-xs text-slate-400 mt-0.5">
+                            Prévu le {formatDate(liv.datePrevisionnelle)} — {liv.lignes.length} produit(s)
+                          </p>
+                          {expandedLivId !== liv.id && (
+                            <div className="flex flex-wrap gap-1.5 mt-1.5">
+                              {liv.lignes.slice(0, 3).map(l => (
+                                <span key={l.id} className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-lg">
+                                  {l.produit.nom} × {l.quantitePrevue}
+                                </span>
+                              ))}
+                              {liv.lignes.length > 3 && (
+                                <span className="text-xs text-slate-400">+{liv.lignes.length - 3} autres</span>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <button
+                            onClick={e => { e.stopPropagation(); openValiderModal(liv); }}
+                            className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 text-sm font-medium transition-all shadow-md shadow-emerald-200"
+                          >
+                            <CheckCircle size={14} /> Confirmer
+                          </button>
+                          {expandedLivId === liv.id ? <ChevronUp size={16} className="text-slate-400" /> : <ChevronDown size={16} className="text-slate-400" />}
+                        </div>
+                      </div>
+                      {expandedLivId === liv.id && (
+                        <div className="px-5 pb-5 border-t border-slate-100">
+                          <div className="mt-3 space-y-2">
+                            {liv.lignes.map(l => (
+                              <div key={l.id} className="flex items-center justify-between bg-slate-50 rounded-xl px-4 py-2.5">
+                                <div>
+                                  <p className="font-medium text-slate-800 text-sm">{l.produit.nom}</p>
+                                  <p className="text-xs text-slate-400">Prévu : {l.quantitePrevue}</p>
+                                </div>
+                                <div className="text-right">
+                                  <p className="text-xs text-slate-500">Stock actuel</p>
+                                  <p className="font-bold text-slate-700">{l.produit.stock}</p>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                          {liv.notes && (
+                            <p className="mt-3 text-xs text-slate-500 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                              Notes : {liv.notes}
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Livraisons clients — à confirmer */}
+            <div className="bg-white rounded-2xl shadow-sm border border-orange-200 overflow-hidden">
+              <div className="px-6 py-4 border-b border-orange-200 bg-orange-50 flex items-center gap-2">
+                <Truck size={18} className="text-orange-600" />
+                <h3 className="font-bold text-slate-800">Livraisons clients — à confirmer</h3>
+                {livraisonsClEnCours.length > 0 && (
+                  <span className="bg-orange-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">
+                    {livraisonsClEnCours.length}
+                  </span>
+                )}
+              </div>
+              {livraisonsClEnCours.length === 0 && !livraisonsRpvLoading ? (
+                <div className="p-8 text-center">
+                  <Truck className="w-10 h-10 text-orange-200 mx-auto mb-3" />
+                  <p className="text-slate-500 text-sm">Aucune livraison client en cours.</p>
+                  <p className="text-slate-400 text-xs mt-1">Les livraisons démarrées par la Logistique apparaîtront ici.</p>
+                </div>
+              ) : (
+                <div className="divide-y divide-slate-100">
+                  {livraisonsClEnCours.map(liv => (
+                    <div key={liv.id}>
+                      <div
+                        className="p-5 flex items-start justify-between gap-4 cursor-pointer hover:bg-slate-50"
+                        onClick={() => setExpandedLivId(expandedLivId === liv.id ? null : liv.id)}
+                      >
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap mb-1">
+                            <span className="font-mono text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded">
+                              {liv.reference}
+                            </span>
+                            <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-orange-100 text-orange-700">
+                              Livraison client
+                            </span>
+                            <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">
+                              En cours
+                            </span>
+                          </div>
+                          <p className="text-sm text-slate-700">{liv.destinataireNom ?? 'Destinataire non précisé'}</p>
+                          <p className="text-xs text-slate-400 mt-0.5">
+                            Prévu le {formatDate(liv.datePrevisionnelle)} — {liv.lignes.length} produit(s)
+                          </p>
+                          {expandedLivId !== liv.id && (
+                            <div className="flex flex-wrap gap-1.5 mt-1.5">
+                              {liv.lignes.slice(0, 3).map(l => (
+                                <span key={l.id} className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-lg">
+                                  {l.produit.nom} × {l.quantitePrevue}
+                                </span>
+                              ))}
+                              {liv.lignes.length > 3 && (
+                                <span className="text-xs text-slate-400">+{liv.lignes.length - 3} autres</span>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <button
+                            onClick={e => { e.stopPropagation(); openValiderModal(liv); }}
+                            className="flex items-center gap-1.5 px-4 py-2 bg-orange-500 text-white rounded-xl hover:bg-orange-600 text-sm font-medium transition-all shadow-md shadow-orange-200"
+                          >
+                            <CheckCircle size={14} /> Confirmer
+                          </button>
+                          {expandedLivId === liv.id ? <ChevronUp size={16} className="text-slate-400" /> : <ChevronDown size={16} className="text-slate-400" />}
+                        </div>
+                      </div>
+                      {expandedLivId === liv.id && (
+                        <div className="px-5 pb-5 border-t border-slate-100">
+                          <div className="mt-3 space-y-2">
+                            {liv.lignes.map(l => (
+                              <div key={l.id} className="flex items-center justify-between bg-slate-50 rounded-xl px-4 py-2.5">
+                                <div>
+                                  <p className="font-medium text-slate-800 text-sm">{l.produit.nom}</p>
+                                  <p className="text-xs text-slate-400">Prévu : {l.quantitePrevue}</p>
+                                </div>
+                                <div className="text-right">
+                                  <p className="text-xs text-slate-500">Stock actuel</p>
+                                  <p className="font-bold text-slate-700">{l.produit.stock}</p>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                          {liv.notes && (
+                            <p className="mt-3 text-xs text-slate-500 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                              Notes : {liv.notes}
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Historique — Réceptions récentes */}
+            {receptionsLivrees.length > 0 && (
+              <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 overflow-hidden">
+                <div className="px-6 py-4 border-b border-slate-200 bg-slate-50 flex items-center gap-2">
+                  <CheckCircle size={18} className="text-emerald-600" />
+                  <h3 className="font-bold text-slate-800">Réceptions d&apos;approvisionnement récentes (30j)</h3>
+                  <span className="bg-emerald-100 text-emerald-700 text-xs font-bold px-2 py-0.5 rounded-full">
+                    {receptionsLivrees.length}
+                  </span>
+                </div>
+                <div className="divide-y divide-slate-100">
+                  {receptionsLivrees.map(liv => (
+                    <div key={liv.id} className="p-5 opacity-80">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap mb-1">
+                            <span className="font-mono text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded">
+                              {liv.reference}
+                            </span>
+                            <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">Réception</span>
+                            <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600">Confirmée</span>
+                          </div>
+                          <p className="text-sm text-slate-600">{liv.fournisseurNom ?? '—'}</p>
+                          <p className="text-xs text-slate-400 mt-0.5">
+                            Confirmée le {liv.dateLivraison ? formatDate(liv.dateLivraison) : '—'} — {liv.lignes.length} produit(s)
+                          </p>
+                          <div className="flex flex-wrap gap-1.5 mt-1.5">
+                            {liv.lignes.map(l => (
+                              <span key={l.id} className="text-xs bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-lg">
+                                {l.produit.nom} × {l.quantiteRecue ?? l.quantitePrevue}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Historique — Livraisons clients récentes */}
+            {livraisonsClLivrees.length > 0 && (
+              <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 overflow-hidden">
+                <div className="px-6 py-4 border-b border-slate-200 bg-slate-50 flex items-center gap-2">
+                  <Truck size={18} className="text-orange-500" />
+                  <h3 className="font-bold text-slate-800">Livraisons clients récentes (30j)</h3>
+                  <span className="bg-orange-100 text-orange-700 text-xs font-bold px-2 py-0.5 rounded-full">
+                    {livraisonsClLivrees.length}
+                  </span>
+                </div>
+                <div className="divide-y divide-slate-100">
+                  {livraisonsClLivrees.map(liv => (
+                    <div key={liv.id} className="p-5 opacity-80">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap mb-1">
+                            <span className="font-mono text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded">
+                              {liv.reference}
+                            </span>
+                            <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-orange-100 text-orange-700">Livraison client</span>
+                            <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600">Confirmée</span>
+                          </div>
+                          <p className="text-sm text-slate-600">{liv.destinataireNom ?? '—'}</p>
+                          <p className="text-xs text-slate-400 mt-0.5">
+                            Confirmée le {liv.dateLivraison ? formatDate(liv.dateLivraison) : '—'} — {liv.lignes.length} produit(s)
+                          </p>
+                          <div className="flex flex-wrap gap-1.5 mt-1.5">
+                            {liv.lignes.map(l => (
+                              <span key={l.id} className="text-xs bg-orange-50 text-orange-700 px-2 py-0.5 rounded-lg">
+                                {l.produit.nom} × {l.quantiteRecue ?? l.quantitePrevue}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
