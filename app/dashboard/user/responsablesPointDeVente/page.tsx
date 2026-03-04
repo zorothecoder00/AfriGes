@@ -277,10 +277,9 @@ export default function ResponsablePDVPage() {
   // Modals
   const [modalProduit,    setModalProduit]    = useState<"create" | "edit" | null>(null);
   const [modalMvt,        setModalMvt]        = useState(false);
-  const [modalLivraison,  setModalLivraison]  = useState<"create" | "detail" | "valider" | null>(null);
+  const [modalLivraison,  setModalLivraison]  = useState<"create" | "detail" | null>(null);
   const [selectedProduit, setSelectedProduit] = useState<Produit | null>(null);
   const [selectedLiv,     setSelectedLiv]     = useState<Livraison | null>(null);
-  const [validerLignes,   setValiderLignes]   = useState<Record<number, string>>({});
 
   // Modals livraisons packs
   const [modalAnnulPack,    setModalAnnulPack]    = useState(false);
@@ -592,13 +591,6 @@ export default function ResponsablePDVPage() {
     setModalLivraison("create");
   };
   const openDetailLiv = (l: Livraison) => { setSelectedLiv(l); setModalLivraison("detail"); };
-  const openValiderLiv = (l: Livraison) => {
-    setSelectedLiv(l);
-    const init: Record<number, string> = {};
-    l.lignes.forEach((lg) => { init[lg.id] = String(lg.quantitePrevue); });
-    setValiderLignes(init);
-    setModalLivraison("valider");
-  };
 
   const handleSaveLiv = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -620,16 +612,6 @@ export default function ResponsablePDVPage() {
     setSelectedLiv(l);
     const r = await patchLiv({ action });
     if (r) { refetchLiv(); refetchDash(); }
-  };
-
-  const handleValiderLiv = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedLiv) return;
-    const lignesPayload = selectedLiv.lignes.map((l) => ({
-      ligneId: l.id, quantiteRecue: Number(validerLignes[l.id] ?? l.quantitePrevue),
-    }));
-    const r = await patchLiv({ action: "valider", lignes: lignesPayload });
-    if (r) { setModalLivraison(null); refetchLiv(); refetchProduits(); refetchDash(); }
   };
 
   // ============================================================================
@@ -914,12 +896,6 @@ export default function ResponsablePDVPage() {
                     <PlayCircle size={15} />Démarrer
                   </button>
                 )}
-                {selectedLiv.statut === "EN_COURS" && (
-                  <button onClick={() => openValiderLiv(selectedLiv)}
-                    className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-semibold flex items-center justify-center gap-2">
-                    <CheckCircle size={15} />Valider réception
-                  </button>
-                )}
                 {["EN_ATTENTE", "EN_COURS"].includes(selectedLiv.statut) && (
                   <button onClick={() => { setModalLivraison(null); handleActionLiv("annuler", selectedLiv); }}
                     className="py-2.5 px-4 border border-red-200 bg-red-50 hover:bg-red-100 text-red-600 rounded-xl text-sm font-medium flex items-center gap-1.5">
@@ -932,52 +908,6 @@ export default function ResponsablePDVPage() {
         </div>
       )}
 
-      {/* ── Modal Valider livraison ── */}
-      {modalLivraison === "valider" && selectedLiv && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl w-full max-w-lg shadow-xl my-4">
-            <div className="flex items-center justify-between p-5 border-b border-slate-100">
-              <div className="flex items-center gap-3">
-                <div className="bg-emerald-50 p-2.5 rounded-xl"><CheckCircle className="text-emerald-600 w-5 h-5" /></div>
-                <div>
-                  <h2 className="font-bold text-slate-800">Valider la réception</h2>
-                  <p className="text-xs text-slate-500">{selectedLiv.reference}</p>
-                </div>
-              </div>
-              <button onClick={() => setModalLivraison(null)} className="p-2 text-slate-400 hover:text-slate-600 rounded-lg"><X size={18} /></button>
-            </div>
-            <form onSubmit={handleValiderLiv} className="p-5 space-y-4">
-              <p className="text-sm text-slate-600 bg-blue-50 border border-blue-200 rounded-xl p-3 flex items-center gap-2">
-                <Info size={15} className="text-blue-500 shrink-0" />
-                Saisissez les quantités réellement reçues. Le stock sera mis à jour automatiquement.
-              </p>
-              <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
-                {selectedLiv.lignes.map((lg) => (
-                  <div key={lg.id} className="flex items-center gap-3 bg-slate-50 rounded-xl px-4 py-2.5">
-                    <div className="flex-1">
-                      <p className="font-medium text-slate-800 text-sm">{lg.produit.nom}</p>
-                      <p className="text-xs text-slate-400">Prévu : {lg.quantitePrevue}</p>
-                    </div>
-                    <div>
-                      <label className="block text-xs text-slate-500 mb-0.5">Reçu *</label>
-                      <input required type="number" min="0"
-                        value={validerLignes[lg.id] ?? String(lg.quantitePrevue)}
-                        onChange={(e) => setValiderLignes({ ...validerLignes, [lg.id]: e.target.value })}
-                        className="w-24 px-2 py-1.5 border border-slate-200 rounded-lg text-sm text-center focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white" />
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <div className="flex gap-3">
-                <button type="button" onClick={() => setModalLivraison(null)} className="flex-1 py-2.5 border border-slate-200 rounded-xl text-slate-600 text-sm hover:bg-slate-50">Annuler</button>
-                <button type="submit" disabled={patchingLiv} className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-semibold disabled:opacity-50 flex items-center justify-center gap-2">
-                  {patchingLiv ? <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />Validation...</> : <><CheckCircle size={15} />Confirmer</>}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
 
       {/* ── Modal Annulation livraison pack (justification obligatoire) ── */}
       {modalAnnulPack && selectedRecPack && (
@@ -1809,9 +1739,6 @@ export default function ResponsablePDVPage() {
                               <button onClick={() => openDetailLiv(l)} className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg" title="Détail"><Eye size={14} /></button>
                               {l.statut === "EN_ATTENTE" && (
                                 <button onClick={() => handleActionLiv("demarrer", l)} className="p-1.5 text-blue-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg" title="Démarrer"><PlayCircle size={14} /></button>
-                              )}
-                              {l.statut === "EN_COURS" && (
-                                <button onClick={() => openValiderLiv(l)} className="p-1.5 text-emerald-500 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg" title="Valider"><CheckCircle size={14} /></button>
                               )}
                               {["EN_ATTENTE", "EN_COURS"].includes(l.statut) && (
                                 <button onClick={() => handleActionLiv("annuler", l)} className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg" title="Annuler"><XCircle size={14} /></button>
