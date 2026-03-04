@@ -3,6 +3,10 @@
     {
       "path": "/api/cron/expirations?secret=${CRON_SECRET}",
       "schedule": "0 2 * * *"
+    },
+    {
+      "path": "/api/cron/fermeture-caisse?secret=${CRON_SECRET}",
+      "schedule": "5 0 * * *"
     }
   ]
 }

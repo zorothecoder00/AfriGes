@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
-import { Prisma, PrioriteNotification } from "@prisma/client";
+import { PrioriteNotification } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getRPVSession } from "@/lib/authRPV";
-import { randomUUID } from "crypto";
 import { notifyRoles, auditLog } from "@/lib/notifications";
 
 type Ctx = { params: Promise<{ id: string }> };
@@ -39,11 +38,11 @@ export async function GET(_req: Request, { params }: Ctx) {
 /**
  * PATCH /api/rpv/livraisons/[id]
  *
- * Gère toutes les transitions de statut :
- *  - { action: "demarrer" }          EN_ATTENTE → EN_COURS
- *  - { action: "annuler" }           EN_ATTENTE|EN_COURS → ANNULEE
- *  - { action: "valider", lignes: [{ ligneId, quantiteRecue }] }
- *      EN_COURS → LIVREE + crée les MouvementStock
+ * Seule action RPV autorisée :
+ *  - { action: "annuler" }  EN_ATTENTE → ANNULEE
+ *
+ * Les actions demarrer (EN_ATTENTE→EN_COURS) et valider (EN_COURS→LIVREE)
+ * sont réservées respectivement à l'Agent Logistique et au Magasinier.
  */
 export async function PATCH(req: Request, { params }: Ctx) {
   try {
@@ -59,37 +58,12 @@ export async function PATCH(req: Request, { params }: Ctx) {
     if (!livraison) return NextResponse.json({ message: "Livraison introuvable" }, { status: 404 });
 
     const body   = await req.json();
-    const action = body.action as "demarrer" | "annuler" | "valider";
+    const action = body.action as string;
 
-    // ── Démarrer ──────────────────────────────────────────────────────────
-    if (action === "demarrer") {
-      if (livraison.statut !== "EN_ATTENTE")
-        return NextResponse.json({ message: "Seule une livraison EN_ATTENTE peut être démarrée" }, { status: 400 });
-
-      const updated = await prisma.$transaction(async (tx) => {
-        const u = await tx.livraison.update({ where: { id }, data: { statut: "EN_COURS" } });
-
-        await auditLog(tx, parseInt(session.user.id), "LIVRAISON_DEMARREE_RPV", "Livraison", id);
-
-        await notifyRoles(
-          tx,
-          ["MAGAZINIER", "AGENT_LOGISTIQUE_APPROVISIONNEMENT"],
-          {
-            titre:    `Livraison démarrée — ${livraison.reference}`,
-            message:  `${session.user.name ?? "RPV"} a démarré la livraison ${livraison.reference} (${livraison.type === "RECEPTION" ? "réception" : "expédition"}). Elle est maintenant EN COURS.`,
-            priorite: PrioriteNotification.NORMAL,
-            actionUrl: `/dashboard/user/responsablesPointDeVente`,
-          }
-        );
-        return u;
-      });
-      return NextResponse.json({ success: true, message: "Livraison démarrée", data: { ...updated, datePrevisionnelle: updated.datePrevisionnelle.toISOString() } });
-    }
-
-    // ── Annuler ───────────────────────────────────────────────────────────
+    // ── Annuler (uniquement EN_ATTENTE) ───────────────────────────────────
     if (action === "annuler") {
-      if (!["EN_ATTENTE", "EN_COURS"].includes(livraison.statut))
-        return NextResponse.json({ message: "Cette livraison ne peut pas être annulée" }, { status: 400 });
+      if (livraison.statut !== "EN_ATTENTE")
+        return NextResponse.json({ message: "Seule une livraison EN_ATTENTE peut être annulée par le RPV" }, { status: 400 });
 
       const updated = await prisma.$transaction(async (tx) => {
         const u = await tx.livraison.update({ where: { id }, data: { statut: "ANNULEE" } });
@@ -101,9 +75,9 @@ export async function PATCH(req: Request, { params }: Ctx) {
           ["MAGAZINIER", "AGENT_LOGISTIQUE_APPROVISIONNEMENT"],
           {
             titre:    `Livraison annulée — ${livraison.reference}`,
-            message:  `${session.user.name ?? "RPV"} a annulé la livraison ${livraison.reference} (${livraison.type === "RECEPTION" ? "réception" : "expédition"}, statut précédent : ${livraison.statut}).`,
+            message:  `${session.user.name ?? "RPV"} a annulé la livraison ${livraison.reference} (${livraison.type === "RECEPTION" ? "réception" : "expédition"}).`,
             priorite: PrioriteNotification.HAUTE,
-            actionUrl: `/dashboard/user/responsablesPointDeVente`,
+            actionUrl: `/dashboard/user/logistiquesApprovisionnements`,
           }
         );
         return u;
@@ -111,107 +85,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
       return NextResponse.json({ success: true, message: "Livraison annulée", data: { ...updated, datePrevisionnelle: updated.datePrevisionnelle.toISOString() } });
     }
 
-    // ── Valider (réception ou expédition) ─────────────────────────────────
-    if (action === "valider") {
-      if (livraison.statut !== "EN_COURS")
-        return NextResponse.json({ message: "Seule une livraison EN_COURS peut être validée" }, { status: 400 });
-
-      const lignesRecues: { ligneId: number; quantiteRecue: number }[] = body.lignes ?? [];
-      if (!lignesRecues.length) {
-        // Accepter avec quantitePrevue si lignes non fournies
-        for (const l of livraison.lignes) {
-          lignesRecues.push({ ligneId: l.id, quantiteRecue: l.quantitePrevue });
-        }
-      }
-
-      // Vérifier stock pour EXPEDITION
-      if (livraison.type === "EXPEDITION") {
-        for (const lr of lignesRecues) {
-          const l = livraison.lignes.find((x) => x.id === lr.ligneId);
-          if (!l) continue;
-          if (l.produit.stock < lr.quantiteRecue)
-            return NextResponse.json(
-              { message: `Stock insuffisant pour "${l.produit.nom}" (disponible: ${l.produit.stock})` },
-              { status: 400 }
-            );
-        }
-      }
-
-      const updated = await prisma.$transaction(async (tx) => {
-        // Mettre à jour chaque ligne + créer les mouvements de stock
-        for (const lr of lignesRecues) {
-          const ligne = livraison.lignes.find((x) => x.id === lr.ligneId);
-          if (!ligne) continue;
-
-          await tx.livraisonLigne.update({
-            where: { id: lr.ligneId },
-            data:  { quantiteRecue: lr.quantiteRecue },
-          });
-
-          const typeMvt = livraison.type === "RECEPTION" ? "ENTREE" : "SORTIE";
-          const delta   = livraison.type === "RECEPTION" ? lr.quantiteRecue : -lr.quantiteRecue;
-
-          await tx.mouvementStock.create({
-            data: {
-              produitId:  ligne.produitId,
-              type:       typeMvt,
-              quantite:   lr.quantiteRecue,
-              motif:      `${livraison.type === "RECEPTION" ? "Réception" : "Expédition"} livraison ${livraison.reference}`,
-              reference:  `RPV-LIV-${randomUUID()}`,
-            },
-          });
-
-          await tx.produit.update({
-            where: { id: ligne.produitId },
-            data:  { stock: { increment: delta }, prixUnitaire: new Prisma.Decimal(Number(ligne.produit.prixUnitaire)) },
-          });
-        }
-
-        const validated = await tx.livraison.update({
-          where: { id },
-          data:  { statut: "LIVREE", dateLivraison: new Date() },
-          include: { lignes: { include: { produit: { select: { id: true, nom: true } } } } },
-        });
-
-        // Audit log
-        await auditLog(tx, parseInt(session.user.id), "LIVRAISON_VALIDEE_RPV", "Livraison", id);
-
-        // Résumé des produits traités
-        const produitsStr = lignesRecues
-          .map((lr) => {
-            const l = livraison.lignes.find((x) => x.id === lr.ligneId);
-            return l ? `${lr.quantiteRecue}× ${l.produit.nom}` : null;
-          })
-          .filter(Boolean)
-          .join(", ");
-
-        // Notifications : Admin + Magasinier + Logistique + Comptable (pour validation finale)
-        await notifyRoles(
-          tx,
-          ["MAGAZINIER", "AGENT_LOGISTIQUE_APPROVISIONNEMENT", "COMPTABLE"],
-          {
-            titre:    `Livraison validée — ${livraison.reference}`,
-            message:  `${session.user.name ?? "RPV"} a validé la livraison ${livraison.reference} (${livraison.type === "RECEPTION" ? "réception" : "expédition"}). ${lignesRecues.length} ligne(s) traitée(s) : ${produitsStr}.`,
-            priorite: PrioriteNotification.NORMAL,
-            actionUrl: `/dashboard/user/responsablesPointDeVente`,
-          }
-        );
-
-        return validated;
-      });
-
-      return NextResponse.json({
-        success: true,
-        message: `Livraison validée — ${lignesRecues.length} ligne(s) traitée(s)`,
-        data: {
-          ...updated,
-          datePrevisionnelle: updated.datePrevisionnelle.toISOString(),
-          dateLivraison:      updated.dateLivraison?.toISOString() ?? null,
-        },
-      });
-    }
-
-    return NextResponse.json({ message: "Action invalide (demarrer|annuler|valider)" }, { status: 400 });
+    return NextResponse.json({ message: "Action non autorisée pour le RPV. Utilisez 'annuler' (EN_ATTENTE seulement). Le démarrage revient à la Logistique, la validation au Magasinier." }, { status: 403 });
   } catch (error) {
     console.error("PATCH /api/rpv/livraisons/[id] error:", error);
     return NextResponse.json({ success: false, message: "Erreur serveur" }, { status: 500 });

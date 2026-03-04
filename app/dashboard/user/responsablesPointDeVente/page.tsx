@@ -7,7 +7,8 @@ import {
   CheckCircle, XCircle, ChevronLeft, ChevronRight, X, Truck,
   ArrowUpCircle, ArrowDownCircle, ArrowRightLeft, Banknote,
   Lock, Hash, Filter, Pencil, Trash2, CalendarDays, Boxes,
-  MapPin, FileText, PlayCircle, Info,
+  MapPin, FileText, PlayCircle, Info, Download, Printer,
+  UserPlus, Star, Activity, ShoppingBag, Wrench, UserCircle,
 } from "lucide-react";
 import Link from "next/link";
 import SignOutButton from "@/components/SignOutButton";
@@ -20,7 +21,7 @@ import { formatCurrency, formatDate, formatDateTime } from "@/lib/format";
 // TYPES
 // ============================================================================
 
-type TabKey      = "synthese" | "stock" | "livraisons" | "caisse" | "equipe";
+type TabKey      = "synthese" | "stock" | "approvisionnement" | "livraisons" | "caisse" | "clients" | "equipe";
 type StockSub    = "inventaire" | "journal";
 type StatutStock = "EN_STOCK" | "STOCK_FAIBLE" | "RUPTURE";
 type TypeLiv     = "RECEPTION" | "EXPEDITION";
@@ -108,6 +109,8 @@ interface DashboardData {
   today: { date: string };
   ventes: {
     total: number; montant: number; panierMoyen: number;
+    semaine: { total: number; montant: number };
+    mois:    { total: number; montant: number };
     recentes: { id: number; produitNom: string; quantite: number; montant: number; clientNom: string; heure: string }[];
     evolution: { heure: number; count: number; montant: number }[];
   };
@@ -116,8 +119,39 @@ interface DashboardData {
   derniereCloture: ClotureCaisse | null;
   mouvementsRecents: { id: number; type: string; quantite: number; motif: string | null; dateMouvement: string; produitNom: string }[];
   equipe: Record<string, number>;
+  sessionsCaisses:    { id: number; caissierNom: string; statut: string; dateOuverture: string; fondsCaisse: number }[];
+  topProduitsLivres:  { produitId: number; nom: string; quantite: number; nbLivraisons: number }[];
+  activitesRecentes:  { id: number; action: string; entite: string; entiteId: number | null; createdAt: string; userNom: string }[];
 }
 interface DashboardResponse { success: boolean; data: DashboardData }
+
+interface ClientPDV {
+  id: number; nom: string; prenom: string; telephone: string;
+  adresse: string | null; etat: string; createdAt: string;
+  _count: { souscriptionsPacks: number };
+}
+interface ClientsResponse {
+  success: boolean; data: ClientPDV[];
+  meta: { total: number; page: number; limit: number; totalPages: number };
+}
+
+type StatutRecPack = "PLANIFIEE" | "LIVREE" | "ANNULEE";
+interface ReceptionPack {
+  id: number; souscriptionId: number; statut: StatutRecPack;
+  datePrevisionnelle: string; dateLivraison: string | null;
+  livreurNom: string | null; notes: string | null; createdAt: string;
+  souscription: {
+    pack:   { nom: string; type: string };
+    user:   { nom: string; prenom: string; telephone: string } | null;
+    client: { nom: string; prenom: string; telephone: string } | null;
+  };
+  lignes: { id: number; quantite: number; prixUnitaire: string; produit: { nom: string } }[];
+}
+interface ReceptionsPacksResponse {
+  success: boolean; data: ReceptionPack[];
+  stats: { planifiees: number; livrees: number; annulees: number };
+  meta: { total: number; page: number; limit: number; totalPages: number };
+}
 
 // ============================================================================
 // HELPERS
@@ -231,12 +265,50 @@ export default function ResponsablePDVPage() {
   const [livPage,     setLivPage]     = useState(1);
   const [cloturePage, setCloturePage] = useState(1);
 
+  // Filtres livraisons packs + clients
+  const [searchRecPacks,       setSearchRecPacks]       = useState("");
+  const [dSearchRecPacks,      setDSearchRecPacks]      = useState("");
+  const [filtreRecPackStatut,  setFiltreRecPackStatut]  = useState("");
+  const [recPackPage,          setRecPackPage]          = useState(1);
+  const [searchClients,        setSearchClients]        = useState("");
+  const [dSearchClients,       setDSearchClients]       = useState("");
+  const [clientPage,           setClientPage]           = useState(1);
+
   // Modals
   const [modalProduit,    setModalProduit]    = useState<"create" | "edit" | null>(null);
   const [modalMvt,        setModalMvt]        = useState(false);
-  const [modalLivraison,  setModalLivraison]  = useState<"create" | "detail" | "valider" | null>(null);
+  const [modalLivraison,  setModalLivraison]  = useState<"create" | "detail" | null>(null);
   const [selectedProduit, setSelectedProduit] = useState<Produit | null>(null);
   const [selectedLiv,     setSelectedLiv]     = useState<Livraison | null>(null);
+
+  // Modals livraisons packs
+  const [modalAnnulPack,    setModalAnnulPack]    = useState(false);
+  const [modalDetailPack,   setModalDetailPack]   = useState(false);
+  const [selectedRecPack,   setSelectedRecPack]   = useState<ReceptionPack | null>(null);
+  const [justifAnnul,       setJustifAnnul]       = useState("");
+
+  // Modal réapprovisionnement
+  const [modalReappro,    setModalReappro]    = useState(false);
+  const [rProId,          setRProId]          = useState("");
+  const [rQte,            setRQte]            = useState("");
+  const [rPartie,         setRPartie]         = useState("");
+  const [rDate,           setRDate]           = useState("");
+  const [rNotes,          setRNotes]          = useState("");
+
+  // Modal anomalie
+  const [modalAnomalie,   setModalAnomalie]   = useState(false);
+  const [anoProId,        setAnoProId]        = useState("");
+  const [anoType,         setAnoType]         = useState<"MANQUANT"|"SURPLUS"|"DEFECTUEUX">("DEFECTUEUX");
+  const [anoQte,          setAnoQte]          = useState("");
+  const [anoDesc,         setAnoDesc]         = useState("");
+
+  // Modal client
+  const [modalClient,     setModalClient]     = useState<"create"|"edit"|null>(null);
+  const [selectedClient,  setSelectedClient]  = useState<ClientPDV | null>(null);
+  const [fCliNom,         setFCliNom]         = useState("");
+  const [fCliPrenom,      setFCliPrenom]      = useState("");
+  const [fCliTel,         setFCliTel]         = useState("");
+  const [fCliAdresse,     setFCliAdresse]     = useState("");
 
   // Forms
   const [fNom, setFNom] = useState(""); const [fPrix, setFPrix] = useState("");
@@ -248,13 +320,14 @@ export default function ResponsablePDVPage() {
   const [livPartie, setLivPartie] = useState(""); const [livDate, setLivDate] = useState("");
   const [livNotes, setLivNotes] = useState("");
   const [livLignes, setLivLignes] = useState<{ produitId: string; quantitePrevue: string }[]>([{ produitId: "", quantitePrevue: "" }]);
-  const [validerLignes, setValiderLignes] = useState<Record<number, string>>({});
 
   // Debounces
-  useEffect(() => { const t = setTimeout(() => setDSearchProduit(searchProduit), 350); return () => clearTimeout(t); }, [searchProduit]);
-  useEffect(() => { const t = setTimeout(() => setDSearchMvt(searchMvt),          350); return () => clearTimeout(t); }, [searchMvt]);
+  useEffect(() => { const t = setTimeout(() => setDSearchProduit(searchProduit),   350); return () => clearTimeout(t); }, [searchProduit]);
+  useEffect(() => { const t = setTimeout(() => setDSearchMvt(searchMvt),           350); return () => clearTimeout(t); }, [searchMvt]);
   useEffect(() => { const t = setTimeout(() => setDSearchLiv(searchLiv),           350); return () => clearTimeout(t); }, [searchLiv]);
   useEffect(() => { const t = setTimeout(() => setDSearchEquipe(searchEquipe),     350); return () => clearTimeout(t); }, [searchEquipe]);
+  useEffect(() => { const t = setTimeout(() => setDSearchRecPacks(searchRecPacks), 350); return () => clearTimeout(t); }, [searchRecPacks]);
+  useEffect(() => { const t = setTimeout(() => setDSearchClients(searchClients),   350); return () => clearTimeout(t); }, [searchClients]);
 
   // ── API URLs ────────────────────────────────────────────────────────────
   const prodParams = useMemo(() => {
@@ -283,16 +356,31 @@ export default function ResponsablePDVPage() {
     [cloturePage]
   );
 
+  const recPackParams = useMemo(() => {
+    const p = new URLSearchParams({ page: String(recPackPage), limit: "15" });
+    if (dSearchRecPacks)    p.set("search", dSearchRecPacks);
+    if (filtreRecPackStatut) p.set("statut", filtreRecPackStatut);
+    return p.toString();
+  }, [recPackPage, dSearchRecPacks, filtreRecPackStatut]);
+
+  const clientParams = useMemo(() => {
+    const p = new URLSearchParams({ page: String(clientPage), limit: "15" });
+    if (dSearchClients) p.set("search", dSearchClients);
+    return p.toString();
+  }, [clientPage, dSearchClients]);
+
   // ── Fetches ─────────────────────────────────────────────────────────────
-  const { data: dashRes,    refetch: refetchDash   } = useApi<DashboardResponse>("/api/rpv/dashboard");
-  const { data: produitsRes,refetch: refetchProduits} = useApi<ProduitsResponse>(`/api/rpv/produits?${prodParams}`);
-  const { data: mvtRes,     refetch: refetchMvt    } = useApi<MouvementsResponse>(`/api/rpv/mouvements?${mvtParams}`);
-  const { data: livRes,     refetch: refetchLiv    } = useApi<LivraisonsResponse>(`/api/rpv/livraisons?${livParams}`);
-  const { data: ventesRes,  refetch: refetchVentes } = useApi<VentesResponse>("/api/caissier/ventes?aujourdHui=true&limit=20");
-  const { data: clotureRes, refetch: refetchCloture} = useApi<ClotureResponse>(`/api/caissier/cloture?${clotureParams}`);
-  const { data: equipeRes,  refetch: refetchEquipe } = useApi<EquipeResponse>(
+  const { data: dashRes,       refetch: refetchDash      } = useApi<DashboardResponse>("/api/rpv/dashboard");
+  const { data: produitsRes,   refetch: refetchProduits  } = useApi<ProduitsResponse>(`/api/rpv/produits?${prodParams}`);
+  const { data: mvtRes,        refetch: refetchMvt       } = useApi<MouvementsResponse>(`/api/rpv/mouvements?${mvtParams}`);
+  const { data: livRes,        refetch: refetchLiv       } = useApi<LivraisonsResponse>(`/api/rpv/livraisons?${livParams}`);
+  const { data: ventesRes,     refetch: refetchVentes    } = useApi<VentesResponse>("/api/caissier/ventes?aujourdHui=true&limit=20");
+  const { data: clotureRes,    refetch: refetchCloture   } = useApi<ClotureResponse>(`/api/caissier/cloture?${clotureParams}`);
+  const { data: equipeRes,     refetch: refetchEquipe    } = useApi<EquipeResponse>(
     `/api/rpv/equipe?${dSearchEquipe ? `search=${dSearchEquipe}` : ""}`
   );
+  const { data: recPacksRes,   refetch: refetchRecPacks  } = useApi<ReceptionsPacksResponse>(`/api/rpv/receptions-packs?${recPackParams}`);
+  const { data: clientsRes,    refetch: refetchClients   } = useApi<ClientsResponse>(`/api/rpv/clients?${clientParams}`);
 
   // ── Mutations ────────────────────────────────────────────────────────────
   const { mutate: createProduit, loading: creatingProd } =
@@ -319,6 +407,24 @@ export default function ResponsablePDVPage() {
       "PATCH",
       { successMessage: "Livraison mise à jour ✓" }
     );
+  const { mutate: annulerRecPack, loading: annulantRecPack } =
+    useMutation<object, object>(
+      selectedRecPack ? `/api/rpv/receptions-packs/${selectedRecPack.id}` : "/api/rpv/receptions-packs/0",
+      "PATCH",
+      { successMessage: "Livraison annulée ✓" }
+    );
+  const { mutate: createReappro, loading: creatingReappro } =
+    useMutation<Livraison, object>("/api/rpv/livraisons", "POST", { successMessage: "Demande de réapprovisionnement créée ✓" });
+  const { mutate: createAnomalie, loading: creatingAnomalie } =
+    useMutation<object, object>("/api/rpv/anomalies", "POST", { successMessage: "Anomalie signalée ✓" });
+  const { mutate: createClient, loading: creatingClient } =
+    useMutation<ClientPDV, object>("/api/rpv/clients", "POST", { successMessage: "Client créé ✓" });
+  const { mutate: updateClient, loading: updatingClient } =
+    useMutation<ClientPDV, object>(
+      selectedClient ? `/api/rpv/clients/${selectedClient.id}` : "/api/rpv/clients",
+      "PUT",
+      { successMessage: "Client modifié ✓" }
+    );
 
   // ── Derived data ─────────────────────────────────────────────────────────
   const dash     = dashRes?.data;
@@ -329,14 +435,18 @@ export default function ResponsablePDVPage() {
   const clotData = clotureRes?.jourEnCours;
   const clotures = clotureRes?.historique.data ?? [];
   const equipe   = equipeRes?.data ?? [];
+  const recPacks = recPacksRes?.data ?? [];
+  const clients  = clientsRes?.data ?? [];
 
-  const allProduits = produits; // pour les selects des modals
+  const allProduits    = produits;
   const produitsActifs = produits.filter((p) => p.stock > 0);
 
   const refetchAll = useCallback(() => {
     refetchDash(); refetchProduits(); refetchMvt();
     refetchLiv(); refetchVentes(); refetchCloture(); refetchEquipe();
-  }, [refetchDash, refetchProduits, refetchMvt, refetchLiv, refetchVentes, refetchCloture, refetchEquipe]);
+    refetchRecPacks(); refetchClients();
+  }, [refetchDash, refetchProduits, refetchMvt, refetchLiv, refetchVentes,
+      refetchCloture, refetchEquipe, refetchRecPacks, refetchClients]);
 
   // ── Handlers produit ─────────────────────────────────────────────────────
   const openCreateProduit = () => {
@@ -375,6 +485,103 @@ export default function ResponsablePDVPage() {
     e.preventDefault();
     const r = await createMvt({ produitId: Number(mvtProdId), type: mvtType, quantite: Number(mvtQte), motif: mvtMotif || null });
     if (r) { setModalMvt(false); refetchProduits(); refetchMvt(); refetchDash(); }
+  };
+
+  // ── Helper export CSV ─────────────────────────────────────────────────────
+  const exportCsv = (rows: string[][], filename: string) => {
+    const content = rows.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(";")).join("\n");
+    const blob = new Blob(["\uFEFF" + content], { type: "text/csv;charset=utf-8;" });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement("a");
+    a.href = url; a.download = filename; a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  // ── Handlers livraisons packs ─────────────────────────────────────────────
+  const openAnnulPack = (r: ReceptionPack) => { setSelectedRecPack(r); setJustifAnnul(""); setModalAnnulPack(true); };
+  const openDetailPack = (r: ReceptionPack) => { setSelectedRecPack(r); setModalDetailPack(true); };
+
+  const handleAnnulerRecPack = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!justifAnnul.trim() || justifAnnul.trim().length < 5) return;
+    const r = await annulerRecPack({ action: "annuler", justification: justifAnnul.trim() });
+    if (r) { setModalAnnulPack(false); refetchRecPacks(); refetchDash(); }
+  };
+
+  const handleExportRecPacks = () => {
+    const rows = [
+      ["ID", "Pack", "Client", "Statut", "Lignes", "Date prévisionnelle", "Date livraison"],
+      ...recPacks.map((r) => {
+        const person = r.souscription.user ?? r.souscription.client;
+        return [
+          String(r.id),
+          r.souscription.pack.nom,
+          person ? `${person.prenom} ${person.nom}` : "—",
+          r.statut,
+          r.lignes.map((l) => `${l.produit.nom}×${l.quantite}`).join(" | "),
+          new Date(r.datePrevisionnelle).toLocaleDateString("fr-FR"),
+          r.dateLivraison ? new Date(r.dateLivraison).toLocaleDateString("fr-FR") : "—",
+        ];
+      }),
+    ];
+    exportCsv(rows, `livraisons-clients-${new Date().toISOString().slice(0,10)}.csv`);
+  };
+
+  // ── Handlers réapprovisionnement ─────────────────────────────────────────
+  const openReappro = () => { setRProId(""); setRQte(""); setRPartie(""); setRDate(""); setRNotes(""); setModalReappro(true); };
+  const handleSaveReappro = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const lignes = [{ produitId: Number(rProId), quantitePrevue: Number(rQte) }];
+    const r = await createReappro({
+      type: "RECEPTION",
+      fournisseurNom: rPartie || "À définir",
+      datePrevisionnelle: new Date(rDate).toISOString(),
+      notes: `[RÉAPPROVISIONNEMENT] ${rNotes || ""}`.trim(),
+      lignes,
+    });
+    if (r) { setModalReappro(false); refetchLiv(); refetchDash(); }
+  };
+
+  // ── Handlers anomalie ─────────────────────────────────────────────────────
+  const openAnomalie = (p?: Produit) => {
+    setAnoProId(p ? String(p.id) : ""); setAnoType("DEFECTUEUX"); setAnoQte(""); setAnoDesc("");
+    setModalAnomalie(true);
+  };
+  const handleSaveAnomalie = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const r = await createAnomalie({ produitId: Number(anoProId), type: anoType, quantite: Number(anoQte), description: anoDesc });
+    if (r) { setModalAnomalie(false); }
+  };
+
+  // ── Handlers clients ─────────────────────────────────────────────────────
+  const openCreateClient = () => {
+    setFCliNom(""); setFCliPrenom(""); setFCliTel(""); setFCliAdresse("");
+    setSelectedClient(null); setModalClient("create");
+  };
+  const openEditClient = (c: ClientPDV) => {
+    setSelectedClient(c);
+    setFCliNom(c.nom); setFCliPrenom(c.prenom); setFCliTel(c.telephone); setFCliAdresse(c.adresse ?? "");
+    setModalClient("edit");
+  };
+  const handleSaveClient = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (modalClient === "create") {
+      const r = await createClient({ nom: fCliNom, prenom: fCliPrenom, telephone: fCliTel, adresse: fCliAdresse || null });
+      if (r) { setModalClient(null); refetchClients(); }
+    } else {
+      const r = await updateClient({ nom: fCliNom, prenom: fCliPrenom, telephone: fCliTel, adresse: fCliAdresse || null });
+      if (r) { setModalClient(null); refetchClients(); }
+    }
+  };
+
+  const handleExportClients = () => {
+    const rows = [
+      ["ID", "Nom", "Prénom", "Téléphone", "Adresse", "Souscriptions", "État"],
+      ...clients.map((c) => [
+        String(c.id), c.nom, c.prenom, c.telephone, c.adresse ?? "", String(c._count.souscriptionsPacks), c.etat,
+      ]),
+    ];
+    exportCsv(rows, `clients-${new Date().toISOString().slice(0,10)}.csv`);
   };
 
   // ── Handlers livraison ────────────────────────────────────────────────────
@@ -429,11 +636,13 @@ export default function ResponsablePDVPage() {
   // ============================================================================
 
   const tabs: { key: TabKey; label: string; icon: React.ElementType }[] = [
-    { key: "synthese",    label: "Synthèse",      icon: BarChart3    },
-    { key: "stock",       label: "Stock & Produits",icon: Package      },
-    { key: "livraisons",  label: "Livraisons",    icon: Truck        },
-    { key: "caisse",      label: "Supervision Caisse",icon: Banknote  },
-    { key: "equipe",      label: "Équipe",         icon: Users        },
+    { key: "synthese",        label: "Synthèse",           icon: BarChart3   },
+    { key: "stock",              label: "Stock & Produits",  icon: Package     },
+    { key: "livraisons",         label: "Livraisons",        icon: ShoppingBag },
+    { key: "approvisionnement",  label: "Approvisionnement", icon: Truck       },
+    { key: "caisse",          label: "Supervision Caisse", icon: Banknote    },
+    { key: "clients",         label: "Clients",            icon: UserCircle  },
+    { key: "equipe",          label: "Équipe",             icon: Users       },
   ];
 
   return (
@@ -557,7 +766,7 @@ export default function ResponsablePDVPage() {
             <div className="flex items-center justify-between p-5 border-b border-slate-100">
               <div className="flex items-center gap-3">
                 <div className="bg-sky-50 p-2.5 rounded-xl"><Truck className="text-sky-600 w-5 h-5" /></div>
-                <h2 className="font-bold text-slate-800">Planifier une livraison</h2>
+                <h2 className="font-bold text-slate-800">Planifier une réception fournisseur</h2>
               </div>
               <button onClick={() => setModalLivraison(null)} className="p-2 text-slate-400 hover:text-slate-600 rounded-lg"><X size={18} /></button>
             </div>
@@ -769,6 +978,261 @@ export default function ResponsablePDVPage() {
         </div>
       )}
 
+      {/* ── Modal Annulation livraison pack (justification obligatoire) ── */}
+      {modalAnnulPack && selectedRecPack && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl w-full max-w-md shadow-xl">
+            <div className="flex items-center justify-between p-5 border-b border-slate-100">
+              <div className="flex items-center gap-3">
+                <div className="bg-red-50 p-2.5 rounded-xl"><XCircle className="text-red-600 w-5 h-5" /></div>
+                <div>
+                  <h2 className="font-bold text-slate-800">Annuler la livraison</h2>
+                  <p className="text-xs text-slate-500">{selectedRecPack.souscription.pack.nom}</p>
+                </div>
+              </div>
+              <button onClick={() => setModalAnnulPack(false)} className="p-2 text-slate-400 hover:text-slate-600 rounded-lg"><X size={18} /></button>
+            </div>
+            <form onSubmit={handleAnnulerRecPack} className="p-5 space-y-4">
+              <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-sm text-red-700 flex gap-2">
+                <AlertTriangle size={15} className="shrink-0 mt-0.5" />
+                Cette action est irréversible et sera horodatée dans les logs.
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Justification obligatoire *</label>
+                <textarea required minLength={5} value={justifAnnul} onChange={(e) => setJustifAnnul(e.target.value)} rows={3}
+                  className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-red-500 bg-slate-50 resize-none"
+                  placeholder="Ex : Client absent, produit indisponible, erreur de commande…" />
+                <p className="text-xs text-slate-400 mt-1">{justifAnnul.length}/5 caractères minimum</p>
+              </div>
+              <div className="flex gap-3">
+                <button type="button" onClick={() => setModalAnnulPack(false)} className="flex-1 py-2.5 border border-slate-200 rounded-xl text-slate-600 text-sm hover:bg-slate-50">Annuler</button>
+                <button type="submit" disabled={annulantRecPack || justifAnnul.trim().length < 5}
+                  className="flex-1 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-sm font-semibold disabled:opacity-50 flex items-center justify-center gap-2">
+                  {annulantRecPack ? <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />Annulation…</> : <><XCircle size={15} />Confirmer</>}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal Détail livraison pack ── */}
+      {modalDetailPack && selectedRecPack && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl w-full max-w-lg shadow-xl my-4">
+            <div className="flex items-center justify-between p-5 border-b border-slate-100">
+              <div className="flex items-center gap-3">
+                <div className="bg-sky-50 p-2.5 rounded-xl"><ShoppingBag className="text-sky-600 w-5 h-5" /></div>
+                <div>
+                  <p className="font-bold text-slate-800">{selectedRecPack.souscription.pack.nom}</p>
+                  <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${selectedRecPack.statut === "LIVREE" ? "bg-emerald-100 text-emerald-700" : selectedRecPack.statut === "ANNULEE" ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700"}`}>
+                    {selectedRecPack.statut === "LIVREE" ? "Livrée" : selectedRecPack.statut === "ANNULEE" ? "Annulée" : "Planifiée"}
+                  </span>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <button onClick={() => window.print()} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg" title="Imprimer"><Printer size={16} /></button>
+                <button onClick={() => setModalDetailPack(false)} className="p-2 text-slate-400 hover:text-slate-600 rounded-lg"><X size={18} /></button>
+              </div>
+            </div>
+            <div className="p-5 space-y-4">
+              {(() => { const p = selectedRecPack.souscription.user ?? selectedRecPack.souscription.client; return p ? (
+                <div className="bg-slate-50 rounded-xl p-3 flex items-center gap-3">
+                  <div className="w-9 h-9 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600 font-bold text-xs">{p.prenom[0]}{p.nom[0]}</div>
+                  <div><p className="font-semibold text-slate-800">{p.prenom} {p.nom}</p><p className="text-xs text-slate-400">{p.telephone}</p></div>
+                </div>
+              ) : null; })()}
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div className="bg-slate-50 rounded-xl p-3"><p className="text-xs text-slate-500 mb-0.5">Date prévue</p><p className="font-semibold">{formatDate(selectedRecPack.datePrevisionnelle)}</p></div>
+                <div className="bg-slate-50 rounded-xl p-3"><p className="text-xs text-slate-500 mb-0.5">Date livraison</p><p className="font-semibold">{selectedRecPack.dateLivraison ? formatDate(selectedRecPack.dateLivraison) : "—"}</p></div>
+                {selectedRecPack.livreurNom && <div className="bg-slate-50 rounded-xl p-3 col-span-2"><p className="text-xs text-slate-500 mb-0.5">Livreur</p><p className="font-semibold">{selectedRecPack.livreurNom}</p></div>}
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-slate-600 mb-2">{selectedRecPack.lignes.length} produit(s)</p>
+                <div className="space-y-2">
+                  {selectedRecPack.lignes.map((l) => (
+                    <div key={l.id} className="flex items-center justify-between bg-slate-50 rounded-xl px-4 py-2.5">
+                      <p className="font-medium text-slate-800 text-sm">{l.produit.nom}</p>
+                      <div className="flex gap-3 text-sm">
+                        <span className="text-slate-500">Qté : <span className="font-bold text-slate-700">{l.quantite}</span></span>
+                        <span className="text-slate-500">{formatCurrency(Number(l.prixUnitaire))}/u</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              {selectedRecPack.notes && (
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-800">
+                  <p className="font-semibold mb-1">Notes</p>{selectedRecPack.notes}
+                </div>
+              )}
+              {selectedRecPack.statut === "PLANIFIEE" && (
+                <button onClick={() => { setModalDetailPack(false); openAnnulPack(selectedRecPack); }}
+                  className="w-full py-2.5 border border-red-200 bg-red-50 text-red-600 hover:bg-red-100 rounded-xl text-sm font-medium flex items-center justify-center gap-2">
+                  <XCircle size={15} />Annuler cette livraison
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal Réapprovisionnement ── */}
+      {modalReappro && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl w-full max-w-md shadow-xl">
+            <div className="flex items-center justify-between p-5 border-b border-slate-100">
+              <div className="flex items-center gap-3">
+                <div className="bg-violet-50 p-2.5 rounded-xl"><RefreshCw className="text-violet-600 w-5 h-5" /></div>
+                <h2 className="font-bold text-slate-800">Demande de réapprovisionnement</h2>
+              </div>
+              <button onClick={() => setModalReappro(false)} className="p-2 text-slate-400 hover:text-slate-600 rounded-lg"><X size={18} /></button>
+            </div>
+            <form onSubmit={handleSaveReappro} className="p-5 space-y-4">
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Produit *</label>
+                <select required value={rProId} onChange={(e) => setRProId(e.target.value)}
+                  className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 bg-slate-50">
+                  <option value="">— Sélectionner un produit —</option>
+                  {produits.map((p) => <option key={p.id} value={p.id}>{p.nom} (stock : {p.stock})</option>)}
+                </select>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">Quantité souhaitée *</label>
+                  <input required type="number" min="1" value={rQte} onChange={(e) => setRQte(e.target.value)}
+                    className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 bg-slate-50" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">Date souhaitée *</label>
+                  <input required type="date" value={rDate} onChange={(e) => setRDate(e.target.value)}
+                    className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 bg-slate-50" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Fournisseur préféré</label>
+                <input value={rPartie} onChange={(e) => setRPartie(e.target.value)}
+                  className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 bg-slate-50"
+                  placeholder="Nom ou société (optionnel)" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Notes</label>
+                <input value={rNotes} onChange={(e) => setRNotes(e.target.value)}
+                  className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 bg-slate-50"
+                  placeholder="Raison, urgence, etc." />
+              </div>
+              <div className="flex gap-3">
+                <button type="button" onClick={() => setModalReappro(false)} className="flex-1 py-2.5 border border-slate-200 rounded-xl text-slate-600 text-sm hover:bg-slate-50">Annuler</button>
+                <button type="submit" disabled={creatingReappro} className="flex-1 py-2.5 bg-violet-600 hover:bg-violet-700 text-white rounded-xl text-sm font-semibold disabled:opacity-50 flex items-center justify-center gap-2">
+                  {creatingReappro ? <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />Envoi…</> : <><RefreshCw size={15} />Envoyer</>}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal Signaler anomalie ── */}
+      {modalAnomalie && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl w-full max-w-md shadow-xl">
+            <div className="flex items-center justify-between p-5 border-b border-slate-100">
+              <div className="flex items-center gap-3">
+                <div className="bg-orange-50 p-2.5 rounded-xl"><Wrench className="text-orange-600 w-5 h-5" /></div>
+                <h2 className="font-bold text-slate-800">Signaler un produit</h2>
+              </div>
+              <button onClick={() => setModalAnomalie(false)} className="p-2 text-slate-400 hover:text-slate-600 rounded-lg"><X size={18} /></button>
+            </div>
+            <form onSubmit={handleSaveAnomalie} className="p-5 space-y-4">
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Produit *</label>
+                <select required value={anoProId} onChange={(e) => setAnoProId(e.target.value)}
+                  className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 bg-slate-50">
+                  <option value="">— Sélectionner —</option>
+                  {produits.map((p) => <option key={p.id} value={p.id}>{p.nom}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1.5">Type d&apos;anomalie *</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {(["DEFECTUEUX","MANQUANT","SURPLUS"] as const).map((t) => (
+                    <button key={t} type="button" onClick={() => setAnoType(t)}
+                      className={`py-2 rounded-xl text-xs font-semibold border transition-all ${anoType === t ? "bg-orange-600 text-white border-orange-600" : "border-slate-200 text-slate-600 hover:border-orange-300"}`}>
+                      {t === "DEFECTUEUX" ? "Endommagé" : t === "MANQUANT" ? "Manquant" : "Surplus"}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Quantité concernée *</label>
+                <input required type="number" min="1" value={anoQte} onChange={(e) => setAnoQte(e.target.value)}
+                  className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 bg-slate-50" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Description *</label>
+                <textarea required rows={3} value={anoDesc} onChange={(e) => setAnoDesc(e.target.value)}
+                  className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 bg-slate-50 resize-none"
+                  placeholder="Décrivez l'anomalie constatée…" />
+              </div>
+              <div className="flex gap-3">
+                <button type="button" onClick={() => setModalAnomalie(false)} className="flex-1 py-2.5 border border-slate-200 rounded-xl text-slate-600 text-sm hover:bg-slate-50">Annuler</button>
+                <button type="submit" disabled={creatingAnomalie} className="flex-1 py-2.5 bg-orange-600 hover:bg-orange-700 text-white rounded-xl text-sm font-semibold disabled:opacity-50 flex items-center justify-center gap-2">
+                  {creatingAnomalie ? <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />Envoi…</> : <><Wrench size={15} />Signaler</>}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal Client (créer / modifier) ── */}
+      {modalClient && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl w-full max-w-md shadow-xl">
+            <div className="flex items-center justify-between p-5 border-b border-slate-100">
+              <div className="flex items-center gap-3">
+                <div className="bg-indigo-50 p-2.5 rounded-xl"><UserCircle className="text-indigo-600 w-5 h-5" /></div>
+                <h2 className="font-bold text-slate-800">{modalClient === "create" ? "Nouveau client" : `Modifier — ${selectedClient?.prenom} ${selectedClient?.nom}`}</h2>
+              </div>
+              <button onClick={() => setModalClient(null)} className="p-2 text-slate-400 hover:text-slate-600 rounded-lg"><X size={18} /></button>
+            </div>
+            <form onSubmit={handleSaveClient} className="p-5 space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">Prénom *</label>
+                  <input required value={fCliPrenom} onChange={(e) => setFCliPrenom(e.target.value)}
+                    className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-50" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">Nom *</label>
+                  <input required value={fCliNom} onChange={(e) => setFCliNom(e.target.value)}
+                    className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-50" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">Téléphone *</label>
+                  <input required value={fCliTel} onChange={(e) => setFCliTel(e.target.value)}
+                    className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-50"
+                    placeholder="+225 07 00 00 00 00" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">Adresse</label>
+                  <input value={fCliAdresse} onChange={(e) => setFCliAdresse(e.target.value)}
+                    className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-50"
+                    placeholder="Optionnel" />
+                </div>
+              </div>
+              <div className="flex gap-3 pt-1">
+                <button type="button" onClick={() => setModalClient(null)} className="flex-1 py-2.5 border border-slate-200 rounded-xl text-slate-600 text-sm hover:bg-slate-50">Annuler</button>
+                <button type="submit" disabled={creatingClient || updatingClient}
+                  className="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-semibold disabled:opacity-50 flex items-center justify-center gap-2">
+                  {(creatingClient || updatingClient) ? <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />Enregistrement…</> : <><CheckCircle size={15} />{modalClient === "create" ? "Créer" : "Enregistrer"}</>}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* ── Navbar ── */}
       <nav className="bg-white shadow-sm border-b border-slate-200 sticky top-0 z-40">
         <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8">
@@ -790,6 +1254,12 @@ export default function ResponsablePDVPage() {
               </button>
               {activeTab === "stock" && stockSub === "inventaire" && (
                 <>
+                  <button onClick={() => openAnomalie()} className="flex items-center gap-1.5 px-3 py-2 bg-orange-50 text-orange-700 border border-orange-200 hover:bg-orange-100 rounded-xl text-sm font-medium transition-colors">
+                    <Wrench size={15} />Signaler
+                  </button>
+                  <button onClick={openReappro} className="flex items-center gap-1.5 px-3 py-2 bg-violet-50 text-violet-700 border border-violet-200 hover:bg-violet-100 rounded-xl text-sm font-medium transition-colors">
+                    <RefreshCw size={15} />Réappro
+                  </button>
                   <button onClick={() => openMvt()} className="flex items-center gap-1.5 px-3 py-2 bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 rounded-xl text-sm font-medium transition-colors">
                     <ArrowRightLeft size={15} />Mouvement
                   </button>
@@ -798,10 +1268,25 @@ export default function ResponsablePDVPage() {
                   </button>
                 </>
               )}
-              {activeTab === "livraisons" && (
+              {activeTab === "approvisionnement" && (
                 <button onClick={openCreateLiv} className="flex items-center gap-1.5 px-3 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-xl text-sm font-semibold shadow-sm transition-colors">
-                  <Plus size={15} />Planifier livraison
+                  <Plus size={15} />Planifier réception
                 </button>
+              )}
+              {activeTab === "livraisons" && (
+                <button onClick={handleExportRecPacks} className="flex items-center gap-1.5 px-3 py-2 bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 rounded-xl text-sm font-medium transition-colors">
+                  <Download size={15} />Exporter CSV
+                </button>
+              )}
+              {activeTab === "clients" && (
+                <>
+                  <button onClick={handleExportClients} className="flex items-center gap-1.5 px-3 py-2 bg-slate-50 border border-slate-200 text-slate-600 hover:bg-slate-100 rounded-xl text-sm font-medium transition-colors">
+                    <Download size={15} />Exporter
+                  </button>
+                  <button onClick={openCreateClient} className="flex items-center gap-1.5 px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-semibold shadow-sm transition-colors">
+                    <UserPlus size={15} />Nouveau client
+                  </button>
+                </>
               )}
               <MessagesLink />
               <NotificationBell href="/dashboard/user/notifications" />
@@ -841,12 +1326,19 @@ export default function ResponsablePDVPage() {
         ===================================================================== */}
         {activeTab === "synthese" && (
           <div className="space-y-5">
-            {/* KPIs */}
+            {/* KPIs — ligne 1 */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-              <KpiCard label="CA du jour"          value={formatCurrency(dash?.ventes.montant ?? 0)}                icon={ShoppingCart} color="text-sky-500"     bg="bg-sky-50"    sub={`${dash?.ventes.total ?? 0} ventes`} />
+              <KpiCard label="CA du jour"          value={formatCurrency(dash?.ventes.montant ?? 0)}                icon={ShoppingCart} color="text-sky-500"     bg="bg-sky-50"    sub={`${dash?.ventes.total ?? 0} versements`} />
+              <KpiCard label="CA semaine (7j)"     value={formatCurrency(dash?.ventes.semaine?.montant ?? 0)}       icon={TrendingUp}   color="text-emerald-500" bg="bg-emerald-50" sub={`${dash?.ventes.semaine?.total ?? 0} versements`} />
+              <KpiCard label="CA mois en cours"    value={formatCurrency(dash?.ventes.mois?.montant ?? 0)}          icon={CalendarDays} color="text-violet-500"  bg="bg-violet-50"  sub={`${dash?.ventes.mois?.total ?? 0} versements`} />
               <KpiCard label="Valeur stock"         value={formatCurrency(dash?.stock.valeurStock ?? 0)}             icon={Boxes}        color="text-indigo-500"  bg="bg-indigo-50" sub={`${dash?.stock.total ?? 0} produits`} />
-              <KpiCard label="Livraisons actives"   value={String((dash?.livraisons.enAttente ?? 0) + (dash?.livraisons.enCours ?? 0))} icon={Truck} color="text-sky-500" bg="bg-sky-50" sub="en attente + en cours" />
-              <KpiCard label="Alertes stock"        value={String((dash?.stock.enRupture ?? 0) + (dash?.stock.stockFaible ?? 0))}       icon={AlertTriangle} color="text-amber-500" bg="bg-amber-50" sub={`${dash?.stock.enRupture ?? 0} rupture · ${dash?.stock.stockFaible ?? 0} faible`} />
+            </div>
+            {/* KPIs — ligne 2 */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              <KpiCard label="Approvisionnements"   value={String((dash?.livraisons.enAttente ?? 0) + (dash?.livraisons.enCours ?? 0))} icon={Truck}         color="text-sky-500"    bg="bg-sky-50"    sub="réceptions en cours" />
+              <KpiCard label="Alertes stock"        value={String((dash?.stock.enRupture ?? 0) + (dash?.stock.stockFaible ?? 0))}       icon={AlertTriangle} color="text-amber-500"  bg="bg-amber-50"  sub={`${dash?.stock.enRupture ?? 0} rupture · ${dash?.stock.stockFaible ?? 0} faible`} />
+              <KpiCard label="Caisses ouvertes"     value={String(dash?.sessionsCaisses?.length ?? 0)}                                  icon={Lock}          color="text-teal-500"   bg="bg-teal-50"   sub={dash?.sessionsCaisses?.length ? "session(s) active(s)" : "aucune session active"} />
+              <KpiCard label="Produits livrés (30j)" value={String((dash?.topProduitsLivres ?? []).reduce((s,p) => s + p.quantite, 0))} icon={Star}          color="text-orange-500" bg="bg-orange-50" sub={`${(dash?.topProduitsLivres ?? []).length} produit(s) concerné(s)`} />
             </div>
 
             {/* 3 colonnes principales */}
@@ -905,7 +1397,7 @@ export default function ResponsablePDVPage() {
 
                 {/* Livraisons prochaines */}
                 <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60">
-                  <h3 className="font-bold text-slate-800 mb-3 flex items-center gap-2"><Truck size={17} className="text-sky-500" />Livraisons actives</h3>
+                  <h3 className="font-bold text-slate-800 mb-3 flex items-center gap-2"><Truck size={17} className="text-sky-500" />Approvisionnements actifs</h3>
                   <div className="space-y-2">
                     {(dash?.livraisons.prochaines ?? []).map((l) => {
                       const ts = livraisonTypeStyle[l.type];
@@ -920,10 +1412,10 @@ export default function ResponsablePDVPage() {
                         </div>
                       );
                     })}
-                    {!(dash?.livraisons.prochaines ?? []).length && <p className="text-center py-4 text-slate-400 text-sm">Aucune livraison active</p>}
+                    {!(dash?.livraisons.prochaines ?? []).length && <p className="text-center py-4 text-slate-400 text-sm">Aucun approvisionnement actif</p>}
                   </div>
-                  <button onClick={() => setActiveTab("livraisons")} className="mt-3 w-full py-2 text-xs font-medium text-sky-600 hover:text-sky-700 bg-sky-50 hover:bg-sky-100 rounded-xl transition-colors">
-                    Gérer les livraisons →
+                  <button onClick={() => setActiveTab("approvisionnement")} className="mt-3 w-full py-2 text-xs font-medium text-sky-600 hover:text-sky-700 bg-sky-50 hover:bg-sky-100 rounded-xl transition-colors">
+                    Gérer l&apos;approvisionnement →
                   </button>
                 </div>
 
@@ -945,6 +1437,77 @@ export default function ResponsablePDVPage() {
                       );
                     })}
                   </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Top produits livrés + Statut caisses + Activités */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+              {/* Top produits livrés */}
+              <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60">
+                <h3 className="font-bold text-slate-800 mb-3 flex items-center gap-2"><Star size={17} className="text-orange-500" />Top produits livrés (30j)</h3>
+                <div className="space-y-2">
+                  {(dash?.topProduitsLivres ?? []).map((p, i) => (
+                    <div key={p.produitId} className="flex items-center gap-3">
+                      <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${i === 0 ? "bg-amber-400 text-white" : i === 1 ? "bg-slate-300 text-slate-700" : "bg-orange-200 text-orange-700"}`}>{i + 1}</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-slate-700 truncate">{p.nom}</p>
+                        <p className="text-xs text-slate-400">{p.nbLivraisons} livraison(s)</p>
+                      </div>
+                      <span className="text-sm font-bold text-orange-600">{p.quantite} u.</span>
+                    </div>
+                  ))}
+                  {!(dash?.topProduitsLivres ?? []).length && <p className="text-center py-4 text-slate-400 text-sm">Aucune livraison ce mois</p>}
+                </div>
+                <button onClick={() => setActiveTab("livraisons")} className="mt-3 w-full py-2 text-xs font-medium text-orange-600 hover:text-orange-700 bg-orange-50 hover:bg-orange-100 rounded-xl transition-colors">
+                  Voir toutes les livraisons →
+                </button>
+              </div>
+
+              {/* Statut des caisses */}
+              <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60">
+                <h3 className="font-bold text-slate-800 mb-3 flex items-center gap-2"><Lock size={17} className="text-teal-500" />Statut des caisses</h3>
+                {(dash?.sessionsCaisses ?? []).length > 0 ? (
+                  <div className="space-y-2">
+                    {(dash?.sessionsCaisses ?? []).map((s) => (
+                      <div key={s.id} className="flex items-center justify-between bg-teal-50 border border-teal-100 rounded-xl px-3 py-2.5">
+                        <div>
+                          <p className="text-sm font-semibold text-slate-800">{s.caissierNom}</p>
+                          <p className="text-xs text-slate-400">{new Date(s.dateOuverture).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}</p>
+                        </div>
+                        <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${s.statut === "OUVERTE" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}>
+                          {s.statut === "OUVERTE" ? "Ouverte" : "Suspendue"}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-6 text-slate-400">
+                    <Lock size={28} className="mb-2 opacity-30" />
+                    <p className="text-sm">Aucune caisse ouverte</p>
+                  </div>
+                )}
+                <button onClick={() => setActiveTab("caisse")} className="mt-3 w-full py-2 text-xs font-medium text-teal-600 hover:text-teal-700 bg-teal-50 hover:bg-teal-100 rounded-xl transition-colors">
+                  Supervision caisse →
+                </button>
+              </div>
+
+              {/* Activités récentes */}
+              <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60">
+                <h3 className="font-bold text-slate-800 mb-3 flex items-center gap-2"><Activity size={17} className="text-indigo-500" />Activités récentes</h3>
+                <div className="space-y-2">
+                  {(dash?.activitesRecentes ?? []).slice(0, 6).map((a) => (
+                    <div key={a.id} className="flex items-start gap-2.5">
+                      <div className="w-6 h-6 bg-indigo-50 rounded-full flex items-center justify-center shrink-0 mt-0.5">
+                        <Activity size={11} className="text-indigo-500" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-semibold text-slate-700 truncate">{a.action.split("|")[0].trim()}</p>
+                        <p className="text-xs text-slate-400">{a.userNom} · {new Date(a.createdAt).toLocaleDateString("fr-FR", { day: "2-digit", month: "short" })}</p>
+                      </div>
+                    </div>
+                  ))}
+                  {!(dash?.activitesRecentes ?? []).length && <p className="text-center py-4 text-slate-400 text-sm">Aucune activité récente</p>}
                 </div>
               </div>
             </div>
@@ -1173,9 +1736,9 @@ export default function ResponsablePDVPage() {
         )}
 
         {/* =====================================================================
-            TAB : LIVRAISONS
+            TAB : APPROVISIONNEMENT (réceptions / expéditions fournisseurs)
         ===================================================================== */}
-        {activeTab === "livraisons" && (
+        {activeTab === "approvisionnement" && (
           <div className="space-y-4">
             {/* Stats badges */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -1268,6 +1831,125 @@ export default function ResponsablePDVPage() {
                     <button onClick={() => setLivPage((p) => Math.max(1, p - 1))} disabled={livPage <= 1} className="p-1.5 border border-slate-200 rounded-lg disabled:opacity-40"><ChevronLeft size={15} /></button>
                     <span className="px-3 py-1 bg-sky-600 text-white rounded-lg text-sm">{livPage}</span>
                     <button onClick={() => setLivPage((p) => Math.min(livRes.meta.totalPages, p + 1))} disabled={livPage >= livRes.meta.totalPages} className="p-1.5 border border-slate-200 rounded-lg disabled:opacity-40"><ChevronRight size={15} /></button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* =====================================================================
+            TAB : LIVRAISONS (produits livrés aux clients après souscription)
+        ===================================================================== */}
+        {activeTab === "livraisons" && (
+          <div className="space-y-4">
+            {/* Stats badges */}
+            <div className="grid grid-cols-3 gap-3">
+              {[
+                { label: "Planifiées", value: recPacksRes?.stats.planifiees ?? 0, color: "text-amber-700",   bg: "bg-amber-50",   border: "border-amber-200"   },
+                { label: "Livrées",    value: recPacksRes?.stats.livrees    ?? 0, color: "text-emerald-700", bg: "bg-emerald-50", border: "border-emerald-200" },
+                { label: "Annulées",   value: recPacksRes?.stats.annulees   ?? 0, color: "text-red-700",     bg: "bg-red-50",     border: "border-red-200"     },
+              ].map((s) => (
+                <div key={s.label} className={`${s.bg} border ${s.border} rounded-xl p-4 text-center`}>
+                  <p className="text-xs font-medium text-slate-500 mb-1">{s.label}</p>
+                  <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
+                </div>
+              ))}
+            </div>
+
+            {/* Filtres */}
+            <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-200/60 flex flex-wrap gap-3">
+              <div className="flex-1 min-w-[180px] relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
+                <input type="text" placeholder="Pack, client, membre…" value={searchRecPacks}
+                  onChange={(e) => { setSearchRecPacks(e.target.value); setRecPackPage(1); }}
+                  className="w-full pl-9 pr-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 bg-slate-50" />
+              </div>
+              <div className="flex gap-2">
+                {["", "PLANIFIEE", "LIVREE", "ANNULEE"].map((f) => (
+                  <button key={f} onClick={() => { setFiltreRecPackStatut(f); setRecPackPage(1); }}
+                    className={`px-3 py-2 rounded-xl text-xs font-semibold border transition-all ${filtreRecPackStatut === f ? "bg-orange-600 text-white border-orange-600" : "border-slate-200 text-slate-600 hover:border-orange-300"}`}>
+                    {f === "" ? "Toutes" : f === "PLANIFIEE" ? "Planifiées" : f === "LIVREE" ? "Livrées" : "Annulées"}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Table livraisons clients */}
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-slate-50 border-b border-slate-200">
+                    <tr>
+                      {["#", "Pack", "Client / Membre", "Produits", "Date prév.", "Date livraison", "Statut", ""].map((h) => (
+                        <th key={h} className="px-4 py-3.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {recPacks.map((r) => {
+                      const person = r.souscription.user ?? r.souscription.client;
+                      const statutStyle = r.statut === "LIVREE"
+                        ? "bg-emerald-100 text-emerald-700"
+                        : r.statut === "ANNULEE"
+                        ? "bg-red-100 text-red-700"
+                        : "bg-amber-100 text-amber-700";
+                      return (
+                        <tr key={r.id} className="hover:bg-slate-50 transition-colors">
+                          <td className="px-4 py-3 text-xs text-slate-400 font-mono">#{r.id}</td>
+                          <td className="px-4 py-3">
+                            <p className="font-semibold text-slate-800 text-sm">{r.souscription.pack.nom}</p>
+                            <p className="text-xs text-slate-400">{r.souscription.pack.type}</p>
+                          </td>
+                          <td className="px-4 py-3">
+                            {person ? (
+                              <div>
+                                <p className="font-medium text-slate-700 text-sm">{person.prenom} {person.nom}</p>
+                                <p className="text-xs text-slate-400">{person.telephone}</p>
+                              </div>
+                            ) : <span className="text-slate-400">—</span>}
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="space-y-0.5">
+                              {r.lignes.slice(0, 2).map((l) => (
+                                <p key={l.id} className="text-xs text-slate-600">{l.produit.nom} ×{l.quantite}</p>
+                              ))}
+                              {r.lignes.length > 2 && <p className="text-xs text-slate-400">+{r.lignes.length - 2} autre(s)</p>}
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 text-sm text-slate-600">{formatDate(r.datePrevisionnelle)}</td>
+                          <td className="px-4 py-3 text-sm text-slate-600">
+                            {r.dateLivraison ? formatDate(r.dateLivraison) : <span className="text-slate-300">—</span>}
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${statutStyle}`}>
+                              {r.statut === "LIVREE" ? "Livrée" : r.statut === "ANNULEE" ? "Annulée" : "Planifiée"}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-1">
+                              <button onClick={() => openDetailPack(r)} title="Détail / Imprimer" className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg"><Eye size={14} /></button>
+                              {r.statut === "PLANIFIEE" && (
+                                <button onClick={() => openAnnulPack(r)} title="Annuler" className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg"><XCircle size={14} /></button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                    {recPacks.length === 0 && (
+                      <tr><td colSpan={8} className="px-4 py-12 text-center text-slate-400 text-sm">Aucune livraison client trouvée</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+              {recPacksRes?.meta && recPacksRes.meta.totalPages > 1 && (
+                <div className="px-5 py-3.5 border-t border-slate-100 flex items-center justify-between">
+                  <p className="text-sm text-slate-400">Page {recPacksRes.meta.page}/{recPacksRes.meta.totalPages} ({recPacksRes.meta.total})</p>
+                  <div className="flex gap-2 items-center">
+                    <button onClick={() => setRecPackPage((p) => Math.max(1, p - 1))} disabled={recPackPage <= 1} className="p-1.5 border border-slate-200 rounded-lg disabled:opacity-40"><ChevronLeft size={15} /></button>
+                    <span className="px-3 py-1 bg-orange-600 text-white rounded-lg text-sm">{recPackPage}</span>
+                    <button onClick={() => setRecPackPage((p) => Math.min(recPacksRes.meta.totalPages, p + 1))} disabled={recPackPage >= recPacksRes.meta.totalPages} className="p-1.5 border border-slate-200 rounded-lg disabled:opacity-40"><ChevronRight size={15} /></button>
                   </div>
                 </div>
               )}
@@ -1448,6 +2130,103 @@ export default function ResponsablePDVPage() {
               <div className="px-5 py-3.5 border-t border-slate-100 text-sm text-slate-400">
                 {equipeRes?.stats.total ?? 0} membre(s) · {equipeRes?.stats.actifs ?? 0} actif(s)
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* =====================================================================
+            TAB : CLIENTS
+        ===================================================================== */}
+        {activeTab === "clients" && (
+          <div className="space-y-4">
+            {/* Stats */}
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-200/60">
+                <p className="text-xs text-slate-500">Total clients</p>
+                <p className="text-2xl font-bold text-indigo-600 mt-1">{clientsRes?.meta.total ?? 0}</p>
+              </div>
+              <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-200/60">
+                <p className="text-xs text-slate-500">Cette page</p>
+                <p className="text-2xl font-bold text-slate-700 mt-1">{clients.length}</p>
+              </div>
+              <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-200/60 flex items-center gap-3">
+                <div className="bg-indigo-50 p-2.5 rounded-xl"><UserCircle className="text-indigo-500 w-5 h-5" /></div>
+                <div>
+                  <p className="text-xs text-slate-500">Fichier client</p>
+                  <p className="text-sm font-semibold text-slate-700">Point de vente</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Filtres */}
+            <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-200/60">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
+                <input type="text" placeholder="Rechercher par nom, prénom, téléphone…" value={searchClients}
+                  onChange={(e) => { setSearchClients(e.target.value); setClientPage(1); }}
+                  className="w-full pl-9 pr-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-50" />
+              </div>
+            </div>
+
+            {/* Table clients */}
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-slate-50 border-b border-slate-200">
+                    <tr>
+                      {["Client", "Téléphone", "Adresse", "Souscriptions", "État", "Depuis", ""].map((h) => (
+                        <th key={h} className="px-5 py-3.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {clients.map((c) => (
+                      <tr key={c.id} className="hover:bg-slate-50 transition-colors">
+                        <td className="px-5 py-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-9 h-9 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-full flex items-center justify-center text-white font-semibold text-xs shadow-sm">
+                              {c.prenom?.[0]}{c.nom?.[0]}
+                            </div>
+                            <div>
+                              <p className="font-semibold text-slate-800">{c.prenom} {c.nom}</p>
+                              <p className="text-xs text-slate-400">#{c.id}</p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-5 py-4 text-sm text-slate-600">{c.telephone}</td>
+                        <td className="px-5 py-4 text-sm text-slate-500 max-w-[150px] truncate">{c.adresse ?? "—"}</td>
+                        <td className="px-5 py-4">
+                          <span className="bg-indigo-100 text-indigo-700 text-xs font-bold px-2.5 py-1 rounded-full">{c._count.souscriptionsPacks}</span>
+                        </td>
+                        <td className="px-5 py-4">
+                          <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${c.etat === "ACTIF" ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"}`}>
+                            {c.etat === "ACTIF" ? <><CheckCircle size={10} />Actif</> : <><XCircle size={10} />Inactif</>}
+                          </span>
+                        </td>
+                        <td className="px-5 py-4 text-sm text-slate-400">{formatDate(c.createdAt)}</td>
+                        <td className="px-5 py-4">
+                          <button onClick={() => openEditClient(c)} title="Modifier" className="p-1.5 text-indigo-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors">
+                            <Pencil size={14} />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                    {clients.length === 0 && (
+                      <tr><td colSpan={7} className="px-5 py-12 text-center text-slate-400 text-sm">Aucun client trouvé</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+              {clientsRes?.meta && clientsRes.meta.totalPages > 1 && (
+                <div className="px-5 py-3.5 border-t border-slate-100 flex items-center justify-between">
+                  <p className="text-sm text-slate-400">Page {clientsRes.meta.page}/{clientsRes.meta.totalPages} ({clientsRes.meta.total} clients)</p>
+                  <div className="flex gap-2 items-center">
+                    <button onClick={() => setClientPage((p) => Math.max(1, p - 1))} disabled={clientPage <= 1} className="p-1.5 border border-slate-200 rounded-lg disabled:opacity-40"><ChevronLeft size={15} /></button>
+                    <span className="px-3 py-1 bg-indigo-600 text-white rounded-lg text-sm">{clientPage}</span>
+                    <button onClick={() => setClientPage((p) => Math.min(clientsRes.meta.totalPages, p + 1))} disabled={clientPage >= clientsRes.meta.totalPages} className="p-1.5 border border-slate-200 rounded-lg disabled:opacity-40"><ChevronRight size={15} /></button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}

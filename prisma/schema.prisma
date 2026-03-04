@@ -124,6 +124,9 @@ model Gestionnaire {
 
   member              User              @relation(fields: [memberId], references: [id])
   assemblees          AssembleeParticipant[]
+  actionnaireProfile  ActionnaireProfile?
+  procurationsMandant     ProcurationAssemblee[] @relation("procurationsMandant")
+  procurationsMandataire  ProcurationAssemblee[] @relation("procurationsMandataire")
 
   createdAt           DateTime          @default(now())
   updatedAt           DateTime          @updatedAt
@@ -513,6 +516,7 @@ model Assemblee {
 
   participants    AssembleeParticipant[]
   resolutions     ResolutionAssemblee[]
+  procurations    ProcurationAssemblee[]
 
   createdAt       DateTime              @default(now())
   updatedAt       DateTime              @updatedAt
@@ -754,7 +758,7 @@ model EcheancePack {
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt
 
-  @@unique([souscriptionId, numero])
+  @@unique([souscriptionId, numero])   
 }
 
 // Réception / livraison du produit au client à la fin d'un cycle
@@ -1148,4 +1152,115 @@ model DeclarationTVA {
   updatedAt       DateTime   @updatedAt
 
   @@unique([periode])
+}
+
+// ── Actionnaires — Profil & Actions ───────────────────────────────────────────
+
+enum StatutActionnaire {
+  ACTIF
+  INACTIF
+  EN_ATTENTE
+  SUSPENDU
+}
+
+enum TypeActionDetenue {
+  ORDINAIRE
+  PRIVILEGIEE
+  FONDATEUR
+  PREFERENTIELLE
+}
+
+enum TypeMouvementAction {
+  ACHAT
+  CESSION
+  TRANSFERT_ENTRANT
+  TRANSFERT_SORTANT
+  AJUSTEMENT
+}
+
+model ActionnaireProfile {
+  id              Int                @id @default(autoincrement())
+  gestionnaireId  Int                @unique
+  statut          StatutActionnaire  @default(EN_ATTENTE)
+  typeAction      TypeActionDetenue  @default(ORDINAIRE)
+  nombreActions   Int                @default(0)
+  prixUnitaire    Decimal            @default(0)    // valeur nominale par action
+  dateEntree      DateTime?
+  notes           String?
+
+  gestionnaire    Gestionnaire       @relation(fields: [gestionnaireId], references: [id])
+  mouvements      MouvementAction[]
+
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+}
+
+model MouvementAction {
+  id              Int                   @id @default(autoincrement())
+  profileId       Int
+  type            TypeMouvementAction
+  quantite        Int
+  prixUnitaire    Decimal
+  montantTotal    Decimal
+  date            DateTime
+  description     String?
+
+  profile         ActionnaireProfile    @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  createdAt       DateTime              @default(now())
+}
+
+// ── Bibliothèque documentaire ─────────────────────────────────────────────────
+
+enum TypeDocument {
+  BILAN
+  COMPTE_RESULTAT
+  RAPPORT_ANNUEL
+  PV_AG
+  CONVOCATION
+  RAPPORT_AUDIT
+  STATUTS
+  PLAN_STRATEGIQUE
+  AUTRE
+}
+
+model DocumentBibliotheque {
+  id              Int           @id @default(autoincrement())
+  titre           String
+  type            TypeDocument
+  description     String?
+  fichierUrl      String?
+  fichierNom      String?
+  annee           Int?
+  estPublic       Boolean       @default(true)
+
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+}
+
+// ── Procuration pour les assemblées ──────────────────────────────────────────
+
+enum StatutProcuration {
+  EN_ATTENTE
+  ACCEPTEE
+  REFUSEE
+  REVOQUEE
+}
+
+model ProcurationAssemblee {
+  id              Int                   @id @default(autoincrement())
+  assembleeId     Int
+  mandantId       Int
+  mandataireId    Int
+  statut          StatutProcuration     @default(EN_ATTENTE)
+  notes           String?
+
+  assemblee       Assemblee             @relation(fields: [assembleeId], references: [id], onDelete: Cascade)
+  mandant         Gestionnaire          @relation("procurationsMandant", fields: [mandantId], references: [id])
+  mandataire      Gestionnaire          @relation("procurationsMandataire", fields: [mandataireId], references: [id])
+
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+
+  @@unique([assembleeId, mandantId])
 }
