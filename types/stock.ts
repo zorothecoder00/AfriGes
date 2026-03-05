@@ -3,3 +3,82 @@ export enum TypeMouvement {
   SORTIE = "SORTIE",
   AJUSTEMENT = "AJUSTEMENT",
 }
+
+export enum TypePointDeVente {
+  POINT_DE_VENTE = "POINT_DE_VENTE",
+  DEPOT_CENTRAL = "DEPOT_CENTRAL",
+}
+
+export enum TypeEntreeStock {
+  RECEPTION_FOURNISSEUR = "RECEPTION_FOURNISSEUR",
+  RECEPTION_INTERNE = "RECEPTION_INTERNE",
+  TRANSFERT_ENTRANT = "TRANSFERT_ENTRANT",
+  AJUSTEMENT_POSITIF = "AJUSTEMENT_POSITIF",
+  RETOUR_CLIENT = "RETOUR_CLIENT",
+}
+
+export enum TypeSortieStock {
+  VENTE_DIRECTE = "VENTE_DIRECTE",
+  LIVRAISON_PACK = "LIVRAISON_PACK",
+  LIVRAISON_CLIENT = "LIVRAISON_CLIENT",
+  RETOUR_FOURNISSEUR = "RETOUR_FOURNISSEUR",
+  CONSOMMATION_INTERNE = "CONSOMMATION_INTERNE",
+  TRANSFERT_SORTANT = "TRANSFERT_SORTANT",
+  AJUSTEMENT_NEGATIF = "AJUSTEMENT_NEGATIF",
+  PERTE = "PERTE",
+  CASSE = "CASSE",
+  DON = "DON",
+}
+
+export enum StatutTransfertStock {
+  EN_COURS = "EN_COURS",
+  EXPEDIE = "EXPEDIE",
+  RECU = "RECU",
+  ANNULE = "ANNULE",
+}
+
+export enum TypeReceptionAppro {
+  FOURNISSEUR = "FOURNISSEUR",
+  INTERNE = "INTERNE",
+}
+
+export enum StatutReceptionAppro {
+  BROUILLON = "BROUILLON",
+  EN_COURS = "EN_COURS",
+  RECU = "RECU",
+  VALIDE = "VALIDE",
+  ANNULE = "ANNULE",
+}
+
+export enum StatutInventaire {
+  EN_COURS = "EN_COURS",
+  VALIDE = "VALIDE",
+  ANNULE = "ANNULE",
+}
+
+export enum StatutCommandeInterne {
+  BROUILLON = "BROUILLON",
+  SOUMISE = "SOUMISE",
+  EN_COURS = "EN_COURS",
+  COMPLETE = "COMPLETE",
+  ANNULE = "ANNULE",
+}
+
+export enum StatutBonSortie {
+  BROUILLON = "BROUILLON",
+  VALIDE = "VALIDE",
+  ANNULE = "ANNULE",
+}
+
+export enum TypeAnomalie {
+  MANQUANT = "MANQUANT",
+  SURPLUS = "SURPLUS",
+  DEFECTUEUX = "DEFECTUEUX",
+}
+
+export enum StatutAnomalie {
+  EN_ATTENTE = "EN_ATTENTE",
+  EN_COURS = "EN_COURS",
+  TRAITEE = "TRAITEE",
+  TRANSMISE = "TRANSMISE",
+}

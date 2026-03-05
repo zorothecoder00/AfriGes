@@ -155,12 +155,19 @@ export async function POST(req: Request) {
     const caissierNom = auth.user.name ?? `${auth.user.prenom} ${auth.user.nom}`;
     const caissierId  = parseInt(auth.user.id);
 
+    // Trouver le PDV du caissier via affectation active
+    const affectation = await prisma.gestionnaireAffectation.findFirst({
+      where: { userId: caissierId, actif: true },
+      select: { pointDeVenteId: true },
+    });
+
     const newSession = await prisma.sessionCaisse.create({
       data: {
         caissierNom,
         caissierId,
-        fondsCaisse: new Prisma.Decimal(fondsCaisse),
-        statut:      "OUVERTE",
+        pointDeVenteId: affectation?.pointDeVenteId ?? null,
+        fondsCaisse:    new Prisma.Decimal(fondsCaisse),
+        statut:         "OUVERTE",
         notes,
       },
     });

@@ -10,8 +10,3 @@ Ce code :
  a.download = filename;
  a.click();   
  permet de créer un téléchargement via un clic sur une URL ( utile pour les exports)
-
-Claude , en fait on doit revoir la base de donnée à partir de zéro (j'avais pas bien compris toute la structure de données de l'application ). Bon en fait , les USER doivent quasiment tous être rattaché à des points de vente et donc à des RPV(responsablepoint de vente), ainsi que les clients et les vendeurs( bon pour vendeur , ça peut être les user agent_terrain , les magasiniers, agent_logistique ou même le RPV et l'admin). Aussi on doit pouvoir gérer les ventes directes (pas juste les ventes liées à des packs)
-  
-
-    

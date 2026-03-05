@@ -1,30 +1,33 @@
 import { NextResponse } from "next/server";
-import { TypeBonSortie, TypeMouvement, PrioriteNotification } from "@prisma/client";
+import { PrioriteNotification, TypeSortieStock } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getMagasinierSession } from "@/lib/authMagasinier";
 import { randomUUID } from "crypto";
-import { notifyRoles } from "@/lib/notifications";
+import { notifyRoles, auditLog } from "@/lib/notifications";
 
 /**
  * GET /api/magasinier/bons-sortie
- * Liste des bons de sortie
+ * Liste des bons de sortie exceptionnels (pertes, casses, dons, conso interne…).
+ * Query: statut, typeSortie, pdvId, page, limit
  */
 export async function GET(req: Request) {
   try {
     const session = await getMagasinierSession();
-    if (!session) return NextResponse.json({ error: "Acces refuse" }, { status: 403 });
+    if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
 
     const { searchParams } = new URL(req.url);
-    const page   = Math.max(1, Number(searchParams.get("page") || 1));
-    const limit  = Math.min(50, Math.max(1, Number(searchParams.get("limit") || 20)));
-    const skip   = (page - 1) * limit;
-    const statut = searchParams.get("statut");
-    const type   = searchParams.get("type");
+    const page      = Math.max(1, Number(searchParams.get("page")  || 1));
+    const limit     = Math.min(50, Math.max(1, Number(searchParams.get("limit") || 20)));
+    const skip      = (page - 1) * limit;
+    const statut    = searchParams.get("statut")    || "";
+    const typeSortie= searchParams.get("typeSortie")|| "";
+    const pdvId     = searchParams.get("pdvId");
 
-    const where = {
-      ...(statut && { statut: statut as "EN_COURS" | "EXPEDIE" | "RECU" | "ANNULE" }),
-      ...(type   && { type:   type   as TypeBonSortie }),
-    };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const where: any = {};
+    if (statut)     where.statut     = statut;
+    if (typeSortie) where.typeSortie = typeSortie;
+    if (pdvId)      where.pointDeVenteId = Number(pdvId);
 
     const [bons, total] = await Promise.all([
       prisma.bonSortie.findMany({
@@ -33,139 +36,145 @@ export async function GET(req: Request) {
         take: limit,
         orderBy: { createdAt: "desc" },
         include: {
+          pointDeVente: { select: { id: true, nom: true, code: true } },
+          creePar:      { select: { id: true, nom: true, prenom: true } },
+          validePar:    { select: { id: true, nom: true, prenom: true } },
           lignes: {
-            include: { produit: { select: { id: true, nom: true, prixUnitaire: true } } },
+            include: { produit: { select: { id: true, nom: true, reference: true, prixUnitaire: true } } },
           },
-          magasinier: { select: { id: true, nom: true, prenom: true } },
         },
       }),
       prisma.bonSortie.count({ where }),
     ]);
 
+    // PDV disponibles pour le formulaire
+    const pdvs = await prisma.pointDeVente.findMany({
+      where: { actif: true },
+      select: { id: true, nom: true, code: true, type: true },
+      orderBy: { nom: "asc" },
+    });
+
     return NextResponse.json({
       data: bons,
+      pdvs,
       meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
     });
   } catch (error) {
     console.error("GET /magasinier/bons-sortie:", error);
-    return NextResponse.json({ error: "Erreur lors du chargement" }, { status: 500 });
+    return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
   }
 }
 
 /**
  * POST /api/magasinier/bons-sortie
- * Créer un nouveau bon de sortie et déduire le stock
+ * Créer un bon de sortie exceptionnel et déduire le stock du PDV concerné.
+ * Body: { pointDeVenteId, typeSortie, motif, notes?, lignes: [{produitId, quantite}] }
+ * typeSortie valides : PERTE | CASSE | DON | CONSOMMATION_INTERNE | LIVRAISON_CLIENT
  */
 export async function POST(req: Request) {
   try {
     const session = await getMagasinierSession();
-    if (!session) return NextResponse.json({ error: "Acces refuse" }, { status: 403 });
+    if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
 
     const body = await req.json();
-    const { type, destinataire, motif, notes, lignes } = body;
+    const { pointDeVenteId, typeSortie, motif, notes, lignes } = body;
 
-    if (!type || !motif || !lignes || !Array.isArray(lignes) || lignes.length === 0) {
+    if (!pointDeVenteId || !typeSortie || !motif || !lignes?.length) {
       return NextResponse.json(
-        { error: "Champs obligatoires : type, motif, lignes (tableau non vide)" },
+        { error: "pointDeVenteId, typeSortie, motif et lignes sont obligatoires" },
         { status: 400 }
       );
     }
 
-    const validTypes: TypeBonSortie[] = ["PDV", "PERTE", "CASSE", "DON", "COMMANDE_INTERNE"];
-    if (!validTypes.includes(type)) {
-      return NextResponse.json({ error: "Type invalide" }, { status: 400 });
+    const typesValides: TypeSortieStock[] = ["PERTE", "CASSE", "DON", "CONSOMMATION_INTERNE", "LIVRAISON_CLIENT"];
+    if (!typesValides.includes(typeSortie as TypeSortieStock)) {
+      return NextResponse.json(
+        { error: `typeSortie invalide. Valeurs acceptées : ${typesValides.join(", ")}` },
+        { status: 400 }
+      );
     }
 
-    // Vérification des stocks avant transaction
-    for (const ligne of lignes) {
-      const produit = await prisma.produit.findUnique({ where: { id: Number(ligne.produitId) } });
-      if (!produit) {
-        return NextResponse.json({ error: `Produit ${ligne.produitId} introuvable` }, { status: 404 });
-      }
-      if (produit.stock < Number(ligne.quantite)) {
+    // Vérifier stocks avant transaction
+    for (const l of lignes as Array<{ produitId: number; quantite: number }>) {
+      const stock = await prisma.stockSite.findUnique({
+        where: { produitId_pointDeVenteId: { produitId: Number(l.produitId), pointDeVenteId: Number(pointDeVenteId) } },
+        include: { produit: { select: { nom: true } } },
+      });
+      if (!stock || stock.quantite < Number(l.quantite)) {
         return NextResponse.json(
-          { error: `Stock insuffisant pour "${produit.nom}" (dispo: ${produit.stock}, demandé: ${ligne.quantite})` },
+          { error: `Stock insuffisant pour "${stock?.produit.nom ?? l.produitId}". Dispo : ${stock?.quantite ?? 0}, demandé : ${l.quantite}` },
           { status: 400 }
         );
       }
     }
 
     const bonSortie = await prisma.$transaction(async (tx) => {
-      const reference = `BS-${Date.now()}-${randomUUID().slice(0, 6).toUpperCase()}`;
+      const ref = `BS-${Date.now()}-${randomUUID().slice(0, 6).toUpperCase()}`;
 
-      // Récupérer les prix unitaires
+      // Récupérer prix unitaires pour les lignes
       const produitsData = await Promise.all(
-        lignes.map((l: { produitId: number; quantite: number }) =>
-          tx.produit.findUnique({ where: { id: Number(l.produitId) } })
+        (lignes as Array<{ produitId: number; quantite: number }>).map(l =>
+          tx.produit.findUnique({ where: { id: Number(l.produitId) }, select: { id: true, nom: true, prixUnitaire: true } })
         )
       );
 
       const bon = await tx.bonSortie.create({
         data: {
-          reference,
-          type:         type as TypeBonSortie,
-          destinataire: destinataire ?? null,
+          reference:     ref,
+          typeSortie:    typeSortie as TypeSortieStock,
+          statut:        "BROUILLON",
+          pointDeVenteId:Number(pointDeVenteId),
           motif,
-          notes:        notes ?? null,
-          creePar:      parseInt(session.user.id),
+          notes:         notes || null,
+          creeParId:     parseInt(session.user.id),
           lignes: {
-            create: lignes.map((l: { produitId: number; quantite: number }, i: number) => ({
+            create: (lignes as Array<{ produitId: number; quantite: number }>).map((l, i) => ({
               produitId: Number(l.produitId),
               quantite:  Number(l.quantite),
-              prixUnit:  produitsData[i]?.prixUnitaire ?? 0,
+              prixUnit:  produitsData[i]?.prixUnitaire ?? null,
             })),
           },
         },
         include: {
           lignes: { include: { produit: { select: { id: true, nom: true } } } },
+          pointDeVente: { select: { nom: true } },
         },
       });
 
-      // Déduire le stock et enregistrer les mouvements
+      // Décrémenter StockSite + créer MouvementStock
       for (const ligne of bon.lignes) {
-        await tx.produit.update({
-          where: { id: ligne.produitId },
-          data: { stock: { decrement: ligne.quantite } },
+        await tx.stockSite.update({
+          where: { produitId_pointDeVenteId: { produitId: ligne.produitId, pointDeVenteId: Number(pointDeVenteId) } },
+          data: { quantite: { decrement: ligne.quantite } },
         });
 
         await tx.mouvementStock.create({
           data: {
-            produitId:     ligne.produitId,
-            type:          TypeMouvement.SORTIE,
-            quantite:      ligne.quantite,
-            motif:         `Bon de sortie ${reference} — ${motif} (${type})`,
-            reference:     `${reference}-P${ligne.produitId}`,
+            produitId:      ligne.produitId,
+            pointDeVenteId: Number(pointDeVenteId),
+            type:           "SORTIE",
+            typeSortie:     typeSortie as TypeSortieStock,
+            quantite:       ligne.quantite,
+            motif:          `Bon de sortie ${ref} — ${motif}`,
+            reference:      `${ref}-P${ligne.produitId}`,
+            operateurId:    parseInt(session.user.id),
+            bonSortieId:    bon.id,
           },
         });
       }
 
-      await tx.auditLog.create({
-        data: {
-          userId:   parseInt(session.user.id),
-          action:   "BON_SORTIE_CREE",
-          entite:   "BonSortie",
-          entiteId: bon.id,
-        },
+      // Marquer comme VALIDE directement (le magasinier valide à la création)
+      await tx.bonSortie.update({ where: { id: bon.id }, data: { statut: "VALIDE", valideParId: parseInt(session.user.id) } });
+
+      await auditLog(tx, parseInt(session.user.id), "BON_SORTIE_CREE", "BonSortie", bon.id);
+
+      const isPrioritaire = ["PERTE", "CASSE"].includes(typeSortie);
+      await notifyRoles(tx, ["AGENT_LOGISTIQUE_APPROVISIONNEMENT", "RESPONSABLE_POINT_DE_VENTE", "COMPTABLE"], {
+        titre:    `Bon de sortie ${typeSortie} (${ref})`,
+        message:  `${session.user.prenom} ${session.user.nom} a émis un bon de sortie "${typeSortie}" pour "${bon.pointDeVente.nom}". ${bon.lignes.length} ligne(s). Motif : ${motif}.`,
+        priorite: isPrioritaire ? PrioriteNotification.HAUTE : PrioriteNotification.NORMAL,
+        actionUrl:`/dashboard/magasinier/bons-sortie/${bon.id}`,
       });
-
-      const typeLabel: Record<string, string> = {
-        PDV:              "Point de Vente",
-        PERTE:            "Perte",
-        CASSE:            "Casse",
-        DON:              "Don",
-        COMMANDE_INTERNE: "Commande interne",
-      };
-
-      await notifyRoles(
-        tx,
-        ["RESPONSABLE_POINT_DE_VENTE", "COMPTABLE"],
-        {
-          titre:    `Bon de sortie créé (${typeLabel[type]})`,
-          message:  `${session.user.prenom} ${session.user.nom} a émis le bon de sortie ${reference}. Motif : ${motif}. ${lignes.length} ligne(s).`,
-          priorite: ["PERTE", "CASSE"].includes(type) ? PrioriteNotification.HAUTE : PrioriteNotification.NORMAL,
-          actionUrl: `/dashboard/admin/stock`,
-        }
-      );
 
       return bon;
     });
@@ -173,6 +182,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ data: bonSortie }, { status: 201 });
   } catch (error) {
     console.error("POST /magasinier/bons-sortie:", error);
-    return NextResponse.json({ error: "Erreur lors de la creation" }, { status: 500 });
+    return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
   }
 }

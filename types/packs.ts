@@ -1,0 +1,68 @@
+export enum TypePack {
+  ALIMENTAIRE = "ALIMENTAIRE",
+  REVENDEUR = "REVENDEUR",
+  FAMILIAL = "FAMILIAL",
+  URGENCE = "URGENCE",
+  EPARGNE_PRODUIT = "EPARGNE_PRODUIT",
+  FIDELITE = "FIDELITE",
+}
+
+export enum FormuleRevendeur {
+  FORMULE_1 = "FORMULE_1",
+  FORMULE_2 = "FORMULE_2",
+}
+
+export enum FrequenceVersement {
+  QUOTIDIEN = "QUOTIDIEN",
+  HEBDOMADAIRE = "HEBDOMADAIRE",
+  BIMENSUEL = "BIMENSUEL",
+  MENSUEL = "MENSUEL",
+}
+
+export enum StatutSouscription {
+  EN_ATTENTE = "EN_ATTENTE",
+  ACTIF = "ACTIF",
+  SUSPENDU = "SUSPENDU",
+  COMPLETE = "COMPLETE",
+  ANNULE = "ANNULE",
+}
+
+export enum TypeVersement {
+  COTISATION_INITIALE = "COTISATION_INITIALE",
+  VERSEMENT_PERIODIQUE = "VERSEMENT_PERIODIQUE",
+  REMBOURSEMENT = "REMBOURSEMENT",
+  BONUS = "BONUS",
+  AJUSTEMENT = "AJUSTEMENT",
+}
+
+export enum StatutVersementPack {
+  EN_ATTENTE = "EN_ATTENTE",
+  PAYE = "PAYE",
+  ANNULE = "ANNULE",
+  EN_RETARD = "EN_RETARD",
+}
+
+export enum StatutReceptionPack {
+  PLANIFIEE = "PLANIFIEE",
+  LIVREE = "LIVREE",
+  ANNULEE = "ANNULEE",
+}
+
+export enum TypeMouvementPoints {
+  GAIN = "GAIN",
+  UTILISATION = "UTILISATION",
+  EXPIRATION = "EXPIRATION",
+  AJUSTEMENT = "AJUSTEMENT",
+}
+
+export enum TypeRecompense {
+  REDUCTION = "REDUCTION",
+  PRODUIT_GRATUIT = "PRODUIT_GRATUIT",
+  CASHBACK = "CASHBACK",
+}
+
+export enum StatutRecompense {
+  DISPONIBLE = "DISPONIBLE",
+  UTILISEE = "UTILISEE",
+  EXPIREE = "EXPIREE",
+}

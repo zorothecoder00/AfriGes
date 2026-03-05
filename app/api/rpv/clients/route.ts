@@ -20,15 +20,22 @@ export async function GET(req: Request) {
     const skip   = (page - 1) * limit;
     const search = searchParams.get("search") || "";
 
-    const where: Prisma.ClientWhereInput = search
-      ? {
-          OR: [
-            { nom:       { contains: search, mode: "insensitive" } },
-            { prenom:    { contains: search, mode: "insensitive" } },
-            { telephone: { contains: search, mode: "insensitive" } },
-          ],
-        }
-      : {};
+    // Trouver le PDV du RPV pour filtrer ses clients
+    const pdv = await prisma.pointDeVente.findUnique({
+      where: { rpvId: parseInt(session.user.id) },
+      select: { id: true },
+    });
+
+    const where: Prisma.ClientWhereInput = {
+      ...(pdv && { pointDeVenteId: pdv.id }),
+      ...(search && {
+        OR: [
+          { nom:       { contains: search, mode: "insensitive" } },
+          { prenom:    { contains: search, mode: "insensitive" } },
+          { telephone: { contains: search, mode: "insensitive" } },
+        ],
+      }),
+    };
 
     const [clients, total] = await Promise.all([
       prisma.client.findMany({
@@ -81,9 +88,15 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Un client avec ce numéro existe déjà" }, { status: 409 });
     }
 
+    // Récupérer le PDV du RPV pour rattacher le client
+    const pdvRPV = await prisma.pointDeVente.findUnique({
+      where: { rpvId: parseInt(session.user.id) },
+      select: { id: true },
+    });
+
     const client = await prisma.$transaction(async (tx) => {
       const c = await tx.client.create({
-        data: { nom, prenom, telephone, adresse: adresse || null },
+        data: { nom, prenom, telephone, adresse: adresse || null, pointDeVenteId: pdvRPV?.id ?? null },
       });
       await auditLog(tx, parseInt(session.user.id), "CLIENT_CREE", "Client", c.id);
       return c;

@@ -4,6 +4,7 @@ export enum TypeFacture {
   CREDIT = "CREDIT",
   CREDIT_ALIMENTAIRE = "CREDIT_ALIMENTAIRE",
   ACHAT = "ACHAT",
+  VENTE_DIRECTE = "VENTE_DIRECTE",
 }
 
 export enum StatutFacture {

@@ -7,6 +7,7 @@ export enum TransactionType {
   CREDIT = "CREDIT",
   ACHAT = "ACHAT",
   ANNULATION = "ANNULATION",
+  VENTE = "VENTE",
 }
 
 export enum TypePaiement {
@@ -14,4 +15,8 @@ export enum TypePaiement {
   WALLET_TONTINE = "WALLET_TONTINE",
   WALLET_CREDIT = "WALLET_CREDIT",
   EXTERNE = "EXTERNE",
+  ESPECES = "ESPECES",
+  VIREMENT = "VIREMENT",
+  CHEQUE = "CHEQUE",
+  MOBILE_MONEY = "MOBILE_MONEY",
 }
