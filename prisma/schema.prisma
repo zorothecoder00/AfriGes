@@ -1,59 +1,25 @@
 // This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema     
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
 
 // Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
 // Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-   
+
 generator client {
-  provider = "prisma-client-js"                                                                      
-}                                                       
-                        
-datasource db {                                
-  provider = "postgresql"              
-}                           
-                      
-enum Role {         
-  SUPER_ADMIN                  
-  ADMIN                 
-  USER                          
-}          
-   
-model User {
-  id                  Int               @id @default(autoincrement())
-  uuid                String            @unique @default(uuid())
-  nom                 String    
-  prenom              String                     
-  email               String            @unique   
-  photo               String? // 👈 NextAuth (image / photo)
-  role                Role?                
-  telephone           String?                    
-  adresse             String?            
-  passwordHash        String?
-  etat                MemberStatus      @default(ACTIF)            
-  dateAdhesion        DateTime          @default(now())      
+  provider = "prisma-client-js"
+}
 
-  wallet              Wallet?
-  gestionnaire        Gestionnaire?
-  factures            Facture[] // ✅ AJOUTÉ
-  auditLogs           AuditLog[] // ✅ (pour erreur suivante)
-  notifications       Notification[]
-  souscriptionsPacks  SouscriptionPack[]
-  pointsFidelite      PointsFidelite?
-  messagesEnvoyes     Message[]         @relation("MessagesEnvoyes")
-  messagesRecus       Message[]         @relation("MessagesRecus")
-  cloturesComptables      ClotureComptable[]
-  piecesJustificatives    PieceJustificative[]
-  anomaliesSignalees      AnomalieStock[]     @relation("AnomaliesSignalees")
-  anomaliesTraitees       AnomalieStock[]     @relation("AnomaliesTraitees")
-  bonsSortieCreés         BonSortie[]         @relation("BonsSortieCreés")
-  bonsSortieValidés       BonSortie[]         @relation("BonsSortieValidés")
-  ecrituresComptables     EcritureComptable[]
-  rapprochements          RapprochementBancaire[]
-  declarationsTVA         DeclarationTVA[]
-  journalValidations      JournalValidation[]
+datasource db {
+  provider = "postgresql"
+}
 
-  createdAt           DateTime          @default(now())
-  updatedAt           DateTime          @updatedAt
+// ============================================================
+// ENUMS — Rôles & statuts généraux
+// ============================================================
+
+enum Role {
+  SUPER_ADMIN
+  ADMIN
+  USER
 }
 
 enum MemberStatus {
@@ -62,247 +28,115 @@ enum MemberStatus {
   SUSPENDU
 }
 
-model Client {
-  id                  Int               @id @default(autoincrement())
-  nom                 String
-  prenom              String
-  telephone           String            @unique
-  adresse             String?
-  etat                MemberStatus      @default(ACTIF)
-  souscriptionsPacks  SouscriptionPack[]
-  pointsFidelite      PointsFidelite?
-
-  createdAt           DateTime          @default(now())
-  updatedAt           DateTime          @updatedAt
-}  
-
-model Wallet {
-  id                  Int               @id @default(autoincrement())
-  memberId            Int               @unique
-  soldeGeneral        Decimal           @default(0.0)
-  soldeTontine        Decimal           @default(0.0)
-  soldeCredit         Decimal           @default(0.0)
-
-  member              User              @relation(fields: [memberId], references: [id])
-  transactions        WalletTransaction[]
-  paiements           Paiement[] // ✅ AJOUTÉ pour relation inverse
-
-  createdAt           DateTime          @default(now())
-  updatedAt           DateTime          @updatedAt
-}
-
-model WalletTransaction {
-  id                  Int               @id @default(autoincrement())
-  walletId            Int
-  type                TransactionType
-  montant             Decimal
-  description         String?
-  reference           String            @unique
-
-  wallet              Wallet            @relation(fields: [walletId], references: [id])
-
-  createdAt           DateTime          @default(now())
-  updatedAt           DateTime          @updatedAt
-}
-
-enum TransactionType {         
-  DEPOT
-  RETRAIT
-  COTISATION  
-  TONTINE
-  REMBOURSEMENT_CREDIT
-  CREDIT
-  ACHAT
-  ANNULATION
-}
-
-model Gestionnaire {
-  id                  Int               @id @default(autoincrement())
-  memberId            Int               @unique
-  role                RoleGestionnaire
-  actif               Boolean           @default(true)
-
-  member              User              @relation(fields: [memberId], references: [id])
-  assemblees          AssembleeParticipant[]
-  actionnaireProfile  ActionnaireProfile?
-  procurationsMandant     ProcurationAssemblee[] @relation("procurationsMandant")
-  procurationsMandataire  ProcurationAssemblee[] @relation("procurationsMandataire")
-
-  createdAt           DateTime          @default(now())
-  updatedAt           DateTime          @updatedAt
-}
-
 enum RoleGestionnaire {
   SUPER_ADMIN
   ADMIN
-  RESPONSABLE_POINT_DE_VENTE
-  RESPONSABLE_COMMUNAUTE
-  REVENDEUR
-  AGENT_LOGISTIQUE_APPROVISIONNEMENT
+  RESPONSABLE_POINT_DE_VENTE         // RPV
+  CHEF_AGENCE                        // coordonne plusieurs PDV (nouveau)
+  RESPONSABLE_COMMUNAUTE             // alias chef agence communautaire
+  AGENT_LOGISTIQUE_APPROVISIONNEMENT // responsable stock & réceptions
   MAGAZINIER
   CAISSIER
   COMMERCIAL
-  COMPTABLE  
+  COMPTABLE
   AUDITEUR_INTERNE
   RESPONSABLE_VENTE_CREDIT
   CONTROLEUR_TERRAIN
-  AGENT_TERRAIN
+  AGENT_TERRAIN                      // vendeur terrain
   RESPONSABLE_ECONOMIQUE
   RESPONSABLE_MARKETING
   ACTIONNAIRE
+  REVENDEUR
 }
 
-/**
- * ========= STOCK (facultatif mais prêt) ==========
- */
+// ============================================================
+// ENUMS — Points de vente & dépôts
+// ============================================================
 
-model Produit {
-  id                  Int                  @id @default(autoincrement())
-  nom                 String
-  description         String?
-  prixUnitaire        Decimal
-  stock               Int                  @default(0)
-  alerteStock         Int                  @default(0)
-
-  mouvements          MouvementStock[]
-  livraisonsLignes    LivraisonLigne[]
-  lignesReceptionPack LigneReceptionPack[]
-  recompensesFidelite RecompenseFidelite[]
-  packsCibleProduit   Pack[]               @relation("PackProduitCible")
-  anomalies           AnomalieStock[]
-  lignesBonSortie     LigneBonSortie[]
-
-  createdAt           DateTime             @default(now())
-  updatedAt           DateTime             @updatedAt
+enum TypePointDeVente {
+  POINT_DE_VENTE
+  DEPOT_CENTRAL
 }
 
-model MouvementStock {
-  id                  Int                  @id @default(autoincrement())
-  produitId           Int
-  type                TypeMouvement
-  quantite            Int
-  motif               String?
-  reference           String               @unique
-  dateMouvement       DateTime             @default(now())
-
-  produit             Produit              @relation(fields: [produitId], references: [id])
+enum TypeEntreeStock {
+  RECEPTION_FOURNISSEUR
+  RECEPTION_INTERNE     // depuis un autre dépôt / siège
+  TRANSFERT_ENTRANT
+  AJUSTEMENT_POSITIF
+  RETOUR_CLIENT
 }
 
-enum TypeMouvement {    
+enum TypeSortieStock {
+  VENTE_DIRECTE
+  LIVRAISON_PACK
+  LIVRAISON_CLIENT
+  RETOUR_FOURNISSEUR
+  CONSOMMATION_INTERNE
+  TRANSFERT_SORTANT
+  AJUSTEMENT_NEGATIF
+  PERTE
+  CASSE
+  DON
+}
+
+enum TypeMouvement {
   ENTREE
   SORTIE
   AJUSTEMENT
 }
 
-model Paiement {
-  id                  Int                  @id @default(autoincrement())
-  factureId           Int
-  walletId            Int
-  montant             Decimal
-  type                TypePaiement // Ex: WALLET_GENERAL, WALLET_TONTINE, WALLET_CREDIT, EXTERNE
-  reference           String               @unique
-  createdAt           DateTime             @default(now())
-
-  facture             Facture              @relation(fields: [factureId], references: [id])
-  wallet              Wallet               @relation(fields: [walletId], references: [id])
-}
-
-enum TypePaiement {
-  WALLET_GENERAL
-  WALLET_TONTINE
-  WALLET_CREDIT
-  EXTERNE
-}
-
-enum TypeFacture {
-  COTISATION
-  TONTINE
-  CREDIT
-  CREDIT_ALIMENTAIRE
-  ACHAT
-}
-
-enum StatutFacture {
-  BROUILLON
-  PAYEE
-  ANNULEE
-}
-
-model Facture {
-  id                  Int                   @id @default(autoincrement())
-  reference           String                @unique
-  memberId            Int
-  montant             Decimal
-  type                TypeFacture
-  statut              StatutFacture
-
-  member              User                  @relation(fields: [memberId], references: [id])
-  paiements           Paiement[] // ✅ AJOUTÉ pour relation inverse
-
-  createdAt           DateTime              @default(now())
-  updatedAt           DateTime              @updatedAt
-}
-
-model AuditLog {
-  id                  Int                   @id @default(autoincrement())
-  userId              Int?
-  action              String
-  entite              String
-  entiteId            Int?
-  createdAt           DateTime              @default(now())
-
-  user                User?                 @relation(fields: [userId], references: [id])
-}
-
-model Parametre {
-  cle                 String                @id
-  valeur              String
-}
-
-// ── Livraisons (gérées par le Responsable PDV) ──────────────────────────────
-
-enum TypeLivraison {
-  RECEPTION   // Entrée de marchandises (fournisseur → PDV)
-  EXPEDITION  // Sortie / livraison (PDV → client ou autre PDV)
-}
-
-enum StatutLivraison {
-  EN_ATTENTE
+enum StatutTransfertStock {
   EN_COURS
-  LIVREE
+  EXPEDIE
+  RECU
+  ANNULE
+}
+
+enum TypeReceptionAppro {
+  FOURNISSEUR
+  INTERNE
+}
+
+enum StatutReceptionAppro {
+  BROUILLON
+  EN_COURS
+  RECU
+  VALIDE
+  ANNULE
+}
+
+enum StatutInventaire {
+  EN_COURS
+  VALIDE
+  ANNULE
+}
+
+enum StatutCommandeInterne {
+  BROUILLON
+  SOUMISE
+  EN_COURS
+  COMPLETE
+  ANNULE
+}
+
+// ============================================================
+// ENUMS — Ventes & caisse
+// ============================================================
+
+enum StatutVenteDirecte {
+  BROUILLON
+  CONFIRMEE
   ANNULEE
 }
 
-model Livraison {
-  id                 Int             @id @default(autoincrement())
-  reference          String          @unique
-  type               TypeLivraison
-  statut             StatutLivraison @default(EN_ATTENTE)
-  fournisseurNom     String?
-  destinataireNom    String?
-  datePrevisionnelle DateTime
-  dateLivraison      DateTime?
-  notes              String?
-  planifiePar        String
-
-  lignes             LivraisonLigne[]
-
-  createdAt          DateTime        @default(now())
-  updatedAt          DateTime        @updatedAt
+enum ModePaiementVente {
+  ESPECES
+  VIREMENT
+  CHEQUE
+  MOBILE_MONEY
+  WALLET
+  CREDIT
 }
-
-model LivraisonLigne {
-  id              Int      @id @default(autoincrement())
-  livraisonId     Int
-  produitId       Int
-  quantitePrevue  Int
-  quantiteRecue   Int?
-
-  livraison       Livraison @relation(fields: [livraisonId], references: [id], onDelete: Cascade)
-  produit         Produit   @relation(fields: [produitId], references: [id])
-}
-
-// ── Gestion de caisse ─────────────────────────────────────────────────────────
 
 enum StatutSessionCaisse {
   OUVERTE
@@ -314,6 +148,7 @@ enum ModePaiement {
   ESPECES
   VIREMENT
   CHEQUE
+  MOBILE_MONEY
 }
 
 enum TypeOperationCaisse {
@@ -328,127 +163,202 @@ enum CategorieDecaissement {
   AUTRE
 }
 
-model SessionCaisse {
-  id            Int                 @id @default(autoincrement())
-  caissierNom   String
-  caissierId    Int
-  fondsCaisse   Decimal             @default(0)
-  statut        StatutSessionCaisse @default(OUVERTE)
-  dateOuverture DateTime            @default(now())
-  dateFermeture DateTime?
-  notes         String?
-  operations    OperationCaisse[]
-  transferts    TransfertCaisse[]
-  clotures      ClotureCaisse[]
-  createdAt     DateTime            @default(now())
-  updatedAt     DateTime            @updatedAt
+// ============================================================
+// ENUMS — Contrôle terrain
+// ============================================================
+
+enum StatutVisiteControle {
+  PLANIFIEE
+  EN_COURS
+  TERMINEE
+  ANNULEE
 }
 
-model OperationCaisse {
-  id           Int                    @id @default(autoincrement())
-  sessionId    Int
-  session      SessionCaisse          @relation(fields: [sessionId], references: [id])
-  type         TypeOperationCaisse
-  mode         ModePaiement?
-  categorie    CategorieDecaissement?
-  montant      Decimal
-  motif        String
-  reference    String                 @unique
-  pieceJointe  String?
-  operateurNom String
-  operateurId  Int
-  createdAt    DateTime               @default(now())
+enum NiveauAlerteControle {
+  INFO
+  ATTENTION
+  CRITIQUE
 }
 
-model TransfertCaisse {
-  id           Int           @id @default(autoincrement())
-  sessionId    Int
-  session      SessionCaisse @relation(fields: [sessionId], references: [id])
-  origine      String
-  destination  String
-  montant      Decimal
-  motif        String?
-  reference    String        @unique
-  operateurNom String
-  operateurId  Int
-  createdAt    DateTime      @default(now())
+// ============================================================
+// ENUMS — Packs & fidélité
+// ============================================================
+
+enum TypePack {
+  ALIMENTAIRE
+  REVENDEUR
+  FAMILIAL
+  URGENCE
+  EPARGNE_PRODUIT
+  FIDELITE
 }
 
-// ── Clôture de caisse ────────────────────────────────────────────────────────
-
-model ClotureCaisse {
-  id                       Int            @id @default(autoincrement())
-  date                     DateTime       @unique
-  caissierNom              String
-  totalVentes              Int
-  montantTotal             Decimal
-  panierMoyen              Decimal
-  nbClients                Int
-  notes                    String?
-  // Champs session (nullable pour rétrocompatibilité)
-  sessionId                Int?
-  session                  SessionCaisse? @relation(fields: [sessionId], references: [id])
-  fondsCaisse              Decimal        @default(0)
-  totalEncaissementsAutres Decimal        @default(0)
-  totalDecaissements       Decimal        @default(0)
-  totalTransferts          Decimal        @default(0)
-  soldeTheorique           Decimal        @default(0)
-  soldeReel                Decimal?
-  ecart                    Decimal?
-  createdAt                DateTime       @default(now())
-}
-  
-// ── Clôture comptable mensuelle ───────────────────────────────────────────────
-
-model ClotureComptable {
-  id          Int      @id @default(autoincrement())
-  annee       Int                          // ex: 2025
-  mois        Int                          // 1-12
-  notes       String?
-  cloturePar  Int
-  clotureUser User     @relation(fields: [cloturePar], references: [id])
-  createdAt   DateTime @default(now())
-
-  @@unique([annee, mois])
+enum FormuleRevendeur {
+  FORMULE_1
+  FORMULE_2
 }
 
-model Notification {
-  id                  Int                   @id @default(autoincrement())
-  uuid                String                @unique @default(uuid())
-  
-  // Relation avec l'utilisateur
-  userId              Int
-  user                User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  // Informations de base   
-  titre               String
-  message             String
-  priorite            PrioriteNotification  @default(NORMAL)
-  
-  // État de la notification
-  lue                 Boolean               @default(false)
-  dateLecture         DateTime?
-  
-  // Action associée
-  actionUrl           String?               // URL vers la page de détail
-  
-  // Dates
-  createdAt           DateTime              @default(now())
-  updatedAt           DateTime              @updatedAt
-  
-  // Index pour optimiser les requêtes
-  @@index([userId, lue])
-  @@index([userId, createdAt]) 
+enum FrequenceVersement {
+  QUOTIDIEN
+  HEBDOMADAIRE
+  BIMENSUEL
+  MENSUEL
 }
 
-enum PrioriteNotification {
-  URGENT       // Rouge - Action immédiate requise
-  HAUTE        // Orange - Important
-  NORMAL       // Gris - Standard
-  BASSE        // Bleu - Info
+enum StatutSouscription {
+  EN_ATTENTE
+  ACTIF
+  SUSPENDU
+  COMPLETE
+  ANNULE
 }
 
-// ── Actionnaires ──────────────────────────────────────────────────────────────
+enum TypeVersement {
+  COTISATION_INITIALE
+  VERSEMENT_PERIODIQUE
+  REMBOURSEMENT
+  BONUS
+  AJUSTEMENT
+}
+
+enum StatutVersementPack {
+  EN_ATTENTE
+  PAYE
+  ANNULE
+  EN_RETARD
+}
+
+enum StatutReceptionPack {
+  PLANIFIEE
+  LIVREE
+  ANNULEE
+}
+
+enum TypeMouvementPoints {
+  GAIN
+  UTILISATION
+  EXPIRATION
+  AJUSTEMENT
+}
+
+enum TypeRecompense {
+  REDUCTION
+  PRODUIT_GRATUIT
+  CASHBACK
+}
+
+enum StatutRecompense {
+  DISPONIBLE
+  UTILISEE
+  EXPIREE
+}
+
+// ============================================================
+// ENUMS — Finances & comptabilité
+// ============================================================
+
+enum TransactionType {
+  DEPOT
+  RETRAIT
+  COTISATION
+  TONTINE
+  REMBOURSEMENT_CREDIT
+  CREDIT
+  ACHAT
+  ANNULATION
+  VENTE
+}
+
+enum TypePaiement {
+  WALLET_GENERAL
+  WALLET_TONTINE
+  WALLET_CREDIT
+  EXTERNE
+  ESPECES
+  VIREMENT
+  CHEQUE
+  MOBILE_MONEY
+}
+
+enum TypeFacture {
+  COTISATION
+  TONTINE
+  CREDIT
+  CREDIT_ALIMENTAIRE
+  ACHAT
+  VENTE_DIRECTE
+}
+
+enum StatutFacture {
+  BROUILLON
+  PAYEE
+  ANNULEE
+}
+
+enum TypeCompte {
+  ACTIF
+  PASSIF
+  CHARGES
+  PRODUITS
+  TRESORERIE
+}
+
+enum NatureCompte {
+  DETAIL
+  REGROUPEMENT
+  AUXILIAIRE
+}
+
+enum SensCompte {
+  DEBITEUR
+  CREDITEUR
+}
+
+enum TypeJournalComptable {
+  CAISSE
+  BANQUE
+  VENTES
+  ACHATS
+  OD
+  PAIE
+}
+
+enum StatutEcriture {
+  BROUILLON
+  VALIDE
+  CLOTURE
+}
+
+enum StatutRapprochement {
+  EN_COURS
+  VALIDE
+}
+
+enum StatutTVA {
+  BROUILLON
+  VALIDE
+}
+
+// ============================================================
+// ENUMS — Anomalies stock
+// ============================================================
+
+enum TypeAnomalie {
+  MANQUANT
+  SURPLUS
+  DEFECTUEUX
+}
+
+enum StatutAnomalie {
+  EN_ATTENTE
+  EN_COURS
+  TRAITEE
+  TRANSMISE
+}
+
+// ============================================================
+// ENUMS — Actionnaires & assemblées
+// ============================================================
 
 enum StatutDividende {
   PLANIFIE
@@ -457,24 +367,11 @@ enum StatutDividende {
   ANNULE
 }
 
-model Dividende {
-  id              Int             @id @default(autoincrement())
-  periode         String          // "T1 2026", "Annuel 2025"
-  montantTotal    Decimal
-  montantParPart  Decimal?
-  dateVersement   DateTime?
-  statut          StatutDividende @default(PLANIFIE)
-  notes           String?
-
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
-}
-
 enum TypeAssemblee {
-  AGO  // Assemblée Générale Ordinaire
-  AGE  // Assemblée Générale Extraordinaire   
-  CS   // Comité Stratégique
-  CA   // Conseil d'Administration
+  AGO
+  AGE
+  CS
+  CA
 }
 
 enum StatutAssemblee {
@@ -503,658 +400,12 @@ enum DecisionVote {
   ABSTENTION
 }
 
-model Assemblee {
-  id              Int                   @id @default(autoincrement())
-  titre           String
-  description     String?
-  type            TypeAssemblee
-  statut          StatutAssemblee       @default(PLANIFIEE)
-  dateAssemblee   DateTime
-  lieu            String
-  ordreJour       String?
-  notes           String?
-
-  participants    AssembleeParticipant[]
-  resolutions     ResolutionAssemblee[]
-  procurations    ProcurationAssemblee[]
-
-  createdAt       DateTime              @default(now())
-  updatedAt       DateTime              @updatedAt
-}
-
-model AssembleeParticipant {
-  id                   Int                  @id @default(autoincrement())
-  assembleeId          Int
-  gestionnaireId       Int
-  statut               StatutParticipation  @default(INVITE)
-  dateConfirmation     DateTime?
-
-  assemblee            Assemblee            @relation(fields: [assembleeId], references: [id], onDelete: Cascade)
-  gestionnaire         Gestionnaire         @relation(fields: [gestionnaireId], references: [id])
-  votes                VoteAssemblee[]
-
-  createdAt            DateTime             @default(now())
-  updatedAt            DateTime             @updatedAt
-
-  @@unique([assembleeId, gestionnaireId])
-}
-
-model ResolutionAssemblee {
-  id              Int                  @id @default(autoincrement())
-  assembleeId     Int
-  numero          Int
-  titre           String
-  description     String?
-  statut          StatutResolution     @default(EN_ATTENTE)
-
-  assemblee       Assemblee            @relation(fields: [assembleeId], references: [id], onDelete: Cascade)
-  votes           VoteAssemblee[]
-
-  createdAt       DateTime             @default(now())
-  updatedAt       DateTime             @updatedAt
-
-  @@unique([assembleeId, numero])
-}
-
-model VoteAssemblee {
-  id              Int                   @id @default(autoincrement())
-  resolutionId    Int
-  participantId   Int
-  decision        DecisionVote
-  commentaire     String?
-
-  resolution      ResolutionAssemblee   @relation(fields: [resolutionId], references: [id], onDelete: Cascade)
-  participant     AssembleeParticipant  @relation(fields: [participantId], references: [id], onDelete: Cascade)
-
-  createdAt       DateTime              @default(now())
-
-  @@unique([resolutionId, participantId])
-}
-
-// ── Architecture Packs AfriSime ────────────────────────────────────────────────
-
-enum TypePack {
-  ALIMENTAIRE       // Cotisation 15 ou 30 jours → produit alimentaire (particuliers)
-  REVENDEUR         // 2 formules: (1) 50% upfront + tontine hebdo, (2) crédit total 16j max
-  FAMILIAL          // Panier mensuel, bonus 10% après 3 cycles complets
-  URGENCE           // 25% upfront, livraison immédiate, remboursement 7-10 jours
-  EPARGNE_PRODUIT   // Épargne progressive quotidienne/hebdo → seuil → produit (renouvelable)
-  FIDELITE          // Points par achat/remboursement → réductions/produits gratuits
-}
-
-enum FormuleRevendeur {
-  FORMULE_1   // 50% upfront + cotisation tontine hebdomadaire jusqu'à solde
-  FORMULE_2   // Crédit total, remboursement quotidien sur 16 jours maximum
-}
-
-enum FrequenceVersement {
-  QUOTIDIEN
-  HEBDOMADAIRE
-  BIMENSUEL
-  MENSUEL
-}
-
-enum StatutSouscription {
-  EN_ATTENTE    // Créée mais pas encore activée
-  ACTIF         // En cours
-  SUSPENDU      // Temporairement suspendu
-  COMPLETE      // Cycle terminé avec succès
-  ANNULE        // Annulé
-}
-
-enum TypeVersement {
-  COTISATION_INITIALE   // Premier versement / acompte (ex: 25% urgence, 50% revendeur)
-  VERSEMENT_PERIODIQUE  // Versement régulier (tontine, épargne, cotisation)
-  REMBOURSEMENT         // Remboursement crédit (formule 2 ou urgence)
-  BONUS                 // Bonus fidélité ou bonus fin de cycle
-  AJUSTEMENT            // Ajustement administratif
-}
-
-enum StatutVersementPack {
+enum StatutProcuration {
   EN_ATTENTE
-  PAYE
-  ANNULE
-  EN_RETARD
+  ACCEPTEE
+  REFUSEE
+  REVOQUEE
 }
-
-enum StatutReceptionPack {
-  PLANIFIEE
-  LIVREE
-  ANNULEE
-}
-
-enum TypeMouvementPoints {
-  GAIN          // Points gagnés (achat, remboursement ponctuel)
-  UTILISATION   // Points utilisés pour une récompense
-  EXPIRATION    // Points expirés automatiquement
-  AJUSTEMENT    // Ajustement administratif
-}
-
-enum TypeRecompense {
-  REDUCTION         // Pourcentage de réduction sur prochain achat
-  PRODUIT_GRATUIT   // Produit offert du catalogue
-  CASHBACK          // Remboursement en cash
-}
-
-enum StatutRecompense {
-  DISPONIBLE
-  UTILISEE
-  EXPIREE
-}
-
-// Template de configuration pour chaque type de pack
-model Pack {
-  id                  Int                @id @default(autoincrement())
-  nom                 String
-  type                TypePack
-  description         String?
-  actif               Boolean            @default(true)
-
-  // Configuration commune
-  dureeJours          Int?               // Durée du cycle (15 ou 30 pour ALIMENTAIRE, 16 pour REVENDEUR F2)
-  frequenceVersement  FrequenceVersement @default(HEBDOMADAIRE)
-  montantVersement    Decimal?           // Montant du versement périodique standard
-
-  // Pack REVENDEUR
-  formuleRevendeur    FormuleRevendeur?  // null si type != REVENDEUR
-  montantCredit       Decimal?           // Montant total du crédit (REVENDEUR F2)
-
-  // Pack EPARGNE_PRODUIT
-  montantSeuil        Decimal?           // Seuil d'épargne à atteindre
-  produitCibleId      Int?               // Produit à délivrer quand le seuil est atteint
-  produitCible        Produit?           @relation("PackProduitCible", fields: [produitCibleId], references: [id])
-
-  // Pack FAMILIAL
-  bonusPourcentage    Decimal?           // Ex: 10.0 pour 10% de bonus
-  cyclesBonusTrigger  Int?               // Nb de cycles consécutifs pour bonus (ex: 3)
-
-  // Pack URGENCE
-  acomptePercent      Decimal?           // Ex: 25.0 pour 25% d'acompte obligatoire
-
-  // Pack FIDELITE
-  pointsParTranche    Int?               // Points gagnés par tranche d'achat
-  montantTranche      Decimal?           // Montant d'achat correspondant à la tranche
-
-  souscriptions       SouscriptionPack[]
-
-  createdAt           DateTime           @default(now())
-  updatedAt           DateTime           @updatedAt
-}
-  
-// Souscription d'un client/membre à un pack
-model SouscriptionPack { 
-  id                  Int                @id @default(autoincrement())
-  packId              Int
-  pack                Pack               @relation(fields: [packId], references: [id])
-
-  // Abonné : User (membre) ou Client externe, un seul des deux
-  userId              Int?
-  user                User?              @relation(fields: [userId], references: [id])
-  clientId            Int?
-  client              Client?            @relation(fields: [clientId], references: [id])
-
-  statut              StatutSouscription @default(EN_ATTENTE)
-  formuleRevendeur    FormuleRevendeur?  // Précision pour pack REVENDEUR
-  frequenceVersement  FrequenceVersement? // Override de la fréquence du pack (ex: FAMILIAL)
-
-  dateDebut           DateTime           @default(now())
-  dateFin             DateTime?          // Date de fin prévue du cycle
-  dateCloture         DateTime?          // Date de clôture effective
-
-  // Suivi financier
-  montantTotal        Decimal            // Montant total attendu sur le cycle
-  montantVerse        Decimal            @default(0)  // Total versé jusqu'ici
-  montantRestant      Decimal            // montantTotal - montantVerse (mis à jour à chaque versement)
-
-  // Cycle (pour FAMILIAL : suivi des cycles consécutifs)
-  numeroCycle         Int                @default(1)
-  bonusObtenu         Boolean            @default(false)
-
-  notes               String?
-  enregistrePar       String?            // Nom du caissier/RPV qui a créé la souscription
-
-  versements          VersementPack[]
-  echeances           EcheancePack[]
-  receptions          ReceptionProduitPack[]
-
-  createdAt           DateTime           @default(now())
-  updatedAt           DateTime           @updatedAt
-}
-
-// Versement individuel dans le cadre d'une souscription
-model VersementPack {
-  id                  Int                  @id @default(autoincrement())
-  souscriptionId      Int
-  souscription        SouscriptionPack     @relation(fields: [souscriptionId], references: [id])
-
-  type                TypeVersement
-  montant             Decimal
-  statut              StatutVersementPack  @default(PAYE)
-  datePrevue          DateTime?
-  datePaiement        DateTime             @default(now())
-  reference           String?              @unique
-
-  notes               String?
-  encaisseParId       Int?                 // userId du caissier
-  encaisseParNom      String?              // Nom affiché du caissier
-
-  createdAt           DateTime             @default(now())
-  updatedAt           DateTime             @updatedAt
-}
-
-// Échéancier de remboursement (REVENDEUR F2 et URGENCE)
-model EcheancePack {
-  id                  Int                  @id @default(autoincrement())
-  souscriptionId      Int
-  souscription        SouscriptionPack     @relation(fields: [souscriptionId], references: [id])
-
-  numero              Int                  // N° de l'échéance (1, 2, 3…)
-  montant             Decimal
-  datePrevue          DateTime
-  datePaiement        DateTime?
-  statut              StatutVersementPack  @default(EN_ATTENTE)
-  notes               String?
-
-  createdAt           DateTime             @default(now())
-  updatedAt           DateTime             @updatedAt
-
-  @@unique([souscriptionId, numero])   
-}
-
-// Réception / livraison du produit au client à la fin d'un cycle
-model ReceptionProduitPack {
-  id                  Int                  @id @default(autoincrement())
-  souscriptionId      Int
-  souscription        SouscriptionPack     @relation(fields: [souscriptionId], references: [id])
-
-  statut              StatutReceptionPack  @default(PLANIFIEE)
-  datePrevisionnelle  DateTime
-  dateLivraison       DateTime?
-  livreurNom          String?
-  notes               String?
-
-  lignes              LigneReceptionPack[]
-
-  createdAt           DateTime             @default(now())
-  updatedAt           DateTime             @updatedAt
-}
-
-// Lignes de produits dans une réception pack
-model LigneReceptionPack {
-  id                  Int                  @id @default(autoincrement())
-  receptionId         Int
-  reception           ReceptionProduitPack @relation(fields: [receptionId], references: [id], onDelete: Cascade)
-  produitId           Int
-  produit             Produit              @relation(fields: [produitId], references: [id])
-
-  quantite            Int
-  prixUnitaire        Decimal              // Prix au moment de la réception
-}
-
-// Solde de points fidélité (1 par User ou Client)
-model PointsFidelite {
-  id                  Int                  @id @default(autoincrement())
-  solde               Int                  @default(0)
-  totalGagne          Int                  @default(0)
-  totalUtilise        Int                  @default(0)
-
-  userId              Int?                 @unique
-  user                User?                @relation(fields: [userId], references: [id])
-  clientId            Int?                 @unique
-  client              Client?              @relation(fields: [clientId], references: [id])
-
-  mouvements          MouvementPoints[]
-  utilisations        UtilisationRecompense[]
-
-  createdAt           DateTime             @default(now())
-  updatedAt           DateTime             @updatedAt
-}
-
-// Historique des mouvements de points
-model MouvementPoints {
-  id                  Int                  @id @default(autoincrement())
-  pointsFideliteId    Int
-  pointsFidelite      PointsFidelite       @relation(fields: [pointsFideliteId], references: [id])
-
-  type                TypeMouvementPoints
-  points              Int                  // Positif = gain, négatif = utilisation
-  description         String?
-  referenceId         Int?                 // ID de la vente, souscription, etc.
-  referenceType       String?              // "SouscriptionPack", "VenteCreditAlimentaire"…
-
-  createdAt           DateTime             @default(now())
-}
-
-// Catalogue des récompenses disponibles
-model RecompenseFidelite {
-  id                  Int                  @id @default(autoincrement())
-  nom                 String
-  description         String?
-  type                TypeRecompense
-  coutPoints          Int                  // Points nécessaires pour obtenir la récompense
-  valeur              Decimal?             // % de réduction ou montant cashback (selon type)
-
-  produitId           Int?                 // Pour PRODUIT_GRATUIT
-  produit             Produit?             @relation(fields: [produitId], references: [id])
-
-  actif               Boolean              @default(true)
-  dateExpiration      DateTime?
-
-  utilisations        UtilisationRecompense[]
-
-  createdAt           DateTime             @default(now())
-  updatedAt           DateTime             @updatedAt
-}
-
-// Utilisation d'une récompense par un client/membre
-model UtilisationRecompense {
-  id                  Int                  @id @default(autoincrement())
-  recompenseId        Int
-  recompense          RecompenseFidelite   @relation(fields: [recompenseId], references: [id])
-  pointsFideliteId    Int
-  pointsFidelite      PointsFidelite       @relation(fields: [pointsFideliteId], references: [id])
-
-  pointsUtilises      Int
-  statut              StatutRecompense     @default(DISPONIBLE)
-  dateUtilisation     DateTime?
-  notes               String?
-
-  createdAt           DateTime             @default(now())
-}
-
-// ── Messagerie Admin ↔ Gestionnaires ─────────────────────────────────────────
-
-model Message {
-  id             Int       @id @default(autoincrement())
-  expediteurId   Int  
-  destinataireId Int
-  sujet          String
-  contenu        String
-  lu             Boolean   @default(false)
-  dateLecture    DateTime?
-  parentId       Int?      // null = message original, renseigné = réponse
-
-  expediteur     User      @relation("MessagesEnvoyes",  fields: [expediteurId],   references: [id])
-  destinataire   User      @relation("MessagesRecus",    fields: [destinataireId], references: [id])
-  parent         Message?  @relation("Reponses",         fields: [parentId],       references: [id])
-  reponses       Message[] @relation("Reponses")
-
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
-}
-
-// ── Pièces justificatives ──────────────────────────────────────────────────
-
-model PieceJustificative {
-  id              Int      @id @default(autoincrement())
-  nom             String                   // nom original du fichier
-  url             String                   // URL publique UploadThing
-  uploadthingKey  String                   // clé UploadThing (pour suppression)
-  type            String                   // MIME type (application/pdf, image/jpeg…)
-  taille          Int                      // taille en octets
-  // Association polymorphique avec les écritures comptables
-  sourceType      String                   // VERSEMENT_PACK | OPERATION_CAISSE | MOUVEMENT_STOCK | CLOTURE_COMPTABLE
-  sourceId        Int
-  // Métadonnées
-  description     String?                  // note optionnelle du comptable
-  uploadePar      Int
-  uploadeUser     User     @relation(fields: [uploadePar], references: [id])
-  // Archivage longue durée (10 ans réglementaires)
-  archiverJusquau DateTime
-  createdAt       DateTime @default(now())
-
-  @@index([sourceType, sourceId])
-}
-
-// ── Anomalies Stock (magasinier) ─────────────────────────────────────────────
-
-enum TypeAnomalie {
-  MANQUANT
-  SURPLUS
-  DEFECTUEUX
-}
-
-enum StatutAnomalie {
-  EN_ATTENTE
-  EN_COURS
-  TRAITEE
-  TRANSMISE
-}
-
-model AnomalieStock {
-  id            Int            @id @default(autoincrement())
-  reference     String         @unique
-  produitId     Int
-  type          TypeAnomalie
-  quantite      Int
-  description   String
-  statut        StatutAnomalie @default(EN_ATTENTE)
-  signalePar    Int            // userId du magasinier
-  traitePar     Int?           // userId qui a traité
-  commentaire   String?        // commentaire lors du traitement
-
-  produit       Produit        @relation(fields: [produitId], references: [id])
-  magasinier    User           @relation("AnomaliesSignalees", fields: [signalePar], references: [id])
-  traiteur      User?          @relation("AnomaliesTraitees", fields: [traitePar], references: [id])
-
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
-
-  @@index([produitId])
-  @@index([statut])
-}
-
-// ── Bons de Sortie Stock (magasinier) ────────────────────────────────────────
-
-enum TypeBonSortie {
-  PDV           // vers Point de Vente
-  PERTE
-  CASSE
-  DON
-  COMMANDE_INTERNE
-}
-
-enum StatutBonSortie {
-  EN_COURS
-  EXPEDIE
-  RECU
-  ANNULE
-}
-
-model BonSortie {
-  id            Int             @id @default(autoincrement())
-  reference     String          @unique
-  type          TypeBonSortie
-  statut        StatutBonSortie @default(EN_COURS)
-  destinataire  String?         // nom du point de vente ou bénéficiaire
-  motif         String
-  creePar       Int             // userId du magasinier
-  validePar     Int?            // userId qui a validé (réception)
-  notes         String?
-
-  lignes        LigneBonSortie[]
-  magasinier    User            @relation("BonsSortieCreés", fields: [creePar], references: [id])
-  valideur      User?           @relation("BonsSortieValidés", fields: [validePar], references: [id])
-
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
-
-  @@index([statut])
-  @@index([type])
-}
-
-model LigneBonSortie {
-  id          Int       @id @default(autoincrement())
-  bonSortieId Int
-  produitId   Int
-  quantite    Int
-  prixUnit    Decimal
-
-  bonSortie   BonSortie @relation(fields: [bonSortieId], references: [id], onDelete: Cascade)
-  produit     Produit   @relation(fields: [produitId], references: [id])
-}
-
-// ── COMPTABILITÉ SYSCOHADA ───────────────────────────────────────────────────
-
-enum TypeCompte {
-  ACTIF
-  PASSIF
-  CHARGES
-  PRODUITS
-  TRESORERIE
-}
-
-enum NatureCompte {
-  DETAIL        // compte de détail (saisissable)
-  REGROUPEMENT  // compte de regroupement (non saisissable)
-  AUXILIAIRE    // compte de tiers (clients, fournisseurs, employés)
-}
-
-enum SensCompte {
-  DEBITEUR
-  CREDITEUR
-}
-
-enum TypeJournalComptable {
-  CAISSE
-  BANQUE
-  VENTES
-  ACHATS
-  OD        // Opérations Diverses
-  PAIE
-}
-
-enum StatutEcriture {
-  BROUILLON
-  VALIDE
-  CLOTURE
-}
-
-enum StatutRapprochement {
-  EN_COURS
-  VALIDE
-}
-
-enum StatutTVA {
-  BROUILLON
-  VALIDE
-}
-
-model CompteComptable {
-  id             Int           @id @default(autoincrement())
-  numero         String        @unique  // ex: "411", "521", "7011"
-  libelle        String
-  classe         Int           // 1 à 9 (SYSCOHADA)
-  type           TypeCompte
-  nature         NatureCompte  @default(DETAIL)
-  sens           SensCompte    @default(DEBITEUR)
-  actif          Boolean       @default(true)
-  // Hiérarchie
-  compteParentId Int?
-  compteParent   CompteComptable?  @relation("HierarchieComptes", fields: [compteParentId], references: [id])
-  sousComptes    CompteComptable[] @relation("HierarchieComptes")
-  // Tiers (pour comptes auxiliaires)
-  tiersType      String?       // "CLIENT" | "FOURNISSEUR" | "EMPLOYE"
-  tiersNom       String?
-  // Relations
-  lignesEcriture LigneEcriture[]
-
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
-
-  @@index([classe])
-  @@index([type])
-  @@index([nature])
-}
-
-model EcritureComptable {
-  id          Int                  @id @default(autoincrement())
-  reference   String               @unique
-  date        DateTime
-  libelle     String
-  journal     TypeJournalComptable
-  statut      StatutEcriture       @default(BROUILLON)
-  notes       String?
-  // Auteur
-  userId      Int?
-  user        User?                @relation(fields: [userId], references: [id])
-  // Lignes (débit/crédit)
-  lignes      LigneEcriture[]
-
-  createdAt   DateTime             @default(now())
-  updatedAt   DateTime             @updatedAt
-
-  @@index([journal])
-  @@index([statut])
-  @@index([date])
-}
-
-model LigneEcriture {
-  id            Int               @id @default(autoincrement())
-  ecritureId    Int
-  ecriture      EcritureComptable @relation(fields: [ecritureId], references: [id], onDelete: Cascade)
-  compteId      Int
-  compte        CompteComptable   @relation(fields: [compteId], references: [id])
-  libelle       String
-  debit         Decimal           @default(0)
-  credit        Decimal           @default(0)
-  // TVA
-  isTva         Boolean           @default(false)
-  tauxTva       Decimal?          // 18 pour 18%
-  montantTva    Decimal?
-
-  @@index([ecritureId])
-  @@index([compteId])
-}
-
-// Validation des entrées du journal de flux (VER-xxx, APPRO-xxx, OPC-ENC-xxx, OPC-DEC-xxx)
-model JournalValidation {
-  id          Int      @id @default(autoincrement())
-  entryId     String   @unique  // ex: "VER-123", "APPRO-456", "OPC-ENC-789"
-  notes       String?
-  valideParId Int
-  validePar   User     @relation(fields: [valideParId], references: [id])
-  createdAt   DateTime @default(now())
-
-  @@index([entryId])
-}
-
-model RapprochementBancaire {
-  id                  Int                 @id @default(autoincrement())
-  periode             String              // format "YYYY-MM"
-  soldeBancaireReel   Decimal
-  soldeComptable      Decimal
-  ecart               Decimal
-  notes               String?
-  statut              StatutRapprochement @default(EN_COURS)
-  userId              Int?
-  user                User?               @relation(fields: [userId], references: [id])
-
-  createdAt           DateTime            @default(now())
-  updatedAt           DateTime            @updatedAt
-
-  @@unique([periode])
-  @@index([statut])
-}
-
-model DeclarationTVA {
-  id              Int        @id @default(autoincrement())
-  periode         String     // format "YYYY-MM"
-  tvaCollectee    Decimal    @default(0)  // TVA sur ventes
-  tvaDeductible   Decimal    @default(0)  // TVA sur achats
-  tvaDue          Decimal    @default(0)  // = collectée - déductible
-  statut          StatutTVA  @default(BROUILLON)
-  notes           String?
-  userId          Int?
-  user            User?      @relation(fields: [userId], references: [id])
-
-  createdAt       DateTime   @default(now())
-  updatedAt       DateTime   @updatedAt
-
-  @@unique([periode])
-}
-
-// ── Actionnaires — Profil & Actions ───────────────────────────────────────────
 
 enum StatutActionnaire {
   ACTIF
@@ -1178,39 +429,9 @@ enum TypeMouvementAction {
   AJUSTEMENT
 }
 
-model ActionnaireProfile {
-  id              Int                @id @default(autoincrement())
-  gestionnaireId  Int                @unique
-  statut          StatutActionnaire  @default(EN_ATTENTE)
-  typeAction      TypeActionDetenue  @default(ORDINAIRE)
-  nombreActions   Int                @default(0)
-  prixUnitaire    Decimal            @default(0)    // valeur nominale par action
-  dateEntree      DateTime?
-  notes           String?
-
-  gestionnaire    Gestionnaire       @relation(fields: [gestionnaireId], references: [id])
-  mouvements      MouvementAction[]
-
-  createdAt       DateTime           @default(now())
-  updatedAt       DateTime           @updatedAt
-}
-
-model MouvementAction {
-  id              Int                   @id @default(autoincrement())
-  profileId       Int
-  type            TypeMouvementAction
-  quantite        Int
-  prixUnitaire    Decimal
-  montantTotal    Decimal
-  date            DateTime
-  description     String?
-
-  profile         ActionnaireProfile    @relation(fields: [profileId], references: [id], onDelete: Cascade)
-
-  createdAt       DateTime              @default(now())
-}
-
-// ── Bibliothèque documentaire ─────────────────────────────────────────────────
+// ============================================================
+// ENUMS — Documents
+// ============================================================
 
 enum TypeDocument {
   BILAN
@@ -1224,43 +445,1405 @@ enum TypeDocument {
   AUTRE
 }
 
-model DocumentBibliotheque {
-  id              Int           @id @default(autoincrement())
-  titre           String
-  type            TypeDocument
-  description     String?
-  fichierUrl      String?
-  fichierNom      String?
-  annee           Int?
-  estPublic       Boolean       @default(true)
+// ============================================================
+// ENUMS — Notifications
+// ============================================================
 
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+enum PrioriteNotification {
+  URGENT
+  HAUTE
+  NORMAL
+  BASSE
 }
 
-// ── Procuration pour les assemblées ──────────────────────────────────────────
+// ============================================================
+// UTILISATEURS & AUTH
+// ============================================================
 
-enum StatutProcuration {
-  EN_ATTENTE
-  ACCEPTEE
-  REFUSEE
-  REVOQUEE
+model User {
+  id           Int          @id @default(autoincrement())
+  uuid         String       @unique @default(uuid())
+  nom          String
+  prenom       String
+  email        String       @unique
+  photo        String?
+  role         Role?
+  telephone    String?
+  adresse      String?
+  passwordHash String?
+  etat         MemberStatus @default(ACTIF)
+  dateAdhesion DateTime     @default(now())
+
+  // Profil gestionnaire (rôle opérationnel)
+  gestionnaire         Gestionnaire?
+
+  // Finances
+  wallet               Wallet?
+  factures             Facture[]
+
+  // Système
+  auditLogs            AuditLog[]
+  notifications        Notification[]
+  piecesJustificatives PieceJustificative[]
+  messagesEnvoyes      Message[]            @relation("MessagesEnvoyes")
+  messagesRecus        Message[]            @relation("MessagesRecus")
+
+  // Packs & fidélité
+  souscriptionsPacks   SouscriptionPack[]
+  pointsFidelite       PointsFidelite?
+
+  // Comptabilité
+  cloturesComptables   ClotureComptable[]
+  ecrituresComptables  EcritureComptable[]
+  rapprochements       RapprochementBancaire[]
+  declarationsTVA      DeclarationTVA[]
+  journalValidations   JournalValidation[]
+
+  // Points de vente — cet user est RPV d'un PDV (1-1)
+  pointDeVenteRPV      PointDeVente?        @relation("RPVPointDeVente")
+  // PDV supervisés en tant que chef d'agence (1-N)
+  pointsDeVenteChef    PointDeVente[]       @relation("ChefAgencePDV")
+  // Affectations opérationnelles à des PDV / dépôts
+  affectationsPDV      GestionnaireAffectation[]
+
+  // Opérations stock
+  anomaliesSignalees   AnomalieStock[]      @relation("AnomaliesSignalees")
+  anomaliesTraitees    AnomalieStock[]      @relation("AnomaliesTraitees")
+  receptionsRealisees  ReceptionApprovisionnement[] @relation("ReceptionnaireAppro")
+  receptionsValidees   ReceptionApprovisionnement[] @relation("ValidateurAppro")
+  transfertsCrees      TransfertStock[]     @relation("CreateurTransfert")
+  transfertsValides    TransfertStock[]     @relation("ValidateurTransfert")
+  inventairesRealises  InventaireSite[]     @relation("RealisateurInventaire")
+  inventairesValides   InventaireSite[]     @relation("ValidateurInventaire")
+  commandesInternes    CommandeInterne[]    @relation("DemandeurCommande")
+  mouvementsStock      MouvementStock[]     @relation("MouvementsStock")
+  bonsSortieCreePar    BonSortie[]          @relation("BonsSortieCreePar")
+  bonsSortieValidePar  BonSortie[]          @relation("BonsSortieValidePar")
+
+  // Caisse
+  sessionsCaisseOuvertes CaissePDV[]          @relation("CaissesPDVRPV")
+  sessionsCaisse         SessionCaisse[]      @relation("SessionsCaisseCaissier")
+  operationsCaisse       OperationCaisse[]    @relation("OperationsCaisse")
+  operationsCaissePDV    OperationCaissePDV[] @relation("OperationsCaissePDV")
+  transfertsCaisse       TransfertCaisse[]    @relation("TransfertsCaisse")
+
+  // Ventes directes
+  ventesDirectes       VenteDirecte[]       @relation("VendeurVente")
+
+  // Contrôle terrain
+  visitesControle      VisiteControle[]     @relation("ControleurVisite")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Profil gestionnaire — rôle opérationnel + actionnaire
+model Gestionnaire {
+  id       Int              @id @default(autoincrement())
+  memberId Int              @unique
+  role     RoleGestionnaire
+  actif    Boolean          @default(true)
+
+  member                  User                   @relation(fields: [memberId], references: [id])
+  assemblees              AssembleeParticipant[]
+  actionnaireProfile      ActionnaireProfile?
+  procurationsMandant     ProcurationAssemblee[] @relation("procurationsMandant")
+  procurationsMandataire  ProcurationAssemblee[] @relation("procurationsMandataire")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ============================================================
+// POINTS DE VENTE & DÉPÔTS CENTRAUX
+// Un PointDeVente peut être un PDV classique ou un dépôt central
+// ============================================================
+
+model PointDeVente {
+  id        Int              @id @default(autoincrement())
+  type      TypePointDeVente @default(POINT_DE_VENTE)
+  code      String           @unique
+  nom       String
+  adresse   String?
+  telephone String?
+  actif     Boolean          @default(true)
+  notes     String?
+
+  // RPV responsable (type POINT_DE_VENTE uniquement, 1-1)
+  rpvId Int?  @unique
+  rpv   User? @relation("RPVPointDeVente", fields: [rpvId], references: [id])
+
+  // Chef d'agence superviseur (peut superviser plusieurs PDV)
+  chefAgenceId Int?
+  chefAgence   User? @relation("ChefAgencePDV", fields: [chefAgenceId], references: [id])
+
+  // Relations opérationnelles
+  affectations          GestionnaireAffectation[]
+  clients               Client[]
+  stocks                StockSite[]
+  sessionsCaisse        SessionCaisse[]
+  caissesPDV            CaissePDV[]
+  clotures              ClotureCaisse[]
+  inventaires           InventaireSite[]
+  mouvementsStock       MouvementStock[]
+  ventesDirectes        VenteDirecte[]
+  anomaliesStock        AnomalieStock[]
+  bonsSortie            BonSortie[]
+  transfertsOrigine     TransfertStock[]             @relation("TransfertOrigine")
+  transfertsDestination TransfertStock[]             @relation("TransfertDestination")
+  receptionsAppro       ReceptionApprovisionnement[]
+  receptionsCommeOrigine ReceptionApprovisionnement[] @relation("ReceptionsEnTantQuOrigine")
+  commandesInternes     CommandeInterne[]
+  visitesControle       VisiteControle[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([type])
+}
+
+// Affectation d'un gestionnaire (caissier, magasinier, agent, etc.) à un PDV ou dépôt
+model GestionnaireAffectation {
+  id             Int          @id @default(autoincrement())
+  userId         Int
+  pointDeVenteId Int
+  actif          Boolean      @default(true)
+  dateDebut      DateTime     @default(now())
+  dateFin        DateTime?
+  notes          String?
+
+  user         User         @relation(fields: [userId], references: [id])
+  pointDeVente PointDeVente @relation(fields: [pointDeVenteId], references: [id])
+
+  // Pas de @@unique : un user peut être ré-affecté au même PDV après une période d'absence
+  // L'unicité d'affectation active se gère au niveau applicatif (actif = true)
+  @@index([userId])
+  @@index([pointDeVenteId])
+  @@index([userId, pointDeVenteId, actif])
+}
+
+// ============================================================
+// CLIENTS
+// ============================================================
+
+model Client {
+  id             Int          @id @default(autoincrement())
+  nom            String
+  prenom         String
+  telephone      String       @unique
+  adresse        String?
+  etat           MemberStatus @default(ACTIF)
+  // PDV de rattachement (optionnel)
+  pointDeVenteId Int?
+
+  pointDeVente       PointDeVente?      @relation(fields: [pointDeVenteId], references: [id])
+  souscriptionsPacks SouscriptionPack[]
+  pointsFidelite     PointsFidelite?
+  ventesDirectes     VenteDirecte[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ============================================================
+// FOURNISSEURS
+// ============================================================
+
+model Fournisseur {
+  id        Int      @id @default(autoincrement())
+  nom       String
+  contact   String?
+  telephone String?
+  email     String?
+  adresse   String?
+  notes     String?
+  actif     Boolean  @default(true)
+
+  receptions ReceptionApprovisionnement[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ============================================================
+// PRODUITS & STOCK
+// ============================================================
+
+model Produit {
+  id           Int     @id @default(autoincrement())
+  reference    String? @unique // code interne produit
+  nom          String
+  description  String?
+  categorie    String?
+  unite        String? // "kg", "litre", "unité", etc.
+  prixUnitaire Decimal
+  alerteStock  Int     @default(0) // seuil d'alerte global
+  actif        Boolean @default(true)
+
+  // Stock localisé par site (remplace l'ancien champ global stock)
+  stocks               StockSite[]
+  mouvements           MouvementStock[]
+
+  // Packs & fidélité
+  lignesReceptionPack  LigneReceptionPack[]
+  recompensesFidelite  RecompenseFidelite[]
+  packsCibleProduit    Pack[]                    @relation("PackProduitCible")
+
+  // Opérations stock
+  anomalies            AnomalieStock[]
+  lignesVenteDirecte   LigneVenteDirecte[]
+  lignesTransfert      LigneTransfertStock[]
+  lignesReceptionAppro LigneReceptionAppro[]
+  lignesInventaire     LigneInventaireSite[]
+  lignesCommande       LigneCommandeInterne[]
+  lignesBonSortie      LigneBonSortie[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Stock d'un produit sur un site précis (PDV ou dépôt central)
+model StockSite {
+  id             Int          @id @default(autoincrement())
+  produitId      Int
+  pointDeVenteId Int
+  quantite       Int          @default(0)
+  alerteStock    Int?         // seuil d'alerte spécifique au site (override global)
+
+  produit      Produit      @relation(fields: [produitId], references: [id])
+  pointDeVente PointDeVente @relation(fields: [pointDeVenteId], references: [id])
+
+  @@unique([produitId, pointDeVenteId])
+  @@index([pointDeVenteId])
+}
+
+// Journal de chaque mouvement de stock (entrée / sortie / ajustement)
+model MouvementStock {
+  id             Int              @id @default(autoincrement())
+  produitId      Int
+  pointDeVenteId Int?             // PDV ou dépôt concerné (nullable pour rétrocompat)
+  type           TypeMouvement
+  typeEntree     TypeEntreeStock? // précision si type == ENTREE
+  typeSortie     TypeSortieStock? // précision si type == SORTIE
+  quantite       Int
+  motif          String?
+  reference      String           @unique
+  dateMouvement  DateTime         @default(now())
+  operateurId    Int?             // userId de l'opérateur
+
+  // Références aux documents sources (traçabilité)
+  receptionApproId Int?
+  transfertStockId Int?
+  venteDirecteId   Int?
+  souscriptionId   Int?  // pour livraison pack
+  bonSortieId      Int?  // pour sortie exceptionnelle (perte, casse, don…)
+
+  produit      Produit       @relation(fields: [produitId], references: [id])
+  pointDeVente PointDeVente? @relation(fields: [pointDeVenteId], references: [id])
+  operateur    User?         @relation("MouvementsStock", fields: [operateurId], references: [id])
+
+  @@index([produitId])
+  @@index([pointDeVenteId])
+  @@index([type])
+  @@index([dateMouvement])
+}
+
+// ============================================================
+// RÉCEPTIONS D'APPROVISIONNEMENT (Magasinier / Agent Logistique)
+// ============================================================
+
+model ReceptionApprovisionnement {
+  id        Int                  @id @default(autoincrement())
+  reference String               @unique
+  type      TypeReceptionAppro
+  statut    StatutReceptionAppro @default(BROUILLON)
+
+  // Site qui réceptionne (PDV ou dépôt)
+  pointDeVenteId Int
+  pointDeVente   PointDeVente @relation(fields: [pointDeVenteId], references: [id])
+
+  // Pour réception FOURNISSEUR
+  fournisseurId  Int?
+  fournisseur    Fournisseur? @relation(fields: [fournisseurId], references: [id])
+  fournisseurNom String?      // si fournisseur non encore enregistré
+
+  // Pour réception INTERNE (depuis un autre dépôt / siège)
+  origineId    Int?
+  origineNom   String?
+  origineDepot PointDeVente? @relation("ReceptionsEnTantQuOrigine", fields: [origineId], references: [id])
+
+  datePrevisionnelle DateTime
+  dateReception      DateTime?
+
+  // Contrôle qualité — saisie obligatoire avant mise en stock
+  controlQualite Boolean @default(false)
+  notesQualite   String?
+  notes          String?
+
+  receptionneParId Int
+  receptionnePar   User  @relation("ReceptionnaireAppro", fields: [receptionneParId], references: [id])
+  valideParId      Int?
+  validePar        User? @relation("ValidateurAppro", fields: [valideParId], references: [id])
+
+  lignes LigneReceptionAppro[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([statut])
+  @@index([type])
+  @@index([pointDeVenteId])
+}
+
+model LigneReceptionAppro {
+  id               Int     @id @default(autoincrement())
+  receptionId      Int
+  produitId        Int
+  quantiteAttendue Int
+  quantiteRecue    Int?
+  prixUnitaire     Decimal?
+  etatQualite      String? // "BON" | "DEFECTUEUX" | "PARTIEL"
+  notes            String?
+
+  reception ReceptionApprovisionnement @relation(fields: [receptionId], references: [id], onDelete: Cascade)
+  produit   Produit                    @relation(fields: [produitId], references: [id])
+}
+
+// ============================================================
+// TRANSFERTS DE STOCK (entre PDV et/ou dépôts)
+// ============================================================
+
+model TransfertStock {
+  id        Int                  @id @default(autoincrement())
+  reference String               @unique
+  statut    StatutTransfertStock @default(EN_COURS)
+
+  origineId     Int
+  origine       PointDeVente @relation("TransfertOrigine", fields: [origineId], references: [id])
+  destinationId Int
+  destination   PointDeVente @relation("TransfertDestination", fields: [destinationId], references: [id])
+
+  creeParId   Int
+  creePar     User  @relation("CreateurTransfert", fields: [creeParId], references: [id])
+  valideParId Int?
+  validePar   User? @relation("ValidateurTransfert", fields: [valideParId], references: [id])
+
+  dateExpedition DateTime?
+  dateReception  DateTime?
+  notes          String?
+
+  lignes LigneTransfertStock[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([statut])
+  @@index([origineId])
+  @@index([destinationId])
+}
+
+model LigneTransfertStock {
+  id          Int      @id @default(autoincrement())
+  transfertId Int
+  produitId   Int
+  quantite    Int
+  prixUnit    Decimal?
+
+  transfert TransfertStock @relation(fields: [transfertId], references: [id], onDelete: Cascade)
+  produit   Produit        @relation(fields: [produitId], references: [id])
+}
+
+// ============================================================
+// INVENTAIRES (PDV et dépôts)
+// ============================================================
+
+model InventaireSite {
+  id             Int              @id @default(autoincrement())
+  reference      String           @unique
+  statut         StatutInventaire @default(EN_COURS)
+  pointDeVenteId Int
+  dateInventaire DateTime         @default(now())
+  notes          String?
+
+  realiseParId Int
+  realisePar   User  @relation("RealisateurInventaire", fields: [realiseParId], references: [id])
+  valideParId  Int?
+  validePar    User? @relation("ValidateurInventaire", fields: [valideParId], references: [id])
+
+  pointDeVente PointDeVente         @relation(fields: [pointDeVenteId], references: [id])
+  lignes       LigneInventaireSite[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([statut])
+  @@index([pointDeVenteId])
+}
+
+model LigneInventaireSite {
+  id                Int    @id @default(autoincrement())
+  inventaireId      Int
+  produitId         Int
+  quantiteSysteme   Int    // quantité selon le système
+  quantiteConstatee Int    // quantité réelle comptée
+  ecart             Int    // = constatée - système
+
+  inventaire InventaireSite @relation(fields: [inventaireId], references: [id], onDelete: Cascade)
+  produit    Produit        @relation(fields: [produitId], references: [id])
+}
+
+// ============================================================
+// COMMANDES INTERNES (réapprovisionnement demandé par un PDV/dépôt)
+// ============================================================
+
+model CommandeInterne {
+  id             Int                   @id @default(autoincrement())
+  reference      String                @unique
+  statut         StatutCommandeInterne @default(BROUILLON)
+  demandeurId    Int
+  demandeur      User                  @relation("DemandeurCommande", fields: [demandeurId], references: [id])
+  pointDeVenteId Int
+  pointDeVente   PointDeVente          @relation(fields: [pointDeVenteId], references: [id])
+  notes          String?
+
+  lignes LigneCommandeInterne[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([statut])
+  @@index([pointDeVenteId])
+}
+
+model LigneCommandeInterne {
+  id               Int    @id @default(autoincrement())
+  commandeId       Int
+  produitId        Int
+  quantiteDemandee Int
+  quantiteValidee  Int?
+
+  commande CommandeInterne @relation(fields: [commandeId], references: [id], onDelete: Cascade)
+  produit  Produit         @relation(fields: [produitId], references: [id])
+}
+
+// ============================================================
+// BONS DE SORTIE EXCEPTIONNELS (pertes, casses, dons, conso interne)
+// Pour les sorties groupant plusieurs produits — document formel imprimable
+// ============================================================
+
+enum StatutBonSortie {
+  BROUILLON
+  VALIDE
+  ANNULE
+}
+
+model BonSortie {
+  id             Int             @id @default(autoincrement())
+  reference      String          @unique
+  typeSortie     TypeSortieStock // PERTE, CASSE, DON, CONSOMMATION_INTERNE, LIVRAISON_CLIENT
+  statut         StatutBonSortie @default(BROUILLON)
+  pointDeVenteId Int
+  motif          String
+  notes          String?
+  creeParId      Int
+  valideParId    Int?
+
+  pointDeVente PointDeVente @relation(fields: [pointDeVenteId], references: [id])
+  creePar      User         @relation("BonsSortieCreePar", fields: [creeParId], references: [id])
+  validePar    User?        @relation("BonsSortieValidePar", fields: [valideParId], references: [id])
+  lignes       LigneBonSortie[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([statut])
+  @@index([pointDeVenteId])
+  @@index([typeSortie])
+}
+
+model LigneBonSortie {
+  id          Int      @id @default(autoincrement())
+  bonSortieId Int
+  produitId   Int
+  quantite    Int
+  prixUnit    Decimal?
+
+  bonSortie BonSortie @relation(fields: [bonSortieId], references: [id], onDelete: Cascade)
+  produit   Produit   @relation(fields: [produitId], references: [id])
+}
+
+// ============================================================
+// ANOMALIES STOCK
+// ============================================================
+
+model AnomalieStock {
+  id             Int            @id @default(autoincrement())
+  reference      String         @unique
+  produitId      Int
+  pointDeVenteId Int?
+  type           TypeAnomalie
+  quantite       Int
+  description    String
+  statut         StatutAnomalie @default(EN_ATTENTE)
+  signalePar     Int
+  traitePar      Int?
+  commentaire    String?
+
+  produit      Produit       @relation(fields: [produitId], references: [id])
+  pointDeVente PointDeVente? @relation(fields: [pointDeVenteId], references: [id])
+  magasinier   User          @relation("AnomaliesSignalees", fields: [signalePar], references: [id])
+  traiteur     User?         @relation("AnomaliesTraitees", fields: [traitePar], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([produitId])
+  @@index([statut])
+}
+
+// ============================================================
+// CAISSE — Grande caisse (Caissier) + Petite caisse RPV
+// ============================================================
+
+model SessionCaisse {
+  id             Int                 @id @default(autoincrement())
+  caissierNom    String
+  caissierId     Int                 // FK déclarée ci-dessous
+  pointDeVenteId Int?
+  fondsCaisse    Decimal             @default(0)
+  statut         StatutSessionCaisse @default(OUVERTE)
+  dateOuverture  DateTime            @default(now())
+  dateFermeture  DateTime?
+  notes          String?
+
+  pointDeVente   PointDeVente?    @relation(fields: [pointDeVenteId], references: [id])
+  caissier       User             @relation("SessionsCaisseCaissier", fields: [caissierId], references: [id])
+  operations     OperationCaisse[]
+  transferts     TransfertCaisse[]
+  clotures       ClotureCaisse[]
+  caissesPDV     CaissePDV[]
+  ventesDirectes VenteDirecte[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Petite caisse RPV — liée automatiquement à la grande caisse du caissier
+model CaissePDV {
+  id              Int                 @id @default(autoincrement())
+  nom             String
+  rpvId           Int                 // FK déclarée ci-dessous
+  pointDeVenteId  Int
+  sessionCaisseId Int?                // grande caisse associée
+  fondsCaisse     Decimal             @default(0)
+  statut          StatutSessionCaisse @default(OUVERTE)
+  dateOuverture   DateTime            @default(now())
+  dateFermeture   DateTime?
+  notes           String?
+
+  pointDeVente  PointDeVente   @relation(fields: [pointDeVenteId], references: [id])
+  rpv           User           @relation("CaissesPDVRPV", fields: [rpvId], references: [id])
+  sessionCaisse SessionCaisse? @relation(fields: [sessionCaisseId], references: [id])
+  operations    OperationCaissePDV[]
+  ventesDirectes VenteDirecte[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model OperationCaissePDV {
+  id           Int                    @id @default(autoincrement())
+  caissePDVId  Int
+  type         TypeOperationCaisse
+  mode         ModePaiement?
+  categorie    CategorieDecaissement?
+  montant      Decimal
+  motif        String
+  reference    String                 @unique
+  operateurNom String
+  operateurId  Int
+  createdAt    DateTime               @default(now())
+
+  caissePDV CaissePDV @relation(fields: [caissePDVId], references: [id])
+  operateur User      @relation("OperationsCaissePDV", fields: [operateurId], references: [id])
+}
+
+model OperationCaisse {
+  id           Int                    @id @default(autoincrement())
+  sessionId    Int
+  type         TypeOperationCaisse
+  mode         ModePaiement?
+  categorie    CategorieDecaissement?
+  montant      Decimal
+  motif        String
+  reference    String                 @unique
+  pieceJointe  String?
+  operateurNom String
+  operateurId  Int
+  createdAt    DateTime               @default(now())
+
+  session   SessionCaisse @relation(fields: [sessionId], references: [id])
+  operateur User          @relation("OperationsCaisse", fields: [operateurId], references: [id])
+}
+
+model TransfertCaisse {
+  id           Int    @id @default(autoincrement())
+  sessionId    Int
+  origine      String
+  destination  String
+  montant      Decimal
+  motif        String?
+  reference    String @unique
+  operateurNom String
+  operateurId  Int
+  createdAt    DateTime @default(now())
+
+  session   SessionCaisse @relation(fields: [sessionId], references: [id])
+  operateur User          @relation("TransfertsCaisse", fields: [operateurId], references: [id])
+}
+
+model ClotureCaisse {
+  id                       Int      @id @default(autoincrement())
+  date                     DateTime
+  caissierNom              String
+  pointDeVenteId           Int?
+  totalVentes              Int
+  montantTotal             Decimal
+  panierMoyen              Decimal
+  nbClients                Int
+  notes                    String?
+  sessionId                Int?
+  fondsCaisse              Decimal  @default(0)
+  totalEncaissementsAutres Decimal  @default(0)
+  totalDecaissements       Decimal  @default(0)
+  totalTransferts          Decimal  @default(0)
+  soldeTheorique           Decimal  @default(0)
+  soldeReel                Decimal?
+  ecart                    Decimal?
+
+  pointDeVente PointDeVente?  @relation(fields: [pointDeVenteId], references: [id])
+  session      SessionCaisse? @relation(fields: [sessionId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  // Une seule clôture par PDV par session (pas par date brute)
+  @@unique([sessionId, pointDeVenteId])
+}
+
+// ============================================================
+// VENTES DIRECTES (hors packs)
+// ============================================================
+
+model VenteDirecte {
+  id        Int                @id @default(autoincrement())
+  reference String             @unique
+  statut    StatutVenteDirecte @default(BROUILLON)
+
+  pointDeVenteId  Int
+  vendeurId       Int           // User (RPV, agent terrain, magasinier, admin, etc.)
+  modePaiement    ModePaiementVente
+  montantTotal    Decimal
+  montantPaye     Decimal
+  monnaieRendue   Decimal       @default(0)
+  notes           String?
+
+  // Client enregistré ou walk-in
+  clientId        Int?
+  clientNom       String?       // pour les clients non enregistrés
+  clientTelephone String?
+
+  // Caisse associée (petite ou grande)
+  caissePDVId     Int?          // petite caisse RPV
+  sessionCaisseId Int?          // grande caisse caissier
+
+  pointDeVente  PointDeVente   @relation(fields: [pointDeVenteId], references: [id])
+  vendeur       User           @relation("VendeurVente", fields: [vendeurId], references: [id])
+  client        Client?        @relation(fields: [clientId], references: [id])
+  caissePDV     CaissePDV?     @relation(fields: [caissePDVId], references: [id])
+  sessionCaisse SessionCaisse? @relation(fields: [sessionCaisseId], references: [id])
+  lignes        LigneVenteDirecte[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([statut])
+  @@index([pointDeVenteId])
+  @@index([vendeurId])
+}
+
+model LigneVenteDirecte {
+  id           Int     @id @default(autoincrement())
+  venteId      Int
+  produitId    Int
+  quantite     Int
+  prixUnitaire Decimal
+  montant      Decimal
+
+  vente   VenteDirecte @relation(fields: [venteId], references: [id], onDelete: Cascade)
+  produit Produit      @relation(fields: [produitId], references: [id])
+}
+
+// ============================================================
+// CONTRÔLE TERRAIN
+// ============================================================
+
+model VisiteControle {
+  id             Int                  @id @default(autoincrement())
+  reference      String               @unique
+  statut         StatutVisiteControle @default(PLANIFIEE)
+  controleurId   Int
+  pointDeVenteId Int?                 // PDV visité (null = visite multi-sites)
+  datePlanifiee  DateTime
+  dateRealise    DateTime?
+  objectif       String
+  notes          String?
+
+  controleur   User          @relation("ControleurVisite", fields: [controleurId], references: [id])
+  pointDeVente PointDeVente? @relation(fields: [pointDeVenteId], references: [id])
+  rapports     RapportControle[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([statut])
+  @@index([controleurId])
+}
+
+model RapportControle {
+  id              Int     @id @default(autoincrement())
+  visiteId        Int
+  titre           String
+  contenu         String
+  recommandations String?
+  // Destinataires séparés par virgule: "ADMIN,CHEF_AGENCE"
+  destinataires   String?
+
+  visite  VisiteControle  @relation(fields: [visiteId], references: [id], onDelete: Cascade)
+  alertes AlerteRapport[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model AlerteRapport {
+  id        Int                  @id @default(autoincrement())
+  rapportId Int
+  niveau    NiveauAlerteControle
+  message   String
+
+  rapport   RapportControle @relation(fields: [rapportId], references: [id], onDelete: Cascade)
+  createdAt DateTime        @default(now())
+}
+
+// ============================================================
+// WALLET & TRANSACTIONS
+// ============================================================
+
+model Wallet {
+  id           Int     @id @default(autoincrement())
+  memberId     Int     @unique
+  soldeGeneral Decimal @default(0.0)
+  soldeTontine Decimal @default(0.0)
+  soldeCredit  Decimal @default(0.0)
+
+  member       User               @relation(fields: [memberId], references: [id])
+  transactions WalletTransaction[]
+  paiements    Paiement[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model WalletTransaction {
+  id          Int             @id @default(autoincrement())
+  walletId    Int
+  type        TransactionType
+  montant     Decimal
+  description String?
+  reference   String          @unique
+
+  wallet Wallet @relation(fields: [walletId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ============================================================
+// FACTURES & PAIEMENTS
+// ============================================================
+
+model Facture {
+  id        Int           @id @default(autoincrement())
+  reference String        @unique
+  memberId  Int
+  montant   Decimal
+  type      TypeFacture
+  statut    StatutFacture
+
+  member    User       @relation(fields: [memberId], references: [id])
+  paiements Paiement[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Paiement {
+  id        Int          @id @default(autoincrement())
+  factureId Int
+  walletId  Int
+  montant   Decimal
+  type      TypePaiement
+  reference String       @unique
+  createdAt DateTime     @default(now())
+
+  facture Facture @relation(fields: [factureId], references: [id])
+  wallet  Wallet  @relation(fields: [walletId], references: [id])
+}
+
+// ============================================================
+// PACKS AfriSime
+// ============================================================
+
+model Pack {
+  id                 Int                @id @default(autoincrement())
+  nom                String
+  type               TypePack
+  description        String?
+  actif              Boolean            @default(true)
+  dureeJours         Int?
+  frequenceVersement FrequenceVersement @default(HEBDOMADAIRE)
+  montantVersement   Decimal?
+  formuleRevendeur   FormuleRevendeur?
+  montantCredit      Decimal?
+  montantSeuil       Decimal?
+  produitCibleId     Int?
+  produitCible       Produit?           @relation("PackProduitCible", fields: [produitCibleId], references: [id])
+  bonusPourcentage   Decimal?
+  cyclesBonusTrigger Int?
+  acomptePercent     Decimal?
+  pointsParTranche   Int?
+  montantTranche     Decimal?
+
+  souscriptions SouscriptionPack[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model SouscriptionPack {
+  id                 Int                 @id @default(autoincrement())
+  packId             Int
+  pack               Pack                @relation(fields: [packId], references: [id])
+  userId             Int?
+  user               User?               @relation(fields: [userId], references: [id])
+  clientId           Int?
+  client             Client?             @relation(fields: [clientId], references: [id])
+  statut             StatutSouscription  @default(EN_ATTENTE)
+  formuleRevendeur   FormuleRevendeur?
+  frequenceVersement FrequenceVersement?
+  dateDebut          DateTime            @default(now())
+  dateFin            DateTime?
+  dateCloture        DateTime?
+  montantTotal       Decimal
+  montantVerse       Decimal             @default(0)
+  montantRestant     Decimal
+  numeroCycle        Int                 @default(1)
+  bonusObtenu        Boolean             @default(false)
+  notes              String?
+  enregistrePar      String?
+
+  versements VersementPack[]
+  echeances  EcheancePack[]
+  receptions ReceptionProduitPack[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model VersementPack {
+  id             Int                 @id @default(autoincrement())
+  souscriptionId Int
+  souscription   SouscriptionPack    @relation(fields: [souscriptionId], references: [id])
+  type           TypeVersement
+  montant        Decimal
+  statut         StatutVersementPack @default(PAYE)
+  datePrevue     DateTime?
+  datePaiement   DateTime            @default(now())
+  reference      String?             @unique
+  notes          String?
+  encaisseParId  Int?
+  encaisseParNom String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model EcheancePack {
+  id             Int                 @id @default(autoincrement())
+  souscriptionId Int
+  souscription   SouscriptionPack    @relation(fields: [souscriptionId], references: [id])
+  numero         Int
+  montant        Decimal
+  datePrevue     DateTime
+  datePaiement   DateTime?
+  statut         StatutVersementPack @default(EN_ATTENTE)
+  notes          String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([souscriptionId, numero])
+}
+
+model ReceptionProduitPack {
+  id             Int                 @id @default(autoincrement())
+  souscriptionId Int
+  souscription   SouscriptionPack    @relation(fields: [souscriptionId], references: [id])
+  statut         StatutReceptionPack @default(PLANIFIEE)
+  datePrevisionnelle DateTime
+  dateLivraison  DateTime?
+  livreurNom     String?
+  notes          String?
+
+  lignes LigneReceptionPack[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model LigneReceptionPack {
+  id           Int                  @id @default(autoincrement())
+  receptionId  Int
+  reception    ReceptionProduitPack @relation(fields: [receptionId], references: [id], onDelete: Cascade)
+  produitId    Int
+  produit      Produit              @relation(fields: [produitId], references: [id])
+  quantite     Int
+  prixUnitaire Decimal
+}
+
+// ============================================================
+// FIDÉLITÉ
+// ============================================================
+
+model PointsFidelite {
+  id           Int  @id @default(autoincrement())
+  solde        Int  @default(0)
+  totalGagne   Int  @default(0)
+  totalUtilise Int  @default(0)
+  userId       Int? @unique
+  clientId     Int? @unique
+
+  user     User?   @relation(fields: [userId], references: [id])
+  client   Client? @relation(fields: [clientId], references: [id])
+
+  mouvements   MouvementPoints[]
+  utilisations UtilisationRecompense[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model MouvementPoints {
+  id               Int                 @id @default(autoincrement())
+  pointsFideliteId Int
+  pointsFidelite   PointsFidelite      @relation(fields: [pointsFideliteId], references: [id])
+  type             TypeMouvementPoints
+  points           Int
+  description      String?
+  referenceId      Int?
+  referenceType    String?
+
+  createdAt DateTime @default(now())
+}
+
+model RecompenseFidelite {
+  id             Int            @id @default(autoincrement())
+  nom            String
+  description    String?
+  type           TypeRecompense
+  coutPoints     Int
+  valeur         Decimal?
+  produitId      Int?
+  produit        Produit?       @relation(fields: [produitId], references: [id])
+  actif          Boolean        @default(true)
+  dateExpiration DateTime?
+
+  utilisations UtilisationRecompense[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model UtilisationRecompense {
+  id               Int              @id @default(autoincrement())
+  recompenseId     Int
+  recompense       RecompenseFidelite @relation(fields: [recompenseId], references: [id])
+  pointsFideliteId Int
+  pointsFidelite   PointsFidelite   @relation(fields: [pointsFideliteId], references: [id])
+  pointsUtilises   Int
+  statut           StatutRecompense @default(DISPONIBLE)
+  dateUtilisation  DateTime?
+  notes            String?
+
+  createdAt DateTime @default(now())
+}
+
+// ============================================================
+// MESSAGERIE
+// ============================================================
+
+model Message {
+  id             Int       @id @default(autoincrement())
+  expediteurId   Int
+  destinataireId Int
+  sujet          String
+  contenu        String
+  lu             Boolean   @default(false)
+  dateLecture    DateTime?
+  parentId       Int?
+
+  expediteur   User      @relation("MessagesEnvoyes", fields: [expediteurId], references: [id])
+  destinataire User      @relation("MessagesRecus", fields: [destinataireId], references: [id])
+  parent       Message?  @relation("Reponses", fields: [parentId], references: [id])
+  reponses     Message[] @relation("Reponses")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ============================================================
+// PIÈCES JUSTIFICATIVES
+// ============================================================
+
+model PieceJustificative {
+  id             Int      @id @default(autoincrement())
+  nom            String
+  url            String
+  uploadthingKey String
+  type           String
+  taille         Int
+  // Association polymorphique
+  sourceType     String   // VERSEMENT_PACK | OPERATION_CAISSE | MOUVEMENT_STOCK | CLOTURE_COMPTABLE | RECEPTION_APPRO | TRANSFERT_STOCK
+  sourceId       Int
+  description    String?
+  uploadePar     Int
+  uploadeUser    User     @relation(fields: [uploadePar], references: [id])
+  archiverJusquau DateTime
+  createdAt      DateTime @default(now())
+
+  @@index([sourceType, sourceId])
+}
+
+// ============================================================
+// AUDIT & NOTIFICATIONS
+// ============================================================
+
+model AuditLog {
+  id        Int      @id @default(autoincrement())
+  userId    Int?
+  action    String
+  entite    String
+  entiteId  Int?
+  createdAt DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id])
+}
+
+model Notification {
+  id          Int                  @id @default(autoincrement())
+  uuid        String               @unique @default(uuid())
+  userId      Int
+  user        User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  titre       String
+  message     String
+  priorite    PrioriteNotification @default(NORMAL)
+  lue         Boolean              @default(false)
+  dateLecture DateTime?
+  actionUrl   String?
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+
+  @@index([userId, lue])
+  @@index([userId, createdAt])
+}
+
+model Parametre {
+  cle    String @id
+  valeur String
+}
+
+// ============================================================
+// COMPTABILITÉ SYSCOHADA
+// ============================================================
+
+model ClotureComptable {
+  id          Int      @id @default(autoincrement())
+  annee       Int
+  mois        Int
+  notes       String?
+  cloturePar  Int
+  clotureUser User     @relation(fields: [cloturePar], references: [id])
+  createdAt   DateTime @default(now())
+
+  @@unique([annee, mois])
+}
+
+model CompteComptable {
+  id             Int              @id @default(autoincrement())
+  numero         String           @unique
+  libelle        String
+  classe         Int
+  type           TypeCompte
+  nature         NatureCompte     @default(DETAIL)
+  sens           SensCompte       @default(DEBITEUR)
+  actif          Boolean          @default(true)
+  compteParentId Int?
+  compteParent   CompteComptable?  @relation("HierarchieComptes", fields: [compteParentId], references: [id])
+  sousComptes    CompteComptable[] @relation("HierarchieComptes")
+  tiersType      String?
+  tiersNom       String?
+  lignesEcriture LigneEcriture[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([classe])
+  @@index([type])
+  @@index([nature])
+}
+
+model EcritureComptable {
+  id        Int                  @id @default(autoincrement())
+  reference String               @unique
+  date      DateTime
+  libelle   String
+  journal   TypeJournalComptable
+  statut    StatutEcriture       @default(BROUILLON)
+  notes     String?
+  userId    Int?
+  user      User?                @relation(fields: [userId], references: [id])
+  lignes    LigneEcriture[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([journal])
+  @@index([statut])
+  @@index([date])
+}
+
+model LigneEcriture {
+  id         Int               @id @default(autoincrement())
+  ecritureId Int
+  ecriture   EcritureComptable @relation(fields: [ecritureId], references: [id], onDelete: Cascade)
+  compteId   Int
+  compte     CompteComptable   @relation(fields: [compteId], references: [id])
+  libelle    String
+  debit      Decimal           @default(0)
+  credit     Decimal           @default(0)
+  isTva      Boolean           @default(false)
+  tauxTva    Decimal?
+  montantTva Decimal?
+
+  @@index([ecritureId])
+  @@index([compteId])
+}
+
+model JournalValidation {
+  id          Int      @id @default(autoincrement())
+  entryId     String   @unique
+  notes       String?
+  valideParId Int
+  validePar   User     @relation(fields: [valideParId], references: [id])
+  createdAt   DateTime @default(now())
+
+  @@index([entryId])
+}
+
+model RapprochementBancaire {
+  id                Int                 @id @default(autoincrement())
+  periode           String
+  soldeBancaireReel Decimal
+  soldeComptable    Decimal
+  ecart             Decimal
+  notes             String?
+  statut            StatutRapprochement @default(EN_COURS)
+  userId            Int?
+  user              User?               @relation(fields: [userId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([periode])
+  @@index([statut])
+}
+
+model DeclarationTVA {
+  id            Int       @id @default(autoincrement())
+  periode       String
+  tvaCollectee  Decimal   @default(0)
+  tvaDeductible Decimal   @default(0)
+  tvaDue        Decimal   @default(0)
+  statut        StatutTVA @default(BROUILLON)
+  notes         String?
+  userId        Int?
+  user          User?     @relation(fields: [userId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([periode])
+}
+
+// ============================================================
+// ACTIONNAIRES & ASSEMBLÉES
+// ============================================================
+
+model Dividende {
+  id             Int             @id @default(autoincrement())
+  periode        String
+  montantTotal   Decimal
+  montantParPart Decimal?
+  dateVersement  DateTime?
+  statut         StatutDividende @default(PLANIFIE)
+  notes          String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Assemblee {
+  id            Int             @id @default(autoincrement())
+  titre         String
+  description   String?
+  type          TypeAssemblee
+  statut        StatutAssemblee @default(PLANIFIEE)
+  dateAssemblee DateTime
+  lieu          String
+  ordreJour     String?
+  notes         String?
+
+  participants AssembleeParticipant[]
+  resolutions  ResolutionAssemblee[]
+  procurations ProcurationAssemblee[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model AssembleeParticipant {
+  id               Int                 @id @default(autoincrement())
+  assembleeId      Int
+  gestionnaireId   Int
+  statut           StatutParticipation @default(INVITE)
+  dateConfirmation DateTime?
+
+  assemblee    Assemblee    @relation(fields: [assembleeId], references: [id], onDelete: Cascade)
+  gestionnaire Gestionnaire @relation(fields: [gestionnaireId], references: [id])
+  votes        VoteAssemblee[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([assembleeId, gestionnaireId])
+}
+
+model ResolutionAssemblee {
+  id          Int              @id @default(autoincrement())
+  assembleeId Int
+  numero      Int
+  titre       String
+  description String?
+  statut      StatutResolution @default(EN_ATTENTE)
+
+  assemblee Assemblee       @relation(fields: [assembleeId], references: [id], onDelete: Cascade)
+  votes     VoteAssemblee[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([assembleeId, numero])
+}
+
+model VoteAssemblee {
+  id            Int          @id @default(autoincrement())
+  resolutionId  Int
+  participantId Int
+  decision      DecisionVote
+  commentaire   String?
+
+  resolution  ResolutionAssemblee  @relation(fields: [resolutionId], references: [id], onDelete: Cascade)
+  participant AssembleeParticipant @relation(fields: [participantId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([resolutionId, participantId])
+}
+
+model ActionnaireProfile {
+  id             Int               @id @default(autoincrement())
+  gestionnaireId Int               @unique
+  statut         StatutActionnaire @default(EN_ATTENTE)
+  typeAction     TypeActionDetenue @default(ORDINAIRE)
+  nombreActions  Int               @default(0)
+  prixUnitaire   Decimal           @default(0)
+  dateEntree     DateTime?
+  notes          String?
+
+  gestionnaire Gestionnaire      @relation(fields: [gestionnaireId], references: [id])
+  mouvements   MouvementAction[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model MouvementAction {
+  id           Int                 @id @default(autoincrement())
+  profileId    Int
+  type         TypeMouvementAction
+  quantite     Int
+  prixUnitaire Decimal
+  montantTotal Decimal
+  date         DateTime
+  description  String?
+
+  profile ActionnaireProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
 }
 
 model ProcurationAssemblee {
-  id              Int                   @id @default(autoincrement())
-  assembleeId     Int
-  mandantId       Int
-  mandataireId    Int
-  statut          StatutProcuration     @default(EN_ATTENTE)
-  notes           String?
+  id           Int               @id @default(autoincrement())
+  assembleeId  Int
+  mandantId    Int
+  mandataireId Int
+  statut       StatutProcuration @default(EN_ATTENTE)
+  notes        String?
 
-  assemblee       Assemblee             @relation(fields: [assembleeId], references: [id], onDelete: Cascade)
-  mandant         Gestionnaire          @relation("procurationsMandant", fields: [mandantId], references: [id])
-  mandataire      Gestionnaire          @relation("procurationsMandataire", fields: [mandataireId], references: [id])
+  assemblee  Assemblee    @relation(fields: [assembleeId], references: [id], onDelete: Cascade)
+  mandant    Gestionnaire @relation("procurationsMandant", fields: [mandantId], references: [id])
+  mandataire Gestionnaire @relation("procurationsMandataire", fields: [mandataireId], references: [id])
 
-  createdAt       DateTime              @default(now())
-  updatedAt       DateTime              @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([assembleeId, mandantId])
+}
+
+// ============================================================
+// BIBLIOTHÈQUE DOCUMENTAIRE
+// ============================================================
+
+model DocumentBibliotheque {
+  id          Int          @id @default(autoincrement())
+  titre       String
+  type        TypeDocument
+  description String?
+  fichierUrl  String?
+  fichierNom  String?
+  annee       Int?
+  estPublic   Boolean      @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

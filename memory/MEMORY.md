@@ -1,72 +1,111 @@
-# AfriGes – Mémoire persistante
+# AfriGes — Mémoire du projet
 
 ## Stack & Architecture
-- Next.js 14+ App Router, Prisma ORM (PostgreSQL), NextAuth
-- Hooks custom: `useApi` (GET), `useMutation` (POST/PUT/PATCH/DELETE) dans `hooks/useApi.ts`
-- `useMutation` : `url` est une dép de `useCallback` → URL correcte avant le clic
-- Toasts via `sonner`
-- Formatage: `formatCurrency`, `formatDate`, `formatDateTime` depuis `lib/format`
+- Next.js 15+ App Router, TypeScript, Prisma ORM, PostgreSQL
+- Tailwind CSS, DM Sans font, Sonner toast
+- NextAuth (credentials + Google) — session avec `nom`, `prenom`, `name`, `id`, `role`
+- Hooks : `useApi<T>()` (GET) et `useMutation<TData, TBody>()` (POST/PUT/PATCH/DELETE) dans `hooks/useApi.ts`
 
-## Auth par rôle (pattern établi)
-- `lib/auth.ts` → `getAuthSession()` : session universelle
-- `lib/authMagasinier.ts` → `getMagasinierSession()` : vérifie `gestionnaireRole === "MAGAZINIER"`
-- `lib/authAgentTerrain.ts` → `getAgentTerrainSession()` : vérifie `gestionnaireRole === "AGENT_TERRAIN"`
-- `lib/authLogistique.ts` → `getLogistiqueSession()` : vérifie `gestionnaireRole === "AGENT_LOGISTIQUE_APPROVISIONNEMENT"`
-- Admins : `session.user.role` dans `["ADMIN", "SUPER_ADMIN"]`
-- Le champ session est `session.user.gestionnaireRole` (string | undefined)
+## Patterns importants
 
-## Modèles Prisma clés
-- `Produit` : nom, prixUnitaire, stock, alerteStock → MouvementStock[], VenteCreditAlimentaire[]
-- `MouvementStock` : type (ENTREE/SORTIE/AJUSTEMENT), quantite, motif, reference (UNIQUE), dateMouvement
-  - Prefixes références : `MAG-REC-*`, `MAG-ADJ-*`, `LOG-REC-*`, `LOG-AFF-*`, `VENTE-*`
-- `TontineMembre` : ordreTirage (nullable), dateSortie (null = membre actif)
-- `TontineCycle` : numeroCycle, beneficiaireId, montantPot, statut (EN_COURS/COMPLETE/ANNULE)
-- `TontineContribution` : cycleId, membreId, montant, statut (EN_ATTENTE/PAYEE)
-- `CreditAlimentaire` : source (COTISATION/TONTINE), sourceId, statut (ACTIF/EPUISE/EXPIRE)
-- `Gestionnaire` : role (RoleGestionnaire enum), actif, lié à User via memberId
-- `AuditLog` : userId, action (string libre), entite, entiteId
-- `Notification` : userId, titre, message, priorite, lue, actionUrl
+### Params Next.js 15+
+Les routes dynamiques doivent await les params :
+```typescript
+type Ctx = { params: Promise<{ id: string }> };
+export async function GET(_req: Request, { params }: Ctx) {
+  const { id } = await params;
+}
+```
 
-## Conventions de code
-- Vérification auth TOUJOURS en premier dans chaque handler API
-- Transactions Prisma `$transaction` pour toute opération qui modifie + notifie + audit
-- Notifier admins (Role.ADMIN + Role.SUPER_ADMIN) + role concerné (ex: MAGAZINIER) via `notification.createMany`
-- `AuditLog` créé dans chaque mutation significative
-- Avant d'écrire un fichier → lire au moins quelques lignes (sinon erreur Write)
+### Notifications centralisées
+`lib/notifications.ts` — helpers à utiliser dans les transactions :
+- `notifyRoles(tx, ["MAGAZINIER", "COMPTABLE"], { titre, message, priorite, actionUrl })` — notifie Admin + gestionnaires par rôle
+- `notifyAdmins(tx, payload)` — notifie seulement Admin/SuperAdmin
+- `notifyGestionnaires(tx, roles, payload)` — gestionnaires uniquement
+- `auditLog(tx, userId, action, entite, entiteId?)` — crée un audit log
 
-## Routes API par domaine
-- `/api/admin/*` : ADMIN/SUPER_ADMIN uniquement
-- `/api/user/*` : users authentifiés (Role.USER)
-- `/api/magasinier/*` : gestionnaireRole MAGAZINIER
-- `/api/agentTerrain/*` : gestionnaireRole AGENT_TERRAIN
-- `/api/logistique/*` : gestionnaireRole AGENT_LOGISTIQUE_APPROVISIONNEMENT
-- `/api/notifications/*` : tout utilisateur connecté
+### Auth helpers par rôle
+- `lib/authCaissier.ts` → `getCaissierSession()`
+- `lib/authRPV.ts` → `getRPVSession()`
+- `lib/authComptable.ts` → `getComptableSession()`
+- `lib/authMagasinier.ts` → `getMagasinierSession()`
+- `lib/authLogistique.ts` → `getLogistiqueSession()`
+- `lib/authAgentTerrain.ts` → `getAgentTerrainSession()`
 
-## Pattern 2-step modal (ventes, creditsAlimentaires)
-- Step 1 : recherche live client (≥2 chars), clic pour sélectionner
-- Step 2 : formulaire filtré sur le client sélectionné
-- Bouton "Changer" pour revenir au step 1
-- closeModal() remet tout à zéro
+## Migrations Prisma
+L'utilisateur gère les migrations lui-même. Ne pas avertir sur les migrations.
 
-## Règles métier tontines (bugs corrigés)
-- `dateSortie: null` obligatoire pour filtrer les membres ACTIFS dans les cycles
-- ordreTirage doit être séquentiel 1..N et unique avant de démarrer un cycle
-- Terminaison = `nextNumeroCycle > activeMembers.length` (pas `!beneficiaire`)
-- PUT membres interdit si `cyclesCount > 0`
-- PUT montantCycle interdit si cycle EN_COURS
-- DELETE interdit si `cyclesCount > 0`
-- TontineEdit : `hasCycles` verrouille la gestion membres, `hasCycleEnCours` verrouille montantCycle
+## Rôles système
+- `Role` (User): SUPER_ADMIN, ADMIN, USER
+- `RoleGestionnaire`: RESPONSABLE_POINT_DE_VENTE, CHEF_AGENCE, RESPONSABLE_COMMUNAUTE,
+  CAISSIER, COMPTABLE, MAGAZINIER, AGENT_LOGISTIQUE_APPROVISIONNEMENT,
+  AGENT_TERRAIN, COMMERCIAL, CONTROLEUR_TERRAIN, RESPONSABLE_VENTE_CREDIT,
+  RESPONSABLE_ECONOMIQUE, RESPONSABLE_MARKETING, ACTIONNAIRE, REVENDEUR, AUDITEUR_INTERNE
 
-## Règles métier crédits alimentaires (bugs corrigés)
-- COTISATION source : cotisation doit exister, appartenir au client, être PAYEE
-- TONTINE source : tontine doit être ACTIVE, client doit être membre actif (dateSortie: null)
-- Doublon actif : vérification sur (clientId, source, sourceId, statut=ACTIF)
-- [id]/route.ts PATCH : auth check manquait → ajouté
-- Voir `app/api/admin/creditsAlimentaires/route.ts` pour la logique complète
+## Architecture Points de Vente (refonte 2026-03)
 
-## Fichiers importants
-- `prisma/schema.prisma` : schéma complet
-- `lib/authOptions.ts` : config NextAuth, inclut gestionnaireRole dans session
-- `hooks/useApi.ts` : useApi + useMutation
-- `lib/creditAlimentaireAuto.ts` : génération auto crédit depuis cotisation/tontine
-- `app/api/cron/expirations/route.ts` : expiration auto des crédits
+### Concept central : PointDeVente
+- Un `PointDeVente` peut être de type `POINT_DE_VENTE` ou `DEPOT_CENTRAL`
+- Chaque PDV a un RPV (`rpvId` → User, unique) et un chef d'agence superviseur (`chefAgenceId`)
+- Les autres gestionnaires (caissier, magasinier, etc.) sont liés via `GestionnaireAffectation`
+- Les `Client` ont un `pointDeVenteId?` (rattachement optionnel)
+
+### Stock localisé
+- Plus de champ `stock` global sur `Produit` → remplacé par `StockSite`
+- `StockSite` : (produitId, pointDeVenteId) → quantite (unique par couple)
+- `MouvementStock` : chaque mouvement référence un `pointDeVenteId` + `typeEntree`/`typeSortie`
+- Les stocks de tous les PDV forment le stock global de l'entreprise
+
+### Hiérarchie des caisses
+- `SessionCaisse` = grande caisse du caissier (liée à un PDV via `pointDeVenteId`)
+- `CaissePDV` = petite caisse du RPV, liée à une `SessionCaisse` via `sessionCaisseId`
+- `VenteDirecte` peut référencer `caissePDVId` (petite) OU `sessionCaisseId` (grande)
+
+### Modèles nouveaux clés
+| Modèle | Rôle |
+|--------|------|
+| `PointDeVente` | PDV ou dépôt central |
+| `GestionnaireAffectation` | lien User ↔ PDV |
+| `Fournisseur` | fournisseurs enregistrés |
+| `StockSite` | stock produit par site |
+| `MouvementStock` | journal de tous les mouvements |
+| `ReceptionApprovisionnement` | réception fournisseur ou interne |
+| `TransfertStock` | transfert entre PDV/dépôts |
+| `InventaireSite` | inventaire PDV ou dépôt |
+| `CommandeInterne` | demande de réappro |
+| `CaissePDV` | petite caisse RPV |
+| `OperationCaissePDV` | opérations petite caisse |
+| `VenteDirecte` | vente hors pack |
+| `LigneVenteDirecte` | lignes de vente directe |
+| `VisiteControle` | visite terrain planifiée |
+| `RapportControle` | rapport avec recommandations |
+| `AlerteRapport` | alertes INFO / ATTENTION / CRITIQUE |
+
+### Vendeurs (VenteDirecte.vendeurId)
+Un vendeur peut être : RPV, AGENT_TERRAIN, MAGAZINIER, AGENT_LOGISTIQUE, ADMIN
+
+### Types de sortie stock (TypeSortieStock)
+VENTE_DIRECTE, LIVRAISON_PACK, LIVRAISON_CLIENT, RETOUR_FOURNISSEUR,
+CONSOMMATION_INTERNE, TRANSFERT_SORTANT, AJUSTEMENT_NEGATIF, PERTE, CASSE, DON
+
+### Types d'entrée stock (TypeEntreeStock)
+RECEPTION_FOURNISSEUR, RECEPTION_INTERNE, TRANSFERT_ENTRANT, AJUSTEMENT_POSITIF, RETOUR_CLIENT
+
+## Modèles conservés inchangés
+- Packs (Pack, SouscriptionPack, VersementPack, EcheancePack, ReceptionProduitPack)
+- Fidélité (PointsFidelite, MouvementPoints, RecompenseFidelite, UtilisationRecompense)
+- Comptabilité SYSCOHADA (CompteComptable, EcritureComptable, LigneEcriture, JournalValidation, etc.)
+- Actionnaires (ActionnaireProfile, Assemblee, Dividende, etc.)
+- Message, PieceJustificative, AuditLog, Notification, Parametre
+- Wallet, WalletTransaction, Facture, Paiement
+
+## Modèles supprimés (remplacés)
+- `Livraison` / `LivraisonLigne` → remplacés par `ReceptionApprovisionnement` + `TransfertStock`
+- `BonSortie` / `LigneBonSortie` → remplacés par `TransfertStock` + `MouvementStock` avec typeSortie
+- `Produit.stock` (champ global) → remplacé par `StockSite`
+
+## Préférences utilisateur
+- Pas de warnings sur les migrations (il gère ça lui-même)
+- Ne pas modifier le bloc `generator client` ni `datasource db` du schema
+- Ne pas faire les tâches en parallèle (risque crash PC)
+- OK pour ajouter des fonctionnalités utiles non demandées explicitement
