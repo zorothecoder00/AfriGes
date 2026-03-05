@@ -74,7 +74,7 @@ export async function PATCH(
     }
 
     const body = await req.json();
-    const { nom, prenom, telephone, adresse, etat } = body;
+    const { nom, prenom, telephone, adresse, etat, pointDeVenteId } = body;
 
     // Valider le statut si fourni
     if (etat && !Object.values(MemberStatus).includes(etat)) {
@@ -111,6 +111,7 @@ export async function PATCH(
           ...(telephone && { telephone }),
           ...(adresse !== undefined && { adresse: adresse || null }),
           ...(etat && { etat }),
+          ...(pointDeVenteId !== undefined && { pointDeVenteId: pointDeVenteId ? Number(pointDeVenteId) : null }),
         },
       });
 

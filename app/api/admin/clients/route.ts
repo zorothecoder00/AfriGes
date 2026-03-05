@@ -16,8 +16,10 @@ export async function GET(req: Request) {
     const limit = Number(searchParams.get("limit") || 10);
     const skip = (page - 1) * limit;
     const search = searchParams.get("search") || "";
+    const pdvId  = searchParams.get("pdvId");
 
     const where: Prisma.ClientWhereInput = {
+      ...(pdvId && { pointDeVenteId: Number(pdvId) }),
       ...(search && {
         OR: [
           { nom: { contains: search, mode: "insensitive" } },
@@ -35,6 +37,7 @@ export async function GET(req: Request) {
         orderBy: { createdAt: "desc" },
         include: {
           _count: { select: { souscriptionsPacks: true } },
+          pointDeVente: { select: { id: true, nom: true, code: true } },
         },
       }),
       prisma.client.count({ where }),

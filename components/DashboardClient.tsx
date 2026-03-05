@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
   TrendingUp, Users, UserCheck, Package, Layers,
-  ShoppingCart, MoreVertical, Download, Plus, ChevronDown, MessageSquare,
+  ShoppingCart, MoreVertical, Download, Plus, ChevronDown, MessageSquare, Store,
 } from 'lucide-react';
 import Link from "next/link";
 import NotificationBell from '@/components/NotificationBell';
@@ -263,6 +263,7 @@ export default function AfriGesDashboard() {
               <nav className="space-y-1">
                 <Link href="/dashboard/admin/ventes" className="w-full flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-50 rounded-xl transition-all"><ShoppingCart size={20} /><span>Ventes</span></Link>
                 <Link href="/dashboard/admin/stock"  className="w-full flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-50 rounded-xl transition-all"><Package size={20} /><span>Gestion du stock</span></Link>
+                <Link href="/dashboard/admin/pdv"    className="w-full flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-50 rounded-xl transition-all"><Store size={20} /><span>Points de vente</span></Link>
               </nav>
             </div>
             <div className="p-4">

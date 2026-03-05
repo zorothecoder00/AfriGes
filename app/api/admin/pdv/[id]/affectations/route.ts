@@ -28,7 +28,7 @@ export async function GET(_req: Request, { params }: Ctx) {
 
     const affectations = await prisma.gestionnaireAffectation.findMany({
       where: { pointDeVenteId: pdvId },
-      orderBy: { createdAt: "desc" },
+      orderBy: { dateDebut: "desc" },
       include: {
         user: {
           select: {

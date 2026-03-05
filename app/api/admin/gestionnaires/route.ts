@@ -53,6 +53,14 @@ export async function GET(req: Request) {
               prenom: true,
               email: true,
               telephone: true,
+              affectationsPDV: {
+                where: { actif: true },
+                select: {
+                  id: true,
+                  pointDeVente: { select: { id: true, nom: true, code: true, type: true } },
+                },
+                take: 1,
+              },
             },
           },
         },

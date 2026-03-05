@@ -10,3 +10,19 @@ Ce code :
  a.download = filename;
  a.click();   
  permet de créer un téléchargement via un clic sur une URL ( utile pour les exports)
+ 
+
+app/api/admin/packs/souscriptions/[id]/livrer/route.ts:148:32 - error TS2561: Ob
+ject literal may only specify known properties, but 'stock' does not exist in ty
+pe 'ProduitSelect<DefaultArgs>'. Did you mean to write 'stocks'?
+
+148           select: { nom: true, stock: true },
+                                   ~~~~~
+
+  node_modules/.prisma/client/index.d.ts:18690:5
+    18690     select?: ProduitSelect<ExtArgs> | null
+              ~~~~~~
+    The expected type comes from property 'select' which is declared here on typ
+e '{ select?: ProduitSelect<DefaultArgs> | null | undefined; omit?: ProduitOmit<
+DefaultArgs> | null | undefined; include?: ProduitInclude<...> | ... 1 more ...
+| undefined; where: ProduitWhereUniqueInput; }'

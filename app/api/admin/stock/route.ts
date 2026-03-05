@@ -29,7 +29,72 @@ export async function GET(req: Request) {
     const search    = searchParams.get("search") || "";
     const pdvId     = searchParams.get("pdvId");
     const enRupture = searchParams.get("enRupture") === "true";
+    const aggregate = searchParams.get("aggregate") === "true";
 
+    // Liste des PDV pour filtre UI (toujours retournée)
+    const pdvs = await prisma.pointDeVente.findMany({
+      where: { actif: true },
+      select: { id: true, nom: true, code: true, type: true },
+      orderBy: { nom: "asc" },
+    });
+
+    // Stats globales (sans filtre)
+    const allStocks = await prisma.stockSite.findMany({
+      select: { quantite: true, alerteStock: true, produit: { select: { prixUnitaire: true, alerteStock: true } } },
+    });
+    const enRuptureCount = allStocks.filter(s => s.quantite === 0).length;
+    const faibleCount    = allStocks.filter(s => {
+      const seuil = s.alerteStock ?? s.produit.alerteStock;
+      return s.quantite > 0 && s.quantite <= seuil;
+    }).length;
+    const valeurTotale  = allStocks.reduce((acc, s) => acc + s.quantite * Number(s.produit.prixUnitaire), 0);
+    const totalProduits = await prisma.produit.count({ where: { actif: true } });
+
+    // ── Mode "Grand stock" : vue agrégée par produit ───────────────────────
+    if (aggregate) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const prodWhere: any = { actif: true };
+      if (search) prodWhere.OR = [
+        { nom:       { contains: search, mode: "insensitive" } },
+        { reference: { contains: search, mode: "insensitive" } },
+        { categorie: { contains: search, mode: "insensitive" } },
+      ];
+
+      const [produits, totalProds] = await Promise.all([
+        prisma.produit.findMany({
+          where: prodWhere,
+          skip,
+          take: limit,
+          orderBy: { nom: "asc" },
+          include: {
+            stocks: {
+              select: {
+                quantite: true,
+                alerteStock: true,
+                pointDeVente: { select: { id: true, nom: true, code: true, type: true } },
+              },
+            },
+          },
+        }),
+        prisma.produit.count({ where: prodWhere }),
+      ]);
+
+      const data = produits.map(p => ({
+        id: p.id, nom: p.nom, reference: p.reference, categorie: p.categorie,
+        unite: p.unite, prixUnitaire: p.prixUnitaire, alerteStock: p.alerteStock,
+        totalStock: p.stocks.reduce((acc, s) => acc + s.quantite, 0),
+        stocks: p.stocks,
+      }));
+
+      return NextResponse.json({
+        data,
+        pdvs,
+        stats: { totalProduits, enRuptureCount, faibleCount, valeurTotale },
+        meta:  { total: totalProds, page, limit, totalPages: Math.ceil(totalProds / limit) },
+      });
+    }
+
+    // ── Mode "Par PDV" : liste des StockSite ──────────────────────────────
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const where: any = { produit: { actif: true } };
     if (pdvId)     where.pointDeVenteId = Number(pdvId);
@@ -53,25 +118,6 @@ export async function GET(req: Request) {
       }),
       prisma.stockSite.count({ where }),
     ]);
-
-    // Stats globales (sans filtre)
-    const allStocks = await prisma.stockSite.findMany({
-      select: { quantite: true, alerteStock: true, produit: { select: { prixUnitaire: true, alerteStock: true } } },
-    });
-    const enRuptureCount = allStocks.filter(s => s.quantite === 0).length;
-    const faibleCount    = allStocks.filter(s => {
-      const seuil = s.alerteStock ?? s.produit.alerteStock;
-      return s.quantite > 0 && s.quantite <= seuil;
-    }).length;
-    const valeurTotale   = allStocks.reduce((acc, s) => acc + s.quantite * Number(s.produit.prixUnitaire), 0);
-    const totalProduits  = await prisma.produit.count({ where: { actif: true } });
-
-    // Liste des PDV pour filtre UI
-    const pdvs = await prisma.pointDeVente.findMany({
-      where: { actif: true },
-      select: { id: true, nom: true, code: true, type: true },
-      orderBy: { nom: "asc" },
-    });
 
     return NextResponse.json({
       data:  stocks,
