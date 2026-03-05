@@ -67,7 +67,7 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { nom, prenom, telephone, adresse } = body;
+    const { nom, prenom, telephone, adresse, pointDeVenteId } = body;
 
     if (!nom || !prenom || !telephone) {
       return NextResponse.json(
@@ -97,6 +97,7 @@ export async function POST(req: Request) {
           telephone,
           adresse: adresse || null,
           etat: MemberStatus.ACTIF,
+          pointDeVenteId: pointDeVenteId ? Number(pointDeVenteId) : null,
         },
       });
 

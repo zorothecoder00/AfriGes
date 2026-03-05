@@ -11,28 +11,46 @@ async function getSession() {
 }
 
 /**
+ * Résout le PDV de l'utilisateur connecté (magasinier via affectation, RPV via rpvId).
+ */
+async function getOwnPDV(userId: number): Promise<number | null> {
+  const aff = await prisma.gestionnaireAffectation.findFirst({
+    where: { userId, actif: true },
+    select: { pointDeVenteId: true },
+  });
+  if (aff?.pointDeVenteId) return aff.pointDeVenteId;
+
+  const pdv = await prisma.pointDeVente.findUnique({
+    where: { rpvId: userId },
+    select: { id: true },
+  });
+  return pdv?.id ?? null;
+}
+
+/**
  * GET /api/magasinier/inventaires
- * Liste des inventaires de site.
- * Query: statut, pdvId, page, limit
+ * Liste des inventaires du PDV du magasinier/RPV connecté.
+ * Query: statut, page, limit
  */
 export async function GET(req: Request) {
   try {
     const session = await getSession();
     if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
 
+    const pdvId = await getOwnPDV(parseInt(session.user.id));
+    if (!pdvId) return NextResponse.json({ error: "Aucun point de vente associé" }, { status: 400 });
+
     const { searchParams } = new URL(req.url);
     const page   = Math.max(1, Number(searchParams.get("page")  || 1));
     const limit  = Math.min(50, Math.max(1, Number(searchParams.get("limit") || 15)));
     const skip   = (page - 1) * limit;
     const statut = searchParams.get("statut") || "";
-    const pdvId  = searchParams.get("pdvId");
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const where: any = {};
+    const where: any = { pointDeVenteId: pdvId };
     if (statut) where.statut = statut;
-    if (pdvId)  where.pointDeVenteId = Number(pdvId);
 
-    const [inventaires, total, pdvs] = await Promise.all([
+    const [inventaires, total] = await Promise.all([
       prisma.inventaireSite.findMany({
         where,
         skip,
@@ -46,12 +64,10 @@ export async function GET(req: Request) {
         },
       }),
       prisma.inventaireSite.count({ where }),
-      prisma.pointDeVente.findMany({ where: { actif: true }, select: { id: true, nom: true, code: true, type: true }, orderBy: { nom: "asc" } }),
     ]);
 
     return NextResponse.json({
       data: inventaires,
-      pdvs,
       meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
     });
   } catch (error) {
@@ -70,10 +86,13 @@ export async function POST(req: Request) {
     const session = await getSession();
     if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
 
-    const { pointDeVenteId, notes } = await req.json();
+    // Forcer le PDV du magasinier/RPV connecté
+    const pointDeVenteId = await getOwnPDV(parseInt(session.user.id));
     if (!pointDeVenteId) {
-      return NextResponse.json({ error: "pointDeVenteId est obligatoire" }, { status: 400 });
+      return NextResponse.json({ error: "Aucun point de vente associé" }, { status: 400 });
     }
+
+    const { notes } = await req.json();
 
     // Charger tous les stocks actuels du PDV
     const stocksActuels = await prisma.stockSite.findMany({

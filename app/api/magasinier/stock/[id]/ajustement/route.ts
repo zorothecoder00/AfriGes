@@ -1,120 +1,99 @@
 import { NextResponse } from "next/server";
-import { TypeMouvement, PrioriteNotification } from "@prisma/client";
+import { PrioriteNotification } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getMagasinierSession } from "@/lib/authMagasinier";
 import { randomUUID } from "crypto";
-import { notifyRoles } from "@/lib/notifications";
+import { notifyRoles, auditLog } from "@/lib/notifications";
 
-interface RouteParams {
-  params: Promise<{ id: string }>;
-}
+type Ctx = { params: Promise<{ id: string }> };
 
 /**
  * POST /api/magasinier/stock/[id]/ajustement
- * Reception de stock ou ajustement d'inventaire
+ * Ajustement de stock sur le PDV du magasinier (StockSite).
+ * Body: { quantite, motif }
+ * - quantite > 0 : entrée (AJUSTEMENT_POSITIF)
+ * - quantite < 0 : sortie (AJUSTEMENT_NEGATIF)
  */
-export async function POST(req: Request, { params }: RouteParams) {
+export async function POST(req: Request, { params }: Ctx) {
   try {
     const session = await getMagasinierSession();
-    if (!session) {
-      return NextResponse.json({ error: "Acces refuse" }, { status: 403 });
-    }
+    if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
 
     const { id } = await params;
     const produitId = Number(id);
-    if (isNaN(produitId)) {
-      return NextResponse.json({ error: "ID invalide" }, { status: 400 });
-    }
+    if (isNaN(produitId)) return NextResponse.json({ error: "ID invalide" }, { status: 400 });
+
+    // PDV du magasinier
+    const aff = await prisma.gestionnaireAffectation.findFirst({
+      where: { userId: parseInt(session.user.id), actif: true },
+      select: { pointDeVenteId: true },
+    });
+    const pdvId = aff?.pointDeVenteId;
+    if (!pdvId) return NextResponse.json({ error: "Aucun point de vente associé à ce magasinier" }, { status: 400 });
 
     const body = await req.json();
-    const { type, quantite, motif } = body;
+    const { quantite, motif } = body;
 
-    if (!type || !quantite || !motif) {
-      return NextResponse.json(
-        { error: "Champs obligatoires manquants (type, quantite, motif)" },
-        { status: 400 }
-      );
-    }
-
-    if (!["ENTREE", "AJUSTEMENT"].includes(type)) {
-      return NextResponse.json(
-        { error: "Type invalide (ENTREE ou AJUSTEMENT attendu)" },
-        { status: 400 }
-      );
+    if (quantite === undefined || !motif) {
+      return NextResponse.json({ error: "quantite et motif sont obligatoires" }, { status: 400 });
     }
 
     const qty = Number(quantite);
-    if (type === "ENTREE" && qty <= 0) {
-      return NextResponse.json(
-        { error: "La quantite doit etre superieure a 0 pour une entree" },
-        { status: 400 }
-      );
-    }
+    if (qty === 0) return NextResponse.json({ error: "La quantité d'ajustement ne peut pas être 0" }, { status: 400 });
 
-    if (type === "AJUSTEMENT" && qty === 0) {
-      return NextResponse.json(
-        { error: "La quantite d'ajustement ne peut pas etre 0" },
-        { status: 400 }
-      );
-    }
+    // Lire le stock actuel
+    const stockActuel = await prisma.stockSite.findUnique({
+      where: { produitId_pointDeVenteId: { produitId, pointDeVenteId: pdvId } },
+      include: { produit: { select: { nom: true } } },
+    });
 
-    const produit = await prisma.produit.findUnique({ where: { id: produitId } });
-    if (!produit) {
-      return NextResponse.json({ error: "Produit introuvable" }, { status: 404 });
-    }
+    const qteActuelle = stockActuel?.quantite ?? 0;
+    const qteNouvelle = qteActuelle + qty;
 
-    const newStock = produit.stock + qty;
-    if (newStock < 0) {
+    if (qteNouvelle < 0) {
       return NextResponse.json(
-        { error: "Le stock ne peut pas devenir negatif" },
+        { error: `Stock insuffisant. Stock actuel : ${qteActuelle}, ajustement : ${qty}` },
         { status: 400 }
       );
     }
 
     const result = await prisma.$transaction(async (tx) => {
+      // Mettre à jour ou créer le StockSite
+      const stock = await tx.stockSite.upsert({
+        where: { produitId_pointDeVenteId: { produitId, pointDeVenteId: pdvId } },
+        update: { quantite: qteNouvelle },
+        create: { produitId, pointDeVenteId: pdvId, quantite: qteNouvelle },
+      });
+
       const mouvement = await tx.mouvementStock.create({
         data: {
           produitId,
-          type: type as TypeMouvement,
-          quantite: Math.abs(qty),
-          motif: `${motif} (par ${session.user.prenom} ${session.user.nom})`,
-          reference: `MAG-${type === "ENTREE" ? "REC" : "ADJ"}-${randomUUID()}`,
+          pointDeVenteId: pdvId,
+          type:           "AJUSTEMENT",
+          typeEntree:     qty > 0 ? "AJUSTEMENT_POSITIF" : undefined,
+          typeSortie:     qty < 0 ? "AJUSTEMENT_NEGATIF" : undefined,
+          quantite:       Math.abs(qty),
+          motif:          `${motif} (par ${session.user.prenom} ${session.user.nom})`,
+          reference:      `MAG-ADJ-${randomUUID().slice(0, 8).toUpperCase()}`,
+          operateurId:    parseInt(session.user.id),
         },
       });
 
-      const updated = await tx.produit.update({
-        where: { id: produitId },
-        data: { stock: newStock },
+      await auditLog(tx, parseInt(session.user.id), "AJUSTEMENT_STOCK_MAGASINIER", "MouvementStock", mouvement.id);
+
+      await notifyRoles(tx, ["RESPONSABLE_POINT_DE_VENTE", "AGENT_LOGISTIQUE_APPROVISIONNEMENT"], {
+        titre:    `Ajustement stock : ${stockActuel?.produit.nom ?? produitId}`,
+        message:  `${session.user.prenom} ${session.user.nom} a ajusté le stock de "${stockActuel?.produit.nom ?? produitId}" : ${qteActuelle} → ${qteNouvelle} (${qty > 0 ? "+" : ""}${qty}). Motif : ${motif}.`,
+        priorite: PrioriteNotification.HAUTE,
+        actionUrl:`/dashboard/magasinier/stock/${produitId}`,
       });
 
-      await tx.auditLog.create({
-        data: {
-          userId: parseInt(session.user.id),
-          action: type === "ENTREE" ? "RECEPTION_STOCK_MAGASINIER" : "AJUSTEMENT_STOCK_MAGASINIER",
-          entite: "MouvementStock",
-          entiteId: mouvement.id,
-        },
-      });
-
-      // Notifications : Admin + RPV + Logistique (pour ENTREE et AJUSTEMENT)
-      const typeLabel = type === "ENTREE" ? "Réception" : "Ajustement";
-      await notifyRoles(
-        tx,
-        ["RESPONSABLE_POINT_DE_VENTE", "AGENT_LOGISTIQUE_APPROVISIONNEMENT"],
-        {
-          titre:    `${typeLabel} stock : ${produit.nom}`,
-          message:  `${session.user.prenom} ${session.user.nom} (magasinier) a enregistré ${qty > 0 ? "+" : ""}${qty} unité(s) sur "${produit.nom}". Stock : ${produit.stock} → ${newStock}. Motif : ${motif}.`,
-          priorite: type === "AJUSTEMENT" ? PrioriteNotification.HAUTE : PrioriteNotification.NORMAL,
-          actionUrl: `/dashboard/admin/stock/${produitId}`,
-        }
-      );
-
-      return { mouvement, produit: updated };
+      return { mouvement, stock };
     });
 
     return NextResponse.json({ data: result }, { status: 201 });
   } catch (error) {
-    console.error("POST /magasinier/stock/[id]/ajustement error:", error);
-    return NextResponse.json({ error: "Erreur lors de l'operation" }, { status: 500 });
+    console.error("POST /magasinier/stock/[id]/ajustement:", error);
+    return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
   }
 }

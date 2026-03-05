@@ -7,27 +7,35 @@ import { notifyRoles, auditLog } from "@/lib/notifications";
 
 /**
  * GET /api/magasinier/bons-sortie
- * Liste des bons de sortie exceptionnels (pertes, casses, dons, conso interne…).
- * Query: statut, typeSortie, pdvId, page, limit
+ * Liste des bons de sortie du PDV du magasinier connecté.
+ * Query: statut, typeSortie, page, limit
  */
 export async function GET(req: Request) {
   try {
     const session = await getMagasinierSession();
     if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
 
+    // Résoudre le PDV du magasinier
+    const aff = await prisma.gestionnaireAffectation.findFirst({
+      where: { userId: parseInt(session.user.id), actif: true },
+      select: { pointDeVenteId: true },
+    });
+    const pdvId = aff?.pointDeVenteId;
+    if (!pdvId) {
+      return NextResponse.json({ error: "Aucun point de vente associé à ce magasinier" }, { status: 400 });
+    }
+
     const { searchParams } = new URL(req.url);
-    const page      = Math.max(1, Number(searchParams.get("page")  || 1));
-    const limit     = Math.min(50, Math.max(1, Number(searchParams.get("limit") || 20)));
-    const skip      = (page - 1) * limit;
-    const statut    = searchParams.get("statut")    || "";
-    const typeSortie= searchParams.get("typeSortie")|| "";
-    const pdvId     = searchParams.get("pdvId");
+    const page       = Math.max(1, Number(searchParams.get("page")  || 1));
+    const limit      = Math.min(50, Math.max(1, Number(searchParams.get("limit") || 20)));
+    const skip       = (page - 1) * limit;
+    const statut     = searchParams.get("statut")    || "";
+    const typeSortie = searchParams.get("typeSortie") || "";
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const where: any = {};
+    const where: any = { pointDeVenteId: pdvId };
     if (statut)     where.statut     = statut;
     if (typeSortie) where.typeSortie = typeSortie;
-    if (pdvId)      where.pointDeVenteId = Number(pdvId);
 
     const [bons, total] = await Promise.all([
       prisma.bonSortie.findMany({
@@ -47,16 +55,8 @@ export async function GET(req: Request) {
       prisma.bonSortie.count({ where }),
     ]);
 
-    // PDV disponibles pour le formulaire
-    const pdvs = await prisma.pointDeVente.findMany({
-      where: { actif: true },
-      select: { id: true, nom: true, code: true, type: true },
-      orderBy: { nom: "asc" },
-    });
-
     return NextResponse.json({
       data: bons,
-      pdvs,
       meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
     });
   } catch (error) {
@@ -76,12 +76,24 @@ export async function POST(req: Request) {
     const session = await getMagasinierSession();
     if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
 
-    const body = await req.json();
-    const { pointDeVenteId, typeSortie, motif, notes, lignes } = body;
+    // Résoudre le PDV du magasinier
+    const aff = await prisma.gestionnaireAffectation.findFirst({
+      where: { userId: parseInt(session.user.id), actif: true },
+      select: { pointDeVenteId: true },
+    });
+    const pdvId = aff?.pointDeVenteId;
+    if (!pdvId) {
+      return NextResponse.json({ error: "Aucun point de vente associé à ce magasinier" }, { status: 400 });
+    }
 
-    if (!pointDeVenteId || !typeSortie || !motif || !lignes?.length) {
+    const body = await req.json();
+    const { typeSortie, motif, notes, lignes } = body;
+    // Forcer le PDV du magasinier — ignorer tout pointDeVenteId du body
+    const pointDeVenteId = pdvId;
+
+    if (!typeSortie || !motif || !lignes?.length) {
       return NextResponse.json(
-        { error: "pointDeVenteId, typeSortie, motif et lignes sont obligatoires" },
+        { error: "typeSortie, motif et lignes sont obligatoires" },
         { status: 400 }
       );
     }

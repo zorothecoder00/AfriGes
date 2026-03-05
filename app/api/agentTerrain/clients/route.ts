@@ -5,30 +5,41 @@ import { getAgentTerrainSession } from "@/lib/authAgentTerrain";
 
 /**
  * GET /api/agentTerrain/clients
- * Liste clients avec pagination et recherche
+ * Liste clients du PDV de l'agent terrain, avec pagination et recherche.
  */
 export async function GET(req: Request) {
   try {
     const session = await getAgentTerrainSession();
     if (!session) {
-      return NextResponse.json({ error: "Acces refuse" }, { status: 403 });
+      return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
+    }
+
+    // Résoudre le PDV de l'agent terrain
+    const aff = await prisma.gestionnaireAffectation.findFirst({
+      where: { userId: parseInt(session.user.id), actif: true },
+      select: { pointDeVenteId: true },
+    });
+    const pdvId = aff?.pointDeVenteId;
+    if (!pdvId) {
+      return NextResponse.json({ error: "Aucun point de vente associé à cet agent" }, { status: 400 });
     }
 
     const { searchParams } = new URL(req.url);
-    const page = Math.max(1, Number(searchParams.get("page") || 1));
+    const page  = Math.max(1, Number(searchParams.get("page")  || 1));
     const limit = Math.min(50, Math.max(1, Number(searchParams.get("limit") || 10)));
-    const skip = (page - 1) * limit;
+    const skip  = (page - 1) * limit;
     const search = searchParams.get("search") || "";
 
-    const where: Prisma.ClientWhereInput = search
-      ? {
-          OR: [
-            { nom: { contains: search, mode: "insensitive" } },
-            { prenom: { contains: search, mode: "insensitive" } },
-            { telephone: { contains: search, mode: "insensitive" } },
-          ],
-        }
-      : {};
+    const where: Prisma.ClientWhereInput = {
+      pointDeVenteId: pdvId,
+      ...(search && {
+        OR: [
+          { nom:       { contains: search, mode: "insensitive" } },
+          { prenom:    { contains: search, mode: "insensitive" } },
+          { telephone: { contains: search, mode: "insensitive" } },
+        ],
+      }),
+    };
 
     const [clients, total] = await Promise.all([
       prisma.client.findMany({
@@ -37,9 +48,7 @@ export async function GET(req: Request) {
         take: limit,
         orderBy: { createdAt: "desc" },
         include: {
-          _count: {
-            select: { souscriptionsPacks: true },
-          },
+          _count: { select: { souscriptionsPacks: true } },
         },
       }),
       prisma.client.count({ where }),
@@ -78,12 +87,19 @@ export async function POST(req: Request) {
 
     const existing = await prisma.client.findUnique({ where: { telephone } });
     if (existing) {
-      return NextResponse.json({ error: "Ce numero de telephone est deja utilise" }, { status: 400 });
+      return NextResponse.json({ error: "Ce numéro de téléphone est déjà utilisé" }, { status: 400 });
     }
+
+    // Résoudre le PDV de l'agent terrain
+    const aff = await prisma.gestionnaireAffectation.findFirst({
+      where: { userId: parseInt(session.user.id), actif: true },
+      select: { pointDeVenteId: true },
+    });
+    const pdvId = aff?.pointDeVenteId ?? null;
 
     const client = await prisma.$transaction(async (tx) => {
       const created = await tx.client.create({
-        data: { nom, prenom, telephone, adresse: adresse || null },
+        data: { nom, prenom, telephone, adresse: adresse || null, pointDeVenteId: pdvId },
       });
 
       await tx.auditLog.create({
