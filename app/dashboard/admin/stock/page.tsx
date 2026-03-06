@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   Plus, Search, Download, Package, TrendingUp, AlertTriangle, Archive,
   Eye, Edit, Trash2, RefreshCw, X, ArrowLeft, Store, Building2, Layers, ChevronDown, ChevronRight,
+  ArrowRightLeft, Trash, PackagePlus,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useApi, useMutation } from '@/hooks/useApi';
@@ -66,9 +67,18 @@ export default function GestionStockPage() {
   const [modalOpen, setModalOpen]           = useState(false);
   const [formData, setFormData]             = useState({ nom: '', description: '', reference: '', categorie: '', unite: '', prixUnitaire: '', alerteStock: '' });
 
-  // Modal ajustement stock sur PDV
-  const [adjustModal, setAdjustModal]       = useState(false);
-  const [adjustForm, setAdjustForm]         = useState({ produitId: '', pointDeVenteId: '', quantite: '', motif: '' });
+  // Modal transfert de stock
+  const [transferModal, setTransferModal]   = useState(false);
+  type StockLigne = { produitId: string; quantite: string };
+  const [transferForm, setTransferForm]     = useState<{
+    origineId: string; destinationId: string; lignes: StockLigne[]; notes: string;
+  }>({ origineId: '', destinationId: '', lignes: [{ produitId: '', quantite: '' }], notes: '' });
+
+  // Modal approvisionnement direct
+  const [approModal, setApproModal]         = useState(false);
+  const [approForm, setApproForm]           = useState<{
+    pointDeVenteId: string; fournisseurNom: string; lignes: StockLigne[]; notes: string;
+  }>({ pointDeVenteId: '', fournisseurNom: '', lignes: [{ produitId: '', quantite: '' }], notes: '' });
 
   // Modal suppression
   const [deleteId, setDeleteId]             = useState<number | null>(null);
@@ -101,12 +111,31 @@ export default function GestionStockPage() {
     ? ((response?.data ?? []) as StockItem[]).filter(item => !!item.produit && !!item.pointDeVente)
     : [];
 
+  // Liste de produits pour le select du modal (priorité à la vue grand stock, plus complète)
+  const produitsOptions = React.useMemo(() => {
+    if (grandStockItems.length > 0) {
+      return grandStockItems.map(p => ({ id: p.id, nom: p.nom }));
+    }
+    const seen = new Set<number>();
+    const result: { id: number; nom: string }[] = [];
+    for (const item of stockItems) {
+      if (!seen.has(item.produitId)) {
+        seen.add(item.produitId);
+        result.push({ id: item.produitId, nom: item.produit.nom });
+      }
+    }
+    return result;
+  }, [grandStockItems, stockItems]);
+
   // Mutations
   const { mutate: addProduit, loading: adding, error: addError } =
     useMutation('/api/admin/stock', 'POST', { successMessage: 'Produit ajouté avec succès' });
 
-  const { mutate: adjustStock, loading: adjusting, error: adjustError } =
-    useMutation('/api/admin/stock', 'PATCH', { successMessage: 'Stock ajusté avec succès' });
+  const { mutate: creerTransfert, loading: transferring, error: transferError } =
+    useMutation('/api/admin/transferts', 'POST', { successMessage: 'Transfert initié avec succès' });
+
+  const { mutate: creerAppro, loading: approvisionning, error: approError } =
+    useMutation('/api/admin/approvisionnements', 'POST', { successMessage: 'Approvisionnement enregistré avec succès' });
 
   const deleteIdRef = useRef<number | null>(null);
   const { mutate: deleteProduit, loading: deleting } =
@@ -132,20 +161,62 @@ export default function GestionStockPage() {
     }
   };
 
-  const handleAdjust = async (e: React.FormEvent) => {
+  const resetTransferForm = () =>
+    setTransferForm({ origineId: '', destinationId: '', lignes: [{ produitId: '', quantite: '' }], notes: '' });
+
+  const handleTransfert = async (e: React.FormEvent) => {
     e.preventDefault();
-    const result = await adjustStock({
-      produitId:      Number(adjustForm.produitId),
-      pointDeVenteId: Number(adjustForm.pointDeVenteId),
-      quantite:       Number(adjustForm.quantite),
-      motif:          adjustForm.motif,
+    const lignesValides = transferForm.lignes.filter(l => l.produitId && l.quantite);
+    const result = await creerTransfert({
+      origineId:     Number(transferForm.origineId),
+      destinationId: Number(transferForm.destinationId),
+      lignes:        lignesValides.map(l => ({ produitId: Number(l.produitId), quantite: Number(l.quantite) })),
+      notes:         transferForm.notes || undefined,
     });
     if (result) {
-      setAdjustModal(false);
-      setAdjustForm({ produitId: '', pointDeVenteId: '', quantite: '', motif: '' });
+      setTransferModal(false);
+      resetTransferForm();
       refetch();
     }
   };
+
+  const addLigne = () =>
+    setTransferForm(f => ({ ...f, lignes: [...f.lignes, { produitId: '', quantite: '' }] }));
+  const removeLigne = (idx: number) =>
+    setTransferForm(f => ({ ...f, lignes: f.lignes.filter((_, i) => i !== idx) }));
+  const updateLigne = (idx: number, field: 'produitId' | 'quantite', value: string) =>
+    setTransferForm(f => {
+      const lignes = [...f.lignes];
+      lignes[idx] = { ...lignes[idx], [field]: value };
+      return { ...f, lignes };
+    });
+
+  const resetApproForm = () =>
+    setApproForm({ pointDeVenteId: '', fournisseurNom: '', lignes: [{ produitId: '', quantite: '' }], notes: '' });
+
+  const handleAppro = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const lignesValides = approForm.lignes.filter(l => l.produitId && l.quantite);
+    const result = await creerAppro({
+      pointDeVenteId: Number(approForm.pointDeVenteId),
+      type:           'FOURNISSEUR',
+      fournisseurNom: approForm.fournisseurNom || undefined,
+      lignes:         lignesValides.map(l => ({ produitId: Number(l.produitId), quantite: Number(l.quantite) })),
+      notes:          approForm.notes || undefined,
+    });
+    if (result) { setApproModal(false); resetApproForm(); refetch(); }
+  };
+
+  const addApproLigne = () =>
+    setApproForm(f => ({ ...f, lignes: [...f.lignes, { produitId: '', quantite: '' }] }));
+  const removeApproLigne = (idx: number) =>
+    setApproForm(f => ({ ...f, lignes: f.lignes.filter((_, i) => i !== idx) }));
+  const updateApproLigne = (idx: number, field: 'produitId' | 'quantite', value: string) =>
+    setApproForm(f => {
+      const lignes = [...f.lignes];
+      lignes[idx] = { ...lignes[idx], [field]: value };
+      return { ...f, lignes };
+    });
 
   const handleDelete = async () => {
     if (!deleteId) return;
@@ -248,8 +319,11 @@ export default function GestionStockPage() {
             <button onClick={handleExport} className="px-5 py-3 bg-white border border-slate-200 rounded-xl text-slate-700 hover:bg-slate-50 transition-all shadow-sm flex items-center gap-2 font-medium">
               <Download size={18} /> Exporter
             </button>
-            <button onClick={() => setAdjustModal(true)} className="px-5 py-3 bg-amber-500 text-white rounded-xl hover:bg-amber-600 transition-all shadow-lg shadow-amber-200 flex items-center gap-2 font-medium">
-              <Store size={18} /> Affecter / Ajuster stock PDV
+            <button onClick={() => setApproModal(true)} className="px-5 py-3 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-200 flex items-center gap-2 font-medium">
+              <PackagePlus size={18} /> Approvisionner
+            </button>
+            <button onClick={() => setTransferModal(true)} className="px-5 py-3 bg-amber-500 text-white rounded-xl hover:bg-amber-600 transition-all shadow-lg shadow-amber-200 flex items-center gap-2 font-medium">
+              <ArrowRightLeft size={18} /> Transférer du stock
             </button>
             <button onClick={() => setModalOpen(true)} className="px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all shadow-lg shadow-blue-200 flex items-center gap-2 font-medium">
               <Plus size={20} /> Nouveau produit
@@ -328,7 +402,7 @@ export default function GestionStockPage() {
                 <X size={20} />
               </button>
               <h2 className="text-xl font-bold mb-1">Ajouter un produit</h2>
-              <p className="text-sm text-slate-500 mb-4">Le produit sera créé sans stock initial. Utilisez &ldquo;Affecter / Ajuster stock&rdquo; pour l&quot;approvisionner.</p>
+              <p className="text-sm text-slate-500 mb-4">Le produit sera créé sans stock initial. Utilisez &ldquo;Approvisionner&rdquo; pour ajouter du stock sur un PDV.</p>
               {addError && <p className="text-red-500 mb-2 text-sm">{addError}</p>}
               <form onSubmit={handleSubmit} className="space-y-3">
                 <input type="text" placeholder="Nom du produit *" required value={formData.nom}
@@ -365,54 +439,202 @@ export default function GestionStockPage() {
           </div>
         )}
 
-        {/* ══ MODAL — Ajustement / Affectation stock PDV ══════════════════ */}
-        {adjustModal && (
+        {/* ══ MODAL — Approvisionnement direct ════════════════════════════ */}
+        {approModal && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-2xl p-8 w-full max-w-md shadow-xl relative">
-              <button onClick={() => setAdjustModal(false)} className="absolute top-4 right-4 text-slate-400 hover:text-slate-600">
+            <div className="bg-white rounded-2xl p-8 w-full max-w-lg shadow-xl relative max-h-[90vh] overflow-y-auto">
+              <button onClick={() => { setApproModal(false); resetApproForm(); }}
+                className="absolute top-4 right-4 text-slate-400 hover:text-slate-600">
                 <X size={20} />
               </button>
-              <h2 className="text-xl font-bold text-slate-800 mb-1">Affecter / Ajuster stock sur un PDV</h2>
+              <div className="flex items-center gap-3 mb-1">
+                <div className="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center">
+                  <PackagePlus size={18} className="text-emerald-600" />
+                </div>
+                <h2 className="text-xl font-bold text-slate-800">Approvisionner un PDV</h2>
+              </div>
               <p className="text-sm text-slate-500 mb-5">
-                Définissez la quantité d&apos;un produit sur un PDV spécifique. Un ajustement sera enregistré.
+                Ajoutez du stock directement sur un PDV ou le dépôt central (réception fournisseur, entrée directe). Le stock est crédité immédiatement.
               </p>
-              {adjustError && <p className="text-red-500 text-sm bg-red-50 border border-red-200 rounded-xl px-3 py-2 mb-4">{adjustError}</p>}
-              <form onSubmit={handleAdjust} className="space-y-4">
+              {approError && (
+                <p className="text-red-500 text-sm bg-red-50 border border-red-200 rounded-xl px-3 py-2 mb-4">{approError}</p>
+              )}
+              <form onSubmit={handleAppro} className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Point de vente *</label>
-                  <select required value={adjustForm.pointDeVenteId}
-                    onChange={e => setAdjustForm(f => ({ ...f, pointDeVenteId: e.target.value }))}
-                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-amber-500 text-sm">
-                    <option value="">Sélectionner un PDV…</option>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">PDV / Dépôt destination *</label>
+                  <select required value={approForm.pointDeVenteId}
+                    onChange={e => setApproForm(f => ({ ...f, pointDeVenteId: e.target.value }))}
+                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm">
+                    <option value="">Choisir un PDV…</option>
                     {pdvs.map(p => (
                       <option key={p.id} value={p.id}>
-                        {p.type === 'DEPOT_CENTRAL' ? '🏭 ' : '🏪 '}{p.nom} ({p.code})
+                        {p.type === 'DEPOT_CENTRAL' ? '[Dépôt central] ' : '[PDV] '}{p.nom} ({p.code})
                       </option>
                     ))}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Produit (ID) *</label>
-                  <input type="number" required placeholder="ID du produit" min="1" value={adjustForm.produitId}
-                    onChange={e => setAdjustForm(f => ({ ...f, produitId: e.target.value }))}
-                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 text-sm" />
-                  <p className="text-xs text-slate-400 mt-1">Visible dans la colonne ID du tableau ci-dessous.</p>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Fournisseur (optionnel)</label>
+                  <input type="text" placeholder="Nom du fournisseur ou de la source…"
+                    value={approForm.fournisseurNom}
+                    onChange={e => setApproForm(f => ({ ...f, fournisseurNom: e.target.value }))}
+                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm" />
                 </div>
+
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Nouvelle quantité *</label>
-                  <input type="number" required min="0" placeholder="Quantité" value={adjustForm.quantite}
-                    onChange={e => setAdjustForm(f => ({ ...f, quantite: e.target.value }))}
-                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 text-sm" />
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Produits à approvisionner *</label>
+                  <div className="space-y-2">
+                    {approForm.lignes.map((ligne, idx) => (
+                      <div key={idx} className="flex items-center gap-2">
+                        <select required value={ligne.produitId}
+                          onChange={e => updateApproLigne(idx, 'produitId', e.target.value)}
+                          className="flex-1 px-3 py-2.5 border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm">
+                          <option value="">Choisir un produit…</option>
+                          {produitsOptions.map(p => (
+                            <option key={p.id} value={p.id}>{p.nom}</option>
+                          ))}
+                        </select>
+                        <input type="number" required min="1" placeholder="Qté"
+                          value={ligne.quantite}
+                          onChange={e => updateApproLigne(idx, 'quantite', e.target.value)}
+                          className="w-24 px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm" />
+                        {approForm.lignes.length > 1 && (
+                          <button type="button" onClick={() => removeApproLigne(idx)}
+                            className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+                            <Trash size={14} />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  {produitsOptions.length === 0 && (
+                    <p className="text-xs text-slate-400 mt-1">Passez en vue &ldquo;Grand stock&rdquo; pour voir tous les produits.</p>
+                  )}
+                  <button type="button" onClick={addApproLigne}
+                    className="mt-2 text-sm text-emerald-600 hover:text-emerald-700 font-medium flex items-center gap-1">
+                    <Plus size={14} /> Ajouter un produit
+                  </button>
                 </div>
+
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Motif *</label>
-                  <input type="text" required placeholder="Ex: Approvisionnement initial, Correction inventaire…" value={adjustForm.motif}
-                    onChange={e => setAdjustForm(f => ({ ...f, motif: e.target.value }))}
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Notes (optionnel)</label>
+                  <input type="text" placeholder="Ex: Livraison hebdomadaire, lot n°12…"
+                    value={approForm.notes}
+                    onChange={e => setApproForm(f => ({ ...f, notes: e.target.value }))}
+                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm" />
+                </div>
+
+                <button type="submit" disabled={approvisionning}
+                  className="w-full py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 disabled:opacity-60 font-medium transition-colors flex items-center justify-center gap-2">
+                  {approvisionning
+                    ? 'Enregistrement…'
+                    : <><PackagePlus size={16} /> Enregistrer l&apos;approvisionnement</>}
+                </button>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* ══ MODAL — Transfert de stock ══════════════════════════════════ */}
+        {transferModal && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl p-8 w-full max-w-lg shadow-xl relative max-h-[90vh] overflow-y-auto">
+              <button onClick={() => { setTransferModal(false); resetTransferForm(); }}
+                className="absolute top-4 right-4 text-slate-400 hover:text-slate-600">
+                <X size={20} />
+              </button>
+              <div className="flex items-center gap-3 mb-1">
+                <div className="w-10 h-10 bg-amber-100 rounded-xl flex items-center justify-center">
+                  <ArrowRightLeft size={18} className="text-amber-600" />
+                </div>
+                <h2 className="text-xl font-bold text-slate-800">Transférer du stock</h2>
+              </div>
+              <p className="text-sm text-slate-500 mb-5">
+                Le stock est immédiatement retiré du PDV source. Le personnel du PDV destination recevra une notification pour confirmer la réception.
+              </p>
+              {transferError && (
+                <p className="text-red-500 text-sm bg-red-50 border border-red-200 rounded-xl px-3 py-2 mb-4">{transferError}</p>
+              )}
+              <form onSubmit={handleTransfert} className="space-y-4">
+                {/* Source / Destination */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Source *</label>
+                    <select required value={transferForm.origineId}
+                      onChange={e => setTransferForm(f => ({ ...f, origineId: e.target.value }))}
+                      className="w-full px-3 py-2.5 border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-amber-500 text-sm">
+                      <option value="">PDV source…</option>
+                      {pdvs.map(p => (
+                        <option key={p.id} value={p.id}>
+                          {p.type === 'DEPOT_CENTRAL' ? '[Dépôt] ' : ''}{p.nom}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Destination *</label>
+                    <select required value={transferForm.destinationId}
+                      onChange={e => setTransferForm(f => ({ ...f, destinationId: e.target.value }))}
+                      className="w-full px-3 py-2.5 border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-amber-500 text-sm">
+                      <option value="">PDV destination…</option>
+                      {pdvs.filter(p => String(p.id) !== transferForm.origineId).map(p => (
+                        <option key={p.id} value={p.id}>
+                          {p.type === 'DEPOT_CENTRAL' ? '[Dépôt] ' : ''}{p.nom}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Lignes produits */}
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Produits à transférer *</label>
+                  <div className="space-y-2">
+                    {transferForm.lignes.map((ligne, idx) => (
+                      <div key={idx} className="flex items-center gap-2">
+                        <select required value={ligne.produitId}
+                          onChange={e => updateLigne(idx, 'produitId', e.target.value)}
+                          className="flex-1 px-3 py-2.5 border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-amber-500 text-sm">
+                          <option value="">Choisir un produit…</option>
+                          {produitsOptions.map(p => (
+                            <option key={p.id} value={p.id}>{p.nom}</option>
+                          ))}
+                        </select>
+                        <input type="number" required min="1" placeholder="Qté" value={ligne.quantite}
+                          onChange={e => updateLigne(idx, 'quantite', e.target.value)}
+                          className="w-24 px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 text-sm" />
+                        {transferForm.lignes.length > 1 && (
+                          <button type="button" onClick={() => removeLigne(idx)}
+                            className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+                            <Trash size={14} />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  {produitsOptions.length === 0 && (
+                    <p className="text-xs text-slate-400 mt-1">Passez en vue &ldquo;Grand stock&rdquo; pour voir tous les produits.</p>
+                  )}
+                  <button type="button" onClick={addLigne}
+                    className="mt-2 text-sm text-amber-600 hover:text-amber-700 font-medium flex items-center gap-1">
+                    <Plus size={14} /> Ajouter un produit
+                  </button>
+                </div>
+
+                {/* Notes */}
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Notes (optionnel)</label>
+                  <input type="text" placeholder="Ex: Réapprovisionnement urgent PDV Nord…"
+                    value={transferForm.notes}
+                    onChange={e => setTransferForm(f => ({ ...f, notes: e.target.value }))}
                     className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 text-sm" />
                 </div>
-                <button type="submit" disabled={adjusting}
-                  className="w-full py-2.5 bg-amber-500 text-white rounded-xl hover:bg-amber-600 disabled:opacity-60 font-medium transition-colors">
-                  {adjusting ? 'Enregistrement…' : 'Appliquer l\'ajustement'}
+
+                <button type="submit" disabled={transferring}
+                  className="w-full py-2.5 bg-amber-500 text-white rounded-xl hover:bg-amber-600 disabled:opacity-60 font-medium transition-colors flex items-center justify-center gap-2">
+                  {transferring
+                    ? 'Transfert en cours…'
+                    : <><ArrowRightLeft size={16} /> Initier le transfert</>}
                 </button>
               </form>
             </div>
@@ -646,9 +868,12 @@ export default function GestionStockPage() {
                               <Edit size={15} />
                             </Link>
                             <button
-                              onClick={() => { setAdjustForm(f => ({ ...f, produitId: String(item.produit.id), pointDeVenteId: String(item.pointDeVenteId) })); setAdjustModal(true); }}
-                              className="p-2 text-amber-600 hover:bg-amber-50 rounded-lg transition-colors" title="Ajuster stock">
-                              <RefreshCw size={15} />
+                              onClick={() => {
+                                setTransferForm(f => ({ ...f, origineId: String(item.pointDeVenteId), lignes: [{ produitId: String(item.produit.id), quantite: '' }] }));
+                                setTransferModal(true);
+                              }}
+                              className="p-2 text-amber-600 hover:bg-amber-50 rounded-lg transition-colors" title="Transférer ce stock">
+                              <ArrowRightLeft size={15} />
                             </button>
                           </div>
                         </td>
