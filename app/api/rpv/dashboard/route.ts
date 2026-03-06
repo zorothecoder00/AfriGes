@@ -76,18 +76,18 @@ export async function GET() {
         _count: { id: true },
       }),
 
-      // Tous les produits pour stats
+      // Tous les produits pour stats (avec stock par site)
       prisma.produit.findMany({
-        select: { id: true, nom: true, stock: true, alerteStock: true, prixUnitaire: true },
+        select: { id: true, nom: true, alerteStock: true, prixUnitaire: true, stocks: { select: { quantite: true } } },
       }),
 
-      // Livraisons actives (EN_ATTENTE ou EN_COURS)
-      prisma.livraison.findMany({
-        where:   { statut: { in: ["EN_ATTENTE", "EN_COURS"] } },
+      // Réceptions actives (BROUILLON ou EN_COURS)
+      prisma.receptionApprovisionnement.findMany({
+        where:   { statut: { in: ["BROUILLON", "EN_COURS"] } },
         select:  {
           id: true, reference: true, type: true, statut: true,
-          fournisseurNom: true, destinataireNom: true,
-          datePrevisionnelle: true, planifiePar: true,
+          fournisseurNom: true, origineNom: true,
+          datePrevisionnelle: true,
           lignes: { select: { id: true } },
         },
         orderBy: { datePrevisionnelle: "asc" },
@@ -136,6 +136,7 @@ export async function GET() {
         orderBy: { _sum: { quantite: "desc" } },
         take: 5,
       }),
+
     ]);
 
     // Récupérer les noms des top produits
@@ -163,13 +164,17 @@ export async function GET() {
     const panierMoyen = nbVentes > 0 ? caJour / nbVentes : 0;
 
     // ── Stats stock ──────────────────────────────────────────────────────────
-    const enRupture       = produits.filter((p) => p.stock === 0).length;
-    const stockFaible     = produits.filter((p) => p.stock > 0 && p.stock <= p.alerteStock).length;
-    const valeurStock     = produits.reduce((s, p) => s + Number(p.prixUnitaire) * p.stock, 0);
-    const alertesProduits = produits
-      .filter((p) => p.stock <= p.alerteStock)
-      .sort((a, b) => a.stock - b.stock)
-      .map((p) => ({ id: p.id, nom: p.nom, stock: p.stock, alerteStock: p.alerteStock }));
+    const produitsAvecStock = produits.map((p) => ({
+      ...p,
+      totalStock: p.stocks.reduce((s, ss) => s + ss.quantite, 0),
+    }));
+    const enRupture       = produitsAvecStock.filter((p) => p.totalStock === 0).length;
+    const stockFaible     = produitsAvecStock.filter((p) => p.totalStock > 0 && p.totalStock <= p.alerteStock).length;
+    const valeurStock     = produitsAvecStock.reduce((s, p) => s + Number(p.prixUnitaire) * p.totalStock, 0);
+    const alertesProduits = produitsAvecStock
+      .filter((p) => p.totalStock <= p.alerteStock)
+      .sort((a, b) => a.totalStock - b.totalStock)
+      .map((p) => ({ id: p.id, nom: p.nom, stock: p.totalStock, alerteStock: p.alerteStock }));
 
     // ── Evolution versements par heure ───────────────────────────────────────
     const ventesParHeure = Array.from({ length: 24 }, (_, h) => {
@@ -209,14 +214,14 @@ export async function GET() {
           evolution: ventesParHeure,
         },
         stock: {
-          total: produits.length, enRupture, stockFaible, valeurStock, alertesProduits,
+          total: produitsAvecStock.length, enRupture, stockFaible, valeurStock, alertesProduits,
         },
         livraisons: {
-          enAttente:  livraisonsActives.filter((l) => l.statut === "EN_ATTENTE").length,
-          enCours:    livraisonsActives.filter((l) => l.statut === "EN_COURS").length,
+          brouillon: livraisonsActives.filter((l) => l.statut === "BROUILLON").length,
+          enCours:   livraisonsActives.filter((l) => l.statut === "EN_COURS").length,
           prochaines: livraisonsActives.map((l) => ({
             id: l.id, reference: l.reference, type: l.type, statut: l.statut,
-            partieNom: l.fournisseurNom ?? l.destinataireNom ?? "—",
+            partieNom: l.fournisseurNom ?? l.origineNom ?? "—",
             datePrevisionnelle: l.datePrevisionnelle.toISOString(),
             nbLignes: l.lignes.length,
           })),

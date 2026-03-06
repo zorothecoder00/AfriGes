@@ -36,7 +36,7 @@ export default function MembresPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [formData, setFormData] = useState({ nom: '', prenom: '', email: '', password: '', telephone: '', adresse: '' });
   const [deleteId, setDeleteId] = useState<number | null>(null);
-  const limit = 10;
+  const limit = 10;   
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(searchQuery), 400);

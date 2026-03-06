@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { PrioriteNotification } from "@prisma/client";
+import { Prisma, PrioriteNotification } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getRPVSession } from "@/lib/authRPV";
 import { randomUUID } from "crypto";
@@ -7,13 +7,18 @@ import { notifyRoles, auditLog } from "@/lib/notifications";
 
 /**
  * GET /api/rpv/livraisons
- * Liste les livraisons avec pagination et filtres.
- * Paramètres : page, limit, statut, type, search
+ * Liste les réceptions d'approvisionnement du PDV du RPV.
+ * Paramètres : page, limit, statut, type (FOURNISSEUR|INTERNE), search
  */
 export async function GET(req: Request) {
   try {
     const session = await getRPVSession();
     if (!session) return NextResponse.json({ message: "Accès refusé" }, { status: 403 });
+
+    const affectation = await prisma.gestionnaireAffectation.findFirst({
+      where: { userId: parseInt(session.user.id), actif: true },
+      select: { pointDeVenteId: true },
+    });
 
     const { searchParams } = new URL(req.url);
     const page   = Math.max(1, Number(searchParams.get("page") ?? "1"));
@@ -22,21 +27,20 @@ export async function GET(req: Request) {
     const type   = searchParams.get("type") ?? "";
     const search = searchParams.get("search") ?? "";
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const where: any = {};
-    if (statut) where.statut = statut;
-    if (type)   where.type   = type;
+    const where: Prisma.ReceptionApprovisionnementWhereInput = {};
+    if (affectation) where.pointDeVenteId = affectation.pointDeVenteId;
+    if (statut) where.statut = statut as Prisma.EnumStatutReceptionApproFilter;
+    if (type)   where.type   = type as Prisma.EnumTypeReceptionApproFilter;
     if (search) {
       where.OR = [
-        { reference:       { contains: search, mode: "insensitive" } },
-        { fournisseurNom:  { contains: search, mode: "insensitive" } },
-        { destinataireNom: { contains: search, mode: "insensitive" } },
-        { planifiePar:     { contains: search, mode: "insensitive" } },
+        { reference:    { contains: search, mode: "insensitive" } },
+        { fournisseurNom: { contains: search, mode: "insensitive" } },
+        { origineNom:   { contains: search, mode: "insensitive" } },
       ];
     }
 
-    const [livraisons, total, statsRaw] = await Promise.all([
-      prisma.livraison.findMany({
+    const [receptions, total, statsRaw] = await Promise.all([
+      prisma.receptionApprovisionnement.findMany({
         where,
         skip:    (page - 1) * limit,
         take:    limit,
@@ -47,8 +51,8 @@ export async function GET(req: Request) {
           },
         },
       }),
-      prisma.livraison.count({ where }),
-      prisma.livraison.groupBy({ by: ["statut"], _count: { id: true } }),
+      prisma.receptionApprovisionnement.count({ where }),
+      prisma.receptionApprovisionnement.groupBy({ by: ["statut"], _count: { id: true } }),
     ]);
 
     const stats: Record<string, number> = {};
@@ -56,18 +60,19 @@ export async function GET(req: Request) {
 
     return NextResponse.json({
       success: true,
-      data: livraisons.map((l) => ({
-        ...l,
-        datePrevisionnelle: l.datePrevisionnelle.toISOString(),
-        dateLivraison:      l.dateLivraison?.toISOString() ?? null,
-        createdAt:          l.createdAt.toISOString(),
-        updatedAt:          l.updatedAt.toISOString(),
+      data: receptions.map((r) => ({
+        ...r,
+        datePrevisionnelle: r.datePrevisionnelle.toISOString(),
+        dateReception:      r.dateReception?.toISOString() ?? null,
+        createdAt:          r.createdAt.toISOString(),
+        updatedAt:          r.updatedAt.toISOString(),
       })),
       stats: {
-        enAttente: stats["EN_ATTENTE"] ?? 0,
-        enCours:   stats["EN_COURS"]   ?? 0,
-        livrees:   stats["LIVREE"]     ?? 0,
-        annulees:  stats["ANNULEE"]    ?? 0,
+        brouillon: stats["BROUILLON"] ?? 0,
+        enCours:   stats["EN_COURS"]  ?? 0,
+        recu:      stats["RECU"]      ?? 0,
+        valide:    stats["VALIDE"]    ?? 0,
+        annule:    stats["ANNULE"]    ?? 0,
       },
       meta: { total, page, limit, totalPages: Math.max(1, Math.ceil(total / limit)) },
     });
@@ -79,14 +84,14 @@ export async function GET(req: Request) {
 
 /**
  * POST /api/rpv/livraisons
- * Planifie une nouvelle livraison.
+ * Planifie une nouvelle réception d'approvisionnement.
  * Body : {
- *   type: "RECEPTION" | "EXPEDITION",
- *   fournisseurNom?  (RECEPTION)
- *   destinataireNom? (EXPEDITION)
+ *   type: "FOURNISSEUR" | "INTERNE",
+ *   fournisseurNom?  (FOURNISSEUR)
+ *   origineNom?      (INTERNE)
  *   datePrevisionnelle: ISO string,
  *   notes?,
- *   lignes: [{ produitId, quantitePrevue }]
+ *   lignes: [{ produitId, quantiteAttendue }]
  * }
  */
 export async function POST(req: Request) {
@@ -94,7 +99,13 @@ export async function POST(req: Request) {
     const session = await getRPVSession();
     if (!session) return NextResponse.json({ message: "Accès refusé" }, { status: 403 });
 
-    const { type, fournisseurNom, destinataireNom, datePrevisionnelle, notes, lignes } = await req.json();
+    const affectation = await prisma.gestionnaireAffectation.findFirst({
+      where: { userId: parseInt(session.user.id), actif: true },
+      select: { pointDeVenteId: true },
+    });
+    if (!affectation) return NextResponse.json({ message: "Aucun point de vente actif trouvé" }, { status: 400 });
+
+    const { type, fournisseurNom, origineNom, datePrevisionnelle, notes, lignes } = await req.json();
 
     if (!type || !datePrevisionnelle || !lignes?.length) {
       return NextResponse.json(
@@ -102,44 +113,32 @@ export async function POST(req: Request) {
         { status: 400 }
       );
     }
-    if (!["RECEPTION", "EXPEDITION"].includes(type))
-      return NextResponse.json({ message: "Type invalide (RECEPTION|EXPEDITION)" }, { status: 400 });
+    if (!["FOURNISSEUR", "INTERNE"].includes(type))
+      return NextResponse.json({ message: "Type invalide (FOURNISSEUR|INTERNE)" }, { status: 400 });
 
-    // Vérifier que les produits existent
-    const produitIds = lignes.map((l: { produitId: number }) => Number(l.produitId));
-    const produits = await prisma.produit.findMany({
-      where: { id: { in: produitIds } },
-      select: { id: true, stock: true },
-    });
-    if (produits.length !== produitIds.length)
+    const produitIds = (lignes as { produitId: number }[]).map((l) => Number(l.produitId));
+    const count = await prisma.produit.count({ where: { id: { in: produitIds } } });
+    if (count !== produitIds.length)
       return NextResponse.json({ message: "Un ou plusieurs produits introuvables" }, { status: 404 });
 
-    // Pour une EXPEDITION, vérifier que le stock est suffisant
-    if (type === "EXPEDITION") {
-      for (const l of lignes) {
-        const p = produits.find((p) => p.id === Number(l.produitId));
-        if (!p || p.stock < Number(l.quantitePrevue))
-          return NextResponse.json({ message: `Stock insuffisant pour le produit #${l.produitId}` }, { status: 400 });
-      }
-    }
+    const reference = `REC-${Date.now()}-${randomUUID().slice(0, 6).toUpperCase()}`;
 
-    const reference = `LIV-${Date.now()}-${randomUUID().slice(0, 6).toUpperCase()}`;
-
-    const livraison = await prisma.$transaction(async (tx) => {
-      const created = await tx.livraison.create({
+    const reception = await prisma.$transaction(async (tx) => {
+      const created = await tx.receptionApprovisionnement.create({
         data: {
           reference,
           type,
-          statut:            "EN_ATTENTE",
-          fournisseurNom:    fournisseurNom  ?? null,
-          destinataireNom:   destinataireNom ?? null,
+          statut:             "BROUILLON",
+          pointDeVenteId:     affectation.pointDeVenteId,
+          fournisseurNom:     type === "FOURNISSEUR" ? (fournisseurNom ?? null) : null,
+          origineNom:         type === "INTERNE"     ? (origineNom ?? null)     : null,
           datePrevisionnelle: new Date(datePrevisionnelle),
-          notes:             notes ?? null,
-          planifiePar:       session.user.name ?? "RPV",
+          notes:              notes ?? null,
+          receptionneParId:   parseInt(session.user.id),
           lignes: {
-            create: lignes.map((l: { produitId: number; quantitePrevue: number }) => ({
-              produitId:     Number(l.produitId),
-              quantitePrevue: Number(l.quantitePrevue),
+            create: (lignes as { produitId: number; quantiteAttendue: number }[]).map((l) => ({
+              produitId:       Number(l.produitId),
+              quantiteAttendue: Number(l.quantiteAttendue),
             })),
           },
         },
@@ -148,15 +147,12 @@ export async function POST(req: Request) {
         },
       });
 
-      // Audit log
-      await auditLog(tx, parseInt(session.user.id), "PLANIFICATION_LIVRAISON_RPV", "Livraison", created.id);
+      await auditLog(tx, parseInt(session.user.id), "PLANIFICATION_LIVRAISON_RPV", "ReceptionApprovisionnement", created.id);
 
-      // Résumé des lignes pour le message
-      const lignesStr = created.lignes.map((l) => `${l.quantitePrevue}× ${l.produit.nom}`).join(", ");
-      const typeLabel = type === "RECEPTION" ? "réception" : "expédition";
-      const tiers     = type === "RECEPTION" ? fournisseurNom : destinataireNom;
+      const lignesStr = created.lignes.map((l) => `${l.quantiteAttendue}× ${l.produit.nom}`).join(", ");
+      const typeLabel = type === "FOURNISSEUR" ? "réception fournisseur" : "réception interne";
+      const tiers     = type === "FOURNISSEUR" ? fournisseurNom : origineNom;
 
-      // Notifications : Admin + Magasinier + Logistique
       await notifyRoles(
         tx,
         ["MAGAZINIER", "AGENT_LOGISTIQUE_APPROVISIONNEMENT"],
@@ -176,10 +172,10 @@ export async function POST(req: Request) {
         success: true,
         message: "Livraison planifiée avec succès",
         data: {
-          ...livraison,
-          datePrevisionnelle: livraison.datePrevisionnelle.toISOString(),
-          createdAt:          livraison.createdAt.toISOString(),
-          updatedAt:          livraison.updatedAt.toISOString(),
+          ...reception,
+          datePrevisionnelle: reception.datePrevisionnelle.toISOString(),
+          createdAt:          reception.createdAt.toISOString(),
+          updatedAt:          reception.updatedAt.toISOString(),
         },
       },
       { status: 201 }

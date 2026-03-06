@@ -14,19 +14,19 @@ export async function GET() {
 
     const since30j = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 
-    const [enCours, livreesRecentes, totalEnCours] = await Promise.all([
-      prisma.livraison.findMany({
+    const [enCours, recuesRecentes, totalEnCours] = await Promise.all([
+      prisma.receptionApprovisionnement.findMany({
         where:   { statut: "EN_COURS" },
         orderBy: { datePrevisionnelle: "asc" },
         include: {
           lignes: {
-            include: { produit: { select: { id: true, nom: true, stock: true, prixUnitaire: true } } },
+            include: { produit: { select: { id: true, nom: true, prixUnitaire: true } } },
           },
         },
       }),
-      prisma.livraison.findMany({
-        where:   { statut: "LIVREE", dateLivraison: { gte: since30j } },
-        orderBy: { dateLivraison: "desc" },
+      prisma.receptionApprovisionnement.findMany({
+        where:   { statut: { in: ["RECU", "VALIDE"] }, dateReception: { gte: since30j } },
+        orderBy: { dateReception: "desc" },
         take:    20,
         include: {
           lignes: {
@@ -34,21 +34,22 @@ export async function GET() {
           },
         },
       }),
-      prisma.livraison.count({ where: { statut: "EN_COURS" } }),
+      prisma.receptionApprovisionnement.count({ where: { statut: "EN_COURS" } }),
     ]);
 
-    const serialize = (l: typeof enCours[number]) => ({
-      ...l,
-      datePrevisionnelle: l.datePrevisionnelle.toISOString(),
-      dateLivraison:      l.dateLivraison?.toISOString() ?? null,
-      createdAt:          l.createdAt.toISOString(),
-      updatedAt:          l.updatedAt.toISOString(),
+    type Reception = typeof enCours[number];
+    const serialize = (r: Reception) => ({
+      ...r,
+      datePrevisionnelle: r.datePrevisionnelle.toISOString(),
+      dateReception:      r.dateReception?.toISOString() ?? null,
+      createdAt:          r.createdAt.toISOString(),
+      updatedAt:          r.updatedAt.toISOString(),
     });
 
     return NextResponse.json({
       success: true,
-      enCours:         enCours.map(serialize),
-      livreesRecentes: livreesRecentes.map(serialize),
+      enCours:        enCours.map(serialize),
+      recuesRecentes: recuesRecentes.map(serialize),
       stats: { totalEnCours },
     });
   } catch (error) {

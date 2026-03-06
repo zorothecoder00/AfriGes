@@ -24,8 +24,8 @@ export async function GET(_req: Request, { params }: Ctx) {
         lignes: {
           include: { produit: { select: { id: true, nom: true, prixUnitaire: true } } },
         },
-        magasinier: { select: { id: true, nom: true, prenom: true } },
-        valideur:   { select: { id: true, nom: true, prenom: true } },
+        creePar:  { select: { id: true, nom: true, prenom: true } },
+        validePar: { select: { id: true, nom: true, prenom: true } },
       },
     });
 
@@ -54,9 +54,9 @@ export async function PATCH(req: Request, { params }: Ctx) {
     const body = await req.json();
     const { statut, notes } = body;
 
-    const validStatuts: StatutBonSortie[] = ["EN_COURS", "EXPEDIE", "RECU", "ANNULE"];
+    const validStatuts: StatutBonSortie[] = ["BROUILLON", "VALIDE", "ANNULE"];
     if (!statut || !validStatuts.includes(statut)) {
-      return NextResponse.json({ error: "Statut invalide" }, { status: 400 });
+      return NextResponse.json({ error: "Statut invalide (BROUILLON|VALIDE|ANNULE)" }, { status: 400 });
     }
 
     const bon = await prisma.bonSortie.findUnique({ where: { id: bonId } });
@@ -66,12 +66,12 @@ export async function PATCH(req: Request, { params }: Ctx) {
       where: { id: bonId },
       data: {
         statut,
-        notes:      notes ?? bon.notes,
-        validePar:  statut === "RECU" ? parseInt(session.user.id) : bon.validePar,
+        notes:       notes ?? bon.notes,
+        valideParId: statut === "VALIDE" ? parseInt(session.user.id) : bon.valideParId,
       },
       include: {
-        lignes: { include: { produit: { select: { id: true, nom: true } } } },
-        magasinier: { select: { nom: true, prenom: true } },
+        lignes:  { include: { produit: { select: { id: true, nom: true } } } },
+        creePar: { select: { nom: true, prenom: true } },
       },
     });
 

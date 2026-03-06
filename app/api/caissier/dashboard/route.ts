@@ -66,9 +66,9 @@ export async function GET() {
         orderBy: { datePaiement: "desc" },
       }),
 
-      // Stock
+      // Stock (agrégé par site)
       prisma.produit.findMany({
-        select: { id: true, nom: true, stock: true, alerteStock: true, prixUnitaire: true },
+        select: { id: true, nom: true, alerteStock: true, prixUnitaire: true, stocks: { select: { quantite: true } } },
       }),
 
       // Souscriptions actives
@@ -110,9 +110,13 @@ export async function GET() {
     const nbClients = clientsVus.size;
 
     // ── Stats stock ────────────────────────────────────────────────────────
-    const stockFaible = produits.filter((p) => p.stock > 0 && p.stock <= p.alerteStock).length;
-    const enRupture   = produits.filter((p) => p.stock === 0).length;
-    const valeurStock = produits.reduce((s, p) => s + Number(p.prixUnitaire) * p.stock, 0);
+    const produitsAvecStock = produits.map((p) => ({
+      ...p,
+      totalStock: p.stocks.reduce((s, ss) => s + ss.quantite, 0),
+    }));
+    const stockFaible = produitsAvecStock.filter((p) => p.totalStock > 0 && p.totalStock <= p.alerteStock).length;
+    const enRupture   = produitsAvecStock.filter((p) => p.totalStock === 0).length;
+    const valeurStock = produitsAvecStock.reduce((s, p) => s + Number(p.prixUnitaire) * p.totalStock, 0);
 
     // ── Alertes ────────────────────────────────────────────────────────────
     const alertes: { type: "danger" | "warning" | "info"; message: string }[] = [];
@@ -198,13 +202,13 @@ export async function GET() {
           nbClients,
         },
         stock: {
-          total:   produits.length,
+          total:   produitsAvecStock.length,
           faible:  stockFaible,
           rupture: enRupture,
           valeur:  valeurStock,
-          produitsAlerte: produits
-            .filter((p) => p.stock <= p.alerteStock)
-            .map((p) => ({ id: p.id, nom: p.nom, stock: p.stock, alerteStock: p.alerteStock })),
+          produitsAlerte: produitsAvecStock
+            .filter((p) => p.totalStock <= p.alerteStock)
+            .map((p) => ({ id: p.id, nom: p.nom, stock: p.totalStock, alerteStock: p.alerteStock })),
         },
         souscriptionsActives,
         souscriptionsEnAttente,

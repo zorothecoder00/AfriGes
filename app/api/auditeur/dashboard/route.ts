@@ -49,8 +49,11 @@ export async function GET() {
         },
       }),
 
-      // Tous les produits pour audit stock
-      prisma.produit.findMany({ orderBy: [{ stock: "asc" }, { nom: "asc" }] }),
+      // Tous les produits pour audit stock (avec stock par site)
+      prisma.produit.findMany({
+        orderBy: { nom: "asc" },
+        select: { id: true, nom: true, alerteStock: true, prixUnitaire: true, actif: true, stocks: { select: { quantite: true } } },
+      }),
 
       // Versements packs des 30 derniers jours
       prisma.versementPack.findMany({
@@ -77,17 +80,17 @@ export async function GET() {
       // Échéances en retard
       prisma.echeancePack.count({ where: { statut: "EN_RETARD" } }),
 
-      prisma.livraison.groupBy({ by: ["statut"], _count: { id: true } }),
+      prisma.receptionApprovisionnement.groupBy({ by: ["statut"], _count: { id: true } }),
 
-      // Livraisons ayant dépassé leur date prévisionnelle sans être livrées
-      prisma.livraison.count({
+      // Réceptions ayant dépassé leur date prévisionnelle sans être reçues
+      prisma.receptionApprovisionnement.count({
         where: {
           datePrevisionnelle: { lt: now },
-          statut: { in: ["EN_ATTENTE", "EN_COURS"] },
+          statut: { in: ["BROUILLON", "EN_COURS"] },
         },
       }),
 
-      prisma.livraison.findMany({
+      prisma.receptionApprovisionnement.findMany({
         take: 15,
         orderBy: { createdAt: "desc" },
         include: { lignes: { include: { produit: { select: { id: true, nom: true } } } } },
@@ -145,9 +148,13 @@ export async function GET() {
 
     // ── Stock ─────────────────────────────────────────────────────────────────
 
-    const enRupture   = produits.filter((p) => p.stock === 0).length;
-    const stockFaible = produits.filter((p) => p.stock > 0 && p.alerteStock > 0 && p.stock <= p.alerteStock).length;
-    const valeurTotale = produits.reduce((sum, p) => sum + Number(p.prixUnitaire) * p.stock, 0);
+    const produitsAvecStock = produits.map((p) => ({
+      ...p,
+      totalStock: p.stocks.reduce((s, ss) => s + ss.quantite, 0),
+    }));
+    const enRupture    = produitsAvecStock.filter((p) => p.totalStock === 0).length;
+    const stockFaible  = produitsAvecStock.filter((p) => p.totalStock > 0 && p.alerteStock > 0 && p.totalStock <= p.alerteStock).length;
+    const valeurTotale = produitsAvecStock.reduce((sum, p) => sum + Number(p.prixUnitaire) * p.totalStock, 0);
 
     // ── Versements ────────────────────────────────────────────────────────────
 
@@ -191,12 +198,12 @@ export async function GET() {
     type NiveauAnomalie = "CRITIQUE" | "HAUTE" | "MOYENNE" | "BASSE";
     const anomalies: Array<{ type: string; niveau: NiveauAnomalie; description: string; entite: string; entiteId?: number }> = [];
 
-    produits.filter((p) => p.stock === 0).forEach((p) =>
+    produitsAvecStock.filter((p) => p.totalStock === 0).forEach((p) =>
       anomalies.push({ type: "STOCK_RUPTURE", niveau: "CRITIQUE", description: `${p.nom} — rupture totale de stock`, entite: "Produit", entiteId: p.id })
     );
 
-    produits.filter((p) => p.stock > 0 && p.alerteStock > 0 && p.stock <= p.alerteStock).forEach((p) =>
-      anomalies.push({ type: "STOCK_FAIBLE", niveau: "HAUTE", description: `${p.nom} — stock critique (${p.stock} unités, seuil: ${p.alerteStock})`, entite: "Produit", entiteId: p.id })
+    produitsAvecStock.filter((p) => p.totalStock > 0 && p.alerteStock > 0 && p.totalStock <= p.alerteStock).forEach((p) =>
+      anomalies.push({ type: "STOCK_FAIBLE", niveau: "HAUTE", description: `${p.nom} — stock critique (${p.totalStock} unités, seuil: ${p.alerteStock})`, entite: "Produit", entiteId: p.id })
     );
 
     if (livraisonsEnRetardCount > 0) {
@@ -264,15 +271,15 @@ export async function GET() {
       },
       anomalies,
       stock: {
-        totalProduits: produits.length,
+        totalProduits: produitsAvecStock.length,
         enRupture,
         stockFaible,
         valeurTotale,
-        produits: produits.map((p) => ({
+        produits: produitsAvecStock.map((p) => ({
           id: p.id,
           nom: p.nom,
           prixUnitaire: p.prixUnitaire.toString(),
-          stock: p.stock,
+          stock: p.totalStock,
           alerteStock: p.alerteStock,
         })),
       },
@@ -295,18 +302,17 @@ export async function GET() {
       livraisons: {
         stats: livraisonsStats,
         enRetard: livraisonsEnRetardCount,
-        recentes: livraisonsRecentes.map((l) => ({
-          id: l.id,
-          reference: l.reference,
-          type: l.type,
-          statut: l.statut,
-          fournisseurNom: l.fournisseurNom,
-          destinataireNom: l.destinataireNom,
-          datePrevisionnelle: l.datePrevisionnelle.toISOString(),
-          dateLivraison: l.dateLivraison?.toISOString() ?? null,
-          planifiePar: l.planifiePar,
-          isEnRetard: l.datePrevisionnelle < now && ["EN_ATTENTE", "EN_COURS"].includes(l.statut),
-          nbLignes: l.lignes.length,
+        recentes: livraisonsRecentes.map((r) => ({
+          id: r.id,
+          reference: r.reference,
+          type: r.type,
+          statut: r.statut,
+          fournisseurNom: r.fournisseurNom,
+          origineNom: r.origineNom,
+          datePrevisionnelle: r.datePrevisionnelle.toISOString(),
+          dateReception: r.dateReception?.toISOString() ?? null,
+          isEnRetard: r.datePrevisionnelle < now && ["BROUILLON", "EN_COURS"].includes(r.statut),
+          nbLignes: r.lignes.length,
         })),
       },
       receptionsPack: {

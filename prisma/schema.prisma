@@ -10,7 +10,7 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-}
+}   
 
 // ============================================================
 // ENUMS — Rôles & statuts généraux
@@ -26,7 +26,7 @@ enum MemberStatus {
   ACTIF
   INACTIF
   SUSPENDU
-}
+}  
 
 enum RoleGestionnaire {
   SUPER_ADMIN

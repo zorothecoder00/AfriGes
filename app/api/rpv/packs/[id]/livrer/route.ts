@@ -91,12 +91,19 @@ export async function POST(req: Request, { params }: Ctx) {
           throw new Error(`Réception déjà ${rec.statut.toLowerCase()}`);
         }
 
-        // Décrémenter le stock pour chaque ligne
+        // Décrémenter le stock par site (greedy : site le plus stocké en premier)
         for (const ligne of rec.lignes) {
-          await tx.produit.update({
-            where: { id: ligne.produitId },
-            data: { stock: { decrement: ligne.quantite } },
+          const sites = await tx.stockSite.findMany({
+            where: { produitId: ligne.produitId, quantite: { gt: 0 } },
+            orderBy: { quantite: "desc" },
           });
+          let remaining = ligne.quantite;
+          for (const site of sites) {
+            if (remaining <= 0) break;
+            const dec = Math.min(site.quantite, remaining);
+            await tx.stockSite.update({ where: { id: site.id }, data: { quantite: { decrement: dec } } });
+            remaining -= dec;
+          }
           await tx.mouvementStock.create({
             data: {
               produitId: ligne.produitId,

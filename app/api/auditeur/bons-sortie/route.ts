@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getAuditeurInterneSession } from "@/lib/authAuditeurInterne";
 
@@ -14,17 +15,16 @@ export async function GET(req: Request) {
     const statut = searchParams.get("statut");
     const type   = searchParams.get("type");
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const where: any = {
-      ...(statut && { statut }),
-      ...(type   && { type }),
+    const where: Prisma.BonSortieWhereInput = {
+      ...(statut && { statut: statut as Prisma.EnumStatutBonSortieFilter }),
+      ...(type   && { typeSortie: type as Prisma.EnumTypeSortieStockFilter }),
     };
 
     const [bons, total] = await Promise.all([
       prisma.bonSortie.findMany({
         where,
         include: {
-          magasinier: { select: { id: true, nom: true, prenom: true } },
+          creePar: { select: { id: true, nom: true, prenom: true } },
           lignes: {
             include: { produit: { select: { id: true, nom: true } } },
           },

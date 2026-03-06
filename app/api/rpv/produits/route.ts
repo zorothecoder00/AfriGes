@@ -21,53 +21,45 @@ export async function GET(req: Request) {
     const search = searchParams.get("search") ?? "";
     const statut = searchParams.get("statut") ?? "";
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const where: any = {};
+    const where: Prisma.ProduitWhereInput = {};
     if (search) {
       where.OR = [
         { nom:         { contains: search, mode: "insensitive" } },
         { description: { contains: search, mode: "insensitive" } },
       ];
     }
-    if (statut === "RUPTURE")     where.stock = 0;
-    if (statut === "STOCK_FAIBLE") where.AND = [{ stock: { gt: 0 } }, { stock: { lte: prisma.produit.fields.alerteStock } }];
 
-    // Filtre stock_faible : stock > 0 AND stock <= alerteStock (comparaison runtime)
-    // On ne peut pas faire ça directement en Prisma sans raw query, on filtre post-fetch pour STOCK_FAIBLE
-    const [allProduits, stats] = await Promise.all([
-      prisma.produit.findMany({
-        where: statut === "STOCK_FAIBLE" ? (search ? { OR: where.OR } : {}) : where,
-        orderBy: { updatedAt: "desc" },
-      }),
-      prisma.produit.aggregate({
-        _count: { id: true },
-        _sum:   { stock: true },
-      }),
-    ]);
+    // Le stock est localisé dans StockSite — on fetch tout et on filtre en mémoire
+    const allProduits = await prisma.produit.findMany({
+      where,
+      orderBy: { updatedAt: "desc" },
+      include: { stocks: { select: { quantite: true } } },
+    });
 
-    // Appliquer filtre STOCK_FAIBLE en mémoire (stock > 0 && stock <= alerteStock)
-    let filtered = allProduits;
-    if (statut === "STOCK_FAIBLE") {
-      filtered = allProduits.filter((p) => p.stock > 0 && p.stock <= p.alerteStock);
-      if (search) {
-        const q = search.toLowerCase();
-        filtered = filtered.filter((p) => p.nom.toLowerCase().includes(q) || (p.description ?? "").toLowerCase().includes(q));
-      }
-    }
+    // Ajouter totalStock calculé à chaque produit
+    const produitsAvecStock = allProduits.map((p) => ({
+      ...p,
+      totalStock: p.stocks.reduce((s, ss) => s + ss.quantite, 0),
+    }));
 
-    const total    = filtered.length;
+    // Filtres de statut en mémoire
+    let filtered = produitsAvecStock;
+    if (statut === "RUPTURE")     filtered = produitsAvecStock.filter((p) => p.totalStock === 0);
+    if (statut === "STOCK_FAIBLE") filtered = produitsAvecStock.filter((p) => p.totalStock > 0 && p.totalStock <= p.alerteStock);
+
+    const total     = filtered.length;
     const paginated = filtered.slice((page - 1) * limit, page * limit);
 
-    // Statistiques globales (toujours sur tous les produits)
-    const enRupture   = allProduits.filter((p) => p.stock === 0).length;
-    const stockFaible = allProduits.filter((p) => p.stock > 0 && p.stock <= p.alerteStock).length;
-    const valeurTotale= allProduits.reduce((s, p) => s + Number(p.prixUnitaire) * p.stock, 0);
+    // Statistiques globales
+    const enRupture    = produitsAvecStock.filter((p) => p.totalStock === 0).length;
+    const stockFaible  = produitsAvecStock.filter((p) => p.totalStock > 0 && p.totalStock <= p.alerteStock).length;
+    const valeurTotale = produitsAvecStock.reduce((s, p) => s + Number(p.prixUnitaire) * p.totalStock, 0);
 
     return NextResponse.json({
       success: true,
-      data: paginated.map((p) => ({ ...p, prixUnitaire: Number(p.prixUnitaire) })),
+      data: paginated.map(({ stocks: _stocks, ...p }) => ({ ...p, prixUnitaire: Number(p.prixUnitaire) })),
       stats: {
-        totalProduits: stats._count.id ?? 0,
+        totalProduits: produitsAvecStock.length,
         enRupture,
         stockFaible,
         valeurTotale,
@@ -82,7 +74,7 @@ export async function GET(req: Request) {
 
 /**
  * POST /api/rpv/produits
- * Crée un nouveau produit. Si stock initial > 0, crée un mouvement ENTREE.
+ * Crée un nouveau produit. Si stock initial > 0, crée un StockSite + mouvement ENTREE.
  * Body : { nom, prixUnitaire, description?, stock?, alerteStock? }
  */
 export async function POST(req: Request) {
@@ -101,32 +93,46 @@ export async function POST(req: Request) {
 
     const stockInit = Math.max(0, Number(stock ?? 0));
 
+    // Récupérer le PDV du RPV pour créer le StockSite initial
+    const affectation = stockInit > 0
+      ? await prisma.gestionnaireAffectation.findFirst({
+          where: { userId: parseInt(session.user.id), actif: true },
+          select: { pointDeVenteId: true },
+        })
+      : null;
+
     const produit = await prisma.$transaction(async (tx) => {
       const created = await tx.produit.create({
         data: {
           nom,
           prixUnitaire: new Prisma.Decimal(Number(prixUnitaire)),
           description:  description ?? null,
-          stock:        stockInit,
           alerteStock:  Number(alerteStock ?? 0),
         },
       });
-      if (stockInit > 0) {
+
+      if (stockInit > 0 && affectation) {
+        await tx.stockSite.create({
+          data: {
+            produitId:      created.id,
+            pointDeVenteId: affectation.pointDeVenteId,
+            quantite:       stockInit,
+          },
+        });
         await tx.mouvementStock.create({
           data: {
-            produitId:    created.id,
-            type:         "ENTREE",
-            quantite:     stockInit,
-            motif:        `Stock initial — créé par ${session.user.name ?? "RPV"}`,
-            reference:    `RPV-INIT-${randomUUID()}`,
+            produitId:      created.id,
+            pointDeVenteId: affectation.pointDeVenteId,
+            type:           "ENTREE",
+            quantite:       stockInit,
+            motif:          `Stock initial — créé par ${session.user.name ?? "RPV"}`,
+            reference:      `RPV-INIT-${randomUUID()}`,
           },
         });
       }
 
-      // Audit log
       await auditLog(tx, parseInt(session.user.id), "CREATION_PRODUIT_RPV", "Produit", created.id);
 
-      // Notifications : Admin + Magasinier + Logistique
       await notifyRoles(
         tx,
         ["MAGAZINIER", "AGENT_LOGISTIQUE_APPROVISIONNEMENT"],

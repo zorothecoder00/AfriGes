@@ -27,6 +27,7 @@ export async function GET(
     const produit = await prisma.produit.findUnique({
       where: { id: numericId },
       include: {
+        stocks: { include: { pointDeVente: { select: { id: true, nom: true, code: true } } } },
         mouvements: {
           orderBy: { dateMouvement: "desc" },
           take: 50,
@@ -69,7 +70,7 @@ export async function PUT(
     }
 
     const body = await req.json();
-    const { nom, description, prixUnitaire, alerteStock, ajustementStock, motifAjustement } = body;
+    const { nom, description, prixUnitaire, alerteStock, ajustementStock, motifAjustement, pointDeVenteId } = body;
 
     const existing = await prisma.produit.findUnique({ where: { id: numericId } });
     if (!existing) {
@@ -84,29 +85,48 @@ export async function PUT(
       if (prixUnitaire !== undefined) updateData.prixUnitaire = new Prisma.Decimal(prixUnitaire);
       if (alerteStock !== undefined) updateData.alerteStock = Number(alerteStock);
 
-      // Ajustement de stock si demande
+      // Ajustement de stock via StockSite
       if (ajustementStock !== undefined && ajustementStock !== 0) {
         const qty = Number(ajustementStock);
-        const newStock = existing.stock + qty;
-
-        if (newStock < 0) {
-          throw new Error("Le stock ne peut pas etre negatif");
-        }
-
-        updateData.stock = newStock;
 
         let type: TypeMouvement;
         if (qty > 0) type = "ENTREE";
         else if (qty < 0) type = "SORTIE";
         else type = "AJUSTEMENT";
 
+        if (qty > 0) {
+          // ENTREE : nécessite un PDV cible
+          if (!pointDeVenteId) throw new Error("pointDeVenteId requis pour un ajustement positif");
+          await tx.stockSite.upsert({
+            where: { produitId_pointDeVenteId: { produitId: numericId, pointDeVenteId: Number(pointDeVenteId) } },
+            update: { quantite: { increment: qty } },
+            create: { produitId: numericId, pointDeVenteId: Number(pointDeVenteId), quantite: qty },
+          });
+        } else {
+          // SORTIE : décrémentation greedy
+          const sites = await tx.stockSite.findMany({
+            where: { produitId: numericId, quantite: { gt: 0 } },
+            orderBy: { quantite: "desc" },
+          });
+          const totalStock = sites.reduce((s, ss) => s + ss.quantite, 0);
+          if (Math.abs(qty) > totalStock) throw new Error("Le stock ne peut pas etre negatif");
+          let remaining = Math.abs(qty);
+          for (const site of sites) {
+            if (remaining <= 0) break;
+            const dec = Math.min(site.quantite, remaining);
+            await tx.stockSite.update({ where: { id: site.id }, data: { quantite: { decrement: dec } } });
+            remaining -= dec;
+          }
+        }
+
         await tx.mouvementStock.create({
           data: {
-            produitId: numericId,
+            produitId:      numericId,
+            pointDeVenteId: pointDeVenteId ? Number(pointDeVenteId) : null,
             type,
-            quantite: Math.abs(qty),
-            motif: motifAjustement || "Ajustement manuel",
-            reference: `ADJ-${randomUUID()}`,
+            quantite:       Math.abs(qty),
+            motif:          motifAjustement || "Ajustement manuel",
+            reference:      `ADJ-${randomUUID()}`,
           },
         });
       }
@@ -152,9 +172,10 @@ export async function DELETE(
       return NextResponse.json({ error: "ID invalide" }, { status: 400 });
     }
 
-    // Supprimer les mouvements puis le produit
+    // Supprimer les mouvements, stocks par site puis le produit
     await prisma.$transaction(async (tx) => {
       await tx.mouvementStock.deleteMany({ where: { produitId: numericId } });
+      await tx.stockSite.deleteMany({ where: { produitId: numericId } });
       await tx.produit.delete({ where: { id: numericId } });
     });
 

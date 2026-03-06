@@ -46,22 +46,30 @@ export async function POST(_req: Request, { params }: Ctx) {
       for (const ligne of rec.lignes) {
         const produit = await tx.produit.findUnique({
           where: { id: ligne.produitId },
-          select: { nom: true, stock: true },
+          select: { nom: true, stocks: { select: { quantite: true } } },
         });
         if (!produit) throw new Error(`Produit #${ligne.produitId} introuvable`);
-        if (ligne.quantite > produit.stock) {
+        const totalStock = produit.stocks.reduce((s, ss) => s + ss.quantite, 0);
+        if (ligne.quantite > totalStock) {
           throw new Error(
-            `Stock insuffisant pour "${produit.nom}" : ${produit.stock} disponible(s), ${ligne.quantite} demandé(s)`
+            `Stock insuffisant pour "${produit.nom}" : ${totalStock} disponible(s), ${ligne.quantite} demandé(s)`
           );
         }
       }
 
-      // ── Décrémentation stock + mouvements ───────────────────────────────────
+      // ── Décrémentation stock (greedy par site) + mouvements ─────────────────
       for (const ligne of rec.lignes) {
-        await tx.produit.update({
-          where: { id: ligne.produitId },
-          data: { stock: { decrement: ligne.quantite } },
+        const sites = await tx.stockSite.findMany({
+          where: { produitId: ligne.produitId, quantite: { gt: 0 } },
+          orderBy: { quantite: "desc" },
         });
+        let remaining = ligne.quantite;
+        for (const site of sites) {
+          if (remaining <= 0) break;
+          const dec = Math.min(site.quantite, remaining);
+          await tx.stockSite.update({ where: { id: site.id }, data: { quantite: { decrement: dec } } });
+          remaining -= dec;
+        }
         await tx.mouvementStock.create({
           data: {
             produitId: ligne.produitId,

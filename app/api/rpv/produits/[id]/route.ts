@@ -7,7 +7,7 @@ import { notifyRoles, auditLog } from "@/lib/notifications";
 
 type Ctx = { params: Promise<{ id: string }> };
 
-/** GET /api/rpv/produits/[id] — Détail produit + 30 derniers mouvements */
+/** GET /api/rpv/produits/[id] — Détail produit + stocks par site + 30 derniers mouvements */
 export async function GET(_req: Request, { params }: Ctx) {
   try {
     const session = await getRPVSession();
@@ -17,6 +17,7 @@ export async function GET(_req: Request, { params }: Ctx) {
     const produit = await prisma.produit.findUnique({
       where: { id: Number(idStr) },
       include: {
+        stocks: { select: { quantite: true, pointDeVenteId: true } },
         mouvements: {
           orderBy: { dateMouvement: "desc" },
           take: 30,
@@ -25,9 +26,11 @@ export async function GET(_req: Request, { params }: Ctx) {
     });
     if (!produit) return NextResponse.json({ message: "Produit introuvable" }, { status: 404 });
 
+    const totalStock = produit.stocks.reduce((s, ss) => s + ss.quantite, 0);
+
     return NextResponse.json({
       success: true,
-      data: { ...produit, prixUnitaire: Number(produit.prixUnitaire) },
+      data: { ...produit, totalStock, prixUnitaire: Number(produit.prixUnitaire) },
     });
   } catch (error) {
     console.error("GET /api/rpv/produits/[id] error:", error);
@@ -63,36 +66,54 @@ export async function PUT(req: Request, { params }: Ctx) {
     }
     if (alerteStock !== undefined) updateData.alerteStock = Number(alerteStock);
 
+    // Récupérer le PDV du RPV pour l'ajustement de stock
+    const affectation = ajustementStock !== undefined && ajustementStock !== null && ajustementStock !== 0
+      ? await prisma.gestionnaireAffectation.findFirst({
+          where: { userId: parseInt(session.user.id), actif: true },
+          select: { pointDeVenteId: true },
+        })
+      : null;
+
     const produit = await prisma.$transaction(async (tx) => {
-      let updated = await tx.produit.update({ where: { id }, data: updateData });
+      const updated = await tx.produit.update({ where: { id }, data: updateData });
 
       if (ajustementStock !== undefined && ajustementStock !== null && ajustementStock !== 0) {
-        const delta    = Number(ajustementStock);
-        const newStock = updated.stock + delta;
+        const delta = Number(ajustementStock);
+
+        if (!affectation) throw new Error("Aucun point de vente actif trouvé pour cet utilisateur");
+
+        // Lire le stock actuel du site pour vérifier le négatif
+        const stockSite = await tx.stockSite.findUnique({
+          where: { produitId_pointDeVenteId: { produitId: id, pointDeVenteId: affectation.pointDeVenteId } },
+        });
+        const stockActuel = stockSite?.quantite ?? 0;
+        const newStock = stockActuel + delta;
         if (newStock < 0) throw new Error("Le stock ne peut pas être négatif");
+
+        await tx.stockSite.upsert({
+          where: { produitId_pointDeVenteId: { produitId: id, pointDeVenteId: affectation.pointDeVenteId } },
+          update: { quantite: newStock },
+          create: { produitId: id, pointDeVenteId: affectation.pointDeVenteId, quantite: Math.max(0, newStock) },
+        });
 
         const typeMvt = delta > 0 ? "ENTREE" : "SORTIE";
         await tx.mouvementStock.create({
           data: {
-            produitId:  id,
-            type:       typeMvt,
-            quantite:   Math.abs(delta),
-            motif:      motifAjustement ?? `Ajustement RPV par ${session.user.name ?? "RPV"}`,
-            reference:  `RPV-ADJ-${randomUUID()}`,
+            produitId:      id,
+            pointDeVenteId: affectation.pointDeVenteId,
+            type:           typeMvt,
+            quantite:       Math.abs(delta),
+            motif:          motifAjustement ?? `Ajustement RPV par ${session.user.name ?? "RPV"}`,
+            reference:      `RPV-ADJ-${randomUUID()}`,
           },
         });
-        updated = await tx.produit.update({
-          where: { id },
-          data:  { stock: newStock },
-        });
 
-        // Notifier l'ajustement de stock : Admin + Magasinier + Logistique
         await notifyRoles(
           tx,
           ["MAGAZINIER", "AGENT_LOGISTIQUE_APPROVISIONNEMENT"],
           {
             titre:    `Ajustement stock : ${produitExistant.nom}`,
-            message:  `${session.user.name ?? "RPV"} a ${delta > 0 ? "ajouté" : "retiré"} ${Math.abs(delta)} unité(s) sur "${produitExistant.nom}". Stock : ${produitExistant.stock} → ${newStock}.${motifAjustement ? ` Motif : ${motifAjustement}` : ""}`,
+            message:  `${session.user.name ?? "RPV"} a ${delta > 0 ? "ajouté" : "retiré"} ${Math.abs(delta)} unité(s) sur "${produitExistant.nom}". Stock PDV : ${stockActuel} → ${newStock}.${motifAjustement ? ` Motif : ${motifAjustement}` : ""}`,
             priorite: PrioriteNotification.NORMAL,
             actionUrl: `/dashboard/admin/stock/${id}`,
           }
@@ -141,15 +162,16 @@ export async function DELETE(_req: Request, { params }: Ctx) {
     const id = Number(idStr);
     const produit = await prisma.produit.findUnique({
       where:  { id },
-      include: { livraisonsLignes: { take: 1 } },
+      include: { lignesVenteDirecte: { take: 1 }, lignesReceptionPack: { take: 1 } },
     });
     if (!produit) return NextResponse.json({ message: "Produit introuvable" }, { status: 404 });
 
-    if (produit.livraisonsLignes.length > 0)
-      return NextResponse.json({ message: "Impossible de supprimer : ce produit est présent dans des livraisons" }, { status: 409 });
+    if (produit.lignesVenteDirecte.length > 0 || produit.lignesReceptionPack.length > 0)
+      return NextResponse.json({ message: "Impossible de supprimer : ce produit est présent dans des ventes ou livraisons" }, { status: 409 });
 
     await prisma.$transaction(async (tx) => {
       await tx.mouvementStock.deleteMany({ where: { produitId: id } });
+      await tx.stockSite.deleteMany({ where: { produitId: id } });
       await tx.produit.delete({ where: { id } });
 
       // Audit log

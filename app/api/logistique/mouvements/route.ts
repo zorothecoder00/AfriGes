@@ -41,7 +41,7 @@ export async function GET(req: Request) {
         skip,
         take: limit,
         orderBy: { dateMouvement: "desc" },
-        include: { produit: { select: { id: true, nom: true, stock: true } } },
+        include: { produit: { select: { id: true, nom: true } } },
       }),
       prisma.mouvementStock.count({ where }),
     ]);
