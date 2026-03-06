@@ -21,7 +21,7 @@ import { formatCurrency, formatDate, formatDateTime } from "@/lib/format";
 // TYPES
 // ============================================================================
 
-type TabKey      = "synthese" | "stock" | "approvisionnement" | "livraisons" | "caisse" | "clients" | "equipe";
+type TabKey      = "synthese" | "stock" | "approvisionnement" | "livraisons" | "caisse" | "clients" | "equipe" | "ventes-terrain";
 type StockSub    = "inventaire" | "journal";
 type StatutStock = "EN_STOCK" | "STOCK_FAIBLE" | "RUPTURE";
 type TypeLiv     = "RECEPTION" | "EXPEDITION";
@@ -382,6 +382,41 @@ export default function ResponsablePDVPage() {
   const { data: recPacksRes,   refetch: refetchRecPacks  } = useApi<ReceptionsPacksResponse>(`/api/rpv/receptions-packs?${recPackParams}`);
   const { data: clientsRes,    refetch: refetchClients   } = useApi<ClientsResponse>(`/api/rpv/clients?${clientParams}`);
 
+  // Ventes terrain (demandes agents)
+  interface VenteTerrainRPV {
+    id: number; reference: string; statut: string;
+    montantTotal: string; modePaiement: string; notes: string | null;
+    clientNom: string | null; clientTelephone: string | null;
+    client: { id: number; nom: string; prenom: string; telephone: string } | null;
+    vendeur: { id: number; nom: string; prenom: string };
+    lignes: { id: number; quantite: number; prixUnitaire: string; produit: { id: number; nom: string } }[];
+    createdAt: string;
+  }
+  interface VentesTerrainRPVResponse { data: VenteTerrainRPV[]; totalEnAttente: number; }
+  const { data: ventesTerrainRes, refetch: refetchVentesT } =
+    useApi<VentesTerrainRPVResponse>("/api/rpv/ventes-terrain");
+  const ventesTerrainEnAttente = ventesTerrainRes?.data.filter(v => v.statut === "BROUILLON") ?? [];
+  const ventesTerrainConfirmees = ventesTerrainRes?.data.filter(v => v.statut === "CONFIRMEE") ?? [];
+
+  const actionVenteIdRef = React.useRef<number | null>(null);
+  const [motifRefus, setMotifRefus] = React.useState("");
+  const [processingVenteId, setProcessingVenteId] = React.useState<number | null>(null);
+
+  const { mutate: doActionVente } = useMutation<unknown, { action: string; motifRefus?: string }>(
+    () => actionVenteIdRef.current ? `/api/rpv/ventes-terrain/${actionVenteIdRef.current}` : "",
+    "PATCH",
+    { successMessage: "" }
+  );
+
+  const handleActionVente = async (id: number, action: "CONFIRMER" | "ANNULER") => {
+    actionVenteIdRef.current = id;
+    setProcessingVenteId(id);
+    const r = await doActionVente({ action, motifRefus: motifRefus || undefined });
+    if (r) { refetchVentesT(); setMotifRefus(""); }
+    setProcessingVenteId(null);
+    actionVenteIdRef.current = null;
+  };
+
   // ── Mutations ────────────────────────────────────────────────────────────
   const { mutate: createProduit, loading: creatingProd } =
     useMutation<Produit, object>("/api/rpv/produits", "POST", { successMessage: "Produit créé ✓" });
@@ -618,11 +653,13 @@ export default function ResponsablePDVPage() {
   // RENDER
   // ============================================================================
 
-  const tabs: { key: TabKey; label: string; icon: React.ElementType }[] = [
+  const tabs: { key: TabKey; label: string; icon: React.ElementType; badge?: number }[] = [
     { key: "synthese",        label: "Synthèse",           icon: BarChart3   },
     { key: "stock",              label: "Stock & Produits",  icon: Package     },
     { key: "livraisons",         label: "Livraisons",        icon: ShoppingBag },
     { key: "approvisionnement",  label: "Approvisionnement", icon: Truck       },
+    { key: "ventes-terrain",     label: "Ventes Terrain",    icon: ShoppingCart,
+      badge: ventesTerrainEnAttente.length },
     { key: "caisse",          label: "Supervision Caisse", icon: Banknote    },
     { key: "clients",         label: "Clients",            icon: UserCircle  },
     { key: "equipe",          label: "Équipe",             icon: Users       },
@@ -1242,12 +1279,15 @@ export default function ResponsablePDVPage() {
 
         {/* Tabs */}
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 p-1.5 flex gap-1 overflow-x-auto">
-          {tabs.map(({ key, label, icon: Icon }) => (
+          {tabs.map(({ key, label, icon: Icon, badge }) => (
             <button key={key} onClick={() => setActiveTab(key)}
               className={`flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-sm font-semibold transition-all whitespace-nowrap ${
                 activeTab === key ? "bg-indigo-600 text-white shadow-lg shadow-indigo-200" : "text-slate-600 hover:bg-slate-100"
               }`}>
               <Icon size={15} />{label}
+              {badge !== undefined && badge > 0 && (
+                <span className={`text-xs font-bold px-1.5 py-0.5 rounded-full ${activeTab === key ? "bg-white/20 text-white" : "bg-red-500 text-white"}`}>{badge}</span>
+              )}
             </button>
           ))}
         </div>
@@ -1977,6 +2017,108 @@ export default function ResponsablePDVPage() {
                 )}
               </div>
             </div>
+          </div>
+        )}
+
+        {/* =====================================================================
+            TAB : VENTES TERRAIN
+        ===================================================================== */}
+        {activeTab === "ventes-terrain" && (
+          <div className="space-y-5">
+
+            {/* Demandes en attente */}
+            <div className="bg-white rounded-2xl shadow-sm border border-amber-200 overflow-hidden">
+              <div className="px-6 py-4 border-b border-amber-200 bg-amber-50 flex items-center gap-2">
+                <ShoppingCart size={18} className="text-amber-600" />
+                <h3 className="font-bold text-slate-800">Demandes à confirmer</h3>
+                {ventesTerrainEnAttente.length > 0 && (
+                  <span className="bg-amber-600 text-white text-xs font-bold px-2 py-0.5 rounded-full">{ventesTerrainEnAttente.length}</span>
+                )}
+              </div>
+              {ventesTerrainEnAttente.length === 0 ? (
+                <div className="p-10 text-center">
+                  <ShoppingCart className="w-10 h-10 text-slate-200 mx-auto mb-3" />
+                  <p className="text-slate-500">Aucune demande en attente de votre confirmation.</p>
+                </div>
+              ) : (
+                <div className="divide-y divide-slate-100">
+                  {ventesTerrainEnAttente.map(v => {
+                    const clientNom = v.client
+                      ? `${v.client.prenom} ${v.client.nom}`
+                      : v.clientNom ?? "Client non précisé";
+                    const tel = v.client?.telephone ?? v.clientTelephone;
+                    const isPending = processingVenteId === v.id;
+                    return (
+                      <div key={v.id} className="p-5">
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap mb-1">
+                              <span className="font-mono text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded">{v.reference}</span>
+                              <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">En attente</span>
+                            </div>
+                            <p className="font-semibold text-slate-800">{clientNom}</p>
+                            {tel && <p className="text-xs text-slate-500">Tél : {tel}</p>}
+                            <p className="text-xs text-slate-500 mt-0.5">
+                              Agent : {v.vendeur.prenom} {v.vendeur.nom} — {Number(v.montantTotal).toLocaleString("fr-FR")} FCFA ({v.modePaiement})
+                            </p>
+                            <div className="flex flex-wrap gap-1.5 mt-1.5">
+                              {v.lignes.map(l => (
+                                <span key={l.id} className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-lg">
+                                  {l.produit.nom} × {l.quantite}
+                                </span>
+                              ))}
+                            </div>
+                            {v.notes && <p className="text-xs text-slate-500 mt-1 italic">{v.notes}</p>}
+                          </div>
+                          <div className="flex flex-col gap-2 shrink-0">
+                            <button
+                              onClick={() => handleActionVente(v.id, "CONFIRMER")}
+                              disabled={isPending}
+                              className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 text-sm font-medium shadow-md shadow-emerald-200 disabled:opacity-60">
+                              {isPending ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <CheckCircle size={14} />}
+                              Confirmer
+                            </button>
+                            <button
+                              onClick={() => handleActionVente(v.id, "ANNULER")}
+                              disabled={isPending}
+                              className="flex items-center gap-1.5 px-4 py-2 border border-red-200 text-red-600 rounded-xl hover:bg-red-50 text-sm font-medium disabled:opacity-60">
+                              <XCircle size={14} /> Refuser
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Ventes CONFIRMEE — en attente de livraison magasinier */}
+            {ventesTerrainConfirmees.length > 0 && (
+              <div className="bg-white rounded-2xl shadow-sm border border-blue-200 overflow-hidden">
+                <div className="px-6 py-4 border-b border-blue-200 bg-blue-50 flex items-center gap-2">
+                  <Clock size={18} className="text-blue-600" />
+                  <h3 className="font-bold text-slate-800">En cours de livraison</h3>
+                  <span className="bg-blue-100 text-blue-700 text-xs font-bold px-2 py-0.5 rounded-full">{ventesTerrainConfirmees.length}</span>
+                </div>
+                <div className="divide-y divide-slate-100">
+                  {ventesTerrainConfirmees.map(v => {
+                    const clientNom = v.client ? `${v.client.prenom} ${v.client.nom}` : v.clientNom ?? "—";
+                    return (
+                      <div key={v.id} className="px-5 py-3 flex items-center gap-3">
+                        <Clock size={15} className="text-blue-500 shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <span className="font-mono text-xs text-slate-500 mr-2">{v.reference}</span>
+                          <span className="text-sm font-medium text-slate-800">{clientNom}</span>
+                          <span className="text-xs text-slate-500 ml-2">— Agent {v.vendeur.prenom} {v.vendeur.nom}</span>
+                        </div>
+                        <span className="text-xs font-bold text-blue-700">{Number(v.montantTotal).toLocaleString("fr-FR")} FCFA</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
         )}
 

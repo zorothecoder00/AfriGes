@@ -120,6 +120,8 @@ export async function POST(req: Request) {
       }
     }
 
+    const isLivraisonClient = typeSortie === "LIVRAISON_CLIENT";
+
     const bonSortie = await prisma.$transaction(async (tx) => {
       const ref = `BS-${Date.now()}-${randomUUID().slice(0, 6).toUpperCase()}`;
 
@@ -153,37 +155,44 @@ export async function POST(req: Request) {
         },
       });
 
-      // Décrémenter StockSite + créer MouvementStock
-      for (const ligne of bon.lignes) {
-        await tx.stockSite.update({
-          where: { produitId_pointDeVenteId: { produitId: ligne.produitId, pointDeVenteId: Number(pointDeVenteId) } },
-          data: { quantite: { decrement: ligne.quantite } },
-        });
+      if (!isLivraisonClient) {
+        // Pour PERTE/CASSE/DON/etc. : décrémenter le stock et valider immédiatement
+        for (const ligne of bon.lignes) {
+          await tx.stockSite.update({
+            where: { produitId_pointDeVenteId: { produitId: ligne.produitId, pointDeVenteId: Number(pointDeVenteId) } },
+            data: { quantite: { decrement: ligne.quantite } },
+          });
 
-        await tx.mouvementStock.create({
-          data: {
-            produitId:      ligne.produitId,
-            pointDeVenteId: Number(pointDeVenteId),
-            type:           "SORTIE",
-            typeSortie:     typeSortie as TypeSortieStock,
-            quantite:       ligne.quantite,
-            motif:          `Bon de sortie ${ref} — ${motif}`,
-            reference:      `${ref}-P${ligne.produitId}`,
-            operateurId:    parseInt(session.user.id),
-            bonSortieId:    bon.id,
-          },
-        });
+          await tx.mouvementStock.create({
+            data: {
+              produitId:      ligne.produitId,
+              pointDeVenteId: Number(pointDeVenteId),
+              type:           "SORTIE",
+              typeSortie:     typeSortie as TypeSortieStock,
+              quantite:       ligne.quantite,
+              motif:          `Bon de sortie ${ref} — ${motif}`,
+              reference:      `${ref}-P${ligne.produitId}`,
+              operateurId:    parseInt(session.user.id),
+              bonSortieId:    bon.id,
+            },
+          });
+        }
+
+        // Marquer comme VALIDE directement (le magasinier valide à la création)
+        await tx.bonSortie.update({ where: { id: bon.id }, data: { statut: "VALIDE", valideParId: parseInt(session.user.id) } });
       }
-
-      // Marquer comme VALIDE directement (le magasinier valide à la création)
-      await tx.bonSortie.update({ where: { id: bon.id }, data: { statut: "VALIDE", valideParId: parseInt(session.user.id) } });
+      // Pour LIVRAISON_CLIENT : reste en BROUILLON, le stock sera décrémenté à la confirmation
 
       await auditLog(tx, parseInt(session.user.id), "BON_SORTIE_CREE", "BonSortie", bon.id);
 
       const isPrioritaire = ["PERTE", "CASSE"].includes(typeSortie);
       await notifyRoles(tx, ["AGENT_LOGISTIQUE_APPROVISIONNEMENT", "RESPONSABLE_POINT_DE_VENTE", "COMPTABLE"], {
-        titre:    `Bon de sortie ${typeSortie} (${ref})`,
-        message:  `${session.user.prenom} ${session.user.nom} a émis un bon de sortie "${typeSortie}" pour "${bon.pointDeVente.nom}". ${bon.lignes.length} ligne(s). Motif : ${motif}.`,
+        titre:    isLivraisonClient
+          ? `Livraison client en attente (${ref})`
+          : `Bon de sortie ${typeSortie} (${ref})`,
+        message:  isLivraisonClient
+          ? `${session.user.prenom} ${session.user.nom} a préparé une livraison client depuis "${bon.pointDeVente.nom}". ${bon.lignes.length} produit(s) — en attente de confirmation.`
+          : `${session.user.prenom} ${session.user.nom} a émis un bon de sortie "${typeSortie}" pour "${bon.pointDeVente.nom}". ${bon.lignes.length} ligne(s). Motif : ${motif}.`,
         priorite: isPrioritaire ? PrioriteNotification.HAUTE : PrioriteNotification.NORMAL,
         actionUrl:`/dashboard/magasinier/bons-sortie/${bon.id}`,
       });

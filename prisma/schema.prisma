@@ -126,6 +126,7 @@ enum StatutCommandeInterne {
 enum StatutVenteDirecte {
   BROUILLON
   CONFIRMEE
+  LIVREE
   ANNULEE
 }
 

@@ -148,7 +148,7 @@ export async function POST(req: Request) {
       const v = await tx.venteDirecte.create({
         data: {
           reference:       ref,
-          statut:          "CONFIRMEE",
+          statut:          "BROUILLON", // En attente de confirmation RPV
           pointDeVenteId:  pdvId,
           vendeurId:       userId,
           modePaiement,
@@ -171,35 +171,16 @@ export async function POST(req: Request) {
         },
         include: { lignes: true },
       });
+      // Pas de décrémentation stock : le magasinier le fera à la livraison
 
-      // Décrémenter StockSite + MouvementStock
-      for (const ligne of v.lignes) {
-        await tx.stockSite.update({
-          where: { produitId_pointDeVenteId: { produitId: ligne.produitId, pointDeVenteId: pdvId } },
-          data: { quantite: { decrement: ligne.quantite } },
-        });
-        await tx.mouvementStock.create({
-          data: {
-            produitId:     ligne.produitId,
-            pointDeVenteId:pdvId,
-            type:          "SORTIE",
-            typeSortie:    "VENTE_DIRECTE",
-            quantite:      ligne.quantite,
-            motif:         `Vente terrain ${ref}`,
-            reference:     `${ref}-P${ligne.produitId}`,
-            operateurId:   userId,
-            venteDirecteId:v.id,
-          },
-        });
-      }
+      await auditLog(tx, userId, "VENTE_DIRECTE_DEMANDEE", "VenteDirecte", v.id);
 
-      await auditLog(tx, userId, "VENTE_DIRECTE_CREEE", "VenteDirecte", v.id);
-
-      await notifyRoles(tx, ["RESPONSABLE_POINT_DE_VENTE", "CAISSIER"], {
-        titre:    `Vente terrain : ${ref}`,
-        message:  `${session.user.prenom} ${session.user.nom} a réalisé une vente de ${montantTotal.toLocaleString("fr-FR")} FCFA sur "${affectation.pointDeVente.nom}".`,
-        priorite: PrioriteNotification.NORMAL,
-        actionUrl:`/dashboard/agentTerrain/ventes`,
+      // Notifier le RPV pour qu'il confirme la demande
+      await notifyRoles(tx, ["RESPONSABLE_POINT_DE_VENTE"], {
+        titre:    `Nouvelle demande de vente terrain : ${ref}`,
+        message:  `${session.user.prenom} ${session.user.nom} a soumis une demande de vente directe de ${montantTotal.toLocaleString("fr-FR")} FCFA sur "${affectation.pointDeVente.nom}". En attente de votre confirmation.`,
+        priorite: PrioriteNotification.HAUTE,
+        actionUrl:`/dashboard/user/responsablesPointDeVente`,
       });
 
       return v;

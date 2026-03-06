@@ -23,16 +23,30 @@ export async function GET(req: Request) {
     const page    = Math.max(1, Number(searchParams.get("page")  || 1));
     const limit   = Math.min(50, Math.max(1, Number(searchParams.get("limit") || 15)));
     const skip    = (page - 1) * limit;
-    const search  = searchParams.get("search")  || "";
-    const statut  = searchParams.get("statut")  || "";
+    const search    = searchParams.get("search")   || "";
+    const statut    = searchParams.get("statut")   || "";
     const origineId = searchParams.get("origineId");
     const destId    = searchParams.get("destId");
+    const entrants  = searchParams.get("entrants") === "true";
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const where: any = {};
-    if (statut)    where.statut      = statut;
-    if (origineId) where.origineId   = Number(origineId);
-    if (destId)    where.destinationId = Number(destId);
+
+    if (entrants) {
+      // Transferts à confirmer par cet utilisateur (destination = son PDV, statut EN_COURS ou EXPEDIE)
+      const aff = await prisma.gestionnaireAffectation.findFirst({
+        where: { userId: parseInt(session.user.id), actif: true },
+        select: { pointDeVenteId: true },
+      });
+      if (aff?.pointDeVenteId) {
+        where.destinationId = aff.pointDeVenteId;
+        where.statut = { in: ["EN_COURS", "EXPEDIE"] };
+      }
+    } else {
+      if (statut)    where.statut         = statut;
+      if (origineId) where.origineId      = Number(origineId);
+      if (destId)    where.destinationId  = Number(destId);
+    }
     if (search)    where.OR = [
       { reference: { contains: search, mode: "insensitive" } },
       { notes:     { contains: search, mode: "insensitive" } },

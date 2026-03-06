@@ -16,9 +16,16 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const statut = searchParams.get("statut") ?? "";
 
+    // Auto-détecter le PDV de l'agent logistique
+    const aff = await prisma.gestionnaireAffectation.findFirst({
+      where: { userId: parseInt(session.user.id), actif: true },
+      select: { pointDeVenteId: true },
+    });
+    const pdvFilter = aff ? { pointDeVenteId: aff.pointDeVenteId } : {};
+
     const where: Prisma.ReceptionApprovisionnementWhereInput = statut
-      ? { statut: statut as StatutReceptionAppro }
-      : { statut: { in: ["BROUILLON", "EN_COURS"] } };
+      ? { ...pdvFilter, statut: statut as StatutReceptionAppro }
+      : { ...pdvFilter, statut: { in: ["BROUILLON", "EN_COURS"] } };
 
     const receptions = await prisma.receptionApprovisionnement.findMany({
       where,

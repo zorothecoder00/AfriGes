@@ -111,11 +111,18 @@ export default function GestionStockPage() {
     ? ((response?.data ?? []) as StockItem[]).filter(item => !!item.produit && !!item.pointDeVente)
     : [];
 
-  // Liste de produits pour le select du modal (priorité à la vue grand stock, plus complète)
-  const produitsOptions = React.useMemo(() => {
-    if (grandStockItems.length > 0) {
-      return grandStockItems.map(p => ({ id: p.id, nom: p.nom }));
+  // Chargement indépendant de TOUS les produits pour les modaux (approvisionnement + transfert)
+  // Déclenché dès qu'un des deux modaux est ouvert
+  const modalOuvert = approModal || transferModal;
+  const { data: tousProduitsResp } = useApi<{ data: GrandStockItem[] }>(
+    modalOuvert ? '/api/admin/stock?aggregate=true&limit=500' : null
+  );
+  const produitsOptions: { id: number; nom: string }[] = React.useMemo(() => {
+    if (tousProduitsResp?.data) {
+      return tousProduitsResp.data.map(p => ({ id: p.id, nom: p.nom }));
     }
+    // Fallback sur les données déjà chargées tant que la requête n'est pas revenue
+    if (grandStockItems.length > 0) return grandStockItems.map(p => ({ id: p.id, nom: p.nom }));
     const seen = new Set<number>();
     const result: { id: number; nom: string }[] = [];
     for (const item of stockItems) {
@@ -125,7 +132,7 @@ export default function GestionStockPage() {
       }
     }
     return result;
-  }, [grandStockItems, stockItems]);
+  }, [tousProduitsResp, grandStockItems, stockItems]);
 
   // Mutations
   const { mutate: addProduit, loading: adding, error: addError } =

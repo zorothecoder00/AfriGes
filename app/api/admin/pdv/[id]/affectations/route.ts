@@ -85,6 +85,8 @@ export async function POST(req: Request, { params }: Ctx) {
     if (!user) return NextResponse.json({ error: "Utilisateur introuvable" }, { status: 404 });
     if (!user.gestionnaire) return NextResponse.json({ error: "Cet utilisateur n'est pas un gestionnaire" }, { status: 400 });
 
+    const role = user.gestionnaire!.role;
+
     const affectation = await prisma.$transaction(async (tx) => {
       // Désactiver toutes les affectations actives de cet utilisateur sur d'autres PDVs
       await tx.gestionnaireAffectation.updateMany({
@@ -109,11 +111,32 @@ export async function POST(req: Request, { params }: Ctx) {
         });
       }
 
+      // ── Synchroniser les champs spéciaux du PDV selon le rôle ───────────────
+      if (role === "RESPONSABLE_POINT_DE_VENTE") {
+        // Vérifier qu'il n'est pas déjà RPV d'un autre PDV
+        const autrePdv = await tx.pointDeVente.findFirst({
+          where: { rpvId: Number(userId), id: { not: pdvId } },
+          select: { nom: true },
+        });
+        if (autrePdv) {
+          throw new Error(`Cet utilisateur est déjà RPV du PDV "${autrePdv.nom}"`);
+        }
+        await tx.pointDeVente.update({
+          where: { id: pdvId },
+          data:  { rpvId: Number(userId) },
+        });
+      } else if (role === "CHEF_AGENCE" || role === "RESPONSABLE_COMMUNAUTE") {
+        await tx.pointDeVente.update({
+          where: { id: pdvId },
+          data:  { chefAgenceId: Number(userId) },
+        });
+      }
+
       await auditLog(tx, parseInt(session.user.id), "GESTIONNAIRE_AFFECTE_PDV", "GestionnaireAffectation", aff.id);
 
       await notifyRoles(tx, ["RESPONSABLE_POINT_DE_VENTE"], {
         titre:    `Nouvelle affectation PDV`,
-        message:  `${user.prenom} ${user.nom} (${user.gestionnaire?.role}) a été affecté au point de vente "${pdv.nom}".`,
+        message:  `${user.prenom} ${user.nom} (${role}) a été affecté au point de vente "${pdv.nom}".`,
         priorite: PrioriteNotification.NORMAL,
         actionUrl:`/dashboard/admin/pdv/${pdvId}`,
       });
@@ -147,16 +170,39 @@ export async function DELETE(req: Request, { params }: Ctx) {
 
     const affectation = await prisma.gestionnaireAffectation.findFirst({
       where: { userId: Number(userId), pointDeVenteId: pdvId, actif: true },
+      include: { user: { select: { gestionnaire: { select: { role: true } } } } },
     });
     if (!affectation) {
       return NextResponse.json({ error: "Aucune affectation active trouvée" }, { status: 404 });
     }
+
+    const role = affectation.user.gestionnaire?.role;
 
     await prisma.$transaction(async (tx) => {
       await tx.gestionnaireAffectation.update({
         where: { id: affectation.id },
         data:  { actif: false },
       });
+
+      // Nettoyer le champ spécial du PDV si cet utilisateur l'occupait
+      if (role === "RESPONSABLE_POINT_DE_VENTE") {
+        const pdvActuel = await tx.pointDeVente.findUnique({
+          where: { id: pdvId },
+          select: { rpvId: true },
+        });
+        if (pdvActuel?.rpvId === Number(userId)) {
+          await tx.pointDeVente.update({ where: { id: pdvId }, data: { rpvId: null } });
+        }
+      } else if (role === "CHEF_AGENCE" || role === "RESPONSABLE_COMMUNAUTE") {
+        const pdvActuel = await tx.pointDeVente.findUnique({
+          where: { id: pdvId },
+          select: { chefAgenceId: true },
+        });
+        if (pdvActuel?.chefAgenceId === Number(userId)) {
+          await tx.pointDeVente.update({ where: { id: pdvId }, data: { chefAgenceId: null } });
+        }
+      }
+
       await auditLog(tx, parseInt(session.user.id), "GESTIONNAIRE_DESAFFECTE_PDV", "GestionnaireAffectation", affectation.id);
     });
 

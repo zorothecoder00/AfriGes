@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   Truck, Package, ArrowUpCircle, ArrowDownCircle, Search, ArrowLeft,
   RefreshCw, AlertTriangle, Archive, CheckCircle, ClipboardList,
@@ -184,21 +184,41 @@ export default function LogistiqueApprovisionnementPage() {
   const stats    = stockRes?.stats;
   const meta     = stockRes?.meta;
 
-  // ── Livraisons RPV (démarrer EN_ATTENTE → EN_COURS) ──────────────────────
+  // ── Livraisons RPV (démarrer BROUILLON → EN_COURS) ────────────────────────
   interface LivraisonRpvLigne {
-    id: number; produitId: number; quantitePrevue: number; quantiteRecue: number | null;
-    produit: { id: number; nom: string; stock: number; prixUnitaire: string };
+    id: number; produitId: number; quantiteAttendue: number; quantiteRecue: number | null;
+    produit: { id: number; nom: string; prixUnitaire: string };
   }
   interface LivraisonRpv {
-    id: number; reference: string; type: "RECEPTION" | "EXPEDITION";
-    statut: "EN_ATTENTE" | "EN_COURS" | "LIVREE" | "ANNULEE";
-    datePrevisionnelle: string; dateLivraison: string | null;
-    fournisseurNom: string | null; destinataireNom: string | null; notes: string | null;
+    id: number; reference: string;
+    type: "FOURNISSEUR" | "INTERNE";
+    statut: "BROUILLON" | "EN_COURS" | "RECU" | "VALIDE" | "ANNULE";
+    datePrevisionnelle: string; dateReception: string | null;
+    fournisseurNom: string | null; notes: string | null;
     lignes: LivraisonRpvLigne[];
   }
   interface LivraisonsRpvResponse {
     success: boolean; data: LivraisonRpv[];
-    stats: { enAttente: number; enCours: number };
+    stats: { brouillon: number; enCours: number };
+  }
+
+  // ── Transferts entrants (EN_COURS/EXPEDIE vers le PDV de l'utilisateur) ──
+  interface LigneTransfert {
+    id: number; quantite: number;
+    produit: { id: number; nom: string; unite: string | null };
+  }
+  interface TransfertEntrant {
+    id: number; reference: string; statut: string;
+    origine: { id: number; nom: string; code: string };
+    destination: { id: number; nom: string; code: string };
+    creePar: { id: number; nom: string; prenom: string };
+    lignes: LigneTransfert[];
+    createdAt: string;
+    dateExpedition: string | null;
+  }
+  interface TransfertsEntrantsResponse {
+    data: TransfertEntrant[];
+    meta: { total: number; page: number; limit: number; totalPages: number };
   }
 
   const { data: livraisonsRpvRes, loading: livraisonsRpvLoading, refetch: refetchLivraisonsRpv } =
@@ -215,6 +235,28 @@ export default function LogistiqueApprovisionnementPage() {
     const r = await doDemarrer({ id: liv.id, action: "demarrer" });
     if (r) refetchLivraisonsRpv();
     setDemarrantId(null);
+  };
+
+  // ── Transferts entrants à confirmer ──────────────────────────────────────
+  const { data: transfertsEntrantsRes, loading: transfertsEntrantsLoading, refetch: refetchTransfertsEntrants } =
+    useApi<TransfertsEntrantsResponse>("/api/logistique/transferts?entrants=true");
+  const transfertsEntrants = transfertsEntrantsRes?.data ?? [];
+
+  const [confirmantTransfertId, setConfirmantTransfertId] = useState<number | null>(null);
+  const confirmerTransfertIdRef = useRef<number | null>(null);
+  const { mutate: doConfirmerTransfert, loading: confirmTransfertLoading } =
+    useMutation<unknown, { action: string }>(
+      () => confirmerTransfertIdRef.current ? `/api/logistique/transferts/${confirmerTransfertIdRef.current}` : "",
+      "PATCH",
+      { successMessage: "Transfert confirmé — stock mis à jour !" }
+    );
+  const handleConfirmerTransfert = async (id: number) => {
+    confirmerTransfertIdRef.current = id;
+    setConfirmantTransfertId(id);
+    const r = await doConfirmerTransfert({ action: "RECEVOIR" });
+    if (r) { refetchTransfertsEntrants(); refetchStock(); }
+    setConfirmantTransfertId(null);
+    confirmerTransfertIdRef.current = null;
   };
 
   // ── Livraisons Packs (confirmation) ──────────────────────────────────────
@@ -375,17 +417,15 @@ export default function LogistiqueApprovisionnementPage() {
     refetchAffectations();
     refetchLivraisonsRpv();
     refetchLivraisonsPack();
-  }, [refetchStock, refetchReceptions, refetchAffectations, refetchLivraisonsRpv, refetchLivraisonsPack]);
+    refetchTransfertsEntrants();
+  }, [refetchStock, refetchReceptions, refetchAffectations, refetchLivraisonsRpv, refetchLivraisonsPack, refetchTransfertsEntrants]);
 
   const [expandedRpvId, setExpandedRpvId] = useState<number | null>(null);
 
   const livraisonsRpv = livraisonsRpvRes?.data ?? [];
-  // Réceptions d'approvisionnement (stock entrant, depuis fournisseurs)
-  const receptionsEnAttente = livraisonsRpv.filter(l => l.statut === "EN_ATTENTE" && l.type === "RECEPTION");
-  const receptionsEnCours   = livraisonsRpv.filter(l => l.statut === "EN_COURS"   && l.type === "RECEPTION");
-  // Livraisons clients (stock sortant, vers clients)
-  const livraisonsEnAttente = livraisonsRpv.filter(l => l.statut === "EN_ATTENTE" && l.type === "EXPEDITION");
-  const livraisonsEnCours   = livraisonsRpv.filter(l => l.statut === "EN_COURS"   && l.type === "EXPEDITION");
+  // Réceptions d'approvisionnement (BROUILLON = à démarrer, EN_COURS = en attente Magasinier)
+  const receptionsEnAttente = livraisonsRpv.filter(l => l.statut === "BROUILLON");
+  const receptionsEnCours   = livraisonsRpv.filter(l => l.statut === "EN_COURS");
 
   const produitsUrgents = produits.filter(p => {
     const s = getStatut(p.stock, p.alerteStock);
@@ -849,33 +889,26 @@ export default function LogistiqueApprovisionnementPage() {
           <div className="space-y-5">
 
             {/* ── Stats ── */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
               <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 flex items-center gap-3">
                 <ArrowUpCircle className="text-emerald-600 w-5 h-5 shrink-0" />
                 <div>
-                  <p className="text-xs text-emerald-700 font-medium">Réceptions en attente</p>
+                  <p className="text-xs text-emerald-700 font-medium">Appros à démarrer</p>
                   <p className="text-2xl font-bold text-emerald-800">{receptionsEnAttente.length}</p>
                 </div>
               </div>
               <div className="bg-teal-50 border border-teal-200 rounded-2xl p-4 flex items-center gap-3">
                 <PlayCircle className="text-teal-600 w-5 h-5 shrink-0" />
                 <div>
-                  <p className="text-xs text-teal-700 font-medium">Réceptions en cours</p>
+                  <p className="text-xs text-teal-700 font-medium">Appros en cours</p>
                   <p className="text-2xl font-bold text-teal-800">{receptionsEnCours.length}</p>
                 </div>
               </div>
-              <div className="bg-orange-50 border border-orange-200 rounded-2xl p-4 flex items-center gap-3">
-                <Truck className="text-orange-600 w-5 h-5 shrink-0" />
-                <div>
-                  <p className="text-xs text-orange-700 font-medium">Livraisons en attente</p>
-                  <p className="text-2xl font-bold text-orange-800">{livraisonsEnAttente.length}</p>
-                </div>
-              </div>
               <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 flex items-center gap-3">
-                <PlayCircle className="text-blue-600 w-5 h-5 shrink-0" />
+                <Truck className="text-blue-600 w-5 h-5 shrink-0" />
                 <div>
-                  <p className="text-xs text-blue-700 font-medium">Livraisons en cours</p>
-                  <p className="text-2xl font-bold text-blue-800">{livraisonsEnCours.length}</p>
+                  <p className="text-xs text-blue-700 font-medium">Transferts à confirmer</p>
+                  <p className="text-2xl font-bold text-blue-800">{transfertsEntrants.length}</p>
                 </div>
               </div>
             </div>
@@ -912,7 +945,7 @@ export default function LogistiqueApprovisionnementPage() {
                         <div className="flex flex-wrap gap-1.5 mt-1.5">
                           {liv.lignes.map(l => (
                             <span key={l.id} className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-lg">
-                              {l.produit.nom} × {l.quantitePrevue}
+                              {l.produit.nom} × {l.quantiteAttendue}
                             </span>
                           ))}
                         </div>
@@ -962,7 +995,7 @@ export default function LogistiqueApprovisionnementPage() {
                           <div className="flex flex-wrap gap-1.5 mt-3">
                             {liv.lignes.map(l => (
                               <span key={l.id} className="text-xs bg-teal-50 text-teal-700 border border-teal-200 px-2 py-1 rounded-lg">
-                                {l.produit.nom} — prévu : {l.quantitePrevue} | stock actuel : {l.produit.stock}
+                                {l.produit.nom} — attendu : {l.quantiteAttendue}
                               </span>
                             ))}
                           </div>
@@ -974,97 +1007,58 @@ export default function LogistiqueApprovisionnementPage() {
               </div>
             )}
 
-            {/* Section Livraisons clients à démarrer */}
-            <div className="bg-white rounded-2xl shadow-sm border border-orange-200 overflow-hidden">
-              <div className="px-6 py-4 border-b border-orange-200 bg-orange-50 flex items-center gap-2">
-                <Truck size={18} className="text-orange-600" />
-                <h3 className="font-bold text-slate-800">Livraisons clients — à démarrer</h3>
-                {livraisonsEnAttente.length > 0 && (
-                  <span className="bg-orange-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">
-                    {livraisonsEnAttente.length}
+            {/* ── Transferts entrants à confirmer ── */}
+            <div className="bg-white rounded-2xl shadow-sm border border-blue-200 overflow-hidden">
+              <div className="px-6 py-4 border-b border-blue-200 bg-blue-50 flex items-center gap-2">
+                <Truck size={18} className="text-blue-600" />
+                <h3 className="font-bold text-slate-800">Transferts de stock entrants — à confirmer</h3>
+                {transfertsEntrants.length > 0 && (
+                  <span className="bg-blue-600 text-white text-xs font-bold px-2 py-0.5 rounded-full">
+                    {transfertsEntrants.length}
                   </span>
                 )}
+                {transfertsEntrantsLoading && <span className="text-xs text-slate-400 ml-auto">Chargement…</span>}
               </div>
-              {livraisonsEnAttente.length === 0 && !livraisonsRpvLoading ? (
+              {transfertsEntrants.length === 0 && !transfertsEntrantsLoading ? (
                 <div className="p-8 text-center">
                   <CheckCircle className="w-8 h-8 text-emerald-300 mx-auto mb-2" />
-                  <p className="text-slate-500 text-sm">Aucune livraison client en attente</p>
+                  <p className="text-slate-500 text-sm">Aucun transfert en attente de confirmation</p>
                 </div>
               ) : (
                 <div className="divide-y divide-slate-100">
-                  {livraisonsEnAttente.map((liv) => (
-                    <div key={liv.id} className="p-5 flex items-start justify-between gap-4">
+                  {transfertsEntrants.map((t) => (
+                    <div key={t.id} className="p-5 flex items-start justify-between gap-4">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap mb-1">
-                          <span className="font-mono text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded">{liv.reference}</span>
-                          <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">En attente</span>
+                          <span className="font-mono text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded">{t.reference}</span>
+                          <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">{t.statut === "EXPEDIE" ? "Expédié" : "En cours"}</span>
                         </div>
-                        <p className="text-sm font-medium text-slate-700">Destinataire : {liv.destinataireNom ?? "Non précisé"}</p>
-                        <p className="text-xs text-slate-400 mt-0.5">Prévu le {formatDate(liv.datePrevisionnelle)} — {liv.lignes.length} produit(s)</p>
+                        <p className="text-sm font-medium text-slate-700">Depuis : {t.origine.nom}</p>
+                        <p className="text-xs text-slate-400 mt-0.5">
+                          Créé par {t.creePar.prenom} {t.creePar.nom} — {t.lignes.length} produit(s)
+                        </p>
                         <div className="flex flex-wrap gap-1.5 mt-1.5">
-                          {liv.lignes.map(l => (
-                            <span key={l.id} className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-lg">
-                              {l.produit.nom} × {l.quantitePrevue}
+                          {t.lignes.map(l => (
+                            <span key={l.id} className="text-xs bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded-lg">
+                              {l.produit.nom} × {l.quantite}
                             </span>
                           ))}
                         </div>
                       </div>
                       <button
-                        onClick={() => handleDemarrer(liv)}
-                        disabled={demarrerLoading && demarrantId === liv.id}
-                        className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-xl hover:bg-orange-700 text-sm font-medium transition-all shadow-md shadow-orange-200 shrink-0 disabled:opacity-60"
+                        onClick={() => handleConfirmerTransfert(t.id)}
+                        disabled={confirmTransfertLoading && confirmantTransfertId === t.id}
+                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 text-sm font-medium transition-all shadow-md shadow-blue-200 shrink-0 disabled:opacity-60"
                       >
-                        {demarrerLoading && demarrantId === liv.id
-                          ? <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Démarrage…</>
-                          : <><PlayCircle size={15} /> Démarrer</>}
+                        {confirmTransfertLoading && confirmantTransfertId === t.id
+                          ? <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Confirmation…</>
+                          : <><CheckCircle size={15} /> Confirmer reçu</>}
                       </button>
                     </div>
                   ))}
                 </div>
               )}
             </div>
-
-            {/* Livraisons clients en cours — attente Magasinier */}
-            {livraisonsEnCours.length > 0 && (
-              <div className="bg-white rounded-2xl shadow-sm border border-blue-200 overflow-hidden">
-                <div className="px-6 py-4 border-b border-blue-200 bg-blue-50 flex items-center gap-2">
-                  <Truck size={18} className="text-blue-600" />
-                  <h3 className="font-bold text-slate-800">Livraisons clients en cours — attente Magasinier</h3>
-                  <span className="bg-blue-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">{livraisonsEnCours.length}</span>
-                </div>
-                <div className="divide-y divide-slate-100">
-                  {livraisonsEnCours.map((liv) => (
-                    <div key={liv.id}>
-                      <div
-                        className="p-5 flex items-start justify-between gap-4 cursor-pointer hover:bg-slate-50"
-                        onClick={() => setExpandedRpvId(expandedRpvId === liv.id ? null : liv.id)}
-                      >
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap mb-1">
-                            <span className="font-mono text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded">{liv.reference}</span>
-                            <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">En cours</span>
-                          </div>
-                          <p className="text-sm text-slate-700">Destinataire : {liv.destinataireNom ?? "—"}</p>
-                          <p className="text-xs text-slate-400 mt-0.5">Prévu le {formatDate(liv.datePrevisionnelle)} — en attente de confirmation par le Magasinier</p>
-                        </div>
-                        {expandedRpvId === liv.id ? <ChevronUp size={16} className="text-slate-400 shrink-0" /> : <ChevronDown size={16} className="text-slate-400 shrink-0" />}
-                      </div>
-                      {expandedRpvId === liv.id && (
-                        <div className="px-5 pb-5 border-t border-slate-100">
-                          <div className="flex flex-wrap gap-1.5 mt-3">
-                            {liv.lignes.map(l => (
-                              <span key={l.id} className="text-xs bg-blue-50 text-blue-700 border border-blue-200 px-2 py-1 rounded-lg">
-                                {l.produit.nom} — prévu : {l.quantitePrevue} | stock actuel : {l.produit.stock}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
 
             {/* ── Livraisons Packs à confirmer ── */}
             <div className="bg-white rounded-2xl shadow-sm border border-amber-200 overflow-hidden">
@@ -1331,7 +1325,7 @@ export default function LogistiqueApprovisionnementPage() {
                             </span>
                           </td>
                           <td className="px-6 py-4 font-semibold text-slate-800 text-sm">{m.produit?.nom ?? "-"}</td>
-                          <td className="px-6 py-4 text-sm text-slate-600">{m.produit?.stock ?? "-"} u.</td>
+                          <td className="px-6 py-4 text-sm text-slate-600">{m.quantite ?? "-"} u.</td>
                           <td className="px-6 py-4">
                             <span className={`font-bold text-lg ${m.type === "ENTREE" ? "text-emerald-600" : m.type === "SORTIE" ? "text-red-600" : "text-blue-600"}`}>
                               {m.type === "ENTREE" ? "+" : m.type === "SORTIE" ? "-" : "±"}{m.quantite}

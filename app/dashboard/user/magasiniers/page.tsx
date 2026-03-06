@@ -6,7 +6,7 @@ import {
   RefreshCw, Eye, ClipboardList, ArrowUpCircle, ArrowDownCircle,
   BarChart3, Boxes, LucideIcon, CheckCircle, X, Plus, ArrowRightLeft,
   ChevronDown, ChevronUp, Truck, FileText, Printer, ShieldAlert,
-  Trash2, Gift, MinusCircle, Send, Clock, CheckSquare, XCircle, PackageCheck
+  Trash2, Gift, MinusCircle, Send, Clock, CheckSquare, XCircle, PackageCheck, ShoppingBag
 } from 'lucide-react';
 import Link from 'next/link';
 import SignOutButton from '@/components/SignOutButton';
@@ -43,6 +43,7 @@ interface MouvementStock {
 
 interface ProduitDetail extends Produit {
   mouvements: Omit<MouvementStock, 'produit'>[];
+  stockQte?: number;
 }
 
 interface StockResponse {
@@ -207,6 +208,13 @@ export default function MagasinierPage() {
   // Ref pour update statut bon de sortie sans re-render
   const bonSortieUpdateIdRef = useRef<number | null>(null);
 
+  // Livraisons clients en attente (LIVRAISON_CLIENT BROUILLON)
+  const [showLivClientForm, setShowLivClientForm] = useState(false);
+  const [lcMotif, setLcMotif] = useState('');
+  const [lcLignes, setLcLignes] = useState<{ produitId: string; quantite: string }[]>([{ produitId: '', quantite: '' }]);
+  const [confirmLivClientId, setConfirmLivClientId] = useState<number | null>(null);
+  const confirmLivClientIdRef = useRef<number | null>(null);
+
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(searchQuery), 400);
     return () => clearTimeout(timer);
@@ -216,7 +224,7 @@ export default function MagasinierPage() {
   const stockParams = new URLSearchParams({ page: String(page), limit: String(limit) });
   if (debouncedSearch) stockParams.set('search', debouncedSearch);
 
-  const { data: stockResponse, loading: stockLoading, refetch: refetchStock } = useApi<StockResponse>(`/api/admin/stock?${stockParams}`);
+  const { data: stockResponse, loading: stockLoading, refetch: refetchStock } = useApi<StockResponse>(`/api/logistique/stock?${stockParams}`);
   const produits = stockResponse?.data ?? [];
   const stats = stockResponse?.stats;
   const meta = stockResponse?.meta;
@@ -283,37 +291,88 @@ export default function MagasinierPage() {
     { successMessage: 'Bon de sortie cree avec succes' }
   );
 
-  // Livraisons RPV
+  // Livraisons RPV (ReceptionApprovisionnement)
   interface LivraisonRpvLigne {
-    id: number; quantitePrevue: number; quantiteRecue: number | null;
-    produit: { id: number; nom: string; stock: number; prixUnitaire: string };
+    id: number; quantiteAttendue: number; quantiteRecue: number | null;
+    produit: { id: number; nom: string; prixUnitaire: string };
   }
   interface LivraisonRpv {
-    id: number; reference: string; type: 'RECEPTION' | 'EXPEDITION';
-    statut: 'EN_ATTENTE' | 'EN_COURS' | 'LIVREE' | 'ANNULEE';
-    datePrevisionnelle: string; dateLivraison: string | null;
-    fournisseurNom: string | null; destinataireNom: string | null; notes: string | null;
+    id: number; reference: string;
+    type: 'FOURNISSEUR' | 'INTERNE';
+    statut: 'BROUILLON' | 'EN_COURS' | 'RECU' | 'VALIDE' | 'ANNULE';
+    datePrevisionnelle: string; dateReception: string | null;
+    fournisseurNom: string | null; notes: string | null;
     lignes: LivraisonRpvLigne[];
   }
   interface LivraisonsRpvResponse {
     success: boolean;
     enCours: LivraisonRpv[];
-    livreesRecentes: LivraisonRpv[];
+    recuesRecentes: LivraisonRpv[];
     stats: { totalEnCours: number };
+  }
+
+  // Transferts entrants
+  interface LigneTransfertMag {
+    id: number; quantite: number;
+    produit: { id: number; nom: string; unite: string | null };
+  }
+  interface TransfertEntrantMag {
+    id: number; reference: string; statut: string;
+    origine: { id: number; nom: string; code: string };
+    destination: { id: number; nom: string; code: string };
+    creePar: { id: number; nom: string; prenom: string };
+    lignes: LigneTransfertMag[];
+    createdAt: string;
+  }
+  interface TransfertsEntrantsMagResponse {
+    data: TransfertEntrantMag[];
+    meta: { total: number; page: number; limit: number; totalPages: number };
+  }
+
+  // Ventes terrain CONFIRMEE à livrer
+  interface LigneVenteTerrain {
+    id: number; produitId: number; quantite: number; prixUnitaire: string; montant: string;
+    produit: { id: number; nom: string; unite: string | null };
+  }
+  interface VenteTerrain {
+    id: number; reference: string; statut: string;
+    montantTotal: string; modePaiement: string;
+    clientNom: string | null; clientTelephone: string | null;
+    client: { id: number; nom: string; prenom: string; telephone: string } | null;
+    vendeur: { id: number; nom: string; prenom: string };
+    lignes: LigneVenteTerrain[];
+    createdAt: string;
+  }
+  interface VentesTerrainMagResponse {
+    aLivrer: VenteTerrain[];
+    livreesRecentes: VenteTerrain[];
+    totalALivrer: number;
+  }
+
+  interface LivClientLigne {
+    id: number; produitId: number; quantite: number; prixUnit: string | null;
+    produit: { id: number; nom: string; prixUnitaire: string };
+  }
+  interface LivClientBon {
+    id: number; reference: string; typeSortie: string;
+    statut: 'BROUILLON' | 'VALIDE' | 'ANNULE';
+    motif: string; notes: string | null;
+    lignes: LivClientLigne[];
+    creePar: { id: number; nom: string; prenom: string };
+    createdAt: string;
+  }
+  interface LivClientsResponse {
+    data: LivClientBon[];
+    meta: { total: number; page: number; limit: number; totalPages: number };
   }
 
   const { data: livraisonsRpvRes, loading: livraisonsRpvLoading, refetch: refetchLivraisonsRpv } =
     useApi<LivraisonsRpvResponse>('/api/magasinier/livraisons-rpv');
 
-  const toutesEnCours       = livraisonsRpvRes?.enCours ?? [];
-  const toutesLivrees       = livraisonsRpvRes?.livreesRecentes ?? [];
+  // Toutes les ReceptionApprovisionnement du PDV du magasinier
+  const receptionsEnCours   = livraisonsRpvRes?.enCours ?? [];
+  const receptionsLivrees   = livraisonsRpvRes?.recuesRecentes ?? [];
   const nbLivraisonsEnCours = livraisonsRpvRes?.stats.totalEnCours ?? 0;
-  // Réceptions d'approvisionnement (stock entrant)
-  const receptionsEnCours   = toutesEnCours.filter(l => l.type === 'RECEPTION');
-  const receptionsLivrees   = toutesLivrees.filter(l => l.type === 'RECEPTION');
-  // Livraisons clients (stock sortant)
-  const livraisonsClEnCours = toutesEnCours.filter(l => l.type === 'EXPEDITION');
-  const livraisonsClLivrees = toutesLivrees.filter(l => l.type === 'EXPEDITION');
 
   const { mutate: validerLivraison, loading: validerLoading } = useMutation<unknown, { action: string; lignes: { ligneId: number; quantiteRecue: number }[] }>(
     validerLivId ? `/api/magasinier/livraisons-rpv/${validerLivId}` : '',
@@ -321,9 +380,98 @@ export default function MagasinierPage() {
     { successMessage: 'Réception validée — stock mis à jour !' }
   );
 
+  // Transferts entrants à confirmer
+  const { data: transfertsEntrantsMagRes, loading: transfertsEntrantsMagLoading, refetch: refetchTransfertsEntrantsMag } =
+    useApi<TransfertsEntrantsMagResponse>('/api/magasinier/transferts?entrants=true');
+  const transfertsEntrantsMag = transfertsEntrantsMagRes?.data ?? [];
+
+  const [confirmantMagTransfertId, setConfirmantMagTransfertId] = useState<number | null>(null);
+  const confirmerMagTransfertIdRef = useRef<number | null>(null);
+  const { mutate: doConfirmerMagTransfert, loading: confirmMagTransfertLoading } =
+    useMutation<unknown, { action: string }>(
+      () => confirmerMagTransfertIdRef.current ? `/api/logistique/transferts/${confirmerMagTransfertIdRef.current}` : '',
+      'PATCH',
+      { successMessage: 'Transfert confirmé — stock mis à jour !' }
+    );
+  const handleConfirmerMagTransfert = async (id: number) => {
+    confirmerMagTransfertIdRef.current = id;
+    setConfirmantMagTransfertId(id);
+    const r = await doConfirmerMagTransfert({ action: 'RECEVOIR' });
+    if (r) { refetchTransfertsEntrantsMag(); refetchStock(); }
+    setConfirmantMagTransfertId(null);
+    confirmerMagTransfertIdRef.current = null;
+  };
+
+  // Ventes terrain CONFIRMEE — à livrer physiquement
+  const { data: ventesTerrainMagRes, loading: ventesTerrainMagLoading, refetch: refetchVentesTerrainMag } =
+    useApi<VentesTerrainMagResponse>('/api/magasinier/ventes-terrain');
+  const ventesTerrainALivrer  = ventesTerrainMagRes?.aLivrer ?? [];
+  const ventesTerrainLivrees  = ventesTerrainMagRes?.livreesRecentes ?? [];
+
+  const [livrantVenteId, setLivrantVenteId] = useState<number | null>(null);
+  const livrantVenteIdRef = useRef<number | null>(null);
+  const { mutate: doLivrerVente, loading: livrerVenteLoading } =
+    useMutation<unknown, object>(
+      () => livrantVenteIdRef.current ? `/api/magasinier/ventes-terrain/${livrantVenteIdRef.current}` : '',
+      'PATCH',
+      { successMessage: 'Livraison confirmée — stock mis à jour !' }
+    );
+  const handleLivrerVente = async (id: number) => {
+    livrantVenteIdRef.current = id;
+    setLivrantVenteId(id);
+    const r = await doLivrerVente({});
+    if (r) { refetchVentesTerrainMag(); refetchStock(); if (activeTab === 'journal') refetchJournal(); }
+    setLivrantVenteId(null);
+    livrantVenteIdRef.current = null;
+  };
+
+  // Livraisons clients en attente (LIVRAISON_CLIENT BROUILLON)
+  const { data: livClientsRes, loading: livClientsLoading, refetch: refetchLivClients } =
+    useApi<LivClientsResponse>('/api/magasinier/bons-sortie?typeSortie=LIVRAISON_CLIENT&statut=BROUILLON&limit=50');
+  const livClientsPending = livClientsRes?.data ?? [];
+
+  const { mutate: doConfirmerLivClient, loading: confirmLivClientLoading } =
+    useMutation<unknown, { statut: string }>(
+      () => confirmLivClientIdRef.current ? `/api/magasinier/bons-sortie/${confirmLivClientIdRef.current}` : '',
+      'PATCH',
+      { successMessage: 'Livraison client confirmée — stock mis à jour !' }
+    );
+
+  const { mutate: submitLivClient, loading: livClientSubmitLoading } =
+    useMutation<unknown, { typeSortie: string; motif: string; notes?: string; lignes: { produitId: number; quantite: number }[] }>(
+      '/api/magasinier/bons-sortie',
+      'POST',
+      { successMessage: 'Livraison client créée — en attente de confirmation' }
+    );
+
+  const handleConfirmerLivClient = async (id: number) => {
+    confirmLivClientIdRef.current = id;
+    setConfirmLivClientId(id);
+    const r = await doConfirmerLivClient({ statut: 'VALIDE' });
+    if (r) { refetchLivClients(); refetchStock(); if (activeTab === 'journal') refetchJournal(); }
+    setConfirmLivClientId(null);
+    confirmLivClientIdRef.current = null;
+  };
+
+  const handleCreateLivClient = async () => {
+    const lignesValides = lcLignes.filter(l => l.produitId && l.quantite);
+    if (!lcMotif || lignesValides.length === 0) return;
+    const r = await submitLivClient({
+      typeSortie: 'LIVRAISON_CLIENT',
+      motif: lcMotif,
+      lignes: lignesValides.map(l => ({ produitId: Number(l.produitId), quantite: Number(l.quantite) })),
+    });
+    if (r) {
+      setShowLivClientForm(false);
+      setLcMotif('');
+      setLcLignes([{ produitId: '', quantite: '' }]);
+      refetchLivClients();
+    }
+  };
+
   const openValiderModal = (liv: LivraisonRpv) => {
     const init: Record<number, string> = {};
-    liv.lignes.forEach(lg => { init[lg.id] = String(lg.quantitePrevue); });
+    liv.lignes.forEach(lg => { init[lg.id] = String(lg.quantiteAttendue); });
     setValiderLignes(init);
     setValiderLivId(liv.id);
   };
@@ -331,7 +479,7 @@ export default function MagasinierPage() {
   const handleValiderLivraison = async (liv: LivraisonRpv) => {
     const lignesPayload = liv.lignes.map(l => ({
       ligneId: l.id,
-      quantiteRecue: Number(validerLignes[l.id] ?? l.quantitePrevue),
+      quantiteRecue: Number(validerLignes[l.id] ?? l.quantiteAttendue),
     }));
     const r = await validerLivraison({ action: 'valider', lignes: lignesPayload });
     if (r) {
@@ -494,7 +642,7 @@ export default function MagasinierPage() {
     { key: 'inventaire'  as const, label: 'Inventaire',  icon: ClipboardList },
     { key: 'journal'     as const, label: 'Journal',     icon: BarChart3 },
     { key: 'reception'   as const, label: 'Reception',   icon: Plus },
-    { key: 'livraisons'  as const, label: 'Récep. & Livr.', icon: Truck, badge: nbLivraisonsEnCours },
+    { key: 'livraisons'  as const, label: 'Récep. & Livr.', icon: Truck, badge: nbLivraisonsEnCours + transfertsEntrantsMag.length + livClientsPending.length + ventesTerrainALivrer.length },
     { key: 'sorties'     as const, label: 'Sorties',     icon: Send },
     { key: 'anomalies'   as const, label: 'Anomalies',   icon: ShieldAlert },
     { key: 'alertes'     as const, label: 'Alertes',     icon: AlertTriangle, badge: (stats?.enRupture ?? 0) + (stats?.stockFaible ?? 0) },
@@ -820,7 +968,7 @@ export default function MagasinierPage() {
                               </td>
                               <td className="px-6 py-4">
                                 <p className="font-semibold text-slate-800">{mvt.produit.nom}</p>
-                                <p className="text-xs text-slate-500">Stock actuel: {mvt.produit.stock}</p>
+                                <p className="text-xs text-slate-500">Stock actuel: {mvt.quantite}</p>
                               </td>
                               <td className="px-6 py-4">
                                 <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold ${ts.bg} ${ts.text}`}>
@@ -874,7 +1022,7 @@ export default function MagasinierPage() {
 
             {/* Modal Valider */}
             {validerLivId !== null && (() => {
-              const liv = toutesEnCours.find(l => l.id === validerLivId);
+              const liv = receptionsEnCours.find(l => l.id === validerLivId);
               if (!liv) return null;
               return (
                 <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 overflow-y-auto">
@@ -886,7 +1034,7 @@ export default function MagasinierPage() {
                         </div>
                         <div>
                           <h2 className="font-bold text-slate-800">
-                            {liv.type === 'RECEPTION' ? 'Confirmer la réception' : 'Confirmer la livraison'}
+                            Confirmer la réception
                           </h2>
                           <p className="text-xs text-slate-500">{liv.reference}</p>
                         </div>
@@ -897,22 +1045,20 @@ export default function MagasinierPage() {
                     </div>
                     <div className="p-5 space-y-4">
                       <p className="text-sm text-slate-600 bg-blue-50 border border-blue-200 rounded-xl p-3">
-                        {liv.type === 'RECEPTION'
-                          ? 'Saisissez les quantités réellement reçues du fournisseur. Le stock sera incrémenté.'
-                          : 'Saisissez les quantités réellement expédiées au client. Le stock sera décrémenté.'}
+                        Saisissez les quantités réellement reçues. Le stock sera incrémenté.
                       </p>
                       <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
                         {liv.lignes.map(lg => (
                           <div key={lg.id} className="flex items-center gap-3 bg-slate-50 rounded-xl px-4 py-2.5">
                             <div className="flex-1">
                               <p className="font-medium text-slate-800 text-sm">{lg.produit.nom}</p>
-                              <p className="text-xs text-slate-400">Prévu : {lg.quantitePrevue} | Stock actuel : {lg.produit.stock}</p>
+                              <p className="text-xs text-slate-400">Attendu : {lg.quantiteAttendue}</p>
                             </div>
                             <div>
                               <label className="block text-xs text-slate-500 mb-0.5">Reçu</label>
                               <input
                                 type="number" min="0"
-                                value={validerLignes[lg.id] ?? String(lg.quantitePrevue)}
+                                value={validerLignes[lg.id] ?? String(lg.quantiteAttendue)}
                                 onChange={e => setValiderLignes(prev => ({ ...prev, [lg.id]: e.target.value }))}
                                 className="w-24 px-2 py-1.5 border border-slate-200 rounded-lg text-sm text-center focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
                               />
@@ -944,23 +1090,32 @@ export default function MagasinierPage() {
             })()}
 
             {/* Stats */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 flex items-center gap-3">
                 <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center shrink-0">
-                  <Truck className="text-blue-600 w-5 h-5" />
+                  <PackageCheck className="text-blue-600 w-5 h-5" />
                 </div>
                 <div>
-                  <p className="text-xs text-blue-700 font-medium">En cours — à valider</p>
+                  <p className="text-xs text-blue-700 font-medium">Réceptions — à confirmer</p>
                   <p className="text-2xl font-bold text-blue-800">{nbLivraisonsEnCours}</p>
                 </div>
               </div>
-              <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 flex items-center gap-3">
-                <div className="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center shrink-0">
-                  <CheckCircle className="text-emerald-600 w-5 h-5" />
+              <div className="bg-violet-50 border border-violet-200 rounded-2xl p-4 flex items-center gap-3">
+                <div className="w-10 h-10 bg-violet-100 rounded-xl flex items-center justify-center shrink-0">
+                  <Truck className="text-violet-600 w-5 h-5" />
                 </div>
                 <div>
-                  <p className="text-xs text-emerald-700 font-medium">Validées (30 derniers jours)</p>
-                  <p className="text-2xl font-bold text-emerald-800">{receptionsLivrees.length + livraisonsClLivrees.length}</p>
+                  <p className="text-xs text-violet-700 font-medium">Transferts entrants</p>
+                  <p className="text-2xl font-bold text-violet-800">{transfertsEntrantsMag.length}</p>
+                </div>
+              </div>
+              <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-center gap-3">
+                <div className="w-10 h-10 bg-amber-100 rounded-xl flex items-center justify-center shrink-0">
+                  <Send className="text-amber-600 w-5 h-5" />
+                </div>
+                <div>
+                  <p className="text-xs text-amber-700 font-medium">Livraisons clients en attente</p>
+                  <p className="text-2xl font-bold text-amber-800">{livClientsPending.length}</p>
                 </div>
               </div>
             </div>
@@ -1011,7 +1166,7 @@ export default function MagasinierPage() {
                             <div className="flex flex-wrap gap-1.5 mt-1.5">
                               {liv.lignes.slice(0, 3).map(l => (
                                 <span key={l.id} className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-lg">
-                                  {l.produit.nom} × {l.quantitePrevue}
+                                  {l.produit.nom} × {l.quantiteAttendue}
                                 </span>
                               ))}
                               {liv.lignes.length > 3 && (
@@ -1037,11 +1192,11 @@ export default function MagasinierPage() {
                               <div key={l.id} className="flex items-center justify-between bg-slate-50 rounded-xl px-4 py-2.5">
                                 <div>
                                   <p className="font-medium text-slate-800 text-sm">{l.produit.nom}</p>
-                                  <p className="text-xs text-slate-400">Prévu : {l.quantitePrevue}</p>
+                                  <p className="text-xs text-slate-400">Prévu : {l.quantiteAttendue}</p>
                                 </div>
                                 <div className="text-right">
                                   <p className="text-xs text-slate-500">Stock actuel</p>
-                                  <p className="font-bold text-slate-700">{l.produit.stock}</p>
+                                  <p className="font-bold text-slate-700">{l.quantiteAttendue}</p>
                                 </div>
                               </div>
                             ))}
@@ -1059,95 +1214,271 @@ export default function MagasinierPage() {
               )}
             </div>
 
-            {/* Livraisons clients — à confirmer */}
-            <div className="bg-white rounded-2xl shadow-sm border border-orange-200 overflow-hidden">
-              <div className="px-6 py-4 border-b border-orange-200 bg-orange-50 flex items-center gap-2">
-                <Truck size={18} className="text-orange-600" />
-                <h3 className="font-bold text-slate-800">Livraisons clients — à confirmer</h3>
-                {livraisonsClEnCours.length > 0 && (
-                  <span className="bg-orange-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">
-                    {livraisonsClEnCours.length}
+            {/* Transferts de stock entrants — à confirmer */}
+            <div className="bg-white rounded-2xl shadow-sm border border-blue-200 overflow-hidden">
+              <div className="px-6 py-4 border-b border-blue-200 bg-blue-50 flex items-center gap-2">
+                <Truck size={18} className="text-blue-600" />
+                <h3 className="font-bold text-slate-800">Transferts de stock entrants — à confirmer</h3>
+                {transfertsEntrantsMag.length > 0 && (
+                  <span className="bg-blue-600 text-white text-xs font-bold px-2 py-0.5 rounded-full">
+                    {transfertsEntrantsMag.length}
                   </span>
                 )}
+                {transfertsEntrantsMagLoading && <span className="text-xs text-slate-400 ml-auto">Chargement…</span>}
               </div>
-              {livraisonsClEnCours.length === 0 && !livraisonsRpvLoading ? (
+              {transfertsEntrantsMag.length === 0 && !transfertsEntrantsMagLoading ? (
                 <div className="p-8 text-center">
-                  <Truck className="w-10 h-10 text-orange-200 mx-auto mb-3" />
-                  <p className="text-slate-500 text-sm">Aucune livraison client en cours.</p>
-                  <p className="text-slate-400 text-xs mt-1">Les livraisons démarrées par la Logistique apparaîtront ici.</p>
+                  <Truck className="w-10 h-10 text-blue-200 mx-auto mb-3" />
+                  <p className="text-slate-500 text-sm">Aucun transfert en attente de confirmation.</p>
+                  <p className="text-slate-400 text-xs mt-1">Les transferts envoyés vers votre PDV apparaîtront ici.</p>
                 </div>
               ) : (
                 <div className="divide-y divide-slate-100">
-                  {livraisonsClEnCours.map(liv => (
-                    <div key={liv.id}>
-                      <div
-                        className="p-5 flex items-start justify-between gap-4 cursor-pointer hover:bg-slate-50"
-                        onClick={() => setExpandedLivId(expandedLivId === liv.id ? null : liv.id)}
-                      >
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap mb-1">
-                            <span className="font-mono text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded">
-                              {liv.reference}
-                            </span>
-                            <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-orange-100 text-orange-700">
-                              Livraison client
-                            </span>
-                            <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">
-                              En cours
-                            </span>
-                          </div>
-                          <p className="text-sm text-slate-700">{liv.destinataireNom ?? 'Destinataire non précisé'}</p>
-                          <p className="text-xs text-slate-400 mt-0.5">
-                            Prévu le {formatDate(liv.datePrevisionnelle)} — {liv.lignes.length} produit(s)
-                          </p>
-                          {expandedLivId !== liv.id && (
-                            <div className="flex flex-wrap gap-1.5 mt-1.5">
-                              {liv.lignes.slice(0, 3).map(l => (
-                                <span key={l.id} className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-lg">
-                                  {l.produit.nom} × {l.quantitePrevue}
-                                </span>
-                              ))}
-                              {liv.lignes.length > 3 && (
-                                <span className="text-xs text-slate-400">+{liv.lignes.length - 3} autres</span>
-                              )}
-                            </div>
-                          )}
+                  {transfertsEntrantsMag.map(t => (
+                    <div key={t.id} className="p-5 flex items-start justify-between gap-4">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap mb-1">
+                          <span className="font-mono text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded">{t.reference}</span>
+                          <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">
+                            {t.statut === 'EXPEDIE' ? 'Expédié' : 'En cours'}
+                          </span>
                         </div>
-                        <div className="flex items-center gap-2 shrink-0">
-                          <button
-                            onClick={e => { e.stopPropagation(); openValiderModal(liv); }}
-                            className="flex items-center gap-1.5 px-4 py-2 bg-orange-500 text-white rounded-xl hover:bg-orange-600 text-sm font-medium transition-all shadow-md shadow-orange-200"
-                          >
-                            <CheckCircle size={14} /> Confirmer
-                          </button>
-                          {expandedLivId === liv.id ? <ChevronUp size={16} className="text-slate-400" /> : <ChevronDown size={16} className="text-slate-400" />}
+                        <p className="text-sm font-medium text-slate-700">Depuis : {t.origine.nom}</p>
+                        <p className="text-xs text-slate-400 mt-0.5">
+                          Créé par {t.creePar.prenom} {t.creePar.nom} — {t.lignes.length} produit(s)
+                        </p>
+                        <div className="flex flex-wrap gap-1.5 mt-1.5">
+                          {t.lignes.slice(0, 3).map(l => (
+                            <span key={l.id} className="text-xs bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded-lg">
+                              {l.produit.nom} × {l.quantite}
+                            </span>
+                          ))}
+                          {t.lignes.length > 3 && <span className="text-xs text-slate-400">+{t.lignes.length - 3} autres</span>}
                         </div>
                       </div>
-                      {expandedLivId === liv.id && (
-                        <div className="px-5 pb-5 border-t border-slate-100">
-                          <div className="mt-3 space-y-2">
-                            {liv.lignes.map(l => (
-                              <div key={l.id} className="flex items-center justify-between bg-slate-50 rounded-xl px-4 py-2.5">
-                                <div>
-                                  <p className="font-medium text-slate-800 text-sm">{l.produit.nom}</p>
-                                  <p className="text-xs text-slate-400">Prévu : {l.quantitePrevue}</p>
-                                </div>
-                                <div className="text-right">
-                                  <p className="text-xs text-slate-500">Stock actuel</p>
-                                  <p className="font-bold text-slate-700">{l.produit.stock}</p>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                          {liv.notes && (
-                            <p className="mt-3 text-xs text-slate-500 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                              Notes : {liv.notes}
-                            </p>
-                          )}
-                        </div>
-                      )}
+                      <button
+                        onClick={() => handleConfirmerMagTransfert(t.id)}
+                        disabled={confirmMagTransfertLoading && confirmantMagTransfertId === t.id}
+                        className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 text-sm font-medium transition-all shadow-md shadow-blue-200 shrink-0 disabled:opacity-60"
+                      >
+                        {confirmMagTransfertLoading && confirmantMagTransfertId === t.id
+                          ? <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Confirmation…</>
+                          : <><CheckCircle size={14} /> Confirmer reçu</>}
+                      </button>
                     </div>
                   ))}
+                </div>
+              )}
+            </div>
+
+            {/* Livraisons clients en attente — à confirmer */}
+            <div className="bg-white rounded-2xl shadow-sm border border-amber-200 overflow-hidden">
+              <div className="px-6 py-4 border-b border-amber-200 bg-amber-50 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Send size={18} className="text-amber-600" />
+                  <h3 className="font-bold text-slate-800">Livraisons clients — à confirmer</h3>
+                  {livClientsPending.length > 0 && (
+                    <span className="bg-amber-600 text-white text-xs font-bold px-2 py-0.5 rounded-full">
+                      {livClientsPending.length}
+                    </span>
+                  )}
+                  {livClientsLoading && <span className="text-xs text-slate-400 ml-2">Chargement…</span>}
+                </div>
+                <button
+                  onClick={() => setShowLivClientForm(v => !v)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-600 text-white rounded-xl hover:bg-amber-700 text-xs font-semibold transition-all"
+                >
+                  <Plus size={14} /> Nouvelle livraison
+                </button>
+              </div>
+
+              {/* Formulaire création livraison client */}
+              {showLivClientForm && (
+                <div className="p-5 border-b border-amber-100 bg-amber-50/50">
+                  <p className="text-xs text-slate-600 mb-3 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
+                    Préparez la livraison — le stock sera déduit à la confirmation d&apos;expédition.
+                  </p>
+                  <div className="space-y-3">
+                    <input
+                      type="text"
+                      placeholder="Client / motif de la livraison *"
+                      value={lcMotif}
+                      onChange={e => setLcMotif(e.target.value)}
+                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white"
+                    />
+                    {lcLignes.map((l, i) => (
+                      <div key={i} className="flex gap-2 items-center">
+                        <select
+                          value={l.produitId}
+                          onChange={e => setLcLignes(prev => prev.map((x, j) => j === i ? { ...x, produitId: e.target.value } : x))}
+                          className="flex-1 px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white"
+                        >
+                          <option value="">Choisir un produit…</option>
+                          {produits.map(p => (
+                            <option key={p.id} value={p.id}>{p.nom} (stock: {p.stock})</option>
+                          ))}
+                        </select>
+                        <input
+                          type="number" min="1"
+                          placeholder="Qté"
+                          value={l.quantite}
+                          onChange={e => setLcLignes(prev => prev.map((x, j) => j === i ? { ...x, quantite: e.target.value } : x))}
+                          className="w-24 px-3 py-2.5 border border-slate-200 rounded-xl text-sm text-center focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white"
+                        />
+                        {lcLignes.length > 1 && (
+                          <button onClick={() => setLcLignes(prev => prev.filter((_, j) => j !== i))} className="p-2 text-red-500 hover:bg-red-50 rounded-lg">
+                            <X size={14} />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                    <button onClick={() => setLcLignes(prev => [...prev, { produitId: '', quantite: '' }])} className="text-xs text-amber-700 hover:underline flex items-center gap-1">
+                      <Plus size={12} /> Ajouter un produit
+                    </button>
+                    <div className="flex gap-2 pt-1">
+                      <button
+                        onClick={() => { setShowLivClientForm(false); setLcMotif(''); setLcLignes([{ produitId: '', quantite: '' }]); }}
+                        className="flex-1 py-2 border border-slate-200 rounded-xl text-slate-600 text-sm hover:bg-slate-50"
+                      >
+                        Annuler
+                      </button>
+                      <button
+                        onClick={handleCreateLivClient}
+                        disabled={livClientSubmitLoading || !lcMotif || lcLignes.every(l => !l.produitId)}
+                        className="flex-1 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-sm font-semibold disabled:opacity-50 flex items-center justify-center gap-2"
+                      >
+                        {livClientSubmitLoading
+                          ? <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Création…</>
+                          : <><FileText size={14} /> Créer livraison</>}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {livClientsPending.length === 0 && !livClientsLoading && !showLivClientForm ? (
+                <div className="p-8 text-center">
+                  <Send className="w-10 h-10 text-amber-200 mx-auto mb-3" />
+                  <p className="text-slate-500 text-sm">Aucune livraison client en attente.</p>
+                  <p className="text-slate-400 text-xs mt-1">Cliquez sur &quot;Nouvelle livraison&quot; pour préparer une expédition.</p>
+                </div>
+              ) : (
+                <div className="divide-y divide-slate-100">
+                  {livClientsPending.map(bon => (
+                    <div key={bon.id} className="p-5 flex items-start justify-between gap-4">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap mb-1">
+                          <span className="font-mono text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded">{bon.reference}</span>
+                          <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">En attente</span>
+                        </div>
+                        <p className="text-sm font-medium text-slate-700">Client : {bon.motif}</p>
+                        <p className="text-xs text-slate-400 mt-0.5">
+                          Préparé par {bon.creePar.prenom} {bon.creePar.nom} — {bon.lignes.length} produit(s)
+                        </p>
+                        <div className="flex flex-wrap gap-1.5 mt-1.5">
+                          {bon.lignes.slice(0, 3).map(l => (
+                            <span key={l.id} className="text-xs bg-amber-50 text-amber-700 border border-amber-200 px-2 py-0.5 rounded-lg">
+                              {l.produit.nom} × {l.quantite}
+                            </span>
+                          ))}
+                          {bon.lignes.length > 3 && <span className="text-xs text-slate-400">+{bon.lignes.length - 3} autres</span>}
+                        </div>
+                        {bon.notes && <p className="text-xs text-slate-500 mt-1 italic">{bon.notes}</p>}
+                      </div>
+                      <button
+                        onClick={() => handleConfirmerLivClient(bon.id)}
+                        disabled={confirmLivClientLoading && confirmLivClientId === bon.id}
+                        className="flex items-center gap-1.5 px-4 py-2 bg-amber-600 text-white rounded-xl hover:bg-amber-700 text-sm font-medium transition-all shadow-md shadow-amber-200 shrink-0 disabled:opacity-60"
+                      >
+                        {confirmLivClientLoading && confirmLivClientId === bon.id
+                          ? <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Confirmation…</>
+                          : <><CheckCircle size={14} /> Confirmer expédition</>}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Ventes terrain CONFIRMEE — à livrer */}
+            <div className="bg-white rounded-2xl shadow-sm border border-violet-200 overflow-hidden">
+              <div className="px-6 py-4 border-b border-violet-200 bg-violet-50 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <ShoppingBag size={18} className="text-violet-600" />
+                  <h3 className="font-bold text-slate-800">Ventes terrain — à livrer</h3>
+                  {ventesTerrainALivrer.length > 0 && (
+                    <span className="bg-violet-600 text-white text-xs font-bold px-2 py-0.5 rounded-full">
+                      {ventesTerrainALivrer.length}
+                    </span>
+                  )}
+                  {ventesTerrainMagLoading && <span className="text-xs text-slate-400 ml-2">Chargement…</span>}
+                </div>
+                <span className="text-xs text-slate-500">Validées par le RPV, en attente de livraison physique</span>
+              </div>
+              {ventesTerrainALivrer.length === 0 && !ventesTerrainMagLoading ? (
+                <div className="p-8 text-center">
+                  <ShoppingBag className="w-10 h-10 text-violet-200 mx-auto mb-3" />
+                  <p className="text-slate-500 text-sm">Aucune vente terrain en attente de livraison.</p>
+                </div>
+              ) : (
+                <div className="divide-y divide-slate-100">
+                  {ventesTerrainALivrer.map(v => {
+                    const clientNom = v.client
+                      ? `${v.client.prenom} ${v.client.nom}`
+                      : v.clientNom ?? "Client non précisé";
+                    const tel = v.client?.telephone ?? v.clientTelephone;
+                    return (
+                      <div key={v.id} className="p-5 flex items-start justify-between gap-4">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap mb-1">
+                            <span className="font-mono text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded">{v.reference}</span>
+                            <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-violet-100 text-violet-700">Confirmée RPV</span>
+                          </div>
+                          <p className="text-sm font-semibold text-slate-800">Client : {clientNom}</p>
+                          {tel && <p className="text-xs text-slate-500 mt-0.5">Tél : {tel}</p>}
+                          <p className="text-xs text-slate-500 mt-0.5">
+                            Agent : {v.vendeur.prenom} {v.vendeur.nom} — {Number(v.montantTotal).toLocaleString("fr-FR")} FCFA
+                          </p>
+                          <div className="flex flex-wrap gap-1.5 mt-2">
+                            {v.lignes.map(l => (
+                              <span key={l.id} className="text-xs bg-violet-50 text-violet-700 border border-violet-200 px-2 py-0.5 rounded-lg">
+                                {l.produit.nom} × {l.quantite}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => handleLivrerVente(v.id)}
+                          disabled={livrerVenteLoading && livrantVenteId === v.id}
+                          className="flex items-center gap-1.5 px-4 py-2 bg-violet-600 text-white rounded-xl hover:bg-violet-700 text-sm font-medium transition-all shadow-md shadow-violet-200 shrink-0 disabled:opacity-60"
+                        >
+                          {livrerVenteLoading && livrantVenteId === v.id
+                            ? <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Livraison…</>
+                            : <><CheckCircle size={14} /> Confirmer livraison</>}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+              {ventesTerrainLivrees.length > 0 && (
+                <div className="border-t border-slate-100 divide-y divide-slate-100">
+                  <div className="px-6 py-3 bg-slate-50">
+                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Livrées récemment (30j)</p>
+                  </div>
+                  {ventesTerrainLivrees.map(v => {
+                    const clientNom = v.client ? `${v.client.prenom} ${v.client.nom}` : v.clientNom ?? "—";
+                    return (
+                      <div key={v.id} className="px-5 py-3 flex items-center gap-3 opacity-70">
+                        <CheckCircle size={15} className="text-emerald-500 shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <span className="font-mono text-xs text-slate-500 mr-2">{v.reference}</span>
+                          <span className="text-sm text-slate-700">{clientNom}</span>
+                        </div>
+                        <span className="text-xs text-slate-400 shrink-0">{Number(v.montantTotal).toLocaleString("fr-FR")} FCFA</span>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -1176,12 +1507,12 @@ export default function MagasinierPage() {
                           </div>
                           <p className="text-sm text-slate-600">{liv.fournisseurNom ?? '—'}</p>
                           <p className="text-xs text-slate-400 mt-0.5">
-                            Confirmée le {liv.dateLivraison ? formatDate(liv.dateLivraison) : '—'} — {liv.lignes.length} produit(s)
+                            Confirmée le {liv.dateReception ? formatDate(liv.dateReception) : '—'} — {liv.lignes.length} produit(s)
                           </p>
                           <div className="flex flex-wrap gap-1.5 mt-1.5">
                             {liv.lignes.map(l => (
                               <span key={l.id} className="text-xs bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-lg">
-                                {l.produit.nom} × {l.quantiteRecue ?? l.quantitePrevue}
+                                {l.produit.nom} × {l.quantiteRecue ?? l.quantiteAttendue}
                               </span>
                             ))}
                           </div>
@@ -1193,46 +1524,6 @@ export default function MagasinierPage() {
               </div>
             )}
 
-            {/* Historique — Livraisons clients récentes */}
-            {livraisonsClLivrees.length > 0 && (
-              <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 overflow-hidden">
-                <div className="px-6 py-4 border-b border-slate-200 bg-slate-50 flex items-center gap-2">
-                  <Truck size={18} className="text-orange-500" />
-                  <h3 className="font-bold text-slate-800">Livraisons clients récentes (30j)</h3>
-                  <span className="bg-orange-100 text-orange-700 text-xs font-bold px-2 py-0.5 rounded-full">
-                    {livraisonsClLivrees.length}
-                  </span>
-                </div>
-                <div className="divide-y divide-slate-100">
-                  {livraisonsClLivrees.map(liv => (
-                    <div key={liv.id} className="p-5 opacity-80">
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap mb-1">
-                            <span className="font-mono text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded">
-                              {liv.reference}
-                            </span>
-                            <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-orange-100 text-orange-700">Livraison client</span>
-                            <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600">Confirmée</span>
-                          </div>
-                          <p className="text-sm text-slate-600">{liv.destinataireNom ?? '—'}</p>
-                          <p className="text-xs text-slate-400 mt-0.5">
-                            Confirmée le {liv.dateLivraison ? formatDate(liv.dateLivraison) : '—'} — {liv.lignes.length} produit(s)
-                          </p>
-                          <div className="flex flex-wrap gap-1.5 mt-1.5">
-                            {liv.lignes.map(l => (
-                              <span key={l.id} className="text-xs bg-orange-50 text-orange-700 px-2 py-0.5 rounded-lg">
-                                {l.produit.nom} × {l.quantiteRecue ?? l.quantitePrevue}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
         )}
 
@@ -1826,7 +2117,7 @@ export default function MagasinierPage() {
                 <div className="px-6 py-4 border-b border-slate-200 grid grid-cols-3 gap-4">
                   <div>
                     <p className="text-xs text-slate-500">Stock actuel</p>
-                    <p className="text-2xl font-bold text-slate-800">{detailProduit.stock}</p>
+                    <p className="text-2xl font-bold text-slate-800">{detailProduit.stockQte ?? detailProduit.stock ?? 0}</p>
                   </div>
                   <div>
                     <p className="text-xs text-slate-500">Seuil alerte</p>

@@ -110,18 +110,39 @@ export async function POST(req: Request) {
         data: {
           code,
           nom,
-          type:        type        || "POINT_DE_VENTE",
-          adresse:     adresse     || null,
-          telephone:   telephone   || null,
-          notes:       notes       || null,
-          rpvId:       rpvId       ? Number(rpvId)       : null,
-          chefAgenceId:chefAgenceId? Number(chefAgenceId): null,
+          type:         type         || "POINT_DE_VENTE",
+          adresse:      adresse      || null,
+          telephone:    telephone    || null,
+          notes:        notes        || null,
+          rpvId:        rpvId        ? Number(rpvId)        : null,
+          chefAgenceId: chefAgenceId ? Number(chefAgenceId) : null,
         },
         include: {
           rpv:       { select: { id: true, nom: true, prenom: true } },
           chefAgence:{ select: { id: true, nom: true, prenom: true } },
         },
       });
+
+      // Créer les GestionnaireAffectation pour le RPV et le chef d'agence assignés à la création
+      if (rpvId) {
+        await tx.gestionnaireAffectation.updateMany({
+          where: { userId: Number(rpvId), actif: true, pointDeVenteId: { not: p.id } },
+          data:  { actif: false },
+        });
+        await tx.gestionnaireAffectation.create({
+          data: { userId: Number(rpvId), pointDeVenteId: p.id, actif: true },
+        });
+      }
+      if (chefAgenceId) {
+        await tx.gestionnaireAffectation.updateMany({
+          where: { userId: Number(chefAgenceId), actif: true, pointDeVenteId: { not: p.id } },
+          data:  { actif: false },
+        });
+        await tx.gestionnaireAffectation.create({
+          data: { userId: Number(chefAgenceId), pointDeVenteId: p.id, actif: true },
+        });
+      }
+
       await auditLog(tx, parseInt(session.user.id), "PDV_CREE", "PointDeVente", p.id);
       return p;
     });

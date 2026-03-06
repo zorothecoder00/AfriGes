@@ -152,7 +152,7 @@ export async function POST(req: Request) {
             typeSortie:      "TRANSFERT_SORTANT",
             quantite:        Number(ligne.quantite),
             motif:           `Transfert vers ${destination.nom} (réf. ${ref})`,
-            reference:       `${ref}-SORTIE-${ligne.produitId}-${Date.now()}`,
+            reference:       `${ref}-S-${ligne.produitId}-${randomUUID().slice(0, 8)}`,
             operateurId:     adminId,
             transfertStockId: newTransfert.id,
           },

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthSession } from "@/lib/auth";
 import { notifyAdmins, notify, auditLog } from "@/lib/notifications";
+import { randomUUID } from "crypto";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -93,7 +94,7 @@ export async function POST(_req: Request, { params }: Ctx) {
             typeEntree:       "TRANSFERT_ENTRANT",
             quantite:         ligne.quantite,
             motif:            `Réception transfert ${transfert.reference} depuis ${transfert.origine.nom}`,
-            reference:        `${transfert.reference}-ENTREE-${ligne.produitId}-${Date.now()}`,
+            reference:        `${transfert.reference}-E-${ligne.produitId}-${randomUUID().slice(0, 8)}`,
             operateurId:      userId,
             transfertStockId: transfert.id,
           },

@@ -14,9 +14,16 @@ export async function GET() {
 
     const since30j = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 
+    // Auto-détecter le PDV du magasinier
+    const aff = await prisma.gestionnaireAffectation.findFirst({
+      where: { userId: parseInt(session.user.id), actif: true },
+      select: { pointDeVenteId: true },
+    });
+    const pdvFilter = aff ? { pointDeVenteId: aff.pointDeVenteId } : {};
+
     const [enCours, recuesRecentes, totalEnCours] = await Promise.all([
       prisma.receptionApprovisionnement.findMany({
-        where:   { statut: "EN_COURS" },
+        where:   { ...pdvFilter, statut: "EN_COURS" },
         orderBy: { datePrevisionnelle: "asc" },
         include: {
           lignes: {
@@ -25,7 +32,7 @@ export async function GET() {
         },
       }),
       prisma.receptionApprovisionnement.findMany({
-        where:   { statut: { in: ["RECU", "VALIDE"] }, dateReception: { gte: since30j } },
+        where:   { ...pdvFilter, statut: { in: ["RECU", "VALIDE"] }, dateReception: { gte: since30j } },
         orderBy: { dateReception: "desc" },
         take:    20,
         include: {
@@ -34,7 +41,7 @@ export async function GET() {
           },
         },
       }),
-      prisma.receptionApprovisionnement.count({ where: { statut: "EN_COURS" } }),
+      prisma.receptionApprovisionnement.count({ where: { ...pdvFilter, statut: "EN_COURS" } }),
     ]);
 
     type Reception = typeof enCours[number];

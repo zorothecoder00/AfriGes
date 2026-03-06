@@ -1,11 +1,11 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Users, MapPin, Phone, TrendingUp, Clock, CheckCircle,
   AlertCircle, Search, ArrowLeft, RefreshCw, UserPlus,
   Banknote, Calendar, LucideIcon, Layers, Plus, ChevronRight,
-  Loader2, Truck, Package,
+  Loader2, Truck, Package, ShoppingCart, X, Send, BadgeCheck, XCircle,
 } from "lucide-react";
 import Link from "next/link";
 import SignOutButton from "@/components/SignOutButton";
@@ -91,6 +91,32 @@ interface LivraisonsResponse {
   planifiees: ReceptionPack[];
   livreesRecentes: ReceptionPack[];
   stats: { totalPlanifiees: number; totalLivrees: number };
+}
+
+interface LigneVente {
+  id: number; produitId: number; quantite: number; prixUnitaire: string; montant: string;
+  produit: { id: number; nom: string; unite: string | null };
+}
+interface VenteTerrain {
+  id: number; reference: string;
+  statut: "BROUILLON" | "CONFIRMEE" | "LIVREE" | "ANNULEE";
+  montantTotal: string; montantPaye: string;
+  modePaiement: string; notes: string | null;
+  clientNom: string | null; clientTelephone: string | null;
+  client: { id: number; nom: string; prenom: string; telephone: string } | null;
+  lignes: LigneVente[];
+  createdAt: string;
+}
+interface VentesTerrainResponse {
+  data: VenteTerrain[];
+  produitsDispo: { id: number; quantite: number; produit: { id: number; nom: string; unite: string | null; prixUnitaire: string } }[];
+  clients: { id: number; nom: string; prenom: string; telephone: string }[];
+  stats: { total: number; montantTotal: number };
+  meta: { total: number; page: number; limit: number; totalPages: number };
+}
+interface StockDispoItem {
+  id: number; quantite: number;
+  produit: { id: number; nom: string; unite: string | null; prixUnitaire: string };
 }
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
@@ -260,7 +286,7 @@ function ModalCollecte({
 
 // ─── Page principale ──────────────────────────────────────────────────────────
 
-type TabKey = "prospects" | "packs" | "livraisons";
+type TabKey = "prospects" | "packs" | "livraisons" | "ventes";
 
 export default function AgentTerrainPage() {
   const [searchQuery, setSearchQuery]   = useState("");
@@ -309,6 +335,81 @@ export default function AgentTerrainPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [confirmingId]);
 
+  // ── Ventes terrain ──
+  const [showVenteForm, setShowVenteForm] = useState(false);
+  const [vClientId, setVClientId]         = useState("");
+  const [vClientNom, setVClientNom]       = useState("");
+  const [vClientTel, setVClientTel]       = useState("");
+  const [vModePaiement, setVModePaiement] = useState("ESPECES");
+  const [vMontantPaye, setVMontantPaye]   = useState("");
+  const [vNotes, setVNotes]               = useState("");
+  const [vLignes, setVLignes]             = useState<{ produitId: string; quantite: string; prixUnitaire: string }[]>([
+    { produitId: "", quantite: "", prixUnitaire: "" },
+  ]);
+
+  const cancelVenteIdRef = useRef<number | null>(null);
+
+  const { data: ventesRes, loading: ventesLoading, refetch: refetchVentes } =
+    useApi<VentesTerrainResponse>(activeTab === "ventes" ? "/api/agentTerrain/ventes" : null);
+  const ventesData      = ventesRes?.data ?? [];
+  const produitsDispo   = (ventesRes?.produitsDispo ?? []) as StockDispoItem[];
+  const clientsDispo    = ventesRes?.clients ?? [];
+  const ventesEnAttente = ventesData.filter(v => v.statut === "BROUILLON").length;
+
+  const { mutate: submitVente, loading: venteSubmitLoading } =
+    useMutation<unknown, object>("/api/agentTerrain/ventes", "POST", {
+      successMessage: "Demande envoyée au RPV pour confirmation !",
+    });
+
+  const { mutate: doCancelVente } = useMutation<unknown, object>(
+    () => cancelVenteIdRef.current ? `/api/agentTerrain/ventes/${cancelVenteIdRef.current}` : "",
+    "PATCH",
+    { successMessage: "Demande annulée." }
+  );
+
+  const handleSubmitVente = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const lignesValides = vLignes.filter(l => l.produitId && l.quantite);
+    if (!lignesValides.length) return;
+    const montantTotal = lignesValides.reduce((s, l) => {
+      const prix = Number(l.prixUnitaire) || Number(produitsDispo.find(p => p.produit.id === Number(l.produitId))?.produit.prixUnitaire || 0);
+      return s + Number(l.quantite) * prix;
+    }, 0);
+    const res = await submitVente({
+      modePaiement: vModePaiement,
+      montantPaye: Number(vMontantPaye) || montantTotal,
+      clientId: vClientId || undefined,
+      clientNom: !vClientId ? vClientNom || undefined : undefined,
+      clientTelephone: !vClientId ? vClientTel || undefined : undefined,
+      notes: vNotes || undefined,
+      lignes: lignesValides.map(l => ({
+        produitId: Number(l.produitId),
+        quantite:  Number(l.quantite),
+        prixUnitaire: Number(l.prixUnitaire) || undefined,
+      })),
+    });
+    if (res) {
+      setShowVenteForm(false);
+      setVClientId(""); setVClientNom(""); setVClientTel("");
+      setVMontantPaye(""); setVNotes("");
+      setVLignes([{ produitId: "", quantite: "", prixUnitaire: "" }]);
+      refetchVentes();
+    }
+  };
+
+  const handleCancelVente = async (id: number) => {
+    cancelVenteIdRef.current = id;
+    const res = await doCancelVente({ action: "ANNULER" });
+    if (res) refetchVentes();
+    cancelVenteIdRef.current = null;
+  };
+
+  const vMontantCalcule = vLignes.reduce((s, l) => {
+    if (!l.produitId || !l.quantite) return s;
+    const prix = Number(l.prixUnitaire) || Number(produitsDispo.find(p => p.produit.id === Number(l.produitId))?.produit.prixUnitaire || 0);
+    return s + Number(l.quantite) * prix;
+  }, 0);
+
   const { mutate: addClient, loading: addingClient } = useMutation(
     "/api/agentTerrain/clients", "POST", { successMessage: "Client ajouté !" }
   );
@@ -341,8 +442,10 @@ export default function AgentTerrainPage() {
 
   const tabs: { key: TabKey; label: string; icon: LucideIcon; badge?: number }[] = [
     { key: "packs",       label: "Collecte Packs",  icon: Banknote },
-    { key: "livraisons",  label: "Livraisons",       icon: Truck,
+    { key: "livraisons",  label: "Livraisons Pack",  icon: Truck,
       badge: livraisonsResponse?.stats.totalPlanifiees ?? 0 },
+    { key: "ventes",      label: "Ventes Terrain",   icon: ShoppingCart,
+      badge: ventesEnAttente },
     { key: "prospects",   label: "Clients",          icon: Users },
   ];
 
@@ -688,6 +791,216 @@ export default function AgentTerrainPage() {
                     );
                   })}
                 </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── TAB : VENTES TERRAIN ── */}
+        {activeTab === "ventes" && (
+          <div className="space-y-5">
+
+            {/* En-tête + bouton */}
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-slate-500">
+                  Créez une demande de vente directe. Le RPV doit la valider, puis le magasinier confirmera la livraison et déduira le stock.
+                </p>
+              </div>
+              <button
+                onClick={() => setShowVenteForm(v => !v)}
+                className="flex items-center gap-2 px-4 py-2.5 bg-teal-600 text-white rounded-xl hover:bg-teal-700 text-sm font-medium shadow-lg shadow-teal-200"
+              >
+                <Plus size={16} /> Nouvelle demande
+              </button>
+            </div>
+
+            {/* Formulaire création vente */}
+            {showVenteForm && (
+              <div className="bg-white rounded-2xl border border-teal-200 shadow-sm overflow-hidden">
+                <div className="px-6 py-4 border-b border-teal-200 bg-teal-50 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <ShoppingCart size={18} className="text-teal-600" />
+                    <h3 className="font-bold text-slate-800">Nouvelle demande de vente terrain</h3>
+                  </div>
+                  <button onClick={() => setShowVenteForm(false)} className="p-1 text-slate-400 hover:text-slate-600 rounded-lg"><X size={16} /></button>
+                </div>
+                <form onSubmit={handleSubmitVente} className="p-5 space-y-4">
+                  <p className="text-xs text-blue-700 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
+                    Le stock ne sera déduit qu&apos;après confirmation de livraison par le magasinier.
+                  </p>
+
+                  {/* Client */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600 mb-1">Client (depuis votre PDV)</label>
+                      <select value={vClientId} onChange={e => { setVClientId(e.target.value); setVClientNom(""); setVClientTel(""); }}
+                        className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-teal-500">
+                        <option value="">— Saisir manuellement —</option>
+                        {clientsDispo.map(c => (
+                          <option key={c.id} value={c.id}>{c.prenom} {c.nom} ({c.telephone})</option>
+                        ))}
+                      </select>
+                    </div>
+                    {!vClientId && (
+                      <div className="grid grid-cols-2 gap-2">
+                        <input placeholder="Nom client" value={vClientNom} onChange={e => setVClientNom(e.target.value)}
+                          className="px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
+                        <input placeholder="Téléphone" value={vClientTel} onChange={e => setVClientTel(e.target.value)}
+                          className="px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Produits */}
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">Produits *</label>
+                    <div className="space-y-2">
+                      {vLignes.map((l, i) => {
+                        const produitSel = produitsDispo.find(p => p.produit.id === Number(l.produitId));
+                        return (
+                          <div key={i} className="flex gap-2 items-center">
+                            <select value={l.produitId}
+                              onChange={e => {
+                                const p = produitsDispo.find(p => p.produit.id === Number(e.target.value));
+                                setVLignes(prev => prev.map((x, j) => j === i ? { ...x, produitId: e.target.value, prixUnitaire: p ? String(p.produit.prixUnitaire) : "" } : x));
+                              }}
+                              className="flex-1 px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-teal-500">
+                              <option value="">Choisir un produit…</option>
+                              {produitsDispo.map(p => (
+                                <option key={p.produit.id} value={p.produit.id}>
+                                  {p.produit.nom} (dispo: {p.quantite})
+                                </option>
+                              ))}
+                            </select>
+                            <input type="number" min="1" max={produitSel?.quantite} placeholder="Qté"
+                              value={l.quantite} onChange={e => setVLignes(prev => prev.map((x, j) => j === i ? { ...x, quantite: e.target.value } : x))}
+                              className="w-20 px-2 py-2.5 border border-slate-200 rounded-xl text-sm text-center focus:outline-none focus:ring-2 focus:ring-teal-500" />
+                            <input type="number" min="0" placeholder="Prix unit."
+                              value={l.prixUnitaire} onChange={e => setVLignes(prev => prev.map((x, j) => j === i ? { ...x, prixUnitaire: e.target.value } : x))}
+                              className="w-28 px-2 py-2.5 border border-slate-200 rounded-xl text-sm text-center focus:outline-none focus:ring-2 focus:ring-teal-500" />
+                            {vLignes.length > 1 && (
+                              <button type="button" onClick={() => setVLignes(prev => prev.filter((_, j) => j !== i))}
+                                className="p-2 text-red-500 hover:bg-red-50 rounded-lg"><X size={14} /></button>
+                            )}
+                          </div>
+                        );
+                      })}
+                      <button type="button" onClick={() => setVLignes(prev => [...prev, { produitId: "", quantite: "", prixUnitaire: "" }])}
+                        className="text-xs text-teal-700 hover:underline flex items-center gap-1">
+                        <Plus size={12} /> Ajouter un produit
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Paiement */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600 mb-1">Mode paiement</label>
+                      <select value={vModePaiement} onChange={e => setVModePaiement(e.target.value)}
+                        className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-teal-500">
+                        <option value="ESPECES">Espèces</option>
+                        <option value="MOBILE_MONEY">Mobile Money</option>
+                        <option value="CREDIT">Crédit</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600 mb-1">
+                        Montant payé (auto: {vMontantCalcule.toLocaleString("fr-FR")} FCFA)
+                      </label>
+                      <input type="number" min="0" placeholder={String(vMontantCalcule)}
+                        value={vMontantPaye} onChange={e => setVMontantPaye(e.target.value)}
+                        className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
+                    </div>
+                  </div>
+
+                  <textarea placeholder="Notes (optionnel)" rows={2} value={vNotes} onChange={e => setVNotes(e.target.value)}
+                    className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm resize-none focus:outline-none focus:ring-2 focus:ring-teal-500" />
+
+                  <div className="flex gap-3 pt-1">
+                    <button type="button" onClick={() => setShowVenteForm(false)}
+                      className="flex-1 py-2.5 border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50 text-sm">Annuler</button>
+                    <button type="submit" disabled={venteSubmitLoading || vLignes.every(l => !l.produitId)}
+                      className="flex-1 py-2.5 bg-teal-600 text-white rounded-xl hover:bg-teal-700 disabled:opacity-50 text-sm font-semibold flex items-center justify-center gap-2">
+                      {venteSubmitLoading ? <><Loader2 size={14} className="animate-spin" /> Envoi…</> : <><Send size={14} /> Envoyer au RPV</>}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            )}
+
+            {/* Liste des ventes */}
+            {ventesLoading && !ventesRes ? (
+              <div className="bg-white rounded-2xl border border-slate-200 p-10 text-center">
+                <Loader2 className="w-8 h-8 text-teal-500 animate-spin mx-auto" />
+              </div>
+            ) : ventesData.length === 0 ? (
+              <div className="bg-white rounded-2xl border border-slate-200 p-10 text-center">
+                <ShoppingCart className="w-10 h-10 text-slate-300 mx-auto mb-3" />
+                <p className="text-slate-500">Aucune vente terrain enregistrée</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {ventesData.map(v => {
+                  const clientNom = v.client
+                    ? `${v.client.prenom} ${v.client.nom}`
+                    : v.clientNom ?? "Client non précisé";
+                  const tel = v.client?.telephone ?? v.clientTelephone;
+                  const statutColors: Record<string, string> = {
+                    BROUILLON:  "bg-amber-100 text-amber-700",
+                    CONFIRMEE:  "bg-blue-100 text-blue-700",
+                    LIVREE:     "bg-emerald-100 text-emerald-700",
+                    ANNULEE:    "bg-red-100 text-red-700",
+                  };
+                  const statutLabels: Record<string, string> = {
+                    BROUILLON:  "En attente RPV",
+                    CONFIRMEE:  "Validée — livraison en cours",
+                    LIVREE:     "Livrée",
+                    ANNULEE:    "Annulée",
+                  };
+                  return (
+                    <div key={v.id} className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap mb-1">
+                            <span className="font-mono text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded">{v.reference}</span>
+                            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${statutColors[v.statut]}`}>
+                              {statutLabels[v.statut]}
+                            </span>
+                          </div>
+                          <p className="font-semibold text-slate-800">{clientNom}</p>
+                          {tel && <p className="text-xs text-slate-500 flex items-center gap-1"><Phone size={11} />{tel}</p>}
+                          <div className="flex flex-wrap gap-1.5 mt-2">
+                            {v.lignes.map(l => (
+                              <span key={l.id} className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-lg">
+                                {l.produit.nom} × {l.quantite}
+                              </span>
+                            ))}
+                          </div>
+                          <p className="text-sm font-bold text-slate-700 mt-1">
+                            {Number(v.montantTotal).toLocaleString("fr-FR")} FCFA — {v.modePaiement}
+                          </p>
+                        </div>
+                        {v.statut === "BROUILLON" && (
+                          <button onClick={() => handleCancelVente(v.id)}
+                            className="flex items-center gap-1.5 px-3 py-2 text-red-600 border border-red-200 rounded-xl hover:bg-red-50 text-xs font-medium shrink-0">
+                            <XCircle size={14} /> Annuler
+                          </button>
+                        )}
+                        {v.statut === "CONFIRMEE" && (
+                          <span className="flex items-center gap-1.5 px-3 py-2 bg-blue-50 text-blue-700 border border-blue-200 rounded-xl text-xs font-medium shrink-0">
+                            <BadgeCheck size={14} /> Magasinier prépare
+                          </span>
+                        )}
+                        {v.statut === "LIVREE" && (
+                          <span className="flex items-center gap-1.5 px-3 py-2 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-xl text-xs font-medium shrink-0">
+                            <CheckCircle size={14} /> Livré
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>

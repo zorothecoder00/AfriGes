@@ -85,19 +85,74 @@ export async function PATCH(req: Request, { params }: Ctx) {
       const p = await tx.pointDeVente.update({
         where: { id: Number(id) },
         data: {
-          ...(nom         !== undefined && { nom }),
-          ...(adresse     !== undefined && { adresse }),
-          ...(telephone   !== undefined && { telephone }),
-          ...(notes       !== undefined && { notes }),
-          ...(actif       !== undefined && { actif }),
-          ...(rpvId       !== undefined && { rpvId: rpvId ? Number(rpvId) : null }),
-          ...(chefAgenceId!== undefined && { chefAgenceId: chefAgenceId ? Number(chefAgenceId) : null }),
+          ...(nom          !== undefined && { nom }),
+          ...(adresse      !== undefined && { adresse }),
+          ...(telephone    !== undefined && { telephone }),
+          ...(notes        !== undefined && { notes }),
+          ...(actif        !== undefined && { actif }),
+          ...(rpvId        !== undefined && { rpvId: rpvId ? Number(rpvId) : null }),
+          ...(chefAgenceId !== undefined && { chefAgenceId: chefAgenceId ? Number(chefAgenceId) : null }),
         },
         include: {
           rpv:        { select: { id: true, nom: true, prenom: true } },
           chefAgence: { select: { id: true, nom: true, prenom: true } },
         },
       });
+
+      // ── Synchroniser GestionnaireAffectation ─────────────────────────────────
+
+      // RPV : si changement, créer/réactiver l'affectation du nouveau RPV
+      if (rpvId !== undefined) {
+        if (rpvId) {
+          // Désactiver d'éventuelles affectations actives du nouveau RPV ailleurs
+          await tx.gestionnaireAffectation.updateMany({
+            where: { userId: Number(rpvId), actif: true, pointDeVenteId: { not: Number(id) } },
+            data:  { actif: false },
+          });
+          const existingAff = await tx.gestionnaireAffectation.findFirst({
+            where: { userId: Number(rpvId), pointDeVenteId: Number(id) },
+          });
+          if (existingAff) {
+            await tx.gestionnaireAffectation.update({ where: { id: existingAff.id }, data: { actif: true } });
+          } else {
+            await tx.gestionnaireAffectation.create({
+              data: { userId: Number(rpvId), pointDeVenteId: Number(id), actif: true },
+            });
+          }
+        } else if (existing.rpvId) {
+          // RPV retiré : désactiver son affectation si elle pointait sur ce PDV
+          await tx.gestionnaireAffectation.updateMany({
+            where: { userId: existing.rpvId, pointDeVenteId: Number(id), actif: true },
+            data:  { actif: false },
+          });
+        }
+      }
+
+      // Chef d'agence : même logique
+      if (chefAgenceId !== undefined) {
+        if (chefAgenceId) {
+          await tx.gestionnaireAffectation.updateMany({
+            where: { userId: Number(chefAgenceId), actif: true, pointDeVenteId: { not: Number(id) } },
+            data:  { actif: false },
+          });
+          const existingAff = await tx.gestionnaireAffectation.findFirst({
+            where: { userId: Number(chefAgenceId), pointDeVenteId: Number(id) },
+          });
+          if (existingAff) {
+            await tx.gestionnaireAffectation.update({ where: { id: existingAff.id }, data: { actif: true } });
+          } else {
+            await tx.gestionnaireAffectation.create({
+              data: { userId: Number(chefAgenceId), pointDeVenteId: Number(id), actif: true },
+            });
+          }
+        } else if (existing.chefAgenceId) {
+          await tx.gestionnaireAffectation.updateMany({
+            where: { userId: existing.chefAgenceId, pointDeVenteId: Number(id), actif: true },
+            data:  { actif: false },
+          });
+        }
+      }
+
       await auditLog(tx, parseInt(session.user.id), "PDV_MODIFIE", "PointDeVente", p.id);
       return p;
     });

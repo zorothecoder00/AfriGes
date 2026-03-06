@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   Plus, Search, Shield, Users, Eye, Edit, CheckCircle, Clock,
-  Mail, Phone, Trash2, X, ArrowLeft, Store, Building2, Link2, Link2Off,
+  Mail, Phone, Trash2, X, ArrowLeft, Store, Building2, Link2, Link2Off, UserCheck,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useApi, useMutation } from '@/hooks/useApi';
@@ -42,10 +42,22 @@ interface MemberOption {
   id: number; nom: string; prenom: string; email: string; role: string | null;
 }
 
+// Tous les rôles opérationnels qui exercent dans un PDV/dépôt précis
 const ROLES_AVEC_PDV = new Set([
-  'RESPONSABLE_POINT_DE_VENTE', 'CAISSIER', 'MAGAZINIER',
-  'AGENT_LOGISTIQUE_APPROVISIONNEMENT', 'AGENT_TERRAIN', 'COMMERCIAL',
-  'CONTROLEUR_TERRAIN', 'RESPONSABLE_VENTE_CREDIT',
+  'RESPONSABLE_POINT_DE_VENTE',
+  'CHEF_AGENCE',
+  'RESPONSABLE_COMMUNAUTE',
+  'CAISSIER',
+  'MAGAZINIER',
+  'AGENT_LOGISTIQUE_APPROVISIONNEMENT',
+  'AGENT_TERRAIN',
+  'COMMERCIAL',
+  'CONTROLEUR_TERRAIN',
+  'RESPONSABLE_VENTE_CREDIT',
+  'COMPTABLE',
+  'AUDITEUR_INTERNE',
+  'RESPONSABLE_ECONOMIQUE',
+  'REVENDEUR',
 ]);
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
@@ -362,6 +374,16 @@ export default function GestionnairesPage() {
                   </button>
                 </div>
               )}
+
+              {/* Message contextuel — valable pour tous les rôles opérationnels */}
+              <div className="mb-4 flex items-start gap-2 bg-blue-50 border border-blue-200 rounded-xl px-3 py-2.5 text-xs text-blue-800">
+                <UserCheck size={13} className="mt-0.5 shrink-0" />
+                <span>
+                  Son rôle <span className="font-semibold">{getStatusLabel(affectModal.role)}</span> sera automatiquement reconnu sur le PDV sélectionné.
+                  {affectModal.role === 'RESPONSABLE_POINT_DE_VENTE' && ' Il sera aussi défini comme responsable officiel du PDV.'}
+                  {(affectModal.role === 'CHEF_AGENCE' || affectModal.role === 'RESPONSABLE_COMMUNAUTE') && ' Il sera aussi défini comme chef d\'agence du PDV.'}
+                </span>
+              </div>
 
               {affectError && (
                 <p className="text-red-500 text-sm bg-red-50 border border-red-200 rounded-xl px-3 py-2 mb-4">{affectError}</p>
