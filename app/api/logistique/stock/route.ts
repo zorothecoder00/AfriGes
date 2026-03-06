@@ -102,7 +102,6 @@ export async function GET(req: Request) {
       stock:        s.quantite,   // alias compat
       quantite:     s.quantite,
       alerteStock:  s.alerteStock ?? s.produit.alerteStock,
-      updatedAt:    s.updatedAt,
       pointDeVente: s.pointDeVente,
       stockSiteId:  s.id,
     }));
