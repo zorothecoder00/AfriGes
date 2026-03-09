@@ -4,7 +4,7 @@ import { getAuthSession } from "@/lib/auth";
 import { notifyAdmins, notify, auditLog } from "@/lib/notifications";
 import { randomUUID } from "crypto";
 
-type Ctx = { params: Promise<{ id: string }> };
+type Ctx = { params: Promise<{ id: string }> };  
 
 const ROLES_AUTORISES = [
   "RESPONSABLE_POINT_DE_VENTE",

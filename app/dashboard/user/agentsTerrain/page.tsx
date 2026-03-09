@@ -99,7 +99,7 @@ interface LigneVente {
 }
 interface VenteTerrain {
   id: number; reference: string;
-  statut: "BROUILLON" | "CONFIRMEE" | "LIVREE" | "ANNULEE";
+  statut: "BROUILLON" | "CONFIRMEE" | "SORTIE_VALIDEE" | "LIVREE" | "ANNULEE";
   montantTotal: string; montantPaye: string;
   modePaiement: string; notes: string | null;
   clientNom: string | null; clientTelephone: string | null;
@@ -347,7 +347,8 @@ export default function AgentTerrainPage() {
     { produitId: "", quantite: "", prixUnitaire: "" },
   ]);
 
-  const cancelVenteIdRef = useRef<number | null>(null);
+  const cancelVenteIdRef  = useRef<number | null>(null);
+  const livrerVenteIdRef  = useRef<number | null>(null);
 
   const { data: ventesRes, loading: ventesLoading, refetch: refetchVentes } =
     useApi<VentesTerrainResponse>(activeTab === "ventes" ? "/api/agentTerrain/ventes" : null);
@@ -365,6 +366,12 @@ export default function AgentTerrainPage() {
     () => cancelVenteIdRef.current ? `/api/agentTerrain/ventes/${cancelVenteIdRef.current}` : "",
     "PATCH",
     { successMessage: "Demande annulée." }
+  );
+
+  const { mutate: doLivrerVente, loading: livrerLoading } = useMutation<unknown, object>(
+    () => livrerVenteIdRef.current ? `/api/agentTerrain/ventes/${livrerVenteIdRef.current}` : "",
+    "PATCH",
+    { successMessage: "Livraison confirmée !" }
   );
 
   const handleSubmitVente = async (e: React.FormEvent) => {
@@ -402,6 +409,13 @@ export default function AgentTerrainPage() {
     const res = await doCancelVente({ action: "ANNULER" });
     if (res) refetchVentes();
     cancelVenteIdRef.current = null;
+  };
+
+  const handleLivrerVente = async (id: number) => {
+    livrerVenteIdRef.current = id;
+    const res = await doLivrerVente({ action: "LIVRER" });
+    if (res) refetchVentes();
+    livrerVenteIdRef.current = null;
   };
 
   const vMontantCalcule = vLignes.reduce((s, l) => {
@@ -804,7 +818,7 @@ export default function AgentTerrainPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-slate-500">
-                  Créez une demande de vente directe. Le RPV doit la valider, puis le magasinier confirmera la livraison et déduira le stock.
+                  Créez une demande de vente directe. Le RPV valide, le magasinier sort le stock, puis vous confirmez la livraison au client.
                 </p>
               </div>
               <button
@@ -827,7 +841,7 @@ export default function AgentTerrainPage() {
                 </div>
                 <form onSubmit={handleSubmitVente} className="p-5 space-y-4">
                   <p className="text-xs text-blue-700 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
-                    Le stock ne sera déduit qu&apos;après confirmation de livraison par le magasinier.
+                    Le RPV valide la demande → le magasinier sort le stock → vous confirmez la livraison au client.
                   </p>
 
                   {/* Client */}
@@ -947,16 +961,18 @@ export default function AgentTerrainPage() {
                     : v.clientNom ?? "Client non précisé";
                   const tel = v.client?.telephone ?? v.clientTelephone;
                   const statutColors: Record<string, string> = {
-                    BROUILLON:  "bg-amber-100 text-amber-700",
-                    CONFIRMEE:  "bg-blue-100 text-blue-700",
-                    LIVREE:     "bg-emerald-100 text-emerald-700",
-                    ANNULEE:    "bg-red-100 text-red-700",
+                    BROUILLON:      "bg-amber-100 text-amber-700",
+                    CONFIRMEE:      "bg-blue-100 text-blue-700",
+                    SORTIE_VALIDEE: "bg-violet-100 text-violet-700",
+                    LIVREE:         "bg-emerald-100 text-emerald-700",
+                    ANNULEE:        "bg-red-100 text-red-700",
                   };
                   const statutLabels: Record<string, string> = {
-                    BROUILLON:  "En attente RPV",
-                    CONFIRMEE:  "Validée — livraison en cours",
-                    LIVREE:     "Livrée",
-                    ANNULEE:    "Annulée",
+                    BROUILLON:      "En attente RPV",
+                    CONFIRMEE:      "Approuvée — préparation stock",
+                    SORTIE_VALIDEE: "Stock sorti — à livrer",
+                    LIVREE:         "Livrée",
+                    ANNULEE:        "Annulée",
                   };
                   return (
                     <div key={v.id} className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
@@ -989,8 +1005,20 @@ export default function AgentTerrainPage() {
                         )}
                         {v.statut === "CONFIRMEE" && (
                           <span className="flex items-center gap-1.5 px-3 py-2 bg-blue-50 text-blue-700 border border-blue-200 rounded-xl text-xs font-medium shrink-0">
-                            <BadgeCheck size={14} /> Magasinier prépare
+                            <Package size={14} /> Magasinier sort le stock
                           </span>
+                        )}
+                        {v.statut === "SORTIE_VALIDEE" && (
+                          <button
+                            onClick={() => handleLivrerVente(v.id)}
+                            disabled={livrerLoading && livrerVenteIdRef.current === v.id}
+                            className="flex items-center gap-1.5 px-3 py-2 bg-violet-600 text-white border border-violet-600 rounded-xl hover:bg-violet-700 text-xs font-medium shrink-0 disabled:opacity-60"
+                          >
+                            {livrerLoading && livrerVenteIdRef.current === v.id
+                              ? <><Loader2 size={13} className="animate-spin" /> En cours…</>
+                              : <><Truck size={13} /> Confirmer la livraison</>
+                            }
+                          </button>
                         )}
                         {v.statut === "LIVREE" && (
                           <span className="flex items-center gap-1.5 px-3 py-2 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-xl text-xs font-medium shrink-0">

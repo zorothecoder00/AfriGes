@@ -58,7 +58,7 @@ export async function GET(req: Request) {
     const [stocks, total] = await Promise.all([
       prisma.stockSite.findMany({
         where,
-        skip,
+        skip,      
         take: limit,
         orderBy: [{ pointDeVente: { nom: "asc" } }, { produit: { nom: "asc" } }],
         include: {

@@ -414,7 +414,7 @@ export default function MagasinierPage() {
     useMutation<unknown, object>(
       () => livrantVenteIdRef.current ? `/api/magasinier/ventes-terrain/${livrantVenteIdRef.current}` : '',
       'PATCH',
-      { successMessage: 'Livraison confirmée — stock mis à jour !' }
+      { successMessage: 'Sortie stock confirmée — l\'agent terrain peut procéder à la livraison !' }
     );
   const handleLivrerVente = async (id: number) => {
     livrantVenteIdRef.current = id;
@@ -1114,7 +1114,7 @@ export default function MagasinierPage() {
                   <Send className="text-amber-600 w-5 h-5" />
                 </div>
                 <div>
-                  <p className="text-xs text-amber-700 font-medium">Livraisons clients en attente</p>
+                  <p className="text-xs text-amber-700 font-medium">Sorties clients en attente</p>
                   <p className="text-2xl font-bold text-amber-800">{livClientsPending.length}</p>
                 </div>
               </div>
@@ -1400,12 +1400,12 @@ export default function MagasinierPage() {
               )}
             </div>
 
-            {/* Ventes terrain CONFIRMEE — à livrer */}
+            {/* Ventes terrain CONFIRMEE — sortie stock à effectuer */}
             <div className="bg-white rounded-2xl shadow-sm border border-violet-200 overflow-hidden">
               <div className="px-6 py-4 border-b border-violet-200 bg-violet-50 flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <ShoppingBag size={18} className="text-violet-600" />
-                  <h3 className="font-bold text-slate-800">Ventes terrain — à livrer</h3>
+                  <h3 className="font-bold text-slate-800">Ventes terrain — sortie stock à effectuer</h3>
                   {ventesTerrainALivrer.length > 0 && (
                     <span className="bg-violet-600 text-white text-xs font-bold px-2 py-0.5 rounded-full">
                       {ventesTerrainALivrer.length}
@@ -1413,12 +1413,12 @@ export default function MagasinierPage() {
                   )}
                   {ventesTerrainMagLoading && <span className="text-xs text-slate-400 ml-2">Chargement…</span>}
                 </div>
-                <span className="text-xs text-slate-500">Validées par le RPV, en attente de livraison physique</span>
+                <span className="text-xs text-slate-500">Approuvées par le RPV — sortir les produits du stock</span>
               </div>
               {ventesTerrainALivrer.length === 0 && !ventesTerrainMagLoading ? (
                 <div className="p-8 text-center">
                   <ShoppingBag className="w-10 h-10 text-violet-200 mx-auto mb-3" />
-                  <p className="text-slate-500 text-sm">Aucune vente terrain en attente de livraison.</p>
+                  <p className="text-slate-500 text-sm">Aucune sortie stock en attente.</p>
                 </div>
               ) : (
                 <div className="divide-y divide-slate-100">
@@ -1432,7 +1432,7 @@ export default function MagasinierPage() {
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 flex-wrap mb-1">
                             <span className="font-mono text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded">{v.reference}</span>
-                            <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-violet-100 text-violet-700">Confirmée RPV</span>
+                            <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-violet-100 text-violet-700">Approuvée RPV</span>
                           </div>
                           <p className="text-sm font-semibold text-slate-800">Client : {clientNom}</p>
                           {tel && <p className="text-xs text-slate-500 mt-0.5">Tél : {tel}</p>}
@@ -1453,8 +1453,8 @@ export default function MagasinierPage() {
                           className="flex items-center gap-1.5 px-4 py-2 bg-violet-600 text-white rounded-xl hover:bg-violet-700 text-sm font-medium transition-all shadow-md shadow-violet-200 shrink-0 disabled:opacity-60"
                         >
                           {livrerVenteLoading && livrantVenteId === v.id
-                            ? <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Livraison…</>
-                            : <><CheckCircle size={14} /> Confirmer livraison</>}
+                            ? <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Sortie…</>
+                            : <><ArrowDownCircle size={14} /> Confirmer la sortie stock</>}
                         </button>
                       </div>
                     );
@@ -1464,7 +1464,7 @@ export default function MagasinierPage() {
               {ventesTerrainLivrees.length > 0 && (
                 <div className="border-t border-slate-100 divide-y divide-slate-100">
                   <div className="px-6 py-3 bg-slate-50">
-                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Livrées récemment (30j)</p>
+                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Sorties stock récentes (30j)</p>
                   </div>
                   {ventesTerrainLivrees.map(v => {
                     const clientNom = v.client ? `${v.client.prenom} ${v.client.nom}` : v.clientNom ?? "—";

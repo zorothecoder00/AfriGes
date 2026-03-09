@@ -4,8 +4,8 @@ import { getMagasinierSession } from "@/lib/authMagasinier";
 
 /**
  * GET /api/magasinier/ventes-terrain
- * Ventes directes terrain CONFIRMEE (à livrer) du PDV du magasinier.
- * Inclut aussi les LIVREE récentes (30j) pour historique.
+ * Ventes directes terrain CONFIRMEE (sortie stock à effectuer) du PDV du magasinier.
+ * Inclut aussi les SORTIE_VALIDEE récentes (30j) pour historique.
  */
 export async function GET() {
   try {
@@ -37,7 +37,7 @@ export async function GET() {
         include,
       }),
       prisma.venteDirecte.findMany({
-        where: { pointDeVenteId: pdvId, statut: "LIVREE", updatedAt: { gte: since30j } },
+        where: { pointDeVenteId: pdvId, statut: "SORTIE_VALIDEE", updatedAt: { gte: since30j } },
         orderBy: { updatedAt: "desc" },
         take: 20,
         include,

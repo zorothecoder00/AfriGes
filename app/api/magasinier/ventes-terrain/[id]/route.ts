@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { PrioriteNotification } from "@prisma/client";
+import { randomUUID } from "crypto";
 import { prisma } from "@/lib/prisma";
 import { getMagasinierSession } from "@/lib/authMagasinier";
 import { auditLog, notifyRoles } from "@/lib/notifications";
@@ -8,12 +9,12 @@ type Ctx = { params: Promise<{ id: string }> };
 
 /**
  * PATCH /api/magasinier/ventes-terrain/[id]
- * Le magasinier confirme la livraison physique d'une vente terrain CONFIRMEE.
+ * Le magasinier valide la sortie physique du stock pour une vente terrain CONFIRMEE.
  * Conséquences :
- *  - VenteDirecte CONFIRMEE → LIVREE
+ *  - VenteDirecte CONFIRMEE → SORTIE_VALIDEE
  *  - StockSite décrémenté par produit (PDV du magasinier)
  *  - MouvementStock SORTIE VENTE_DIRECTE créé par produit
- *  - Notification à l'agent terrain et au RPV
+ *  - Notification à l'agent terrain pour qu'il procède à la livraison
  */
 export async function PATCH(_req: Request, { params }: Ctx) {
   try {
@@ -51,6 +52,7 @@ export async function PATCH(_req: Request, { params }: Ctx) {
       return NextResponse.json({ error: `Impossible : statut actuel "${vente.statut}" (attendu : CONFIRMEE)` }, { status: 400 });
     }
 
+
     // Vérifier les stocks avant la transaction
     for (const l of vente.lignes) {
       const stock = await prisma.stockSite.findUnique({
@@ -81,8 +83,8 @@ export async function PATCH(_req: Request, { params }: Ctx) {
             type:           "SORTIE",
             typeSortie:     "VENTE_DIRECTE",
             quantite:       l.quantite,
-            motif:          `Livraison vente terrain ${vente.reference} — ${magasinierNom}`,
-            reference:      `${vente.reference}-P${l.produitId}`,
+            motif:          `Sortie stock vente terrain ${vente.reference} — ${magasinierNom}`,
+            reference:      `${vente.reference}-P${l.produitId}-${randomUUID().slice(0, 6)}`,
             operateurId:    parseInt(session.user.id),
             venteDirecteId: vente.id,
           },
@@ -91,11 +93,11 @@ export async function PATCH(_req: Request, { params }: Ctx) {
 
       const result = await tx.venteDirecte.update({
         where: { id: venteId },
-        data:  { statut: "LIVREE" },
+        data:  { statut: "SORTIE_VALIDEE" },
         include: { lignes: { include: { produit: { select: { id: true, nom: true } } } } },
       });
 
-      await auditLog(tx, parseInt(session.user.id), "VENTE_TERRAIN_LIVREE", "VenteDirecte", venteId);
+      await auditLog(tx, parseInt(session.user.id), "VENTE_TERRAIN_SORTIE_VALIDEE", "VenteDirecte", venteId);
 
       const clientNom = vente.client
         ? `${vente.client.prenom} ${vente.client.nom}`
@@ -103,26 +105,27 @@ export async function PATCH(_req: Request, { params }: Ctx) {
 
       // Notifier le RPV
       await notifyRoles(tx, ["RESPONSABLE_POINT_DE_VENTE"], {
-        titre:    `Livraison confirmée — ${vente.reference}`,
-        message:  `Le magasinier ${magasinierNom} a livré la vente terrain ${vente.reference} à "${clientNom}". Stock décrémenté sur "${vente.pointDeVente.nom}".`,
+        titre:    `Sortie stock validée — ${vente.reference}`,
+        message:  `Le magasinier ${magasinierNom} a validé la sortie stock pour la vente terrain ${vente.reference} (client : "${clientNom}"). L'agent terrain peut procéder à la livraison.`,
         priorite: PrioriteNotification.NORMAL,
         actionUrl:`/dashboard/user/responsablesPointDeVente`,
       });
 
-      // Notifier l'agent terrain
+      // Notifier l'agent terrain pour qu'il procède à la livraison
       await notifyRoles(tx, ["AGENT_TERRAIN"], {
-        titre:    `Livraison effectuée — ${vente.reference}`,
-        message:  `Le magasinier ${magasinierNom} a confirmé la livraison de votre vente terrain à "${clientNom}".`,
-        priorite: PrioriteNotification.NORMAL,
-        actionUrl:`/dashboard/user/agentsTerrain`,
+        titre:    `Stock prêt — livrez la vente ${vente.reference}`,
+        message:  `Le magasinier ${magasinierNom} a sorti les produits du stock. Vous pouvez maintenant livrer "${clientNom}".`,
+        priorite: PrioriteNotification.HAUTE,
+        actionUrl:`/dashboard/agentTerrain/ventes`,
       });
 
       return result;
     });
 
     return NextResponse.json({ data: updated });
-  } catch (error) {
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : "Erreur serveur";
     console.error("PATCH /magasinier/ventes-terrain/[id]:", error);
-    return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }

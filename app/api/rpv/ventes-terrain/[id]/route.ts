@@ -64,32 +64,19 @@ export async function PATCH(req: Request, { params }: Ctx) {
       const rpvNom   = `${session.user.prenom} ${session.user.nom}`;
 
       if (action === "CONFIRMER") {
-        // Notifier le magasinier pour qu'il prépare la livraison
+        // Notifier le magasinier pour qu'il sorte le stock
         await notifyRoles(tx, ["MAGAZINIER"], {
-          titre:    `Vente terrain à livrer — ${vente.reference}`,
-          message:  `Le RPV ${rpvNom} a validé la vente terrain ${vente.reference} (${Number(vente.montantTotal).toLocaleString("fr-FR")} FCFA). Préparez et confirmez la livraison depuis votre tableau de bord.`,
+          titre:    `Sortie de stock à effectuer — ${vente.reference}`,
+          message:  `Le RPV ${rpvNom} a approuvé la vente terrain ${vente.reference} (${Number(vente.montantTotal).toLocaleString("fr-FR")} FCFA). Veuillez sortir les produits du stock — l'agent terrain procédera ensuite à la livraison.`,
           priorite: PrioriteNotification.HAUTE,
           actionUrl:`/dashboard/user/magasiniers`,
         });
-        // Notifier l'agent terrain
-        await notifyRoles(tx, ["AGENT_TERRAIN"], {
-          titre:    `Vente ${vente.reference} confirmée`,
-          message:  `Le RPV ${rpvNom} a validé votre demande de vente terrain. Le magasinier va préparer la livraison.`,
-          priorite: PrioriteNotification.NORMAL,
-          actionUrl:`/dashboard/user/agentsTerrain`,
-        });
+        // L'agent terrain sera notifié par le magasinier une fois le stock sorti
       } else {
         // Notifier l'agent du refus
         await notifyRoles(tx, ["AGENT_TERRAIN"], {
           titre:    `Vente ${vente.reference} refusée`,
           message:  `Le RPV ${rpvNom} a refusé votre demande de vente terrain.${motifRefus ? ` Motif : ${motifRefus}` : ""}`,
-          priorite: PrioriteNotification.HAUTE,
-          actionUrl:`/dashboard/user/agentsTerrain`,
-        });
-        // Notifier l'agent
-        await notifyRoles(tx, ["AGENT_TERRAIN"], {
-          titre:    `Demande refusée : ${vente.reference}`,
-          message:  `RPV ${rpvNom} : ${motifRefus || "Demande non approuvée."}`,
           priorite: PrioriteNotification.HAUTE,
           actionUrl:`/dashboard/user/agentsTerrain`,
         });

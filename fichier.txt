@@ -6,8 +6,11 @@
 On peut aussi utiliser du SVG pour les graphiques ( sans forcément dépendance externe)  
 Ce code :  
  const a = document.createElement("a");
- a.href = url;
+ a.href = url;       
  a.download = filename;
  a.click();     
  permet de créer un téléchargement via un clic sur une URL ( utile pour les exports)
-import { randomUUID } from "crypto";  permet de générer des UUID(sorte d'identifiant unique aléatoire)
+import { randomUUID } from "crypto";  permet de générer des UUID(sorte d'identifiant unique aléatoire)    
+
+
+
