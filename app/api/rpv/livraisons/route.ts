@@ -15,10 +15,9 @@ export async function GET(req: Request) {
     const session = await getRPVSession();
     if (!session) return NextResponse.json({ message: "Accès refusé" }, { status: 403 });
 
-    const affectation = await prisma.gestionnaireAffectation.findFirst({
-      where: { userId: parseInt(session.user.id), actif: true },
-      select: { pointDeVenteId: true },
-    });
+    const userId = parseInt(session.user.id);
+    const pdv = await prisma.pointDeVente.findUnique({ where: { rpvId: userId } });
+    if (!pdv) return NextResponse.json({ message: "Aucun PDV associé" }, { status: 400 });
 
     const { searchParams } = new URL(req.url);
     const page   = Math.max(1, Number(searchParams.get("page") ?? "1"));
@@ -27,8 +26,7 @@ export async function GET(req: Request) {
     const type   = searchParams.get("type") ?? "";
     const search = searchParams.get("search") ?? "";
 
-    const where: Prisma.ReceptionApprovisionnementWhereInput = {};
-    if (affectation) where.pointDeVenteId = affectation.pointDeVenteId;
+    const where: Prisma.ReceptionApprovisionnementWhereInput = { pointDeVenteId: pdv.id };
     if (statut) where.statut = statut as Prisma.EnumStatutReceptionApproFilter;
     if (type)   where.type   = type as Prisma.EnumTypeReceptionApproFilter;
     if (search) {
@@ -49,10 +47,14 @@ export async function GET(req: Request) {
           lignes: {
             include: { produit: { select: { id: true, nom: true, prixUnitaire: true } } },
           },
+          receptionnePar: { select: { nom: true, prenom: true } },
         },
       }),
       prisma.receptionApprovisionnement.count({ where }),
-      prisma.receptionApprovisionnement.groupBy({ by: ["statut"], _count: { id: true } }),
+      prisma.receptionApprovisionnement.groupBy({
+        by: ["statut"], _count: { id: true },
+        where: { pointDeVenteId: pdv.id },
+      }),
     ]);
 
     const stats: Record<string, number> = {};
@@ -63,9 +65,17 @@ export async function GET(req: Request) {
       data: receptions.map((r) => ({
         ...r,
         datePrevisionnelle: r.datePrevisionnelle.toISOString(),
-        dateReception:      r.dateReception?.toISOString() ?? null,
+        dateLivraison:      r.dateReception?.toISOString() ?? null,
+        destinataireNom:    r.origineNom ?? null,
+        planifiePar:        r.receptionnePar ? `${r.receptionnePar.prenom} ${r.receptionnePar.nom}` : "—",
         createdAt:          r.createdAt.toISOString(),
         updatedAt:          r.updatedAt.toISOString(),
+        lignes: r.lignes.map((l) => ({
+          ...l,
+          quantitePrevue: l.quantiteAttendue,
+          quantiteRecue:  l.quantiteRecue ?? null,
+          produit: { ...l.produit, prixUnitaire: Number(l.produit.prixUnitaire) },
+        })),
       })),
       stats: {
         brouillon: stats["BROUILLON"] ?? 0,
@@ -99,11 +109,8 @@ export async function POST(req: Request) {
     const session = await getRPVSession();
     if (!session) return NextResponse.json({ message: "Accès refusé" }, { status: 403 });
 
-    const affectation = await prisma.gestionnaireAffectation.findFirst({
-      where: { userId: parseInt(session.user.id), actif: true },
-      select: { pointDeVenteId: true },
-    });
-    if (!affectation) return NextResponse.json({ message: "Aucun point de vente actif trouvé" }, { status: 400 });
+    const pdvPost = await prisma.pointDeVente.findUnique({ where: { rpvId: parseInt(session.user.id) } });
+    if (!pdvPost) return NextResponse.json({ message: "Aucun PDV associé" }, { status: 400 });
 
     const { type, fournisseurNom, origineNom, datePrevisionnelle, notes, lignes } = await req.json();
 
@@ -129,7 +136,7 @@ export async function POST(req: Request) {
           reference,
           type,
           statut:             "BROUILLON",
-          pointDeVenteId:     affectation.pointDeVenteId,
+          pointDeVenteId:     pdvPost.id,
           fournisseurNom:     type === "FOURNISSEUR" ? (fournisseurNom ?? null) : null,
           origineNom:         type === "INTERNE"     ? (origineNom ?? null)     : null,
           datePrevisionnelle: new Date(datePrevisionnelle),

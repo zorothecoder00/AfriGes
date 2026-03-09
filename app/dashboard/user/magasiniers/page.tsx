@@ -12,6 +12,7 @@ import Link from 'next/link';
 import SignOutButton from '@/components/SignOutButton';
 import NotificationBell from '@/components/NotificationBell';
 import MessagesLink from '@/components/MessagesLink';
+import UserPdvBadge from '@/components/UserPdvBadge';
 import { useApi, useMutation } from '@/hooks/useApi';
 import { formatCurrency, formatDate } from '@/lib/format';
 
@@ -665,9 +666,9 @@ export default function MagasinierPage() {
               </h1>
             </div>
             <div className="flex items-center gap-3">
+              <UserPdvBadge />
               <MessagesLink />
               <NotificationBell href="/dashboard/user/notifications" />
-              <div className="w-9 h-9 rounded-full bg-gradient-to-r from-orange-500 to-amber-500 flex items-center justify-center text-white font-bold text-sm">M</div>
               <SignOutButton redirectTo="/auth/login?logout=success" className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50 rounded-lg transition-colors" />
             </div>
           </div>

@@ -8,12 +8,13 @@ import {
   ArrowUpCircle, ArrowDownCircle, ArrowRightLeft, Banknote,
   Lock, Hash, Filter, Pencil, Trash2, CalendarDays, Boxes,
   MapPin, FileText, PlayCircle, Info, Download, Printer,
-  UserPlus, Star, Activity, ShoppingBag, Wrench, UserCircle,
+  UserPlus, Star, Activity, ShoppingBag, Wrench, UserCircle, CreditCard,
 } from "lucide-react";
 import Link from "next/link";
 import SignOutButton from "@/components/SignOutButton";
 import NotificationBell from "@/components/NotificationBell";
 import MessagesLink from "@/components/MessagesLink";
+import UserPdvBadge from "@/components/UserPdvBadge";
 import { useApi, useMutation } from "@/hooks/useApi";
 import { formatCurrency, formatDate, formatDateTime } from "@/lib/format";
 
@@ -21,11 +22,11 @@ import { formatCurrency, formatDate, formatDateTime } from "@/lib/format";
 // TYPES
 // ============================================================================
 
-type TabKey      = "synthese" | "stock" | "approvisionnement" | "livraisons" | "caisse" | "clients" | "equipe" | "ventes-terrain";
+type TabKey      = "synthese" | "ventes" | "stock" | "approvisionnement" | "livraisons" | "caisse" | "clients" | "equipe" | "ventes-terrain" | "rapports";
 type StockSub    = "inventaire" | "journal";
 type StatutStock = "EN_STOCK" | "STOCK_FAIBLE" | "RUPTURE";
-type TypeLiv     = "RECEPTION" | "EXPEDITION";
-type StatutLiv   = "EN_ATTENTE" | "EN_COURS" | "LIVREE" | "ANNULEE";
+type TypeLiv     = "FOURNISSEUR" | "INTERNE";
+type StatutLiv   = "BROUILLON" | "EN_COURS" | "RECU" | "VALIDE" | "ANNULE";
 
 interface Produit {
   id: number; nom: string; description: string | null;
@@ -67,7 +68,7 @@ interface Livraison {
 }
 interface LivraisonsResponse {
   success: boolean; data: Livraison[];
-  stats: { enAttente: number; enCours: number; livrees: number; annulees: number };
+  stats: { brouillon: number; enCours: number; recu: number; valide: number; annule: number };
   meta: { total: number; page: number; limit: number; totalPages: number };
 }
 
@@ -96,9 +97,14 @@ interface ClotureResponse {
   historique: { data: ClotureCaisse[]; meta: { total: number; totalPages: number; page: number; limit: number } };
 }
 
+interface MembrePerf {
+  nbVentes: number; montantTotal: number; panierMoyen: number;
+  nbAnnulees: number; nbClientsDistincts: number;
+}
 interface MembreEquipe {
   id: number; role: string; actif: boolean;
-  member: { id: number; nom: string; prenom: string; email: string; telephone: string | null; etat: string };
+  member: { id: number; nom: string; prenom: string; email: string; telephone: string | null; etat: string; dateAdhesion: string };
+  performance: MembrePerf | null;
 }
 interface EquipeResponse {
   success: boolean; data: MembreEquipe[];
@@ -111,11 +117,11 @@ interface DashboardData {
     total: number; montant: number; panierMoyen: number;
     semaine: { total: number; montant: number };
     mois:    { total: number; montant: number };
-    recentes: { id: number; produitNom: string; quantite: number; montant: number; clientNom: string; heure: string }[];
+    recentes: { id: number; produitNom: string; quantite: number; montant: number; clientNom: string; heure: string; type?: string }[];
     evolution: { heure: number; count: number; montant: number }[];
   };
   stock: { total: number; enRupture: number; stockFaible: number; valeurStock: number; alertesProduits: { id: number; nom: string; stock: number; alerteStock: number }[] };
-  livraisons: { enAttente: number; enCours: number; prochaines: { id: number; reference: string; type: TypeLiv; statut: StatutLiv; partieNom: string; datePrevisionnelle: string; nbLignes: number }[] };
+  livraisons: { brouillon: number; enCours: number; prochaines: { id: number; reference: string; type: TypeLiv; statut: StatutLiv; partieNom: string; datePrevisionnelle: string; nbLignes: number }[] };
   derniereCloture: ClotureCaisse | null;
   mouvementsRecents: { id: number; type: string; quantite: number; motif: string | null; dateMouvement: string; produitNom: string }[];
   equipe: Record<string, number>;
@@ -135,6 +141,51 @@ interface ClientsResponse {
   meta: { total: number; page: number; limit: number; totalPages: number };
 }
 
+// ── Ventes RPV ────────────────────────────────────────────────────────────────
+interface VenteLigne {
+  id: number; quantite: number; prixUnitaire: string; montant: string;
+  produit: { id: number; nom: string; unite: string | null };
+}
+interface VenteRPV {
+  id: number; reference: string; statut: string; modePaiement: string;
+  montantTotal: string; montantPaye: string; monnaieRendue: string;
+  notes: string | null; createdAt: string;
+  clientNom: string | null; clientTelephone: string | null;
+  client: { id: number; nom: string; prenom: string; telephone: string } | null;
+  vendeur: { id: number; nom: string; prenom: string };
+  lignes: VenteLigne[];
+}
+interface VentesRPVResponse {
+  data: VenteRPV[];
+  produitsDispo: { id: number; quantite: number; produit: { id: number; nom: string; reference: string; unite: string | null; prixUnitaire: number } }[];
+  clients: { id: number; nom: string; prenom: string; telephone: string }[];
+  stats: { total: number; montantTotal: number };
+  meta: { total: number; page: number; limit: number; totalPages: number };
+}
+
+// ── Caisse PDV ────────────────────────────────────────────────────────────────
+interface OperationCaisse {
+  id: number; type: string; montant: string; motif: string;
+  mode: string | null; categorie: string | null; reference: string;
+  operateurNom: string; createdAt: string;
+}
+interface CaissePDVData {
+  id: number; nom: string; statut: string; fondsCaisse: string;
+  dateOuverture: string; dateFermeture: string | null; notes: string | null;
+  pointDeVente: { id: number; nom: string; code: string };
+  operations: OperationCaisse[];
+}
+interface CaissePDVHistoriqueItem {
+  id: number; nom: string; statut: string; fondsCaisse: string;
+  dateOuverture: string; dateFermeture: string | null;
+  pointDeVente: { id: number; nom: string };
+}
+interface CaissePDVResponse {
+  data: CaissePDVData | null;
+  historique?: CaissePDVHistoriqueItem[];
+  stats?: { ventesAujourdHui: number; montantAujourdHui: number };
+}
+
 type StatutRecPack = "PLANIFIEE" | "LIVREE" | "ANNULEE";
 interface ReceptionPack {
   id: number; souscriptionId: number; statut: StatutRecPack;
@@ -151,6 +202,12 @@ interface ReceptionsPacksResponse {
   success: boolean; data: ReceptionPack[];
   stats: { planifiees: number; livrees: number; annulees: number };
   meta: { total: number; page: number; limit: number; totalPages: number };
+}
+interface SouscriptionActive {
+  id: number; statut: string;
+  montantTotal: number; montantVerse: number; montantRestant: number;
+  pack: { nom: string; type: string; produitCible: { id: number; nom: string; prixUnitaire: number } | null };
+  client: { id: number; nom: string; prenom: string; telephone: string } | null;
 }
 
 // ============================================================================
@@ -169,14 +226,15 @@ const stockStyle = {
 };
 
 const livraisonStyle: Record<StatutLiv, { bg: string; text: string; label: string }> = {
-  EN_ATTENTE: { bg: "bg-amber-100",   text: "text-amber-700",   label: "En attente" },
-  EN_COURS:   { bg: "bg-blue-100",    text: "text-blue-700",    label: "En cours" },
-  LIVREE:     { bg: "bg-emerald-100", text: "text-emerald-700", label: "Livrée" },
-  ANNULEE:    { bg: "bg-red-100",     text: "text-red-700",     label: "Annulée" },
+  BROUILLON: { bg: "bg-amber-100",   text: "text-amber-700",   label: "Brouillon" },
+  EN_COURS:  { bg: "bg-blue-100",    text: "text-blue-700",    label: "En cours"  },
+  RECU:      { bg: "bg-teal-100",    text: "text-teal-700",    label: "Reçu"      },
+  VALIDE:    { bg: "bg-emerald-100", text: "text-emerald-700", label: "Validé"    },
+  ANNULE:    { bg: "bg-red-100",     text: "text-red-700",     label: "Annulé"    },
 };
 const livraisonTypeStyle: Record<TypeLiv, { bg: string; text: string; label: string; icon: React.ElementType }> = {
-  RECEPTION:  { bg: "bg-sky-100",     text: "text-sky-700",     label: "Réception",  icon: ArrowUpCircle  },
-  EXPEDITION: { bg: "bg-violet-100",  text: "text-violet-700",  label: "Expédition", icon: ArrowDownCircle},
+  FOURNISSEUR: { bg: "bg-sky-100",    text: "text-sky-700",    label: "Fournisseur", icon: ArrowUpCircle   },
+  INTERNE:     { bg: "bg-violet-100", text: "text-violet-700", label: "Interne",     icon: ArrowRightLeft  },
 };
 
 const roleLabels: Record<string, string> = {
@@ -195,6 +253,19 @@ const mvtStyle = {
   ENTREE:     { bg: "bg-emerald-50",  text: "text-emerald-600", icon: ArrowUpCircle,    label: "Entrée"     },
   SORTIE:     { bg: "bg-red-50",      text: "text-red-600",     icon: ArrowDownCircle,  label: "Sortie"     },
   AJUSTEMENT: { bg: "bg-amber-50",    text: "text-amber-600",   icon: ArrowRightLeft,   label: "Ajustement" },
+};
+
+const venteStatutStyle: Record<string, { bg: string; text: string; label: string }> = {
+  BROUILLON:     { bg: "bg-slate-100",   text: "text-slate-600",   label: "Brouillon"     },
+  CONFIRMEE:     { bg: "bg-emerald-100", text: "text-emerald-700", label: "Confirmée"     },
+  SORTIE_VALIDEE:{ bg: "bg-violet-100",  text: "text-violet-700",  label: "Stock sorti"   },
+  LIVREE:        { bg: "bg-blue-100",    text: "text-blue-700",    label: "Livrée"        },
+  ANNULEE:       { bg: "bg-red-100",     text: "text-red-700",     label: "Annulée"       },
+};
+
+const modePaiementLabels: Record<string, string> = {
+  ESPECES: "Espèces", WAVE: "Wave", ORANGE_MONEY: "Orange Money",
+  MTN_MONEY: "MTN Money", CARTE: "Carte", VIREMENT: "Virement", CREDIT: "Crédit",
 };
 
 function KpiCard({ label, value, sub, icon: Icon, color, bg }: {
@@ -244,6 +315,7 @@ function MiniBarChart({ data }: { data: { heure: number; count: number; montant:
 export default function ResponsablePDVPage() {
   const [activeTab,   setActiveTab]   = useState<TabKey>("synthese");
   const [stockSub,    setStockSub]    = useState<StockSub>("inventaire");
+  const [equipeSub,   setEquipeSub]   = useState<"membres" | "performances" | "presences">("membres");
 
   // Filtres
   const [searchProduit,  setSearchProduit]  = useState("");
@@ -274,6 +346,27 @@ export default function ResponsablePDVPage() {
   const [dSearchClients,       setDSearchClients]       = useState("");
   const [clientPage,           setClientPage]           = useState(1);
 
+  // ── Onglet Ventes ──────────────────────────────────────────────────────────
+  const [searchVentes,         setSearchVentes]         = useState("");
+  const [dSearchVentes,        setDSearchVentes]        = useState("");
+  const [filtreStatutVentes,   setFiltreStatutVentes]   = useState("");
+  const [filtreModePaiement,   setFiltreModePaiement]   = useState("");
+  const [filtreVendeurId,      setFiltreVendeurId]      = useState("");
+  const [filtreVenteDateDebut, setFiltreVenteDateDebut] = useState("");
+  const [filtreVenteDateFin,   setFiltreVenteDateFin]   = useState("");
+  const [ventesPage,           setVentesPage]           = useState(1);
+  const [selectedVente,        setSelectedVente]        = useState<VenteRPV | null>(null);
+  const [modalAnnulVente,      setModalAnnulVente]      = useState(false);
+  const [justifAnnulVente,     setJustifAnnulVente]     = useState("");
+
+  // ── Onglet Caisse PDV ──────────────────────────────────────────────────────
+  const [modalOuvrirCaisse,    setModalOuvrirCaisse]    = useState(false);
+  const [fondsCaisseOuverture, setFondsCaisseOuverture] = useState("0");
+  const [modalDepense,         setModalDepense]         = useState(false);
+  const [depenseMontant,       setDepenseMontant]       = useState("");
+  const [depenseMotif,         setDepenseMotif]         = useState("");
+  const [depenseCategorie,     setDepenseCategorie]     = useState("");
+
   // Modals
   const [modalProduit,    setModalProduit]    = useState<"create" | "edit" | null>(null);
   const [modalMvt,        setModalMvt]        = useState(false);
@@ -286,6 +379,12 @@ export default function ResponsablePDVPage() {
   const [modalDetailPack,   setModalDetailPack]   = useState(false);
   const [selectedRecPack,   setSelectedRecPack]   = useState<ReceptionPack | null>(null);
   const [justifAnnul,       setJustifAnnul]       = useState("");
+  // Modal planification livraison pack
+  const [modalPlanifLiv,    setModalPlanifLiv]    = useState(false);
+  const [planifSouscId,     setPlanifSouscId]     = useState("");
+  const [planifDate,        setPlanifDate]        = useState("");
+  const [planifNotes,       setPlanifNotes]       = useState("");
+  const [planifLignes,      setPlanifLignes]      = useState<{ produitId: string; quantite: string }[]>([{ produitId: "", quantite: "1" }]);
 
   // Modal réapprovisionnement
   const [modalReappro,    setModalReappro]    = useState(false);
@@ -316,7 +415,7 @@ export default function ResponsablePDVPage() {
   const [fStock, setFStock] = useState("0");
   const [mvtProdId, setMvtProdId] = useState(""); const [mvtType, setMvtType] = useState<"ENTREE"|"SORTIE"|"AJUSTEMENT">("ENTREE");
   const [mvtQte, setMvtQte] = useState(""); const [mvtMotif, setMvtMotif] = useState("");
-  const [livType, setLivType] = useState<TypeLiv>("RECEPTION");
+  const [livType, setLivType] = useState<TypeLiv>("FOURNISSEUR");
   const [livPartie, setLivPartie] = useState(""); const [livDate, setLivDate] = useState("");
   const [livNotes, setLivNotes] = useState("");
   const [livLignes, setLivLignes] = useState<{ produitId: string; quantitePrevue: string }[]>([{ produitId: "", quantitePrevue: "" }]);
@@ -328,6 +427,7 @@ export default function ResponsablePDVPage() {
   useEffect(() => { const t = setTimeout(() => setDSearchEquipe(searchEquipe),     350); return () => clearTimeout(t); }, [searchEquipe]);
   useEffect(() => { const t = setTimeout(() => setDSearchRecPacks(searchRecPacks), 350); return () => clearTimeout(t); }, [searchRecPacks]);
   useEffect(() => { const t = setTimeout(() => setDSearchClients(searchClients),   350); return () => clearTimeout(t); }, [searchClients]);
+  useEffect(() => { const t = setTimeout(() => setDSearchVentes(searchVentes),     350); return () => clearTimeout(t); }, [searchVentes]);
 
   // ── API URLs ────────────────────────────────────────────────────────────
   const prodParams = useMemo(() => {
@@ -369,6 +469,17 @@ export default function ResponsablePDVPage() {
     return p.toString();
   }, [clientPage, dSearchClients]);
 
+  const ventesParams = useMemo(() => {
+    const p = new URLSearchParams({ page: String(ventesPage), limit: "15" });
+    if (dSearchVentes)        p.set("search",       dSearchVentes);
+    if (filtreStatutVentes)   p.set("statut",       filtreStatutVentes);
+    if (filtreModePaiement)   p.set("modePaiement", filtreModePaiement);
+    if (filtreVendeurId)      p.set("vendeurId",    filtreVendeurId);
+    if (filtreVenteDateDebut) p.set("dateDebut",    filtreVenteDateDebut);
+    if (filtreVenteDateFin)   p.set("dateFin",      filtreVenteDateFin);
+    return p.toString();
+  }, [ventesPage, dSearchVentes, filtreStatutVentes, filtreModePaiement, filtreVendeurId, filtreVenteDateDebut, filtreVenteDateFin]);
+
   // ── Fetches ─────────────────────────────────────────────────────────────
   const { data: dashRes,       refetch: refetchDash      } = useApi<DashboardResponse>("/api/rpv/dashboard");
   const { data: produitsRes,   refetch: refetchProduits  } = useApi<ProduitsResponse>(`/api/rpv/produits?${prodParams}`);
@@ -380,7 +491,12 @@ export default function ResponsablePDVPage() {
     `/api/rpv/equipe?${dSearchEquipe ? `search=${dSearchEquipe}` : ""}`
   );
   const { data: recPacksRes,   refetch: refetchRecPacks  } = useApi<ReceptionsPacksResponse>(`/api/rpv/receptions-packs?${recPackParams}`);
+  const { data: souscActives } = useApi<{ success: boolean; data: SouscriptionActive[] }>(
+    modalPlanifLiv ? "/api/rpv/souscriptions-actives" : null
+  );
   const { data: clientsRes,    refetch: refetchClients   } = useApi<ClientsResponse>(`/api/rpv/clients?${clientParams}`);
+  const { data: ventesRPVRes,  refetch: refetchVentesRPV } = useApi<VentesRPVResponse>(`/api/rpv/ventes?${ventesParams}`);
+  const { data: caissePDVRes,  refetch: refetchCaissePDV } = useApi<CaissePDVResponse>("/api/rpv/caisse-pdv");
 
   // Ventes terrain (demandes agents)
   interface VenteTerrainRPV {
@@ -436,9 +552,10 @@ export default function ResponsablePDVPage() {
     useMutation<object, object>("/api/rpv/mouvements", "POST", { successMessage: "Mouvement enregistré ✓" });
   const { mutate: createLiv, loading: creatingLiv } =
     useMutation<Livraison, object>("/api/rpv/livraisons", "POST", { successMessage: "Livraison planifiée ✓" });
+  const annulerLivIdRef = React.useRef<number | null>(null);
   const { mutate: patchLiv, loading: patchingLiv } =
     useMutation<Livraison, object>(
-      selectedLiv ? `/api/rpv/livraisons/${selectedLiv.id}` : "/api/rpv/livraisons",
+      () => annulerLivIdRef.current ? `/api/rpv/livraisons/${annulerLivIdRef.current}` : "/api/rpv/livraisons",
       "PATCH",
       { successMessage: "Livraison mise à jour ✓" }
     );
@@ -450,6 +567,8 @@ export default function ResponsablePDVPage() {
     );
   const { mutate: createReappro, loading: creatingReappro } =
     useMutation<Livraison, object>("/api/rpv/livraisons", "POST", { successMessage: "Demande de réapprovisionnement créée ✓" });
+  const { mutate: planifierLivPack, loading: planifiantLiv } =
+    useMutation<object, object>("/api/rpv/receptions-packs", "POST", { successMessage: "Livraison planifiée ✓" });
   const { mutate: createAnomalie, loading: creatingAnomalie } =
     useMutation<object, object>("/api/rpv/anomalies", "POST", { successMessage: "Anomalie signalée ✓" });
   const { mutate: createClient, loading: creatingClient } =
@@ -460,6 +579,21 @@ export default function ResponsablePDVPage() {
       "PUT",
       { successMessage: "Client modifié ✓" }
     );
+
+  // Mutations Ventes & Caisse PDV
+  const annulerVenteIdRef = React.useRef<number | null>(null);
+  const { mutate: doAnnulerVente, loading: annulantVente } =
+    useMutation<unknown, { action: string; motif: string }>(
+      () => annulerVenteIdRef.current ? `/api/rpv/ventes/${annulerVenteIdRef.current}` : "",
+      "PATCH",
+      { successMessage: "Vente annulée ✓" }
+    );
+  const { mutate: doOuvrirCaisse, loading: ouvreCaisse } =
+    useMutation<unknown, object>("/api/rpv/caisse-pdv", "POST", { successMessage: "Caisse ouverte ✓" });
+  const { mutate: doFermerCaisse, loading: fermeCaisse } =
+    useMutation<unknown, object>("/api/rpv/caisse-pdv", "PATCH", { successMessage: "Caisse fermée ✓" });
+  const { mutate: doDepense, loading: enregistreDepense } =
+    useMutation<unknown, object>("/api/rpv/caisse-pdv", "PATCH", { successMessage: "Dépense enregistrée ✓" });
 
   // ── Derived data ─────────────────────────────────────────────────────────
   const dash     = dashRes?.data;
@@ -475,13 +609,23 @@ export default function ResponsablePDVPage() {
 
   const allProduits    = produits;
   const produitsActifs = produits.filter((p) => p.stock > 0);
+  const ventesRPV      = ventesRPVRes?.data ?? [];
+  const caissePDV      = caissePDVRes?.data ?? null;
+  const caissePDVHistorique = caissePDVRes?.historique ?? [];
+
+  // Vendeurs dispo dans les ventes (pour filtre)
+  const vendeursDispos = useMemo(() => {
+    const map = new Map<number, string>();
+    ventesRPV.forEach(v => map.set(v.vendeur.id, `${v.vendeur.prenom} ${v.vendeur.nom}`));
+    return Array.from(map.entries()).map(([id, nom]) => ({ id, nom }));
+  }, [ventesRPV]);
 
   const refetchAll = useCallback(() => {
     refetchDash(); refetchProduits(); refetchMvt();
     refetchLiv(); refetchVentes(); refetchCloture(); refetchEquipe();
-    refetchRecPacks(); refetchClients();
+    refetchRecPacks(); refetchClients(); refetchVentesRPV(); refetchCaissePDV();
   }, [refetchDash, refetchProduits, refetchMvt, refetchLiv, refetchVentes,
-      refetchCloture, refetchEquipe, refetchRecPacks, refetchClients]);
+      refetchCloture, refetchEquipe, refetchRecPacks, refetchClients, refetchVentesRPV, refetchCaissePDV]);
 
   // ── Handlers produit ─────────────────────────────────────────────────────
   const openCreateProduit = () => {
@@ -534,6 +678,25 @@ export default function ResponsablePDVPage() {
 
   // ── Handlers livraisons packs ─────────────────────────────────────────────
   const openAnnulPack = (r: ReceptionPack) => { setSelectedRecPack(r); setJustifAnnul(""); setModalAnnulPack(true); };
+
+  const handlePlanifierLivPack = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!planifSouscId || !planifDate) return;
+    const lignesValides = planifLignes.filter((l) => l.produitId && Number(l.quantite) > 0);
+    if (!lignesValides.length) return;
+    const r = await planifierLivPack({
+      souscriptionId:     Number(planifSouscId),
+      datePrevisionnelle: new Date(planifDate).toISOString(),
+      notes:              planifNotes || null,
+      lignes:             lignesValides.map((l) => ({ produitId: Number(l.produitId), quantite: Number(l.quantite) })),
+    });
+    if (r) {
+      setModalPlanifLiv(false);
+      setPlanifSouscId(""); setPlanifDate(""); setPlanifNotes("");
+      setPlanifLignes([{ produitId: "", quantite: "1" }]);
+      refetchRecPacks(); refetchDash();
+    }
+  };
   const openDetailPack = (r: ReceptionPack) => { setSelectedRecPack(r); setModalDetailPack(true); };
 
   const handleAnnulerRecPack = async (e: React.FormEvent) => {
@@ -609,6 +772,54 @@ export default function ResponsablePDVPage() {
     }
   };
 
+  // ── Handlers Ventes RPV ──────────────────────────────────────────────────
+  const openAnnulVente = (v: VenteRPV) => {
+    setSelectedVente(v); setJustifAnnulVente(""); setModalAnnulVente(true);
+  };
+  const handleAnnulerVente = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!justifAnnulVente.trim() || justifAnnulVente.trim().length < 5) return;
+    if (!selectedVente) return;
+    annulerVenteIdRef.current = selectedVente.id;
+    const r = await doAnnulerVente({ action: "ANNULER", motif: justifAnnulVente.trim() });
+    if (r) { setModalAnnulVente(false); setSelectedVente(null); refetchVentesRPV(); refetchDash(); }
+    annulerVenteIdRef.current = null;
+  };
+
+  const handleExportVentes = () => {
+    const rows = [
+      ["Ref", "Vendeur", "Client", "Mode paiement", "Montant", "Statut", "Date"],
+      ...ventesRPV.map(v => [
+        v.reference,
+        `${v.vendeur.prenom} ${v.vendeur.nom}`,
+        v.client ? `${v.client.prenom} ${v.client.nom}` : v.clientNom ?? "—",
+        v.modePaiement,
+        String(Number(v.montantTotal)),
+        v.statut,
+        new Date(v.createdAt).toLocaleDateString("fr-FR"),
+      ]),
+    ];
+    exportCsv(rows, `ventes-pdv-${new Date().toISOString().slice(0,10)}.csv`);
+  };
+
+  // ── Handlers Caisse PDV ──────────────────────────────────────────────────
+  const handleOuvrirCaisse = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const r = await doOuvrirCaisse({ fondsCaisse: Number(fondsCaisseOuverture) || 0 });
+    if (r) { setModalOuvrirCaisse(false); setFondsCaisseOuverture("0"); refetchCaissePDV(); }
+  };
+  const handleFermerCaisse = async () => {
+    if (!confirm("Confirmer la fermeture de la caisse PDV ?")) return;
+    const r = await doFermerCaisse({ action: "FERMER" });
+    if (r) { refetchCaissePDV(); refetchDash(); }
+  };
+  const handleEnregistrerDepense = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!depenseMontant || !depenseMotif.trim()) return;
+    const r = await doDepense({ type: "DECAISSEMENT", montant: Number(depenseMontant), motif: depenseMotif.trim(), categorie: depenseCategorie || null });
+    if (r) { setModalDepense(false); setDepenseMontant(""); setDepenseMotif(""); setDepenseCategorie(""); refetchCaissePDV(); }
+  };
+
   const handleExportClients = () => {
     const rows = [
       ["ID", "Nom", "Prénom", "Téléphone", "Adresse", "Souscriptions", "État"],
@@ -621,7 +832,7 @@ export default function ResponsablePDVPage() {
 
   // ── Handlers livraison ────────────────────────────────────────────────────
   const openCreateLiv = () => {
-    setLivType("RECEPTION"); setLivPartie(""); setLivDate(""); setLivNotes("");
+    setLivType("FOURNISSEUR"); setLivPartie(""); setLivDate(""); setLivNotes("");
     setLivLignes([{ produitId: "", quantitePrevue: "" }]);
     setModalLivraison("create");
   };
@@ -634,18 +845,20 @@ export default function ResponsablePDVPage() {
     }));
     const data: Record<string, unknown> = {
       type: livType, datePrevisionnelle: new Date(livDate).toISOString(),
-      notes: livNotes || null, lignes: lignesData,
+      notes: livNotes || null,
+      lignes: lignesData.map((l) => ({ produitId: l.produitId, quantiteAttendue: l.quantitePrevue })),
     };
-    if (livType === "RECEPTION") data.fournisseurNom  = livPartie || null;
-    else                          data.destinataireNom = livPartie || null;
+    if (livType === "FOURNISSEUR") data.fournisseurNom = livPartie || null;
+    else                           data.origineNom     = livPartie || null;
     const r = await createLiv(data);
     if (r) { setModalLivraison(null); refetchLiv(); refetchDash(); }
   };
 
-  const handleActionLiv = async (action: "demarrer" | "annuler", l: Livraison) => {
-    if (action === "annuler" && !confirm(`Annuler la livraison ${l.reference} ?`)) return;
-    setSelectedLiv(l);
-    const r = await patchLiv({ action });
+  const handleAnnulerLiv = async (l: Livraison) => {
+    if (!confirm(`Annuler la livraison ${l.reference} ?`)) return;
+    annulerLivIdRef.current = l.id;
+    const r = await patchLiv({ action: "annuler" });
+    annulerLivIdRef.current = null;
     if (r) { refetchLiv(); refetchDash(); }
   };
 
@@ -654,19 +867,151 @@ export default function ResponsablePDVPage() {
   // ============================================================================
 
   const tabs: { key: TabKey; label: string; icon: React.ElementType; badge?: number }[] = [
-    { key: "synthese",        label: "Synthèse",           icon: BarChart3   },
-    { key: "stock",              label: "Stock & Produits",  icon: Package     },
-    { key: "livraisons",         label: "Livraisons",        icon: ShoppingBag },
-    { key: "approvisionnement",  label: "Approvisionnement", icon: Truck       },
-    { key: "ventes-terrain",     label: "Ventes Terrain",    icon: ShoppingCart,
+    { key: "synthese",           label: "Synthèse",           icon: BarChart3    },
+    { key: "ventes",             label: "Ventes",             icon: ShoppingCart, badge: ventesRPVRes?.stats.total },
+    { key: "stock",              label: "Stock & Produits",   icon: Package      },
+    { key: "livraisons",         label: "Livraisons",         icon: ShoppingBag  },
+    { key: "approvisionnement",  label: "Approvisionnement",  icon: Truck        },
+    { key: "ventes-terrain",     label: "Ventes Terrain",     icon: Activity,
       badge: ventesTerrainEnAttente.length },
-    { key: "caisse",          label: "Supervision Caisse", icon: Banknote    },
-    { key: "clients",         label: "Clients",            icon: UserCircle  },
-    { key: "equipe",          label: "Équipe",             icon: Users       },
+    { key: "caisse",             label: "Caisse PDV",         icon: Banknote     },
+    { key: "clients",            label: "Clients",            icon: UserCircle   },
+    { key: "equipe",             label: "Équipe",             icon: Users        },
+    { key: "rapports",           label: "Rapports",           icon: Download     },
   ];
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50/30 to-purple-50/20 font-['DM_Sans',sans-serif]">
+
+      {/* ── Modal Annuler Vente ── */}
+      {modalAnnulVente && selectedVente && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl w-full max-w-md shadow-xl">
+            <div className="flex items-center justify-between p-5 border-b border-slate-100">
+              <div className="flex items-center gap-3">
+                <div className="bg-red-50 p-2.5 rounded-xl"><XCircle className="text-red-600 w-5 h-5" /></div>
+                <div>
+                  <h2 className="font-bold text-slate-800">Annuler une vente</h2>
+                  <p className="text-xs text-slate-400 font-mono">{selectedVente.reference}</p>
+                </div>
+              </div>
+              <button onClick={() => setModalAnnulVente(false)} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg"><X size={18} /></button>
+            </div>
+            <form onSubmit={handleAnnulerVente} className="p-5 space-y-4">
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-800">
+                <strong>Attention :</strong> l&apos;annulation est définitive. Le stock sera recrédité automatiquement.
+                Le motif est horodaté et archivé dans l&apos;audit log.
+              </div>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Vendeur</span>
+                  <span className="font-medium">{selectedVente.vendeur.prenom} {selectedVente.vendeur.nom}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Montant</span>
+                  <span className="font-bold text-emerald-600">{formatCurrency(Number(selectedVente.montantTotal))}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Statut actuel</span>
+                  <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${venteStatutStyle[selectedVente.statut]?.bg} ${venteStatutStyle[selectedVente.statut]?.text}`}>
+                    {venteStatutStyle[selectedVente.statut]?.label ?? selectedVente.statut}
+                  </span>
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Motif d&apos;annulation <span className="text-red-500">*</span></label>
+                <textarea required value={justifAnnulVente} onChange={(e) => setJustifAnnulVente(e.target.value)}
+                  rows={3} minLength={5} placeholder="Expliquez pourquoi vous annulez cette vente..."
+                  className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-red-400 bg-slate-50 resize-none" />
+                <p className="text-xs text-slate-400 mt-1">{justifAnnulVente.length} / 5 min</p>
+              </div>
+              <div className="flex gap-3 pt-1">
+                <button type="button" onClick={() => setModalAnnulVente(false)} className="flex-1 py-2.5 border border-slate-200 rounded-xl text-slate-600 text-sm font-medium hover:bg-slate-50">Fermer</button>
+                <button type="submit" disabled={annulantVente || justifAnnulVente.trim().length < 5}
+                  className="flex-1 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-sm font-semibold transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
+                  {annulantVente ? <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />Annulation...</> : <><XCircle size={15} />Confirmer l&apos;annulation</>}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal Ouvrir Caisse PDV ── */}
+      {modalOuvrirCaisse && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl w-full max-w-sm shadow-xl">
+            <div className="flex items-center justify-between p-5 border-b border-slate-100">
+              <div className="flex items-center gap-3">
+                <div className="bg-emerald-50 p-2.5 rounded-xl"><Banknote className="text-emerald-600 w-5 h-5" /></div>
+                <h2 className="font-bold text-slate-800">Ouvrir la caisse PDV</h2>
+              </div>
+              <button onClick={() => setModalOuvrirCaisse(false)} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg"><X size={18} /></button>
+            </div>
+            <form onSubmit={handleOuvrirCaisse} className="p-5 space-y-4">
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Fonds de caisse initial (FCFA)</label>
+                <input type="number" min="0" value={fondsCaisseOuverture} onChange={(e) => setFondsCaisseOuverture(e.target.value)}
+                  className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50" />
+              </div>
+              <div className="flex gap-3 pt-1">
+                <button type="button" onClick={() => setModalOuvrirCaisse(false)} className="flex-1 py-2.5 border border-slate-200 rounded-xl text-slate-600 text-sm font-medium hover:bg-slate-50">Annuler</button>
+                <button type="submit" disabled={ouvreCaisse}
+                  className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-semibold transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
+                  {ouvreCaisse ? <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />Ouverture...</> : <><CheckCircle size={15} />Ouvrir la caisse</>}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal Dépense / Décaissement ── */}
+      {modalDepense && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl w-full max-w-sm shadow-xl">
+            <div className="flex items-center justify-between p-5 border-b border-slate-100">
+              <div className="flex items-center gap-3">
+                <div className="bg-red-50 p-2.5 rounded-xl"><ArrowDownCircle className="text-red-600 w-5 h-5" /></div>
+                <h2 className="font-bold text-slate-800">Enregistrer une dépense</h2>
+              </div>
+              <button onClick={() => setModalDepense(false)} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg"><X size={18} /></button>
+            </div>
+            <form onSubmit={handleEnregistrerDepense} className="p-5 space-y-4">
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Montant (FCFA) *</label>
+                <input required type="number" min="1" value={depenseMontant} onChange={(e) => setDepenseMontant(e.target.value)}
+                  className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-red-400 bg-slate-50" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Motif *</label>
+                <input required value={depenseMotif} onChange={(e) => setDepenseMotif(e.target.value)}
+                  placeholder="Ex : Achat fournitures, Frais de livraison..."
+                  className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-red-400 bg-slate-50" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Catégorie</label>
+                <select value={depenseCategorie} onChange={(e) => setDepenseCategorie(e.target.value)}
+                  className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-red-400 bg-slate-50">
+                  <option value="">— Optionnel —</option>
+                  <option value="FOURNITURES">Fournitures</option>
+                  <option value="TRANSPORT">Transport / Livraison</option>
+                  <option value="MAINTENANCE">Maintenance</option>
+                  <option value="SALAIRES">Avance salaire</option>
+                  <option value="DIVERS">Divers</option>
+                </select>
+              </div>
+              <div className="flex gap-3 pt-1">
+                <button type="button" onClick={() => setModalDepense(false)} className="flex-1 py-2.5 border border-slate-200 rounded-xl text-slate-600 text-sm font-medium hover:bg-slate-50">Annuler</button>
+                <button type="submit" disabled={enregistreDepense}
+                  className="flex-1 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-sm font-semibold transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
+                  {enregistreDepense ? <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />Enregistrement...</> : <><ArrowDownCircle size={15} />Enregistrer</>}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* ── Modal Produit (créer / modifier) ── */}
       {modalProduit && (
@@ -794,7 +1139,7 @@ export default function ResponsablePDVPage() {
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1.5">Type *</label>
                 <div className="grid grid-cols-2 gap-2">
-                  {(["RECEPTION", "EXPEDITION"] as TypeLiv[]).map((t) => {
+                  {(["FOURNISSEUR", "INTERNE"] as TypeLiv[]).map((t) => {
                     const s = livraisonTypeStyle[t];
                     return (
                       <button key={t} type="button" onClick={() => setLivType(t)}
@@ -808,7 +1153,7 @@ export default function ResponsablePDVPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-medium text-slate-600 mb-1">
-                    {livType === "RECEPTION" ? "Fournisseur" : "Destinataire"}
+                    {livType === "FOURNISSEUR" ? "Nom du fournisseur" : "Origine (PDV source)"}
                   </label>
                   <input value={livPartie} onChange={(e) => setLivPartie(e.target.value)}
                     className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-50"
@@ -892,7 +1237,7 @@ export default function ResponsablePDVPage() {
                   <p className="font-semibold text-slate-800">{livraisonTypeStyle[selectedLiv.type].label}</p>
                 </div>
                 <div className="bg-slate-50 rounded-xl p-3">
-                  <p className="text-xs text-slate-500 mb-0.5">{selectedLiv.type === "RECEPTION" ? "Fournisseur" : "Destinataire"}</p>
+                  <p className="text-xs text-slate-500 mb-0.5">{selectedLiv.type === "FOURNISSEUR" ? "Fournisseur" : "Origine"}</p>
                   <p className="font-semibold text-slate-800">{selectedLiv.fournisseurNom ?? selectedLiv.destinataireNom ?? "—"}</p>
                 </div>
                 <div className="bg-slate-50 rounded-xl p-3">
@@ -927,17 +1272,14 @@ export default function ResponsablePDVPage() {
                 </div>
               </div>
               <div className="flex gap-3 pt-2">
-                {selectedLiv.statut === "EN_ATTENTE" && (
-                  <button onClick={() => { setModalLivraison(null); handleActionLiv("demarrer", selectedLiv); }}
-                    className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold flex items-center justify-center gap-2">
-                    <PlayCircle size={15} />Démarrer
+                {["BROUILLON", "EN_COURS"].includes(selectedLiv.statut) && (
+                  <button onClick={() => { setModalLivraison(null); handleAnnulerLiv(selectedLiv); }}
+                    className="py-2.5 px-4 border border-red-200 bg-red-50 hover:bg-red-100 text-red-600 rounded-xl text-sm font-medium flex items-center gap-1.5">
+                    <XCircle size={15} />Annuler la réception
                   </button>
                 )}
-                {["EN_ATTENTE", "EN_COURS"].includes(selectedLiv.statut) && (
-                  <button onClick={() => { setModalLivraison(null); handleActionLiv("annuler", selectedLiv); }}
-                    className="py-2.5 px-4 border border-red-200 bg-red-50 hover:bg-red-100 text-red-600 rounded-xl text-sm font-medium flex items-center gap-1.5">
-                    <XCircle size={15} />Annuler
-                  </button>
+                {!["BROUILLON", "EN_COURS"].includes(selectedLiv.statut) && (
+                  <p className="text-xs text-slate-400 italic">La progression (EN_COURS → RECU → VALIDE) est gérée par la Logistique et le Magasinier.</p>
                 )}
               </div>
             </div>
@@ -983,6 +1325,140 @@ export default function ResponsablePDVPage() {
           </div>
         </div>
       )}
+
+      {/* ── Modal Planifier livraison pack ── */}
+      {modalPlanifLiv && (() => {
+        const sousc = souscActives?.data.find((x) => x.id === Number(planifSouscId));
+        const produitsStock = produits; // produits du PDV déjà chargés
+        const totalLivraison = planifLignes.reduce((sum, l) => {
+          const p = produits.find((x) => x.id === Number(l.produitId));
+          return sum + (p ? p.prixUnitaire * Number(l.quantite || 0) : 0);
+        }, 0);
+        return (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg my-4">
+              <div className="flex items-center justify-between p-5 border-b border-slate-200">
+                <div className="flex items-center gap-3">
+                  <div className="bg-orange-100 p-2.5 rounded-xl"><ShoppingBag className="text-orange-600 w-5 h-5" /></div>
+                  <div>
+                    <h2 className="font-bold text-slate-800">Planifier une livraison</h2>
+                    <p className="text-xs text-slate-400">Pack client → Agent terrain confirmera la livraison</p>
+                  </div>
+                </div>
+                <button onClick={() => setModalPlanifLiv(false)} className="p-2 text-slate-400 hover:text-slate-600 rounded-lg"><X size={18} /></button>
+              </div>
+              <form onSubmit={handlePlanifierLivPack} className="p-5 space-y-4">
+
+                {/* Souscription */}
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1.5">Souscription client *</label>
+                  {!souscActives ? (
+                    <p className="text-xs text-slate-400 bg-slate-50 rounded-xl p-3">Chargement…</p>
+                  ) : souscActives.data.length === 0 ? (
+                    <p className="text-sm text-slate-500 bg-amber-50 border border-amber-200 rounded-xl p-3">
+                      Aucune souscription éligible. Les clients doivent avoir une souscription active sans livraison déjà planifiée.
+                    </p>
+                  ) : (
+                    <select required value={planifSouscId}
+                      onChange={(e) => { setPlanifSouscId(e.target.value); setPlanifLignes([{ produitId: "", quantite: "1" }]); }}
+                      className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 bg-slate-50">
+                      <option value="">-- Choisir une souscription --</option>
+                      {souscActives.data.map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.client ? `${s.client.prenom} ${s.client.nom}` : "—"} — {s.pack.nom} ({s.pack.type}) — {s.statut}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+
+                {/* Infos souscription sélectionnée */}
+                {sousc && (
+                  <div className="bg-orange-50 border border-orange-200 rounded-xl p-3 grid grid-cols-3 gap-2 text-xs">
+                    <div><p className="text-orange-500 font-medium">Pack</p><p className="font-bold text-orange-800">{sousc.pack.nom}</p></div>
+                    <div><p className="text-orange-500 font-medium">Versé</p><p className="font-bold text-orange-800">{sousc.montantVerse.toLocaleString("fr-FR")} FCFA</p></div>
+                    <div><p className="text-orange-500 font-medium">Restant</p><p className="font-bold text-orange-800">{sousc.montantRestant.toLocaleString("fr-FR")} FCFA</p></div>
+                  </div>
+                )}
+
+                {/* Produits à livrer */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="text-xs font-medium text-slate-600">Produits à livrer *</label>
+                    <button type="button"
+                      onClick={() => setPlanifLignes((l) => [...l, { produitId: "", quantite: "1" }])}
+                      className="text-xs text-orange-600 hover:text-orange-700 font-semibold flex items-center gap-1">
+                      <Plus size={12} /> Ajouter un produit
+                    </button>
+                  </div>
+                  <div className="space-y-2">
+                    {planifLignes.map((ligne, idx) => {
+                      const produitSelec = produitsStock.find((p) => p.id === Number(ligne.produitId));
+                      return (
+                        <div key={idx} className="flex items-center gap-2">
+                          <select value={ligne.produitId}
+                            onChange={(e) => setPlanifLignes((ls) => ls.map((l, i) => i === idx ? { ...l, produitId: e.target.value } : l))}
+                            className="flex-1 px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 bg-slate-50">
+                            <option value="">-- Produit --</option>
+                            {produitsStock.map((p) => (
+                              <option key={p.id} value={p.id}>{p.nom} ({p.prixUnitaire.toLocaleString("fr-FR")} FCFA)</option>
+                            ))}
+                          </select>
+                          <input type="number" min="1" value={ligne.quantite}
+                            onChange={(e) => setPlanifLignes((ls) => ls.map((l, i) => i === idx ? { ...l, quantite: e.target.value } : l))}
+                            className="w-20 px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 bg-slate-50 text-center" />
+                          {produitSelec && (
+                            <span className="text-xs text-slate-500 w-24 text-right shrink-0">
+                              {(produitSelec.prixUnitaire * Number(ligne.quantite || 0)).toLocaleString("fr-FR")} FCFA
+                            </span>
+                          )}
+                          {planifLignes.length > 1 && (
+                            <button type="button" onClick={() => setPlanifLignes((ls) => ls.filter((_, i) => i !== idx))}
+                              className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg"><X size={13} /></button>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {/* Total livraison */}
+                  {totalLivraison > 0 && (
+                    <div className="mt-3 flex items-center justify-between bg-slate-50 rounded-xl px-4 py-2.5 border border-slate-200">
+                      <span className="text-sm font-semibold text-slate-600">Total livraison</span>
+                      <span className="text-base font-bold text-orange-700">{totalLivraison.toLocaleString("fr-FR")} FCFA</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Date */}
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">Date prévisionnelle *</label>
+                  <input required type="date" value={planifDate} onChange={(e) => setPlanifDate(e.target.value)}
+                    min={new Date().toISOString().slice(0, 10)}
+                    className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 bg-slate-50" />
+                </div>
+
+                {/* Notes */}
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">Notes pour l&apos;agent (optionnel)</label>
+                  <textarea rows={2} value={planifNotes} onChange={(e) => setPlanifNotes(e.target.value)}
+                    className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 bg-slate-50 resize-none"
+                    placeholder="Instructions de livraison, adresse, horaire…" />
+                </div>
+
+                <div className="flex gap-3 pt-1">
+                  <button type="button" onClick={() => setModalPlanifLiv(false)}
+                    className="flex-1 py-2.5 border border-slate-200 rounded-xl text-slate-600 text-sm hover:bg-slate-50">Annuler</button>
+                  <button type="submit"
+                    disabled={planifiantLiv || !planifSouscId || planifLignes.every((l) => !l.produitId)}
+                    className="flex-1 py-2.5 bg-orange-600 hover:bg-orange-700 disabled:opacity-50 text-white rounded-xl text-sm font-semibold transition-colors">
+                    {planifiantLiv ? "Planification…" : "Planifier la livraison"}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* ── Modal Détail livraison pack ── */}
       {modalDetailPack && selectedRecPack && (
@@ -1256,6 +1732,7 @@ export default function ResponsablePDVPage() {
                   </button>
                 </>
               )}
+              <UserPdvBadge />
               <MessagesLink />
               <NotificationBell href="/dashboard/user/notifications" />
               <SignOutButton redirectTo="/auth/login?logout=success" className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50 rounded-lg transition-colors" />
@@ -1306,7 +1783,7 @@ export default function ResponsablePDVPage() {
             </div>
             {/* KPIs — ligne 2 */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-              <KpiCard label="Approvisionnements"   value={String((dash?.livraisons.enAttente ?? 0) + (dash?.livraisons.enCours ?? 0))} icon={Truck}         color="text-sky-500"    bg="bg-sky-50"    sub="réceptions en cours" />
+              <KpiCard label="Approvisionnements"   value={String((dash?.livraisons.brouillon ?? 0) + (dash?.livraisons.enCours ?? 0))} icon={Truck}         color="text-sky-500"    bg="bg-sky-50"    sub="réceptions en cours" />
               <KpiCard label="Alertes stock"        value={String((dash?.stock.enRupture ?? 0) + (dash?.stock.stockFaible ?? 0))}       icon={AlertTriangle} color="text-amber-500"  bg="bg-amber-50"  sub={`${dash?.stock.enRupture ?? 0} rupture · ${dash?.stock.stockFaible ?? 0} faible`} />
               <KpiCard label="Caisses ouvertes"     value={String(dash?.sessionsCaisses?.length ?? 0)}                                  icon={Lock}          color="text-teal-500"   bg="bg-teal-50"   sub={dash?.sessionsCaisses?.length ? "session(s) active(s)" : "aucune session active"} />
               <KpiCard label="Produits livrés (30j)" value={String((dash?.topProduitsLivres ?? []).reduce((s,p) => s + p.quantite, 0))} icon={Star}          color="text-orange-500" bg="bg-orange-50" sub={`${(dash?.topProduitsLivres ?? []).length} produit(s) concerné(s)`} />
@@ -1328,12 +1805,14 @@ export default function ResponsablePDVPage() {
                   <h3 className="font-bold text-slate-800 mb-3 flex items-center gap-2"><Clock size={17} className="text-slate-500" />Dernières ventes</h3>
                   <div className="space-y-2">
                     {(dash?.ventes.recentes ?? []).map((v) => (
-                      <div key={v.id} className="flex items-center justify-between py-2 border-b border-slate-100 last:border-0">
+                      <div key={`${v.type}-${v.id}`} className="flex items-center justify-between py-2 border-b border-slate-100 last:border-0">
                         <div className="flex items-center gap-2.5">
-                          <div className="w-8 h-8 bg-sky-50 rounded-lg flex items-center justify-center"><ShoppingCart size={13} className="text-sky-600" /></div>
+                          <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${v.type === "VERSEMENT" ? "bg-violet-50" : "bg-sky-50"}`}>
+                            {v.type === "VERSEMENT" ? <CreditCard size={13} className="text-violet-600" /> : <ShoppingCart size={13} className="text-sky-600" />}
+                          </div>
                           <div>
-                            <p className="text-sm font-semibold text-slate-800">{v.produitNom} ×{v.quantite}</p>
-                            <p className="text-xs text-slate-400">{v.clientNom} · {v.heure}</p>
+                            <p className="text-sm font-semibold text-slate-800">{v.produitNom}</p>
+                            <p className="text-xs text-slate-400">{v.clientNom} · {v.heure} · <span className={v.type === "VERSEMENT" ? "text-violet-500" : "text-sky-500"}>{v.type === "VERSEMENT" ? "Versement pack" : "Vente directe"}</span></p>
                           </div>
                         </div>
                         <span className="text-sm font-bold text-emerald-600">{formatCurrency(v.montant)}</span>
@@ -1371,14 +1850,16 @@ export default function ResponsablePDVPage() {
                   <h3 className="font-bold text-slate-800 mb-3 flex items-center gap-2"><Truck size={17} className="text-sky-500" />Approvisionnements actifs</h3>
                   <div className="space-y-2">
                     {(dash?.livraisons.prochaines ?? []).map((l) => {
-                      const ts = livraisonTypeStyle[l.type];
+                      const ts = livraisonTypeStyle[l.type as TypeLiv] ?? { bg: "bg-slate-100", text: "text-slate-600", label: l.type, icon: Package };
+                      const ss = livraisonStyle[l.statut as StatutLiv] ?? { bg: "bg-slate-100", text: "text-slate-600", label: l.statut };
+                      const TsIcon = ts.icon;
                       return (
                         <div key={l.id} className="bg-slate-50 rounded-xl px-3 py-2.5">
                           <div className="flex items-center justify-between mb-1">
                             <span className="text-xs font-mono text-slate-500">{l.reference}</span>
-                            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${livraisonStyle[l.statut].bg} ${livraisonStyle[l.statut].text}`}>{livraisonStyle[l.statut].label}</span>
+                            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${ss.bg} ${ss.text}`}>{ss.label}</span>
                           </div>
-                          <p className="text-sm font-medium text-slate-700 flex items-center gap-1.5"><ts.icon size={13} className={ts.text} />{l.partieNom}</p>
+                          <p className="text-sm font-medium text-slate-700 flex items-center gap-1.5"><TsIcon size={13} className={ts.text} />{l.partieNom}</p>
                           <p className="text-xs text-slate-400 mt-0.5">{formatDate(l.datePrevisionnelle)} · {l.nbLignes} produit(s)</p>
                         </div>
                       );
@@ -1711,13 +2192,21 @@ export default function ResponsablePDVPage() {
         ===================================================================== */}
         {activeTab === "approvisionnement" && (
           <div className="space-y-4">
+            {/* Header + bouton Nouveau */}
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-bold text-slate-800">Approvisionnements</h2>
+              <button onClick={openCreateLiv} className="flex items-center gap-2 px-4 py-2.5 bg-sky-600 hover:bg-sky-700 text-white rounded-xl text-sm font-semibold transition-colors">
+                <Plus size={16} /> Planifier une réception
+              </button>
+            </div>
             {/* Stats badges */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
               {[
-                { label: "En attente", value: livRes?.stats.enAttente ?? 0, color: "text-amber-700",   bg: "bg-amber-50",   border: "border-amber-200"   },
-                { label: "En cours",   value: livRes?.stats.enCours   ?? 0, color: "text-blue-700",    bg: "bg-blue-50",    border: "border-blue-200"    },
-                { label: "Livrées",    value: livRes?.stats.livrees    ?? 0, color: "text-emerald-700", bg: "bg-emerald-50", border: "border-emerald-200" },
-                { label: "Annulées",   value: livRes?.stats.annulees   ?? 0, color: "text-red-700",     bg: "bg-red-50",     border: "border-red-200"     },
+                { label: "Brouillon", value: livRes?.stats.brouillon ?? 0, color: "text-amber-700",   bg: "bg-amber-50",   border: "border-amber-200"   },
+                { label: "En cours",  value: livRes?.stats.enCours   ?? 0, color: "text-blue-700",    bg: "bg-blue-50",    border: "border-blue-200"    },
+                { label: "Reçu",      value: livRes?.stats.recu      ?? 0, color: "text-teal-700",    bg: "bg-teal-50",    border: "border-teal-200"    },
+                { label: "Validé",    value: livRes?.stats.valide    ?? 0, color: "text-emerald-700", bg: "bg-emerald-50", border: "border-emerald-200" },
+                { label: "Annulé",    value: livRes?.stats.annule    ?? 0, color: "text-red-700",     bg: "bg-red-50",     border: "border-red-200"     },
               ].map((s) => (
                 <div key={s.label} className={`${s.bg} border ${s.border} rounded-xl p-4 text-center`}>
                   <p className="text-xs font-medium text-slate-500 mb-1">{s.label}</p>
@@ -1735,10 +2224,10 @@ export default function ResponsablePDVPage() {
                   className="w-full pl-9 pr-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 bg-slate-50" />
               </div>
               <div className="flex gap-2">
-                {["", "EN_ATTENTE", "EN_COURS", "LIVREE", "ANNULEE"].map((f) => (
+                {(["", "BROUILLON", "EN_COURS", "RECU", "VALIDE", "ANNULE"] as const).map((f) => (
                   <button key={f} onClick={() => { setFiltreStatutLiv(f); setLivPage(1); }}
                     className={`px-3 py-2 rounded-xl text-xs font-semibold border transition-all ${filtreStatutLiv === f ? "bg-sky-600 text-white border-sky-600" : "border-slate-200 text-slate-600 hover:border-sky-300"}`}>
-                    {f === "" ? "Toutes" : livraisonStyle[f as StatutLiv]?.label ?? f}
+                    {f === "" ? "Toutes" : livraisonStyle[f]?.label ?? f}
                   </button>
                 ))}
               </div>
@@ -1757,14 +2246,15 @@ export default function ResponsablePDVPage() {
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     {livs.map((l) => {
-                      const ts = livraisonTypeStyle[l.type];
-                      const ss = livraisonStyle[l.statut];
+                      const ts = livraisonTypeStyle[l.type as TypeLiv] ?? { bg: "bg-slate-100", text: "text-slate-600", label: l.type, icon: Package };
+                      const ss = livraisonStyle[l.statut as StatutLiv] ?? { bg: "bg-slate-100", text: "text-slate-600", label: l.statut };
+                      const TsIcon = ts.icon;
                       return (
                         <tr key={l.id} className="hover:bg-slate-50 transition-colors">
                           <td className="px-5 py-3.5 font-mono text-xs text-slate-500">{l.reference}</td>
                           <td className="px-5 py-3.5">
                             <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${ts.bg} ${ts.text}`}>
-                              <ts.icon size={11} />{ts.label}
+                              <TsIcon size={11} />{ts.label}
                             </span>
                           </td>
                           <td className="px-5 py-3.5">
@@ -1777,11 +2267,8 @@ export default function ResponsablePDVPage() {
                           <td className="px-5 py-3.5">
                             <div className="flex items-center gap-1">
                               <button onClick={() => openDetailLiv(l)} className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg" title="Détail"><Eye size={14} /></button>
-                              {l.statut === "EN_ATTENTE" && (
-                                <button onClick={() => handleActionLiv("demarrer", l)} className="p-1.5 text-blue-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg" title="Démarrer"><PlayCircle size={14} /></button>
-                              )}
-                              {["EN_ATTENTE", "EN_COURS"].includes(l.statut) && (
-                                <button onClick={() => handleActionLiv("annuler", l)} className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg" title="Annuler"><XCircle size={14} /></button>
+                              {["BROUILLON", "EN_COURS"].includes(l.statut) && (
+                                <button onClick={() => handleAnnulerLiv(l)} className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg" title="Annuler"><XCircle size={14} /></button>
                               )}
                             </div>
                           </td>
@@ -1811,6 +2298,14 @@ export default function ResponsablePDVPage() {
         ===================================================================== */}
         {activeTab === "livraisons" && (
           <div className="space-y-4">
+            {/* Header + bouton Planifier */}
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-bold text-slate-800">Livraisons clients (packs)</h2>
+              <button onClick={() => setModalPlanifLiv(true)}
+                className="flex items-center gap-2 px-4 py-2.5 bg-orange-600 hover:bg-orange-700 text-white rounded-xl text-sm font-semibold transition-colors">
+                <Plus size={16} /> Planifier une livraison
+              </button>
+            </div>
             {/* Stats badges */}
             <div className="grid grid-cols-3 gap-3">
               {[
@@ -1926,96 +2421,294 @@ export default function ResponsablePDVPage() {
         )}
 
         {/* =====================================================================
-            TAB : SUPERVISION CAISSE
+            TAB : CAISSE PDV
         ===================================================================== */}
         {activeTab === "caisse" && (
           <div className="space-y-5">
-            {/* KPIs caisse */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <KpiCard label="Ventes du jour"   value={String(ventesRes?.stats.totalVentes ?? 0)}             icon={ShoppingCart} color="text-sky-500"     bg="bg-sky-50"     />
-              <KpiCard label="CA du jour"        value={formatCurrency(ventesRes?.stats.montantTotal ?? 0)}    icon={Banknote}     color="text-emerald-500" bg="bg-emerald-50" />
-              <KpiCard label="Panier moyen"      value={formatCurrency(ventesRes?.stats.panierMoyen ?? 0)}     icon={TrendingUp}   color="text-violet-500"  bg="bg-violet-50"  />
-              <KpiCard label="Caisse"            value={clotData?.dejaClothuree ? "Clôturée" : "Ouverte"}      icon={Lock}         color={clotData?.dejaClothuree ? "text-emerald-500" : "text-amber-500"} bg={clotData?.dejaClothuree ? "bg-emerald-50" : "bg-amber-50"} sub={clotData?.dejaClothuree ? "clôture effectuée" : "en activité"} />
-            </div>
-
-            {/* 2 colonnes */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-              {/* Ventes récentes */}
-              <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 overflow-hidden">
-                <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
-                  <h3 className="font-bold text-slate-800 flex items-center gap-2"><ShoppingCart size={17} className="text-sky-600" />Ventes du jour</h3>
-                  <span className="text-sm text-slate-400">{ventes.length} enregistrées</span>
+            {/* Statut de la caisse */}
+            <div className={`rounded-2xl p-5 border-2 flex items-center justify-between gap-4 ${caissePDV ? "bg-emerald-50 border-emerald-200" : "bg-amber-50 border-amber-200"}`}>
+              <div className="flex items-center gap-4">
+                <div className={`p-3 rounded-xl ${caissePDV ? "bg-emerald-100" : "bg-amber-100"}`}>
+                  <Banknote className={caissePDV ? "text-emerald-600 w-6 h-6" : "text-amber-600 w-6 h-6"} />
                 </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead className="bg-slate-50 border-b border-slate-200">
-                      <tr>
-                        {["#", "Produit", "Client", "Qté", "Montant", "Heure"].map((h) => (
-                          <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-slate-500">{h}</th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {ventes.slice(0, 15).map((v) => {
-                        const person = v.creditAlimentaire?.client ?? v.creditAlimentaire?.member;
-                        const montant = Number(v.prixUnitaire) * v.quantite;
-                        return (
-                          <tr key={v.id} className="hover:bg-slate-50">
-                            <td className="px-4 py-2.5 text-xs text-slate-400 font-mono">#{v.id}</td>
-                            <td className="px-4 py-2.5 font-semibold text-slate-800 text-sm">{v.produit.nom}</td>
-                            <td className="px-4 py-2.5 text-sm text-slate-600">{person ? `${person.prenom} ${person.nom}` : "—"}</td>
-                            <td className="px-4 py-2.5"><span className="bg-sky-100 text-sky-700 text-xs font-bold px-2 py-0.5 rounded-full">{v.quantite}</span></td>
-                            <td className="px-4 py-2.5 font-bold text-emerald-600 text-sm">{formatCurrency(montant)}</td>
-                            <td className="px-4 py-2.5 text-xs text-slate-400">{new Date(v.createdAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}</td>
-                          </tr>
-                        );
-                      })}
-                      {ventes.length === 0 && <tr><td colSpan={6} className="px-4 py-8 text-center text-slate-400 text-sm">Aucune vente aujourd&apos;hui</td></tr>}
-                    </tbody>
-                  </table>
+                <div>
+                  <p className="font-bold text-slate-800 text-lg">{caissePDV ? "Caisse ouverte" : "Caisse fermée"}</p>
+                  {caissePDV ? (
+                    <>
+                      <p className="text-sm text-slate-600">Solde actuel : <strong className="text-emerald-700">{formatCurrency(Number(caissePDV.fondsCaisse))}</strong></p>
+                      <p className="text-xs text-slate-400">Ouverte le {formatDateTime(caissePDV.dateOuverture)}</p>
+                    </>
+                  ) : (
+                    <p className="text-sm text-slate-500">Aucune caisse PDV active — ouvrez-en une pour enregistrer des opérations</p>
+                  )}
                 </div>
               </div>
-
-              {/* Historique clôtures */}
-              <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 overflow-hidden">
-                <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
-                  <h3 className="font-bold text-slate-800 flex items-center gap-2"><Lock size={17} className="text-amber-500" />Clôtures récentes</h3>
-                  <span className="text-sm text-slate-400">{clotureRes?.historique.meta.total ?? 0} total</span>
-                </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead className="bg-slate-50 border-b border-slate-200">
-                      <tr>
-                        {["Date", "Caissier", "Ventes", "CA", "Panier", "Statut"].map((h) => (
-                          <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-slate-500">{h}</th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {clotures.map((c) => (
-                        <tr key={c.id} className="hover:bg-slate-50">
-                          <td className="px-4 py-3 font-semibold text-slate-800 text-sm">{formatDate(c.date)}</td>
-                          <td className="px-4 py-3 text-sm text-slate-600">{c.caissierNom}</td>
-                          <td className="px-4 py-3"><span className="bg-sky-100 text-sky-700 text-xs font-bold px-2 py-0.5 rounded-full">{c.totalVentes}</span></td>
-                          <td className="px-4 py-3 font-bold text-emerald-600 text-sm">{formatCurrency(c.montantTotal)}</td>
-                          <td className="px-4 py-3 text-sm text-slate-600">{formatCurrency(c.panierMoyen)}</td>
-                          <td className="px-4 py-3"><span className="bg-emerald-100 text-emerald-700 text-xs font-semibold px-2 py-0.5 rounded-full flex items-center gap-1 w-fit"><CheckCircle size={10} />Clôturée</span></td>
-                        </tr>
-                      ))}
-                      {clotures.length === 0 && <tr><td colSpan={6} className="px-4 py-8 text-center text-slate-400 text-sm">Aucune clôture enregistrée</td></tr>}
-                    </tbody>
-                  </table>
-                </div>
-                {clotureRes?.historique.meta && clotureRes.historique.meta.totalPages > 1 && (
-                  <div className="px-4 py-3 border-t border-slate-100 flex items-center justify-between">
-                    <p className="text-xs text-slate-400">Page {cloturePage}/{clotureRes.historique.meta.totalPages}</p>
-                    <div className="flex gap-2">
-                      <button onClick={() => setCloturePage((p) => Math.max(1, p - 1))} disabled={cloturePage <= 1} className="p-1.5 border border-slate-200 rounded-lg disabled:opacity-40"><ChevronLeft size={13} /></button>
-                      <button onClick={() => setCloturePage((p) => Math.min(clotureRes.historique.meta.totalPages, p + 1))} disabled={cloturePage >= clotureRes.historique.meta.totalPages} className="p-1.5 border border-slate-200 rounded-lg disabled:opacity-40"><ChevronRight size={13} /></button>
-                    </div>
-                  </div>
+              <div className="flex gap-3 shrink-0">
+                {!caissePDV ? (
+                  <button onClick={() => setModalOuvrirCaisse(true)}
+                    className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-semibold shadow-md shadow-emerald-200 transition-colors">
+                    <CheckCircle size={16} />Ouvrir la caisse
+                  </button>
+                ) : (
+                  <>
+                    <button onClick={() => setModalDepense(true)}
+                      className="flex items-center gap-2 px-4 py-2.5 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 rounded-xl text-sm font-semibold transition-colors">
+                      <ArrowDownCircle size={16} />Dépense
+                    </button>
+                    <button onClick={handleFermerCaisse} disabled={fermeCaisse}
+                      className="flex items-center gap-2 px-4 py-2.5 bg-slate-700 hover:bg-slate-800 text-white rounded-xl text-sm font-semibold transition-colors disabled:opacity-50">
+                      {fermeCaisse ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Lock size={16} />}
+                      Fermer la caisse
+                    </button>
+                  </>
                 )}
               </div>
+            </div>
+
+            {caissePDV && (
+              <>
+                {/* Stats du jour */}
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                  <KpiCard label="Ventes aujourd'hui" value={String(caissePDVRes?.stats?.ventesAujourdHui ?? 0)} icon={ShoppingCart} color="text-sky-500" bg="bg-sky-50" />
+                  <KpiCard label="Encaissé aujourd'hui" value={formatCurrency(caissePDVRes?.stats?.montantAujourdHui ?? 0)} icon={TrendingUp} color="text-emerald-500" bg="bg-emerald-50" />
+                  <KpiCard label="Solde caisse" value={formatCurrency(Number(caissePDV.fondsCaisse))} icon={Banknote} color="text-indigo-500" bg="bg-indigo-50" />
+                </div>
+
+                {/* Opérations récentes */}
+                <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 overflow-hidden">
+                  <div className="px-5 py-4 border-b border-slate-100">
+                    <h3 className="font-bold text-slate-800 flex items-center gap-2"><Activity size={17} className="text-indigo-500" />Opérations de la caisse</h3>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead className="bg-slate-50 border-b border-slate-200">
+                        <tr>
+                          {["Type", "Montant", "Motif", "Catégorie", "Opérateur", "Heure"].map((h) => (
+                            <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-slate-500">{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {caissePDV.operations.map((op) => (
+                          <tr key={op.id} className="hover:bg-slate-50">
+                            <td className="px-4 py-3">
+                              <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${op.type === "ENCAISSEMENT" ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"}`}>
+                                {op.type === "ENCAISSEMENT" ? <ArrowUpCircle size={10} /> : <ArrowDownCircle size={10} />}
+                                {op.type === "ENCAISSEMENT" ? "Encaissement" : "Décaissement"}
+                              </span>
+                            </td>
+                            <td className={`px-4 py-3 font-bold text-sm ${op.type === "ENCAISSEMENT" ? "text-emerald-600" : "text-red-600"}`}>
+                              {op.type === "ENCAISSEMENT" ? "+" : "−"}{formatCurrency(Number(op.montant))}
+                            </td>
+                            <td className="px-4 py-3 text-sm text-slate-700 max-w-[200px] truncate">{op.motif}</td>
+                            <td className="px-4 py-3 text-xs text-slate-500">{op.categorie ?? "—"}</td>
+                            <td className="px-4 py-3 text-sm text-slate-500">{op.operateurNom}</td>
+                            <td className="px-4 py-3 text-xs text-slate-400">{new Date(op.createdAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}</td>
+                          </tr>
+                        ))}
+                        {caissePDV.operations.length === 0 && (
+                          <tr><td colSpan={6} className="px-4 py-8 text-center text-slate-400 text-sm">Aucune opération enregistrée</td></tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* Historique des caisses fermées */}
+            {caissePDVHistorique.length > 0 && (
+              <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 overflow-hidden">
+                <div className="px-5 py-4 border-b border-slate-100">
+                  <h3 className="font-bold text-slate-800 flex items-center gap-2"><Clock size={17} className="text-amber-500" />Caisses précédentes</h3>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-slate-50 border-b border-slate-200">
+                      <tr>
+                        {["Point de vente", "Statut", "Fonds", "Ouverture", "Fermeture"].map((h) => (
+                          <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-slate-500">{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {caissePDVHistorique.map((c) => (
+                        <tr key={c.id} className="hover:bg-slate-50">
+                          <td className="px-4 py-3 font-medium text-slate-700 text-sm">{c.pointDeVente.nom}</td>
+                          <td className="px-4 py-3">
+                            <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${c.statut === "OUVERTE" ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-600"}`}>
+                              {c.statut === "OUVERTE" ? "Ouverte" : "Fermée"}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 font-bold text-emerald-600 text-sm">{formatCurrency(Number(c.fondsCaisse))}</td>
+                          <td className="px-4 py-3 text-sm text-slate-500">{formatDateTime(c.dateOuverture)}</td>
+                          <td className="px-4 py-3 text-sm text-slate-500">{c.dateFermeture ? formatDateTime(c.dateFermeture) : "—"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* Supervision sessions caissiers (depuis le dashboard) */}
+            {(dash?.sessionsCaisses?.length ?? 0) > 0 && (
+              <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 overflow-hidden">
+                <div className="px-5 py-4 border-b border-slate-100">
+                  <h3 className="font-bold text-slate-800 flex items-center gap-2"><Users size={17} className="text-sky-500" />Sessions caissiers</h3>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-slate-50 border-b border-slate-200">
+                      <tr>
+                        {["Caissier", "Statut", "Fonds initial", "Ouverture"].map((h) => (
+                          <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-slate-500">{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {dash!.sessionsCaisses.map((s) => (
+                        <tr key={s.id} className="hover:bg-slate-50">
+                          <td className="px-4 py-3 font-medium text-slate-700 text-sm">{s.caissierNom}</td>
+                          <td className="px-4 py-3">
+                            <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${s.statut === "OUVERTE" ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-600"}`}>
+                              {s.statut === "OUVERTE" ? "Ouverte" : "Fermée"}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-sm text-slate-600">{formatCurrency(s.fondsCaisse)}</td>
+                          <td className="px-4 py-3 text-xs text-slate-400">{formatDateTime(s.dateOuverture)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* =====================================================================
+            TAB : VENTES (consolidées PDV)
+        ===================================================================== */}
+        {activeTab === "ventes" && (
+          <div className="space-y-4">
+            {/* KPIs */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <KpiCard label="Total ventes"   value={String(ventesRPVRes?.stats.total ?? 0)}                         icon={ShoppingCart} color="text-indigo-500"  bg="bg-indigo-50"  />
+              <KpiCard label="CA confirmé"    value={formatCurrency(ventesRPVRes?.stats.montantTotal ?? 0)}           icon={TrendingUp}   color="text-emerald-500" bg="bg-emerald-50" />
+              <KpiCard label="Page en cours"  value={String(ventesRPV.length)}                                        icon={FileText}     color="text-sky-500"     bg="bg-sky-50"     />
+              <KpiCard label="Filtres actifs" value={[filtreStatutVentes,filtreModePaiement,filtreVendeurId].filter(Boolean).length > 0 ? "Oui" : "Aucun"}
+                icon={Filter} color="text-violet-500" bg="bg-violet-50" />
+            </div>
+
+            {/* Filtres */}
+            <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-200/60 space-y-3">
+              <div className="flex flex-wrap gap-3">
+                <div className="flex-1 min-w-[200px] relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
+                  <input type="text" placeholder="Référence, client, téléphone..." value={searchVentes}
+                    onChange={(e) => { setSearchVentes(e.target.value); setVentesPage(1); }}
+                    className="w-full pl-9 pr-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-50" />
+                </div>
+                <input type="date" value={filtreVenteDateDebut} onChange={(e) => { setFiltreVenteDateDebut(e.target.value); setVentesPage(1); }}
+                  className="px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-50" />
+                <input type="date" value={filtreVenteDateFin} onChange={(e) => { setFiltreVenteDateFin(e.target.value); setVentesPage(1); }}
+                  className="px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-50" />
+                <button onClick={handleExportVentes} className="flex items-center gap-2 px-4 py-2.5 border border-slate-200 rounded-xl text-sm text-slate-600 hover:bg-slate-50">
+                  <Download size={14} />CSV
+                </button>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {/* Statut */}
+                {["", "CONFIRMEE", "BROUILLON", "SORTIE_VALIDEE", "LIVREE", "ANNULEE"].map((s) => (
+                  <button key={s} onClick={() => { setFiltreStatutVentes(s); setVentesPage(1); }}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all ${filtreStatutVentes === s ? "bg-indigo-600 text-white border-indigo-600" : "border-slate-200 text-slate-600 hover:border-indigo-300"}`}>
+                    {s === "" ? "Tous statuts" : venteStatutStyle[s]?.label ?? s}
+                  </button>
+                ))}
+                {/* Mode paiement */}
+                <select value={filtreModePaiement} onChange={(e) => { setFiltreModePaiement(e.target.value); setVentesPage(1); }}
+                  className="px-3 py-1.5 border border-slate-200 rounded-xl text-xs text-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white">
+                  <option value="">Tout mode paiement</option>
+                  {Object.entries(modePaiementLabels).map(([k,v]) => <option key={k} value={k}>{v}</option>)}
+                </select>
+                {/* Vendeur */}
+                <select value={filtreVendeurId} onChange={(e) => { setFiltreVendeurId(e.target.value); setVentesPage(1); }}
+                  className="px-3 py-1.5 border border-slate-200 rounded-xl text-xs text-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white">
+                  <option value="">Tous vendeurs</option>
+                  {vendeursDispos.map(v => <option key={v.id} value={v.id}>{v.nom}</option>)}
+                </select>
+                {(filtreStatutVentes || filtreModePaiement || filtreVendeurId || filtreVenteDateDebut || filtreVenteDateFin) && (
+                  <button onClick={() => { setFiltreStatutVentes(""); setFiltreModePaiement(""); setFiltreVendeurId(""); setFiltreVenteDateDebut(""); setFiltreVenteDateFin(""); setSearchVentes(""); setVentesPage(1); }}
+                    className="px-3 py-1.5 rounded-xl text-xs font-semibold border border-red-200 text-red-600 hover:bg-red-50 flex items-center gap-1">
+                    <X size={11} />Réinitialiser
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Table */}
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-slate-50 border-b border-slate-200">
+                    <tr>
+                      {["Référence", "Vendeur", "Client", "Produits", "Mode", "Montant", "Statut", "Date", ""].map((h) => (
+                        <th key={h} className="px-4 py-3.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {ventesRPV.map((v) => {
+                      const ss = venteStatutStyle[v.statut] ?? { bg: "bg-slate-100", text: "text-slate-600", label: v.statut };
+                      const clientNom = v.client ? `${v.client.prenom} ${v.client.nom}` : v.clientNom ?? "—";
+                      return (
+                        <tr key={v.id} className="hover:bg-slate-50 transition-colors">
+                          <td className="px-4 py-3 font-mono text-xs text-slate-500">{v.reference}</td>
+                          <td className="px-4 py-3 text-sm font-medium text-slate-700">{v.vendeur.prenom} {v.vendeur.nom}</td>
+                          <td className="px-4 py-3 text-sm text-slate-600">{clientNom}</td>
+                          <td className="px-4 py-3">
+                            <div className="space-y-0.5">
+                              {v.lignes.slice(0, 2).map((l) => (
+                                <p key={l.id} className="text-xs text-slate-600">{l.produit.nom} ×{l.quantite}</p>
+                              ))}
+                              {v.lignes.length > 2 && <p className="text-xs text-slate-400">+{v.lignes.length - 2}</p>}
+                            </div>
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full font-medium">
+                              {modePaiementLabels[v.modePaiement] ?? v.modePaiement}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 font-bold text-emerald-600 text-sm">{formatCurrency(Number(v.montantTotal))}</td>
+                          <td className="px-4 py-3">
+                            <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${ss.bg} ${ss.text}`}>{ss.label}</span>
+                          </td>
+                          <td className="px-4 py-3 text-xs text-slate-400">{formatDateTime(v.createdAt)}</td>
+                          <td className="px-4 py-3">
+                            {["CONFIRMEE", "BROUILLON"].includes(v.statut) && (
+                              <button onClick={() => openAnnulVente(v)} title="Annuler" className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg">
+                                <XCircle size={14} />
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                    {ventesRPV.length === 0 && <tr><td colSpan={9} className="px-4 py-12 text-center text-slate-400 text-sm">Aucune vente trouvée</td></tr>}
+                  </tbody>
+                </table>
+              </div>
+              {ventesRPVRes?.meta && ventesRPVRes.meta.totalPages > 1 && (
+                <div className="px-5 py-3.5 border-t border-slate-100 flex items-center justify-between">
+                  <p className="text-sm text-slate-400">Page {ventesRPVRes.meta.page}/{ventesRPVRes.meta.totalPages} ({ventesRPVRes.meta.total} ventes)</p>
+                  <div className="flex gap-2 items-center">
+                    <button onClick={() => setVentesPage((p) => Math.max(1, p - 1))} disabled={ventesPage <= 1} className="p-1.5 border border-slate-200 rounded-lg disabled:opacity-40"><ChevronLeft size={15} /></button>
+                    <span className="px-3 py-1 bg-indigo-600 text-white rounded-lg text-sm">{ventesPage}</span>
+                    <button onClick={() => setVentesPage((p) => Math.min(ventesRPVRes.meta.totalPages, p + 1))} disabled={ventesPage >= ventesRPVRes.meta.totalPages} className="p-1.5 border border-slate-200 rounded-lg disabled:opacity-40"><ChevronRight size={15} /></button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -2127,7 +2820,8 @@ export default function ResponsablePDVPage() {
         ===================================================================== */}
         {activeTab === "equipe" && (
           <div className="space-y-5">
-            {/* Stats par rôle */}
+
+            {/* KPIs par rôle */}
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-3">
               {Object.entries(equipeRes?.stats.parRole ?? {}).map(([role, s]) => (
                 <div key={role} className="bg-white rounded-xl p-4 shadow-sm border border-slate-200/60 text-center">
@@ -2138,69 +2832,304 @@ export default function ResponsablePDVPage() {
               ))}
             </div>
 
-            {/* Filtres */}
-            <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-200/60">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
-                <input type="text" placeholder="Rechercher un membre de l'équipe..." value={searchEquipe}
-                  onChange={(e) => setSearchEquipe(e.target.value)}
-                  className="w-full pl-9 pr-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-50" />
-              </div>
+            {/* Sous-onglets */}
+            <div className="flex gap-2 bg-white rounded-2xl p-1.5 shadow-sm border border-slate-200/60 w-fit">
+              {([
+                { key: "membres",       label: "Liste membres",    icon: Users      },
+                { key: "performances",  label: "Performances",     icon: TrendingUp },
+                { key: "presences",     label: "Présences / RH",   icon: CalendarDays },
+              ] as { key: "membres"|"performances"|"presences"; label: string; icon: React.ElementType }[]).map((sub) => (
+                <button key={sub.key} onClick={() => setEquipeSub(sub.key)}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all ${
+                    equipeSub === sub.key
+                      ? "bg-indigo-600 text-white shadow-sm"
+                      : "text-slate-600 hover:bg-slate-50"
+                  }`}>
+                  <sub.icon size={15} />{sub.label}
+                </button>
+              ))}
             </div>
 
-            {/* Table équipe */}
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-slate-50 border-b border-slate-200">
-                    <tr>
-                      {["Membre", "Rôle", "Contact", "État", ""].map((h) => (
-                        <th key={h} className="px-5 py-3.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {equipe.map((g) => (
-                      <tr key={g.id} className="hover:bg-slate-50 transition-colors">
-                        <td className="px-5 py-4">
-                          <div className="flex items-center gap-3">
-                            <div className="w-9 h-9 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-full flex items-center justify-center text-white font-semibold text-xs shadow-sm">
-                              {g.member.prenom?.[0]}{g.member.nom?.[0]}
+            {/* ── Sous-onglet : Liste des membres ── */}
+            {equipeSub === "membres" && (
+              <>
+                <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-200/60 flex gap-3">
+                  <div className="flex-1 relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
+                    <input type="text" placeholder="Rechercher un membre..." value={searchEquipe}
+                      onChange={(e) => setSearchEquipe(e.target.value)}
+                      className="w-full pl-9 pr-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-50" />
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead className="bg-slate-50 border-b border-slate-200">
+                        <tr>
+                          {["Membre", "Rôle", "Contact", "Depuis", "État", ""].map((h) => (
+                            <th key={h} className="px-5 py-3.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {equipe.map((g) => (
+                          <tr key={g.id} className="hover:bg-slate-50 transition-colors">
+                            <td className="px-5 py-4">
+                              <div className="flex items-center gap-3">
+                                <div className={`w-9 h-9 rounded-full flex items-center justify-center text-white font-semibold text-xs shadow-sm bg-gradient-to-br ${
+                                  g.role === "AGENT_TERRAIN" ? "from-teal-500 to-emerald-600"
+                                  : g.role === "CAISSIER" ? "from-sky-500 to-blue-600"
+                                  : g.role === "COMPTABLE" ? "from-violet-500 to-purple-600"
+                                  : "from-indigo-500 to-purple-500"}`}>
+                                  {g.member.prenom?.[0]}{g.member.nom?.[0]}
+                                </div>
+                                <div>
+                                  <p className="font-semibold text-slate-800">{g.member.prenom} {g.member.nom}</p>
+                                  <p className="text-xs text-slate-400">{g.member.email}</p>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-5 py-4">
+                              <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${roleColors[g.role] ?? "bg-slate-100 text-slate-700"}`}>
+                                {roleLabels[g.role] ?? g.role}
+                              </span>
+                            </td>
+                            <td className="px-5 py-4 text-sm text-slate-600">{g.member.telephone ?? "—"}</td>
+                            <td className="px-5 py-4 text-xs text-slate-400">{formatDate(g.member.dateAdhesion)}</td>
+                            <td className="px-5 py-4">
+                              <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${g.actif && g.member.etat === "ACTIF" ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"}`}>
+                                {g.actif && g.member.etat === "ACTIF"
+                                  ? <><CheckCircle size={11} />Actif</>
+                                  : <><XCircle size={11} />Inactif</>}
+                              </span>
+                            </td>
+                            <td className="px-5 py-4">
+                              {g.performance && (
+                                <button onClick={() => setEquipeSub("performances")} title="Voir performances"
+                                  className="p-1.5 text-emerald-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors inline-flex" >
+                                  <TrendingUp size={14} />
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                        {equipe.length === 0 && <tr><td colSpan={6} className="px-5 py-12 text-center text-slate-400 text-sm">Aucun membre trouvé</td></tr>}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div className="px-5 py-3.5 border-t border-slate-100 text-sm text-slate-400">
+                    {equipeRes?.stats.total ?? 0} membre(s) · {equipeRes?.stats.actifs ?? 0} actif(s)
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* ── Sous-onglet : Performances ── */}
+            {equipeSub === "performances" && (
+              <div className="space-y-4">
+                <div className="bg-indigo-50 border border-indigo-100 rounded-xl px-4 py-3 text-xs text-indigo-700 flex items-center gap-2">
+                  <Info size={14} />
+                  Performances sur les <strong>30 derniers jours</strong> — ventes directes confirmées, scoped à ce point de vente.
+                </div>
+
+                {/* Classement vendeurs */}
+                {equipe
+                  .filter(g => g.performance !== null && ["CAISSIER","AGENT_TERRAIN","COMMERCIAL","RESPONSABLE_VENTE_CREDIT"].includes(g.role))
+                  .sort((a, b) => (b.performance?.montantTotal ?? 0) - (a.performance?.montantTotal ?? 0))
+                  .map((g, idx) => {
+                    const p = g.performance!;
+                    const maxCA = Math.max(...equipe.filter(x => x.performance).map(x => x.performance!.montantTotal), 1);
+                    const pct = Math.min(100, Math.round((p.montantTotal / maxCA) * 100));
+                    const tauxAnnul = p.nbVentes + p.nbAnnulees > 0
+                      ? Math.round((p.nbAnnulees / (p.nbVentes + p.nbAnnulees)) * 100)
+                      : 0;
+                    return (
+                      <div key={g.id} className="bg-white rounded-2xl shadow-sm border border-slate-200/60 p-5">
+                        <div className="flex items-start gap-4">
+                          {/* Rang */}
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold shrink-0 ${
+                            idx === 0 ? "bg-amber-100 text-amber-700"
+                            : idx === 1 ? "bg-slate-100 text-slate-600"
+                            : idx === 2 ? "bg-orange-100 text-orange-700"
+                            : "bg-slate-50 text-slate-400"}`}>
+                            {idx + 1}
+                          </div>
+
+                          {/* Avatar + infos */}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
+                              <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-sm">
+                                  {g.member.prenom?.[0]}{g.member.nom?.[0]}
+                                </div>
+                                <div>
+                                  <p className="font-bold text-slate-800">{g.member.prenom} {g.member.nom}</p>
+                                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold ${roleColors[g.role] ?? "bg-slate-100 text-slate-700"}`}>
+                                    {roleLabels[g.role] ?? g.role}
+                                  </span>
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <p className="text-xl font-bold text-emerald-600">{formatCurrency(p.montantTotal)}</p>
+                                <p className="text-xs text-slate-400">CA 30 derniers jours</p>
+                              </div>
                             </div>
-                            <div>
-                              <p className="font-semibold text-slate-800">{g.member.prenom} {g.member.nom}</p>
-                              <p className="text-xs text-slate-400">{g.member.email}</p>
+
+                            {/* Barre de progression CA */}
+                            <div className="mb-4">
+                              <div className="flex justify-between text-xs text-slate-400 mb-1">
+                                <span>Part du meilleur CA</span>
+                                <span>{pct}%</span>
+                              </div>
+                              <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                                <div className={`h-full rounded-full transition-all duration-700 ${idx === 0 ? "bg-amber-400" : "bg-indigo-400"}`}
+                                  style={{ width: `${pct}%` }} />
+                              </div>
+                            </div>
+
+                            {/* Métriques */}
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                              <div className="bg-slate-50 rounded-xl p-3 text-center">
+                                <p className="text-xs text-slate-400 mb-0.5">Ventes</p>
+                                <p className="text-lg font-bold text-slate-800">{p.nbVentes}</p>
+                              </div>
+                              <div className="bg-slate-50 rounded-xl p-3 text-center">
+                                <p className="text-xs text-slate-400 mb-0.5">Panier moyen</p>
+                                <p className="text-lg font-bold text-indigo-600">{formatCurrency(p.panierMoyen)}</p>
+                              </div>
+                              <div className="bg-slate-50 rounded-xl p-3 text-center">
+                                <p className="text-xs text-slate-400 mb-0.5">Clients distincts</p>
+                                <p className="text-lg font-bold text-sky-600">{p.nbClientsDistincts}</p>
+                              </div>
+                              <div className={`rounded-xl p-3 text-center ${tauxAnnul > 20 ? "bg-red-50" : "bg-slate-50"}`}>
+                                <p className="text-xs text-slate-400 mb-0.5">Taux annulation</p>
+                                <p className={`text-lg font-bold ${tauxAnnul > 20 ? "text-red-600" : "text-slate-600"}`}>{tauxAnnul}%</p>
+                              </div>
                             </div>
                           </div>
-                        </td>
-                        <td className="px-5 py-4">
-                          <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${roleColors[g.role] ?? "bg-slate-100 text-slate-700"}`}>
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                {equipe.filter(g => g.performance !== null && ["CAISSIER","AGENT_TERRAIN","COMMERCIAL","RESPONSABLE_VENTE_CREDIT"].includes(g.role)).length === 0 && (
+                  <div className="bg-white rounded-2xl p-10 text-center shadow-sm border border-slate-200/60">
+                    <TrendingUp className="w-10 h-10 text-slate-200 mx-auto mb-3" />
+                    <p className="text-slate-500">Aucune vente enregistrée sur les 30 derniers jours.</p>
+                  </div>
+                )}
+
+                {/* Membres sans données ventes (non-vendeurs) */}
+                {equipe.filter(g => !["CAISSIER","AGENT_TERRAIN","COMMERCIAL","RESPONSABLE_VENTE_CREDIT"].includes(g.role)).length > 0 && (
+                  <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 overflow-hidden">
+                    <div className="px-5 py-4 border-b border-slate-100">
+                      <h3 className="font-bold text-slate-800 text-sm flex items-center gap-2"><Users size={15} className="text-slate-400" />Autres membres (non-vendeurs)</h3>
+                    </div>
+                    <div className="divide-y divide-slate-100">
+                      {equipe.filter(g => !["CAISSIER","AGENT_TERRAIN","COMMERCIAL","RESPONSABLE_VENTE_CREDIT"].includes(g.role)).map(g => (
+                        <div key={g.id} className="px-5 py-3 flex items-center gap-3">
+                          <div className="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center text-slate-600 font-semibold text-xs">
+                            {g.member.prenom?.[0]}{g.member.nom?.[0]}
+                          </div>
+                          <p className="flex-1 font-medium text-slate-700 text-sm">{g.member.prenom} {g.member.nom}</p>
+                          <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${roleColors[g.role] ?? "bg-slate-100 text-slate-700"}`}>
                             {roleLabels[g.role] ?? g.role}
                           </span>
-                        </td>
-                        <td className="px-5 py-4 text-sm text-slate-600">{g.member.telephone ?? "—"}</td>
-                        <td className="px-5 py-4">
-                          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${g.actif && g.member.etat === "ACTIF" ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"}`}>
-                            {g.actif && g.member.etat === "ACTIF"
-                              ? <><CheckCircle size={11} />Actif</>
-                              : <><XCircle size={11} />Inactif</>}
-                          </span>
-                        </td>
-                        <td className="px-5 py-4">
-                          <Link href={`/dashboard/admin/gestionnaires/${g.id}`} className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors inline-flex">
-                            <Eye size={14} />
-                          </Link>
-                        </td>
-                      </tr>
-                    ))}
-                    {equipe.length === 0 && <tr><td colSpan={5} className="px-5 py-12 text-center text-slate-400 text-sm">Aucun membre trouvé</td></tr>}
-                  </tbody>
-                </table>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
-              <div className="px-5 py-3.5 border-t border-slate-100 text-sm text-slate-400">
-                {equipeRes?.stats.total ?? 0} membre(s) · {equipeRes?.stats.actifs ?? 0} actif(s)
+            )}
+
+            {/* ── Sous-onglet : Présences / RH ── */}
+            {equipeSub === "presences" && (
+              <div className="space-y-4">
+                {/* Bannière module non activé */}
+                <div className="bg-amber-50 border-2 border-amber-200 rounded-2xl p-6 flex gap-4">
+                  <div className="bg-amber-100 p-3 rounded-xl shrink-0">
+                    <CalendarDays className="text-amber-600 w-6 h-6" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-slate-800 mb-1">Module RH — Présences & Horaires</h3>
+                    <p className="text-sm text-slate-600 mb-3">
+                      Ce module permettrait de suivre les pointages, horaires et absences de votre équipe.
+                      Il n&apos;est pas encore activé sur cette instance.
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {[
+                        "Pointage d'arrivée / départ",
+                        "Planning hebdomadaire",
+                        "Gestion des absences",
+                        "Heures supplémentaires",
+                        "Rapport de présence mensuel",
+                      ].map(item => (
+                        <span key={item} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-amber-200 rounded-lg text-xs text-slate-600">
+                          <div className="w-1.5 h-1.5 bg-amber-400 rounded-full" />{item}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Récap présence simulé — membres actifs */}
+                <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 overflow-hidden">
+                  <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+                    <h3 className="font-bold text-slate-800 flex items-center gap-2">
+                      <Users size={17} className="text-indigo-500" />Membres actifs — aperçu
+                    </h3>
+                    <span className="text-xs bg-amber-100 text-amber-700 px-3 py-1 rounded-full font-semibold">Module non activé</span>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead className="bg-slate-50 border-b border-slate-200">
+                        <tr>
+                          {["Membre", "Rôle", "Statut", "Pointage", "Présence du jour"].map((h) => (
+                            <th key={h} className="px-5 py-3.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {equipe.filter(g => g.actif && g.member.etat === "ACTIF").map(g => (
+                          <tr key={g.id} className="hover:bg-slate-50">
+                            <td className="px-5 py-3.5">
+                              <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center text-white font-semibold text-xs">
+                                  {g.member.prenom?.[0]}{g.member.nom?.[0]}
+                                </div>
+                                <p className="font-medium text-slate-800 text-sm">{g.member.prenom} {g.member.nom}</p>
+                              </div>
+                            </td>
+                            <td className="px-5 py-3.5">
+                              <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${roleColors[g.role] ?? "bg-slate-100 text-slate-700"}`}>
+                                {roleLabels[g.role] ?? g.role}
+                              </span>
+                            </td>
+                            <td className="px-5 py-3.5">
+                              <span className="bg-emerald-100 text-emerald-700 px-2.5 py-1 rounded-full text-xs font-semibold flex items-center gap-1 w-fit">
+                                <CheckCircle size={10} />Actif
+                              </span>
+                            </td>
+                            <td className="px-5 py-3.5">
+                              <span className="text-xs text-slate-300 italic">— non disponible</span>
+                            </td>
+                            <td className="px-5 py-3.5">
+                              <span className="text-xs text-slate-300 italic">— non disponible</span>
+                            </td>
+                          </tr>
+                        ))}
+                        {equipe.filter(g => g.actif && g.member.etat === "ACTIF").length === 0 && (
+                          <tr><td colSpan={5} className="px-5 py-8 text-center text-slate-400 text-sm">Aucun membre actif</td></tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
               </div>
-            </div>
+            )}
+
           </div>
         )}
 
@@ -2297,6 +3226,179 @@ export default function ResponsablePDVPage() {
                   </div>
                 </div>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* =====================================================================
+            TAB : RAPPORTS
+        ===================================================================== */}
+        {activeTab === "rapports" && (
+          <div className="space-y-5">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+
+              {/* Rapport Ventes */}
+              <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 p-6 space-y-4">
+                <div className="flex items-center gap-3">
+                  <div className="bg-indigo-50 p-3 rounded-xl"><ShoppingCart className="text-indigo-600 w-6 h-6" /></div>
+                  <div>
+                    <h3 className="font-bold text-slate-800">Rapport Ventes</h3>
+                    <p className="text-xs text-slate-400">Export CSV des ventes du PDV</p>
+                  </div>
+                </div>
+                <p className="text-sm text-slate-600">
+                  Inclut : référence, vendeur, client, produits, mode de paiement, montant, statut, date.
+                </p>
+                <div className="text-xs text-slate-400 bg-slate-50 rounded-xl p-3">
+                  <p><strong>{ventesRPVRes?.stats.total ?? "—"}</strong> ventes disponibles</p>
+                  <p>CA confirmé : <strong>{formatCurrency(ventesRPVRes?.stats.montantTotal ?? 0)}</strong></p>
+                </div>
+                <button onClick={handleExportVentes}
+                  className="w-full flex items-center justify-center gap-2 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-semibold transition-colors">
+                  <Download size={15} />Exporter les ventes (CSV)
+                </button>
+              </div>
+
+              {/* Rapport Stock */}
+              <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 p-6 space-y-4">
+                <div className="flex items-center gap-3">
+                  <div className="bg-emerald-50 p-3 rounded-xl"><Package className="text-emerald-600 w-6 h-6" /></div>
+                  <div>
+                    <h3 className="font-bold text-slate-800">Rapport Stock</h3>
+                    <p className="text-xs text-slate-400">Export CSV de l&apos;inventaire PDV</p>
+                  </div>
+                </div>
+                <p className="text-sm text-slate-600">
+                  Inclut : produit, stock actuel, seuil alerte, statut (en stock / faible / rupture).
+                </p>
+                <div className="text-xs text-slate-400 bg-slate-50 rounded-xl p-3">
+                  <p><strong>{produitsRes?.stats.totalProduits ?? "—"}</strong> produits suivis</p>
+                  <p>En rupture : <strong>{produitsRes?.stats.enRupture ?? 0}</strong></p>
+                </div>
+                <button onClick={() => {
+                  const rows = [
+                    ["Produit", "Stock actuel", "Seuil alerte", "Statut", "Valeur"],
+                    ...produits.map(p => [
+                      p.nom,
+                      String(p.stock),
+                      String(p.alerteStock),
+                      p.stock === 0 ? "Rupture" : p.stock <= p.alerteStock ? "Stock faible" : "En stock",
+                      String(p.stock * p.prixUnitaire),
+                    ]),
+                  ];
+                  exportCsv(rows, `stock-pdv-${new Date().toISOString().slice(0,10)}.csv`);
+                }}
+                  className="w-full flex items-center justify-center gap-2 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-semibold transition-colors">
+                  <Download size={15} />Exporter le stock (CSV)
+                </button>
+              </div>
+
+              {/* Rapport Mouvements Stock */}
+              <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 p-6 space-y-4">
+                <div className="flex items-center gap-3">
+                  <div className="bg-sky-50 p-3 rounded-xl"><ArrowRightLeft className="text-sky-600 w-6 h-6" /></div>
+                  <div>
+                    <h3 className="font-bold text-slate-800">Journal Mouvements</h3>
+                    <p className="text-xs text-slate-400">Export CSV des mouvements de stock</p>
+                  </div>
+                </div>
+                <p className="text-sm text-slate-600">
+                  Inclut : type (entrée/sortie/ajustement), produit, quantité, motif, date.
+                </p>
+                <div className="text-xs text-slate-400 bg-slate-50 rounded-xl p-3">
+                  <p>Entrées 30j : <strong>{mvtRes?.stats.entrees30j.count ?? 0}</strong> ({mvtRes?.stats.entrees30j.quantite ?? 0} unités)</p>
+                  <p>Sorties 30j : <strong>{mvtRes?.stats.sorties30j.count ?? 0}</strong> ({mvtRes?.stats.sorties30j.quantite ?? 0} unités)</p>
+                </div>
+                <button onClick={() => {
+                  const rows = [
+                    ["Type", "Produit", "Quantité", "Motif", "Référence", "Date"],
+                    ...mvts.map(m => [
+                      m.type, m.produit.nom, String(m.quantite), m.motif ?? "", m.reference,
+                      new Date(m.dateMouvement).toLocaleDateString("fr-FR"),
+                    ]),
+                  ];
+                  exportCsv(rows, `mouvements-stock-${new Date().toISOString().slice(0,10)}.csv`);
+                }}
+                  className="w-full flex items-center justify-center gap-2 py-2.5 bg-sky-600 hover:bg-sky-700 text-white rounded-xl text-sm font-semibold transition-colors">
+                  <Download size={15} />Exporter les mouvements (CSV)
+                </button>
+              </div>
+
+              {/* Rapport Livraisons clients */}
+              <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 p-6 space-y-4">
+                <div className="flex items-center gap-3">
+                  <div className="bg-orange-50 p-3 rounded-xl"><Truck className="text-orange-600 w-6 h-6" /></div>
+                  <div>
+                    <h3 className="font-bold text-slate-800">Rapport Livraisons</h3>
+                    <p className="text-xs text-slate-400">Export CSV livraisons clients (packs)</p>
+                  </div>
+                </div>
+                <p className="text-sm text-slate-600">
+                  Inclut : pack, client, produits, date prévisionnelle, date livraison, statut.
+                </p>
+                <div className="text-xs text-slate-400 bg-slate-50 rounded-xl p-3">
+                  <p>Planifiées : <strong>{recPacksRes?.stats.planifiees ?? 0}</strong></p>
+                  <p>Livrées : <strong>{recPacksRes?.stats.livrees ?? 0}</strong></p>
+                </div>
+                <button onClick={handleExportRecPacks}
+                  className="w-full flex items-center justify-center gap-2 py-2.5 bg-orange-600 hover:bg-orange-700 text-white rounded-xl text-sm font-semibold transition-colors">
+                  <Download size={15} />Exporter les livraisons (CSV)
+                </button>
+              </div>
+
+              {/* Rapport Équipe */}
+              <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 p-6 space-y-4">
+                <div className="flex items-center gap-3">
+                  <div className="bg-violet-50 p-3 rounded-xl"><Users className="text-violet-600 w-6 h-6" /></div>
+                  <div>
+                    <h3 className="font-bold text-slate-800">Rapport Équipe</h3>
+                    <p className="text-xs text-slate-400">Export CSV des membres du PDV</p>
+                  </div>
+                </div>
+                <p className="text-sm text-slate-600">
+                  Inclut : nom, prénom, rôle, email, téléphone, état, statut d&apos;affectation.
+                </p>
+                <div className="text-xs text-slate-400 bg-slate-50 rounded-xl p-3">
+                  <p>Total : <strong>{equipeRes?.stats.total ?? 0}</strong> membres</p>
+                  <p>Actifs : <strong>{equipeRes?.stats.actifs ?? 0}</strong></p>
+                </div>
+                <button onClick={() => {
+                  const rows = [
+                    ["Prénom", "Nom", "Rôle", "Email", "Téléphone", "État"],
+                    ...equipe.map(g => [
+                      g.member.prenom, g.member.nom,
+                      roleLabels[g.role] ?? g.role,
+                      g.member.email, g.member.telephone ?? "",
+                      g.actif && g.member.etat === "ACTIF" ? "Actif" : "Inactif",
+                    ]),
+                  ];
+                  exportCsv(rows, `equipe-pdv-${new Date().toISOString().slice(0,10)}.csv`);
+                }}
+                  className="w-full flex items-center justify-center gap-2 py-2.5 bg-violet-600 hover:bg-violet-700 text-white rounded-xl text-sm font-semibold transition-colors">
+                  <Download size={15} />Exporter l&apos;équipe (CSV)
+                </button>
+              </div>
+
+              {/* Rapport Clients */}
+              <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 p-6 space-y-4">
+                <div className="flex items-center gap-3">
+                  <div className="bg-pink-50 p-3 rounded-xl"><UserCircle className="text-pink-600 w-6 h-6" /></div>
+                  <div>
+                    <h3 className="font-bold text-slate-800">Rapport Clients</h3>
+                    <p className="text-xs text-slate-400">Export CSV du fichier client</p>
+                  </div>
+                </div>
+                <p className="text-sm text-slate-600">
+                  Inclut : nom, prénom, téléphone, adresse, nombre de souscriptions, état.
+                </p>
+                <div className="text-xs text-slate-400 bg-slate-50 rounded-xl p-3">
+                  <p>Total clients : <strong>{clientsRes?.meta.total ?? 0}</strong></p>
+                </div>
+                <button onClick={handleExportClients}
+                  className="w-full flex items-center justify-center gap-2 py-2.5 bg-pink-600 hover:bg-pink-700 text-white rounded-xl text-sm font-semibold transition-colors">
+                  <Download size={15} />Exporter les clients (CSV)
+                </button>
+              </div>
             </div>
           </div>
         )}

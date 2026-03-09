@@ -15,36 +15,50 @@ export async function GET(req: Request) {
     const session = await getRPVSession();
     if (!session) return NextResponse.json({ message: "Accès refusé" }, { status: 403 });
 
+    const userId = parseInt(session.user.id);
+
+    // PDV du RPV — stock filtré sur ce PDV uniquement
+    const pdv = await prisma.pointDeVente.findUnique({ where: { rpvId: userId } });
+    if (!pdv) return NextResponse.json({ message: "Aucun PDV associé" }, { status: 400 });
+
     const { searchParams } = new URL(req.url);
     const page   = Math.max(1, Number(searchParams.get("page") ?? "1"));
     const limit  = Math.min(50, Math.max(5, Number(searchParams.get("limit") ?? "15")));
     const search = searchParams.get("search") ?? "";
     const statut = searchParams.get("statut") ?? "";
 
-    const where: Prisma.ProduitWhereInput = {};
+    // Filtrer uniquement les produits qui ont un StockSite sur ce PDV
+    const where: Prisma.ProduitWhereInput = {
+      stocks: { some: { pointDeVenteId: pdv.id } },
+    };
     if (search) {
-      where.OR = [
-        { nom:         { contains: search, mode: "insensitive" } },
-        { description: { contains: search, mode: "insensitive" } },
+      where.AND = [
+        { stocks: { some: { pointDeVenteId: pdv.id } } },
+        { OR: [
+          { nom:         { contains: search, mode: "insensitive" } },
+          { description: { contains: search, mode: "insensitive" } },
+        ]},
       ];
+      delete where.stocks;
     }
 
-    // Le stock est localisé dans StockSite — on fetch tout et on filtre en mémoire
+    // Stock filtré sur le PDV du RPV (pas le stock global)
     const allProduits = await prisma.produit.findMany({
       where,
       orderBy: { updatedAt: "desc" },
-      include: { stocks: { select: { quantite: true } } },
+      include: { stocks: { where: { pointDeVenteId: pdv.id }, select: { quantite: true } } },
     });
 
-    // Ajouter totalStock calculé à chaque produit
+    // totalStock = stock de CE PDV uniquement
     const produitsAvecStock = allProduits.map((p) => ({
       ...p,
-      totalStock: p.stocks.reduce((s, ss) => s + ss.quantite, 0),
+      totalStock: p.stocks[0]?.quantite ?? 0,
     }));
 
     // Filtres de statut en mémoire
     let filtered = produitsAvecStock;
-    if (statut === "RUPTURE")     filtered = produitsAvecStock.filter((p) => p.totalStock === 0);
+    if (statut === "EN_STOCK")     filtered = produitsAvecStock.filter((p) => p.totalStock > p.alerteStock);
+    if (statut === "RUPTURE")      filtered = produitsAvecStock.filter((p) => p.totalStock === 0);
     if (statut === "STOCK_FAIBLE") filtered = produitsAvecStock.filter((p) => p.totalStock > 0 && p.totalStock <= p.alerteStock);
 
     const total     = filtered.length;
@@ -57,7 +71,7 @@ export async function GET(req: Request) {
 
     return NextResponse.json({
       success: true,
-      data: paginated.map(({ stocks: _stocks, ...p }) => ({ ...p, prixUnitaire: Number(p.prixUnitaire) })),
+      data: paginated.map(({ stocks: _stocks, totalStock, ...p }) => ({ ...p, stock: totalStock, prixUnitaire: Number(p.prixUnitaire) })),
       stats: {
         totalProduits: produitsAvecStock.length,
         enRupture,

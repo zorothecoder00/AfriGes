@@ -25,14 +25,18 @@ export async function GET(req: Request) {
     const page      = Math.max(1, Number(searchParams.get("page")  || 1));
     const limit     = Math.min(50, Math.max(1, Number(searchParams.get("limit") || 15)));
     const skip      = (page - 1) * limit;
-    const search    = searchParams.get("search")    || "";
-    const statut    = searchParams.get("statut")    || "";
-    const dateDebut = searchParams.get("dateDebut");
-    const dateFin   = searchParams.get("dateFin");
+    const search        = searchParams.get("search")        || "";
+    const statut        = searchParams.get("statut")        || "";
+    const dateDebut     = searchParams.get("dateDebut");
+    const dateFin       = searchParams.get("dateFin");
+    const modePaiement  = searchParams.get("modePaiement")  || "";
+    const vendeurId     = searchParams.get("vendeurId")     || "";
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const where: any = { pointDeVenteId: pdv.id };
-    if (statut) where.statut = statut;
+    if (statut)       where.statut       = statut;
+    if (modePaiement) where.modePaiement = modePaiement;
+    if (vendeurId)    where.vendeurId    = parseInt(vendeurId);
     if (dateDebut || dateFin) {
       where.createdAt = {};
       if (dateDebut) where.createdAt.gte = new Date(dateDebut);

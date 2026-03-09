@@ -15,6 +15,10 @@ export async function GET(req: Request) {
     const session = await getRPVSession();
     if (!session) return NextResponse.json({ message: "Accès refusé" }, { status: 403 });
 
+    const userId = parseInt(session.user.id);
+    const pdv = await prisma.pointDeVente.findUnique({ where: { rpvId: userId } });
+    if (!pdv) return NextResponse.json({ message: "Aucun PDV associé" }, { status: 400 });
+
     const { searchParams } = new URL(req.url);
     const page     = Math.max(1, Number(searchParams.get("page") ?? "1"));
     const limit    = Math.min(50, Math.max(5, Number(searchParams.get("limit") ?? "20")));
@@ -22,7 +26,8 @@ export async function GET(req: Request) {
     const produitId= searchParams.get("produitId") ?? "";
     const search   = searchParams.get("search") ?? "";
 
-    const where: Prisma.MouvementStockWhereInput = {};
+    // Toujours filtré sur le PDV du RPV
+    const where: Prisma.MouvementStockWhereInput = { pointDeVenteId: pdv.id };
     if (type)      where.type      = type as TypeMouvement;
     if (produitId) where.produitId = Number(produitId);
     if (search) {
@@ -48,7 +53,7 @@ export async function GET(req: Request) {
         by:    ["type"],
         _sum:  { quantite: true },
         _count:{ id: true },
-        where: { dateMouvement: { gte: il30j } },
+        where: { pointDeVenteId: pdv.id, dateMouvement: { gte: il30j } },
       }),
     ]);
 

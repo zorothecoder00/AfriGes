@@ -13,6 +13,7 @@ import Link from "next/link";
 import SignOutButton from "@/components/SignOutButton";
 import NotificationBell from "@/components/NotificationBell";
 import MessagesLink from "@/components/MessagesLink";
+import UserPdvBadge from "@/components/UserPdvBadge";
 import { useApi, useMutation } from "@/hooks/useApi";
 import { formatCurrency, formatDate, formatDateTime } from "@/lib/format";
 
@@ -1039,6 +1040,7 @@ export default function CaissierPage() {
                 <Plus size={16} />
                 Encaisser
               </button>
+              <UserPdvBadge />
               <MessagesLink />
               <NotificationBell href="/dashboard/user/notifications" />
               <SignOutButton

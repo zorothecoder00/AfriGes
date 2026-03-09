@@ -13,4 +13,9 @@ Ce code :
 import { randomUUID } from "crypto";  permet de générer des UUID(sorte d'identifiant unique aléatoire)    
 
 
+mais on doit aussi vérifier les anciennes livraisons reçues par le client 
+  pour éviter qu'il recoive trop de produits ( qui dépasse même le montant
+  total du pack en question)  ( au niveau de l'onglet livraisons sur le dashboard/user/responsablePointDeVente)
+
+
 
