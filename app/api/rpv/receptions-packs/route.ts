@@ -142,12 +142,18 @@ export async function POST(req: Request) {
     }
 
     // 1. Récupérer et valider la souscription
+    const TYPES_MULTI_LIVRAISON = ["FAMILIAL", "EPARGNE_PRODUIT"];
+
     const souscription = await prisma.souscriptionPack.findUnique({
       where: { id: Number(souscriptionId) },
       include: {
-        pack:       { select: { nom: true, type: true } },
-        client:     { select: { id: true, nom: true, prenom: true, pointDeVenteId: true } },
-        receptions: { where: { statut: "LIVREE" }, select: { id: true } },
+        pack:   { select: { nom: true, type: true } },
+        client: { select: { id: true, nom: true, prenom: true, pointDeVenteId: true } },
+        // Récupérer les lignes des réceptions LIVREE pour calculer le montant déjà livré
+        receptions: {
+          where:   { statut: "LIVREE" },
+          select:  { id: true, lignes: { select: { quantite: true, prixUnitaire: true } } },
+        },
       },
     });
     if (!souscription)
@@ -155,10 +161,13 @@ export async function POST(req: Request) {
     if (souscription.client?.pointDeVenteId !== pdv.id)
       return NextResponse.json({ error: "Ce client n'appartient pas à votre PDV" }, { status: 403 });
 
-    // Vérifier l'éligibilité selon le type de pack
     const { statut, formuleRevendeur, pack } = souscription;
+    const hasLivrees        = souscription.receptions.length > 0;
+    const isMultiLivraison  = TYPES_MULTI_LIVRAISON.includes(pack.type);
+
+    // Vérifier l'éligibilité selon le type de pack
     let eligible = false;
-    if (souscription.receptions.length === 0) {
+    if (!hasLivrees || isMultiLivraison) {
       switch (pack.type) {
         case "ALIMENTAIRE":
           eligible = statut === "COMPLETE"; break;
@@ -177,7 +186,7 @@ export async function POST(req: Request) {
         eligible = false;
     }
     if (!eligible) {
-      const msg = souscription.receptions.length > 0
+      const msg = hasLivrees && !isMultiLivraison
         ? "Ce client a déjà reçu une livraison pour cette souscription"
         : `Souscription non éligible (type : ${pack.type}, statut : ${statut})`;
       return NextResponse.json({ error: msg }, { status: 400 });
@@ -221,9 +230,27 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: `Stock insuffisant pour "${produit.nom}" : ${stockDispo} dispo., ${l.quantite} demandé(s)` }, { status: 400 });
     }
 
+    // 4. Vérifier que le montant cumulé (déjà livré + nouvelle livraison) ne dépasse pas le montant total du pack
+    const montantNouvelleLivraison = lignesInput.reduce(
+      (s, l) => s + Number(produitMap.get(l.produitId)!.prixUnitaire) * l.quantite,
+      0
+    );
+    const montantDejaLivre = souscription.receptions.reduce(
+      (sum, r) => sum + r.lignes.reduce((s2, l) => s2 + Number(l.prixUnitaire) * l.quantite, 0),
+      0
+    );
+    const montantTotalSouscription = Number(souscription.montantTotal);
+    const montantCumule = montantDejaLivre + montantNouvelleLivraison;
+    if (montantCumule > montantTotalSouscription) {
+      const capaciteRestante = montantTotalSouscription - montantDejaLivre;
+      return NextResponse.json({
+        error: `Le montant de cette livraison (${montantNouvelleLivraison.toLocaleString("fr-FR")} FCFA) dépasse la capacité restante du pack. Déjà livré : ${montantDejaLivre.toLocaleString("fr-FR")} FCFA, capacité restante : ${capaciteRestante.toLocaleString("fr-FR")} FCFA (total pack : ${montantTotalSouscription.toLocaleString("fr-FR")} FCFA).`,
+      }, { status: 400 });
+    }
+
     const rpvNom    = `${session.user.prenom ?? ""} ${session.user.nom ?? ""}`.trim() || "RPV";
     const clientNom = souscription.client ? `${souscription.client.prenom} ${souscription.client.nom}` : "—";
-    const montantTotal = lignesInput.reduce((s, l) => s + Number(produitMap.get(l.produitId)!.prixUnitaire) * l.quantite, 0);
+    const montantTotal = montantNouvelleLivraison;
 
     const reception = await prisma.$transaction(async (tx) => {
       const rec = await tx.receptionProduitPack.create({

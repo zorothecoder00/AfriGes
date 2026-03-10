@@ -12,6 +12,16 @@ export async function GET(req: Request) {
     const session = await getAgentTerrainSession();
     if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
 
+    // Résoudre le PDV de l'agent terrain
+    const aff = await prisma.gestionnaireAffectation.findFirst({
+      where: { userId: parseInt(session.user.id), actif: true },
+      select: { pointDeVenteId: true },
+    });
+    const pdvId = aff?.pointDeVenteId;
+    if (!pdvId) {
+      return NextResponse.json({ error: "Aucun point de vente associé à cet agent" }, { status: 400 });
+    }
+
     const { searchParams } = new URL(req.url);
     const search = searchParams.get("search") ?? "";
     const typePack = searchParams.get("type") ?? "";
@@ -19,6 +29,8 @@ export async function GET(req: Request) {
     const souscriptions = await prisma.souscriptionPack.findMany({
       where: {
         statut: { in: ["EN_ATTENTE", "ACTIF"] },
+        // Filtrer uniquement les clients du PDV de l'agent
+        client: { pointDeVenteId: pdvId },
         ...(typePack ? { pack: { type: typePack as never } } : {}),
         ...(search
           ? {
@@ -26,8 +38,6 @@ export async function GET(req: Request) {
                 { client: { nom: { contains: search, mode: "insensitive" } } },
                 { client: { prenom: { contains: search, mode: "insensitive" } } },
                 { client: { telephone: { contains: search } } },
-                { user: { nom: { contains: search, mode: "insensitive" } } },
-                { user: { prenom: { contains: search, mode: "insensitive" } } },
               ],
             }
           : {}),

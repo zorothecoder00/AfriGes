@@ -488,6 +488,8 @@ model User {
   auditLogs            AuditLog[]
   notifications        Notification[]
   piecesJustificatives PieceJustificative[]
+  userPermissions      UserPermission[]
+  securityLogs         SecurityLog[]
   messagesEnvoyes      Message[]            @relation("MessagesEnvoyes")
   messagesRecus        Message[]            @relation("MessagesRecus")
 
@@ -1849,4 +1851,63 @@ model DocumentBibliotheque {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+// ============================================================
+// SUPER ADMIN — SYSTÈME
+// ============================================================
+
+/// Paramètres globaux de la plateforme (clé-valeur)
+model SystemSetting {
+  id        Int      @id @default(autoincrement())
+  key       String   @unique
+  value     String
+  category  String   @default("platform")
+  updatedAt DateTime @updatedAt
+  updatedBy Int?
+}
+
+/// Journal de sécurité (connexions, tentatives, déconnexions forcées…)
+model SecurityLog {
+  id        Int      @id @default(autoincrement())
+  userId    Int?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  userEmail String?
+  action    String
+  ipAddress String?
+  userAgent String?
+  details   String?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([createdAt])
+  @@index([action])
+}
+
+/// Permissions personnalisées par utilisateur
+model UserPermission {
+  id         Int      @id @default(autoincrement())
+  userId     Int
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  module     String
+  permission String
+  granted    Boolean  @default(true)
+  grantedBy  Int?
+  notes      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([userId, module, permission])
+  @@index([userId])
+}
+
+/// Modules de la plateforme — activation / désactivation
+model SystemModule {
+  id          Int      @id @default(autoincrement())
+  key         String   @unique
+  nom         String
+  description String?
+  actif       Boolean  @default(true)
+  updatedAt   DateTime @updatedAt
+  updatedBy   Int?
 }

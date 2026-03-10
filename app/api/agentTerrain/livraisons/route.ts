@@ -8,7 +8,7 @@ import { getAgentTerrainSession } from "@/lib/authAgentTerrain";
  * Retourne les livraisons planifiées (PLANIFIEE) en attente de confirmation,
  * ainsi que les livraisons récemment confirmées (LIVREE, 30 derniers jours).
  */
-export async function GET(req: Request) {
+export async function GET(_req: Request) {
   try {
     const session = await getAgentTerrainSession();
     if (!session) {
@@ -21,13 +21,12 @@ export async function GET(req: Request) {
       select: { pointDeVenteId: true },
     });
     const pdvId = aff?.pointDeVenteId;
-    // Filtre PDV : uniquement les livraisons pour des clients de son PDV
-    const pdvFilter = pdvId ? { souscription: { client: { pointDeVenteId: pdvId } } } : {};
+    if (!pdvId) {
+      return NextResponse.json({ error: "Aucun point de vente associé à cet agent" }, { status: 400 });
+    }
 
-    // Permettre un paramètre optionnel pour ignorer le filtre PDV
-    const { searchParams } = new URL(req.url);
-    const all = searchParams.get("all") === "true";
-    const where = all ? {} : pdvFilter;
+    // Filtre strict : uniquement les livraisons pour des clients de son PDV
+    const where = { souscription: { client: { pointDeVenteId: pdvId } } };
 
     const since30j = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 

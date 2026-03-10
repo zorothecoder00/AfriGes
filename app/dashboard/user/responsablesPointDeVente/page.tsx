@@ -206,6 +206,7 @@ interface ReceptionsPacksResponse {
 interface SouscriptionActive {
   id: number; statut: string;
   montantTotal: number; montantVerse: number; montantRestant: number;
+  montantDejaLivre: number;
   pack: { nom: string; type: string; produitCible: { id: number; nom: string; prixUnitaire: number } | null };
   client: { id: number; nom: string; prenom: string; telephone: string } | null;
 }
@@ -1329,11 +1330,21 @@ export default function ResponsablePDVPage() {
       {/* ── Modal Planifier livraison pack ── */}
       {modalPlanifLiv && (() => {
         const sousc = souscActives?.data.find((x) => x.id === Number(planifSouscId));
-        const produitsStock = produits; // produits du PDV déjà chargés
+        const produitsStock = produits;
         const totalLivraison = planifLignes.reduce((sum, l) => {
           const p = produits.find((x) => x.id === Number(l.produitId));
           return sum + (p ? p.prixUnitaire * Number(l.quantite || 0) : 0);
         }, 0);
+
+        // Calculs de budget pour la validation
+        const montantDejaLivre   = sousc?.montantDejaLivre ?? 0;
+        const montantTotalPack   = sousc?.montantTotal ?? 0;
+        const capaciteRestante   = montantTotalPack - montantDejaLivre;
+        const montantApresLiv    = montantDejaLivre + totalLivraison;
+        const depasseBudget      = sousc != null && totalLivraison > 0 && montantApresLiv > montantTotalPack;
+        const pctDejaLivre       = montantTotalPack > 0 ? Math.min(100, Math.round((montantDejaLivre / montantTotalPack) * 100)) : 0;
+        const pctNouvelleLiv     = montantTotalPack > 0 ? Math.min(100 - pctDejaLivre, Math.round((totalLivraison / montantTotalPack) * 100)) : 0;
+
         return (
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
             <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg my-4">
@@ -1374,10 +1385,40 @@ export default function ResponsablePDVPage() {
 
                 {/* Infos souscription sélectionnée */}
                 {sousc && (
-                  <div className="bg-orange-50 border border-orange-200 rounded-xl p-3 grid grid-cols-3 gap-2 text-xs">
-                    <div><p className="text-orange-500 font-medium">Pack</p><p className="font-bold text-orange-800">{sousc.pack.nom}</p></div>
-                    <div><p className="text-orange-500 font-medium">Versé</p><p className="font-bold text-orange-800">{sousc.montantVerse.toLocaleString("fr-FR")} FCFA</p></div>
-                    <div><p className="text-orange-500 font-medium">Restant</p><p className="font-bold text-orange-800">{sousc.montantRestant.toLocaleString("fr-FR")} FCFA</p></div>
+                  <div className="bg-orange-50 border border-orange-200 rounded-xl p-3 space-y-3 text-xs">
+                    <div className="grid grid-cols-3 gap-2">
+                      <div><p className="text-orange-500 font-medium">Pack</p><p className="font-bold text-orange-800">{sousc.pack.nom}</p></div>
+                      <div><p className="text-orange-500 font-medium">Versé</p><p className="font-bold text-orange-800">{sousc.montantVerse.toLocaleString("fr-FR")} FCFA</p></div>
+                      <div><p className="text-orange-500 font-medium">Restant dû</p><p className="font-bold text-orange-800">{sousc.montantRestant.toLocaleString("fr-FR")} FCFA</p></div>
+                    </div>
+                    {/* Jauge budget livraison */}
+                    <div className="pt-1">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-orange-600 font-semibold">Budget livraison</span>
+                        <span className="font-bold text-orange-900">{montantTotalPack.toLocaleString("fr-FR")} FCFA</span>
+                      </div>
+                      <div className="w-full bg-orange-100 rounded-full h-2.5 overflow-hidden">
+                        <div className="h-full flex">
+                          {pctDejaLivre > 0 && (
+                            <div className="bg-emerald-500 h-full transition-all" style={{ width: `${pctDejaLivre}%` }} title={`Déjà livré : ${montantDejaLivre.toLocaleString("fr-FR")} FCFA`} />
+                          )}
+                          {pctNouvelleLiv > 0 && (
+                            <div className={`h-full transition-all ${depasseBudget ? "bg-red-500" : "bg-orange-400"}`} style={{ width: `${pctNouvelleLiv}%` }} title={`Nouvelle livraison : ${totalLivraison.toLocaleString("fr-FR")} FCFA`} />
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between mt-1.5 text-[11px]">
+                        <span className="text-slate-500">
+                          {montantDejaLivre > 0
+                            ? <><span className="inline-block w-2 h-2 rounded-full bg-emerald-500 mr-1" />Déjà livré : <strong>{montantDejaLivre.toLocaleString("fr-FR")} FCFA</strong></>
+                            : "Aucune livraison antérieure"
+                          }
+                        </span>
+                        <span className={`font-semibold ${depasseBudget ? "text-red-600" : "text-orange-700"}`}>
+                          Capacité restante : {capaciteRestante.toLocaleString("fr-FR")} FCFA
+                        </span>
+                      </div>
+                    </div>
                   </div>
                 )}
 
@@ -1420,11 +1461,31 @@ export default function ResponsablePDVPage() {
                       );
                     })}
                   </div>
-                  {/* Total livraison */}
+                  {/* Récapitulatif montant + alerte dépassement */}
                   {totalLivraison > 0 && (
-                    <div className="mt-3 flex items-center justify-between bg-slate-50 rounded-xl px-4 py-2.5 border border-slate-200">
-                      <span className="text-sm font-semibold text-slate-600">Total livraison</span>
-                      <span className="text-base font-bold text-orange-700">{totalLivraison.toLocaleString("fr-FR")} FCFA</span>
+                    <div className={`mt-3 rounded-xl px-4 py-3 border ${depasseBudget ? "bg-red-50 border-red-300" : "bg-slate-50 border-slate-200"}`}>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-semibold text-slate-600">Total cette livraison</span>
+                        <span className={`text-base font-bold ${depasseBudget ? "text-red-600" : "text-orange-700"}`}>
+                          {totalLivraison.toLocaleString("fr-FR")} FCFA
+                        </span>
+                      </div>
+                      {sousc && (
+                        <div className="flex items-center justify-between mt-1 border-t border-dashed border-slate-200 pt-1.5">
+                          <span className="text-xs text-slate-500">Cumul total (déjà livré + cette livraison)</span>
+                          <span className={`text-xs font-bold ${depasseBudget ? "text-red-600" : "text-emerald-600"}`}>
+                            {montantApresLiv.toLocaleString("fr-FR")} / {montantTotalPack.toLocaleString("fr-FR")} FCFA
+                          </span>
+                        </div>
+                      )}
+                      {depasseBudget && (
+                        <div className="mt-2 flex items-start gap-2 bg-red-100 rounded-lg px-3 py-2">
+                          <AlertTriangle size={14} className="text-red-600 mt-0.5 shrink-0" />
+                          <p className="text-xs text-red-700 font-medium">
+                            Dépassement de {(montantApresLiv - montantTotalPack).toLocaleString("fr-FR")} FCFA. La livraison ne peut pas dépasser la capacité restante du pack ({capaciteRestante.toLocaleString("fr-FR")} FCFA).
+                          </p>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -1449,7 +1510,7 @@ export default function ResponsablePDVPage() {
                   <button type="button" onClick={() => setModalPlanifLiv(false)}
                     className="flex-1 py-2.5 border border-slate-200 rounded-xl text-slate-600 text-sm hover:bg-slate-50">Annuler</button>
                   <button type="submit"
-                    disabled={planifiantLiv || !planifSouscId || planifLignes.every((l) => !l.produitId)}
+                    disabled={planifiantLiv || !planifSouscId || planifLignes.every((l) => !l.produitId) || depasseBudget}
                     className="flex-1 py-2.5 bg-orange-600 hover:bg-orange-700 disabled:opacity-50 text-white rounded-xl text-sm font-semibold transition-colors">
                     {planifiantLiv ? "Planification…" : "Planifier la livraison"}
                   </button>

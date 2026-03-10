@@ -3,9 +3,10 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
   TrendingUp, Users, UserCheck, Package, Layers,
-  ShoppingCart, MoreVertical, Download, Plus, ChevronDown, MessageSquare, Store,
+  ShoppingCart, MoreVertical, Download, Plus, ChevronDown, MessageSquare, Store, Shield,
 } from 'lucide-react';
 import Link from "next/link";
+import { useSession } from 'next-auth/react';
 import NotificationBell from '@/components/NotificationBell';
 import SignOutButton from '@/components/SignOutButton';
 import MessageModal from '@/components/MessageModal';
@@ -88,6 +89,8 @@ function fmtDateShort(iso: string) {
 // ─── Composant principal ──────────────────────────────────────────────────────
 
 export default function AfriGesDashboard() {
+  const { data: session } = useSession();
+  const isSuperAdmin = session?.user?.role === 'SUPER_ADMIN';
   const [selectedPeriod, setSelectedPeriod] = useState<'7' | '30' | '90'>('30');
   const [showMenu, setShowMenu] = useState(false);
   const [showMessageModal, setShowMessageModal] = useState(false);
@@ -266,6 +269,18 @@ export default function AfriGesDashboard() {
                 <Link href="/dashboard/admin/pdv"    className="w-full flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-50 rounded-xl transition-all"><Store size={20} /><span>Points de vente</span></Link>
               </nav>
             </div>
+            {isSuperAdmin && (
+              <div className="p-4 border-b border-slate-100">
+                <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Super Admin</h3>
+                <nav className="space-y-1">
+                  <Link href="/dashboard/admin/superadmin"
+                    className="w-full flex items-center gap-3 px-4 py-3 text-violet-600 hover:bg-violet-50 rounded-xl transition-all font-medium border border-violet-100">
+                    <Shield size={20} />
+                    <span>Administration système</span>
+                  </Link>
+                </nav>
+              </div>
+            )}
             <div className="p-4">
               <SignOutButton
                 redirectTo="/auth/login?logout=success"

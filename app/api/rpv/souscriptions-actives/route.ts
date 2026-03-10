@@ -42,18 +42,40 @@ export async function GET() {
           },
         },
         client: { select: { id: true, nom: true, prenom: true, telephone: true } },
-        receptions: { where: { statut: "LIVREE" }, select: { id: true } },
+        // Inclure les lignes des réceptions LIVREE pour calculer le montant déjà livré
+        receptions: {
+          where: { statut: "LIVREE" },
+          select: {
+            id: true,
+            lignes: { select: { quantite: true, prixUnitaire: true } },
+          },
+        },
       },
       orderBy: { createdAt: "desc" },
     });
 
+    // Types autorisant plusieurs livraisons partielles
+    const TYPES_MULTI_LIVRAISON = ["FAMILIAL", "EPARGNE_PRODUIT"];
+
     // Appliquer les règles d'éligibilité par type
     const eligibles = souscriptions.filter((s) => {
-      // Déjà livré → pas éligible pour un nouveau cycle (sauf FAMILIAL/EPARGNE géré ailleurs)
-      if (s.receptions.length > 0) return false;
+      const hasLivrees = s.receptions.length > 0;
+
+      // Pour les types mono-livraison : déjà livré = plus éligible
+      if (hasLivrees && !TYPES_MULTI_LIVRAISON.includes(s.pack.type)) return false;
 
       // EN_ATTENTE uniquement autorisé pour REVENDEUR F2
       if (s.statut === "EN_ATTENTE" && !(s.pack.type === "REVENDEUR" && s.formuleRevendeur === "FORMULE_2")) return false;
+
+      // Pour les types multi-livraison déjà entamés : vérifier qu'il reste de la capacité
+      if (hasLivrees && TYPES_MULTI_LIVRAISON.includes(s.pack.type)) {
+        const montantDejaLivre = s.receptions.reduce(
+          (sum, r) => sum + r.lignes.reduce((s2, l) => s2 + Number(l.prixUnitaire) * l.quantite, 0),
+          0
+        );
+        if (montantDejaLivre >= Number(s.montantTotal)) return false; // pack entièrement livré
+        return ["ACTIF", "COMPLETE"].includes(s.statut);
+      }
 
       switch (s.pack.type) {
         case "ALIMENTAIRE":
@@ -73,23 +95,30 @@ export async function GET() {
 
     return NextResponse.json({
       success: true,
-      data: eligibles.map((s) => ({
-        id:             s.id,
-        statut:         s.statut,
-        montantTotal:   Number(s.montantTotal),
-        montantVerse:   Number(s.montantVerse),
-        montantRestant: Number(s.montantRestant),
-        pack: {
-          nom:          s.pack.nom,
-          type:         s.pack.type,
-          produitCible: s.pack.produitCible
-            ? { id: s.pack.produitCible.id, nom: s.pack.produitCible.nom, prixUnitaire: Number(s.pack.produitCible.prixUnitaire) }
+      data: eligibles.map((s) => {
+        const montantDejaLivre = s.receptions.reduce(
+          (sum, r) => sum + r.lignes.reduce((s2, l) => s2 + Number(l.prixUnitaire) * l.quantite, 0),
+          0
+        );
+        return {
+          id:               s.id,
+          statut:           s.statut,
+          montantTotal:     Number(s.montantTotal),
+          montantVerse:     Number(s.montantVerse),
+          montantRestant:   Number(s.montantRestant),
+          montantDejaLivre,
+          pack: {
+            nom:          s.pack.nom,
+            type:         s.pack.type,
+            produitCible: s.pack.produitCible
+              ? { id: s.pack.produitCible.id, nom: s.pack.produitCible.nom, prixUnitaire: Number(s.pack.produitCible.prixUnitaire) }
+              : null,
+          },
+          client: s.client
+            ? { id: s.client.id, nom: s.client.nom, prenom: s.client.prenom, telephone: s.client.telephone }
             : null,
-        },
-        client: s.client
-          ? { id: s.client.id, nom: s.client.nom, prenom: s.client.prenom, telephone: s.client.telephone }
-          : null,
-      })),
+        };
+      }),
     });
   } catch (error) {
     console.error("GET /api/rpv/souscriptions-actives", error);
