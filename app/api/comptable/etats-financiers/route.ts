@@ -34,11 +34,12 @@ export async function GET(req: Request) {
       souscriptionsStats,
     ] = await Promise.all([
 
-      // 1. Valeur du stock (actif — snapshot actuel)
+      // 1. Valeur du stock (actif — snapshot actuel, agrégée depuis StockSite)
       prisma.$queryRaw<{ valeur: string; nb: string }[]>`
-        SELECT COALESCE(SUM(stock * "prixUnitaire"), 0)::text AS valeur,
-               COUNT(*)::text AS nb
-        FROM "Produit"
+        SELECT COALESCE(SUM(ss.quantite * p."prixUnitaire"), 0)::text AS valeur,
+               COUNT(DISTINCT p.id)::text AS nb
+        FROM "Produit" p
+        LEFT JOIN "StockSite" ss ON ss."produitId" = p.id
       `,
 
       // 2. Créances packs = montantRestant souscriptions ACTIF (snapshot actuel)
