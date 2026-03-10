@@ -1,16 +1,16 @@
 import { NextResponse } from "next/server";
 import { Prisma, PrioriteNotification } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { getCaissierSession } from "@/lib/authCaissier";
+import { getCaissierSession, getCaissierPdvId, souscriptionPdvWhere } from "@/lib/authCaissier";
 import { getRPVSession } from "@/lib/authRPV";
 import { notifyRoles, auditLog } from "@/lib/notifications";
 
 /**
- * GET /api/caissier/cloture  
+ * GET /api/caissier/cloture
  *
  * Retourne :
- *  - L'état de la journée en cours (versements packs collectés)
- *  - L'historique des clôtures passées (paginé)
+ *  - L'état de la journée en cours (versements packs collectés) — scoped au PDV du caissier
+ *  - L'historique des clôtures passées (paginé) — scoped au PDV du caissier
  *  - Si la journée en cours a déjà été clôturée
  */
 export async function GET(req: Request) {
@@ -20,6 +20,10 @@ export async function GET(req: Request) {
       return NextResponse.json({ message: "Accès refusé" }, { status: 403 });
     }
 
+    const userId  = parseInt(session.user.id);
+    const isAdmin = session.user.role === "ADMIN" || session.user.role === "SUPER_ADMIN";
+    const pdvId   = isAdmin ? null : await getCaissierPdvId(userId);
+
     const { searchParams } = new URL(req.url);
     const page  = Math.max(1, Number(searchParams.get("page")  ?? "1"));
     const limit = Math.min(30, Math.max(5, Number(searchParams.get("limit") ?? "10")));
@@ -28,9 +32,17 @@ export async function GET(req: Request) {
     const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
     const endOfDay   = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
 
-    // Versements packs collectés aujourd'hui
+    // Filtre souscription PDV (si caissier)
+    const souscriptionFilter = pdvId ? souscriptionPdvWhere(pdvId) : {};
+    // Filtre opérations via session du caissier
+    const sessionFilter = isAdmin ? {} : { session: { caissierId: userId } };
+
+    // Versements packs collectés aujourd'hui — scoped au PDV
     const versementsJour = await prisma.versementPack.findMany({
-      where: { datePaiement: { gte: startOfDay, lte: endOfDay } },
+      where: {
+        datePaiement: { gte: startOfDay, lte: endOfDay },
+        souscription: souscriptionFilter,
+      },
       orderBy: { datePaiement: "asc" },
       include: {
         souscription: {
@@ -43,9 +55,9 @@ export async function GET(req: Request) {
       },
     });
 
-    // Opérations caisse du jour (encaissements + décaissements)
+    // Opérations caisse du jour — scoped au caissier via session
     const operationsJour = await prisma.operationCaisse.findMany({
-      where: { createdAt: { gte: startOfDay, lte: endOfDay } },
+      where: { ...sessionFilter, createdAt: { gte: startOfDay, lte: endOfDay } },
       orderBy: { createdAt: "asc" },
     });
     const encaissementsJour = operationsJour.filter((o) => o.type === "ENCAISSEMENT");
@@ -68,12 +80,15 @@ export async function GET(req: Request) {
     );
     const nbClients = clientsSet.size;
 
-    // Clôture déjà effectuée aujourd'hui ?
+    // Clôture déjà effectuée aujourd'hui pour ce PDV/caissier ?
     const clotureDuJour = await prisma.clotureCaisse.findFirst({
-      where: { date: { gte: startOfDay, lte: endOfDay } },
+      where: {
+        date: { gte: startOfDay, lte: endOfDay },
+        ...(isAdmin ? {} : pdvId ? { pointDeVenteId: pdvId } : { session: { caissierId: userId } }),
+      },
     });
 
-    // Bilan par pack (remplace bilanParProduit)
+    // Bilan par pack
     const bilanPacks: Record<string, { nom: string; quantite: number; montant: number }> = {};
     for (const v of versementsJour) {
       const nom = v.souscription.pack.nom;
@@ -83,14 +98,21 @@ export async function GET(req: Request) {
     }
     const bilanParProduit = Object.values(bilanPacks).sort((a, b) => b.montant - a.montant);
 
-    // Historique clôtures (paginé)
+    // Historique clôtures — scoped au PDV du caissier
+    const cloturesWhere = isAdmin
+      ? {}
+      : pdvId
+        ? { pointDeVenteId: pdvId }
+        : { session: { caissierId: userId } };
+
     const [clotures, totalClotures] = await Promise.all([
       prisma.clotureCaisse.findMany({
+        where:   cloturesWhere,
         orderBy: { date: "desc" },
         skip:    (page - 1) * limit,
         take:    limit,
       }),
-      prisma.clotureCaisse.count(),
+      prisma.clotureCaisse.count({ where: cloturesWhere }),
     ]);
 
     return NextResponse.json({
@@ -117,7 +139,7 @@ export async function GET(req: Request) {
           const person = v.souscription.client ?? v.souscription.user;
           return {
             id:        v.id,
-            produit:   v.souscription.pack.nom,  // label du pack (affiché comme "produit")
+            produit:   v.souscription.pack.nom,
             quantite:  1,
             montant:   Number(v.montant),
             clientNom: person ? `${person.prenom} ${person.nom}` : "—",
@@ -182,6 +204,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ message: "Accès refusé" }, { status: 403 });
     }
 
+    const userId  = parseInt(session.user.id);
+    const isAdmin = session.user.role === "ADMIN" || session.user.role === "SUPER_ADMIN";
+    const pdvId   = isAdmin ? null : await getCaissierPdvId(userId);
+
     const body     = await req.json().catch(() => ({}));
     const notes    = typeof body.notes === "string" ? body.notes.trim() || null : null;
     const soldeReel = body.soldeReel !== undefined && body.soldeReel !== "" ? Number(body.soldeReel) : null;
@@ -190,10 +216,23 @@ export async function POST(req: Request) {
     const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
     const endOfDay   = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
 
-    // Vérifier si déjà clôturée
-    const existante = await prisma.clotureCaisse.findFirst({
-      where: { date: { gte: startOfDay, lte: endOfDay } },
+    // Session active du caissier
+    const sessionActive = await prisma.sessionCaisse.findFirst({
+      where: {
+        statut: { in: ["OUVERTE", "SUSPENDUE"] },
+        ...(isAdmin ? {} : { caissierId: userId }),
+      },
+      orderBy: { createdAt: "desc" },
     });
+
+    // Vérifier si déjà clôturée pour ce PDV/caissier aujourd'hui
+    const clotureCheck = isAdmin
+      ? { date: { gte: startOfDay, lte: endOfDay } }
+      : pdvId
+        ? { date: { gte: startOfDay, lte: endOfDay }, pointDeVenteId: pdvId }
+        : { date: { gte: startOfDay, lte: endOfDay }, session: { caissierId: userId } };
+
+    const existante = await prisma.clotureCaisse.findFirst({ where: clotureCheck });
     if (existante) {
       return NextResponse.json(
         { message: "La caisse de ce jour a déjà été clôturée" },
@@ -201,9 +240,16 @@ export async function POST(req: Request) {
       );
     }
 
-    // Stats VersementPack du jour
+    // Filtre souscription PDV
+    const souscriptionFilter = pdvId ? souscriptionPdvWhere(pdvId) : {};
+    const sessionFilter = isAdmin ? {} : { session: { caissierId: userId } };
+
+    // Stats VersementPack du jour — scoped au PDV
     const versementsJour = await prisma.versementPack.findMany({
-      where: { datePaiement: { gte: startOfDay, lte: endOfDay } },
+      where: {
+        datePaiement: { gte: startOfDay, lte: endOfDay },
+        souscription: souscriptionFilter,
+      },
       include: { souscription: { select: { clientId: true, userId: true } } },
     });
     const totalVentes  = versementsJour.length;
@@ -219,26 +265,21 @@ export async function POST(req: Request) {
     );
     const nbClients = clientsSet.size;
 
-    // Session active → fonds de caisse
-    const sessionActive = await prisma.sessionCaisse.findFirst({
-      where: { statut: { in: ["OUVERTE", "SUSPENDUE"] } },
-      orderBy: { createdAt: "desc" },
-    });
     const fondsCaisse = sessionActive ? Number(sessionActive.fondsCaisse) : 0;
 
-    // Agrégats OperationCaisse du jour
+    // Agrégats OperationCaisse du jour — scoped au caissier
     const [encaissAgg, decaissAgg, transfertAgg] = await Promise.all([
       prisma.operationCaisse.aggregate({
         _sum: { montant: true },
-        where: { type: "ENCAISSEMENT", createdAt: { gte: startOfDay, lte: endOfDay } },
+        where: { ...sessionFilter, type: "ENCAISSEMENT", createdAt: { gte: startOfDay, lte: endOfDay } },
       }),
       prisma.operationCaisse.aggregate({
         _sum: { montant: true },
-        where: { type: "DECAISSEMENT", createdAt: { gte: startOfDay, lte: endOfDay } },
+        where: { ...sessionFilter, type: "DECAISSEMENT", createdAt: { gte: startOfDay, lte: endOfDay } },
       }),
       prisma.transfertCaisse.aggregate({
         _sum: { montant: true },
-        where: { createdAt: { gte: startOfDay, lte: endOfDay } },
+        where: { ...sessionFilter, createdAt: { gte: startOfDay, lte: endOfDay } },
       }),
     ]);
 
@@ -255,6 +296,7 @@ export async function POST(req: Request) {
         data: {
           date:                    startOfDay,
           caissierNom,
+          pointDeVenteId:          sessionActive?.pointDeVenteId ?? pdvId ?? null,
           totalVentes,
           montantTotal:            new Prisma.Decimal(montantTotal),
           panierMoyen:             new Prisma.Decimal(panierMoyen),
@@ -279,7 +321,7 @@ export async function POST(req: Request) {
         });
       }
 
-      await auditLog(tx, parseInt(session.user.id), "CLOTURE_CAISSE", "ClotureCaisse", created.id);
+      await auditLog(tx, userId, "CLOTURE_CAISSE", "ClotureCaisse", created.id);
 
       const dateStr = startOfDay.toLocaleDateString("fr-FR");
       await notifyRoles(

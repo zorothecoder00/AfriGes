@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getSuperAdminSession } from "@/lib/authSuperAdmin";
+import { getAdminSession } from "@/lib/authAdmin";
 
 export async function GET() {
   try {
-    const session = await getSuperAdminSession();
+    const session = await getAdminSession();
     if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
 
     const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
@@ -30,8 +30,8 @@ export async function GET() {
       prisma.pointDeVente.count({ where: { actif: true } }),
       prisma.venteDirecte.count({ where: { createdAt: { gte: since24h } } }),
       prisma.venteDirecte.aggregate({ _sum: { montantTotal: true }, where: { statut: "CONFIRMEE" } }),
-      prisma.produit.count({ where: { stock: 0 } }),
-      prisma.produit.findMany({ select: { stock: true, alerteStock: true } }),
+      prisma.produit.count({ where: { stocks: { none: { quantite: { gt: 0 } } } } }),
+      prisma.produit.findMany({ select: { alerteStock: true, stocks: { select: { quantite: true } } } }),
       prisma.auditLog.findMany({
         take: 20,
         orderBy: { createdAt: "desc" },
@@ -44,7 +44,10 @@ export async function GET() {
       prisma.caissePDV.count({ where: { statut: "OUVERTE" } }).catch(() => 0),
     ]);
 
-    const stockFaible = produitsTous.filter((p) => p.stock > 0 && p.alerteStock > 0 && p.stock <= p.alerteStock).length;
+    const stockFaible = produitsTous.filter((p) => {
+      const total = p.stocks.reduce((s, ss) => s + ss.quantite, 0);
+      return total > 0 && p.alerteStock > 0 && total <= p.alerteStock;
+    }).length;
 
     const alertes: { type: string; message: string; priorite: string }[] = [];
     if (produitsRupture > 0)

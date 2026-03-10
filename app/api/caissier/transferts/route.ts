@@ -25,7 +25,11 @@ export async function GET(req: Request) {
     const page      = Math.max(1, parseInt(searchParams.get("page") ?? "1"));
     const limit     = Math.min(50, parseInt(searchParams.get("limit") ?? "20"));
 
-    const where: Record<string, unknown> = {};
+    const userId  = parseInt(auth.user.id);
+    const isAdmin = auth.user.role === "ADMIN" || auth.user.role === "SUPER_ADMIN";
+    const sessionScope = isAdmin ? {} : { session: { caissierId: userId } };
+
+    const where: Record<string, unknown> = { ...sessionScope };
     if (sessionId) where.sessionId = sessionId;
 
     const [transferts, total] = await Promise.all([
@@ -38,12 +42,12 @@ export async function GET(req: Request) {
       prisma.transfertCaisse.count({ where }),
     ]);
 
-    // Total du jour
+    // Total du jour pour le périmètre du caissier
     const now        = new Date();
     const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const endOfDay   = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
 
-    const todayWhere: Record<string, unknown> = { createdAt: { gte: startOfDay, lte: endOfDay } };
+    const todayWhere: Record<string, unknown> = { ...sessionScope, createdAt: { gte: startOfDay, lte: endOfDay } };
     if (sessionId) todayWhere.sessionId = sessionId;
 
     const totalJour = await prisma.transfertCaisse.aggregate({
@@ -95,8 +99,14 @@ export async function POST(req: Request) {
       return NextResponse.json({ message: "Montant invalide" }, { status: 400 });
     }
 
+    const operateurId  = parseInt(auth.user.id);
+    const isAdminPost  = auth.user.role === "ADMIN" || auth.user.role === "SUPER_ADMIN";
+
     const sessionActive = await prisma.sessionCaisse.findFirst({
-      where: { statut: { in: ["OUVERTE", "SUSPENDUE"] } },
+      where: {
+        statut: { in: ["OUVERTE", "SUSPENDUE"] },
+        ...(isAdminPost ? {} : { caissierId: operateurId }),
+      },
       orderBy: { createdAt: "desc" },
     });
     if (!sessionActive) {
@@ -104,7 +114,6 @@ export async function POST(req: Request) {
     }
 
     const operateurNom = auth.user.name ?? `${auth.user.prenom} ${auth.user.nom}`;
-    const operateurId  = parseInt(auth.user.id);
 
     const transfert = await prisma.$transaction(async (tx) => {
       const t = await tx.transfertCaisse.create({

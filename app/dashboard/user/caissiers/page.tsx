@@ -535,7 +535,7 @@ export default function CaissierPage() {
   // ── Fetches ──────────────────────────────────────────────────────────────
   const { data: dashboardRes,  refetch: refetchDashboard  } = useApi<DashboardResponse>("/api/caissier/dashboard");
   const { data: versementsRes, refetch: refetchVersements,
-          loading: versementsLoading                        } = useApi<VersementsResponse>(`/api/caissier/ventes?${versementsParams}`);
+          loading: versementsLoading                        } = useApi<VersementsResponse>(`/api/caissier/versements?${versementsParams}`);
   const { data: clotureRes,    refetch: refetchCloture     } = useApi<ClotureData>(`/api/caissier/cloture?${clotureParams}`);
   const { data: packsRes,      refetch: refetchPacks       } = useApi<PacksResponse>(`/api/caissier/packs?${encaissementParams}`);
 
@@ -718,7 +718,13 @@ export default function CaissierPage() {
     if (result) {
       setSessionFondsCaisse("");
       setSessionNotes("");
+      // Rafraîchir tous les onglets pour qu'ils voient la session nouvellement ouverte
       refetchDashboard();
+      refetchCloture();
+      refetchPacks();
+      refetchVersements();
+      refetchOperations();
+      refetchTransferts();
     }
   };
 
@@ -727,6 +733,9 @@ export default function CaissierPage() {
     const result = await changerStatutSession({ action });
     if (result) {
       refetchDashboard();
+      refetchCloture();
+      refetchOperations();
+      refetchTransferts();
     }
   };
 

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getCaissierSession } from "@/lib/authCaissier";
+import { getCaissierSession, getCaissierPdvId } from "@/lib/authCaissier";
 
 /**
  * GET — Recherche le profil fidélité d'un client/membre.
@@ -12,12 +12,35 @@ export async function GET(req: Request) {
     const session = await getCaissierSession();
     if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
 
+    const callerId = parseInt(session.user.id);
+    const isAdmin  = session.user.role === "ADMIN" || session.user.role === "SUPER_ADMIN";
+    const pdvId    = isAdmin ? null : await getCaissierPdvId(callerId);
+
     const { searchParams } = new URL(req.url);
     const clientId = searchParams.get("clientId");
-    const userId = searchParams.get("userId");
+    const userId   = searchParams.get("userId");
 
     if (!clientId && !userId) {
       return NextResponse.json({ error: "clientId ou userId requis" }, { status: 400 });
+    }
+
+    // Vérifier que le client/user appartient bien au PDV du caissier
+    if (!isAdmin && pdvId) {
+      if (clientId) {
+        const client = await prisma.client.findFirst({
+          where: { id: parseInt(clientId), pointDeVenteId: pdvId },
+        });
+        if (!client) {
+          return NextResponse.json({ error: "Client non affilié à votre point de vente" }, { status: 403 });
+        }
+      } else if (userId) {
+        const aff = await prisma.gestionnaireAffectation.findFirst({
+          where: { userId: parseInt(userId), pointDeVenteId: pdvId, actif: true },
+        });
+        if (!aff) {
+          return NextResponse.json({ error: "Utilisateur non affilié à votre point de vente" }, { status: 403 });
+        }
+      }
     }
 
     const profil = await prisma.pointsFidelite.findFirst({
@@ -53,6 +76,10 @@ export async function POST(req: Request) {
     const session = await getCaissierSession();
     if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
 
+    const callerId = parseInt(session.user.id);
+    const isAdmin  = session.user.role === "ADMIN" || session.user.role === "SUPER_ADMIN";
+    const pdvId    = isAdmin ? null : await getCaissierPdvId(callerId);
+
     const body = await req.json();
     const { clientId, userId, points, description, referenceId, referenceType, action } = body;
 
@@ -61,6 +88,25 @@ export async function POST(req: Request) {
     }
     if (!points || parseInt(points) === 0) {
       return NextResponse.json({ error: "points obligatoire et != 0" }, { status: 400 });
+    }
+
+    // Vérifier que le client/user appartient au PDV du caissier
+    if (!isAdmin && pdvId) {
+      if (clientId) {
+        const client = await prisma.client.findFirst({
+          where: { id: parseInt(clientId), pointDeVenteId: pdvId },
+        });
+        if (!client) {
+          return NextResponse.json({ error: "Client non affilié à votre point de vente" }, { status: 403 });
+        }
+      } else if (userId) {
+        const aff = await prisma.gestionnaireAffectation.findFirst({
+          where: { userId: parseInt(userId), pointDeVenteId: pdvId, actif: true },
+        });
+        if (!aff) {
+          return NextResponse.json({ error: "Utilisateur non affilié à votre point de vente" }, { status: 403 });
+        }
+      }
     }
 
     const pointsNum = parseInt(points);

@@ -1,17 +1,11 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getCaissierSession } from "@/lib/authCaissier";
+import { getCaissierSession, getCaissierPdvId, souscriptionPdvWhere } from "@/lib/authCaissier";
 
 /**
  * GET /api/caissier/dashboard
  *
- * Tableau de bord temps réel du caissier :
- *  - Stats du jour (versements collectés, montant, nb clients)
- *  - Souscriptions actives & en attente
- *  - Échéances en retard
- *  - État du stock
- *  - Dernière clôture connue
- *  - Alertes prioritaires
+ * Tableau de bord temps réel du caissier — strictement scoped au PDV du caissier.
  */
 export async function GET() {
   try {
@@ -20,19 +14,38 @@ export async function GET() {
       return NextResponse.json({ message: "Accès refusé" }, { status: 403 });
     }
 
+    const userId  = parseInt(session.user.id);
+    const isAdmin = session.user.role === "ADMIN" || session.user.role === "SUPER_ADMIN";
+    const pdvId   = isAdmin ? null : await getCaissierPdvId(userId);
+
     const now = new Date();
     const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
     const endOfDay   = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
 
-    // Marquer les échéances dépassées → EN_RETARD
-    await prisma.echeancePack.updateMany({
-      where: { statut: "EN_ATTENTE", datePrevue: { lt: now } },
-      data: { statut: "EN_RETARD" },
-    });
+    // Filtres scoped
+    const souscriptionFilter = pdvId ? souscriptionPdvWhere(pdvId) : {};
 
-    // ── Session active ─────────────────────────────────────────────────────
+    // Marquer les échéances dépassées → EN_RETARD (scoped au PDV)
+    // Wrapped in try-catch pour éviter de planter tout le dashboard si le filtre de relation échoue
+    try {
+      await prisma.echeancePack.updateMany({
+        where: {
+          statut: "EN_ATTENTE",
+          datePrevue: { lt: now },
+          ...(pdvId ? { souscription: souscriptionFilter } : {}),
+        },
+        data: { statut: "EN_RETARD" },
+      });
+    } catch (e) {
+      console.warn("echeancePack.updateMany (mark EN_RETARD) non-fatal:", e);
+    }
+
+    // ── Session active du caissier connecté ────────────────────────────────
     const sessionActive = await prisma.sessionCaisse.findFirst({
-      where: { statut: { in: ["OUVERTE", "SUSPENDUE"] } },
+      where: {
+        statut: { in: ["OUVERTE", "SUSPENDUE"] },
+        ...(isAdmin ? {} : { caissierId: userId }),
+      },
       orderBy: { createdAt: "desc" },
     });
 
@@ -46,9 +59,12 @@ export async function GET() {
       derniereCloture,
     ] = await Promise.all([
 
-      // Versements encaissés aujourd'hui
+      // Versements encaissés aujourd'hui — scoped au PDV
       prisma.versementPack.findMany({
-        where: { datePaiement: { gte: startOfDay, lte: endOfDay } },
+        where: {
+          datePaiement: { gte: startOfDay, lte: endOfDay },
+          ...(pdvId ? { souscription: souscriptionFilter } : {}),
+        },
         select: {
           id: true,
           montant: true,
@@ -57,7 +73,7 @@ export async function GET() {
           encaisseParNom: true,
           souscription: {
             select: {
-              pack: { select: { nom: true, type: true } },
+              pack:   { select: { nom: true, type: true } },
               client: { select: { nom: true, prenom: true } },
               user:   { select: { nom: true, prenom: true } },
             },
@@ -66,20 +82,36 @@ export async function GET() {
         orderBy: { datePaiement: "desc" },
       }),
 
-      // Stock (agrégé par site)
+      // Stock du PDV uniquement
       prisma.produit.findMany({
-        select: { id: true, nom: true, alerteStock: true, prixUnitaire: true, stocks: { select: { quantite: true } } },
+        select: {
+          id: true,
+          nom: true,
+          alerteStock: true,
+          prixUnitaire: true,
+          stocks: {
+            where: pdvId ? { pointDeVenteId: pdvId } : {},
+            select: { quantite: true },
+          },
+        },
       }),
 
-      // Souscriptions actives
-      prisma.souscriptionPack.count({ where: { statut: "ACTIF" } }),
+      // Souscriptions actives — scoped au PDV
+      prisma.souscriptionPack.count({
+        where: { statut: "ACTIF", ...souscriptionFilter },
+      }),
 
-      // Souscriptions en attente
-      prisma.souscriptionPack.count({ where: { statut: "EN_ATTENTE" } }),
+      // Souscriptions en attente — scoped au PDV
+      prisma.souscriptionPack.count({
+        where: { statut: "EN_ATTENTE", ...souscriptionFilter },
+      }),
 
-      // Échéances en retard (avec détail pour affichage)
+      // Échéances en retard — scoped au PDV
       prisma.echeancePack.findMany({
-        where: { statut: "EN_RETARD" },
+        where: {
+          statut: "EN_RETARD",
+          ...(pdvId ? { souscription: souscriptionFilter } : {}),
+        },
         orderBy: { datePrevue: "asc" },
         take: 10,
         include: {
@@ -93,14 +125,21 @@ export async function GET() {
         },
       }),
 
-      prisma.clotureCaisse.findFirst({ orderBy: { date: "desc" } }),
+      // Dernière clôture du PDV/caissier
+      prisma.clotureCaisse.findFirst({
+        where: isAdmin
+          ? {}
+          : pdvId
+            ? { pointDeVenteId: pdvId }
+            : { session: { caissierId: userId } },
+        orderBy: { date: "desc" },
+      }),
     ]);
 
     // ── Stats versements du jour ───────────────────────────────────────────
     const totalVersements = versementsAujourdhui.length;
     const montantJour     = versementsAujourdhui.reduce((s, v) => s + Number(v.montant), 0);
 
-    // Clients distincts ayant versé aujourd'hui
     const clientsVus = new Set(
       versementsAujourdhui.map((v) => {
         const c = v.souscription.client ?? v.souscription.user;
@@ -109,7 +148,7 @@ export async function GET() {
     );
     const nbClients = clientsVus.size;
 
-    // ── Stats stock ────────────────────────────────────────────────────────
+    // ── Stats stock (PDV scoped) ────────────────────────────────────────────
     const produitsAvecStock = produits.map((p) => ({
       ...p,
       totalStock: p.stocks.reduce((s, ss) => s + ss.quantite, 0),
@@ -151,21 +190,28 @@ export async function GET() {
       };
     });
 
-    // ── Solde temps réel ───────────────────────────────────────────────────
+    // ── Solde temps réel — scoped au caissier ─────────────────────────────
     const fondsCaisse = sessionActive ? Number(sessionActive.fondsCaisse) : 0;
+
+    // Filtrer par sessionId directement (plus simple que passer par la relation session)
+    const sessionIdFilter = sessionActive
+      ? { sessionId: sessionActive.id }
+      : isAdmin
+        ? {}
+        : { sessionId: -1 }; // caissier sans session → aucune opération
 
     const [encaissAgg, decaissAgg, transfertAgg] = await Promise.all([
       prisma.operationCaisse.aggregate({
         _sum: { montant: true },
-        where: { type: "ENCAISSEMENT", createdAt: { gte: startOfDay, lte: endOfDay } },
+        where: { ...sessionIdFilter, type: "ENCAISSEMENT", createdAt: { gte: startOfDay, lte: endOfDay } },
       }),
       prisma.operationCaisse.aggregate({
         _sum: { montant: true },
-        where: { type: "DECAISSEMENT", createdAt: { gte: startOfDay, lte: endOfDay } },
+        where: { ...sessionIdFilter, type: "DECAISSEMENT", createdAt: { gte: startOfDay, lte: endOfDay } },
       }),
       prisma.transfertCaisse.aggregate({
         _sum: { montant: true },
-        where: { createdAt: { gte: startOfDay, lte: endOfDay } },
+        where: { ...sessionIdFilter, createdAt: { gte: startOfDay, lte: endOfDay } },
       }),
     ]);
 

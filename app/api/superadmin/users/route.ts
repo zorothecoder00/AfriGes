@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getSuperAdminSession } from "@/lib/authSuperAdmin";
+import { getAdminSession } from "@/lib/authAdmin";
 
 export async function GET(req: Request) {
   try {
-    const session = await getSuperAdminSession();
+    const session = await getAdminSession();
     if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
 
     const { searchParams } = new URL(req.url);

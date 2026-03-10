@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { Role, MemberStatus, PrioriteNotification, Prisma } from "@prisma/client";
 import { prisma } from '@/lib/prisma'
 import bcrypt from "bcryptjs";
+import { getAdminSession } from "@/lib/authAdmin";
 
 
 /**  
@@ -110,13 +111,36 @@ export async function GET(req: Request) {
  */
 export async function POST(req: Request) {
   try {
+    const session = await getAdminSession();
+    if (!session) return NextResponse.json({ message: "Accès refusé" }, { status: 403 });
+
+    const callerRole = session.user.role as Role;
+
     const body = await req.json();
-    const { nom, prenom, email, password, telephone, adresse } = body;
+    const { nom, prenom, email, password, telephone, adresse, role: roleBody } = body;
 
     if (!nom || !prenom || !email || !password) {
       return NextResponse.json(
         { message: "Champs obligatoires manquants" },
         { status: 400 }
+      );
+    }
+
+    // Validation du rôle demandé selon le rôle de l'appelant
+    const rolesAutorises: Role[] =
+      callerRole === "SUPER_ADMIN"
+        ? [Role.USER, Role.ADMIN, Role.SUPER_ADMIN]
+        : [Role.USER, Role.ADMIN];
+
+    const roleChoisi: Role =
+      roleBody && rolesAutorises.includes(roleBody as Role)
+        ? (roleBody as Role)
+        : Role.USER;
+
+    if (roleBody && !rolesAutorises.includes(roleBody as Role)) {
+      return NextResponse.json(
+        { message: "Vous n'êtes pas autorisé à attribuer ce rôle" },
+        { status: 403 }
       );
     }
 
@@ -143,7 +167,7 @@ export async function POST(req: Request) {
           email,
           telephone,
           adresse,
-          role: Role.USER,
+          role: roleChoisi,
           etat: MemberStatus.ACTIF,
           passwordHash,
 

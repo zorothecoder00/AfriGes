@@ -27,7 +27,13 @@ export async function GET(req: Request) {
     const limit      = Math.min(500, parseInt(searchParams.get("limit") ?? "20"));
     const aujourdHui = searchParams.get("aujourdHui") === "true";
 
-    const where: Record<string, unknown> = {};
+    const userId  = parseInt(auth.user.id);
+    const isAdmin = auth.user.role === "ADMIN" || auth.user.role === "SUPER_ADMIN";
+
+    // Restriction au périmètre du caissier (via sa session)
+    const sessionScope = isAdmin ? {} : { session: { caissierId: userId } };
+
+    const where: Record<string, unknown> = { ...sessionScope };
     if (sessionId) where.sessionId = sessionId;
     if (type)      where.type      = type;
     if (aujourdHui) {
@@ -48,12 +54,12 @@ export async function GET(req: Request) {
       prisma.operationCaisse.count({ where }),
     ]);
 
-    // Totaux du jour pour la session courante
+    // Totaux du jour pour le périmètre du caissier
     const now        = new Date();
     const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const endOfDay   = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
 
-    const todayWhere: Record<string, unknown> = { createdAt: { gte: startOfDay, lte: endOfDay } };
+    const todayWhere: Record<string, unknown> = { ...sessionScope, createdAt: { gte: startOfDay, lte: endOfDay } };
     if (sessionId) todayWhere.sessionId = sessionId;
 
     const [totalEncaissDuJour, totalDecaissDuJour] = await Promise.all([
@@ -120,9 +126,15 @@ export async function POST(req: Request) {
       return NextResponse.json({ message: "Catégorie invalide" }, { status: 400 });
     }
 
-    // Récupère la session active
+    const operateurId  = parseInt(auth.user.id);
+    const isAdmin      = auth.user.role === "ADMIN" || auth.user.role === "SUPER_ADMIN";
+
+    // Récupère la session active du caissier connecté uniquement
     const sessionActive = await prisma.sessionCaisse.findFirst({
-      where: { statut: { in: ["OUVERTE", "SUSPENDUE"] } },
+      where: {
+        statut: { in: ["OUVERTE", "SUSPENDUE"] },
+        ...(isAdmin ? {} : { caissierId: operateurId }),
+      },
       orderBy: { createdAt: "desc" },
     });
     if (!sessionActive) {
@@ -131,7 +143,6 @@ export async function POST(req: Request) {
 
     const prefix = type === "ENCAISSEMENT" ? "ENC" : "DEC";
     const operateurNom = auth.user.name ?? `${auth.user.prenom} ${auth.user.nom}`;
-    const operateurId  = parseInt(auth.user.id);
 
     const operation = await prisma.$transaction(async (tx) => {
       const op = await tx.operationCaisse.create({

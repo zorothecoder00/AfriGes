@@ -1,5 +1,13 @@
 @import "tailwindcss";
 
+/* ─── Variant dark Tailwind v4 ────────────────────────────────────────────────
+   Permet d'utiliser dark: sur les futurs composants.
+   Ex : className="bg-white dark:bg-slate-800"
+─────────────────────────────────────────────────────────────────────────────── */
+@variant dark (&:where([data-theme=dark], [data-theme=dark] *));
+
+/* ─── Variables CSS ───────────────────────────────────────────────────────── */
+
 :root {
   --background: #ffffff;
   --foreground: #171717;
@@ -12,15 +20,193 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   DARK MODE — overrides globaux
+   Déclenché par html[data-theme="dark"] (appliqué via lib/appSettings.ts).
+   Couvre tous les patterns Tailwind utilisés dans les composants AfriGes
+   sans toucher les fichiers de composants.
+───────────────────────────────────────────────────────────────────────────── */
+
+html[data-theme="dark"] {
+  color-scheme: dark;
+  --background: #0f172a;
+  --foreground: #f1f5f9;
+}
+
+html[data-theme="dark"] body {
+  background-color: #0f172a;
+  color: #f1f5f9;
+}
+
+/* ── Fonds ─────────────────────────────────────────────────────────────── */
+
+html[data-theme="dark"] .bg-white          { background-color: #1e293b !important; }
+html[data-theme="dark"] .bg-slate-50       { background-color: #0f172a !important; }
+html[data-theme="dark"] .bg-slate-100      { background-color: #1e293b !important; }
+html[data-theme="dark"] .bg-slate-200      { background-color: #334155 !important; }
+
+/* Dégradés de fond des pages */
+html[data-theme="dark"] .bg-gradient-to-br { background: #0f172a !important; }
+html[data-theme="dark"] .from-slate-50     {
+  --tw-gradient-from: #0f172a var(--tw-gradient-from-position);
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
+}
+html[data-theme="dark"] .via-orange-50\/30 { --tw-gradient-via: #0f172a var(--tw-gradient-via-position); }
+html[data-theme="dark"] .via-blue-50\/30   { --tw-gradient-via: #0f172a var(--tw-gradient-via-position); }
+html[data-theme="dark"] .to-emerald-50\/20 { --tw-gradient-to: #0f172a var(--tw-gradient-to-position);   }
+html[data-theme="dark"] .to-blue-50\/10    { --tw-gradient-to: #0f172a var(--tw-gradient-to-position);   }
+
+/* ── Textes ────────────────────────────────────────────────────────────── */
+
+html[data-theme="dark"] .text-slate-900    { color: #f8fafc !important; }
+html[data-theme="dark"] .text-slate-800    { color: #f1f5f9 !important; }
+html[data-theme="dark"] .text-slate-700    { color: #e2e8f0 !important; }
+html[data-theme="dark"] .text-slate-600    { color: #cbd5e1 !important; }
+html[data-theme="dark"] .text-slate-500    { color: #94a3b8 !important; }
+html[data-theme="dark"] .text-slate-400    { color: #64748b !important; }
+
+/* ── Bordures ──────────────────────────────────────────────────────────── */
+
+html[data-theme="dark"] .border,
+html[data-theme="dark"] .border-t,
+html[data-theme="dark"] .border-b,
+html[data-theme="dark"] .border-l,
+html[data-theme="dark"] .border-r          { border-color: #334155 !important; }
+
+html[data-theme="dark"] .border-slate-100  { border-color: #334155 !important; }
+html[data-theme="dark"] .border-slate-200  { border-color: #334155 !important; }
+html[data-theme="dark"] .border-slate-300  { border-color: #475569 !important; }
+
+/* Opacity variants (border-slate-200/60, etc.) */
+html[data-theme="dark"] [class*="border-slate-200\/"]  { border-color: #334155 !important; }
+html[data-theme="dark"] [class*="border-slate-100\/"]  { border-color: #334155 !important; }
+
+/* ── Dividers ──────────────────────────────────────────────────────────── */
+
+html[data-theme="dark"] .divide-slate-100 > :not([hidden]) ~ :not([hidden]),
+html[data-theme="dark"] .divide-slate-200 > :not([hidden]) ~ :not([hidden]),
+html[data-theme="dark"] .divide-y         > :not([hidden]) ~ :not([hidden]) {
+  border-color: #334155 !important;
+}
+
+/* ── Hover & Focus ─────────────────────────────────────────────────────── */
+
+html[data-theme="dark"] .hover\:bg-slate-50:hover    { background-color: #334155 !important; }
+html[data-theme="dark"] .hover\:bg-slate-100:hover   { background-color: #475569 !important; }
+html[data-theme="dark"] .hover\:bg-white:hover       { background-color: #334155 !important; }
+html[data-theme="dark"] .hover\:text-slate-600:hover { color: #cbd5e1 !important; }
+html[data-theme="dark"] .hover\:text-slate-800:hover { color: #f1f5f9 !important; }
+
+/* ── Inputs / Selects / Textarea ───────────────────────────────────────── */
+
+html[data-theme="dark"] input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]) {
+  background-color: #1e293b !important;
+  border-color:     #334155 !important;
+  color:            #f1f5f9 !important;
+}
+html[data-theme="dark"] input::placeholder  { color: #475569 !important; }
+html[data-theme="dark"] input:focus         { ring-color: #6366f1; }
+
+html[data-theme="dark"] select {
+  background-color: #1e293b !important;
+  border-color:     #334155 !important;
+  color:            #f1f5f9 !important;
+}
+
+html[data-theme="dark"] textarea {
+  background-color: #1e293b !important;
+  border-color:     #334155 !important;
+  color:            #f1f5f9 !important;
+}
+
+/* ── Header sticky ──────────────────────────────────────────────────────── */
+
+html[data-theme="dark"] header {
+  background-color: #1e293b !important;
+  border-color:     #334155 !important;
+}
+
+/* ── Modals & Dropdowns ─────────────────────────────────────────────────── */
+
+html[data-theme="dark"] .shadow-xl { --tw-shadow-color: rgba(0,0,0,0.5); }
+
+/* Dropdown menus */
+html[data-theme="dark"] .z-50.bg-white,
+html[data-theme="dark"] .z-50.rounded-xl {
+  background-color: #1e293b !important;
+  border-color: #334155 !important;
+}
+
+/* Overlays de modal — fond sombre inchangé */
+html[data-theme="dark"] .bg-black\/50 { background-color: rgba(0,0,0,0.7) !important; }
+
+/* ── Tableaux ───────────────────────────────────────────────────────────── */
+
+html[data-theme="dark"] thead,
+html[data-theme="dark"] .bg-slate-50.border-b { background-color: #0f172a !important; }
+
+html[data-theme="dark"] tr:hover,
+html[data-theme="dark"] .hover\:bg-slate-50 { background-color: #334155 !important; }
+
+/* ── Boutons secondaires ────────────────────────────────────────────────── */
+
+html[data-theme="dark"] .bg-slate-100.border { background-color: #334155 !important; }
+html[data-theme="dark"] .hover\:bg-slate-200:hover { background-color: #475569 !important; }
+
+/* ── Badges / Pills ─────────────────────────────────────────────────────── */
+
+/* Les badges colorés (emerald, blue, red, amber…) gardent leurs couleurs. */
+/* Seuls les badges slate/gris sont ajustés. */
+html[data-theme="dark"] .bg-slate-100.text-slate-600 {
+  background-color: #334155 !important;
+  color: #cbd5e1 !important;
+}
+
+/* ── Sidebar ────────────────────────────────────────────────────────────── */
+
+html[data-theme="dark"] aside .bg-white { background-color: #1e293b !important; }
+
+/* ── Scrollbars ─────────────────────────────────────────────────────────── */
+
+html[data-theme="dark"] ::-webkit-scrollbar-track { background: #0f172a; }
+html[data-theme="dark"] ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+html[data-theme="dark"] ::-webkit-scrollbar-thumb:hover { background: #475569; }
+
+/* ── Autofill — empêche le navigateur d'écraser les couleurs ────────────── */
+
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 30px #ffffff inset !important;
+  -webkit-text-fill-color: #171717 !important;
+  caret-color: #171717;
+}
+
+html[data-theme="dark"] input:-webkit-autofill,
+html[data-theme="dark"] input:-webkit-autofill:hover,
+html[data-theme="dark"] input:-webkit-autofill:focus,
+html[data-theme="dark"] input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 30px #1e293b inset !important;
+  -webkit-text-fill-color: #f1f5f9 !important;
+  caret-color: #f1f5f9;
+}
+
+/* ─── Thème clair explicite ───────────────────────────────────────────── */
+
+html[data-theme="light"] { color-scheme: light; }
+
+/* ─── Préférence système ──────────────────────────────────────────────── */
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]):not([data-theme="dark"]) {
+    --background: #0f172a;
+    --foreground: #f1f5f9;
+  }
 }

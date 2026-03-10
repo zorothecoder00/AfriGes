@@ -1,8 +1,9 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, Filter, Download, Plus, Mail, Eye, Edit, Trash2, ArrowLeft } from 'lucide-react';
+import { Search, Filter, Download, Plus, Mail, Eye, Edit, Trash2, ArrowLeft, ShieldCheck } from 'lucide-react';
 import Link from 'next/link';
+import { useSession } from 'next-auth/react';
 import { useApi, useMutation } from '@/hooks/useApi';
 import { formatDate } from '@/lib/format';
 import { getStatusStyle, getStatusLabel } from '@/lib/status';
@@ -29,12 +30,15 @@ interface MembresResponse {
 }
 
 export default function MembresPage() {
+  const { data: session } = useSession();
+  const isSuperAdmin = session?.user?.role === 'SUPER_ADMIN';
+
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [page, setPage] = useState(1);
   const [roleFilter, setRoleFilter] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
-  const [formData, setFormData] = useState({ nom: '', prenom: '', email: '', password: '', telephone: '', adresse: '' });
+  const [formData, setFormData] = useState({ nom: '', prenom: '', email: '', password: '', telephone: '', adresse: '', role: 'USER' });
   const [deleteId, setDeleteId] = useState<number | null>(null);
   const limit = 10;   
 
@@ -74,7 +78,7 @@ export default function MembresPage() {
     const result = await addMember(formData);
     if (result) {
       setModalOpen(false);
-      setFormData({ nom: '', prenom: '', email: '', password: '', telephone: '', adresse: '' });
+      setFormData({ nom: '', prenom: '', email: '', password: '', telephone: '', adresse: '', role: 'USER' });
       refetch();
     }
   };
@@ -149,49 +153,103 @@ export default function MembresPage() {
                 onClick={() => setModalOpen(false)}
                 className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 font-bold"
               >X</button>
-              <h2 className="text-xl font-bold mb-4">Ajouter un nouveau membre</h2>
-              {addError && <p className="text-red-500 mb-2">{addError}</p>}
+              <h2 className="text-xl font-bold mb-1">Ajouter un nouveau membre</h2>
+              <p className="text-sm text-slate-500 mb-4">Tous les champs marqués * sont obligatoires.</p>
+              {addError && <p className="text-red-500 text-sm mb-3">{addError}</p>}
               <form onSubmit={handleSubmit} className="space-y-3">
-                <input 
-                  type="text" placeholder="Nom" required
-                  value={formData.nom}
-                  onChange={e => setFormData({ ...formData, nom: e.target.value })}
-                  className="w-full px-4 py-2 border rounded-xl"
-                />
-                <input 
-                  type="text" placeholder="Prénom" required
-                  value={formData.prenom}
-                  onChange={e => setFormData({ ...formData, prenom: e.target.value })}
-                  className="w-full px-4 py-2 border rounded-xl"
-                />
-                <input 
-                  type="email" placeholder="Email" required
+                <div className="grid grid-cols-2 gap-3">
+                  <input
+                    type="text" placeholder="Nom *" required
+                    value={formData.nom}
+                    onChange={e => setFormData({ ...formData, nom: e.target.value })}
+                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                  <input
+                    type="text" placeholder="Prénom *" required
+                    value={formData.prenom}
+                    onChange={e => setFormData({ ...formData, prenom: e.target.value })}
+                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                </div>
+                <input
+                  type="email" placeholder="Email *" required
                   value={formData.email}
                   onChange={e => setFormData({ ...formData, email: e.target.value })}
-                  className="w-full px-4 py-2 border rounded-xl"
+                  className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 />
-                <input 
-                  type="password" placeholder="Mot de passe" required
+                <input
+                  type="password" placeholder="Mot de passe *" required
                   value={formData.password}
                   onChange={e => setFormData({ ...formData, password: e.target.value })}
-                  className="w-full px-4 py-2 border rounded-xl"
+                  className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 />
-                <input 
-                  type="text" placeholder="Téléphone"
-                  value={formData.telephone}
-                  onChange={e => setFormData({ ...formData, telephone: e.target.value })}
-                  className="w-full px-4 py-2 border rounded-xl"
-                />
-                <input 
-                  type="text" placeholder="Adresse"
-                  value={formData.adresse}
-                  onChange={e => setFormData({ ...formData, adresse: e.target.value })}
-                  className="w-full px-4 py-2 border rounded-xl"
-                />
-                <button 
+                <div className="grid grid-cols-2 gap-3">
+                  <input
+                    type="text" placeholder="Téléphone"
+                    value={formData.telephone}
+                    onChange={e => setFormData({ ...formData, telephone: e.target.value })}
+                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                  <input
+                    type="text" placeholder="Adresse"
+                    value={formData.adresse}
+                    onChange={e => setFormData({ ...formData, adresse: e.target.value })}
+                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                </div>
+
+                {/* Sélection du rôle */}
+                <div className="border border-slate-200 rounded-xl p-3 bg-slate-50">
+                  <div className="flex items-center gap-2 mb-2">
+                    <ShieldCheck size={15} className="text-slate-500" />
+                    <span className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Rôle du compte</span>
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <label className="flex items-start gap-3 cursor-pointer group">
+                      <input
+                        type="radio" name="role" value="USER"
+                        checked={formData.role === 'USER'}
+                        onChange={() => setFormData({ ...formData, role: 'USER' })}
+                        className="mt-0.5 accent-emerald-600"
+                      />
+                      <div>
+                        <p className="text-sm font-medium text-slate-700">Utilisateur</p>
+                        <p className="text-xs text-slate-400">Accès standard, membre de la communauté</p>
+                      </div>
+                    </label>
+                    <label className="flex items-start gap-3 cursor-pointer group">
+                      <input
+                        type="radio" name="role" value="ADMIN"
+                        checked={formData.role === 'ADMIN'}
+                        onChange={() => setFormData({ ...formData, role: 'ADMIN' })}
+                        className="mt-0.5 accent-emerald-600"
+                      />
+                      <div>
+                        <p className="text-sm font-medium text-slate-700">Administrateur</p>
+                        <p className="text-xs text-slate-400">Gestion complète de la plateforme</p>
+                      </div>
+                    </label>
+                    {isSuperAdmin && (
+                      <label className="flex items-start gap-3 cursor-pointer group">
+                        <input
+                          type="radio" name="role" value="SUPER_ADMIN"
+                          checked={formData.role === 'SUPER_ADMIN'}
+                          onChange={() => setFormData({ ...formData, role: 'SUPER_ADMIN' })}
+                          className="mt-0.5 accent-violet-600"
+                        />
+                        <div>
+                          <p className="text-sm font-medium text-violet-700">Super Administrateur</p>
+                          <p className="text-xs text-slate-400">Accès système complet, paramètres critiques</p>
+                        </div>
+                      </label>
+                    )}
+                  </div>
+                </div>
+
+                <button
                   type="submit"
                   disabled={adding}
-                  className="w-full py-2 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-all"
+                  className="w-full py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-all font-medium"
                 >
                   {adding ? "Ajout en cours..." : "Ajouter le membre"}
                 </button>

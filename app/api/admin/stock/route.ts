@@ -38,17 +38,36 @@ export async function GET(req: Request) {
       orderBy: { nom: "asc" },
     });
 
-    // Stats globales (sans filtre)
-    const allStocks = await prisma.stockSite.findMany({
-      select: { quantite: true, alerteStock: true, produit: { select: { prixUnitaire: true, alerteStock: true } } },
-    });
+    // Stats filtrées selon le contexte actif
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const produitFilter: any = { actif: true };
+    if (search) produitFilter.OR = [
+      { nom:       { contains: search, mode: "insensitive" } },
+      { reference: { contains: search, mode: "insensitive" } },
+      { categorie: { contains: search, mode: "insensitive" } },
+    ];
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const statsWhere: any = { produit: produitFilter };
+    if (!aggregate && pdvId) statsWhere.pointDeVenteId = Number(pdvId);
+
+    const [allStocks, uniqueProduits] = await Promise.all([
+      prisma.stockSite.findMany({
+        where: statsWhere,
+        select: { quantite: true, alerteStock: true, produit: { select: { prixUnitaire: true, alerteStock: true } } },
+      }),
+      prisma.stockSite.groupBy({ by: ["produitId"], where: statsWhere }),
+    ]);
+
     const enRuptureCount = allStocks.filter(s => s.quantite === 0).length;
     const faibleCount    = allStocks.filter(s => {
       const seuil = s.alerteStock ?? s.produit.alerteStock;
       return s.quantite > 0 && s.quantite <= seuil;
     }).length;
     const valeurTotale  = allStocks.reduce((acc, s) => acc + s.quantite * Number(s.produit.prixUnitaire), 0);
-    const totalProduits = await prisma.produit.count({ where: { actif: true } });
+    const totalProduits = aggregate
+      ? await prisma.produit.count({ where: produitFilter })
+      : uniqueProduits.length;
 
     // ── Mode "Grand stock" : vue agrégée par produit ───────────────────────
     if (aggregate) {

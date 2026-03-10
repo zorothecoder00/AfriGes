@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getSuperAdminSession } from "@/lib/authSuperAdmin";
+import { getAdminSession } from "@/lib/authAdmin";
 import { auditLog } from "@/lib/notifications";
 
 const MODULES_DEFAUT = [
@@ -18,7 +18,7 @@ const MODULES_DEFAUT = [
 
 export async function GET() {
   try {
-    const session = await getSuperAdminSession();
+    const session = await getAdminSession();
     if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
 
     // Seed les modules manquants
@@ -40,7 +40,7 @@ export async function GET() {
 
 export async function PATCH(req: Request) {
   try {
-    const session = await getSuperAdminSession();
+    const session = await getAdminSession();
     if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
 
     const superAdminId = parseInt(session.user.id);

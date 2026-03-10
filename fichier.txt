@@ -12,34 +12,3 @@ Ce code :
  permet de créer un téléchargement via un clic sur une URL ( utile pour les exports)
 import { randomUUID } from "crypto";  permet de générer des UUID(sorte d'identifiant unique aléatoire)    
 
-ide moi à corriger le dashboard/admin pour les SUPER_ADMIN: le super admin
-  peut : réinitialiser les mots de passe , forcer la déconnexion d'un
-  utilissateur , débloquer un compte ou le suspendre , assigner des
-  permissions personnalisées en plus des rôles standards;il définit les droit
-  par moduel , par fonctionnalité , activation/désactivation des modules ,
-  gérer les règles d'accès ( accès horaire, accès par addresse ip(optionnel);
-  il peut changer , modifier le nom , le logo , la devise , la langue , le
-  thème de la plateforme , paramètrage de numérotation automatique ( facture ,
-  opérations , mouvement de stock ..); politique de sauvegarde et retention
-  des données , politique de sécurité ( compléxité des mots de passe ,
-  expiration ...), paramètrage comptables (exerciec,taux TVA...), paramètrages
-  financiers (huisserie de caisse, plafonds..), paramètrage stock(méthode de
-  valorisation , seuils par défaut); le super admin dispose d'un accès compket
-  pour le module caisse : voir toutes les caisses , valider/annuler une
-  clôture en cas d'erreur , modifier une opération en administrative , ouvrir
-  ou rouvir un exercice comptable bloqué , modifier ou supprimer une écriture
-  verrouillée (avec motif), ajuster un stock manuellement en cas d'erreur
-  grave , clôturer/ouvir un inventaire exceptionnel ; le super admin peut
-  accéder: à l'historique complet des actions utilisateurs (logs),aux
-  mouvements de sécurité (connexions , tentatives échouées) , aux opérations
-  sensibles (modification d'écritures, ajustements), aux exports des journaux
-  d'audit ; il peut programmer des sauvegardes automatiques , télécharger des
-  backups , restauration d'une base à un point donné , monitoring de l'espace
-  disque ; il peut avoir un affichage en temps réel de l'utilisatio du serveur
-  , charge de la base de données , erreurs système (api,requêtes,modules),
-  opérations longues ou anormales; le tableau de bord doit afficher le nombre
-  d'utilisatuers actifs/inactifs, actvité en cours dans chaque module, alertes
-  critiques (fraude, écart de caisse, rupture stock...) , logs récents ,
-  santé globale du système
-
-

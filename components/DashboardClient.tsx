@@ -4,19 +4,53 @@ import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
   TrendingUp, Users, UserCheck, Package, Layers,
   ShoppingCart, MoreVertical, Download, Plus, ChevronDown, MessageSquare, Store, Shield,
+  Activity, AlertTriangle, CheckCircle, XCircle, Wallet, BarChart2, Truck, RefreshCw,
 } from 'lucide-react';
 import Link from "next/link";
 import { useSession } from 'next-auth/react';
+import { useT } from '@/contexts/AppSettingsContext';
 import NotificationBell from '@/components/NotificationBell';
 import SignOutButton from '@/components/SignOutButton';
 import MessageModal from '@/components/MessageModal';
 import { useApi } from '@/hooks/useApi';
-import { formatCurrency, formatNumber } from '@/lib/format';
+import { formatCurrency } from '@/lib/format';
 import { exportToCsv } from '@/lib/exportCsv';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface DayPoint { date: string; montant: number; }
+
+interface ActivityAlerte {
+  type: string;
+  niveau: 'critique' | 'warning' | 'info';
+  message: string;
+  detail: string;
+}
+
+interface ActivityResponse {
+  success: boolean;
+  data: {
+    activiteJour: {
+      versements: number;
+      souscriptions: number;
+      ventes: number;
+      mouvementsStock: number;
+    };
+    modules: {
+      actifs: number;
+      inactifs: number;
+      total: number;
+      liste: { nom: string; key: string; actif: boolean }[];
+    };
+    alertes: ActivityAlerte[];
+    rapports: {
+      caisse:           { sessionsOuvertes: number; versementsMontant: number };
+      stock:            { alertes: number };
+      ventes:           { count: number; montant: number };
+      approvisionnement:{ enAttente: number };
+    };
+  };
+}
 
 interface DashboardResponse {
   success: boolean;
@@ -91,6 +125,7 @@ function fmtDateShort(iso: string) {
 export default function AfriGesDashboard() {
   const { data: session } = useSession();
   const isSuperAdmin = session?.user?.role === 'SUPER_ADMIN';
+  const t = useT();
   const [selectedPeriod, setSelectedPeriod] = useState<'7' | '30' | '90'>('30');
   const [showMenu, setShowMenu] = useState(false);
   const [showMessageModal, setShowMessageModal] = useState(false);
@@ -108,6 +143,11 @@ export default function AfriGesDashboard() {
     `/api/admin/dashboard?period=${selectedPeriod}`
   );
   const d = response?.data;
+
+  const { data: activityResponse, refetch: refetchActivity } = useApi<ActivityResponse>(
+    '/api/admin/activity'
+  );
+  const act = activityResponse?.data;
 
   const handleExport = () => {
     const points = d?.evolutionVersements ?? [];
@@ -150,37 +190,7 @@ export default function AfriGesDashboard() {
     });
   }, [maxVersements]);
 
-  // ── Stats cards ────────────────────────────────────────────────────────────
-  const stats = [
-    {
-      id: 1, label: 'Clients actifs',
-      value: d ? formatNumber(d.clientsActifs) : '—',
-      change: d?.comparaisons.clients.pct ?? '…',
-      positif: d?.comparaisons.clients.positif ?? true,
-      icon: Users, color: 'bg-blue-500', lightBg: 'bg-blue-50',
-    },
-    {
-      id: 2, label: 'Souscriptions actives',
-      value: d ? formatNumber(d.souscriptionsActives) : '—',
-      change: d?.comparaisons.versements.pct ?? '…',
-      positif: d?.comparaisons.versements.positif ?? true,
-      icon: TrendingUp, color: 'bg-emerald-500', lightBg: 'bg-emerald-50',
-    },
-    {
-      id: 3, label: 'Packs au catalogue',
-      value: d ? formatNumber(d.packsTotal) : '—',
-      change: d?.comparaisons.packs.pct ?? '…',
-      positif: true,
-      icon: Layers, color: 'bg-amber-500', lightBg: 'bg-amber-50',
-    },
-    {
-      id: 4, label: 'Versements (packs)',
-      value: d ? formatCurrency(d.versementsTotal.montant) : '—',
-      change: d?.comparaisons.versements.pct ?? '…',
-      positif: d?.comparaisons.versements.positif ?? true,
-      icon: Package, color: 'bg-purple-500', lightBg: 'bg-purple-50',
-    },
-  ];
+  // Supprimé : stats cards remplacées par la section activité ci-dessous
 
   // ── Loading ────────────────────────────────────────────────────────────────
   if (loading) {
@@ -247,40 +257,41 @@ export default function AfriGesDashboard() {
               <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Principal</h3>
               <nav className="space-y-1">
                 <button className="w-full flex items-center gap-3 px-4 py-3 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-xl font-medium transition-all shadow-md shadow-emerald-200">
-                  <TrendingUp size={20} /><span>Tableau de bord</span>
+                  <TrendingUp size={20} /><span>{t('nav_dashboard')}</span>
                 </button>
-                <Link href="/dashboard/admin/membres"       className="w-full flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-50 rounded-xl transition-all"><Users size={20} /><span>Membres</span></Link>
-                <Link href="/dashboard/admin/gestionnaires" className="w-full flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-50 rounded-xl transition-all"><Users size={20} /><span>Gestionnaires</span></Link>
-                <Link href="/dashboard/admin/clients"       className="w-full flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-50 rounded-xl transition-all"><UserCheck size={20} /><span>Clients</span></Link>
-                <Link href="/dashboard/admin/messages"      className="w-full flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-50 rounded-xl transition-all"><MessageSquare size={20} /><span>Messages</span></Link>
+                <Link href="/dashboard/admin/membres"       className="w-full flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-50 rounded-xl transition-all"><Users size={20} /><span>{t('nav_membres')}</span></Link>
+                <Link href="/dashboard/admin/gestionnaires" className="w-full flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-50 rounded-xl transition-all"><Users size={20} /><span>{t('nav_gestionnaires')}</span></Link>
+                <Link href="/dashboard/admin/clients"       className="w-full flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-50 rounded-xl transition-all"><UserCheck size={20} /><span>{t('nav_clients')}</span></Link>
+                <Link href="/dashboard/admin/messages"      className="w-full flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-50 rounded-xl transition-all"><MessageSquare size={20} /><span>{t('nav_messages')}</span></Link>
               </nav>
             </div>
             <div className="p-4 border-b border-slate-100">
               <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Packs &amp; Ventes</h3>
               <nav className="space-y-1">
-                <Link href="/dashboard/admin/packs" className="w-full flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-50 rounded-xl transition-all"><Layers size={20} /><span>Packs clients</span></Link>
+                <Link href="/dashboard/admin/packs" className="w-full flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-50 rounded-xl transition-all"><Layers size={20} /><span>{t('nav_packs')}</span></Link>
               </nav>
             </div>
             <div className="p-4 border-b border-slate-100">
               <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Commerce</h3>
               <nav className="space-y-1">
-                <Link href="/dashboard/admin/ventes" className="w-full flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-50 rounded-xl transition-all"><ShoppingCart size={20} /><span>Ventes</span></Link>
-                <Link href="/dashboard/admin/stock"  className="w-full flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-50 rounded-xl transition-all"><Package size={20} /><span>Gestion du stock</span></Link>
-                <Link href="/dashboard/admin/pdv"    className="w-full flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-50 rounded-xl transition-all"><Store size={20} /><span>Points de vente</span></Link>
+                <Link href="/dashboard/admin/ventes" className="w-full flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-50 rounded-xl transition-all"><ShoppingCart size={20} /><span>{t('nav_ventes')}</span></Link>
+                <Link href="/dashboard/admin/stock"  className="w-full flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-50 rounded-xl transition-all"><Package size={20} /><span>{t('nav_stock')}</span></Link>
+                <Link href="/dashboard/admin/pdv"    className="w-full flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-50 rounded-xl transition-all"><Store size={20} /><span>{t('nav_pdv')}</span></Link>
               </nav>
             </div>
-            {isSuperAdmin && (
-              <div className="p-4 border-b border-slate-100">
-                <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Super Admin</h3>
-                <nav className="space-y-1">
-                  <Link href="/dashboard/admin/superadmin"
-                    className="w-full flex items-center gap-3 px-4 py-3 text-violet-600 hover:bg-violet-50 rounded-xl transition-all font-medium border border-violet-100">
-                    <Shield size={20} />
-                    <span>Administration système</span>
-                  </Link>
-                </nav>
-              </div>
-            )}
+            {/* Visible pour ADMIN et SUPER_ADMIN */}
+            <div className="p-4 border-b border-slate-100">
+              <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
+                {isSuperAdmin ? 'Super Admin' : 'Administration'}
+              </h3>
+              <nav className="space-y-1">
+                <Link href="/dashboard/admin/superadmin"
+                  className="w-full flex items-center gap-3 px-4 py-3 text-violet-600 hover:bg-violet-50 rounded-xl transition-all font-medium border border-violet-100">
+                  <Shield size={20} />
+                  <span>{t('nav_superadmin')}</span>
+                </Link>
+              </nav>
+            </div>
             <div className="p-4">
               <SignOutButton
                 redirectTo="/auth/login?logout=success"
@@ -296,19 +307,19 @@ export default function AfriGesDashboard() {
           {/* Titre */}
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-4xl font-bold text-slate-800 mb-2">Tableau de bord</h2>
-              <p className="text-slate-500">Vue d&apos;ensemble des activités AfriGes</p>
+              <h2 className="text-4xl font-bold text-slate-800 mb-2">{t('dash_title')}</h2>
+              <p className="text-slate-500">{t('dash_subtitle')}</p>
             </div>
             <div className="flex gap-3">
               <button onClick={handleExport} className="px-5 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-700 hover:bg-slate-50 transition-all shadow-sm flex items-center gap-2 font-medium">
-                <Download size={18} />Exporter
+                <Download size={18} />{t('action_export')}
               </button>
               <div className="relative" ref={menuRef}>
                 <button
                   onClick={() => setShowMenu(!showMenu)}
                   className="px-5 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-200 flex items-center gap-2 font-medium"
                 >
-                  <Plus size={18} />Nouvelle opération
+                  <Plus size={18} />{t('action_new_op')}
                   <ChevronDown size={16} className={`transition-transform ${showMenu ? 'rotate-180' : ''}`} />
                 </button>
                 {showMenu && (
@@ -330,31 +341,188 @@ export default function AfriGesDashboard() {
             </div>
           </div>
 
-          {/* Stats Cards */}
-          <div className="grid grid-cols-4 gap-5">
-            {stats.map((stat) => {
-              const Icon = stat.icon;
-              return (
-                <div key={stat.id} className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/60 hover:shadow-md transition-all group">
-                  <div className="flex items-start justify-between mb-4">
-                    <div className={`${stat.lightBg} p-3 rounded-xl group-hover:scale-110 transition-transform`}>
-                      <Icon className={`${stat.color.replace('bg-', 'text-')} w-6 h-6`} />
+          {/* ── Activité globale du jour ──────────────────────────────────── */}
+          <div className="space-y-4">
+
+            {/* Ligne 1 : opérations du jour + modules + alertes */}
+            <div className="grid grid-cols-3 gap-5">
+
+              {/* Activité du jour */}
+              <div className="col-span-2 bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <div className="bg-emerald-50 p-2 rounded-lg">
+                      <Activity size={18} className="text-emerald-600" />
                     </div>
-                    {stat.change !== '—' && (
-                      <span className={`text-xs font-semibold px-2.5 py-1 rounded-lg ${
-                        stat.positif
-                          ? 'text-emerald-600 bg-emerald-50'
-                          : 'text-red-500 bg-red-50'
-                      }`}>
-                        {stat.change}
-                      </span>
-                    )}
+                    <div>
+                      <h3 className="text-sm font-bold text-slate-800">{t('dash_activity')}</h3>
+                      <p className="text-xs text-slate-400">Opérations effectuées aujourd&apos;hui</p>
+                    </div>
                   </div>
-                  <h3 className="text-slate-600 text-sm font-medium mb-1">{stat.label}</h3>
-                  <p className="text-3xl font-bold text-slate-800">{stat.value}</p>
+                  <button
+                    onClick={() => { refetch(); refetchActivity(); }}
+                    className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-lg transition-colors"
+                    title="Actualiser"
+                  >
+                    <RefreshCw size={14} />
+                  </button>
                 </div>
-              );
-            })}
+                <div className="grid grid-cols-4 gap-3">
+                  {[
+                    { label: 'Versements', value: act?.activiteJour.versements ?? '—', icon: Wallet,      color: 'text-purple-600', bg: 'bg-purple-50' },
+                    { label: 'Souscriptions', value: act?.activiteJour.souscriptions ?? '—', icon: Layers, color: 'text-blue-600', bg: 'bg-blue-50' },
+                    { label: 'Ventes directes', value: act?.activiteJour.ventes ?? '—', icon: ShoppingCart, color: 'text-emerald-600', bg: 'bg-emerald-50' },
+                    { label: 'Mouvements stock', value: act?.activiteJour.mouvementsStock ?? '—', icon: Package, color: 'text-amber-600', bg: 'bg-amber-50' },
+                  ].map((item) => {
+                    const Icon = item.icon;
+                    return (
+                      <div key={item.label} className="flex flex-col items-center gap-1.5 p-3 bg-slate-50 rounded-xl">
+                        <div className={`${item.bg} p-2 rounded-lg`}>
+                          <Icon size={16} className={item.color} />
+                        </div>
+                        <span className="text-2xl font-bold text-slate-800">{item.value}</span>
+                        <span className="text-[10px] text-slate-500 text-center leading-tight">{item.label}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Modules actifs / inactifs */}
+              <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60">
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="bg-violet-50 p-2 rounded-lg">
+                    <BarChart2 size={18} className="text-violet-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-800">Modules système</h3>
+                    <p className="text-xs text-slate-400">{act?.modules.total ?? '—'} modules configurés</p>
+                  </div>
+                </div>
+                <div className="flex gap-3 mb-3">
+                  <div className="flex-1 bg-emerald-50 rounded-xl p-3 text-center">
+                    <p className="text-2xl font-bold text-emerald-700">{act?.modules.actifs ?? '—'}</p>
+                    <p className="text-[10px] text-emerald-600 font-medium mt-0.5">Actifs</p>
+                  </div>
+                  <div className="flex-1 bg-slate-100 rounded-xl p-3 text-center">
+                    <p className="text-2xl font-bold text-slate-500">{act?.modules.inactifs ?? '—'}</p>
+                    <p className="text-[10px] text-slate-500 font-medium mt-0.5">Inactifs</p>
+                  </div>
+                </div>
+                <div className="space-y-1 max-h-24 overflow-y-auto">
+                  {act?.modules.liste.slice(0, 5).map((m) => (
+                    <div key={m.key} className="flex items-center justify-between py-0.5">
+                      <span className="text-xs text-slate-600 truncate flex-1">{m.nom}</span>
+                      {m.actif
+                        ? <CheckCircle size={12} className="text-emerald-500 flex-shrink-0" />
+                        : <XCircle    size={12} className="text-slate-300 flex-shrink-0" />
+                      }
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Ligne 2 : alertes opérationnelles + rapports rapides */}
+            <div className="grid grid-cols-2 gap-5">
+
+              {/* Alertes opérationnelles */}
+              <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60">
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="bg-amber-50 p-2 rounded-lg">
+                    <AlertTriangle size={18} className="text-amber-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-800">Alertes opérationnelles</h3>
+                    <p className="text-xs text-slate-400">Points d&apos;attention en temps réel</p>
+                  </div>
+                </div>
+                {!act || act.alertes.length === 0 ? (
+                  <div className="flex flex-col items-center gap-2 py-4 text-center">
+                    <CheckCircle size={28} className="text-emerald-400" />
+                    <p className="text-sm text-slate-500">Aucune alerte active</p>
+                    <p className="text-xs text-slate-400">Tout fonctionne normalement</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {act.alertes.map((a, i) => (
+                      <div
+                        key={i}
+                        className={`flex items-start gap-2.5 p-3 rounded-xl text-sm ${
+                          a.niveau === 'critique' ? 'bg-red-50 border border-red-100' :
+                          a.niveau === 'warning'  ? 'bg-amber-50 border border-amber-100' :
+                                                    'bg-blue-50 border border-blue-100'
+                        }`}
+                      >
+                        <AlertTriangle size={14} className={`flex-shrink-0 mt-0.5 ${
+                          a.niveau === 'critique' ? 'text-red-500' :
+                          a.niveau === 'warning'  ? 'text-amber-500' : 'text-blue-500'
+                        }`} />
+                        <div>
+                          <p className={`font-medium text-xs ${
+                            a.niveau === 'critique' ? 'text-red-700' :
+                            a.niveau === 'warning'  ? 'text-amber-700' : 'text-blue-700'
+                          }`}>{a.message}</p>
+                          {a.detail && <p className="text-[10px] text-slate-500 mt-0.5">{a.detail}</p>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Rapports rapides */}
+              <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60">
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="bg-blue-50 p-2 rounded-lg">
+                    <TrendingUp size={18} className="text-blue-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-800">Rapports rapides</h3>
+                    <p className="text-xs text-slate-400">Indicateurs clés du jour</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  {/* Caisse */}
+                  <div className="p-3 bg-slate-50 rounded-xl">
+                    <div className="flex items-center gap-1.5 mb-1.5">
+                      <Wallet size={13} className="text-purple-500" />
+                      <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">Caisse</span>
+                    </div>
+                    <p className="text-sm font-bold text-slate-800">{act ? formatCurrency(act.rapports.caisse.versementsMontant) : '—'}</p>
+                    <p className="text-[10px] text-slate-400">{act?.rapports.caisse.sessionsOuvertes ?? '—'} session(s) ouverte(s)</p>
+                  </div>
+                  {/* Stock */}
+                  <div className="p-3 bg-slate-50 rounded-xl">
+                    <div className="flex items-center gap-1.5 mb-1.5">
+                      <Package size={13} className="text-amber-500" />
+                      <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">Stock</span>
+                    </div>
+                    <p className="text-sm font-bold text-slate-800">{act?.rapports.stock.alertes ?? '—'} alerte(s)</p>
+                    <p className="text-[10px] text-slate-400">Produits sous le seuil</p>
+                  </div>
+                  {/* Ventes */}
+                  <div className="p-3 bg-slate-50 rounded-xl">
+                    <div className="flex items-center gap-1.5 mb-1.5">
+                      <ShoppingCart size={13} className="text-emerald-500" />
+                      <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">Ventes</span>
+                    </div>
+                    <p className="text-sm font-bold text-slate-800">{act ? formatCurrency(act.rapports.ventes.montant) : '—'}</p>
+                    <p className="text-[10px] text-slate-400">{act?.rapports.ventes.count ?? '—'} vente(s) directe(s)</p>
+                  </div>
+                  {/* Approvisionnement */}
+                  <div className="p-3 bg-slate-50 rounded-xl">
+                    <div className="flex items-center gap-1.5 mb-1.5">
+                      <Truck size={13} className="text-blue-500" />
+                      <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">Appro</span>
+                    </div>
+                    <p className="text-sm font-bold text-slate-800">{act?.rapports.approvisionnement.enAttente ?? '—'} en attente</p>
+                    <p className="text-[10px] text-slate-400">Réceptions à valider</p>
+                  </div>
+                </div>
+              </div>
+
+            </div>
           </div>
 
           {/* Charts Section */}
@@ -372,9 +540,9 @@ export default function AfriGesDashboard() {
                   onChange={(e) => setSelectedPeriod(e.target.value as '7' | '30' | '90')}
                   className="px-4 py-2 border border-slate-200 rounded-lg text-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
                 >
-                  <option value="7">7 derniers jours</option>
-                  <option value="30">30 derniers jours</option>
-                  <option value="90">90 derniers jours</option>
+                  <option value="7">{t('dash_period_7')}</option>
+                  <option value="30">{t('dash_period_30')}</option>
+                  <option value="90">{t('dash_period_90')}</option>
                 </select>
               </div>
 

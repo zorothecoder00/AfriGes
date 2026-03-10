@@ -14,6 +14,7 @@ import {
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useApi, useMutation } from "@/hooks/useApi";
+import { useAppSettings } from "@/contexts/AppSettingsContext";
 import { formatCurrency, formatDate, formatDateTime } from "@/lib/format";
 import { toast } from "sonner";
 import SignOutButton from "@/components/SignOutButton";
@@ -94,7 +95,9 @@ const etatStyle: Record<string, { bg: string; text: string; label: string }> = {
 
 export default function SuperAdminPage() {
   const { data: session } = useSession();
+  const { applyAndPersist } = useAppSettings();
   const isSuperAdmin = session?.user?.role === "SUPER_ADMIN";
+  const isAdmin      = session?.user?.role === "ADMIN"; // admin simple (droits restreints)
 
   const [activeTab, setActiveTab] = useState<TabKey>("systeme");
 
@@ -130,9 +133,16 @@ export default function SuperAdminPage() {
   const logsParams = new URLSearchParams({ page: String(logPage), limit: "30", type: logType, ...(logSearch ? { search: logSearch } : {}) }).toString();
   const { data: logsRes, refetch: refetchLogs } = useApi<LogsResponse>(activeTab === "logs" ? `/api/superadmin/audit-logs?${logsParams}` : null);
 
-  // Sync settings depuis API
+  // Sync settings depuis API → état local uniquement (pas de re-apply DOM ici,
+  // sinon settingsDirty=false après save déclencherait un revert avec l'ancienne valeur cachée)
   React.useEffect(() => {
-    if (settingsRes?.data && !settingsDirty) setSettings(settingsRes.data);
+    if (settingsRes?.data && !settingsDirty) {
+      setSettings(settingsRes.data);
+      // Mettre à jour le localStorage (source de vérité côté client) sans toucher au DOM
+      if (typeof window !== "undefined") {
+        localStorage.setItem("afriges_app_settings", JSON.stringify(settingsRes.data));
+      }
+    }
   }, [settingsRes, settingsDirty]);
 
   // ── Mutations
@@ -164,12 +174,23 @@ export default function SuperAdminPage() {
 
   const handleSaveSettings = useCallback(async () => {
     const res = await saveSettings(settings);
-    if (res) setSettingsDirty(false);
-  }, [saveSettings, settings]);
+    if (res) {
+      // Persiste dans localStorage + re-applique tout le jeu de settings au DOM
+      applyAndPersist(settings);
+      setSettingsDirty(false);
+    }
+  }, [saveSettings, settings, applyAndPersist]);
+
+  // Clés dont le changement a un effet visuel immédiat (preview live)
+  const VISUAL_KEYS = new Set(["platform.theme", "platform.langue", "platform.nom"]);
 
   const setSetting = (key: string, value: string) => {
     setSettings((prev) => ({ ...prev, [key]: value }));
     setSettingsDirty(true);
+    // Applique immédiatement au DOM + met à jour le state React du contexte (re-render i18n)
+    if (VISUAL_KEYS.has(key)) {
+      applyAndPersist({ [key]: value });
+    }
   };
 
   const handleToggleModule = useCallback(async (m: ModuleItem) => {
@@ -197,14 +218,14 @@ export default function SuperAdminPage() {
     a.click();
   };
 
-  // ── Guard rôle
-  if (!isSuperAdmin) {
+  // ── Guard rôle — ni ADMIN ni SUPER_ADMIN → accès refusé
+  if (!isSuperAdmin && !isAdmin) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
         <div className="bg-white rounded-2xl p-10 shadow text-center max-w-md">
           <ShieldAlert size={48} className="text-red-400 mx-auto mb-4" />
           <h2 className="text-xl font-bold text-slate-800 mb-2">Accès refusé</h2>
-          <p className="text-slate-500 mb-6">Cette section est réservée au Super Administrateur.</p>
+          <p className="text-slate-500 mb-6">Cette section est réservée aux administrateurs.</p>
           <Link href="/dashboard/admin" className="px-5 py-2.5 bg-emerald-600 text-white rounded-xl font-medium hover:bg-emerald-700">Retour au tableau de bord</Link>
         </div>
       </div>
@@ -229,10 +250,16 @@ export default function SuperAdminPage() {
               <ArrowLeft size={18} />
             </Link>
             <div className="flex items-center gap-2">
-              <div className="bg-violet-600 p-2 rounded-xl"><Shield className="text-white w-4 h-4" /></div>
+              <div className={`${isSuperAdmin ? "bg-violet-600" : "bg-blue-600"} p-2 rounded-xl`}>
+                <Shield className="text-white w-4 h-4" />
+              </div>
               <div>
-                <h1 className="font-bold text-slate-800 text-sm leading-none">Super Administration</h1>
-                <p className="text-xs text-violet-500 font-medium">Accès complet</p>
+                <h1 className="font-bold text-slate-800 text-sm leading-none">
+                  {isSuperAdmin ? "Super Administration" : "Administration système"}
+                </h1>
+                <p className={`text-xs font-medium ${isSuperAdmin ? "text-violet-500" : "text-blue-500"}`}>
+                  {isSuperAdmin ? "Accès complet" : "Accès administrateur"}
+                </p>
               </div>
             </div>
           </div>
@@ -270,6 +297,21 @@ export default function SuperAdminPage() {
       </div>
 
       <div className="max-w-[1600px] mx-auto px-6 py-6">
+
+        {/* ── Bandeau restrictions ADMIN simple ──────────────────────────── */}
+        {isAdmin && (
+          <div className="mb-5 flex items-start gap-3 bg-blue-50 border border-blue-200 rounded-xl px-5 py-3.5">
+            <Info size={18} className="text-blue-500 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-semibold text-blue-800">Accès Administrateur</p>
+              <p className="text-xs text-blue-600 mt-0.5">
+                Vous avez accès à toutes les fonctionnalités d&apos;administration, à l&apos;exception de :
+                la suppression définitive d&apos;utilisateurs, la gestion des comptes Super Administrateur,
+                et la modification des permissions sur les rôles critiques.
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* ═══ TAB SYSTEME ═══════════════════════════════════════════════════ */}
         {activeTab === "systeme" && (
@@ -401,36 +443,51 @@ export default function SuperAdminPage() {
                             ) : <span className="text-xs text-slate-400">—</span>}
                           </td>
                           <td className="px-4 py-3">
-                            <div className="flex items-center justify-end gap-1">
-                              <button title="Détail & permissions"
-                                onClick={() => { setSelectedUser(u); setModalUser("detail"); }}
-                                className="p-1.5 text-slate-400 hover:text-violet-600 hover:bg-violet-50 rounded-lg transition-colors">
-                                <Eye size={14} />
-                              </button>
-                              <button title="Réinitialiser le mot de passe"
-                                onClick={() => { setSelectedUser(u); setTempPwd(""); setMotifAction(""); setModalUser("reset"); }}
-                                className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors">
-                                <Key size={14} />
-                              </button>
-                              {u.etat === "SUSPENDU" ? (
-                                <button title="Réactiver le compte" disabled={busy}
-                                  onClick={() => handleUserAction(u, "unsuspend")}
-                                  className="p-1.5 text-emerald-500 hover:bg-emerald-50 rounded-lg transition-colors disabled:opacity-40">
-                                  <Unlock size={14} />
+                            {/* ADMIN ne peut pas agir sur un SUPER_ADMIN */}
+                            {isAdmin && u.role === "SUPER_ADMIN" ? (
+                              <div className="flex justify-end">
+                                <span className="text-[10px] text-slate-400 italic px-2">Accès restreint</span>
+                              </div>
+                            ) : (
+                              <div className="flex items-center justify-end gap-1">
+                                <button title="Détail & permissions"
+                                  onClick={() => { setSelectedUser(u); setModalUser("detail"); }}
+                                  className="p-1.5 text-slate-400 hover:text-violet-600 hover:bg-violet-50 rounded-lg transition-colors">
+                                  <Eye size={14} />
                                 </button>
-                              ) : (
-                                <button title="Suspendre le compte" disabled={busy || u.id === parseInt(session!.user.id)}
-                                  onClick={() => handleUserAction(u, "suspend")}
+                                <button title="Réinitialiser le mot de passe"
+                                  onClick={() => { setSelectedUser(u); setTempPwd(""); setMotifAction(""); setModalUser("reset"); }}
+                                  className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors">
+                                  <Key size={14} />
+                                </button>
+                                {u.etat === "SUSPENDU" ? (
+                                  <button title="Réactiver le compte" disabled={busy}
+                                    onClick={() => handleUserAction(u, "unsuspend")}
+                                    className="p-1.5 text-emerald-500 hover:bg-emerald-50 rounded-lg transition-colors disabled:opacity-40">
+                                    <Unlock size={14} />
+                                  </button>
+                                ) : (
+                                  <button title="Suspendre le compte" disabled={busy || u.id === parseInt(session!.user.id)}
+                                    onClick={() => handleUserAction(u, "suspend")}
+                                    className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-40">
+                                    <Lock size={14} />
+                                  </button>
+                                )}
+                                <button title="Forcer la déconnexion" disabled={busy || u.id === parseInt(session!.user.id)}
+                                  onClick={() => handleUserAction(u, "force_disconnect")}
                                   className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-40">
-                                  <Lock size={14} />
+                                  <LogOut size={14} />
                                 </button>
-                              )}
-                              <button title="Forcer la déconnexion" disabled={busy || u.id === parseInt(session!.user.id)}
-                                onClick={() => handleUserAction(u, "force_disconnect")}
-                                className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-40">
-                                <LogOut size={14} />
-                              </button>
-                            </div>
+                                {/* Suppression définitive — SUPER_ADMIN uniquement */}
+                                {isSuperAdmin && (
+                                  <button title="Supprimer définitivement" disabled={busy}
+                                    onClick={() => handleUserAction(u, "delete_permanent")}
+                                    className="p-1.5 text-slate-300 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-40">
+                                    <UserX size={14} />
+                                  </button>
+                                )}
+                              </div>
+                            )}
                           </td>
                         </tr>
                       );
@@ -961,11 +1018,19 @@ export default function SuperAdminPage() {
               <button onClick={() => setModalUser("detail")} className="p-2 text-slate-400 hover:text-slate-600 rounded-lg"><X size={18} /></button>
             </div>
             <div className="p-5 space-y-4">
+              {/* Blocage ADMIN sur SUPER_ADMIN */}
+              {isAdmin && selectedUser.role === "SUPER_ADMIN" && (
+                <div className="flex items-start gap-2.5 bg-amber-50 border border-amber-200 rounded-xl p-3">
+                  <ShieldAlert size={16} className="text-amber-500 flex-shrink-0 mt-0.5" />
+                  <p className="text-xs text-amber-700">Vous ne pouvez pas modifier les permissions d&apos;un Super Administrateur.</p>
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-medium text-slate-600 mb-1">Module</label>
                   <select value={permModule} onChange={(e) => setPermModule(e.target.value)}
-                    className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 bg-slate-50">
+                    disabled={isAdmin && selectedUser.role === "SUPER_ADMIN"}
+                    className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 bg-slate-50 disabled:opacity-50">
                     <option value="">-- Choisir --</option>
                     {["caisse","stock","packs","ventes","logistique","comptabilite","rapports","assemblees","admin","superadmin"].map((m) => (
                       <option key={m} value={m}>{m}</option>
@@ -975,7 +1040,8 @@ export default function SuperAdminPage() {
                 <div>
                   <label className="block text-xs font-medium text-slate-600 mb-1">Permission</label>
                   <select value={permPerm} onChange={(e) => setPermPerm(e.target.value)}
-                    className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 bg-slate-50">
+                    disabled={isAdmin && selectedUser.role === "SUPER_ADMIN"}
+                    className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 bg-slate-50 disabled:opacity-50">
                     <option value="">-- Choisir --</option>
                     {["read","write","delete","export","admin","override"].map((p) => (
                       <option key={p} value={p}>{p}</option>
@@ -983,20 +1049,19 @@ export default function SuperAdminPage() {
                   </select>
                 </div>
               </div>
-              <label className="flex items-center justify-between bg-slate-50 rounded-xl px-4 py-3 border border-slate-200 cursor-pointer">
+              <label className={`flex items-center justify-between bg-slate-50 rounded-xl px-4 py-3 border border-slate-200 ${isAdmin && selectedUser.role === "SUPER_ADMIN" ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}>
                 <span className="text-sm text-slate-700">Accordée (sinon refusée)</span>
-                <button type="button" onClick={() => setPermGranted(!permGranted)}>
+                <button type="button" disabled={isAdmin && selectedUser.role === "SUPER_ADMIN"} onClick={() => setPermGranted(!permGranted)}>
                   {permGranted ? <ToggleRight size={28} className="text-violet-600" /> : <ToggleLeft size={28} className="text-slate-300" />}
                 </button>
               </label>
               <div className="flex gap-3">
                 <button onClick={() => setModalUser("detail")} className="flex-1 py-2.5 border border-slate-200 rounded-xl text-slate-600 text-sm hover:bg-slate-50">Retour</button>
                 <button
-                  disabled={!permModule || !permPerm || doingAction}
+                  disabled={!permModule || !permPerm || doingAction || (isAdmin && selectedUser.role === "SUPER_ADMIN")}
                   onClick={async () => {
                     await handleUserAction(selectedUser, "set_permission", { module: permModule, permission: permPerm, granted: permGranted });
                     setPermModule(""); setPermPerm(""); setPermGranted(true);
-                    // Refresh user permissions
                     refetchUsers();
                     setModalUser("detail");
                   }}

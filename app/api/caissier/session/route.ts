@@ -6,15 +6,21 @@ import { notifyRoles, auditLog } from "@/lib/notifications";
 
 /**
  * GET /api/caissier/session
- * Retourne la session active (OUVERTE ou SUSPENDUE) ou null.
+ * Retourne la session active (OUVERTE ou SUSPENDUE) du caissier connecté, ou null.
  */
 export async function GET() {
   try {
     const session = await getCaissierSession();
     if (!session) return NextResponse.json({ message: "Accès refusé" }, { status: 403 });
 
+    const userId   = parseInt(session.user.id);
+    const isAdmin  = session.user.role === "ADMIN" || session.user.role === "SUPER_ADMIN";
+
     const sessionActive = await prisma.sessionCaisse.findFirst({
-      where: { statut: { in: ["OUVERTE", "SUSPENDUE"] } },
+      where: {
+        statut: { in: ["OUVERTE", "SUSPENDUE"] },
+        ...(isAdmin ? {} : { caissierId: userId }),
+      },
       orderBy: { createdAt: "desc" },
     });
 
@@ -60,10 +66,14 @@ export async function POST(req: Request) {
     const now          = new Date();
     const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
 
+    // Définir caissierId tôt (utilisé dans la boucle d'auto-fermeture)
+    const caissierIdEarly = parseInt(auth.user.id);
+
     // ── Garde : fermer les sessions oubliées des jours précédents ──────────
-    // Avant d'ouvrir, on règle proprement tout ce qui traîne d'hier ou avant.
+    // Scoped au caissier connecté uniquement (un caissier ne clôture pas les sessions des autres)
     const sessionsAnciennesOuvertes = await prisma.sessionCaisse.findMany({
       where: {
+        caissierId:    caissierIdEarly,
         statut:        { in: ["OUVERTE", "SUSPENDUE"] },
         dateOuverture: { lt: startOfToday },
       },
@@ -126,7 +136,7 @@ export async function POST(req: Request) {
             data:  { statut: "FERMEE", dateFermeture: finJ },
           });
 
-          await auditLog(tx, caissierId, "FERMETURE_AUTO_CAISSE_OUVERTURE", "ClotureCaisse", cloture.id);
+          await auditLog(tx, caissierIdEarly, "FERMETURE_AUTO_CAISSE_OUVERTURE", "ClotureCaisse", cloture.id);
 
           await notifyRoles(tx, ["RESPONSABLE_POINT_DE_VENTE", "COMPTABLE"], {
             titre:    `⚠ Fermeture auto de caisse — ${dateStr}`,
@@ -144,9 +154,9 @@ export async function POST(req: Request) {
       }
     }
 
-    // ── Vérifier qu'il n'y a pas de session OUVERTE aujourd'hui ────────────
+    // ── Vérifier qu'il n'y a pas de session OUVERTE pour ce caissier aujourd'hui ────────────
     const existing = await prisma.sessionCaisse.findFirst({
-      where: { statut: "OUVERTE" },
+      where: { caissierId: caissierIdEarly, statut: "OUVERTE" },
     });
     if (existing) {
       return NextResponse.json({ message: "Une session est déjà ouverte" }, { status: 409 });
@@ -154,12 +164,20 @@ export async function POST(req: Request) {
 
     const caissierNom = auth.user.name ?? `${auth.user.prenom} ${auth.user.nom}`;
     const caissierId  = parseInt(auth.user.id);
+    const isAdmin     = auth.user.role === "ADMIN" || auth.user.role === "SUPER_ADMIN";
 
     // Trouver le PDV du caissier via affectation active
     const affectation = await prisma.gestionnaireAffectation.findFirst({
       where: { userId: caissierId, actif: true },
       select: { pointDeVenteId: true },
     });
+
+    if (!isAdmin && !affectation?.pointDeVenteId) {
+      return NextResponse.json(
+        { message: "Aucun point de vente actif associé à votre compte. Contactez un administrateur." },
+        { status: 403 }
+      );
+    }
 
     const newSession = await prisma.sessionCaisse.create({
       data: {

@@ -31,6 +31,13 @@ export async function PATCH(req: Request, { params }: Ctx) {
       return NextResponse.json({ message: "Session introuvable" }, { status: 404 });
     }
 
+    const userId  = parseInt(auth.user.id);
+    const isAdmin = auth.user.role === "ADMIN" || auth.user.role === "SUPER_ADMIN";
+
+    if (!isAdmin && sessionCaisse.caissierId !== userId) {
+      return NextResponse.json({ message: "Vous ne pouvez pas modifier la session d'un autre caissier" }, { status: 403 });
+    }
+
     if (action === "SUSPENDRE" && sessionCaisse.statut !== "OUVERTE") {
       return NextResponse.json({ message: "La session n'est pas ouverte" }, { status: 409 });
     }

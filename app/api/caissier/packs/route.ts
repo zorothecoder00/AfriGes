@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getCaissierSession } from "@/lib/authCaissier";
+import { getCaissierSession, getCaissierPdvId, souscriptionPdvWhere } from "@/lib/authCaissier";
 import { notifyAdmins } from "@/lib/notifications";
 
 /**
@@ -13,25 +13,35 @@ export async function GET(req: Request) {
     const session = await getCaissierSession();
     if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
 
+    const userId  = parseInt(session.user.id);
+    const isAdmin = session.user.role === "ADMIN" || session.user.role === "SUPER_ADMIN";
+    const pdvId   = isAdmin ? null : await getCaissierPdvId(userId);
+
     const { searchParams } = new URL(req.url);
     const search = searchParams.get("search");
     const statut = searchParams.get("statut");
 
+    // Filtre PDV — restreint les souscriptions au périmètre du caissier
+    // Utilise AND explicite pour éviter que le filtre search (OR) écrase le filtre PDV (OR)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const andConditions: any[] = [
+      { statut: statut ? (statut as never) : { in: ["EN_ATTENTE", "ACTIF"] } },
+    ];
+    if (pdvId) andConditions.push(souscriptionPdvWhere(pdvId));
+    if (search) {
+      andConditions.push({
+        OR: [
+          { user:   { nom:       { contains: search, mode: "insensitive" } } },
+          { user:   { prenom:    { contains: search, mode: "insensitive" } } },
+          { client: { nom:       { contains: search, mode: "insensitive" } } },
+          { client: { prenom:    { contains: search, mode: "insensitive" } } },
+          { client: { telephone: { contains: search } } },
+        ],
+      });
+    }
+
     const souscriptions = await prisma.souscriptionPack.findMany({
-      where: {
-        statut: statut ? (statut as never) : { in: ["EN_ATTENTE", "ACTIF"] },
-        ...(search
-          ? {
-              OR: [
-                { user: { nom: { contains: search, mode: "insensitive" } } },
-                { user: { prenom: { contains: search, mode: "insensitive" } } },
-                { client: { nom: { contains: search, mode: "insensitive" } } },
-                { client: { prenom: { contains: search, mode: "insensitive" } } },
-                { client: { telephone: { contains: search } } },
-              ],
-            }
-          : {}),
-      },
+      where: { AND: andConditions },
       orderBy: [{ statut: "asc" }, { createdAt: "desc" }],
       include: {
         pack: { select: { nom: true, type: true, frequenceVersement: true } },

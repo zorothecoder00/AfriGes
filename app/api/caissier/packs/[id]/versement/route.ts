@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getCaissierSession } from "@/lib/authCaissier";
+import { getCaissierSession, getCaissierPdvId } from "@/lib/authCaissier";
 import { notifyAdmins } from "@/lib/notifications";
 
 type Ctx = { params: Promise<{ id: string }> };
@@ -16,6 +16,10 @@ export async function POST(req: Request, { params }: Ctx) {
     const session = await getCaissierSession();
     if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
 
+    const userId  = parseInt(session.user.id);
+    const isAdmin = session.user.role === "ADMIN" || session.user.role === "SUPER_ADMIN";
+    const pdvId   = isAdmin ? null : await getCaissierPdvId(userId);
+
     const { id } = await params;
     const souscriptionId = parseInt(id);
 
@@ -28,11 +32,28 @@ export async function POST(req: Request, { params }: Ctx) {
 
     const souscription = await prisma.souscriptionPack.findUnique({
       where: { id: souscriptionId },
-      include: { pack: true },
+      include: {
+        pack: true,
+        client: { select: { pointDeVenteId: true } },
+        user: {
+          select: {
+            affectationsPDV: { where: { actif: true }, select: { pointDeVenteId: true } },
+          },
+        },
+      },
     });
 
     if (!souscription) {
       return NextResponse.json({ error: "Souscription introuvable" }, { status: 404 });
+    }
+
+    // Vérifier que la souscription appartient au PDV du caissier
+    if (!isAdmin && pdvId) {
+      const clientPdv = souscription.client?.pointDeVenteId;
+      const userPdv   = souscription.user?.affectationsPDV?.some(a => a.pointDeVenteId === pdvId);
+      if (clientPdv !== pdvId && !userPdv) {
+        return NextResponse.json({ error: "Vous ne pouvez pas encaisser sur une souscription hors de votre PDV" }, { status: 403 });
+      }
     }
     if (souscription.statut === "ANNULE" || souscription.statut === "COMPLETE") {
       return NextResponse.json(
