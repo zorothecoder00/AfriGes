@@ -7,7 +7,7 @@ import {
   Users, Hash, AlertTriangle, AlertCircle, Info, ChevronLeft, ChevronRight,
   Lock, Calendar, FileText, Filter, Layers, Eye, XCircle, Package,
   Wallet, Power, Pause, Play, ArrowDownCircle, ArrowUpCircle,
-  ArrowLeftRight, CreditCard, Building2, Send,
+  ArrowLeftRight, CreditCard, Building2, Send, ShoppingBag,
 } from "lucide-react";
 import Link from "next/link";
 import SignOutButton from "@/components/SignOutButton";
@@ -59,6 +59,7 @@ interface DashboardData {
   soldeTempsReel: number;
   operationsJour: { encaissements: number; decaissements: number; transferts: number };
   versements: { total: number; montant: number; nbClients: number };
+  ventesDirectes: { total: number; montant: number };
   stock: {
     total: number; faible: number; rupture: number; valeur: number;
     produitsAlerte: { id: number; nom: string; stock: number; alerteStock: number }[];
@@ -71,7 +72,49 @@ interface DashboardData {
   derniersVersements: {
     id: number; packNom: string; packType: string;
     montant: number; clientNom: string; type: string; heure: string;
+    sourceType?: "VERSEMENT_PACK" | "VENTE_DIRECTE";
   }[];
+}
+
+interface VenteDirecteItem {
+  id: number;
+  reference: string;
+  statut: string;
+  modePaiement: string;
+  montantTotal: string;
+  montantPaye: string;
+  monnaieRendue: string;
+  clientNom: string | null;
+  notes: string | null;
+  createdAt: string;
+  client: { id: number; nom: string; prenom: string; telephone: string } | null;
+  vendeur: { id: number; nom: string; prenom: string } | null;
+  lignes: {
+    id: number; produitId: number; quantite: number;
+    prixUnitaire: string; montant: string;
+    produit: { id: number; nom: string; unite: string | null };
+  }[];
+}
+interface VentesDirectesResponse {
+  data: VenteDirecteItem[];
+  stats: { total: number; montantTotal: number };
+  meta: { total: number; page: number; limit: number; totalPages: number };
+}
+
+interface RecuVenteDirecteData {
+  success: boolean;
+  type: "vente_directe";
+  data: {
+    recu: { numero: string; date: string; caissier: string };
+    vente: {
+      id: number; reference: string; montantTotal: number;
+      montantPaye: number; monnaieRendue: number;
+      modePaiement: string; notes: string | null;
+    };
+    client: { nom: string; telephone?: string };
+    lignes: { produitNom: string; unite: string; quantite: number; prixUnitaire: number; montant: number }[];
+    entreprise: { nom: string; adresse: string; telephone: string };
+  };
 }
 interface DashboardResponse { success: boolean; data: DashboardData }
 
@@ -207,6 +250,7 @@ function versementTypeLabel(type: string) {
     REMBOURSEMENT:        "Remboursement",
     BONUS:                "Bonus",
     AJUSTEMENT:           "Ajustement",
+    VENTE_DIRECTE:        "Vente directe",
   };
   return m[type] ?? type;
 }
@@ -441,6 +485,142 @@ function TicketDecaissement({ data, onClose }: { data: RecuOperationData["data"]
   );
 }
 
+function TicketVenteDirecte({ data, onClose }: { data: RecuVenteDirecteData["data"]; onClose: () => void }) {
+  const handlePrint = useCallback(() => {
+    const win = window.open("", "_blank", "width=400,height=700");
+    if (!win) return;
+    const lignesHtml = data.lignes.map((l) =>
+      `<tr>
+        <td>${l.produitNom}</td>
+        <td style="text-align:center">${l.quantite} ${l.unite}</td>
+        <td style="text-align:right">${l.prixUnitaire.toLocaleString("fr-FR")}</td>
+        <td style="text-align:right">${l.montant.toLocaleString("fr-FR")}</td>
+      </tr>`
+    ).join("");
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"/>
+    <title>Reçu ${data.recu.numero}</title>
+    <style>
+      body{font-family:monospace;font-size:12px;max-width:300px;margin:0 auto;padding:16px}
+      .center{text-align:center} .bold{font-weight:bold} .big{font-size:18px}
+      .line{border-top:1px dashed #333;margin:8px 0}
+      .row{display:flex;justify-content:space-between;margin:3px 0}
+      .total{font-size:16px;font-weight:bold}
+      table{width:100%;border-collapse:collapse;font-size:11px}
+      th{border-bottom:1px solid #333;text-align:left;padding:2px}
+      td{padding:2px}
+    </style></head><body>
+    <div class="center bold big">${data.entreprise.nom}</div>
+    ${data.entreprise.adresse ? `<div class="center">${data.entreprise.adresse}</div>` : ""}
+    ${data.entreprise.telephone ? `<div class="center">Tél: ${data.entreprise.telephone}</div>` : ""}
+    <div class="line"></div>
+    <div class="center bold">REÇU DE VENTE DIRECTE</div>
+    <div class="center">${data.recu.numero}</div>
+    <div class="center">${new Date(data.recu.date).toLocaleString("fr-FR")}</div>
+    <div class="center">Caissier: ${data.recu.caissier}</div>
+    <div class="line"></div>
+    <div class="row"><span>Client :</span><span class="bold">${data.client.nom}</span></div>
+    ${data.client.telephone ? `<div class="row"><span>Tél :</span><span>${data.client.telephone}</span></div>` : ""}
+    <div class="line"></div>
+    <table>
+      <thead><tr><th>Article</th><th>Qté</th><th style="text-align:right">P.U</th><th style="text-align:right">Total</th></tr></thead>
+      <tbody>${lignesHtml}</tbody>
+    </table>
+    <div class="line"></div>
+    <div class="row"><span>Sous-total :</span><span>${data.vente.montantTotal.toLocaleString("fr-FR")} FCFA</span></div>
+    <div class="row total"><span>MONTANT PAYÉ</span><span>${data.vente.montantPaye.toLocaleString("fr-FR")} FCFA</span></div>
+    ${data.vente.monnaieRendue > 0 ? `<div class="row"><span>Monnaie rendue :</span><span>${data.vente.monnaieRendue.toLocaleString("fr-FR")} FCFA</span></div>` : ""}
+    <div class="line"></div>
+    <div class="center">Merci de votre confiance !</div>
+    </body></html>`;
+    win.document.write(html);
+    win.document.close();
+    win.focus();
+    setTimeout(() => win.print(), 300);
+  }, [data]);
+
+  return (
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between p-5 border-b border-slate-100">
+          <div className="flex items-center gap-3">
+            <div className="bg-indigo-50 p-2.5 rounded-xl"><ShoppingBag className="text-indigo-600 w-5 h-5" /></div>
+            <div>
+              <p className="font-bold text-slate-800">Reçu de vente directe</p>
+              <p className="text-xs text-slate-500">{data.recu.numero}</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg">
+            <X size={18} />
+          </button>
+        </div>
+        <div className="p-5 font-mono text-sm space-y-1">
+          <p className="text-center font-bold text-base">{data.entreprise.nom}</p>
+          {data.entreprise.adresse && <p className="text-center text-xs text-slate-500">{data.entreprise.adresse}</p>}
+          <div className="border-t border-dashed border-slate-300 my-3" />
+          <div className="text-center">
+            <p className="font-bold">REÇU DE VENTE DIRECTE</p>
+            <p className="text-xs text-slate-500">{new Date(data.recu.date).toLocaleString("fr-FR")}</p>
+            <p className="text-xs text-slate-500">Caissier : {data.recu.caissier}</p>
+          </div>
+          <div className="border-t border-dashed border-slate-300 my-3" />
+          <div className="flex justify-between text-xs"><span className="text-slate-500">Client</span><span className="font-semibold">{data.client.nom}</span></div>
+          {data.client.telephone && <div className="flex justify-between text-xs"><span className="text-slate-500">Tél</span><span>{data.client.telephone}</span></div>}
+          <div className="border-t border-dashed border-slate-300 my-3" />
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="border-b border-slate-200">
+                <th className="text-left pb-1">Article</th>
+                <th className="text-center pb-1">Qté</th>
+                <th className="text-right pb-1">P.U</th>
+                <th className="text-right pb-1">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.lignes.map((l, i) => (
+                <tr key={i} className="border-b border-slate-100">
+                  <td className="py-1">{l.produitNom}</td>
+                  <td className="py-1 text-center">{l.quantite} {l.unite}</td>
+                  <td className="py-1 text-right">{l.prixUnitaire.toLocaleString("fr-FR")}</td>
+                  <td className="py-1 text-right font-semibold">{l.montant.toLocaleString("fr-FR")}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <div className="border-t border-dashed border-slate-300 my-3" />
+          <div className="flex justify-between text-xs"><span className="text-slate-500">Sous-total</span><span>{formatCurrency(data.vente.montantTotal)}</span></div>
+          <div className="flex justify-between font-bold text-base">
+            <span>MONTANT PAYÉ</span>
+            <span className="text-indigo-600">{formatCurrency(data.vente.montantPaye)}</span>
+          </div>
+          {data.vente.monnaieRendue > 0 && (
+            <div className="flex justify-between text-xs"><span className="text-slate-500">Monnaie rendue</span><span>{formatCurrency(data.vente.monnaieRendue)}</span></div>
+          )}
+          {data.vente.notes && (
+            <>
+              <div className="border-t border-dashed border-slate-300 my-3" />
+              <p className="text-xs text-slate-500">Note : {data.vente.notes}</p>
+            </>
+          )}
+          <div className="border-t border-dashed border-slate-300 my-3" />
+          <p className="text-center text-xs text-slate-400">Merci de votre confiance !</p>
+        </div>
+        <div className="p-5 pt-0 flex gap-3">
+          <button onClick={onClose} className="flex-1 py-2.5 border border-slate-200 rounded-xl text-slate-600 text-sm font-medium hover:bg-slate-50 transition-colors">
+            Fermer
+          </button>
+          <button
+            onClick={handlePrint}
+            className="flex-1 py-2.5 bg-gradient-to-r from-indigo-600 to-violet-600 text-white rounded-xl text-sm font-semibold hover:from-indigo-700 hover:to-violet-700 transition-all flex items-center justify-center gap-2"
+          >
+            <Printer size={16} />
+            Imprimer
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ============================================================================
 // MAIN PAGE
 // ============================================================================
@@ -474,6 +654,8 @@ export default function CaissierPage() {
   const [recuData,             setRecuData]             = useState<RecuData["data"] | null>(null);
   const [recuOpModal,          setRecuOpModal]          = useState(false);
   const [recuOpData,           setRecuOpData]           = useState<RecuOperationData["data"] | null>(null);
+  const [venteRecuModal,       setVenteRecuModal]       = useState(false);
+  const [venteRecuData,        setVenteRecuData]        = useState<RecuVenteDirecteData["data"] | null>(null);
   const [notesClotureInput,    setNotesCloture]         = useState("");
   const [soldeReel,         setSoldeReel]    = useState("");
 
@@ -526,6 +708,18 @@ export default function CaissierPage() {
     [cloturePage]
   );
 
+  const ventesDirParams = useMemo(() => {
+    const p = new URLSearchParams({ page: "1", limit: "50" });
+    if (filtreAujourdHui) {
+      p.set("aujourdHui", "true");
+    } else {
+      if (dateDebut) p.set("dateDebut", dateDebut);
+      if (dateFin)   p.set("dateFin",   dateFin);
+    }
+    if (debouncedSearch) p.set("search", debouncedSearch);
+    return p.toString();
+  }, [filtreAujourdHui, dateDebut, dateFin, debouncedSearch]);
+
   const encaissementParams = useMemo(() => {
     const p = new URLSearchParams();
     if (debouncedEncSearch) p.set("search", debouncedEncSearch);
@@ -559,6 +753,8 @@ export default function CaissierPage() {
     totalJour: number;
     meta: { total: number; page: number; limit: number; totalPages: number };
   }>("/api/caissier/transferts?limit=50");
+
+  const { data: ventesDirRes, refetch: refetchVentesDir } = useApi<VentesDirectesResponse>(`/api/caissier/ventes?${ventesDirParams}`);
 
   // ── Mutations ────────────────────────────────────────────────────────────
   const { mutate: collecterVersement, loading: collectant, error: erreurVersement } =
@@ -615,6 +811,7 @@ export default function CaissierPage() {
   const souscriptions = packsRes?.souscriptions ?? [];
   const operations  = operationsRes?.data ?? [];
   const transferts  = transfertsRes?.data ?? [];
+  const ventesDir   = ventesDirRes?.data ?? [];
 
   // Calcul solde théorique pour la clôture
   const fondsCaisseInitial  = dashboard?.sessionActive?.fondsCaisse ?? 0;
@@ -688,6 +885,17 @@ export default function CaissierPage() {
       if (json.success) {
         setRecuOpData(json.data);
         setRecuOpModal(true);
+      }
+    } catch { /* ignore */ }
+  }, []);
+
+  const handleVoirRecuVente = useCallback(async (venteId: number) => {
+    try {
+      const res = await fetch(`/api/caissier/recus?venteId=${venteId}`);
+      const json: RecuVenteDirecteData = await res.json();
+      if (json.success) {
+        setVenteRecuData(json.data);
+        setVenteRecuModal(true);
       }
     } catch { /* ignore */ }
   }, []);
@@ -863,6 +1071,7 @@ export default function CaissierPage() {
     refetchPacks();
     refetchOperations();
     refetchTransferts();
+    refetchVentesDir();
   };
 
   // ============================================================================
@@ -885,8 +1094,9 @@ export default function CaissierPage() {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-sky-50/30 to-indigo-50/20 font-['DM_Sans',sans-serif]">
 
       {/* ── Modals ── */}
-      {recuModal    && recuData    && <TicketRecu         data={recuData}    onClose={() => setRecuModal(false)} />}
-      {recuOpModal  && recuOpData  && <TicketDecaissement data={recuOpData}  onClose={() => setRecuOpModal(false)} />}
+      {recuModal      && recuData      && <TicketRecu          data={recuData}      onClose={() => setRecuModal(false)} />}
+      {recuOpModal    && recuOpData    && <TicketDecaissement  data={recuOpData}    onClose={() => setRecuOpModal(false)} />}
+      {venteRecuModal && venteRecuData && <TicketVenteDirecte  data={venteRecuData} onClose={() => setVenteRecuModal(false)} />}
 
       {/* Modal Versement */}
       {versementModal && selectedSouscription && (
@@ -1131,20 +1341,26 @@ export default function CaissierPage() {
                 <p className="text-sm text-slate-500">Aucune session de caisse ouverte — <button onClick={() => setActiveTab("session")} className="text-emerald-600 font-semibold hover:underline">Ouvrir la caisse</button></p>
               </div>
             )}
-            <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-              <KpiCard label="Solde temps réel"      value={formatCurrency(dashboard?.soldeTempsReel ?? 0)}      icon={Wallet}       color="text-teal-500"    bg="bg-teal-50"    sub="en caisse" />
-              <KpiCard label="Versements du jour"    value={String(dashboard?.versements.total ?? 0)}             icon={Layers}       color="text-sky-500"     bg="bg-sky-50"     sub="aujourd'hui" />
-              <KpiCard label="Montant encaissé"      value={formatCurrency(dashboard?.versements.montant ?? 0)}  icon={Banknote}     color="text-emerald-500" bg="bg-emerald-50" sub="total du jour" />
-              <KpiCard label="Souscriptions actives" value={String(dashboard?.souscriptionsActives ?? 0)}        icon={TrendingUp}   color="text-violet-500"  bg="bg-violet-50"  />
-              <KpiCard label="Clients servis"        value={String(dashboard?.versements.nbClients ?? 0)}        icon={Users}        color="text-pink-500"    bg="bg-pink-50"    sub="aujourd'hui" />
+            <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
+              <KpiCard label="Solde temps réel"      value={formatCurrency(dashboard?.soldeTempsReel ?? 0)}                                                      icon={Wallet}       color="text-teal-500"    bg="bg-teal-50"    sub="en caisse" />
+              <KpiCard label="Versements packs"      value={String(dashboard?.versements.total ?? 0)}                                                             icon={Layers}       color="text-sky-500"     bg="bg-sky-50"     sub="aujourd'hui" />
+              <KpiCard label="Ventes directes"       value={String(dashboard?.ventesDirectes?.total ?? 0)}                                                        icon={ShoppingBag}  color="text-indigo-500"  bg="bg-indigo-50"  sub="aujourd'hui" />
+              <KpiCard label="Total encaissé"        value={formatCurrency((dashboard?.versements.montant ?? 0) + (dashboard?.ventesDirectes?.montant ?? 0))}     icon={Banknote}     color="text-emerald-500" bg="bg-emerald-50" sub="packs + ventes" />
+              <KpiCard label="Souscriptions actives" value={String(dashboard?.souscriptionsActives ?? 0)}                                                         icon={TrendingUp}   color="text-violet-500"  bg="bg-violet-50"  />
+              <KpiCard label="Clients servis"        value={String(dashboard?.versements.nbClients ?? 0)}                                                         icon={Users}        color="text-pink-500"    bg="bg-pink-50"    sub="aujourd'hui" />
             </div>
 
             {/* Bandeaux */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl p-5 text-white shadow-lg shadow-emerald-200">
                 <p className="text-emerald-100 text-xs mb-1">Total encaissé aujourd&apos;hui</p>
-                <p className="text-3xl font-bold">{formatCurrency(dashboard?.versements.montant ?? 0)}</p>
-                <p className="text-emerald-200 text-sm mt-2">{dashboard?.versements.total ?? 0} versement(s) collecté(s)</p>
+                <p className="text-3xl font-bold">{formatCurrency((dashboard?.versements.montant ?? 0) + (dashboard?.ventesDirectes?.montant ?? 0))}</p>
+                <div className="text-emerald-200 text-xs mt-2 space-y-0.5">
+                  <p>{dashboard?.versements.total ?? 0} versement(s) pack</p>
+                  {(dashboard?.ventesDirectes?.total ?? 0) > 0 && (
+                    <p>{dashboard!.ventesDirectes.total} vente(s) directe(s) · {formatCurrency(dashboard!.ventesDirectes.montant)}</p>
+                  )}
+                </div>
               </div>
               <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60 space-y-3">
                 <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">État du stock</p>
@@ -1222,7 +1438,7 @@ export default function CaissierPage() {
               <div className="flex items-center justify-between mb-4">
                 <h3 className="font-bold text-slate-800 flex items-center gap-2">
                   <Clock size={20} className="text-emerald-600" />
-                  Derniers versements collectés
+                  Derniers encaissements collectés
                 </h3>
                 <button
                   onClick={() => setActiveTab("historique")}
@@ -1233,22 +1449,25 @@ export default function CaissierPage() {
               </div>
               <div className="space-y-2">
                 {(dashboard?.derniersVersements ?? []).length === 0 && (
-                  <p className="text-center py-8 text-slate-400 text-sm">Aucun versement collecté aujourd&apos;hui</p>
+                  <p className="text-center py-8 text-slate-400 text-sm">Aucun encaissement collecté aujourd&apos;hui</p>
                 )}
-                {(dashboard?.derniersVersements ?? []).map((v) => (
-                  <div key={v.id} className="flex items-center justify-between py-2.5 border-b border-slate-100 last:border-0">
+                {(dashboard?.derniersVersements ?? []).map((v) => {
+                  const isVD = v.sourceType === "VENTE_DIRECTE";
+                  return (
+                  <div key={`${v.sourceType ?? "VP"}-${v.id}`} className="flex items-center justify-between py-2.5 border-b border-slate-100 last:border-0">
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 bg-emerald-50 rounded-lg flex items-center justify-center">
-                        <Banknote size={14} className="text-emerald-600" />
+                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isVD ? "bg-indigo-50" : "bg-emerald-50"}`}>
+                        {isVD ? <ShoppingBag size={14} className="text-indigo-600" /> : <Banknote size={14} className="text-emerald-600" />}
                       </div>
                       <div>
                         <p className="text-sm font-semibold text-slate-800">{v.clientNom} — {v.packNom}</p>
                         <p className="text-xs text-slate-500">{versementTypeLabel(v.type)} · {v.heure}</p>
                       </div>
                     </div>
-                    <span className="font-bold text-emerald-600 text-sm">{formatCurrency(v.montant)}</span>
+                    <span className={`font-bold text-sm ${isVD ? "text-indigo-600" : "text-emerald-600"}`}>{formatCurrency(v.montant)}</span>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           </div>
@@ -2121,6 +2340,57 @@ export default function CaissierPage() {
               )}
             </div>
 
+            {/* Ventes directes */}
+            {ventesDir.length > 0 && (
+              <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 overflow-hidden">
+                <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+                  <h3 className="font-bold text-slate-800 flex items-center gap-2">
+                    <ShoppingBag size={18} className="text-indigo-600" />
+                    Ventes directes
+                  </h3>
+                  <span className="text-sm font-bold text-indigo-600">
+                    {formatCurrency(ventesDir.reduce((s, v) => s + Number(v.montantPaye), 0))}
+                  </span>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-slate-50 border-b border-slate-200">
+                      <tr>
+                        {["Référence", "Client", "Mode", "Montant payé", "Date/Heure", ""].map((h) => (
+                          <th key={h} className="px-5 py-3.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {ventesDir.map((v) => {
+                        const client = v.client ? `${v.client.prenom} ${v.client.nom}` : v.clientNom ?? "—";
+                        return (
+                          <tr key={v.id} className="hover:bg-slate-50 transition-colors">
+                            <td className="px-5 py-3.5 font-mono text-xs text-slate-400">{v.reference}</td>
+                            <td className="px-5 py-3.5 text-sm text-slate-700">{client}</td>
+                            <td className="px-5 py-3.5">
+                              <span className="bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full text-xs font-medium">{modePaiementLabel(v.modePaiement)}</span>
+                            </td>
+                            <td className="px-5 py-3.5 font-bold text-indigo-600">{formatCurrency(Number(v.montantPaye))}</td>
+                            <td className="px-5 py-3.5 text-xs text-slate-500">{formatDateTime(v.createdAt)}</td>
+                            <td className="px-5 py-3.5">
+                              <button
+                                onClick={() => handleVoirRecuVente(v.id)}
+                                className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                                title="Voir le reçu"
+                              >
+                                <Eye size={15} />
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
             {/* Encaissements financiers de la session */}
             {operations.filter(o => o.type === "ENCAISSEMENT").length > 0 && (
               <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 overflow-hidden">
@@ -2233,7 +2503,7 @@ export default function CaissierPage() {
                 </h3>
                 <div className="flex items-center gap-2">
                   <Filter size={15} className="text-slate-400" />
-                  <span className="text-sm text-slate-500">{versements.length + operations.length} reçu(s)</span>
+                  <span className="text-sm text-slate-500">{versements.length + operations.length + ventesDir.length} reçu(s)</span>
                 </div>
               </div>
               <div className="relative">
@@ -2319,6 +2589,73 @@ export default function CaissierPage() {
               </div>
             )}
 
+            {/* Ventes directes */}
+            {ventesDir.filter((v) => {
+              if (!debouncedSearch) return true;
+              const q = debouncedSearch.toLowerCase();
+              const client = v.client ? `${v.client.prenom} ${v.client.nom}`.toLowerCase() : (v.clientNom ?? "").toLowerCase();
+              return client.includes(q) || v.reference.toLowerCase().includes(q);
+            }).length > 0 && (
+              <div>
+                <h4 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-3 flex items-center gap-2">
+                  <ShoppingBag size={15} />
+                  Ventes directes
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                  {ventesDir
+                    .filter((v) => {
+                      if (!debouncedSearch) return true;
+                      const q = debouncedSearch.toLowerCase();
+                      const client = v.client ? `${v.client.prenom} ${v.client.nom}`.toLowerCase() : (v.clientNom ?? "").toLowerCase();
+                      return client.includes(q) || v.reference.toLowerCase().includes(q);
+                    })
+                    .map((v) => {
+                      const clientNomDisplay = v.client ? `${v.client.prenom} ${v.client.nom}` : v.clientNom ?? "—";
+                      return (
+                        <div key={v.id} className="bg-white rounded-xl shadow-sm border border-slate-200 hover:shadow-md transition-all">
+                          <div className="p-5">
+                            <div className="flex items-center justify-between mb-3">
+                              <span className="inline-flex items-center gap-1.5 bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full text-xs font-bold">
+                                <ShoppingBag size={11} />
+                                VD
+                              </span>
+                              <span className="text-xs text-slate-400">{formatDateTime(v.createdAt)}</span>
+                            </div>
+                            <div className="space-y-2">
+                              <div className="flex justify-between text-sm">
+                                <span className="text-slate-500">Client</span>
+                                <span className="font-semibold text-slate-800 text-right max-w-[130px] truncate">{clientNomDisplay}</span>
+                              </div>
+                              <div className="flex justify-between text-sm">
+                                <span className="text-slate-500">Articles</span>
+                                <span className="text-slate-600">{v.lignes.length} article(s)</span>
+                              </div>
+                              <div className="flex justify-between text-sm">
+                                <span className="text-slate-500">Mode</span>
+                                <span className="text-slate-600">{modePaiementLabel(v.modePaiement)}</span>
+                              </div>
+                              <div className="border-t border-dashed border-slate-200 pt-2 flex justify-between">
+                                <span className="text-slate-600 font-medium text-sm">Payé</span>
+                                <span className="text-lg font-bold text-indigo-600">{formatCurrency(Number(v.montantPaye))}</span>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="px-5 pb-5">
+                            <button
+                              onClick={() => handleVoirRecuVente(v.id)}
+                              className="w-full py-2.5 bg-slate-50 hover:bg-indigo-50 hover:text-indigo-700 text-slate-600 rounded-xl text-sm font-medium transition-colors flex items-center justify-center gap-2 border border-slate-200 hover:border-indigo-200"
+                            >
+                              <Printer size={15} />
+                              Voir &amp; imprimer
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                </div>
+              </div>
+            )}
+
             {/* Opérations financières (encaissements + décaissements) */}
             {operations.filter((op) => {
               if (!debouncedSearch) return true;
@@ -2391,7 +2728,7 @@ export default function CaissierPage() {
             )}
 
             {/* État vide global */}
-            {versements.length === 0 && operations.length === 0 && (
+            {versements.length === 0 && operations.length === 0 && ventesDir.length === 0 && (
               <div className="bg-white rounded-xl p-12 text-center shadow-sm border border-slate-200">
                 <Receipt className="w-12 h-12 text-slate-200 mx-auto mb-4" />
                 <p className="text-slate-400">Aucun reçu pour cette session</p>

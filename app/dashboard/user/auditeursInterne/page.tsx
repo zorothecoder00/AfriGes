@@ -216,6 +216,119 @@ interface BonsSortieResponse {
   meta: { total: number; page: number; limit: number; totalPages: number };
 }
 
+// ── Ventes stats ──────────────────────────────────────────────────────────────
+interface VentePdvStat {
+  id: number; nom: string; code: string;
+  versementsMontant: number; versementsCount: number;
+  ventesMontant: number; ventesCount: number;
+  totalMontant: number; totalCount: number;
+}
+interface VenteVendeurStat {
+  id: number; nom: string; prenom: string; role: string;
+  versementsMontant: number; versementsCount: number;
+  ventesMontant: number; ventesCount: number;
+  totalMontant: number; totalCount: number;
+}
+interface DerniereVente {
+  id: number; type: "VERSEMENT_PACK" | "VENTE_DIRECTE";
+  reference: string; montant: number; date: string;
+  clientNom: string; agentNom: string; pdvNom: string; packNom: string;
+}
+interface VentesStatsResponse {
+  success: boolean;
+  data: {
+    periode: { jours: number; debut: string; fin: string };
+    global: { versementsPacks: { montant: number; count: number }; ventesDirectes: { montant: number; count: number }; totalMontant: number; totalOperations: number };
+    parPdv: VentePdvStat[];
+    parVendeur: VenteVendeurStat[];
+    dernieresVentes: DerniereVente[];
+  };
+}
+
+// ── Caisses ───────────────────────────────────────────────────────────────────
+interface ClotureCaisseAudit {
+  id: number; date: string; caissierNom: string;
+  totalVentes: number; montantTotal: number; panierMoyen: number;
+  nbClients: number; ecart: number; hasEcart: boolean;
+  notes: string | null; pdvNom: string;
+}
+interface SessionCaisseAudit {
+  id: number; statut: string; fondsCaisse: number;
+  dateOuverture: string; dateFermeture: string | null;
+  caissierNom: string; pdvNom: string;
+}
+interface CaissesResponse {
+  success: boolean;
+  data: {
+    periode: { jours: number; debut: string; fin: string };
+    operations: {
+      encaissements: { montant: number; count: number };
+      decaissements: { total: { montant: number; count: number }; parCategorie: Record<string, { montant: number; count: number }> };
+      soldeNet: number;
+    };
+    clotures: { count: number; montantTotal: number; ecartTotal: number; avecEcart: number; recentes: ClotureCaisseAudit[] };
+    sessions: { total: number; ouvertes: number; fermees: number; recentes: SessionCaisseAudit[] };
+    transferts: Array<{ id: number; montant: number; motif: string; date: string; caissier: string; pdvNom: string }>;
+    parPdv: Array<{ id: number; nom: string; code: string; count: number; montant: number; ecart: number }>;
+  };
+}
+
+// ── Transferts stock ──────────────────────────────────────────────────────────
+interface LigneTransfertAudit {
+  id: number; produitNom: string; unite: string; quantite: number; prixUnit: number | null;
+}
+interface TransfertStockAudit {
+  id: number; reference: string; statut: string;
+  origine: { id: number; nom: string; code: string; type: string };
+  destination: { id: number; nom: string; code: string; type: string };
+  creeParNom: string; valideParNom: string | null;
+  dateExpedition: string | null; dateReception: string | null;
+  notes: string | null; createdAt: string;
+  enAttenteReception: boolean;
+  lignes: LigneTransfertAudit[];
+  totalQuantite: number; totalValeur: number;
+}
+interface TransfertsResponse {
+  success: boolean;
+  data: TransfertStockAudit[];
+  stats: { parStatut: Record<string, number>; enAttenteReception: number; total: number };
+  pointsDeVente: Array<{ id: number; nom: string; code: string; type: string }>;
+  meta: { total: number; page: number; limit: number; totalPages: number };
+}
+
+// ── Utilisateurs ──────────────────────────────────────────────────────────────
+interface UtilisateurAudit {
+  id: number; role: string; actif: boolean;
+  membre: { id: number; nom: string; prenom: string; email: string; telephone: string | null; etat: string; dateAdhesion: string };
+  pdvAffectes: Array<{ id: number; nom: string; code: string; type: string }>;
+  permissions: Array<{ id: number; module: string; permission: string; granted: boolean; notes: string | null; createdAt: string }>;
+  nbPermissions: number;
+}
+interface UtilisateursResponse {
+  success: boolean;
+  data: UtilisateurAudit[];
+  statsParRole: Record<string, number>;
+  meta: { total: number; page: number; limit: number; totalPages: number };
+}
+
+// ── Logs système ──────────────────────────────────────────────────────────────
+interface LogSystemeEntry {
+  id: number; source: "SECURITY" | "AUDIT"; action: string;
+  entite: string; entiteId: number | null; details: string | null;
+  ipAddress: string | null; userEmail: string | null;
+  utilisateur: string; createdAt: string;
+}
+interface LogsSystemeResponse {
+  success: boolean;
+  data: LogSystemeEntry[];
+  stats: {
+    securityTotal: number; auditSensibleTotal: number;
+    topActionsSecurite: Array<{ action: string; count: number }>;
+    topActionsAudit: Array<{ action: string; count: number }>;
+  };
+  meta: { total: number; page: number; limit: number; totalPages: number };
+}
+
 // ============================================================================
 // HELPERS
 // ============================================================================
@@ -291,7 +404,7 @@ const StatCard = ({
 
 export default function AuditeurInternePage() {
   const [activeTab, setActiveTab] = useState<
-    "overview" | "journal" | "stock" | "finances" | "ventes" | "mouvements" | "rapports"
+    "overview" | "journal" | "stock" | "finances" | "ventes_logistique" | "ventes" | "caisses" | "transferts" | "utilisateurs" | "logs_systeme" | "mouvements" | "rapports"
   >("overview");
 
   // ── Journal filters ─────────────────────────────────────────────────────────
@@ -355,6 +468,76 @@ export default function AuditeurInternePage() {
 
   // ── Sous-onglet dans "mouvements" ───────────────────────────────────────────
   const [mouvSubTab, setMouvSubTab] = useState<"mouvements" | "anomalies" | "bons">("mouvements");
+
+  // ── Ventes Globales ──────────────────────────────────────────────────────────
+  const [ventesPeriod, setVentesPeriod]     = useState(30);
+  const [ventesPdvId, setVentesPdvId]       = useState("");
+  const [ventesView, setVentesView]         = useState<"global" | "parPdv" | "parVendeur" | "detail">("global");
+  const ventesStatsParams = new URLSearchParams({ period: String(ventesPeriod) });
+  if (ventesPdvId) ventesStatsParams.set("pdvId", ventesPdvId);
+  const { data: ventesStatsRes, loading: ventesStatsLoading } = useApi<VentesStatsResponse>(
+    activeTab === "ventes" ? `/api/auditeur/ventes-stats?${ventesStatsParams}` : null
+  );
+
+  // ── Caisses ──────────────────────────────────────────────────────────────────
+  const [caissesPeriod, setCaissesPeriod]   = useState(30);
+  const [caissesPdvId, setCaissesPdvId]     = useState("");
+  const [caissesSubTab, setCaissesSubTab]   = useState<"clotures" | "sessions" | "parPdv">("clotures");
+  const caissesParams = new URLSearchParams({ period: String(caissesPeriod) });
+  if (caissesPdvId) caissesParams.set("pdvId", caissesPdvId);
+  const { data: caissesRes, loading: caissesLoading } = useApi<CaissesResponse>(
+    activeTab === "caisses" ? `/api/auditeur/caisses?${caissesParams}` : null
+  );
+
+  // ── Transferts stock ─────────────────────────────────────────────────────────
+  const [transfertsPage, setTransfertsPage]       = useState(1);
+  const [transfertsStatut, setTransfertsStatut]   = useState("");
+  const [transfertsExpanded, setTransfertsExpanded] = useState<number | null>(null);
+  const transfertsParams = new URLSearchParams({ page: String(transfertsPage), limit: "20" });
+  if (transfertsStatut) transfertsParams.set("statut", transfertsStatut);
+  const { data: transfertsRes, loading: transfertsLoading } = useApi<TransfertsResponse>(
+    activeTab === "transferts" ? `/api/auditeur/transferts?${transfertsParams}` : null
+  );
+
+  // ── Utilisateurs ─────────────────────────────────────────────────────────────
+  const [utilisateursPage, setUtilisateursPage]   = useState(1);
+  const [utilisateursRole, setUtilisateursRole]   = useState("");
+  const [utilisateursSearch, setUtilisateursSearch] = useState("");
+  const [utilisateursDSearch, setUtilisateursDSearch] = useState("");
+  const [utilisateurExpanded, setUtilisateurExpanded] = useState<number | null>(null);
+
+  useEffect(() => {
+    const t = setTimeout(() => setUtilisateursDSearch(utilisateursSearch), 400);
+    return () => clearTimeout(t);
+  }, [utilisateursSearch]);
+
+  const utilisateursParams = new URLSearchParams({ page: String(utilisateursPage), limit: "25" });
+  if (utilisateursRole)   utilisateursParams.set("role",   utilisateursRole);
+  if (utilisateursDSearch) utilisateursParams.set("search", utilisateursDSearch);
+  const { data: utilisateursRes, loading: utilisateursLoading } = useApi<UtilisateursResponse>(
+    activeTab === "utilisateurs" ? `/api/auditeur/utilisateurs?${utilisateursParams}` : null
+  );
+
+  // ── Logs système ─────────────────────────────────────────────────────────────
+  const [logsSystemePage, setLogsSystemePage]       = useState(1);
+  const [logsSystemeType, setLogsSystemeType]       = useState("all");
+  const [logsSystemeSearch, setLogsSystemeSearch]   = useState("");
+  const [logsSystemeDSearch, setLogsSystemeDSearch] = useState("");
+  const [logsSystemeStart, setLogsSystemeStart]     = useState("");
+  const [logsSystemeEnd, setLogsSystemeEnd]         = useState("");
+
+  useEffect(() => {
+    const t = setTimeout(() => setLogsSystemeDSearch(logsSystemeSearch), 400);
+    return () => clearTimeout(t);
+  }, [logsSystemeSearch]);
+
+  const logsSystemeParams = new URLSearchParams({ page: String(logsSystemePage), limit: "25", type: logsSystemeType });
+  if (logsSystemeDSearch) logsSystemeParams.set("search",    logsSystemeDSearch);
+  if (logsSystemeStart)   logsSystemeParams.set("startDate", logsSystemeStart);
+  if (logsSystemeEnd)     logsSystemeParams.set("endDate",   logsSystemeEnd);
+  const { data: logsSystemeRes, loading: logsSystemeLoading } = useApi<LogsSystemeResponse>(
+    activeTab === "logs_systeme" ? `/api/auditeur/logs-systeme?${logsSystemeParams}` : null
+  );
 
   // ── Rapport form state ──────────────────────────────────────────────────────
   const [rapportType, setRapportType] = useState<"AUDIT" | "ANOMALIES" | "RECOMMANDATIONS" | "CONSOLIDE">("AUDIT");
@@ -481,13 +664,18 @@ export default function AuditeurInternePage() {
   };
 
   const tabs = [
-    { key: "overview"    as const, label: "Vue Générale",        icon: Shield },
-    { key: "journal"     as const, label: "Journal d'Audit",     icon: FileText },
-    { key: "stock"       as const, label: "Stock & Inventaire",  icon: Package },
-    { key: "finances"    as const, label: "Finances & Caisse",   icon: CreditCardIcon },
-    { key: "ventes"      as const, label: "Ventes & Logistique", icon: Truck },
-    { key: "mouvements"  as const, label: "Mouvements & Sorties", icon: Layers },
-    { key: "rapports"    as const, label: "Rapports",            icon: ClipboardList },
+    { key: "overview"        as const, label: "Vue Générale",        icon: Shield },
+    { key: "journal"         as const, label: "Journal d'Audit",     icon: FileText },
+    { key: "stock"           as const, label: "Stock & Inventaire",  icon: Package },
+    { key: "finances"        as const, label: "Finances & Caisse",   icon: CreditCardIcon },
+    { key: "ventes_logistique" as const, label: "Ventes & Logistique", icon: Truck },
+    { key: "ventes"          as const, label: "Ventes Globales",     icon: TrendingUp },
+    { key: "caisses"         as const, label: "Caisses",             icon: BarChart3 },
+    { key: "transferts"      as const, label: "Transferts Stock",    icon: ArrowRightLeft },
+    { key: "utilisateurs"    as const, label: "Utilisateurs",        icon: Users },
+    { key: "logs_systeme"    as const, label: "Logs Système",        icon: ShieldAlert },
+    { key: "mouvements"      as const, label: "Mouvements & Sorties", icon: Layers },
+    { key: "rapports"        as const, label: "Rapports",            icon: ClipboardList },
   ];
 
   // ── Render ──────────────────────────────────────────────────────────────────
@@ -1071,7 +1259,7 @@ export default function AuditeurInternePage() {
         {/* ================================================================== */}
         {/* TAB: Ventes & Logistique                                            */}
         {/* ================================================================== */}
-        {activeTab === "ventes" && (
+        {activeTab === "ventes_logistique" && (
           <div className="space-y-6">
             {/* Summary */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
@@ -1606,6 +1794,691 @@ export default function AuditeurInternePage() {
                 ))}
               </div>
             </div>
+          </div>
+        )}
+
+        {/* ================================================================== */}
+        {/* TAB: Ventes Globales                                               */}
+        {/* ================================================================== */}
+        {activeTab === "ventes" && (
+          <div className="space-y-6">
+            {/* Filtres */}
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 p-5 flex flex-wrap gap-4 items-end">
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">Période</label>
+                <select value={ventesPeriod} onChange={(e) => { setVentesPeriod(Number(e.target.value)); }} className="border border-slate-200 rounded-xl px-3 py-2 text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-amber-500">
+                  <option value={7}>7 derniers jours</option>
+                  <option value={30}>30 derniers jours</option>
+                  <option value={90}>90 derniers jours</option>
+                  <option value={365}>365 derniers jours</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">Vue</label>
+                <div className="flex gap-1">
+                  {(["global", "parPdv", "parVendeur", "detail"] as const).map((v) => (
+                    <button key={v} onClick={() => setVentesView(v)}
+                      className={`px-3 py-2 rounded-xl text-xs font-semibold transition-all ${ventesView === v ? "bg-amber-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}>
+                      {v === "global" ? "Global" : v === "parPdv" ? "Par PDV" : v === "parVendeur" ? "Par Vendeur" : "Détail"}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {ventesStatsLoading ? (
+              <div className="flex justify-center py-16"><Loader2 className="animate-spin text-amber-500 w-8 h-8" /></div>
+            ) : (
+              <>
+                {/* Vue globale */}
+                {ventesView === "global" && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+                    <StatCard label="Versements Packs" value={formatCurrency(ventesStatsRes?.data.global.versementsPacks.montant ?? 0)} subtitle={`${ventesStatsRes?.data.global.versementsPacks.count ?? 0} opérations`} icon={CreditCardIcon} color="text-amber-600" lightBg="bg-amber-50" />
+                    <StatCard label="Ventes Directes" value={formatCurrency(ventesStatsRes?.data.global.ventesDirectes.montant ?? 0)} subtitle={`${ventesStatsRes?.data.global.ventesDirectes.count ?? 0} ventes`} icon={Package} color="text-indigo-600" lightBg="bg-indigo-50" />
+                    <StatCard label="Total Encaissements" value={formatCurrency(ventesStatsRes?.data.global.totalMontant ?? 0)} subtitle={`${ventesStatsRes?.data.global.totalOperations ?? 0} opérations`} icon={TrendingUp} color="text-emerald-600" lightBg="bg-emerald-50" />
+                    <StatCard label="Période" value={`${ventesStatsRes?.data.periode.jours ?? ventesPeriod}j`} subtitle={`Depuis le ${ventesStatsRes?.data.periode.debut ? formatDate(ventesStatsRes.data.periode.debut) : "—"}`} icon={Calendar} color="text-blue-600" lightBg="bg-blue-50" />
+                  </div>
+                )}
+
+                {/* Par PDV */}
+                {ventesView === "parPdv" && (
+                  <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 overflow-hidden">
+                    <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+                      <h3 className="font-bold text-slate-800">Ventes par Point de Vente</h3>
+                      <span className="text-sm text-slate-500">{ventesStatsRes?.data.parPdv.length ?? 0} PDVs</span>
+                    </div>
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead className="bg-slate-50 border-b border-slate-200">
+                          <tr>
+                            <th className="px-5 py-3 text-left text-xs font-semibold text-slate-600 uppercase">PDV</th>
+                            <th className="px-5 py-3 text-right text-xs font-semibold text-slate-600 uppercase">Versements Packs</th>
+                            <th className="px-5 py-3 text-right text-xs font-semibold text-slate-600 uppercase">Ventes Directes</th>
+                            <th className="px-5 py-3 text-right text-xs font-semibold text-slate-600 uppercase">Total</th>
+                            <th className="px-5 py-3 text-right text-xs font-semibold text-slate-600 uppercase">Opérations</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {(ventesStatsRes?.data.parPdv ?? []).map((p) => (
+                            <tr key={p.id} className="hover:bg-slate-50">
+                              <td className="px-5 py-3">
+                                <p className="font-semibold text-slate-800 text-sm">{p.nom}</p>
+                                <p className="text-xs text-slate-400 font-mono">{p.code}</p>
+                              </td>
+                              <td className="px-5 py-3 text-right text-sm text-slate-700">{formatCurrency(p.versementsMontant)} <span className="text-xs text-slate-400">({p.versementsCount})</span></td>
+                              <td className="px-5 py-3 text-right text-sm text-slate-700">{formatCurrency(p.ventesMontant)} <span className="text-xs text-slate-400">({p.ventesCount})</span></td>
+                              <td className="px-5 py-3 text-right font-bold text-emerald-600">{formatCurrency(p.totalMontant)}</td>
+                              <td className="px-5 py-3 text-right text-sm font-semibold text-slate-700">{p.totalCount}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+
+                {/* Par Vendeur */}
+                {ventesView === "parVendeur" && (
+                  <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 overflow-hidden">
+                    <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+                      <h3 className="font-bold text-slate-800">Ventes par Vendeur / Agent</h3>
+                      <span className="text-sm text-slate-500">{ventesStatsRes?.data.parVendeur.length ?? 0} agents</span>
+                    </div>
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead className="bg-slate-50 border-b border-slate-200">
+                          <tr>
+                            <th className="px-5 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Agent</th>
+                            <th className="px-5 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Rôle</th>
+                            <th className="px-5 py-3 text-right text-xs font-semibold text-slate-600 uppercase">Versements</th>
+                            <th className="px-5 py-3 text-right text-xs font-semibold text-slate-600 uppercase">Ventes Directes</th>
+                            <th className="px-5 py-3 text-right text-xs font-semibold text-slate-600 uppercase">Total</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {(ventesStatsRes?.data.parVendeur ?? []).map((v) => (
+                            <tr key={v.id} className="hover:bg-slate-50">
+                              <td className="px-5 py-3 font-semibold text-slate-800 text-sm">{v.prenom} {v.nom}</td>
+                              <td className="px-5 py-3"><span className="text-xs bg-slate-100 text-slate-700 px-2 py-0.5 rounded-full">{roleLabel[v.role] ?? v.role}</span></td>
+                              <td className="px-5 py-3 text-right text-sm text-slate-700">{formatCurrency(v.versementsMontant)} <span className="text-xs text-slate-400">({v.versementsCount})</span></td>
+                              <td className="px-5 py-3 text-right text-sm text-slate-700">{formatCurrency(v.ventesMontant)} <span className="text-xs text-slate-400">({v.ventesCount})</span></td>
+                              <td className="px-5 py-3 text-right font-bold text-emerald-600">{formatCurrency(v.totalMontant)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+
+                {/* Détail des dernières ventes */}
+                {ventesView === "detail" && (
+                  <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 overflow-hidden">
+                    <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+                      <h3 className="font-bold text-slate-800">Détail des dernières ventes</h3>
+                      <button
+                        onClick={() => {
+                          const data = ventesStatsRes?.data.dernieresVentes ?? [];
+                          if (!data.length) return;
+                          exportToCsv(
+                            data.map((v) => ({ date: formatDateTime(v.date), type: v.type, reference: v.reference, montant: v.montant, client: v.clientNom, agent: v.agentNom, pdv: v.pdvNom, pack: v.packNom })),
+                            [{ label: "Date", key: "date" }, { label: "Type", key: "type" }, { label: "Référence", key: "reference" }, { label: "Montant", key: "montant" }, { label: "Client", key: "client" }, { label: "Agent", key: "agent" }, { label: "PDV", key: "pdv" }, { label: "Pack", key: "pack" }],
+                            "ventes-detail.csv"
+                          );
+                        }}
+                        className="flex items-center gap-2 px-4 py-2 bg-amber-50 text-amber-700 border border-amber-200 rounded-xl text-sm font-semibold hover:bg-amber-100 transition-all"
+                      >
+                        <Download size={15} /> CSV
+                      </button>
+                    </div>
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead className="bg-slate-50 border-b border-slate-200">
+                          <tr>
+                            <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Type</th>
+                            <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Référence</th>
+                            <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Client</th>
+                            <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Agent</th>
+                            <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">PDV</th>
+                            <th className="px-4 py-3 text-right text-xs font-semibold text-slate-600 uppercase">Montant</th>
+                            <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Date</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {(ventesStatsRes?.data.dernieresVentes ?? []).map((v, i) => (
+                            <tr key={i} className="hover:bg-slate-50">
+                              <td className="px-4 py-3">
+                                <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${v.type === "VERSEMENT_PACK" ? "bg-amber-100 text-amber-700" : "bg-indigo-100 text-indigo-700"}`}>
+                                  {v.type === "VERSEMENT_PACK" ? "Pack" : "VD"}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3 font-mono text-xs text-slate-600">{v.reference}</td>
+                              <td className="px-4 py-3 text-sm text-slate-700">{v.clientNom}</td>
+                              <td className="px-4 py-3 text-sm text-slate-600">{v.agentNom}</td>
+                              <td className="px-4 py-3 text-xs text-slate-500">{v.pdvNom}</td>
+                              <td className="px-4 py-3 text-right font-bold text-emerald-600">{formatCurrency(v.montant)}</td>
+                              <td className="px-4 py-3 text-xs text-slate-500 whitespace-nowrap">{formatDateTime(v.date)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        )}
+
+        {/* ================================================================== */}
+        {/* TAB: Caisses                                                        */}
+        {/* ================================================================== */}
+        {activeTab === "caisses" && (
+          <div className="space-y-6">
+            {/* Filtres */}
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 p-5 flex flex-wrap gap-4 items-end">
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">Période</label>
+                <select value={caissesPeriod} onChange={(e) => setCaissesPeriod(Number(e.target.value))} className="border border-slate-200 rounded-xl px-3 py-2 text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-amber-500">
+                  <option value={7}>7 jours</option>
+                  <option value={30}>30 jours</option>
+                  <option value={90}>90 jours</option>
+                  <option value={365}>1 an</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">Sous-onglet</label>
+                <div className="flex gap-1">
+                  {(["clotures", "sessions", "parPdv"] as const).map((v) => (
+                    <button key={v} onClick={() => setCaissesSubTab(v)}
+                      className={`px-3 py-2 rounded-xl text-xs font-semibold transition-all ${caissesSubTab === v ? "bg-amber-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}>
+                      {v === "clotures" ? "Clôtures" : v === "sessions" ? "Sessions" : "Par PDV"}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {caissesLoading ? (
+              <div className="flex justify-center py-16"><Loader2 className="animate-spin text-amber-500 w-8 h-8" /></div>
+            ) : (
+              <>
+                {/* KPIs */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+                  <StatCard label="Encaissements" value={formatCurrency(caissesRes?.data.operations.encaissements.montant ?? 0)} subtitle={`${caissesRes?.data.operations.encaissements.count ?? 0} opérations`} icon={ArrowUpCircle} color="text-emerald-600" lightBg="bg-emerald-50" />
+                  <StatCard label="Décaissements" value={formatCurrency(caissesRes?.data.operations.decaissements.total.montant ?? 0)} subtitle={`${caissesRes?.data.operations.decaissements.total.count ?? 0} opérations`} icon={ArrowDownCircle} color="text-red-500" lightBg="bg-red-50" />
+                  <StatCard label="Solde Net" value={formatCurrency(caissesRes?.data.operations.soldeNet ?? 0)} subtitle="Enc. - Déc." icon={BarChart3} color="text-blue-600" lightBg="bg-blue-50" />
+                  <StatCard label="Clôtures avec Écart" value={String(caissesRes?.data.clotures.avecEcart ?? 0)} subtitle={`/ ${caissesRes?.data.clotures.count ?? 0} clôtures`} icon={AlertTriangle} color="text-orange-500" lightBg="bg-orange-50" alert={(caissesRes?.data.clotures.avecEcart ?? 0) > 0} />
+                </div>
+
+                {/* Clôtures */}
+                {caissesSubTab === "clotures" && (
+                  <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 overflow-hidden">
+                    <div className="px-6 py-4 border-b border-slate-100">
+                      <h3 className="font-bold text-slate-800">Clôtures de caisse</h3>
+                    </div>
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead className="bg-slate-50 border-b border-slate-200">
+                          <tr>
+                            <th className="px-5 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Date</th>
+                            <th className="px-5 py-3 text-left text-xs font-semibold text-slate-600 uppercase">PDV</th>
+                            <th className="px-5 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Caissier</th>
+                            <th className="px-5 py-3 text-right text-xs font-semibold text-slate-600 uppercase">Ventes</th>
+                            <th className="px-5 py-3 text-right text-xs font-semibold text-slate-600 uppercase">Montant</th>
+                            <th className="px-5 py-3 text-right text-xs font-semibold text-slate-600 uppercase">Écart</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {(caissesRes?.data.clotures.recentes ?? []).map((c) => (
+                            <tr key={c.id} className="hover:bg-slate-50">
+                              <td className="px-5 py-3 text-sm text-slate-700 whitespace-nowrap">{formatDate(c.date)}</td>
+                              <td className="px-5 py-3 text-sm text-slate-600">{c.pdvNom}</td>
+                              <td className="px-5 py-3 text-sm text-slate-600">{c.caissierNom}</td>
+                              <td className="px-5 py-3 text-right text-sm font-semibold text-slate-800">{c.totalVentes}</td>
+                              <td className="px-5 py-3 text-right font-bold text-emerald-600">{formatCurrency(c.montantTotal)}</td>
+                              <td className="px-5 py-3 text-right">
+                                {c.hasEcart ? (
+                                  <span className="text-sm font-bold text-red-600">{formatCurrency(c.ecart)}</span>
+                                ) : (
+                                  <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-semibold">OK</span>
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+
+                {/* Sessions */}
+                {caissesSubTab === "sessions" && (
+                  <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 overflow-hidden">
+                    <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+                      <h3 className="font-bold text-slate-800">Sessions de caisse</h3>
+                      <div className="flex gap-3 text-sm">
+                        <span className="text-emerald-600 font-semibold">{caissesRes?.data.sessions.ouvertes ?? 0} ouvertes</span>
+                        <span className="text-slate-400">·</span>
+                        <span className="text-slate-600">{caissesRes?.data.sessions.fermees ?? 0} fermées</span>
+                      </div>
+                    </div>
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead className="bg-slate-50 border-b border-slate-200">
+                          <tr>
+                            <th className="px-5 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Ouverture</th>
+                            <th className="px-5 py-3 text-left text-xs font-semibold text-slate-600 uppercase">PDV</th>
+                            <th className="px-5 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Caissier</th>
+                            <th className="px-5 py-3 text-right text-xs font-semibold text-slate-600 uppercase">Fonds initial</th>
+                            <th className="px-5 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Statut</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {(caissesRes?.data.sessions.recentes ?? []).map((s) => (
+                            <tr key={s.id} className="hover:bg-slate-50">
+                              <td className="px-5 py-3 text-xs text-slate-600 whitespace-nowrap">{formatDateTime(s.dateOuverture)}</td>
+                              <td className="px-5 py-3 text-sm text-slate-700">{s.pdvNom}</td>
+                              <td className="px-5 py-3 text-sm text-slate-600">{s.caissierNom}</td>
+                              <td className="px-5 py-3 text-right text-sm font-semibold text-slate-800">{formatCurrency(s.fondsCaisse)}</td>
+                              <td className="px-5 py-3">
+                                <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${s.statut === "OUVERTE" ? "bg-emerald-100 text-emerald-700" : s.statut === "SUSPENDUE" ? "bg-amber-100 text-amber-700" : "bg-slate-100 text-slate-600"}`}>
+                                  {s.statut}
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+
+                {/* Par PDV */}
+                {caissesSubTab === "parPdv" && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                    {(caissesRes?.data.parPdv ?? []).map((p) => (
+                      <div key={p.id} className="bg-white rounded-2xl shadow-sm border border-slate-200/60 p-5">
+                        <div className="flex items-center justify-between mb-3">
+                          <div>
+                            <p className="font-bold text-slate-800 text-sm">{p.nom}</p>
+                            <p className="text-xs font-mono text-slate-400">{p.code}</p>
+                          </div>
+                          <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${p.ecart !== 0 ? "bg-red-100 text-red-700" : "bg-emerald-100 text-emerald-700"}`}>
+                            {p.ecart !== 0 ? `Écart ${formatCurrency(p.ecart)}` : "Sans écart"}
+                          </span>
+                        </div>
+                        <p className="text-2xl font-black text-emerald-600">{formatCurrency(p.montant)}</p>
+                        <p className="text-xs text-slate-500 mt-1">{p.count} clôture(s)</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        )}
+
+        {/* ================================================================== */}
+        {/* TAB: Transferts Stock                                               */}
+        {/* ================================================================== */}
+        {activeTab === "transferts" && (
+          <div className="space-y-6">
+            {/* Filtres */}
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 p-5 flex flex-wrap gap-4 items-end">
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">Statut</label>
+                <select value={transfertsStatut} onChange={(e) => { setTransfertsStatut(e.target.value); setTransfertsPage(1); }} className="border border-slate-200 rounded-xl px-3 py-2 text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-amber-500">
+                  <option value="">Tous les statuts</option>
+                  <option value="EN_COURS">En cours</option>
+                  <option value="EXPEDIE">Expédié</option>
+                  <option value="RECU">Reçu</option>
+                  <option value="ANNULE">Annulé</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Stats statuts */}
+            {transfertsRes && (
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                {[
+                  { statut: "EN_COURS", label: "En cours",  color: "bg-blue-50 text-blue-700 border-blue-200" },
+                  { statut: "EXPEDIE",  label: "Expédiés",  color: "bg-amber-50 text-amber-700 border-amber-200" },
+                  { statut: "RECU",     label: "Reçus",     color: "bg-emerald-50 text-emerald-700 border-emerald-200" },
+                  { statut: "ANNULE",   label: "Annulés",   color: "bg-red-50 text-red-700 border-red-200" },
+                ].map((s) => (
+                  <div key={s.statut} className={`rounded-2xl border p-4 ${s.color}`}>
+                    <p className="text-3xl font-black">{transfertsRes.stats.parStatut[s.statut] ?? 0}</p>
+                    <p className="text-xs font-semibold mt-1">{s.label}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {transfertsRes && (transfertsRes.stats.enAttenteReception ?? 0) > 0 && (
+              <div className="bg-amber-50 border border-amber-300 rounded-2xl p-4 flex items-center gap-3">
+                <AlertTriangle className="text-amber-600 flex-shrink-0" size={20} />
+                <p className="text-amber-800 font-semibold text-sm">
+                  {transfertsRes.stats.enAttenteReception} transfert(s) expédié(s) en attente de réception — vérifier les écarts de quantité
+                </p>
+              </div>
+            )}
+
+            {transfertsLoading ? (
+              <div className="flex justify-center py-16"><Loader2 className="animate-spin text-amber-500 w-8 h-8" /></div>
+            ) : (
+              <div className="space-y-3">
+                {(transfertsRes?.data ?? []).map((t) => (
+                  <div key={t.id} className={`bg-white rounded-2xl shadow-sm border overflow-hidden ${t.enAttenteReception ? "border-amber-300" : "border-slate-200/60"}`}>
+                    <div
+                      className="px-6 py-4 flex items-center justify-between gap-4 cursor-pointer hover:bg-slate-50"
+                      onClick={() => setTransfertsExpanded(transfertsExpanded === t.id ? null : t.id)}
+                    >
+                      <div className="flex items-center gap-4 flex-1 min-w-0">
+                        <div>
+                          <p className="font-mono text-xs text-slate-500">{t.reference}</p>
+                          <p className="font-semibold text-slate-800 text-sm mt-0.5">
+                            {t.origine.nom} → {t.destination.nom}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        {t.enAttenteReception && (
+                          <span className="text-xs bg-amber-100 text-amber-700 font-bold px-2 py-0.5 rounded-full">En attente réception</span>
+                        )}
+                        <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                          t.statut === "RECU" ? "bg-emerald-100 text-emerald-700" :
+                          t.statut === "EXPEDIE" ? "bg-amber-100 text-amber-700" :
+                          t.statut === "EN_COURS" ? "bg-blue-100 text-blue-700" :
+                          "bg-red-100 text-red-700"
+                        }`}>{t.statut.replace("_", " ")}</span>
+                        <span className="font-bold text-slate-700 text-sm">{t.totalQuantite} unités</span>
+                        <ChevronRight size={16} className={`text-slate-400 transition-transform ${transfertsExpanded === t.id ? "rotate-90" : ""}`} />
+                      </div>
+                    </div>
+                    {transfertsExpanded === t.id && (
+                      <div className="border-t border-slate-100 px-6 py-4 bg-slate-50 space-y-3">
+                        <div className="flex flex-wrap gap-6 text-sm">
+                          <div><span className="text-slate-500">Créé par :</span> <span className="font-semibold text-slate-800">{t.creeParNom}</span></div>
+                          {t.valideParNom && <div><span className="text-slate-500">Validé par :</span> <span className="font-semibold text-slate-800">{t.valideParNom}</span></div>}
+                          {t.dateExpedition && <div><span className="text-slate-500">Expédié le :</span> <span className="font-semibold text-slate-800">{formatDate(t.dateExpedition)}</span></div>}
+                          {t.dateReception && <div><span className="text-slate-500">Reçu le :</span> <span className="font-semibold text-slate-800">{formatDate(t.dateReception)}</span></div>}
+                          <div><span className="text-slate-500">Créé le :</span> <span className="text-slate-600">{formatDate(t.createdAt)}</span></div>
+                        </div>
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="text-left text-xs text-slate-500">
+                              <th className="pb-2">Produit</th>
+                              <th className="pb-2 text-right">Quantité envoyée</th>
+                              <th className="pb-2 text-right">Prix unit.</th>
+                              <th className="pb-2 text-right">Valeur</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100">
+                            {t.lignes.map((l) => (
+                              <tr key={l.id}>
+                                <td className="py-2 font-medium text-slate-800">{l.produitNom} {l.unite && <span className="text-slate-400">({l.unite})</span>}</td>
+                                <td className="py-2 text-right font-bold text-slate-700">{l.quantite}</td>
+                                <td className="py-2 text-right text-slate-600">{l.prixUnit ? formatCurrency(l.prixUnit) : "—"}</td>
+                                <td className="py-2 text-right font-semibold text-slate-800">{l.prixUnit ? formatCurrency(l.quantite * l.prixUnit) : "—"}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                ))}
+                {(transfertsRes?.meta?.totalPages ?? 0) > 1 && (
+                  <div className="flex justify-center gap-3 pt-2">
+                    <button disabled={transfertsPage === 1} onClick={() => setTransfertsPage((p) => p - 1)} className="p-2 rounded-xl border border-slate-200 hover:bg-slate-50 disabled:opacity-40">
+                      <ChevronLeft size={18} />
+                    </button>
+                    <span className="px-4 py-2 text-sm font-semibold text-slate-600">
+                      Page {transfertsPage} / {transfertsRes?.meta?.totalPages}
+                    </span>
+                    <button disabled={transfertsPage >= (transfertsRes?.meta?.totalPages ?? 1)} onClick={() => setTransfertsPage((p) => p + 1)} className="p-2 rounded-xl border border-slate-200 hover:bg-slate-50 disabled:opacity-40">
+                      <ChevronRight size={18} />
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ================================================================== */}
+        {/* TAB: Utilisateurs                                                   */}
+        {/* ================================================================== */}
+        {activeTab === "utilisateurs" && (
+          <div className="space-y-6">
+            {/* Filtres */}
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 p-5 flex flex-wrap gap-4 items-end">
+              <div className="flex-1 min-w-[200px]">
+                <label className="block text-xs font-semibold text-slate-600 mb-1">Recherche</label>
+                <div className="relative">
+                  <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input type="text" value={utilisateursSearch} onChange={(e) => { setUtilisateursSearch(e.target.value); setUtilisateursPage(1); }} placeholder="Nom, prénom, email..." className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-amber-500" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">Rôle</label>
+                <select value={utilisateursRole} onChange={(e) => { setUtilisateursRole(e.target.value); setUtilisateursPage(1); }} className="border border-slate-200 rounded-xl px-3 py-2 text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-amber-500">
+                  <option value="">Tous les rôles</option>
+                  {Object.entries(roleLabel).map(([k, v]) => (
+                    <option key={k} value={k}>{v} {utilisateursRes?.statsParRole[k] ? `(${utilisateursRes.statsParRole[k]})` : ""}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {utilisateursLoading ? (
+              <div className="flex justify-center py-16"><Loader2 className="animate-spin text-amber-500 w-8 h-8" /></div>
+            ) : (
+              <div className="space-y-3">
+                {(utilisateursRes?.data ?? []).map((u) => (
+                  <div key={u.id} className="bg-white rounded-2xl shadow-sm border border-slate-200/60 overflow-hidden">
+                    <div
+                      className="px-6 py-4 flex items-center justify-between gap-4 cursor-pointer hover:bg-slate-50"
+                      onClick={() => setUtilisateurExpanded(utilisateurExpanded === u.id ? null : u.id)}
+                    >
+                      <div className="flex items-center gap-4 flex-1 min-w-0">
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold text-sm flex-shrink-0 ${u.actif ? "bg-gradient-to-br from-amber-500 to-orange-500" : "bg-slate-400"}`}>
+                          {u.membre.prenom[0]}{u.membre.nom[0]}
+                        </div>
+                        <div>
+                          <p className="font-semibold text-slate-800">{u.membre.prenom} {u.membre.nom}</p>
+                          <p className="text-xs text-slate-500">{u.membre.email}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3 flex-wrap">
+                        <span className="text-xs bg-slate-100 text-slate-700 px-2 py-0.5 rounded-full font-semibold">{roleLabel[u.role] ?? u.role}</span>
+                        {u.pdvAffectes.length > 0 && (
+                          <span className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full">{u.pdvAffectes.map((p) => p.nom).join(", ")}</span>
+                        )}
+                        {u.nbPermissions > 0 && (
+                          <span className="text-xs bg-purple-50 text-purple-700 px-2 py-0.5 rounded-full font-semibold">{u.nbPermissions} permission(s)</span>
+                        )}
+                        <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${u.actif ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"}`}>
+                          {u.actif ? "Actif" : "Inactif"}
+                        </span>
+                        <ChevronRight size={16} className={`text-slate-400 transition-transform ${utilisateurExpanded === u.id ? "rotate-90" : ""}`} />
+                      </div>
+                    </div>
+                    {utilisateurExpanded === u.id && (
+                      <div className="border-t border-slate-100 px-6 py-4 bg-slate-50 space-y-3">
+                        <div className="flex flex-wrap gap-6 text-sm">
+                          {u.membre.telephone && <div><span className="text-slate-500">Tél :</span> <span className="font-semibold text-slate-800">{u.membre.telephone}</span></div>}
+                          <div><span className="text-slate-500">Statut :</span> <span className={`font-semibold ${u.membre.etat === "ACTIF" ? "text-emerald-700" : "text-red-700"}`}>{u.membre.etat}</span></div>
+                          <div><span className="text-slate-500">Membre depuis :</span> <span className="font-semibold text-slate-800">{formatDate(u.membre.dateAdhesion)}</span></div>
+                        </div>
+                        {u.permissions.length > 0 && (
+                          <div>
+                            <p className="text-xs font-bold text-slate-600 mb-2 uppercase tracking-wide">Permissions personnalisées</p>
+                            <div className="flex flex-wrap gap-2">
+                              {u.permissions.map((p) => (
+                                <span key={p.id} className={`text-xs px-2 py-1 rounded-lg font-semibold ${p.granted ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700 line-through"}`}>
+                                  {p.module} · {p.permission}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ))}
+                {(utilisateursRes?.meta?.totalPages ?? 0) > 1 && (
+                  <div className="flex justify-center gap-3 pt-2">
+                    <button disabled={utilisateursPage === 1} onClick={() => setUtilisateursPage((p) => p - 1)} className="p-2 rounded-xl border border-slate-200 hover:bg-slate-50 disabled:opacity-40">
+                      <ChevronLeft size={18} />
+                    </button>
+                    <span className="px-4 py-2 text-sm font-semibold text-slate-600">
+                      Page {utilisateursPage} / {utilisateursRes?.meta?.totalPages} — {utilisateursRes?.meta?.total} utilisateurs
+                    </span>
+                    <button disabled={utilisateursPage >= (utilisateursRes?.meta?.totalPages ?? 1)} onClick={() => setUtilisateursPage((p) => p + 1)} className="p-2 rounded-xl border border-slate-200 hover:bg-slate-50 disabled:opacity-40">
+                      <ChevronRight size={18} />
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ================================================================== */}
+        {/* TAB: Logs Système                                                   */}
+        {/* ================================================================== */}
+        {activeTab === "logs_systeme" && (
+          <div className="space-y-6">
+            {/* Filtres */}
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 p-5 flex flex-wrap gap-4 items-end">
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">Source</label>
+                <select value={logsSystemeType} onChange={(e) => { setLogsSystemeType(e.target.value); setLogsSystemePage(1); }} className="border border-slate-200 rounded-xl px-3 py-2 text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-amber-500">
+                  <option value="all">Tous les logs</option>
+                  <option value="security">Sécurité (connexions)</option>
+                  <option value="audit">Audit (actions sensibles)</option>
+                </select>
+              </div>
+              <div className="flex-1 min-w-[200px]">
+                <label className="block text-xs font-semibold text-slate-600 mb-1">Recherche</label>
+                <div className="relative">
+                  <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input type="text" value={logsSystemeSearch} onChange={(e) => { setLogsSystemeSearch(e.target.value); setLogsSystemePage(1); }} placeholder="Action, email, entité..." className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-amber-500" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">Du</label>
+                <input type="date" value={logsSystemeStart} onChange={(e) => { setLogsSystemeStart(e.target.value); setLogsSystemePage(1); }} className="border border-slate-200 rounded-xl px-3 py-2 text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-amber-500" />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">Au</label>
+                <input type="date" value={logsSystemeEnd} onChange={(e) => { setLogsSystemeEnd(e.target.value); setLogsSystemePage(1); }} className="border border-slate-200 rounded-xl px-3 py-2 text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-amber-500" />
+              </div>
+              <button
+                onClick={() => {
+                  const data = logsSystemeRes?.data ?? [];
+                  if (!data.length) return;
+                  exportToCsv(
+                    data.map((l) => ({ date: formatDateTime(l.createdAt), source: l.source, action: l.action, utilisateur: l.utilisateur, email: l.userEmail ?? "", entite: l.entite, ip: l.ipAddress ?? "" })),
+                    [{ label: "Date", key: "date" }, { label: "Source", key: "source" }, { label: "Action", key: "action" }, { label: "Utilisateur", key: "utilisateur" }, { label: "Email", key: "email" }, { label: "Entité", key: "entite" }, { label: "IP", key: "ip" }],
+                    "logs-systeme.csv"
+                  );
+                }}
+                className="flex items-center gap-2 px-4 py-2 bg-amber-50 text-amber-700 border border-amber-200 rounded-xl text-sm font-semibold hover:bg-amber-100 transition-all"
+              >
+                <Download size={15} /> CSV
+              </button>
+            </div>
+
+            {/* Résumé top actions */}
+            {logsSystemeRes && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 p-5">
+                  <h3 className="font-bold text-slate-700 text-sm mb-3 flex items-center gap-2"><ShieldAlert size={16} className="text-red-500" /> Top actions sécurité</h3>
+                  <div className="space-y-2">
+                    {logsSystemeRes.stats.topActionsSecurite.slice(0, 5).map((a, i) => (
+                      <div key={i} className="flex items-center justify-between text-sm">
+                        <span className="text-slate-600 truncate">{a.action}</span>
+                        <span className="font-bold text-slate-800 ml-2">{a.count}</span>
+                      </div>
+                    ))}
+                    {logsSystemeRes.stats.topActionsSecurite.length === 0 && <p className="text-xs text-slate-400">Aucune donnée</p>}
+                  </div>
+                </div>
+                <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 p-5">
+                  <h3 className="font-bold text-slate-700 text-sm mb-3 flex items-center gap-2"><AlertOctagon size={16} className="text-orange-500" /> Top actions audit sensibles</h3>
+                  <div className="space-y-2">
+                    {logsSystemeRes.stats.topActionsAudit.slice(0, 5).map((a, i) => (
+                      <div key={i} className="flex items-center justify-between text-sm">
+                        <span className="text-slate-600 truncate">{a.action}</span>
+                        <span className="font-bold text-slate-800 ml-2">{a.count}</span>
+                      </div>
+                    ))}
+                    {logsSystemeRes.stats.topActionsAudit.length === 0 && <p className="text-xs text-slate-400">Aucune donnée</p>}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {logsSystemeLoading ? (
+              <div className="flex justify-center py-16"><Loader2 className="animate-spin text-amber-500 w-8 h-8" /></div>
+            ) : (
+              <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 overflow-hidden">
+                <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+                  <h3 className="font-bold text-slate-800">Entrées de logs</h3>
+                  <span className="text-sm text-slate-500">{logsSystemeRes?.meta?.total ?? 0} au total</span>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-slate-50 border-b border-slate-200">
+                      <tr>
+                        <th className="px-5 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Source</th>
+                        <th className="px-5 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Action</th>
+                        <th className="px-5 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Utilisateur</th>
+                        <th className="px-5 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Entité</th>
+                        <th className="px-5 py-3 text-left text-xs font-semibold text-slate-600 uppercase">IP</th>
+                        <th className="px-5 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Date</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {(logsSystemeRes?.data ?? []).length === 0 ? (
+                        <tr><td colSpan={6} className="py-10 text-center text-slate-400">Aucun log correspondant aux filtres</td></tr>
+                      ) : (logsSystemeRes?.data ?? []).map((l, i) => (
+                        <tr key={i} className="hover:bg-slate-50">
+                          <td className="px-5 py-3">
+                            <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${l.source === "SECURITY" ? "bg-red-100 text-red-700" : "bg-orange-100 text-orange-700"}`}>
+                              {l.source === "SECURITY" ? "Sécu" : "Audit"}
+                            </span>
+                          </td>
+                          <td className="px-5 py-3 max-w-[200px]">
+                            <span className={`text-xs px-2 py-0.5 rounded-full ${getActionColor(l.action)}`}>{l.action}</span>
+                          </td>
+                          <td className="px-5 py-3 text-sm text-slate-700">{l.utilisateur}</td>
+                          <td className="px-5 py-3 text-xs text-slate-500">{l.entite}{l.entiteId ? ` #${l.entiteId}` : ""}</td>
+                          <td className="px-5 py-3 text-xs font-mono text-slate-400">{l.ipAddress ?? "—"}</td>
+                          <td className="px-5 py-3 text-xs text-slate-500 whitespace-nowrap">{formatDateTime(l.createdAt)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                {(logsSystemeRes?.meta?.totalPages ?? 0) > 1 && (
+                  <div className="flex items-center justify-center gap-3 py-4 border-t border-slate-100">
+                    <button disabled={logsSystemePage === 1} onClick={() => setLogsSystemePage((p) => p - 1)} className="p-2 rounded-xl border border-slate-200 hover:bg-slate-50 disabled:opacity-40">
+                      <ChevronLeft size={18} />
+                    </button>
+                    <span className="text-sm font-semibold text-slate-600">
+                      Page {logsSystemePage} / {logsSystemeRes?.meta?.totalPages}
+                    </span>
+                    <button disabled={logsSystemePage >= (logsSystemeRes?.meta?.totalPages ?? 1)} onClick={() => setLogsSystemePage((p) => p + 1)} className="p-2 rounded-xl border border-slate-200 hover:bg-slate-50 disabled:opacity-40">
+                      <ChevronRight size={18} />
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
       </main>

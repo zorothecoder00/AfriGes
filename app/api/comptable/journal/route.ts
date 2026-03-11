@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getComptableSession } from "@/lib/authComptable";
+import { getComptableSession, getComptablePdvId } from "@/lib/authComptable";
 
 /**
  * GET /api/comptable/journal
@@ -32,7 +32,9 @@ type JournalCategory =
   | "FOURNISSEUR"
   | "CAISSE_AUTRE"
   // OperationCaisse encaissements
-  | "CAISSE_ENCAISSEMENT";
+  | "CAISSE_ENCAISSEMENT"
+  // VenteDirecte
+  | "VENTE_DIRECTE";
 
 interface JournalEntry {
   id:        string;
@@ -52,6 +54,8 @@ interface JournalEntry {
 const CAISSE_CATS = new Set<string>(["SALAIRE", "AVANCE", "FOURNISSEUR", "CAISSE_AUTRE", "CAISSE_ENCAISSEMENT"]);
 // Catégories qui proviennent exclusivement du VersementPack
 const PACK_CATS   = new Set<string>(["COTISATION_INITIALE", "VERSEMENT_PERIODIQUE", "REMBOURSEMENT", "VERSEMENT_PACK"]);
+// Catégories qui proviennent exclusivement de VenteDirecte
+const VENTE_DIR_CATS = new Set<string>(["VENTE_DIRECTE"]);
 
 function typeToCategorie(type: string): JournalCategory {
   switch (type) {
@@ -104,6 +108,15 @@ export async function GET(req: Request) {
     if (!dateDebutParam) dateDebut.setDate(dateDebut.getDate() - 30);
     dateFin.setHours(23, 59, 59, 999);
 
+    // ── Filtre PDV ─────────────────────────────────────────────────────────────
+    const pdvId = await getComptablePdvId(session);
+    const pdvMouvFilter      = pdvId !== null ? { pointDeVenteId: pdvId } : {};
+    const pdvCaisseFilter    = pdvId !== null ? { session: { pointDeVenteId: pdvId } } : {};
+    // VersementPack → SouscriptionPack → Client.pointDeVenteId
+    const pdvVersFilter      = pdvId !== null ? { souscription: { client: { pointDeVenteId: pdvId } } } : {};
+    // VenteDirecte → pointDeVenteId direct
+    const pdvVenteDirFilter  = pdvId !== null ? { pointDeVenteId: pdvId } : {};
+
     const includeEnc = typeFilter === "TOUS" || typeFilter === "ENCAISSEMENT";
     const includeDec = typeFilter === "TOUS" || typeFilter === "DECAISSEMENT";
 
@@ -119,11 +132,13 @@ export async function GET(req: Request) {
     const sourceIsAll    = source === "";
 
     // Est-ce qu'on doit interroger chaque source ?
-    const queryCaisseOnly = catFilter !== "" && CAISSE_CATS.has(catFilter);
-    const queryPackOnly   = catFilter !== "" && PACK_CATS.has(catFilter);
+    const queryCaisseOnly   = catFilter !== "" && CAISSE_CATS.has(catFilter);
+    const queryPackOnly     = catFilter !== "" && PACK_CATS.has(catFilter);
+    const queryVenteDirOnly = catFilter !== "" && VENTE_DIR_CATS.has(catFilter);
     const queryAppro      = (sourceIsAll || sourceIsAchats) && (catFilter === "" || catFilter === "APPROVISIONNEMENT");
     const queryPack       = (sourceIsAll || sourceIsVentes) && (catFilter === "" || queryPackOnly);
     const queryCaisse     = (sourceIsAll || sourceIsCaisse) && (catFilter === "" || queryCaisseOnly || source !== "");
+    const queryVenteDir   = (sourceIsAll || sourceIsVentes) && (catFilter === "" || queryVenteDirOnly);
 
     // VersementPack types à récupérer
     const versPackTypes: string[] =
@@ -143,13 +158,14 @@ export async function GET(req: Request) {
       catFilter === "CAISSE_AUTRE" ? ["AUTRE"] :
       ["SALAIRE", "AVANCE", "FOURNISSEUR", "AUTRE"];
 
-    const [versements, appros, opsEnc, opsDec] = await Promise.all([
+    const [versements, appros, opsEnc, opsDec, ventesDir] = await Promise.all([
 
-      // 1. VersementPack → ENCAISSEMENT
+      // 1. VersementPack → ENCAISSEMENT filtrés par PDV client
       includeEnc && queryPack
         ? prisma.versementPack.findMany({
             where: {
               datePaiement: { gte: dateDebut, lte: dateFin },
+              ...pdvVersFilter,
               ...(versPackTypes.length < 5
                 ? { type: { in: versPackTypes as ("COTISATION_INITIALE" | "VERSEMENT_PERIODIQUE" | "REMBOURSEMENT" | "BONUS" | "AJUSTEMENT")[] } }
                 : {}),
@@ -173,10 +189,10 @@ export async function GET(req: Request) {
           })
         : Promise.resolve([]),
 
-      // 2. MouvementStock ENTREE → DECAISSEMENT
+      // 2. MouvementStock ENTREE → DECAISSEMENT filtrés par PDV
       includeDec && queryAppro
         ? prisma.mouvementStock.findMany({
-            where: { type: "ENTREE", dateMouvement: { gte: dateDebut, lte: dateFin } },
+            where: { type: "ENTREE", dateMouvement: { gte: dateDebut, lte: dateFin }, ...pdvMouvFilter },
             select: {
               id: true,
               quantite: true,
@@ -189,10 +205,10 @@ export async function GET(req: Request) {
           })
         : Promise.resolve([]),
 
-      // 3. OperationCaisse ENCAISSEMENT
+      // 3. OperationCaisse ENCAISSEMENT filtrés par PDV
       includeEnc && (catFilter === "" || catFilter === "CAISSE_ENCAISSEMENT")
         ? prisma.operationCaisse.findMany({
-            where: { type: "ENCAISSEMENT", createdAt: { gte: dateDebut, lte: dateFin } },
+            where: { type: "ENCAISSEMENT", createdAt: { gte: dateDebut, lte: dateFin }, ...pdvCaisseFilter },
             select: {
               id: true,
               montant: true,
@@ -206,12 +222,13 @@ export async function GET(req: Request) {
           })
         : Promise.resolve([]),
 
-      // 4. OperationCaisse DECAISSEMENT (salaires, avances, fournisseurs, autre)
+      // 4. OperationCaisse DECAISSEMENT (salaires, avances, fournisseurs, autre) filtrés par PDV
       includeDec && queryCaisse
         ? prisma.operationCaisse.findMany({
             where: {
               type: "DECAISSEMENT",
               createdAt: { gte: dateDebut, lte: dateFin },
+              ...pdvCaisseFilter,
               ...(catFilter !== "" && CAISSE_CATS.has(catFilter) && catFilter !== "CAISSE_ENCAISSEMENT"
                 ? { categorie: { in: caisseCatFilter as ("SALAIRE" | "AVANCE" | "FOURNISSEUR" | "AUTRE")[] } }
                 : {}),
@@ -223,6 +240,27 @@ export async function GET(req: Request) {
               reference: true,
               categorie: true,
               operateurNom: true,
+              createdAt: true,
+            },
+            orderBy: { createdAt: "desc" },
+          })
+        : Promise.resolve([]),
+
+      // 5. VenteDirecte → ENCAISSEMENT filtrées par PDV
+      includeEnc && queryVenteDir
+        ? prisma.venteDirecte.findMany({
+            where: {
+              statut:    { notIn: ["BROUILLON", "ANNULEE"] },
+              createdAt: { gte: dateDebut, lte: dateFin },
+              ...pdvVenteDirFilter,
+            },
+            select: {
+              id: true,
+              reference: true,
+              montantPaye: true,
+              modePaiement: true,
+              clientNom: true,
+              client: { select: { nom: true, prenom: true } },
               createdAt: true,
             },
             orderBy: { createdAt: "desc" },
@@ -291,6 +329,23 @@ export async function GET(req: Request) {
         libelle:   `${cat === "SALAIRE" ? "Salaire" : cat === "AVANCE" ? "Avance" : cat === "FOURNISSEUR" ? "Fournisseur" : "Décaissement"} — ${op.motif} — ${op.operateurNom}`,
         montant:   Number(op.montant),
         reference: op.reference,
+      });
+    }
+
+    // VenteDirecte Encaissements
+    for (const vd of ventesDir) {
+      const clientLabel = vd.client
+        ? `${vd.client.prenom} ${vd.client.nom}`
+        : (vd.clientNom ?? "Client comptoir");
+      entries.push({
+        id:        `VD-${vd.id}`,
+        sourceId:  vd.id,
+        date:      vd.createdAt,
+        type:      "ENCAISSEMENT",
+        categorie: "VENTE_DIRECTE",
+        libelle:   `Vente directe — ${vd.reference} — ${clientLabel} (${vd.modePaiement})`,
+        montant:   Number(vd.montantPaye),
+        reference: vd.reference,
       });
     }
 

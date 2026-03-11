@@ -1347,7 +1347,7 @@ model SouscriptionPack {
   formuleRevendeur   FormuleRevendeur?
   frequenceVersement FrequenceVersement?
   dateDebut          DateTime            @default(now())
-  dateFin            DateTime?
+  dateFin            DateTime?   
   dateCloture        DateTime?
   montantTotal       Decimal
   montantVerse       Decimal             @default(0)

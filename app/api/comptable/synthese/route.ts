@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { getComptableSession } from "@/lib/authComptable";
+import { getComptableSession, getComptablePdvId } from "@/lib/authComptable";
 
 /**
  * GET /api/comptable/synthese?period=7|30|90|365
@@ -24,6 +25,22 @@ export async function GET(req: Request) {
     const since = new Date(now);
     since.setDate(since.getDate() - period);
 
+    // ── Récupérer le PDV du comptable ─────────────────────────────────────────
+    const pdvId = await getComptablePdvId(session);
+
+    // Fragments SQL conditionnels selon le PDV
+    const approPdvFilter  = pdvId !== null ? Prisma.sql`AND m."pointDeVenteId" = ${pdvId}` : Prisma.empty;
+    const caissePdvJoin   = pdvId !== null ? Prisma.sql`JOIN "SessionCaisse" sc ON sc.id = oc."sessionId"` : Prisma.empty;
+    const caissePdvFilter = pdvId !== null ? Prisma.sql`AND sc."pointDeVenteId" = ${pdvId}` : Prisma.empty;
+    const stockPdvFilter      = pdvId !== null ? Prisma.sql`AND ss."pointDeVenteId" = ${pdvId}` : Prisma.empty;
+    // VenteDirecte → pointDeVenteId direct
+    const venteDirPdvFilter   = pdvId !== null ? Prisma.sql`AND v."pointDeVenteId" = ${pdvId}` : Prisma.empty;
+    // VersementPack → SouscriptionPack → Client.pointDeVenteId
+    const versPdvJoin     = pdvId !== null
+      ? Prisma.sql`JOIN "SouscriptionPack" sp ON sp.id = vp."souscriptionId" JOIN "Client" c ON c.id = sp."clientId"`
+      : Prisma.empty;
+    const versPdvFilter   = pdvId !== null ? Prisma.sql`AND c."pointDeVenteId" = ${pdvId}` : Prisma.empty;
+
     // ── Agrégats en parallèle ─────────────────────────────────────────────────
 
     const [
@@ -32,59 +49,78 @@ export async function GET(req: Request) {
       opcEncTotaux,
       opcDecParCat,
       stockSnapshot,
+      ventesDirectesTotaux,
       souscriptionsActives,
       packsCount,
     ] = await Promise.all([
 
-      // 1. Encaissements packs (VersementPack groupé par type)
+      // 1. Encaissements packs (VersementPack groupé par type) filtrés par PDV client
       prisma.$queryRaw<{ type: string; total: string; cnt: string }[]>`
-        SELECT type,
-               COALESCE(SUM(montant), 0)::text AS total,
+        SELECT vp.type,
+               COALESCE(SUM(vp.montant), 0)::text AS total,
                COUNT(*)::text AS cnt
-        FROM "VersementPack"
-        WHERE "datePaiement" >= ${since}
-        GROUP BY type
+        FROM "VersementPack" vp
+        ${versPdvJoin}
+        WHERE vp."datePaiement" >= ${since}
+        ${versPdvFilter}
+        GROUP BY vp.type
       `,
 
-      // 2. Décaissements approvisionnements (MouvementStock ENTREE)
+      // 2. Décaissements approvisionnements (MouvementStock ENTREE) filtrés par PDV
       prisma.$queryRaw<{ total: string; cnt: string }[]>`
         SELECT COALESCE(SUM(m.quantite * p."prixUnitaire"), 0)::text AS total,
                COUNT(*)::text AS cnt
         FROM "MouvementStock" m
         JOIN "Produit" p ON p.id = m."produitId"
         WHERE m.type = 'ENTREE' AND m."dateMouvement" >= ${since}
+        ${approPdvFilter}
       `,
 
-      // 3. Encaissements caisse (OperationCaisse ENCAISSEMENT)
+      // 3. Encaissements caisse (OperationCaisse ENCAISSEMENT) filtrés par PDV
       prisma.$queryRaw<{ total: string; cnt: string }[]>`
-        SELECT COALESCE(SUM(montant), 0)::text AS total,
+        SELECT COALESCE(SUM(oc.montant), 0)::text AS total,
                COUNT(*)::text AS cnt
-        FROM "OperationCaisse"
-        WHERE type = 'ENCAISSEMENT' AND "createdAt" >= ${since}
+        FROM "OperationCaisse" oc
+        ${caissePdvJoin}
+        WHERE oc.type = 'ENCAISSEMENT' AND oc."createdAt" >= ${since}
+        ${caissePdvFilter}
       `,
 
-      // 4. Décaissements caisse (OperationCaisse DECAISSEMENT groupé par catégorie)
+      // 4. Décaissements caisse (OperationCaisse DECAISSEMENT groupé par catégorie) filtrés par PDV
       prisma.$queryRaw<{ categorie: string | null; total: string; cnt: string }[]>`
-        SELECT categorie,
-               COALESCE(SUM(montant), 0)::text AS total,
+        SELECT oc.categorie,
+               COALESCE(SUM(oc.montant), 0)::text AS total,
                COUNT(*)::text AS cnt
-        FROM "OperationCaisse"
-        WHERE type = 'DECAISSEMENT' AND "createdAt" >= ${since}
-        GROUP BY categorie
+        FROM "OperationCaisse" oc
+        ${caissePdvJoin}
+        WHERE oc.type = 'DECAISSEMENT' AND oc."createdAt" >= ${since}
+        ${caissePdvFilter}
+        GROUP BY oc.categorie
       `,
 
-      // 5. Snapshot stock (valeur agrégée depuis StockSite)
+      // 5. Snapshot stock (valeur agrégée depuis StockSite) filtrée par PDV
       prisma.$queryRaw<{ valeur: string; nb: string }[]>`
         SELECT COALESCE(SUM(ss.quantite * p."prixUnitaire"), 0)::text AS valeur,
                COUNT(DISTINCT p.id)::text AS nb
         FROM "Produit" p
         LEFT JOIN "StockSite" ss ON ss."produitId" = p.id
+        WHERE 1=1 ${stockPdvFilter}
       `,
 
-      // 6. Souscriptions actives
+      // 6. Encaissements ventes directes (hors BROUILLON / ANNULEE) filtrés par PDV
+      prisma.$queryRaw<{ total: string; cnt: string }[]>`
+        SELECT COALESCE(SUM(v."montantPaye"), 0)::text AS total,
+               COUNT(*)::text AS cnt
+        FROM "VenteDirecte" v
+        WHERE v.statut NOT IN ('BROUILLON', 'ANNULEE')
+          AND v."createdAt" >= ${since}
+        ${venteDirPdvFilter}
+      `,
+
+      // 7. Souscriptions actives
       prisma.souscriptionPack.count({ where: { statut: "ACTIF" } }),
 
-      // 7. Nombre de packs
+      // 8. Nombre de packs
       prisma.pack.count(),
     ]);
 
@@ -108,7 +144,9 @@ export async function GET(req: Request) {
 
     const caissEnc      = Number(opcEncTotaux[0]?.total ?? 0);
     const caissEncCount = Number(opcEncTotaux[0]?.cnt ?? 0);
-    const totalEncaissements = totalVersements + caissEnc;
+    const ventesDir      = Number(ventesDirectesTotaux[0]?.total ?? 0);
+    const ventesDirCount = Number(ventesDirectesTotaux[0]?.cnt ?? 0);
+    const totalEncaissements = totalVersements + caissEnc + ventesDir;
 
     // ── OperationCaisse décaissements ─────────────────────────────────────────
 
@@ -132,22 +170,31 @@ export async function GET(req: Request) {
 
     // ── Évolution jour par jour ───────────────────────────────────────────────
 
-    const [versementsJour, approJour, opcEncJour, opcDecJour] = await Promise.all([
+    const pdvMouvFilter      = pdvId !== null ? { pointDeVenteId: pdvId } : {};
+    const pdvCaisseFilter    = pdvId !== null ? { session: { pointDeVenteId: pdvId } } : {};
+    const pdvVersFilter      = pdvId !== null ? { souscription: { client: { pointDeVenteId: pdvId } } } : {};
+    const pdvVenteDirFilter  = pdvId !== null ? { pointDeVenteId: pdvId } : {};
+
+    const [versementsJour, approJour, opcEncJour, opcDecJour, ventesDirJour] = await Promise.all([
       prisma.versementPack.findMany({
-        where: { datePaiement: { gte: since } },
+        where: { datePaiement: { gte: since }, ...pdvVersFilter },
         select: { datePaiement: true, montant: true },
       }),
       prisma.mouvementStock.findMany({
-        where: { type: "ENTREE", dateMouvement: { gte: since } },
+        where: { type: "ENTREE", dateMouvement: { gte: since }, ...pdvMouvFilter },
         select: { dateMouvement: true, quantite: true, produit: { select: { prixUnitaire: true } } },
       }),
       prisma.operationCaisse.findMany({
-        where: { type: "ENCAISSEMENT", createdAt: { gte: since } },
+        where: { type: "ENCAISSEMENT", createdAt: { gte: since }, ...pdvCaisseFilter },
         select: { createdAt: true, montant: true },
       }),
       prisma.operationCaisse.findMany({
-        where: { type: "DECAISSEMENT", createdAt: { gte: since } },
+        where: { type: "DECAISSEMENT", createdAt: { gte: since }, ...pdvCaisseFilter },
         select: { createdAt: true, montant: true },
+      }),
+      prisma.venteDirecte.findMany({
+        where: { statut: { notIn: ["BROUILLON", "ANNULEE"] }, createdAt: { gte: since }, ...pdvVenteDirFilter },
+        select: { createdAt: true, montantPaye: true },
       }),
     ]);
 
@@ -157,6 +204,10 @@ export async function GET(req: Request) {
     for (const v of versementsJour) {
       const k = v.datePaiement.toISOString().split("T")[0];
       encaisMap[k] = (encaisMap[k] ?? 0) + Number(v.montant);
+    }
+    for (const vd of ventesDirJour) {
+      const k = vd.createdAt.toISOString().split("T")[0];
+      encaisMap[k] = (encaisMap[k] ?? 0) + Number(vd.montantPaye);
     }
     for (const op of opcEncJour) {
       const k = op.createdAt.toISOString().split("T")[0];
@@ -189,7 +240,8 @@ export async function GET(req: Request) {
           versements_peri:       versPeri,
           remboursements:        remb,
           autres:                autresPacks,
-          caisse_encaissements:  { montant: caissEnc, count: caissEncCount },
+          caisse_encaissements:  { montant: caissEnc,   count: caissEncCount },
+          ventes_directes:       { montant: ventesDir,   count: ventesDirCount },
           total: totalEncaissements,
         },
         decaissements: {

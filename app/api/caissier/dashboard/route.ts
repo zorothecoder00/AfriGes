@@ -52,6 +52,7 @@ export async function GET() {
     // ── Requêtes parallèles ────────────────────────────────────────────────
     const [
       versementsAujourdhui,
+      ventesDirAujourdhui,
       produits,
       souscriptionsActives,
       souscriptionsEnAttente,
@@ -80,6 +81,23 @@ export async function GET() {
           },
         },
         orderBy: { datePaiement: "desc" },
+      }),
+
+      // Ventes directes aujourd'hui — scoped au PDV
+      prisma.venteDirecte.findMany({
+        where: {
+          statut: { notIn: ["BROUILLON", "ANNULEE"] },
+          createdAt: { gte: startOfDay, lte: endOfDay },
+          ...(pdvId ? { pointDeVenteId: pdvId } : {}),
+        },
+        select: {
+          id: true,
+          montantPaye: true,
+          clientNom: true,
+          client: { select: { nom: true, prenom: true } },
+          createdAt: true,
+        },
+        orderBy: { createdAt: "desc" },
       }),
 
       // Stock du PDV uniquement
@@ -137,15 +155,23 @@ export async function GET() {
     ]);
 
     // ── Stats versements du jour ───────────────────────────────────────────
-    const totalVersements = versementsAujourdhui.length;
-    const montantJour     = versementsAujourdhui.reduce((s, v) => s + Number(v.montant), 0);
+    const totalVersements  = versementsAujourdhui.length;
+    const montantJour      = versementsAujourdhui.reduce((s, v) => s + Number(v.montant), 0);
 
-    const clientsVus = new Set(
-      versementsAujourdhui.map((v) => {
+    // ── Stats ventes directes du jour ─────────────────────────────────────
+    const totalVentesDir   = ventesDirAujourdhui.length;
+    const montantVentesDir = ventesDirAujourdhui.reduce((s, v) => s + Number(v.montantPaye), 0);
+
+    const clientsVus = new Set([
+      ...versementsAujourdhui.map((v) => {
         const c = v.souscription.client ?? v.souscription.user;
         return c ? `${c.nom}-${c.prenom}` : null;
-      }).filter(Boolean)
-    );
+      }).filter(Boolean) as string[],
+      ...ventesDirAujourdhui.map((v) => {
+        const nom = v.client ? `${v.client.nom}-${v.client.prenom}` : v.clientNom;
+        return nom || null;
+      }).filter(Boolean) as string[],
+    ]);
     const nbClients = clientsVus.size;
 
     // ── Stats stock (PDV scoped) ────────────────────────────────────────────
@@ -174,21 +200,42 @@ export async function GET() {
     if (souscriptionsEnAttente > 0)
       alertes.push({ type: "info",    message: `${souscriptionsEnAttente} souscription(s) en attente d'acompte` });
 
-    // ── Derniers versements (5) ────────────────────────────────────────────
-    const derniersVersements = versementsAujourdhui.slice(0, 5).map((v) => {
+    // ── Derniers encaissements du jour (packs + ventes directes) — top 5 ──
+    const derniersPacks = versementsAujourdhui.map((v) => {
       const person = v.souscription.client ?? v.souscription.user;
       return {
-        id:        v.id,
-        packNom:   v.souscription.pack.nom,
-        packType:  v.souscription.pack.type,
-        montant:   Number(v.montant),
-        clientNom: person ? `${person.prenom} ${person.nom}` : "—",
-        type:      v.type,
-        heure:     v.datePaiement
+        id:         v.id,
+        packNom:    v.souscription.pack.nom,
+        packType:   v.souscription.pack.type,
+        montant:    Number(v.montant),
+        clientNom:  person ? `${person.prenom} ${person.nom}` : "—",
+        type:       v.type,
+        heure:      v.datePaiement
           ? new Date(v.datePaiement).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })
           : "—",
+        sourceType: "VERSEMENT_PACK" as const,
+        _time:      v.datePaiement.getTime(),
       };
     });
+    const derniersVD = ventesDirAujourdhui.map((v) => {
+      const nom = v.client ? `${v.client.prenom} ${v.client.nom}` : v.clientNom ?? "—";
+      return {
+        id:         v.id,
+        packNom:    "Vente directe",
+        packType:   "VENTE_DIRECTE",
+        montant:    Number(v.montantPaye),
+        clientNom:  nom,
+        type:       "VENTE_DIRECTE",
+        heure:      new Date(v.createdAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }),
+        sourceType: "VENTE_DIRECTE" as const,
+        _time:      v.createdAt.getTime(),
+      };
+    });
+    const derniersVersements = [...derniersPacks, ...derniersVD]
+      .sort((a, b) => b._time - a._time)
+      .slice(0, 5)
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      .map(({ _time, ...rest }) => rest);
 
     // ── Solde temps réel — scoped au caissier ─────────────────────────────
     const fondsCaisse = sessionActive ? Number(sessionActive.fondsCaisse) : 0;
@@ -246,6 +293,10 @@ export async function GET() {
           total:    totalVersements,
           montant:  montantJour,
           nbClients,
+        },
+        ventesDirectes: {
+          total:   totalVentesDir,
+          montant: montantVentesDir,
         },
         stock: {
           total:   produitsAvecStock.length,

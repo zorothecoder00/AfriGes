@@ -12,3 +12,7 @@ Ce code :
  permet de créer un téléchargement via un clic sur une URL ( utile pour les exports)
 import { randomUUID } from "crypto";  permet de générer des UUID(sorte d'identifiant unique aléatoire)    
 
+Object literal may only specify known properties, and 'gestionnaireAffectations' does not exist in type 'GestionnaireInclude<DefaultArgs>' et Parameter 'p' implicitly has an 'any' type. dans api/auditeur/utilisateurs/
+
+
+

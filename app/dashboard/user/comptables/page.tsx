@@ -7,7 +7,7 @@ import {
   FileText, BarChart3, BookOpen, Wallet, Package, Calendar,
   AlertCircle, CheckCircle, Filter, X, Users, Lock, LockOpen, Plus,
   Paperclip, Trash2, ExternalLink, Upload,
-  BookMarked, Percent, Building2, PlusCircle, Edit2, Save,
+  BookMarked, Percent, Building2, PlusCircle, Edit2, Save, ShoppingBag,
   ToggleLeft, ToggleRight, ListChecks, BadgeCheck, ChevronsUpDown,
 } from "lucide-react";
 import Link from "next/link";
@@ -50,6 +50,7 @@ function parseJournalSource(entryId: string): { sourceType: string; sourceId: nu
   if (entryId.startsWith("APPRO-"))     return { sourceType: "MOUVEMENT_STOCK",   sourceId: Number(entryId.replace("APPRO-", "")) };
   if (entryId.startsWith("OPC-ENC-"))   return { sourceType: "OPERATION_CAISSE",  sourceId: Number(entryId.replace("OPC-ENC-", "")) };
   if (entryId.startsWith("OPC-DEC-"))   return { sourceType: "OPERATION_CAISSE",  sourceId: Number(entryId.replace("OPC-DEC-", "")) };
+  if (entryId.startsWith("VD-"))        return { sourceType: "VENTE_DIRECTE",      sourceId: Number(entryId.replace("VD-", "")) };
   return null;
 }
 
@@ -64,6 +65,7 @@ const SOURCE_TYPE_LABELS: Record<string, string> = {
   OPERATION_CAISSE:    "Opération caisse",
   MOUVEMENT_STOCK:     "Mouvement stock",
   CLOTURE_COMPTABLE:   "Clôture comptable",
+  VENTE_DIRECTE:       "Vente directe",
 };
 
 interface SyntheseResponse {
@@ -77,6 +79,7 @@ interface SyntheseResponse {
       remboursements:       { montant: number; count: number };
       autres:               { montant: number; count: number };
       caisse_encaissements: { montant: number; count: number };
+      ventes_directes:      { montant: number; count: number };
       total: number;
     };
     decaissements: {
@@ -147,7 +150,7 @@ interface EtatsFinanciersResponse {
       };
     };
     compteResultat: {
-      produits: { versementsCollectes: number; encaissementsCaisse: number; total: number };
+      produits: { versementsCollectes: number; encaissementsCaisse: number; ventesDirectes: number; total: number };
       charges:  { approvisionnements: number; salaires: number; avances: number; fournisseurs: number; autresCaisse: number; totalCaisse: number; total: number };
       resultatNet: number;
     };
@@ -225,9 +228,10 @@ const TYPE_COMPTE_LABELS: Record<string, string> = {
   PRODUITS: "Produits", TRESORERIE: "Trésorerie",
 };
 interface SyncApercu {
-  caisse: { total: number; dejaSyncees: number; aSyncer: number };
-  ventes: { total: number; dejaSyncees: number; aSyncer: number };
-  achats: { total: number; dejaSyncees: number; aSyncer: number };
+  caisse:          { total: number; dejaSyncees: number; aSyncer: number };
+  ventes:          { total: number; dejaSyncees: number; aSyncer: number };
+  ventes_directes: { total: number; dejaSyncees: number; aSyncer: number };
+  achats:          { total: number; dejaSyncees: number; aSyncer: number };
 }
 interface SyncApercuResponse { apercu: SyncApercu }
 
@@ -338,6 +342,8 @@ const CAT_META: Record<string, { label: string; color: string; bg: string; icon:
   APPROVISIONNEMENT:    { label: "Approvisionnement",      color: "text-orange-600",  bg: "bg-orange-100",  icon: Package },
   // OperationCaisse encaissements
   CAISSE_ENCAISSEMENT:  { label: "Encaissement caisse",    color: "text-cyan-600",    bg: "bg-cyan-100",    icon: Wallet },
+  // VenteDirecte
+  VENTE_DIRECTE:        { label: "Vente directe",          color: "text-indigo-600",  bg: "bg-indigo-100",  icon: ShoppingBag },
   // OperationCaisse décaissements
   SALAIRE:              { label: "Salaire",                color: "text-red-600",     bg: "bg-red-100",     icon: Users },
   AVANCE:               { label: "Avance",                 color: "text-rose-600",    bg: "bg-rose-100",    icon: ArrowDownRight },
@@ -1076,10 +1082,11 @@ export default function ComptablePage() {
                 <p className="text-xs text-slate-400 mb-2">Versements packs collectés</p>
                 <p className="text-2xl font-bold text-emerald-600 mb-5">{formatCurrency(enc?.total ?? 0)}</p>
                 <div className="space-y-1 divide-y divide-slate-100">
-                  <BarBreakdown label={`Acomptes initiaux (${enc?.cotisations_init.count ?? 0})`}     montant={enc?.cotisations_init.montant ?? 0} total={enc?.total ?? 1} color="bg-blue-500" />
-                  <BarBreakdown label={`Versements périodiques (${enc?.versements_peri.count ?? 0})`} montant={enc?.versements_peri.montant ?? 0}  total={enc?.total ?? 1} color="bg-emerald-500" />
-                  <BarBreakdown label={`Remboursements (${enc?.remboursements.count ?? 0})`}           montant={enc?.remboursements.montant ?? 0}   total={enc?.total ?? 1} color="bg-teal-500" />
-                  <BarBreakdown label={`Bonus / Ajust. (${enc?.autres.count ?? 0})`}                  montant={enc?.autres.montant ?? 0}           total={enc?.total ?? 1} color="bg-violet-500" />
+                  <BarBreakdown label={`Acomptes initiaux (${enc?.cotisations_init.count ?? 0})`}     montant={enc?.cotisations_init.montant ?? 0}  total={enc?.total ?? 1} color="bg-blue-500" />
+                  <BarBreakdown label={`Versements périodiques (${enc?.versements_peri.count ?? 0})`} montant={enc?.versements_peri.montant ?? 0}   total={enc?.total ?? 1} color="bg-emerald-500" />
+                  <BarBreakdown label={`Remboursements (${enc?.remboursements.count ?? 0})`}           montant={enc?.remboursements.montant ?? 0}    total={enc?.total ?? 1} color="bg-teal-500" />
+                  <BarBreakdown label={`Ventes directes (${enc?.ventes_directes.count ?? 0})`}        montant={enc?.ventes_directes.montant ?? 0}   total={enc?.total ?? 1} color="bg-indigo-500" />
+                  <BarBreakdown label={`Bonus / Ajust. (${enc?.autres.count ?? 0})`}                  montant={enc?.autres.montant ?? 0}            total={enc?.total ?? 1} color="bg-violet-500" />
                 </div>
               </div>
 
@@ -1093,10 +1100,11 @@ export default function ComptablePage() {
                 <p className="text-2xl font-bold text-blue-600 mb-5">{enc?.versements_packs.count ?? 0} versements</p>
                 <div className="space-y-0 divide-y divide-slate-100">
                   {[
-                    { label: "Acomptes initiaux",   count: enc?.cotisations_init.count ?? 0, montant: enc?.cotisations_init.montant ?? 0 },
-                    { label: "Versements pério.",    count: enc?.versements_peri.count ?? 0,  montant: enc?.versements_peri.montant ?? 0 },
-                    { label: "Remboursements",       count: enc?.remboursements.count ?? 0,   montant: enc?.remboursements.montant ?? 0 },
-                    { label: "Bonus / Ajustements",  count: enc?.autres.count ?? 0,           montant: enc?.autres.montant ?? 0 },
+                    { label: "Acomptes initiaux",   count: enc?.cotisations_init.count ?? 0,  montant: enc?.cotisations_init.montant ?? 0 },
+                    { label: "Versements pério.",    count: enc?.versements_peri.count ?? 0,   montant: enc?.versements_peri.montant ?? 0 },
+                    { label: "Remboursements",       count: enc?.remboursements.count ?? 0,    montant: enc?.remboursements.montant ?? 0 },
+                    { label: "Ventes directes",      count: enc?.ventes_directes.count ?? 0,   montant: enc?.ventes_directes.montant ?? 0 },
+                    { label: "Bonus / Ajustements",  count: enc?.autres.count ?? 0,            montant: enc?.autres.montant ?? 0 },
                   ].map((item) => (
                     <div key={item.label} className="flex justify-between items-center py-3">
                       <span className="text-sm text-slate-600">{item.label}</span>
@@ -1520,6 +1528,7 @@ export default function ComptablePage() {
                   <p>Acomptes initiaux : {formatCurrency(enc?.cotisations_init.montant ?? 0)}</p>
                   <p>Versements périodiques : {formatCurrency(enc?.versements_peri.montant ?? 0)}</p>
                   <p>Remboursements : {formatCurrency(enc?.remboursements.montant ?? 0)}</p>
+                  <p>Ventes directes : {formatCurrency(enc?.ventes_directes.montant ?? 0)}</p>
                   <p>Encaissements caisse : {formatCurrency(enc?.caisse_encaissements.montant ?? 0)}</p>
                   <p className="opacity-70">Bonus / Ajustements : {formatCurrency(enc?.autres.montant ?? 0)}</p>
                 </div>
@@ -1565,11 +1574,12 @@ export default function ComptablePage() {
                   <ArrowUpRight size={20} className="text-emerald-600" />Encaissements par type de versement
                 </h3>
                 {[
-                  { label: `Acomptes initiaux (${enc?.cotisations_init.count ?? 0})`,          montant: enc?.cotisations_init.montant ?? 0,           icon: Calendar,    color: "bg-blue-100",    text: "text-blue-600",    bar: "bg-blue-500" },
-                  { label: `Versements périodiques (${enc?.versements_peri.count ?? 0})`,       montant: enc?.versements_peri.montant ?? 0,            icon: TrendingUp,  color: "bg-emerald-100", text: "text-emerald-600", bar: "bg-emerald-500" },
-                  { label: `Remboursements (${enc?.remboursements.count ?? 0})`,                montant: enc?.remboursements.montant ?? 0,             icon: CheckCircle, color: "bg-teal-100",    text: "text-teal-600",    bar: "bg-teal-500" },
-                  { label: `Bonus / Ajust. (${enc?.autres.count ?? 0})`,                       montant: enc?.autres.montant ?? 0,                    icon: BookOpen,    color: "bg-violet-100",  text: "text-violet-600",  bar: "bg-violet-500" },
-                  { label: `Encaissements caisse (${enc?.caisse_encaissements.count ?? 0})`,   montant: enc?.caisse_encaissements.montant ?? 0,       icon: Wallet,      color: "bg-cyan-100",    text: "text-cyan-600",    bar: "bg-cyan-500" },
+                  { label: `Acomptes initiaux (${enc?.cotisations_init.count ?? 0})`,          montant: enc?.cotisations_init.montant ?? 0,           icon: Calendar,     color: "bg-blue-100",    text: "text-blue-600",    bar: "bg-blue-500" },
+                  { label: `Versements périodiques (${enc?.versements_peri.count ?? 0})`,       montant: enc?.versements_peri.montant ?? 0,            icon: TrendingUp,   color: "bg-emerald-100", text: "text-emerald-600", bar: "bg-emerald-500" },
+                  { label: `Remboursements (${enc?.remboursements.count ?? 0})`,                montant: enc?.remboursements.montant ?? 0,             icon: CheckCircle,  color: "bg-teal-100",    text: "text-teal-600",    bar: "bg-teal-500" },
+                  { label: `Ventes directes (${enc?.ventes_directes.count ?? 0})`,             montant: enc?.ventes_directes.montant ?? 0,            icon: ShoppingBag,  color: "bg-indigo-100",  text: "text-indigo-600",  bar: "bg-indigo-500" },
+                  { label: `Bonus / Ajust. (${enc?.autres.count ?? 0})`,                       montant: enc?.autres.montant ?? 0,                    icon: BookOpen,     color: "bg-violet-100",  text: "text-violet-600",  bar: "bg-violet-500" },
+                  { label: `Encaissements caisse (${enc?.caisse_encaissements.count ?? 0})`,   montant: enc?.caisse_encaissements.montant ?? 0,       icon: Wallet,       color: "bg-cyan-100",    text: "text-cyan-600",    bar: "bg-cyan-500" },
                 ].map((item) => {
                   const pct  = (enc?.total ?? 0) > 0 ? Math.round((item.montant / (enc?.total ?? 1)) * 100) : 0;
                   const Icon = item.icon;
@@ -1653,11 +1663,12 @@ export default function ComptablePage() {
               <button
                 onClick={() => {
                   const rows = [
-                    { compte: "701", libelle: "Acomptes initiaux packs",             debit: 0,                                       credit: enc?.cotisations_init.montant ?? 0 },
-                    { compte: "702", libelle: "Versements périodiques",               debit: 0,                                       credit: enc?.versements_peri.montant ?? 0 },
-                    { compte: "703", libelle: "Remboursements packs",                 debit: 0,                                       credit: enc?.remboursements.montant ?? 0 },
-                    { compte: "706", libelle: "Encaissements caisse — produits divers", debit: 0,                                     credit: enc?.caisse_encaissements.montant ?? 0 },
-                    { compte: "708", libelle: "Bonus / Ajustements",                  debit: 0,                                       credit: enc?.autres.montant ?? 0 },
+                    { compte: "701", libelle: "Acomptes initiaux packs",               debit: 0,                                       credit: enc?.cotisations_init.montant ?? 0 },
+                    { compte: "702", libelle: "Versements périodiques",                debit: 0,                                       credit: enc?.versements_peri.montant ?? 0 },
+                    { compte: "703", libelle: "Remboursements packs",                  debit: 0,                                       credit: enc?.remboursements.montant ?? 0 },
+                    { compte: "705", libelle: "Ventes directes de marchandises",       debit: 0,                                       credit: enc?.ventes_directes.montant ?? 0 },
+                    { compte: "706", libelle: "Encaissements caisse — produits divers", debit: 0,                                      credit: enc?.caisse_encaissements.montant ?? 0 },
+                    { compte: "708", libelle: "Bonus / Ajustements",                   debit: 0,                                       credit: enc?.autres.montant ?? 0 },
                     { compte: "601", libelle: "Approvisionnements — achats stock",    debit: dec?.approvisionnements.montant ?? 0,    credit: 0 },
                     { compte: "641", libelle: "Salaires et traitements",              debit: dec?.salaires.montant ?? 0,              credit: 0 },
                     { compte: "422", libelle: "Avances au personnel",                 debit: dec?.avances.montant ?? 0,               credit: 0 },
@@ -1691,11 +1702,12 @@ export default function ComptablePage() {
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {([
-                    { compte: "701", libelle: "Acomptes initiaux (souscriptions packs)",   classe: "Classe 7 — Produits", debit: 0,                                    credit: enc?.cotisations_init.montant ?? 0,      count: enc?.cotisations_init.count },
-                    { compte: "702", libelle: "Versements périodiques packs",              classe: "Classe 7 — Produits", debit: 0,                                    credit: enc?.versements_peri.montant ?? 0,       count: enc?.versements_peri.count },
-                    { compte: "703", libelle: "Remboursements packs",                      classe: "Classe 7 — Produits", debit: 0,                                    credit: enc?.remboursements.montant ?? 0,        count: enc?.remboursements.count },
-                    { compte: "706", libelle: "Encaissements caisse — produits divers",   classe: "Classe 7 — Produits", debit: 0,                                    credit: enc?.caisse_encaissements.montant ?? 0,  count: enc?.caisse_encaissements.count },
-                    { compte: "708", libelle: "Bonus / Ajustements",                       classe: "Classe 7 — Produits", debit: 0,                                    credit: enc?.autres.montant ?? 0,                count: enc?.autres.count },
+                    { compte: "701", libelle: "Acomptes initiaux (souscriptions packs)",    classe: "Classe 7 — Produits", debit: 0, credit: enc?.cotisations_init.montant ?? 0,     count: enc?.cotisations_init.count },
+                    { compte: "702", libelle: "Versements périodiques packs",               classe: "Classe 7 — Produits", debit: 0, credit: enc?.versements_peri.montant ?? 0,      count: enc?.versements_peri.count },
+                    { compte: "703", libelle: "Remboursements packs",                       classe: "Classe 7 — Produits", debit: 0, credit: enc?.remboursements.montant ?? 0,       count: enc?.remboursements.count },
+                    { compte: "705", libelle: "Ventes directes de marchandises",            classe: "Classe 7 — Produits", debit: 0, credit: enc?.ventes_directes.montant ?? 0,      count: enc?.ventes_directes.count },
+                    { compte: "706", libelle: "Encaissements caisse — produits divers",    classe: "Classe 7 — Produits", debit: 0, credit: enc?.caisse_encaissements.montant ?? 0, count: enc?.caisse_encaissements.count },
+                    { compte: "708", libelle: "Bonus / Ajustements",                        classe: "Classe 7 — Produits", debit: 0, credit: enc?.autres.montant ?? 0,               count: enc?.autres.count },
                     { compte: "601", libelle: "Approvisionnements — achats stock",         classe: "Classe 6 — Charges",  debit: dec?.approvisionnements.montant ?? 0, credit: 0,                                       count: dec?.approvisionnements.count },
                     { compte: "641", libelle: "Salaires et traitements",                   classe: "Classe 6 — Charges",  debit: dec?.salaires.montant ?? 0,           credit: 0,                                       count: dec?.salaires.count },
                     { compte: "422", libelle: "Avances au personnel",                      classe: "Classe 4 — Tiers",    debit: dec?.avances.montant ?? 0,            credit: 0,                                       count: dec?.avances.count },
@@ -2017,6 +2029,7 @@ export default function ComptablePage() {
                     <div className="p-6">
                       <BilanRow label="Versements packs collectés"   valeur={ed.compteResultat.produits.versementsCollectes} />
                       <BilanRow label="Encaissements caisse"          valeur={ed.compteResultat.produits.encaissementsCaisse} />
+                      <BilanRow label="Ventes directes"               valeur={ed.compteResultat.produits.ventesDirectes} />
                       <BilanRow label="TOTAL PRODUITS" valeur={ed.compteResultat.produits.total} type="total" />
                     </div>
                   </div>
@@ -2732,11 +2745,12 @@ export default function ComptablePage() {
 
               {/* Aperçu des opérations non encore importées */}
               {syncApercuData?.apercu && (
-                <div className="grid grid-cols-3 gap-3 mb-4">
+                <div className="grid grid-cols-4 gap-3 mb-4">
                   {[
-                    { key: "caisse", label: "Journal Caisse", color: "bg-amber-100 text-amber-800 border-amber-200" },
-                    { key: "ventes", label: "Journal Ventes", color: "bg-emerald-100 text-emerald-800 border-emerald-200" },
-                    { key: "achats", label: "Journal Achats", color: "bg-blue-100 text-blue-800 border-blue-200" },
+                    { key: "caisse",          label: "Journal Caisse",        color: "bg-amber-100 text-amber-800 border-amber-200" },
+                    { key: "ventes",          label: "Journal Ventes (packs)", color: "bg-emerald-100 text-emerald-800 border-emerald-200" },
+                    { key: "ventes_directes", label: "Ventes directes",        color: "bg-indigo-100 text-indigo-800 border-indigo-200" },
+                    { key: "achats",          label: "Journal Achats",         color: "bg-blue-100 text-blue-800 border-blue-200" },
                   ].map((j) => {
                     const stat = syncApercuData.apercu[j.key as keyof SyncApercu];
                     return (

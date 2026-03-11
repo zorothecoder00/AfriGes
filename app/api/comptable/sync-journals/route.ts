@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getComptableSession } from "@/lib/authComptable";
+import { getComptableSession, getComptablePdvId } from "@/lib/authComptable";
 
 /**
  * POST /api/comptable/sync-journals
@@ -59,12 +59,15 @@ async function syncCaisse(
   map: ComptesMap,
   userId: number,
   dateMin: Date,
-  dateMax: Date
+  dateMax: Date,
+  pdvId: number | null
 ): Promise<{ created: number; skipped: number }> {
   let created = 0; let skipped = 0;
 
+  const pdvFilter = pdvId !== null ? { session: { pointDeVenteId: pdvId } } : {};
+
   const ops = await prisma.operationCaisse.findMany({
-    where: { createdAt: { gte: dateMin, lte: dateMax } },
+    where: { createdAt: { gte: dateMin, lte: dateMax }, ...pdvFilter },
     orderBy: { createdAt: "asc" },
   });
 
@@ -137,14 +140,20 @@ async function syncVentes(
   map: ComptesMap,
   userId: number,
   dateMin: Date,
-  dateMax: Date
+  dateMax: Date,
+  pdvId: number | null
 ): Promise<{ created: number; skipped: number }> {
   let created = 0; let skipped = 0;
+
+  const pdvFilter = pdvId !== null
+    ? { souscription: { client: { pointDeVenteId: pdvId } } }
+    : {};
 
   const versements = await prisma.versementPack.findMany({
     where: {
       datePaiement: { gte: dateMin, lte: dateMax },
       statut:       "PAYE",
+      ...pdvFilter,
     },
     include: {
       souscription: {
@@ -218,20 +227,74 @@ async function syncVentes(
   return { created, skipped };
 }
 
+async function syncVentesDirectes(
+  map: ComptesMap,
+  userId: number,
+  dateMin: Date,
+  dateMax: Date,
+  pdvId: number | null
+): Promise<{ created: number; skipped: number }> {
+  let created = 0; let skipped = 0;
+
+  const pdvFilter = pdvId !== null ? { pointDeVenteId: pdvId } : {};
+
+  const ventes = await prisma.venteDirecte.findMany({
+    where: {
+      statut:    { notIn: ["BROUILLON", "ANNULEE"] },
+      createdAt: { gte: dateMin, lte: dateMax },
+      ...pdvFilter,
+    },
+    select: { id: true, reference: true, createdAt: true, montantPaye: true, clientNom: true, modePaiement: true },
+    orderBy: { createdAt: "asc" },
+  });
+
+  for (const v of ventes) {
+    const ref = `SYNC-VD-${v.id}`;
+    if (await referenceExiste(ref)) { skipped++; continue; }
+    if (!map[N.CAISSE] || !map[N.VENTES]) { skipped++; continue; }
+
+    const montant = Number(v.montantPaye);
+    const client  = v.clientNom ?? "Client comptoir";
+
+    await prisma.ecritureComptable.create({
+      data: {
+        reference: ref,
+        date:      v.createdAt,
+        libelle:   `Vente directe — ${v.reference} — ${client}`,
+        journal:   "VENTES",
+        statut:    "BROUILLON",
+        userId,
+        lignes: {
+          create: [
+            { compteId: map[N.CAISSE],  libelle: `VD ${v.reference}`, debit: montant, credit: 0 },
+            { compteId: map[N.VENTES],  libelle: `VD ${v.reference}`, debit: 0, credit: montant },
+          ],
+        },
+      },
+    });
+    created++;
+  }
+
+  return { created, skipped };
+}
+
 async function syncAchats(
   map: ComptesMap,
   userId: number,
   dateMin: Date,
-  dateMax: Date
+  dateMax: Date,
+  pdvId: number | null
 ): Promise<{ created: number; skipped: number }> {
   let created = 0; let skipped = 0;
+
+  const pdvFilter = pdvId !== null ? { pointDeVenteId: pdvId } : {};
 
   const mouvements = await prisma.mouvementStock.findMany({
     where: {
       type:          "ENTREE",
       dateMouvement: { gte: dateMin, lte: dateMax },
-      // Exclure les entrées de stock initial
       NOT: { reference: { startsWith: "INIT-" } },
+      ...pdvFilter,
     },
     include: { produit: { select: { nom: true, prixUnitaire: true } } },
     orderBy: { dateMouvement: "asc" },
@@ -280,6 +343,7 @@ export async function POST(req: Request) {
     const { action = "all", dateMin, dateMax } = body;
 
     const userId = Number(session.user.id);
+    const pdvId  = await getComptablePdvId(session);
 
     // Fenêtre temporelle (défaut : tout depuis 1 an)
     const fin   = dateMax ? new Date(dateMax + "T23:59:59") : new Date();
@@ -298,13 +362,14 @@ export async function POST(req: Request) {
     const resultats: Record<string, { created: number; skipped: number }> = {};
 
     if (action === "caisse" || action === "all") {
-      resultats.caisse = await syncCaisse(map, userId, debut, fin);
+      resultats.caisse = await syncCaisse(map, userId, debut, fin, pdvId);
     }
     if (action === "ventes" || action === "all") {
-      resultats.ventes = await syncVentes(map, userId, debut, fin);
+      resultats.ventes          = await syncVentes(map, userId, debut, fin, pdvId);
+      resultats.ventes_directes = await syncVentesDirectes(map, userId, debut, fin, pdvId);
     }
     if (action === "achats" || action === "all") {
-      resultats.achats = await syncAchats(map, userId, debut, fin);
+      resultats.achats = await syncAchats(map, userId, debut, fin, pdvId);
     }
 
     const totalCreated = Object.values(resultats).reduce((s, r) => s + r.created, 0);
@@ -335,6 +400,12 @@ export async function GET(req: Request) {
     const fin   = dateMax ? new Date(dateMax + "T23:59:59") : new Date();
     const debut = dateMin ? new Date(dateMin) : new Date(fin.getFullYear() - 1, fin.getMonth(), fin.getDate());
 
+    const pdvId = await getComptablePdvId(session);
+    const pdvCaisseFilter    = pdvId !== null ? { session: { pointDeVenteId: pdvId } } : {};
+    const pdvMouvFilter      = pdvId !== null ? { pointDeVenteId: pdvId } : {};
+    const pdvVersFilter      = pdvId !== null ? { souscription: { client: { pointDeVenteId: pdvId } } } : {};
+    const pdvVenteDirFilter  = pdvId !== null ? { pointDeVenteId: pdvId } : {};
+
     // Récupérer les références déjà synchonisées
     const dejaImportees = await prisma.ecritureComptable.findMany({
       where: { reference: { startsWith: "SYNC-" } },
@@ -342,24 +413,27 @@ export async function GET(req: Request) {
     });
     const syncRefs = new Set(dejaImportees.map((e) => e.reference));
 
-    const [nbCaisse, nbVentes, nbAchats] = await Promise.all([
-      prisma.operationCaisse.count({ where: { createdAt: { gte: debut, lte: fin } } }),
-      prisma.versementPack.count({ where: { datePaiement: { gte: debut, lte: fin }, statut: "PAYE" } }),
+    const [nbCaisse, nbVentes, nbVentesDir, nbAchats] = await Promise.all([
+      prisma.operationCaisse.count({ where: { createdAt: { gte: debut, lte: fin }, ...pdvCaisseFilter } }),
+      prisma.versementPack.count({ where: { datePaiement: { gte: debut, lte: fin }, statut: "PAYE", ...pdvVersFilter } }),
+      prisma.venteDirecte.count({ where: { statut: { notIn: ["BROUILLON", "ANNULEE"] }, createdAt: { gte: debut, lte: fin }, ...pdvVenteDirFilter } }),
       prisma.mouvementStock.count({
-        where: { type: "ENTREE", dateMouvement: { gte: debut, lte: fin }, NOT: { reference: { startsWith: "INIT-" } } },
+        where: { type: "ENTREE", dateMouvement: { gte: debut, lte: fin }, NOT: { reference: { startsWith: "INIT-" } }, ...pdvMouvFilter },
       }),
     ]);
 
     // Calculer les non encore importés
-    const caisseSyncees = [...syncRefs].filter((r) => r.startsWith("SYNC-OPC-")).length;
-    const ventesSyncees  = [...syncRefs].filter((r) => r.startsWith("SYNC-VRS-")).length;
-    const achatsSyncees  = [...syncRefs].filter((r) => r.startsWith("SYNC-MST-")).length;
+    const caisseSyncees    = [...syncRefs].filter((r) => r.startsWith("SYNC-OPC-")).length;
+    const ventesSyncees    = [...syncRefs].filter((r) => r.startsWith("SYNC-VRS-")).length;
+    const ventesDirSyncees = [...syncRefs].filter((r) => r.startsWith("SYNC-VD-")).length;
+    const achatsSyncees    = [...syncRefs].filter((r) => r.startsWith("SYNC-MST-")).length;
 
     return NextResponse.json({
       apercu: {
-        caisse: { total: nbCaisse, dejaSyncees: caisseSyncees, aSyncer: Math.max(0, nbCaisse - caisseSyncees) },
-        ventes: { total: nbVentes, dejaSyncees: ventesSyncees, aSyncer: Math.max(0, nbVentes - ventesSyncees) },
-        achats: { total: nbAchats, dejaSyncees: achatsSyncees, aSyncer: Math.max(0, nbAchats - achatsSyncees) },
+        caisse:          { total: nbCaisse,    dejaSyncees: caisseSyncees,    aSyncer: Math.max(0, nbCaisse    - caisseSyncees) },
+        ventes:          { total: nbVentes,    dejaSyncees: ventesSyncees,    aSyncer: Math.max(0, nbVentes    - ventesSyncees) },
+        ventes_directes: { total: nbVentesDir, dejaSyncees: ventesDirSyncees, aSyncer: Math.max(0, nbVentesDir - ventesDirSyncees) },
+        achats:          { total: nbAchats,    dejaSyncees: achatsSyncees,    aSyncer: Math.max(0, nbAchats    - achatsSyncees) },
       },
     });
   } catch (e) {

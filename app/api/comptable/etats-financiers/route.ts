@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { getComptableSession } from "@/lib/authComptable";
+import { getComptableSession, getComptablePdvId } from "@/lib/authComptable";
 
 /**
  * GET /api/comptable/etats-financiers?annee=2025
@@ -23,6 +24,20 @@ export async function GET(req: Request) {
     const yearStart = new Date(annee, 0, 1);
     const yearEnd   = new Date(annee, 11, 31, 23, 59, 59, 999);
 
+    // ── Filtre PDV ─────────────────────────────────────────────────────────────
+    const pdvId = await getComptablePdvId(session);
+    const approPdvFilter  = pdvId !== null ? Prisma.sql`AND m."pointDeVenteId" = ${pdvId}` : Prisma.empty;
+    const caissePdvJoin   = pdvId !== null ? Prisma.sql`JOIN "SessionCaisse" sc ON sc.id = oc."sessionId"` : Prisma.empty;
+    const caissePdvFilter = pdvId !== null ? Prisma.sql`AND sc."pointDeVenteId" = ${pdvId}` : Prisma.empty;
+    const stockPdvFilter  = pdvId !== null ? Prisma.sql`AND ss."pointDeVenteId" = ${pdvId}` : Prisma.empty;
+    // VersementPack → SouscriptionPack → Client.pointDeVenteId
+    const versPdvJoin       = pdvId !== null
+      ? Prisma.sql`JOIN "SouscriptionPack" sp ON sp.id = vp."souscriptionId" JOIN "Client" c ON c.id = sp."clientId"`
+      : Prisma.empty;
+    const versPdvFilter     = pdvId !== null ? Prisma.sql`AND c."pointDeVenteId" = ${pdvId}` : Prisma.empty;
+    // VenteDirecte → pointDeVenteId direct
+    const venteDirPdvFilter = pdvId !== null ? Prisma.sql`AND v."pointDeVenteId" = ${pdvId}` : Prisma.empty;
+
     const [
       stockValeur,
       creancesPacks,
@@ -31,63 +46,83 @@ export async function GET(req: Request) {
       opcEncTotal,
       opcDecTotal,
       opcDecParCat,
+      ventesDirectesTotaux,
       souscriptionsStats,
     ] = await Promise.all([
 
-      // 1. Valeur du stock (actif — snapshot actuel, agrégée depuis StockSite)
+      // 1. Valeur du stock filtrée par PDV
       prisma.$queryRaw<{ valeur: string; nb: string }[]>`
         SELECT COALESCE(SUM(ss.quantite * p."prixUnitaire"), 0)::text AS valeur,
                COUNT(DISTINCT p.id)::text AS nb
         FROM "Produit" p
         LEFT JOIN "StockSite" ss ON ss."produitId" = p.id
+        WHERE 1=1 ${stockPdvFilter}
       `,
 
-      // 2. Créances packs = montantRestant souscriptions ACTIF (snapshot actuel)
+      // 2. Créances packs (global — souscriptions actives)
       prisma.$queryRaw<{ total: string; cnt: string }[]>`
         SELECT COALESCE(SUM("montantRestant"), 0)::text AS total, COUNT(*)::text AS cnt
         FROM "SouscriptionPack"
         WHERE statut = 'ACTIF'
       `,
 
-      // 3. Versements packs sur l'année (CPC Produits — packs)
+      // 3. Versements packs sur l'année filtrés par PDV client
       prisma.$queryRaw<{ total: string; cnt: string }[]>`
-        SELECT COALESCE(SUM(montant), 0)::text AS total, COUNT(*)::text AS cnt
-        FROM "VersementPack"
-        WHERE "datePaiement" >= ${yearStart} AND "datePaiement" <= ${yearEnd}
+        SELECT COALESCE(SUM(vp.montant), 0)::text AS total, COUNT(*)::text AS cnt
+        FROM "VersementPack" vp
+        ${versPdvJoin}
+        WHERE vp."datePaiement" >= ${yearStart} AND vp."datePaiement" <= ${yearEnd}
+        ${versPdvFilter}
       `,
 
-      // 4. Approvisionnements sur l'année (CPC Charges — stock)
+      // 4. Approvisionnements sur l'année filtrés par PDV
       prisma.$queryRaw<{ total: string; cnt: string }[]>`
         SELECT COALESCE(SUM(m.quantite * p."prixUnitaire"), 0)::text AS total,
                COUNT(*)::text AS cnt
         FROM "MouvementStock" m
         JOIN "Produit" p ON p.id = m."produitId"
         WHERE m.type = 'ENTREE' AND m."dateMouvement" >= ${yearStart} AND m."dateMouvement" <= ${yearEnd}
+        ${approPdvFilter}
       `,
 
-      // 5. OperationCaisse ENCAISSEMENT sur l'année (CPC Produits — caisse)
+      // 5. OperationCaisse ENCAISSEMENT sur l'année filtrés par PDV
       prisma.$queryRaw<{ total: string; cnt: string }[]>`
-        SELECT COALESCE(SUM(montant), 0)::text AS total, COUNT(*)::text AS cnt
-        FROM "OperationCaisse"
-        WHERE type = 'ENCAISSEMENT' AND "createdAt" >= ${yearStart} AND "createdAt" <= ${yearEnd}
+        SELECT COALESCE(SUM(oc.montant), 0)::text AS total, COUNT(*)::text AS cnt
+        FROM "OperationCaisse" oc
+        ${caissePdvJoin}
+        WHERE oc.type = 'ENCAISSEMENT' AND oc."createdAt" >= ${yearStart} AND oc."createdAt" <= ${yearEnd}
+        ${caissePdvFilter}
       `,
 
-      // 6. OperationCaisse DECAISSEMENT total sur l'année (CPC Charges — caisse)
+      // 6. OperationCaisse DECAISSEMENT total sur l'année filtrés par PDV
       prisma.$queryRaw<{ total: string; cnt: string }[]>`
-        SELECT COALESCE(SUM(montant), 0)::text AS total, COUNT(*)::text AS cnt
-        FROM "OperationCaisse"
-        WHERE type = 'DECAISSEMENT' AND "createdAt" >= ${yearStart} AND "createdAt" <= ${yearEnd}
+        SELECT COALESCE(SUM(oc.montant), 0)::text AS total, COUNT(*)::text AS cnt
+        FROM "OperationCaisse" oc
+        ${caissePdvJoin}
+        WHERE oc.type = 'DECAISSEMENT' AND oc."createdAt" >= ${yearStart} AND oc."createdAt" <= ${yearEnd}
+        ${caissePdvFilter}
       `,
 
-      // 7. OperationCaisse DECAISSEMENT groupé par catégorie (pour le détail)
+      // 7. OperationCaisse DECAISSEMENT groupé par catégorie filtrés par PDV
       prisma.$queryRaw<{ categorie: string | null; total: string }[]>`
-        SELECT categorie, COALESCE(SUM(montant), 0)::text AS total
-        FROM "OperationCaisse"
-        WHERE type = 'DECAISSEMENT' AND "createdAt" >= ${yearStart} AND "createdAt" <= ${yearEnd}
-        GROUP BY categorie
+        SELECT oc.categorie, COALESCE(SUM(oc.montant), 0)::text AS total
+        FROM "OperationCaisse" oc
+        ${caissePdvJoin}
+        WHERE oc.type = 'DECAISSEMENT' AND oc."createdAt" >= ${yearStart} AND oc."createdAt" <= ${yearEnd}
+        ${caissePdvFilter}
+        GROUP BY oc.categorie
       `,
 
-      // 8. Stats souscriptions pour ratios (snapshot actuel)
+      // 8. Ventes directes sur l'année (CPC Produits — hors packs) filtrées par PDV
+      prisma.$queryRaw<{ total: string; cnt: string }[]>`
+        SELECT COALESCE(SUM(v."montantPaye"), 0)::text AS total, COUNT(*)::text AS cnt
+        FROM "VenteDirecte" v
+        WHERE v.statut NOT IN ('BROUILLON', 'ANNULEE')
+          AND v."createdAt" >= ${yearStart} AND v."createdAt" <= ${yearEnd}
+        ${venteDirPdvFilter}
+      `,
+
+      // 9. Stats souscriptions pour ratios (snapshot actuel)
       prisma.$queryRaw<{
         total_montant: string;
         total_verse:   string;
@@ -121,7 +156,8 @@ export async function GET(req: Request) {
 
     const prodVersements       = Number(produitsVersements[0]?.total ?? 0);
     const prodEncaissements    = Number(opcEncTotal[0]?.total ?? 0);
-    const totalProduits        = prodVersements + prodEncaissements;
+    const prodVentesDirectes   = Number(ventesDirectesTotaux[0]?.total ?? 0);
+    const totalProduits        = prodVersements + prodEncaissements + prodVentesDirectes;
 
     // ── CPC CHARGES ───────────────────────────────────────────────────────────
 
@@ -169,7 +205,8 @@ export async function GET(req: Request) {
           produits: {
             versementsCollectes: prodVersements,
             encaissementsCaisse: prodEncaissements,
-            total: totalProduits,
+            ventesDirectes:      prodVentesDirectes,
+            total:               totalProduits,
           },
           charges: {
             approvisionnements: chAppro,

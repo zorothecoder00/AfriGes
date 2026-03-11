@@ -22,9 +22,71 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const versementId  = searchParams.get("versementId");
     const operationId  = searchParams.get("operationId");
+    const venteId      = searchParams.get("venteId");
 
-    if (!versementId && !operationId) {
-      return NextResponse.json({ message: "versementId ou operationId requis" }, { status: 400 });
+    if (!versementId && !operationId && !venteId) {
+      return NextResponse.json({ message: "versementId, operationId ou venteId requis" }, { status: 400 });
+    }
+
+    // ── Reçu pour une vente directe ───────────────────────────────────────
+    if (venteId) {
+      const vente = await prisma.venteDirecte.findUnique({
+        where: { id: Number(venteId) },
+        include: {
+          client:  { select: { nom: true, prenom: true, telephone: true } },
+          vendeur: { select: { nom: true, prenom: true } },
+          lignes:  { include: { produit: { select: { nom: true, unite: true } } } },
+        },
+      });
+      if (!vente) {
+        return NextResponse.json({ message: "Vente introuvable" }, { status: 404 });
+      }
+
+      const params = await prisma.parametre.findMany({
+        where: { cle: { in: ["APP_NOM", "APP_ADRESSE", "APP_TELEPHONE"] } },
+      });
+      const getParam = (cle: string) => params.find((p) => p.cle === cle)?.valeur ?? "";
+
+      const clientNomDisplay = vente.client
+        ? `${vente.client.prenom} ${vente.client.nom}`
+        : vente.clientNom ?? "—";
+
+      return NextResponse.json({
+        success: true,
+        type: "vente_directe",
+        data: {
+          recu: {
+            numero:   vente.reference,
+            date:     vente.createdAt.toISOString(),
+            caissier: vente.vendeur ? `${vente.vendeur.prenom} ${vente.vendeur.nom}` : "—",
+          },
+          vente: {
+            id:            vente.id,
+            reference:     vente.reference,
+            montantTotal:  Number(vente.montantTotal),
+            montantPaye:   Number(vente.montantPaye),
+            monnaieRendue: Number(vente.monnaieRendue),
+            modePaiement:  vente.modePaiement,
+            notes:         vente.notes,
+          },
+          client: {
+            nom:       clientNomDisplay,
+            telephone: vente.client?.telephone ?? vente.clientTelephone ?? undefined,
+          },
+          lignes: vente.lignes.map((l) => ({
+            produitNom:  l.produit.nom,
+            unite:       l.produit.unite ?? "",
+            quantite:    l.quantite,
+            prixUnitaire: Number(l.prixUnitaire),
+            montant:     Number(l.montant),
+          })),
+          entreprise: {
+            nom:       getParam("APP_NOM")       || "AfriGes",
+            adresse:   getParam("APP_ADRESSE")   || "",
+            telephone: getParam("APP_TELEPHONE") || "",
+          },
+        },
+      });
     }
 
     // ── Reçu pour une opération caisse (décaissement / encaissement) ──────
