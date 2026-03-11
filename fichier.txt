@@ -12,7 +12,7 @@ Ce code :
  permet de créer un téléchargement via un clic sur une URL ( utile pour les exports)
 import { randomUUID } from "crypto";  permet de générer des UUID(sorte d'identifiant unique aléatoire)    
 
-Object literal may only specify known properties, and 'gestionnaireAffectations' does not exist in type 'GestionnaireInclude<DefaultArgs>' et Parameter 'p' implicitly has an 'any' type. dans api/auditeur/utilisateurs/
-
-
-
+Pas une erreur mais un bug ; normalement au niveau du point de vente de
+  l'utilisateur , on ne devrait pas mettre un unique point de vente pour le
+  chef_agence ou responsable_communaute (vu qu'il gère plusieurs points de
+  vente)

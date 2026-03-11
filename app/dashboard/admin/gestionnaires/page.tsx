@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   Plus, Search, Shield, Users, Eye, Edit, CheckCircle, Clock,
-  Mail, Phone, Trash2, X, ArrowLeft, Store, Building2, Link2, Link2Off, UserCheck,
+  Mail, Phone, Trash2, X, ArrowLeft, Store, Building2, Link2, Link2Off, UserCheck, MapPin,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useApi, useMutation } from '@/hooks/useApi';
@@ -42,6 +42,9 @@ interface MemberOption {
   id: number; nom: string; prenom: string; email: string; role: string | null;
 }
 
+// Rôles qui gèrent une ZONE multi-PDV (chef d'agence)
+const ROLES_CHEF_AGENCE = new Set(['CHEF_AGENCE', 'RESPONSABLE_COMMUNAUTE']);
+
 // Tous les rôles opérationnels qui exercent dans un PDV/dépôt précis
 const ROLES_AVEC_PDV = new Set([
   'RESPONSABLE_POINT_DE_VENTE',
@@ -76,6 +79,11 @@ export default function GestionnairesPage() {
   const [selectedPdvId, setSelectedPdvId] = useState('');
   const [affectLoading, setAffectLoading] = useState(false);
   const [affectError, setAffectError]     = useState('');
+
+  // ── Zone multi-PDV (chef d'agence) ─────────────────────────────────────────
+  const [localZonePdvs, setLocalZonePdvs] = useState<{ id: number; nom: string; code: string }[]>([]);
+  const [zoneLoading, setZoneLoading]     = useState(false);
+  const [zoneError, setZoneError]         = useState('');
 
   const limit = 10;
 
@@ -140,10 +148,67 @@ export default function GestionnairesPage() {
   };
 
   const openAffectModal = (g: Gestionnaire) => {
-    const current = g.member.affectationsPDV[0];
     setAffectModal(g);
-    setSelectedPdvId(current ? String(current.pointDeVente.id) : '');
     setAffectError('');
+    setZoneError('');
+    setSelectedPdvId('');
+    if (ROLES_CHEF_AGENCE.has(g.role)) {
+      // Initialiser la zone depuis les affectations existantes
+      setLocalZonePdvs(g.member.affectationsPDV.map(a => ({
+        id: a.pointDeVente.id, nom: a.pointDeVente.nom, code: a.pointDeVente.code,
+      })));
+    } else {
+      const current = g.member.affectationsPDV[0];
+      setSelectedPdvId(current ? String(current.pointDeVente.id) : '');
+    }
+  };
+
+  const handleAddToZone = async () => {
+    if (!affectModal || !selectedPdvId) return;
+    const pdvId = Number(selectedPdvId);
+    setZoneLoading(true);
+    setZoneError('');
+    try {
+      const res = await fetch(`/api/admin/pdv/${pdvId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chefAgenceId: affectModal.member.id }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Erreur lors de l\'ajout');
+      }
+      const pdv = pdvOptions.find(p => p.id === pdvId);
+      if (pdv) {
+        setLocalZonePdvs(prev => [...prev, { id: pdv.id, nom: pdv.nom, code: pdv.code }]);
+      }
+      setSelectedPdvId('');
+      refetch();
+    } catch (e) {
+      setZoneError(e instanceof Error ? e.message : 'Erreur');
+    } finally {
+      setZoneLoading(false);
+    }
+  };
+
+  const handleRemoveFromZone = async (pdvId: number) => {
+    if (!affectModal) return;
+    setZoneLoading(true);
+    setZoneError('');
+    try {
+      const res = await fetch(`/api/admin/pdv/${pdvId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chefAgenceId: null }),
+      });
+      if (!res.ok) throw new Error('Erreur lors du retrait');
+      setLocalZonePdvs(prev => prev.filter(p => p.id !== pdvId));
+      refetch();
+    } catch (e) {
+      setZoneError(e instanceof Error ? e.message : 'Erreur');
+    } finally {
+      setZoneLoading(false);
+    }
   };
 
   const handleAffecter = async () => {
@@ -342,75 +407,171 @@ export default function GestionnairesPage() {
         )}
 
         {/* ══ MODAL — Affectation PDV ═══════════════════════════════════════ */}
-        {affectModal && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-2xl p-8 w-full max-w-md shadow-xl relative">
-              <button onClick={() => setAffectModal(null)}
-                className="absolute top-4 right-4 text-slate-400 hover:text-slate-600">
-                <X size={20} />
-              </button>
-              <h2 className="text-xl font-bold text-slate-800 mb-1">Affecter à un PDV</h2>
-              <p className="text-sm text-slate-500 mb-5">
-                {affectModal.member.prenom} {affectModal.member.nom} —{' '}
-                <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-medium">
-                  {getStatusLabel(affectModal.role)}
-                </span>
-              </p>
-
-              {affectModal.member.affectationsPDV[0] && (
-                <div className="mb-4 flex items-center gap-3 bg-blue-50 border border-blue-200 rounded-xl px-4 py-3">
-                  <Store size={15} className="text-blue-500 shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-slate-800 truncate">
-                      {affectModal.member.affectationsPDV[0].pointDeVente.nom}
-                    </p>
-                    <p className="text-xs text-slate-500">
-                      {affectModal.member.affectationsPDV[0].pointDeVente.code} — PDV actuel
-                    </p>
-                  </div>
-                  <button onClick={handleDesaffecter} disabled={affectLoading}
-                    className="flex items-center gap-1 text-xs text-red-600 hover:text-red-800 font-medium border border-red-200 bg-red-50 hover:bg-red-100 px-2 py-1 rounded-lg transition-colors disabled:opacity-50">
-                    <Link2Off size={12} /> Désaffecter
-                  </button>
-                </div>
-              )}
-
-              {/* Message contextuel — valable pour tous les rôles opérationnels */}
-              <div className="mb-4 flex items-start gap-2 bg-blue-50 border border-blue-200 rounded-xl px-3 py-2.5 text-xs text-blue-800">
-                <UserCheck size={13} className="mt-0.5 shrink-0" />
-                <span>
-                  Son rôle <span className="font-semibold">{getStatusLabel(affectModal.role)}</span> sera automatiquement reconnu sur le PDV sélectionné.
-                  {affectModal.role === 'RESPONSABLE_POINT_DE_VENTE' && ' Il sera aussi défini comme responsable officiel du PDV.'}
-                  {(affectModal.role === 'CHEF_AGENCE' || affectModal.role === 'RESPONSABLE_COMMUNAUTE') && ' Il sera aussi défini comme chef d\'agence du PDV.'}
-                </span>
-              </div>
-
-              {affectError && (
-                <p className="text-red-500 text-sm bg-red-50 border border-red-200 rounded-xl px-3 py-2 mb-4">{affectError}</p>
-              )}
-
-              <div className="space-y-3">
-                <label className="block text-sm font-medium text-slate-700">
-                  {affectModal.member.affectationsPDV[0] ? 'Réaffecter à un autre PDV' : 'Choisir un PDV'}
-                </label>
-                <select value={selectedPdvId} onChange={e => setSelectedPdvId(e.target.value)}
-                  className="w-full px-4 py-2.5 border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
-                  <option value="">Sélectionner un PDV…</option>
-                  {pdvOptions.map(p => (
-                    <option key={p.id} value={p.id}>
-                      {p.type === 'DEPOT_CENTRAL' ? '🏭 ' : '🏪 '}{p.nom} ({p.code})
-                    </option>
-                  ))}
-                </select>
-                <button onClick={handleAffecter} disabled={affectLoading || !selectedPdvId}
-                  className="w-full py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-60 font-medium flex items-center justify-center gap-2 transition-colors">
-                  <Link2 size={15} />
-                  {affectLoading ? 'En cours…' : affectModal.member.affectationsPDV[0] ? 'Réaffecter' : 'Affecter au PDV'}
+        {affectModal && (() => {
+          const isChefAgence = ROLES_CHEF_AGENCE.has(affectModal.role);
+          return (
+            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-2xl p-8 w-full max-w-lg shadow-xl relative">
+                <button onClick={() => setAffectModal(null)}
+                  className="absolute top-4 right-4 text-slate-400 hover:text-slate-600">
+                  <X size={20} />
                 </button>
+
+                <h2 className="text-xl font-bold text-slate-800 mb-1">
+                  {isChefAgence ? 'Gérer la zone' : 'Affecter à un PDV'}
+                </h2>
+                <p className="text-sm text-slate-500 mb-5">
+                  {affectModal.member.prenom} {affectModal.member.nom} —{' '}
+                  <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-medium">
+                    {getStatusLabel(affectModal.role)}
+                  </span>
+                </p>
+
+                {/* ── CAS CHEF D'AGENCE : zone multi-PDV ── */}
+                {isChefAgence ? (
+                  <div className="space-y-5">
+                    <div className="flex items-start gap-2 bg-indigo-50 border border-indigo-200 rounded-xl px-3 py-2.5 text-xs text-indigo-800">
+                      <MapPin size={13} className="mt-0.5 shrink-0" />
+                      <span>
+                        Le chef d&apos;agence supervise une <strong>zone de plusieurs PDVs</strong>.
+                        Ajoutez ou retirez des PDVs ci-dessous pour définir sa zone de supervision.
+                      </span>
+                    </div>
+
+                    {zoneError && (
+                      <p className="text-red-500 text-sm bg-red-50 border border-red-200 rounded-xl px-3 py-2">{zoneError}</p>
+                    )}
+
+                    {/* PDVs actuels dans la zone */}
+                    <div>
+                      <p className="text-sm font-semibold text-slate-700 mb-2 flex items-center gap-1.5">
+                        <Store size={14} className="text-blue-500" />
+                        PDVs dans la zone
+                        <span className="text-xs font-normal text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full ml-1">
+                          {localZonePdvs.length}
+                        </span>
+                      </p>
+                      {localZonePdvs.length === 0 && (
+                        <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                          Aucun PDV assigné à cette zone pour l&apos;instant.
+                        </p>
+                      )}
+                      <div className="space-y-2 max-h-44 overflow-y-auto pr-1">
+                        {localZonePdvs.map(p => (
+                          <div key={p.id} className="flex items-center justify-between px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg">
+                            <div className="flex items-center gap-2">
+                              <Store size={13} className="text-blue-400 shrink-0" />
+                              <div>
+                                <p className="text-sm font-medium text-slate-800">{p.nom}</p>
+                                <p className="text-xs font-mono text-slate-400">{p.code}</p>
+                              </div>
+                            </div>
+                            <button
+                              onClick={() => handleRemoveFromZone(p.id)}
+                              disabled={zoneLoading}
+                              className="flex items-center gap-1 text-xs text-red-600 hover:text-red-800 border border-red-200 bg-red-50 hover:bg-red-100 px-2 py-1 rounded-lg transition-colors disabled:opacity-50"
+                            >
+                              <Link2Off size={11} /> Retirer
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Ajouter un PDV à la zone */}
+                    <div>
+                      <p className="text-sm font-semibold text-slate-700 mb-2">Ajouter un PDV à la zone</p>
+                      <div className="flex gap-2">
+                        <select
+                          value={selectedPdvId}
+                          onChange={e => setSelectedPdvId(e.target.value)}
+                          className="flex-1 px-3 py-2.5 border border-slate-200 rounded-xl bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                          <option value="">Sélectionner un PDV…</option>
+                          {pdvOptions
+                            .filter(p => !localZonePdvs.some(z => z.id === p.id))
+                            .map(p => (
+                              <option key={p.id} value={p.id}>
+                                {p.type === 'DEPOT_CENTRAL' ? '🏭 ' : '🏪 '}{p.nom} ({p.code})
+                              </option>
+                            ))}
+                        </select>
+                        <button
+                          onClick={handleAddToZone}
+                          disabled={zoneLoading || !selectedPdvId}
+                          className="px-4 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-60 flex items-center gap-1.5 text-sm font-medium transition-colors"
+                        >
+                          {zoneLoading ? '…' : <><Plus size={14} /> Ajouter</>}
+                        </button>
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={() => setAffectModal(null)}
+                      className="w-full py-2.5 border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 font-medium text-sm"
+                    >
+                      Fermer
+                    </button>
+                  </div>
+
+                ) : (
+                  /* ── CAS STANDARD : 1 PDV ── */
+                  <>
+                    {affectModal.member.affectationsPDV[0] && (
+                      <div className="mb-4 flex items-center gap-3 bg-blue-50 border border-blue-200 rounded-xl px-4 py-3">
+                        <Store size={15} className="text-blue-500 shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-slate-800 truncate">
+                            {affectModal.member.affectationsPDV[0].pointDeVente.nom}
+                          </p>
+                          <p className="text-xs text-slate-500">
+                            {affectModal.member.affectationsPDV[0].pointDeVente.code} — PDV actuel
+                          </p>
+                        </div>
+                        <button onClick={handleDesaffecter} disabled={affectLoading}
+                          className="flex items-center gap-1 text-xs text-red-600 hover:text-red-800 font-medium border border-red-200 bg-red-50 hover:bg-red-100 px-2 py-1 rounded-lg transition-colors disabled:opacity-50">
+                          <Link2Off size={12} /> Désaffecter
+                        </button>
+                      </div>
+                    )}
+
+                    <div className="mb-4 flex items-start gap-2 bg-blue-50 border border-blue-200 rounded-xl px-3 py-2.5 text-xs text-blue-800">
+                      <UserCheck size={13} className="mt-0.5 shrink-0" />
+                      <span>
+                        Son rôle <span className="font-semibold">{getStatusLabel(affectModal.role)}</span> sera automatiquement reconnu sur le PDV sélectionné.
+                        {affectModal.role === 'RESPONSABLE_POINT_DE_VENTE' && ' Il sera aussi défini comme responsable officiel du PDV.'}
+                      </span>
+                    </div>
+
+                    {affectError && (
+                      <p className="text-red-500 text-sm bg-red-50 border border-red-200 rounded-xl px-3 py-2 mb-4">{affectError}</p>
+                    )}
+
+                    <div className="space-y-3">
+                      <label className="block text-sm font-medium text-slate-700">
+                        {affectModal.member.affectationsPDV[0] ? 'Réaffecter à un autre PDV' : 'Choisir un PDV'}
+                      </label>
+                      <select value={selectedPdvId} onChange={e => setSelectedPdvId(e.target.value)}
+                        className="w-full px-4 py-2.5 border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+                        <option value="">Sélectionner un PDV…</option>
+                        {pdvOptions.map(p => (
+                          <option key={p.id} value={p.id}>
+                            {p.type === 'DEPOT_CENTRAL' ? '🏭 ' : '🏪 '}{p.nom} ({p.code})
+                          </option>
+                        ))}
+                      </select>
+                      <button onClick={handleAffecter} disabled={affectLoading || !selectedPdvId}
+                        className="w-full py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-60 font-medium flex items-center justify-center gap-2 transition-colors">
+                        <Link2 size={15} />
+                        {affectLoading ? 'En cours…' : affectModal.member.affectationsPDV[0] ? 'Réaffecter' : 'Affecter au PDV'}
+                      </button>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* ══ MODAL — Suppression ══════════════════════════════════════════ */}
         {deleteId && (
@@ -482,7 +643,31 @@ export default function GestionnairesPage() {
                         </span>
                       </td>
                       <td className="px-6 py-4">
-                        {pdvAffecte ? (
+                        {ROLES_CHEF_AGENCE.has(g.role) ? (
+                          // Chef d'agence : afficher la zone multi-PDV
+                          g.member.affectationsPDV.length > 0 ? (
+                            <div>
+                              <div className="flex items-center gap-1 text-sm font-medium text-slate-700">
+                                <MapPin size={13} className="text-indigo-500" />
+                                <span>{g.member.affectationsPDV.length} PDV{g.member.affectationsPDV.length > 1 ? 's' : ''} dans la zone</span>
+                              </div>
+                              <div className="flex flex-wrap gap-1 mt-1">
+                                {g.member.affectationsPDV.slice(0, 3).map(a => (
+                                  <span key={a.id} className="text-xs bg-indigo-50 text-indigo-700 border border-indigo-200 px-1.5 py-0.5 rounded font-mono">
+                                    {a.pointDeVente.code}
+                                  </span>
+                                ))}
+                                {g.member.affectationsPDV.length > 3 && (
+                                  <span className="text-xs text-slate-400">+{g.member.affectationsPDV.length - 3}</span>
+                                )}
+                              </div>
+                            </div>
+                          ) : (
+                            <span className="text-xs text-amber-600 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full font-medium">
+                              Zone vide
+                            </span>
+                          )
+                        ) : pdvAffecte ? (
                           <div className="flex items-center gap-2">
                             <div className={`w-6 h-6 ${pdvAffecte.type === 'DEPOT_CENTRAL' ? 'bg-purple-100' : 'bg-blue-100'} rounded-lg flex items-center justify-center`}>
                               {pdvAffecte.type === 'DEPOT_CENTRAL'

@@ -6,7 +6,8 @@ const secret = process.env.NEXTAUTH_SECRET
 // Mapping RoleGestionnaire → chemin dashboard
 const gestionnaireDashboardMap: Record<string, string> = {
   RESPONSABLE_POINT_DE_VENTE: "/dashboard/user/responsablesPointDeVente",
-  RESPONSABLE_COMMUNAUTE: "/dashboard/user/responsablesCommunaute",
+  CHEF_AGENCE: "/dashboard/user/chefAgence",
+  RESPONSABLE_COMMUNAUTE: "/dashboard/user/chefAgence",
   REVENDEUR: "/dashboard/user/revendeurs",
   AGENT_LOGISTIQUE_APPROVISIONNEMENT: "/dashboard/user/logistiquesApprovisionnements",
   MAGAZINIER: "/dashboard/user/magasiniers",

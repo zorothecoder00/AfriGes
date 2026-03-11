@@ -128,13 +128,10 @@ export async function PATCH(req: Request, { params }: Ctx) {
         }
       }
 
-      // Chef d'agence : même logique
+      // Chef d'agence : zone multi-PDV — on n'écrase PAS les autres affectations
       if (chefAgenceId !== undefined) {
         if (chefAgenceId) {
-          await tx.gestionnaireAffectation.updateMany({
-            where: { userId: Number(chefAgenceId), actif: true, pointDeVenteId: { not: Number(id) } },
-            data:  { actif: false },
-          });
+          // Upsert de l'affectation pour CE PDV uniquement (pas de désactivation des autres)
           const existingAff = await tx.gestionnaireAffectation.findFirst({
             where: { userId: Number(chefAgenceId), pointDeVenteId: Number(id) },
           });
@@ -146,6 +143,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
             });
           }
         } else if (existing.chefAgenceId) {
+          // Retrait du chef d'agence de CE PDV uniquement
           await tx.gestionnaireAffectation.updateMany({
             where: { userId: existing.chefAgenceId, pointDeVenteId: Number(id), actif: true },
             data:  { actif: false },
