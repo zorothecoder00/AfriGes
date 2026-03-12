@@ -23,6 +23,31 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 
+interface SouscriptionPack {
+  id: number;
+  packId: number;
+  pack: {
+    id: number;
+    nom: string;
+  };
+  clientId?: number;
+  client?: {
+    id: number;
+    nom: string;
+    prenom: string;
+  };
+  statut: string;
+  dateDebut: string;
+  dateFin?: string;
+  montantTotal: number;
+  montantVerse: number;
+  montantRestant: number;
+  numeroCycle: number;
+  bonusObtenu: boolean;
+  createdAt: string;
+  updatedAt: string;
+  // éventuellement versements, echeances, receptions si tu veux les afficher
+}
 interface ClientDetailsProps {
   clientId: string;
 }
@@ -34,14 +59,9 @@ interface Client {
   telephone: string;
   adresse: string | null;
   etat: string;
-  createdAt: string;
+  createdAt: string;    
   updatedAt: string;
-  _count: {
-    credits: number;
-    creditsAlim: number;
-    cotisations: number;
-    tontines: number;
-  };
+  souscriptionsPacks?: SouscriptionPack[];
 }
 
 interface ClientResponse {
@@ -130,7 +150,7 @@ export default function ClientDetails({ clientId }: ClientDetailsProps) {
 
   if (!client) return null;
 
-  const totalActivites = client._count.credits + client._count.creditsAlim + client._count.cotisations + client._count.tontines;
+  const totalActivites = client.souscriptionsPacks?.length || 0;
 
   return (
     <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
@@ -284,38 +304,14 @@ export default function ClientDetails({ clientId }: ClientDetailsProps) {
           <div className="p-6 border-b border-gray-200">
             <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
               <Activity className="w-5 h-5 text-amber-600" />
-              Activites ({totalActivites})
+              Souscriptions ({totalActivites})
             </h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="bg-blue-50 rounded-lg p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <CreditCard className="w-5 h-5 text-blue-600" />
-                  <p className="text-xs text-blue-600 font-medium">Credits</p>
-                </div>
-                <p className="text-2xl font-bold text-blue-900">{client._count.credits}</p>
+            {client.souscriptionsPacks?.map((sp) => (
+              <div key={sp.id} className="bg-blue-50 rounded-lg p-4">
+                <p className="text-sm font-medium text-blue-600">{sp.pack.nom}</p>
+                <p className="text-xs text-gray-500">{formatDateTime(sp.dateDebut)}</p>
               </div>
-              <div className="bg-purple-50 rounded-lg p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <ShoppingBag className="w-5 h-5 text-purple-600" />
-                  <p className="text-xs text-purple-600 font-medium">Credits alim.</p>
-                </div>
-                <p className="text-2xl font-bold text-purple-900">{client._count.creditsAlim}</p>
-              </div>
-              <div className="bg-emerald-50 rounded-lg p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <Wallet className="w-5 h-5 text-emerald-600" />
-                  <p className="text-xs text-emerald-600 font-medium">Cotisations</p>
-                </div>
-                <p className="text-2xl font-bold text-emerald-900">{client._count.cotisations}</p>
-              </div>
-              <div className="bg-amber-50 rounded-lg p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <Users className="w-5 h-5 text-amber-600" />
-                  <p className="text-xs text-amber-600 font-medium">Tontines</p>
-                </div>
-                <p className="text-2xl font-bold text-amber-900">{client._count.tontines}</p>
-              </div>
-            </div>
+            ))}
           </div>
 
           {/* Dates */}

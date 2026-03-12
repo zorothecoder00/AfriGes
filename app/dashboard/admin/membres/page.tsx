@@ -10,7 +10,7 @@ import { getStatusStyle, getStatusLabel } from '@/lib/status';
 import { exportToCsv } from '@/lib/exportCsv';
 
 interface Member {
-  id: number;  
+  id: number;    
   nom: string;
   prenom: string;
   email: string;
@@ -399,7 +399,7 @@ export default function MembresPage() {
                 )}
               </tbody>
             </table>
-          </div>
+          </div>  
 
           {/* Pagination */}
           {meta && (

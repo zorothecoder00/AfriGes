@@ -11,3 +11,4 @@ export default function Page({ params }: PageProps) {
   const { id } = use(params);
   return <MemberDetails memberId={id} />
 }
+  

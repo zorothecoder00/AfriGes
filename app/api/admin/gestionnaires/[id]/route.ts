@@ -113,6 +113,17 @@ export async function PATCH(
         throw new Error("Gestionnaire introuvable");
       }
 
+      // Déterminer le role global
+      let newMemberRole: Role | undefined;
+
+      if (role === RoleGestionnaire.SUPER_ADMIN) {
+        newMemberRole = Role.SUPER_ADMIN;
+      } else if (role === RoleGestionnaire.ADMIN) {
+        newMemberRole = Role.ADMIN;
+      } else if (role) {
+        newMemberRole = Role.USER;
+      }
+
       const updated = await tx.gestionnaire.update({
         where: { id: gestionnaireId },
         data: {
@@ -120,6 +131,16 @@ export async function PATCH(
           ...(typeof actif === "boolean" && { actif }),
         },
       });
+
+      // Mettre à jour le role du membre
+      if (newMemberRole) {
+        await tx.user.update({
+          where: { id: gestionnaire.memberId },
+          data: {
+            role: newMemberRole,
+          },
+        });
+      }
 
       // Audit log
       await tx.auditLog.create({

@@ -23,24 +23,6 @@ interface Member {
     soldeTontine: string;
     soldeCredit: string;
   };
-  tontines: Array<{
-    id: number;
-    tontine: { nom: string; montantCycle: string };
-  }>;
-  cotisations: Array<{
-    id: number;
-    montant: string;
-    periode: string;
-    statut: string;
-    dateExpiration: string;
-  }>;
-  credits: Array<{
-    id: number;
-    montant: string;
-    montantRestant: string;
-    statut: string;
-    dateDemande: string;
-  }>;
 }
 
 interface MemberResponse {
@@ -83,9 +65,6 @@ export default function MemberDetails({ memberId }: { memberId: string }) {
 
   const tabs: { id: TabId; label: string }[] = [
     { id: 'overview', label: "Vue d'ensemble" },
-    { id: 'tontines', label: 'Tontines' },
-    { id: 'credits', label: 'Credits' },
-    { id: 'cotisations', label: 'Cotisations' },
   ];
 
   const soldeGeneral = Number(member.wallet?.soldeGeneral ?? 0);
@@ -188,83 +167,13 @@ export default function MemberDetails({ memberId }: { memberId: string }) {
                 </div>
                 <div className="border-t border-gray-200 pt-6">
                   <h3 className="text-sm font-medium text-gray-500 mb-4">Statistiques rapides</h3>
-                  <div className="grid grid-cols-4 gap-4">
-                    <div className="bg-gray-50 rounded-lg p-4"><p className="text-2xl font-bold text-gray-900">{member.tontines.length}</p><p className="text-sm text-gray-600 mt-1">Tontines</p></div>
-                    <div className="bg-gray-50 rounded-lg p-4"><p className="text-2xl font-bold text-gray-900">{member.credits.length}</p><p className="text-sm text-gray-600 mt-1">Credits</p></div>
-                    <div className="bg-gray-50 rounded-lg p-4"><p className="text-2xl font-bold text-gray-900">{member.cotisations.filter(c => c.statut === 'PAYEE').length}</p><p className="text-sm text-gray-600 mt-1">Cotisations payees</p></div>
-                    <div className="bg-gray-50 rounded-lg p-4"><p className="text-2xl font-bold text-emerald-600">{formatCurrency(soldeGeneral + soldeTontine + soldeCredit)}</p><p className="text-sm text-gray-600 mt-1">Solde total</p></div>
+                  <div className="grid grid-cols-4 gap-4">               
+                    <div className="bg-gray-50 rounded-lg p-4"><p className="text-2xl font-bold text-emerald-600">{formatCurrency(soldeGeneral + soldeTontine + soldeCredit)}</p><p className="text-sm text-gray-600 mt-1">Solde total</p>
+                    </div>
                   </div>
                 </div>
               </div>
-            )}
-
-            {activeTab === 'tontines' && (
-              <div className="space-y-3">
-                {member.tontines.map((t) => (
-                  <div key={t.id} className="border border-gray-200 rounded-lg p-4 hover:border-emerald-300 transition-colors">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h4 className="font-medium text-gray-900">{t.tontine.nom}</h4>
-                        <p className="text-sm text-gray-600 mt-1">Montant du cycle: {formatCurrency(t.tontine.montantCycle)}</p>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-                {member.tontines.length === 0 && <p className="text-gray-500 text-center py-8">Aucune tontine</p>}
-              </div>
-            )}
-
-            {activeTab === 'credits' && (
-              <div className="space-y-3">
-                {member.credits.map((credit) => (
-                  <div key={credit.id} className="border border-gray-200 rounded-lg p-4">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
-                          <h4 className="font-medium text-gray-900">Credit #{credit.id}</h4>
-                          <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusStyle(credit.statut)}`}>{getStatusLabel(credit.statut)}</span>
-                        </div>
-                        <p className="text-sm text-gray-600">Demande le {formatDate(credit.dateDemande)}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-lg font-bold text-gray-900">{formatCurrency(credit.montant)}</p>
-                        <p className="text-sm text-gray-600 mt-1">Restant: {formatCurrency(credit.montantRestant)}</p>
-                      </div>
-                    </div>
-                    <div className="mt-3 bg-gray-50 rounded-lg h-2">
-                      <div className="bg-emerald-500 h-2 rounded-lg transition-all" style={{ width: `${((Number(credit.montant) - Number(credit.montantRestant)) / Number(credit.montant)) * 100}%` }} />
-                    </div>
-                  </div>
-                ))}
-                {member.credits.length === 0 && <p className="text-gray-500 text-center py-8">Aucun credit</p>}
-              </div>
-            )}
-
-            {activeTab === 'cotisations' && (
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-gray-50 border-b border-gray-200">
-                    <tr>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Periode</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Montant</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Statut</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Expiration</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-200">
-                    {member.cotisations.map((c) => (
-                      <tr key={c.id} className="hover:bg-gray-50">
-                        <td className="px-4 py-3 text-sm text-gray-900">{getStatusLabel(c.periode)}</td>
-                        <td className="px-4 py-3 text-sm font-medium text-gray-900">{formatCurrency(c.montant)}</td>
-                        <td className="px-4 py-3"><span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusStyle(c.statut)}`}>{getStatusLabel(c.statut)}</span></td>
-                        <td className="px-4 py-3 text-sm text-gray-600">{formatDate(c.dateExpiration)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                {member.cotisations.length === 0 && <p className="text-gray-500 text-center py-8">Aucune cotisation</p>}
-              </div>
-            )}
+            )}  
           </div>
         </div>
       </div>

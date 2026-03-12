@@ -34,6 +34,11 @@ export async function GET(
 
     const client = await prisma.client.findUnique({
       where: { id: clientId },
+      include: {
+        souscriptionsPacks: {
+          include: { pack: true },
+        },
+      },
     });
 
     if (!client) {
