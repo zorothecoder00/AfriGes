@@ -63,7 +63,7 @@ export const translations = {
   msg_error:          { fr: "Erreur de chargement",en: "Loading error",     ar: "خطأ في التحميل"   },
   msg_no_result:      { fr: "Aucun résultat",      en: "No results",        ar: "لا توجد نتائج"    },
   msg_confirm_delete: { fr: "Confirmer la suppression", en: "Confirm deletion", ar: "تأكيد الحذف"  },
-  msg_irreversible:   { fr: "Cette action est irréversible.", en: "This action cannot be undone.", ar: "هذا الإجراء لا يمكن التراجع عنه." },
+  msg_irreversible:   { fr: "Cette action est irréversible.", en: "This action cannot be undone.", ar: "هذا الإجراء لا يمكن التراجع عنه." },  
 
   // ── Rôles ──────────────────────────────────────────────────────────────────
   role_user:          { fr: "Utilisateur",         en: "User",              ar: "مستخدم"           },
@@ -80,7 +80,7 @@ export const translations = {
   dash_period_7:      { fr: "7 derniers jours",    en: "Last 7 days",       ar: "آخر 7 أيام"      },
   dash_period_30:     { fr: "30 derniers jours",   en: "Last 30 days",      ar: "آخر 30 يومًا"    },
   dash_period_90:     { fr: "90 derniers jours",   en: "Last 90 days",      ar: "آخر 90 يومًا"    },
-  
+
   // ── Dashboard / Indicateurs & Stats ─────────────────────────────────────────
   dash_logout:                   { fr: "Se déconnecter",              en: "Log out",                    ar: "تسجيل الخروج" },
   dash_evolution_versements:     { fr: "Evolution des versements",    en: "Payment evolution",          ar: "تطور المدفوعات" },

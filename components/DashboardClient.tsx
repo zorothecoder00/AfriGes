@@ -42,7 +42,7 @@ interface ActivityResponse {
       total: number;
       liste: { nom: string; key: string; actif: boolean }[];
     };
-    alertes: ActivityAlerte[];
+    alertes: ActivityAlerte[];   
     rapports: {
       caisse:           { sessionsOuvertes: number; versementsMontant: number };
       stock:            { alertes: number };

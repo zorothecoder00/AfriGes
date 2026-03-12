@@ -3,7 +3,7 @@
  * Source de vérité : base de données (via /api/superadmin/settings).
  * Cache local : localStorage pour éviter un appel API à chaque render.
  */
-
+  
 const STORAGE_KEY = "afriges_app_settings";
 
 // Mapping devise label → code ISO 4217 pour Intl.NumberFormat
@@ -106,10 +106,10 @@ export function getDeviseMeta(): { iso: string; label: string } {
   const stored = getStoredSetting("platform.devise", "FCFA");
   const upper = stored.toUpperCase();
   const iso = DEVISE_ISO_MAP[upper] ?? null;
-  return { iso: iso ?? stored, label: stored };
+  return { iso: iso ?? stored, label: stored };  
 }
 
 export function getLocale(): string {
   const langue = getStoredSetting("platform.langue", "fr");
   return LANGUE_LOCALE_MAP[langue] ?? "fr-FR";
-}
+}  

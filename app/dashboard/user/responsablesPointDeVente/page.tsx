@@ -75,10 +75,6 @@ interface LivraisonsResponse {
 interface Vente {
   id: number; quantite: number; prixUnitaire: string; createdAt: string;
   produit: { nom: string };
-  creditAlimentaire: {
-    member?: { nom: string; prenom: string } | null;
-    client?: { nom: string; prenom: string } | null;
-  } | null;
 }
 interface VentesResponse {
   success: boolean; data: Vente[];
