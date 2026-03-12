@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
 import { PrioriteNotification } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { getRPVSession } from "@/lib/authRPV";
+import { getRPVSession } from "@/lib/authRPV";   
 import { randomUUID } from "crypto";
 import { notifyRoles, auditLog } from "@/lib/notifications";
-
+       
 /**
  * GET /api/rpv/caisse-pdv
  * Récupère la caisse PDV (petite caisse) du RPV connecté, avec opérations récentes.

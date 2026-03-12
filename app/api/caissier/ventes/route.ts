@@ -2,10 +2,10 @@ import { NextResponse } from "next/server";
 import { PrioriteNotification } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCaissierSession } from "@/lib/authCaissier";
-import { randomUUID } from "crypto";
+import { randomUUID } from "crypto";  
 import { notifyRoles, auditLog } from "@/lib/notifications";
 
-/**
+/**  
  * GET /api/caissier/ventes
  * Ventes directes enregistrées sur le PDV du caissier.
  * Query: statut, dateDebut, dateFin, search, page, limit

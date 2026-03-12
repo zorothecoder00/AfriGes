@@ -31,7 +31,7 @@ export function formatCurrency(amount: number | string): string {
   }
 
   try {
-    return new Intl.NumberFormat(locale, {
+    return new Intl.NumberFormat("fr-FR", {
       style: "currency",
       currency: iso,
       minimumFractionDigits: 0,
@@ -39,7 +39,7 @@ export function formatCurrency(amount: number | string): string {
     }).format(num);
   } catch {
     // Fallback si le code ISO n'est pas reconnu par Intl
-    return `${new Intl.NumberFormat(locale, {
+    return `${new Intl.NumberFormat("fr-FR", {
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
     }).format(num)} ${label}`;
