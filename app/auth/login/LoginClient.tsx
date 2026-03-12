@@ -229,10 +229,7 @@ export default function LoginPage() {
 
             <div className="mt-6 pt-6 border-t border-gray-200 text-center">
               <p className="text-sm text-gray-600">
-                Pas encore de compte ?{' '}
-                <Link href="/auth/register" className="text-red-500 hover:text-red-600 font-semibold transition-colors">
-                  S&apos;inscrire
-                </Link>
+                Les comptes sont créés uniquement par l’administrateur.
               </p>
             </div>
             

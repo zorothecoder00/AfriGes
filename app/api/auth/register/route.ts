@@ -4,6 +4,14 @@ import { Role } from '@prisma/client'
 import bcrypt from 'bcryptjs'         
 
 export async function POST(req: Request) {
+
+  // 🚫 Inscription publique désactivée
+  return NextResponse.json(
+    { message: "L'inscription est désactivée. Contactez l'administrateur." },
+    { status: 403 }
+  )
+
+  /*
   try {
     const body = await req.json()
     const { prenom, nom, email, password, telephone, adresse } = body
@@ -92,4 +100,5 @@ export async function POST(req: Request) {
       { status: 500 }
     )
   }
+  */
 }

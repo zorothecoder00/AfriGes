@@ -652,7 +652,7 @@ export default function AfriGesDashboard() {
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <h3 className="text-xl font-bold text-slate-800">Souscriptions</h3>
-                  <p className="text-xs text-slate-400 mt-0.5">Répartition par statut</p>
+                  <p className="text-xs text-slate-400 mt-0.5">{t("dash_repartition_statut")}</p>
                 </div>
                 <button className="text-slate-400 hover:text-slate-600 transition-colors">
                   <MoreVertical size={20} />

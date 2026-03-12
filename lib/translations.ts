@@ -3,7 +3,7 @@
  * Couvre la navigation, les actions et les messages fréquents.
  * Usage : import { useT } from "@/contexts/AppSettingsContext"
  */
-
+   
 export type Langue = "fr" | "en" | "ar";
 
 export const translations = {
@@ -80,6 +80,53 @@ export const translations = {
   dash_period_7:      { fr: "7 derniers jours",    en: "Last 7 days",       ar: "آخر 7 أيام"      },
   dash_period_30:     { fr: "30 derniers jours",   en: "Last 30 days",      ar: "آخر 30 يومًا"    },
   dash_period_90:     { fr: "90 derniers jours",   en: "Last 90 days",      ar: "آخر 90 يومًا"    },
+  
+  // ── Dashboard / Indicateurs & Stats ─────────────────────────────────────────
+  dash_logout:                   { fr: "Se déconnecter",              en: "Log out",                    ar: "تسجيل الخروج" },
+  dash_evolution_versements:     { fr: "Evolution des versements",    en: "Payment evolution",          ar: "تطور المدفوعات" },
+  dash_montants_journaliers:     { fr: "Montants journaliers (versements packs)", en: "Daily amounts (pack payments)", ar: "المبالغ اليومية (مدفوعات الحزم)" },
+  dash_versements_packs:         { fr: "Versements packs",            en: "Pack payments",             ar: "مدفوعات الحزم" },
+  dash_souscriptions_creees:     { fr: "Souscriptions créées",        en: "Subscriptions created",      ar: "الاشتراكات المُنشأة" },
+  dash_repartition_statut:       { fr: "Répartition par statut",      en: "Distribution by status",    ar: "التوزيع حسب الحالة" },
+  dash_souscriptions:            { fr: "Souscriptions",               en: "Subscriptions",             ar: "الاشتراكات" },
+  dash_actives:                  { fr: "Actives",                     en: "Active",                     ar: "نشطة" },
+  dash_completes:                { fr: "Complètes",                   en: "Completed",                  ar: "مكتملة" },
+  dash_annulees:                 { fr: "Annulées",                    en: "Cancelled",                  ar: "ملغاة" },
+  dash_indicateurs_jour:         { fr: "Indicateurs clés du jour",    en: "Key indicators of the day",  ar: "المؤشرات الرئيسية لليوم" },
+  dash_alertes_op:               { fr: "Alertes opérationnelles",     en: "Operational alerts",        ar: "تنبيهات تشغيلية" },
+  dash_points_attention:         { fr: "Points d’attention en temps réel", en: "Real-time attention points", ar: "نقاط الانتباه في الوقت الحقيقي" },
+  dash_caisse:                   { fr: "Caisse",                      en: "Cash register",             ar: "الصندوق" },
+  dash_fcfa_0:                   { fr: "F CFA 0",                     en: "XOF 0",                     ar: "٠ فرنك إف سي إف إيه" },
+  dash_sessions_ouvertes:        { fr: "1 session(s) ouverte(s)",    en: "1 session(s) open",         ar: "١ جلسة مفتوحة" },
+
+  // ── Stock / Produits ────────────────────────────────────────────────────────
+  dash_stock:                    { fr: "Stock",                        en: "Stock",                      ar: "المخزون" },
+  dash_alertes_stock:            { fr: "3 alerte(s)",                  en: "3 alert(s)",                ar: "٣ تنبيه/تنبيهات" },
+  dash_produits_seuil:           { fr: "Produits sous le seuil",       en: "Products below threshold",  ar: "منتجات تحت الحد الأدنى" },
+
+  // ── Ventes ─────────────────────────────────────────────────────────────────
+  dash_ventes:                    { fr: "Ventes",                      en: "Sales",                     ar: "المبيعات" },
+  dash_fcfa_ventes:               { fr: "F CFA 0",                     en: "XOF 0",                     ar: "٠ فرنك إف سي إف إيه" },
+  dash_ventes_directes:           { fr: "0 vente(s) directe(s)",       en: "0 direct sale(s)",          ar: "٠ بيع مباشر" },
+
+  // ── Approvisionnement ─────────────────────────────────────────────────────
+  dash_appro:                     { fr: "Appro",                        en: "Supply",                     ar: "التزويد" },
+  dash_en_attente:                { fr: "0 en attente",                 en: "0 pending",                 ar: "٠ في الانتظار" },
+  dash_receptions_valider:        { fr: "Réceptions à valider",        en: "Receptions to validate",    ar: "استلامات للتحقق" },
+
+  // ── Modules ───────────────────────────────────────────────────────────────
+  dash_modules_systeme:           { fr: "Modules système",             en: "System modules",            ar: "وحدات النظام" },
+  dash_modules_configures:        { fr: "10 modules configurés",       en: "10 modules configured",    ar: "١٠ وحدات مُكوَّنة" },
+
+  // ── Statistiques générales ─────────────────────────────────────────────────
+  dash_actifs:                     { fr: "Actifs",                      en: "Active",                     ar: "نشطاء" },
+  dash_inactifs:                   { fr: "Inactifs",                    en: "Inactive",                   ar: "غير نشطاء" },
+
+  // ── Autres modules / équipes ──────────────────────────────────────────────
+  dash_agents_terrain:             { fr: "Agents de terrain",           en: "Field agents",               ar: "الوكلاء الميدانيون" },
+  dash_assemblees_dividendes:      { fr: "Assemblées & Dividendes",     en: "Assemblies & Dividends",    ar: "الجمعيات & الأرباح" },
+  dash_caisse_paiements:           { fr: "Caisse & Paiements",          en: "Cash & Payments",           ar: "الصندوق & المدفوعات" },
+  dash_comptabilite_gestion_stock: { fr: "Comptabilité Gestion du stock", en: "Accounting & Stock Management", ar: "المحاسبة وإدارة المخزون" },
 } as const;
 
 export type TranslationKey = keyof typeof translations;
