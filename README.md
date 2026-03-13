@@ -1,9 +1,23 @@
+🧠 CEA-IMMO
+![Licence: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
+
 # AfriGes
 
-AfriGes est une plateforme web de gestion intégrée destinée aux entreprises africaines.
-Elle permet de gérer les ventes, les stocks, les finances, les clients, les assemblées d’actionnaires, ainsi que les opérations de terrain à travers plusieurs rôles métiers.
+AfriGes est la plateforme web de gestion intégrée qui supporte et gère le fonctionnement d’AfriSime, un supermarché hybride.
 
-Cette application est construite avec [Next.js](https://nextjs.org) et repose sur une architecture **API modulaire par rôle utilisateur**.
+Voici en résumé les Activités d’AfriSime:
+
+1.Activité principale : Un supermarché hybride
+	AfriSime est un supermarché spécialisé dans :
+
+	La distribution de denrées alimentaires de tout genre et catégorie.
+
+	L’accès facilité aux produits grâce à des mécanismes communautaires tels que cotisations, crédits et tontines mais actuellement plus basés sur des packs et des souscriptions à ces packs.
+
+2.Activité communautaire : accès aux produits à crédit
+	AfriSime propose des systèmes de financement solidaires, permettant aux clients d’obtenir des produits selon différentes modalités adaptées à leurs capacités financières.
+
+Cette application est construite avec [Next.js](https://nextjs.org) et repose sur une architecture **API modulaire par rôle utilisateur , permettant de gérer efficacement toutes les opérations du supermarché et ses activités communautaires**.
 
 ---
 
@@ -451,7 +465,9 @@ The easiest way to deploy your Next.js app is to use the [Vercel Platform](https
 Check out the [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying).
 
 ---
+✍️ Auteur
 
-# Licence
+Projet développé par AMOUSSOU-GUENOU Awledou
+Encadré par Mr Nelson AKPABI
 
-Projet privé — Tous droits réservés.
+---
