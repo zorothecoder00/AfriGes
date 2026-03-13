@@ -15,4 +15,7 @@ import { randomUUID } from "crypto";  permet de générer des UUID(sorte d'ident
 Pas une erreur mais un bug ; normalement au niveau du point de vente de
   l'utilisateur , on ne devrait pas mettre un unique point de vente pour le
   chef_agence ou responsable_communaute (vu qu'il gère plusieurs points de
-  vente)
+
+useApi.ts:28  GET http://localhost:3000/api/caissier/ventes?aujourdHui=true&limit=20 403 (Forbidden)
+useApi.useCallback[fetchData] @ useApi.ts:28
+useApi.useEffect @ useApi.ts:43

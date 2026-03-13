@@ -6,7 +6,7 @@
 
 generator client {
   provider = "prisma-client-js"
-}
+}   
     
 datasource db {
   provider = "postgresql"
@@ -26,7 +26,7 @@ enum MemberStatus {
   ACTIF
   INACTIF
   SUSPENDU
-}    
+}         
 
 enum RoleGestionnaire {
   SUPER_ADMIN
@@ -1334,7 +1334,7 @@ model Pack {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
-
+  
 model SouscriptionPack {
   id                 Int                 @id @default(autoincrement())
   packId             Int
@@ -1357,7 +1357,7 @@ model SouscriptionPack {
   notes              String?
   enregistrePar      String?
 
-  versements VersementPack[]
+  versements VersementPack[]      
   echeances  EcheancePack[]
   receptions ReceptionProduitPack[]
 

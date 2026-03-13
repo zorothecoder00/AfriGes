@@ -9,7 +9,7 @@ import {
   Lock, Hash, Filter, Pencil, Trash2, CalendarDays, Boxes,
   MapPin, FileText, PlayCircle, Info, Download, Printer,
   UserPlus, Star, Activity, ShoppingBag, Wrench, UserCircle, CreditCard,
-} from "lucide-react";
+} from "lucide-react";  
 import Link from "next/link";
 import SignOutButton from "@/components/SignOutButton";
 import NotificationBell from "@/components/NotificationBell";
@@ -65,7 +65,7 @@ interface Livraison {
   notes: string | null; planifiePar: string;
   lignes: LivraisonLigne[];
   createdAt: string; updatedAt: string;
-}
+}  
 interface LivraisonsResponse {
   success: boolean; data: Livraison[];
   stats: { brouillon: number; enCours: number; recu: number; valide: number; annule: number };
@@ -232,7 +232,7 @@ const livraisonStyle: Record<StatutLiv, { bg: string; text: string; label: strin
 const livraisonTypeStyle: Record<TypeLiv, { bg: string; text: string; label: string; icon: React.ElementType }> = {
   FOURNISSEUR: { bg: "bg-sky-100",    text: "text-sky-700",    label: "Fournisseur", icon: ArrowUpCircle   },
   INTERNE:     { bg: "bg-violet-100", text: "text-violet-700", label: "Interne",     icon: ArrowRightLeft  },
-};
+};   
 
 const roleLabels: Record<string, string> = {
   CAISSIER: "Caissier", COMPTABLE: "Comptable", MAGAZINIER: "Magasinier",
