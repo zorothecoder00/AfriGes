@@ -1,12 +1,12 @@
 "use client";
 
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import {
+import {     
   TrendingUp, Users, UserCheck, Package, Layers,
   ShoppingCart, MoreVertical, Download, Plus, ChevronDown, MessageSquare, Store, Shield,
   Activity, AlertTriangle, CheckCircle, XCircle, Wallet, BarChart2, Truck, RefreshCw,
 } from 'lucide-react';
-import Link from "next/link";
+import Link from "next/link"; 
 import { useSession } from 'next-auth/react';
 import { useT } from '@/contexts/AppSettingsContext';
 import NotificationBell from '@/components/NotificationBell';
@@ -202,7 +202,7 @@ export default function AfriGesDashboard() {
         </div>
       </div>
     );
-  }
+  }    
 
   if (error) {
     return (
@@ -395,7 +395,7 @@ export default function AfriGesDashboard() {
                     <BarChart2 size={18} className="text-violet-600" />
                   </div>
                   <div>
-                    <h3 className="text-sm font-bold text-slate-800">Modules système</h3>
+                    <h3 className="text-sm font-bold text-slate-800">{t('dash_modules')}</h3>
                     <p className="text-xs text-slate-400">{act?.modules.total ?? '—'} modules configurés</p>
                   </div>
                 </div>
@@ -433,8 +433,8 @@ export default function AfriGesDashboard() {
                     <AlertTriangle size={18} className="text-amber-600" />
                   </div>
                   <div>
-                    <h3 className="text-sm font-bold text-slate-800">Alertes opérationnelles</h3>
-                    <p className="text-xs text-slate-400">Points d&apos;attention en temps réel</p>
+                    <h3 className="text-sm font-bold text-slate-800">{t('dash_alerts')}</h3>
+                    <p className="text-xs text-slate-400">{t('dash_points_attention')}</p>
                   </div>
                 </div>
                 {!act || act.alertes.length === 0 ? (
@@ -478,8 +478,8 @@ export default function AfriGesDashboard() {
                     <TrendingUp size={18} className="text-blue-600" />
                   </div>
                   <div>
-                    <h3 className="text-sm font-bold text-slate-800">Rapports rapides</h3>
-                    <p className="text-xs text-slate-400">Indicateurs clés du jour</p>
+                    <h3 className="text-sm font-bold text-slate-800">{t('dash_reports')}</h3>
+                    <p className="text-xs text-slate-400">{t('dash_indicateurs_jour')}</p>
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
@@ -487,7 +487,7 @@ export default function AfriGesDashboard() {
                   <div className="p-3 bg-slate-50 rounded-xl">
                     <div className="flex items-center gap-1.5 mb-1.5">
                       <Wallet size={13} className="text-purple-500" />
-                      <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">Caisse</span>
+                      <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">{t('dash_caisse')}</span>
                     </div>
                     <p className="text-sm font-bold text-slate-800">{act ? formatCurrency(act.rapports.caisse.versementsMontant) : '—'}</p>
                     <p className="text-[10px] text-slate-400">{act?.rapports.caisse.sessionsOuvertes ?? '—'} session(s) ouverte(s)</p>
@@ -496,7 +496,7 @@ export default function AfriGesDashboard() {
                   <div className="p-3 bg-slate-50 rounded-xl">
                     <div className="flex items-center gap-1.5 mb-1.5">
                       <Package size={13} className="text-amber-500" />
-                      <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">Stock</span>
+                      <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">{t('dash_stock')}</span>
                     </div>
                     <p className="text-sm font-bold text-slate-800">{act?.rapports.stock.alertes ?? '—'} alerte(s)</p>
                     <p className="text-[10px] text-slate-400">Produits sous le seuil</p>
@@ -505,7 +505,7 @@ export default function AfriGesDashboard() {
                   <div className="p-3 bg-slate-50 rounded-xl">
                     <div className="flex items-center gap-1.5 mb-1.5">
                       <ShoppingCart size={13} className="text-emerald-500" />
-                      <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">Ventes</span>
+                      <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">{t('dash_ventes')}</span>
                     </div>
                     <p className="text-sm font-bold text-slate-800">{act ? formatCurrency(act.rapports.ventes.montant) : '—'}</p>
                     <p className="text-[10px] text-slate-400">{act?.rapports.ventes.count ?? '—'} vente(s) directe(s)</p>
@@ -514,10 +514,10 @@ export default function AfriGesDashboard() {
                   <div className="p-3 bg-slate-50 rounded-xl">
                     <div className="flex items-center gap-1.5 mb-1.5">
                       <Truck size={13} className="text-blue-500" />
-                      <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">Appro</span>
+                      <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">{t('dash_appro')}</span>
                     </div>
                     <p className="text-sm font-bold text-slate-800">{act?.rapports.approvisionnement.enAttente ?? '—'} en attente</p>
-                    <p className="text-[10px] text-slate-400">Réceptions à valider</p>
+                    <p className="text-[10px] text-slate-400">{t('dash_receptions_valider')}</p>
                   </div>
                 </div>
               </div>
@@ -532,8 +532,8 @@ export default function AfriGesDashboard() {
             <div className="col-span-2 bg-white rounded-2xl p-6 shadow-sm border border-slate-200/60">
               <div className="flex items-center justify-between mb-6">
                 <div>
-                  <h3 className="text-xl font-bold text-slate-800">Évolution des versements</h3>
-                  <p className="text-xs text-slate-400 mt-0.5">Montants journaliers (versements packs)</p>
+                  <h3 className="text-xl font-bold text-slate-800">{t('dash_evolution_versements')}</h3>
+                  <p className="text-xs text-slate-400 mt-0.5">{t('dash_montants_journaliers')}</p>
                 </div>
                 <select
                   value={selectedPeriod}
@@ -550,11 +550,11 @@ export default function AfriGesDashboard() {
               <div className="flex items-center gap-5 mb-4">
                 <div className="flex items-center gap-1.5">
                   <div className="w-3 h-3 rounded-full bg-emerald-500" />
-                  <span className="text-xs text-slate-500">Versements packs</span>
+                  <span className="text-xs text-slate-500">{t('dash_versements_packs')}</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <div className="w-3 h-3 rounded-full bg-blue-400" />
-                  <span className="text-xs text-slate-500">Souscriptions créées</span>
+                  <span className="text-xs text-slate-500">{t('dash_souscriptions_creees')}</span>
                 </div>
               </div>
 
@@ -651,7 +651,7 @@ export default function AfriGesDashboard() {
             <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/60">
               <div className="flex items-center justify-between mb-4">
                 <div>
-                  <h3 className="text-xl font-bold text-slate-800">Souscriptions</h3>
+                  <h3 className="text-xl font-bold text-slate-800">{t('dash_souscriptions')}</h3>
                   <p className="text-xs text-slate-400 mt-0.5">{t("dash_repartition_statut")}</p>
                 </div>
                 <button className="text-slate-400 hover:text-slate-600 transition-colors">

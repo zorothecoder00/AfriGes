@@ -3,9 +3,9 @@
 
 # AfriGes
 
-AfriGes est la plateforme web de gestion intégrée qui supporte et gère le fonctionnement d’AfriSime, un supermarché hybride.
+AfriGes est la plateforme web de gestion intégrée qui supporte et gère le fonctionnement d’AfriSime, un supermarché hybride. 
 
-Voici en résumé les Activités d’AfriSime:
+Voici en résumé les Activités d’AfriSime: 
 
 1.Activité principale : Un supermarché hybride
 	AfriSime est un supermarché spécialisé dans :
@@ -19,7 +19,7 @@ Voici en résumé les Activités d’AfriSime:
 
 Cette application est construite avec [Next.js](https://nextjs.org) et repose sur une architecture **API modulaire par rôle utilisateur , permettant de gérer efficacement toutes les opérations du supermarché et ses activités communautaires**.
 
----
+---  
 
 # Technologies utilisées
 

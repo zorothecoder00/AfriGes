@@ -2,6 +2,7 @@
    
 import { signOut } from 'next-auth/react'
 import { useState } from 'react'
+import { useT } from '@/contexts/AppSettingsContext';
 
 interface SignOutButtonProps {
   redirectTo?: string
@@ -13,6 +14,7 @@ export default function SignOutButton({
   className = '',
 }: SignOutButtonProps) {
   const [loading, setLoading] = useState(false)
+  const t  = useT();
 
   const handleSignOut = async () => {
     setLoading(true)
@@ -28,7 +30,7 @@ export default function SignOutButton({
       disabled={loading}
       className={`px-4 py-2 rounded bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 ${className}`}
     >
-      {loading ? 'Déconnexion...' : 'Se déconnecter'}
+      {loading ? t('dash_logging_out') : t('dash_logout')}
     </button>
   )
 }

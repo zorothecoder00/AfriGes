@@ -4,7 +4,7 @@
  * Usage : import { useT } from "@/contexts/AppSettingsContext"
  */
    
-export type Langue = "fr" | "en" | "ar";
+export type Langue = "fr" | "en" | "ar";   
 
 export const translations = {
   // ── Navigation ─────────────────────────────────────────────────────────────
@@ -64,7 +64,7 @@ export const translations = {
   msg_no_result:      { fr: "Aucun résultat",      en: "No results",        ar: "لا توجد نتائج"    },
   msg_confirm_delete: { fr: "Confirmer la suppression", en: "Confirm deletion", ar: "تأكيد الحذف"  },
   msg_irreversible:   { fr: "Cette action est irréversible.", en: "This action cannot be undone.", ar: "هذا الإجراء لا يمكن التراجع عنه." },  
-
+   
   // ── Rôles ──────────────────────────────────────────────────────────────────
   role_user:          { fr: "Utilisateur",         en: "User",              ar: "مستخدم"           },
   role_admin:         { fr: "Administrateur",      en: "Administrator",     ar: "مدير"             },
@@ -83,12 +83,14 @@ export const translations = {
 
   // ── Dashboard / Indicateurs & Stats ─────────────────────────────────────────
   dash_logout:                   { fr: "Se déconnecter",              en: "Log out",                    ar: "تسجيل الخروج" },
+  dash_logging_out:              { fr: "Déconnexion...",              en: "Logging out...",           ar: "جارٍ تسجيل الخروج..."}, 
   dash_evolution_versements:     { fr: "Evolution des versements",    en: "Payment evolution",          ar: "تطور المدفوعات" },
   dash_montants_journaliers:     { fr: "Montants journaliers (versements packs)", en: "Daily amounts (pack payments)", ar: "المبالغ اليومية (مدفوعات الحزم)" },
   dash_versements_packs:         { fr: "Versements packs",            en: "Pack payments",             ar: "مدفوعات الحزم" },
   dash_souscriptions_creees:     { fr: "Souscriptions créées",        en: "Subscriptions created",      ar: "الاشتراكات المُنشأة" },
   dash_repartition_statut:       { fr: "Répartition par statut",      en: "Distribution by status",    ar: "التوزيع حسب الحالة" },
   dash_souscriptions:            { fr: "Souscriptions",               en: "Subscriptions",             ar: "الاشتراكات" },
+  dash_no_subscriptions:         { fr: "Aucune souscription",         en: "No subscription",             ar: "لا توجد اشتراكات"},
   dash_actives:                  { fr: "Actives",                     en: "Active",                     ar: "نشطة" },
   dash_completes:                { fr: "Complètes",                   en: "Completed",                  ar: "مكتملة" },
   dash_annulees:                 { fr: "Annulées",                    en: "Cancelled",                  ar: "ملغاة" },

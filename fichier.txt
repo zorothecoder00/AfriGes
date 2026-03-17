@@ -18,4 +18,6 @@ Pas une erreur mais un bug ; normalement au niveau du point de vente de
 
 useApi.ts:28  GET http://localhost:3000/api/caissier/ventes?aujourdHui=true&limit=20 403 (Forbidden)
 useApi.useCallback[fetchData] @ useApi.ts:28
-useApi.useEffect @ useApi.ts:43
+useApi.useEffect @ useApi.ts:43  
+
+A chaque fois que je fais une action ou j'actualise sur la page dashboard/admin/superadmin , j'ai toujours un message "Accès refusé , cette section est réservée aux administrateurs. Retour au dashboard" . Mais ce message ne dure que quekques secondes et la page dashboard/admin/superadmin fonctionne comme si de rien n'était 
