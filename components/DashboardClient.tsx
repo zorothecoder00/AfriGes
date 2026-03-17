@@ -369,10 +369,10 @@ export default function AfriGesDashboard() {
                 </div>
                 <div className="grid grid-cols-4 gap-3">
                   {[
-                    { label: 'Versements', value: act?.activiteJour.versements ?? '—', icon: Wallet,      color: 'text-purple-600', bg: 'bg-purple-50' },
-                    { label: 'Souscriptions', value: act?.activiteJour.souscriptions ?? '—', icon: Layers, color: 'text-blue-600', bg: 'bg-blue-50' },
-                    { label: 'Ventes directes', value: act?.activiteJour.ventes ?? '—', icon: ShoppingCart, color: 'text-emerald-600', bg: 'bg-emerald-50' },
-                    { label: 'Mouvements stock', value: act?.activiteJour.mouvementsStock ?? '—', icon: Package, color: 'text-amber-600', bg: 'bg-amber-50' },
+                    { label: t('dash_versements'), value: act?.activiteJour.versements ?? '—', icon: Wallet,      color: 'text-purple-600', bg: 'bg-purple-50' },
+                    { label: t('dash_souscription'), value: act?.activiteJour.souscriptions ?? '—', icon: Layers, color: 'text-blue-600', bg: 'bg-blue-50' },
+                    { label: t('dash_vente_directe'), value: act?.activiteJour.ventes ?? '—', icon: ShoppingCart, color: 'text-emerald-600', bg: 'bg-emerald-50' },
+                    { label: t('dash_mouvements_stock'), value: act?.activiteJour.mouvementsStock ?? '—', icon: Package, color: 'text-amber-600', bg: 'bg-amber-50' },
                   ].map((item) => {
                     const Icon = item.icon;
                     return (
@@ -402,11 +402,11 @@ export default function AfriGesDashboard() {
                 <div className="flex gap-3 mb-3">
                   <div className="flex-1 bg-emerald-50 rounded-xl p-3 text-center">
                     <p className="text-2xl font-bold text-emerald-700">{act?.modules.actifs ?? '—'}</p>
-                    <p className="text-[10px] text-emerald-600 font-medium mt-0.5">Actifs</p>
+                    <p className="text-[10px] text-emerald-600 font-medium mt-0.5">{t('dash_actifs')}</p>
                   </div>
                   <div className="flex-1 bg-slate-100 rounded-xl p-3 text-center">
                     <p className="text-2xl font-bold text-slate-500">{act?.modules.inactifs ?? '—'}</p>
-                    <p className="text-[10px] text-slate-500 font-medium mt-0.5">Inactifs</p>
+                    <p className="text-[10px] text-slate-500 font-medium mt-0.5">{t('dash_inactifs')}</p>
                   </div>
                 </div>
                 <div className="space-y-1 max-h-24 overflow-y-auto">

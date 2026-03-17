@@ -74,6 +74,7 @@ export const translations = {
   dash_title:         { fr: "Tableau de bord",     en: "Dashboard",         ar: "لوحة التحكم",       es: "Tablero",           pt: "Painel de Controle" },
   dash_subtitle:      { fr: "Vue d'ensemble des activités AfriGes", en: "AfriGes activity overview", ar: "نظرة عامة على أنشطة أفريجيس", es: "Resumen de actividades AfriGes", pt: "Visão geral das atividades AfriGes" },
   dash_activity:      { fr: "Activité du jour",    en: "Today's activity",  ar: "نشاط اليوم",       es: "Actividad del día", pt: "Atividade do dia" },
+  dash_operations_today: { fr: "Opérations effectuées aujourd'hui",  en: "Operations carried out today",  ar: "العمليات المنجزة اليوم",  es: "Operaciones realizadas hoy",  pt: "Operações realizadas hoje" },
   dash_modules:       { fr: "Modules système",     en: "System modules",    ar: "وحدات النظام",     es: "Módulos del sistema", pt: "Módulos do sistema" },
   dash_alerts:        { fr: "Alertes opérationnelles", en: "Operational alerts", ar: "تنبيهات تشغيلية", es: "Alertas operativas", pt: "Alertas operacionais" },
   dash_reports:       { fr: "Rapports rapides",    en: "Quick reports",     ar: "تقارير سريعة",     es: "Informes rápidos", pt: "Relatórios rápidos" },
@@ -119,9 +120,13 @@ export const translations = {
   // ── Modules ───────────────────────────────────────────────────────────────
   dash_modules_systeme:           { fr: "Modules système",             en: "System modules",            ar: "وحدات النظام",       es: "Módulos del sistema",    pt: "Módulos do sistema" },
   dash_modules_configures:        { fr: "10 modules configurés",       en: "10 modules configured",    ar: "١٠ وحدات مُكوَّنة",    es: "10 módulos configurados", pt: "10 módulos configurados" },
-
+  
   // ── Statistiques générales ─────────────────────────────────────────────────
-  dash_actifs:                     { fr: "Actifs",                      en: "Active",                     ar: "نشطاء",               es: "Activos",               pt: "Ativos" },
+  dash_versements:                 { fr: "Versements",                  en: "Payments",                   ar: "المدفوعات" ,          es: "Pagos",               pt: "Pagamentos" },
+  dash_souscription:              { fr: "Souscriptions",                en: "Subscriptions",                   ar: "الاشتراكات" ,         es: "Suscripciones",       pt: "Subscrições" },
+  dash_vente_directe:            { fr: "Ventes directes",             en: "Direct sales",                   ar: "المبيعات المباشرة" ,  es: "Ventas directas",     pt: "Vendas diretas" },
+  dash_mouvements_stock:           { fr: "Mouvements stock",            en: "Stock movements",                   ar: "حركات المخزون" ,       es: "Movimientos de stock", pt: "Movimentos de estoque" },
+  dash_actifs:                     { fr: "Actifs",                      en: "Active",                   ar: "نشطاء",               es: "Activos",               pt: "Ativos" },
   dash_inactifs:                   { fr: "Inactifs",                    en: "Inactive",                   ar: "غير نشطاء",           es: "Inactivos",             pt: "Inativos" },
 
   // ── Autres modules / équipes ──────────────────────────────────────────────
@@ -135,4 +140,4 @@ export type TranslationKey = keyof typeof translations;
 
 export function translate(key: TranslationKey, langue: Langue): string {
   return translations[key]?.[langue] ?? translations[key]?.["fr"] ?? key;
-}
+}  
