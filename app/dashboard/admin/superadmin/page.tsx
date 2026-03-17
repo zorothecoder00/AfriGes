@@ -553,7 +553,7 @@ export default function SuperAdminPage() {
                         <label className="block text-xs font-medium text-slate-600 mb-1">{f.label}</label>
                         <input type={f.type} value={settings[f.key] ?? ""} onChange={(e) => setSetting(f.key, e.target.value)}
                           className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 bg-slate-50" />
-                      </div>
+                      </div>  
                     ))}
                     <div>
                       <label className="block text-xs font-medium text-slate-600 mb-1">Langue</label>
@@ -562,6 +562,8 @@ export default function SuperAdminPage() {
                         <option value="fr">Français</option>
                         <option value="en">English</option>
                         <option value="ar">العربية</option>
+                        <option value="es">Español</option>
+                        <option value="pt">Português</option>
                       </select>
                     </div>
                     <div>
@@ -857,7 +859,7 @@ export default function SuperAdminPage() {
                       <th className="text-left px-4 py-3 font-semibold text-slate-600 text-xs">Utilisateur</th>
                       {logType === "security" && <th className="text-left px-4 py-3 font-semibold text-slate-600 text-xs">IP</th>}
                     </tr>
-                  </thead>
+                  </thead>  
                   <tbody>
                     {(logsRes?.data ?? []).map((l) => (
                       <tr key={l.id} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
