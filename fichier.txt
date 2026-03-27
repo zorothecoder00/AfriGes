@@ -1,20 +1,20 @@
 -Pages user qu'il me reste à créer( types de gestionnaires [ COMMERCIAL, RESPONSABLE_VENTE_CREDIT, RESPONSABLE_ECONOMIQUE, RESPONSABLE_MARKETING ] )
 
 -Enlève moi la partie inscription ( auth/login ) ou plut^^ot bloque là pour empêcher n'importe qui de s'inscire sur l'application (espion potentiel)  
-
+ 
 -Je viens de découvrir Print CSS et window.print() pour les export PDF/Excel
 On peut aussi utiliser du SVG pour les graphiques ( sans forcément dépendance externe)  
 Ce code :  
  const a = document.createElement("a");
  a.href = url;       
- a.download = filename;      
- a.click();     
+ a.download = filename;         
+ a.click();       
  permet de créer un téléchargement via un clic sur une URL ( utile pour les exports)
 import { randomUUID } from "crypto";  permet de générer des UUID(sorte d'identifiant unique aléatoire)    
 
 Pas une erreur mais un bug ; normalement au niveau du point de vente de
   l'utilisateur , on ne devrait pas mettre un unique point de vente pour le
-  chef_agence ou responsable_communaute (vu qu'il gère plusieurs points de
+  chef_agence ou responsable_communaute (vu qu'il gère plusieurs points de vente)
 
 useApi.ts:28  GET http://localhost:3000/api/caissier/ventes?aujourdHui=true&limit=20 403 (Forbidden)
 useApi.useCallback[fetchData] @ useApi.ts:28

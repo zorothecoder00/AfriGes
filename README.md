@@ -2,10 +2,10 @@
 ![Licence: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
 
 # AfriGes
-
+  
 AfriGes est la plateforme web de gestion intégrée qui supporte et gère le fonctionnement d’AfriSime, un supermarché hybride. 
 
-Voici en résumé les Activités d’AfriSime: 
+Voici en résumé les Activités d’AfriSime:    
 
 1.Activité principale : Un supermarché hybride
 	AfriSime est un supermarché spécialisé dans :
@@ -20,7 +20,7 @@ Voici en résumé les Activités d’AfriSime:
 Cette application est construite avec [Next.js](https://nextjs.org) et repose sur une architecture **API modulaire par rôle utilisateur , permettant de gérer efficacement toutes les opérations du supermarché et ses activités communautaires**.
 
 ---  
-
+     
 # Technologies utilisées
 
 ## Frontend
@@ -28,7 +28,7 @@ Cette application est construite avec [Next.js](https://nextjs.org) et repose su
 * [Next.js](https://nextjs.org)
 * [React](https://react.dev)
 * [TailwindCSS](https://tailwindcss.com)
-* [Lucide Icons](https://lucide.dev)
+* [Lucide Icons](https://lucide.dev)              
 
 ## Backend
 
@@ -389,7 +389,7 @@ Les API sont organisées **par rôle utilisateur**, ce qui facilite la maintenan
 /api/notifications/readAll
 /api/notifications/unread
 ```
-
+ 
 ---
 
 # Upload de fichiers

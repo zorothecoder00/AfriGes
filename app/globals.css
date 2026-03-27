@@ -50,6 +50,8 @@ html[data-theme="dark"] .bg-white          { background-color: #1e293b !importan
 html[data-theme="dark"] .bg-slate-50       { background-color: #0f172a !important; }
 html[data-theme="dark"] .bg-slate-100      { background-color: #1e293b !important; }
 html[data-theme="dark"] .bg-slate-200      { background-color: #334155 !important; }
+html[data-theme="dark"] .bg-gray-50        { background-color: #0f172a !important; }
+html[data-theme="dark"] .bg-gray-100       { background-color: #1e293b !important; }
 
 /* Dégradés de fond des pages */
 html[data-theme="dark"] .bg-gradient-to-br { background: #0f172a !important; }
@@ -70,6 +72,14 @@ html[data-theme="dark"] .text-slate-700    { color: #e2e8f0 !important; }
 html[data-theme="dark"] .text-slate-600    { color: #cbd5e1 !important; }
 html[data-theme="dark"] .text-slate-500    { color: #94a3b8 !important; }
 html[data-theme="dark"] .text-slate-400    { color: #64748b !important; }
+
+/* 🧠 Fix des textes gray (CRITIQUE) */
+html[data-theme="dark"] .text-gray-900     { color: #f9fafb !important; }
+html[data-theme="dark"] .text-gray-800     { color: #f3f4f6 !important; }
+html[data-theme="dark"] .text-gray-700     { color: #e5e7eb !important; }
+html[data-theme="dark"] .text-gray-600     { color: #d1d5db !important; }
+html[data-theme="dark"] .text-gray-500     { color: #9ca3af !important; }
+html[data-theme="dark"] .text-gray-400     { color: #6b7280 !important; }
 
 /* ── Bordures ──────────────────────────────────────────────────────────── */
 
