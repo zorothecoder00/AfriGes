@@ -7,7 +7,7 @@
 generator client {
   provider = "prisma-client-js"
 }                            
-       
+          
 datasource db {
   provider = "postgresql"
 }          
@@ -634,7 +634,7 @@ model GestionnaireAffectation {
 model Client {
   id             Int          @id @default(autoincrement())
   nom            String
-  prenom         String
+  prenom         String   
   telephone      String       @unique
   adresse        String?
   etat           MemberStatus @default(ACTIF)
@@ -649,7 +649,7 @@ model Client {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
-
+  
 // ============================================================
 // FOURNISSEURS
 // ============================================================

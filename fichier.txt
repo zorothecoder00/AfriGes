@@ -1,7 +1,5 @@
 -Pages user qu'il me reste à créer( types de gestionnaires [ COMMERCIAL, RESPONSABLE_VENTE_CREDIT, RESPONSABLE_ECONOMIQUE, RESPONSABLE_MARKETING ] )
 
--Enlève moi la partie inscription ( auth/login ) ou plut^^ot bloque là pour empêcher n'importe qui de s'inscire sur l'application (espion potentiel)  
- 
 -Je viens de découvrir Print CSS et window.print() pour les export PDF/Excel
 On peut aussi utiliser du SVG pour les graphiques ( sans forcément dépendance externe)  
 Ce code :  
@@ -10,8 +8,8 @@ Ce code :
  a.download = filename;         
  a.click();       
  permet de créer un téléchargement via un clic sur une URL ( utile pour les exports)
-import { randomUUID } from "crypto";  permet de générer des UUID(sorte d'identifiant unique aléatoire)    
-
+import { randomUUID } from "crypto";  permet de générer des UUID(sorte d'identifiant unique aléatoire) par exemple pour des factures ou des pièces justificatives
+  
 Pas une erreur mais un bug ; normalement au niveau du point de vente de
   l'utilisateur , on ne devrait pas mettre un unique point de vente pour le
   chef_agence ou responsable_communaute (vu qu'il gère plusieurs points de vente)
@@ -21,3 +19,4 @@ useApi.useCallback[fetchData] @ useApi.ts:28
 useApi.useEffect @ useApi.ts:43  
 
 A chaque fois que je fais une action ou j'actualise sur la page dashboard/admin/superadmin , j'ai toujours un message "Accès refusé , cette section est réservée aux administrateurs. Retour au dashboard" . Mais ce message ne dure que quekques secondes et la page dashboard/admin/superadmin fonctionne comme si de rien n'était 
+
