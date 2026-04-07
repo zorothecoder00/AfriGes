@@ -447,7 +447,7 @@ export default function AuditeurInternePage() {
   const { data: mouvResponse, loading: mouvLoading } = useApi<MouvementsStockResponse>(
     activeTab === "mouvements" ? `/api/auditeur/mouvements-stock?${mouvParams}` : null
   );
-
+   
   // ── Anomalies stock ─────────────────────────────────────────────────────────
   const [anomaliesPage, setAnomaliesPage] = useState(1);
   const [anomaliesStatut, setAnomaliesStatut] = useState("");
@@ -568,7 +568,7 @@ export default function AuditeurInternePage() {
         </div>
       </div>
     );
-  }
+  }  
 
   const d = dashboard;
   const score = d?.stats.scoreConformite ?? 100;

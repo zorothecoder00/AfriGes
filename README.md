@@ -2,10 +2,10 @@
 ![Licence: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
 
 # AfriGes
-  
+     
 AfriGes est la plateforme web de gestion intégrée qui supporte et gère le fonctionnement d’AfriSime, un supermarché hybride. 
 
-Voici en résumé les Activités d’AfriSime:    
+Voici en résumé les Activités d’AfriSime:      
 
 1.Activité principale : Un supermarché hybride
 	AfriSime est un supermarché spécialisé dans :

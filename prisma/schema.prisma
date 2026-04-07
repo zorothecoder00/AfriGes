@@ -6,8 +6,8 @@
   
 generator client {
   provider = "prisma-client-js"
-}                            
-          
+}                               
+               
 datasource db {
   provider = "postgresql"
 }          
@@ -55,9 +55,9 @@ enum RoleGestionnaire {
 
 enum TypePointDeVente {
   POINT_DE_VENTE
-  DEPOT_CENTRAL
-}
-
+  DEPOT_CENTRAL  
+}     
+      
 enum TypeEntreeStock {
   RECEPTION_FOURNISSEUR
   RECEPTION_INTERNE     // depuis un autre dépôt / siège
