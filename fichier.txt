@@ -5,8 +5,8 @@ On peut aussi utiliser du SVG pour les graphiques ( sans forcément dépendance 
 Ce code :  
  const a = document.createElement("a");
  a.href = url;           
- a.download = filename;         
- a.click();       
+ a.download = filename;                
+ a.click();           
  permet de créer un téléchargement via un clic sur une URL ( utile pour les exports)
 import { randomUUID } from "crypto";  permet de générer des UUID(sorte d'identifiant unique aléatoire) par exemple pour des factures ou des pièces justificatives
       
@@ -15,16 +15,18 @@ Pas une erreur mais un bug ; normalement au niveau du point de vente de
   chef_agence ou responsable_communaute (vu qu'il gère plusieurs points de vente)
 
 useApi.ts:28  GET http://localhost:3000/api/caissier/ventes?aujourdHui=true&limit=20 403 (Forbidden)
-useApi.useCallback[fetchData] @ useApi.ts:28
+useApi.useCallback[fetchData] @ useApi.ts:28 
 useApi.useEffect @ useApi.ts:43  
 
-A chaque fois que je fais une action ou j'actualise sur la page dashboard/admin/superadmin , j'ai toujours un message "Accès refusé , cette section est réservée aux administrateurs. Retour au dashboard" . Mais ce message ne dure que quekques secondes et la page dashboard/admin/superadmin fonctionne comme si de rien n'était 
+A chaque fois que je fais une action ou j'actualise sur la page dashboard/admin/superadmin , j'ai toujours un message "Accès refusé , cette section est réservée aux administrateurs. Retour au dashboard" . Mais ce message ne dure que quelques secondes et la page dashboard/admin/superadmin fonctionne comme si de rien n'était 
 
 Dans dashboard/user/logistiquesApprovisionnements au niveau de l'onglet Affectation PDV pour les Produits nécessitant un réapprovisionnement  , il y'a toujours ce malentendu ( réceptionner une livraison ) ; dans mon app se réapprovisionner n'est pas égale à une livraison ( une livraison c'est quand le produit sort : à un client ou un transfert à un autre point de vente ). Donc corrige ça stp 
-
+   
 Toujours au niveau de dashboard/user/logistiquesApprovisionnements et précisement l'onglet Affectation PDV , lorsque je veux affecter un produit , je pense que le mécanisme n'est pas totalement bien fait . Parce au niveau du choix du point de vente , c'est un string ( au lieu d'un point de vente réel) donc ce qui signifie que le mécanisme ne fontionne même pas . Revois moi ça , lorsque le logisticien affecte un produit à un autre point de vente , logiquement ça signifie que il prend un produit de son point de vente ( avec la notif aux personnes concernées : magasinier , RPV , admin etc etc) donc diminue son stock et incrémente le stock du point de vente qu'il a sélectionné ( notifs aux RPV, magasinier, admin ... du point de vente qui a reçu l'affectation). Je pense que tu peux juste t'inspirer du mécanisme de transfert de stock que j'ai implémenté dans l'app 
 
  
 Dans l'onlet suivi des livraisons au niveau de dashboard/user/logistiquesApprovisionnements , je pense que tu mélanges toujours le mot livraison (quand tu parles de livraisons réceptionnées c'est plutôt approvsionnement réceptionnés tu veux dire ???) parce que une livraison c'est quand le stock sort (lors de vente , de packs ou lors de transfert de stock) et un approvisionnement c'est lorsqu'on reçoit du stock
 
 Sur /dashboard/user/agentsTerrain, j'ai remarqué un comportement illogique . Dans l'onglet Clients , au niveau de Souscriptions je vois 0 pour tous mes clients , pourtant dans les stats je vois 2 souscriptions actives à collecter ; et puis au niveau de l'onglet Collecte packs je vois en effet ces 2 souscriptions(à collecter) mais je pense que normalement leur échéance est arrivée à terme (pourtant ce n'est pas indiqué que c'est à terme ni dans les stats , ni dans l'onglet Collecte packs) ; donc ce qui signifie aussi que la durée de l'échéance est soit mal calculée , soit n'est même pas calculée, ou soit quand l'échéance arrive à terme , rien ne l'indique (la valeur nest pas prise en compte dans la base , soit encore je n'ai pas codé de fonction pour gérer les échéances passées)  
+
+-agraphes et enveloppes 
