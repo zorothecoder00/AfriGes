@@ -37,4 +37,6 @@ Vérifie mon schema et mes api de produits , approvisionnements et lignereceptio
 
 Empêcher les prix négatifs dans les api POST de création d'approvisionnement ou de produit
 
+Je dois aussi vérifier dans mes get dans les api et dans mes pages front (où je n'ai pas encore ajouté prixAchat dans les résultats)
+
 -agraphes et enveloppes 
