@@ -137,6 +137,17 @@ export async function POST(req: Request) {
       // Incrémenter StockSite + créer mouvements ENTREE
       const typeEntree = typeAppro === "INTERNE" ? "RECEPTION_INTERNE" : "RECEPTION_FOURNISSEUR";
       for (const ligne of lignes) {
+        const produitId = Number(ligne.produitId);
+        const quantite = Number(ligne.quantite);
+        const prixAchat = ligne.prixUnitaire ? new Prisma.Decimal(ligne.prixUnitaire) : null;
+
+        // 🔥 1. Mettre à jour le prix d'achat du produit
+        if (prixAchat) {
+          await tx.produit.update({
+            where: { id: produitId },
+            data: { prixAchat: prixAchat },
+          });
+        }
         await tx.stockSite.upsert({
           where: { produitId_pointDeVenteId: { produitId: Number(ligne.produitId), pointDeVenteId: Number(pointDeVenteId) } },
           update: { quantite: { increment: Number(ligne.quantite) } },
@@ -145,7 +156,7 @@ export async function POST(req: Request) {
 
         await tx.mouvementStock.create({
           data: {
-            produitId:         Number(ligne.produitId),
+            produitId,
             pointDeVenteId:    Number(pointDeVenteId),
             type:              "ENTREE",
             typeEntree:        typeEntree as never,
