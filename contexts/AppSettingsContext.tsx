@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
 import { initAppSettings, applySettingsToDOM,persistSettings, getStoredSetting } from "@/lib/appSettings";
 import { translate, type TranslationKey, type Langue } from "@/lib/translations";
-
+     
 interface AppSettingsCtx {
   /** Persiste les paramètres en base ET les applique immédiatement au DOM */
   applyAndPersist: (settings: Record<string, string>) => void;
@@ -12,7 +12,7 @@ interface AppSettingsCtx {
   /** Fonction de traduction — t("nav_dashboard") → "Dashboard" */
   t: (key: TranslationKey) => string;
 }  
-
+   
 const AppSettingsContext = createContext<AppSettingsCtx>({
   applyAndPersist: () => {},
   langue: "fr",
