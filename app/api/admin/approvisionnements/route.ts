@@ -158,7 +158,7 @@ export async function POST(req: Request) {
           data: {
             produitId,
             pointDeVenteId:    Number(pointDeVenteId),
-            type:              "ENTREE",
+            type:              "ENTREE",  
             typeEntree:        typeEntree as never,
             quantite:          Number(ligne.quantite),
             motif:             typeAppro === "FOURNISSEUR"

@@ -688,7 +688,7 @@ model Produit {
 
   // Stock localisé par site (remplace l'ancien champ global stock)
   stocks               StockSite[]
-  mouvements           MouvementStock[]
+  mouvements           MouvementStock[]  
 
   // Packs & fidélité
   lignesReceptionPack  LigneReceptionPack[]

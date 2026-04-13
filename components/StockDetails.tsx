@@ -195,11 +195,11 @@ export default function StockDetails({ produitId }: StockDetailsProps) {
             <h3 className="text-lg font-semibold text-gray-900">Historique des mouvements</h3>
             <p className="text-sm text-gray-500 mt-1">Les 50 derniers mouvements de stock</p>
           </div>
-          {produit.mouvements.length === 0 ? (
+          {(produit.mouvements?.length || 0) === 0 ? (
             <div className="p-12 text-center text-gray-500">Aucun mouvement enregistre</div>
           ) : (
             <div className="divide-y divide-gray-100">
-              {produit.mouvements.map((m) => (
+              {produit.mouvements?.map((m) => (
                 <div key={m.id} className="px-6 py-4 flex items-center justify-between hover:bg-gray-50">
                   <div className="flex items-center gap-4">
                     {getMouvementIcon(m.type)}

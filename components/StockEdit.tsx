@@ -4,19 +4,20 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useApi, useMutation } from '@/hooks/useApi';
-import {
+import {   
   ArrowLeft,
   Save,
   Package,
   AlertCircle,
   Loader2,
 } from 'lucide-react';
-
+    
 interface Produit {
   id: number;
   nom: string;
   description: string | null;
   prixUnitaire: string;
+  prixAchat?: string | null;
   stock: number;
   alerteStock: number;
 }
@@ -33,6 +34,7 @@ interface FormData {
   nom: string;
   description: string;
   prixUnitaire: string;
+  prixAchat?: string | null;
   alerteStock: string;
   ajustementStock: string;
   motifAjustement: string;
@@ -46,7 +48,8 @@ export default function StockEdit({ produitId }: StockEditProps) {
   const [formData, setFormData] = useState<FormData>({
     nom: '',
     description: '',
-    prixUnitaire: '',
+    prixUnitaire: '', 
+    prixAchat: '',   
     alerteStock: '',
     ajustementStock: '0',
     motifAjustement: '',
@@ -60,6 +63,7 @@ export default function StockEdit({ produitId }: StockEditProps) {
         nom: p.nom,
         description: p.description || '',
         prixUnitaire: p.prixUnitaire,
+        prixAchat: p.prixAchat || '',
         alerteStock: String(p.alerteStock),
         ajustementStock: '0',
         motifAjustement: '',
@@ -73,12 +77,15 @@ export default function StockEdit({ produitId }: StockEditProps) {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {   
     e.preventDefault();
     const result = await mutate({
       nom: formData.nom,
       description: formData.description || null,
-      prixUnitaire: parseFloat(formData.prixUnitaire),
+      prixUnitaire: Number(formData.prixUnitaire),
+      prixAchat: formData.prixAchat
+        ? Number(formData.prixAchat)
+        : null,
       alerteStock: parseInt(formData.alerteStock),
       ajustementStock: parseInt(formData.ajustementStock) || 0,
       motifAjustement: formData.motifAjustement || undefined,
@@ -89,8 +96,10 @@ export default function StockEdit({ produitId }: StockEditProps) {
   };
 
   const produit = response?.data;
-  const ajustement = parseInt(formData.ajustementStock) || 0;
-  const nouveauStock = produit ? produit.stock + ajustement : 0;
+  const ajustement = Number(formData.ajustementStock) || 0;
+  const nouveauStock = produit
+    ? (produit.stock ?? 0) + ajustement
+    : 0;
 
   if (loading) {
     return (
@@ -145,10 +154,25 @@ export default function StockEdit({ produitId }: StockEditProps) {
                 <input type="number" id="prixUnitaire" name="prixUnitaire" value={formData.prixUnitaire} onChange={handleChange} required min="0" step="0.01" className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none" />
               </div>
               <div>
+                <label htmlFor="prixAchat" className="block text-sm font-medium text-gray-700 mb-2">
+                  Prix d&apos;achat (XOF)
+                </label>
+                <input
+                  type="number"
+                  id="prixAchat"
+                  name="prixAchat"
+                  value={formData.prixAchat ?? ''}
+                  onChange={handleChange}
+                  min="0"
+                  step="0.01"
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg"
+                />
+              </div>
+              <div>
                 <label htmlFor="alerteStock" className="block text-sm font-medium text-gray-700 mb-2">Seuil d&apos;alerte *</label>
                 <input type="number" id="alerteStock" name="alerteStock" value={formData.alerteStock} onChange={handleChange} required min="0" className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none" />
               </div>
-            </div>
+            </div>  
           </div>
 
           {/* Ajustement de stock */}

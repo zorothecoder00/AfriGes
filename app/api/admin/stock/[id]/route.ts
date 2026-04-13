@@ -6,7 +6,7 @@ import { randomUUID } from "crypto";
 
 /**
  * GET /api/admin/stock/[id]
- * Detail d'un produit avec ses mouvements  
+ * Detail d'un produit avec ses mouvements    
  */
 export async function GET(
   req: Request,   
@@ -39,7 +39,27 @@ export async function GET(
       return NextResponse.json({ error: "Produit introuvable" }, { status: 404 });
     }
 
-    return NextResponse.json({ data: produit });
+    // ✅ CALCUL DU STOCK TOTAL
+    const totalStock = produit.stocks.reduce(
+      (sum, s) => sum + s.quantite,
+      0
+    );
+
+    // ✅ FORMAT POUR LE FRONT
+    const formattedProduit = {
+      id: produit.id,
+      nom: produit.nom,
+      description: produit.description,
+      prixUnitaire: produit.prixUnitaire.toString(),
+      prixAchat: produit.prixAchat ? produit.prixAchat.toString() : null,
+      stock: totalStock,
+      alerteStock: produit.alerteStock,
+      createdAt: produit.createdAt,
+      updatedAt: produit.updatedAt,
+      mouvements: produit.mouvements || [],
+    };
+
+    return NextResponse.json({ data: formattedProduit });
   } catch (error) {
     console.error("GET /admin/stock/[id] error:", error);
     return NextResponse.json(
@@ -70,7 +90,7 @@ export async function PUT(
     }
 
     const body = await req.json();
-    const { nom, description, prixUnitaire, alerteStock, ajustementStock, motifAjustement, pointDeVenteId } = body;
+    const { nom, description, prixUnitaire, prixAchat, alerteStock, ajustementStock, motifAjustement, pointDeVenteId } = body;
 
     const existing = await prisma.produit.findUnique({ where: { id: numericId } });
     if (!existing) {
@@ -83,6 +103,12 @@ export async function PUT(
       if (nom !== undefined) updateData.nom = nom;
       if (description !== undefined) updateData.description = description;
       if (prixUnitaire !== undefined) updateData.prixUnitaire = new Prisma.Decimal(prixUnitaire);
+      if (prixAchat !== undefined) {
+        updateData.prixAchat =
+          prixAchat === null || prixAchat === ""
+            ? null
+            : new Prisma.Decimal(prixAchat);
+      }
       if (alerteStock !== undefined) updateData.alerteStock = Number(alerteStock);
 
       // Ajustement de stock via StockSite
@@ -144,7 +170,7 @@ export async function PUT(
     if (error instanceof Error && error.message === "Le stock ne peut pas etre negatif") {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
-
+   
     return NextResponse.json(
       { error: "Erreur lors de la mise a jour du produit" },
       { status: 500 }

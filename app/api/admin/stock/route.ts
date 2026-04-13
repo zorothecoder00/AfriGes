@@ -99,8 +99,14 @@ export async function GET(req: Request) {
       ]);
 
       const data = produits.map(p => ({
-        id: p.id, nom: p.nom, reference: p.reference, categorie: p.categorie,
-        unite: p.unite, prixUnitaire: p.prixUnitaire, alerteStock: p.alerteStock,
+        id: p.id,
+        nom: p.nom,
+        reference: p.reference,
+        categorie: p.categorie,
+        unite: p.unite,
+        prixUnitaire: p.prixUnitaire,
+        prixAchat: p.prixAchat,
+        alerteStock: p.alerteStock,
         totalStock: p.stocks.reduce((acc, s) => acc + s.quantite, 0),
         stocks: p.stocks,
       }));
@@ -131,7 +137,7 @@ export async function GET(req: Request) {
         take: limit,
         orderBy: [{ pointDeVente: { nom: "asc" } }, { produit: { nom: "asc" } }],
         include: {
-          produit:      { select: { id: true, nom: true, reference: true, categorie: true, unite: true, prixUnitaire: true, alerteStock: true } },
+          produit:      { select: { id: true, nom: true, reference: true, categorie: true, unite: true, prixUnitaire: true, prixAchat: true, alerteStock: true } },
           pointDeVente: { select: { id: true, nom: true, code: true, type: true } },
         },
       }),
@@ -155,13 +161,13 @@ export async function GET(req: Request) {
  * Créer un nouveau produit (sans stock initial — le stock se crée via réceptions ou affectations).
  * Body: { nom, description?, reference?, categorie?, unite?, prixUnitaire, alerteStock? }
  */
-export async function POST(req: Request) {
+export async function POST(req: Request) {  
   try {
     const session = await getAdminSession();
     if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
 
     const body = await req.json();
-    const { nom, description, reference, categorie, unite, prixUnitaire, alerteStock } = body;
+    const { nom, description, reference, categorie, unite, prixUnitaire, prixAchat, alerteStock } = body;
 
     if (!nom || prixUnitaire === undefined) {
       return NextResponse.json({ error: "nom et prixUnitaire sont obligatoires" }, { status: 400 });
@@ -184,6 +190,7 @@ export async function POST(req: Request) {
           categorie:    categorie    || null,
           unite:        unite        || null,
           prixUnitaire: new Prisma.Decimal(prixUnitaire),
+          prixAchat: prixAchat ? new Prisma.Decimal(prixAchat) : null,
           alerteStock:  Number(alerteStock) || 0,
         },
       });
