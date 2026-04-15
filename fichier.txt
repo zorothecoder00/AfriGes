@@ -29,7 +29,7 @@ useApi.useEffect @ useApi.ts:43
 
 -Sur /dashboard/user/agentsTerrain, j'ai remarqué un comportement illogique . Dans l'onglet Clients , au niveau de Souscriptions je vois 0 pour tous mes clients , pourtant dans les stats je vois 2 souscriptions actives à collecter ; et puis au niveau de l'onglet Collecte packs je vois en effet ces 2 souscriptions(à collecter) mais je pense que normalement leur échéance est arrivée à terme (pourtant ce n'est pas indiqué que c'est à terme ni dans les stats , ni dans l'onglet Collecte packs) ; donc ce qui signifie aussi que la durée de l'échéance est soit mal calculée , soit n'est même pas calculée, ou soit quand l'échéance arrive à terme , rien ne l'indique (la valeur nest pas prise en compte dans la base , soit encore je n'ai pas codé de fonction pour gérer les échéances passées)  
 
--On doit avoir un prix d'achat côté stock des produits ( côté admin ) . Et les admins doivent être les seuls à pouvoir insérer(ou plutôt modifier) un prix pour les produits ( mais tous les utilisateurs doivent être notifiés )
+-On doit avoir un prix d'achat côté stock des produits ( côté admin ) . Et les admins doivent être les seuls à pouvoir insérer(ou plutôt modifier) un prix pour les produits ( mais tous les utilisateurs doivent être notifiés )     
 
 -Fais des await dans toutes mes api où je fais trop de requêtes parallèles
 
@@ -39,3 +39,6 @@ useApi.useEffect @ useApi.ts:43
 
 -Je dois aussi vérifier dans mes get dans les api et dans mes pages front (où je n'ai pas encore ajouté prixAchat dans les résultats)
 
+-Essaie d'implémenter les prixAchat directement dans les approvisionnements au lieu dêtre chaque fois obligé de le faire dans les updates
+
+-npm i -g @openai/codex   permet d'installer le CLI de codex (agent ia d'openai qui permet d'interagir depuis le terminal)

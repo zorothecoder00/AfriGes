@@ -62,7 +62,7 @@ export default function ClientsPage() {
   // PDV pour filtres et sélecteurs
   const { data: pdvResponse } = useApi<{ data: PDVOption[] }>('/api/admin/pdv?limit=200&actif=true');
   const pdvOptions = pdvResponse?.data ?? [];
-
+  
   // Mutations
   const { mutate: addClient, loading: adding, error: addError } =
     useMutation('/api/admin/clients', 'POST', { successMessage: 'Client ajouté avec succès' });
@@ -70,7 +70,7 @@ export default function ClientsPage() {
   const affectClientIdRef = useRef<number | null>(null);
   const { mutate: patchClient } =
     useMutation(() => `/api/admin/clients/${affectClientIdRef.current}`, 'PATCH', { successMessage: 'Affectation mise à jour !' });
-
+    
   // ── Handlers ────────────────────────────────────────────────────────────────
 
   const handleSubmit = async (e: React.FormEvent) => {

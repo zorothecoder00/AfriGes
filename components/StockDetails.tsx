@@ -186,9 +186,9 @@ export default function StockDetails({ produitId }: StockDetailsProps) {
                 <p className="text-sm text-gray-900">{formatDate(produit.updatedAt)}</p>
               </div>
             </div>
-          </div>
+          </div>       
         </div>
-
+ 
         {/* Historique des mouvements */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200">
           <div className="p-6 border-b border-gray-200">

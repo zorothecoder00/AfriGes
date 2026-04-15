@@ -209,7 +209,7 @@ export default function LoginPage() {
                 <div className="flex-grow border-t border-gray-200" />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              {/*<div className="grid grid-cols-2 gap-3">
                 <button
                   type="button"
                   onClick={() => handleSocialLogin('google')}
@@ -224,7 +224,7 @@ export default function LoginPage() {
                 >
                   <span>⊞</span> Microsoft
                 </button>
-              </div>
+              </div>*/}
             </form>
 
             <div className="mt-6 pt-6 border-t border-gray-200 text-center">

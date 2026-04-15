@@ -94,7 +94,7 @@ export async function GET(req: Request) {
               },
             },
           },
-        }),
+        }),  
         prisma.produit.count({ where: prodWhere }),
       ]);
 
