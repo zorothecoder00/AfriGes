@@ -476,13 +476,13 @@ export default function ResponsablePDVPage() {
     if (filtreVenteDateFin)   p.set("dateFin",      filtreVenteDateFin);
     return p.toString();
   }, [ventesPage, dSearchVentes, filtreStatutVentes, filtreModePaiement, filtreVendeurId, filtreVenteDateDebut, filtreVenteDateFin]);
-
+          
   // ── Fetches ─────────────────────────────────────────────────────────────
   const { data: dashRes,       refetch: refetchDash      } = useApi<DashboardResponse>("/api/rpv/dashboard");
   const { data: produitsRes,   refetch: refetchProduits  } = useApi<ProduitsResponse>(`/api/rpv/produits?${prodParams}`);
   const { data: mvtRes,        refetch: refetchMvt       } = useApi<MouvementsResponse>(`/api/rpv/mouvements?${mvtParams}`);
   const { data: livRes,        refetch: refetchLiv       } = useApi<LivraisonsResponse>(`/api/rpv/livraisons?${livParams}`);
-  const { data: ventesRes,     refetch: refetchVentes    } = useApi<VentesResponse>("/api/caissier/ventes?aujourdHui=true&limit=20");
+  const { data: ventesRes,     refetch: refetchVentes    } = useApi<VentesResponse>("/api/rpv/ventes?aujourdHui=true&limit=20");
   const { data: clotureRes,    refetch: refetchCloture   } = useApi<ClotureResponse>(`/api/caissier/cloture?${clotureParams}`);
   const { data: equipeRes,     refetch: refetchEquipe    } = useApi<EquipeResponse>(
     `/api/rpv/equipe?${dSearchEquipe ? `search=${dSearchEquipe}` : ""}`

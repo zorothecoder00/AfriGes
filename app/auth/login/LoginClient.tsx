@@ -9,7 +9,7 @@ import Link from 'next/link';
 type Errors = {
   email?: string
   password?: string
-  general?: string   
+  general?: string      
 }
 
 export default function LoginPage() {  
@@ -224,7 +224,7 @@ export default function LoginPage() {
                 >
                   <span>⊞</span> Microsoft
                 </button>
-              </div>*/}
+              </div>*/}         
             </form>
 
             <div className="mt-6 pt-6 border-t border-gray-200 text-center">

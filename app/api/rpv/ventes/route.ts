@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getRPVSession } from "@/lib/authRPV";
 import { randomUUID } from "crypto";
 import { notifyRoles, auditLog } from "@/lib/notifications";
-
+   
 /**
  * GET /api/rpv/ventes
  * Ventes directes enregistrées par le RPV (ou sur son PDV).
@@ -29,6 +29,7 @@ export async function GET(req: Request) {
     const statut        = searchParams.get("statut")        || "";
     const dateDebut     = searchParams.get("dateDebut");
     const dateFin       = searchParams.get("dateFin");
+    const aujourdHui    = searchParams.get("aujourdHui") === "true";
     const modePaiement  = searchParams.get("modePaiement")  || "";
     const vendeurId     = searchParams.get("vendeurId")     || "";
 
@@ -37,7 +38,13 @@ export async function GET(req: Request) {
     if (statut)       where.statut       = statut;
     if (modePaiement) where.modePaiement = modePaiement;
     if (vendeurId)    where.vendeurId    = parseInt(vendeurId);
-    if (dateDebut || dateFin) {
+    if (aujourdHui) {
+      const now = new Date();
+      where.createdAt = {
+        gte: new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0),
+        lte: new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999),
+      };
+    } else if (dateDebut || dateFin) {
       where.createdAt = {};
       if (dateDebut) where.createdAt.gte = new Date(dateDebut);
       if (dateFin)   where.createdAt.lte = new Date(dateFin + "T23:59:59.999Z");
