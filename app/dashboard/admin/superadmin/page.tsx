@@ -94,7 +94,7 @@ const etatStyle: Record<string, { bg: string; text: string; label: string }> = {
 // ─── Composant principal ──────────────────────────────────────────────────────
 
 export default function SuperAdminPage() {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   const { applyAndPersist } = useAppSettings();
   const isSuperAdmin = session?.user?.role === "SUPER_ADMIN";
   const isAdmin      = session?.user?.role === "ADMIN"; // admin simple (droits restreints)
@@ -217,6 +217,18 @@ export default function SuperAdminPage() {
     a.download = `logs-${logType}-${new Date().toISOString().slice(0, 10)}.csv`;
     a.click();
   };
+
+  // ── Évite le "flash" d'erreur pendant l'hydratation de la session
+  if (status === "loading") {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="bg-white rounded-2xl p-8 shadow-sm border border-slate-200/70 text-center">
+          <RefreshCw size={22} className="text-slate-400 mx-auto mb-3 animate-spin" />
+          <p className="text-sm text-slate-500">Vérification des autorisations…</p>
+        </div>
+      </div>
+    );
+  }
 
   // ── Guard rôle — ni ADMIN ni SUPER_ADMIN → accès refusé
   if (!isSuperAdmin && !isAdmin) {
