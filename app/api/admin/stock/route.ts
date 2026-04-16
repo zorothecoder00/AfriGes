@@ -176,6 +176,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Le prix unitaire doit être supérieur à 0" }, { status: 400 });
     }
 
+    if (prixAchat !== undefined && prixAchat !== null && prixAchat !== "" && Number(prixAchat) < 0) {
+      return NextResponse.json({ error: "Le prix d'achat ne peut pas être négatif" }, { status: 400 });
+    }
+    
     if (reference) {
       const existing = await prisma.produit.findUnique({ where: { reference } });
       if (existing) return NextResponse.json({ error: `La référence "${reference}" est déjà utilisée` }, { status: 409 });

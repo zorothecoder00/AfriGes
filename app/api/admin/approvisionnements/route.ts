@@ -103,6 +103,10 @@ export async function POST(req: Request) {
           const produit = await tx.produit.findUnique({ where: { id: Number(ligne.produitId) }, select: { nom: true } });
           throw new Error(`La quantité doit être > 0 pour "${produit?.nom ?? `#${ligne.produitId}`}"`);
         }
+        if (ligne.prixUnitaire !== undefined && ligne.prixUnitaire !== null && ligne.prixUnitaire !== "" && Number(ligne.prixUnitaire) < 0) {
+          const produit = await tx.produit.findUnique({ where: { id: Number(ligne.produitId) }, select: { nom: true } });
+          throw new Error(`Le prix unitaire ne peut pas être négatif pour "${produit?.nom ?? `#${ligne.produitId}`}"`);
+        }
         const existe = await tx.produit.count({ where: { id: Number(ligne.produitId) } });
         if (!existe) throw new Error(`Produit #${ligne.produitId} introuvable`);
       }
@@ -123,26 +127,29 @@ export async function POST(req: Request) {
           receptionneParId: adminId,
           valideParId:      adminId,
           lignes: {
-            create: lignes.map((l: { produitId: number; quantite: number; prixUnitaire?: number }) => ({
-              produitId:        Number(l.produitId),
-              quantiteAttendue: Number(l.quantite),
-              quantiteRecue:    Number(l.quantite),
-              prixUnitaire:     l.prixUnitaire ? new Prisma.Decimal(l.prixUnitaire) : null,
-              etatQualite:      "BON",
-            })),
+            create: lignes.map((l: { produitId: number; quantite: number; prixUnitaire?: number | string | null }) => {
+              const hasPrixUnitaire = l.prixUnitaire !== undefined && l.prixUnitaire !== null && l.prixUnitaire !== "";
+              return {
+                produitId:        Number(l.produitId),
+                quantiteAttendue: Number(l.quantite),
+                quantiteRecue:    Number(l.quantite),
+                prixUnitaire:     hasPrixUnitaire ? new Prisma.Decimal(Number(l.prixUnitaire)) : null,
+                etatQualite:      "BON",
+              };
+            }),
           },
         },
-      });
+      });  
 
       // Incrémenter StockSite + créer mouvements ENTREE
       const typeEntree = typeAppro === "INTERNE" ? "RECEPTION_INTERNE" : "RECEPTION_FOURNISSEUR";
       for (const ligne of lignes) {
         const produitId = Number(ligne.produitId);
-        const quantite = Number(ligne.quantite);
-        const prixAchat = ligne.prixUnitaire ? new Prisma.Decimal(ligne.prixUnitaire) : null;
+        const hasPrixUnitaire = ligne.prixUnitaire !== undefined && ligne.prixUnitaire !== null && ligne.prixUnitaire !== "";
+        const prixAchat = hasPrixUnitaire ? new Prisma.Decimal(ligne.prixUnitaire) : null;
 
         // 🔥 1. Mettre à jour le prix d'achat du produit
-        if (prixAchat) {
+        if (hasPrixUnitaire) {
           await tx.produit.update({
             where: { id: produitId },
             data: { prixAchat: prixAchat },

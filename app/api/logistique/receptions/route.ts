@@ -107,6 +107,12 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "fournisseurId ou fournisseurNom requis pour type FOURNISSEUR" }, { status: 400 });
     }
 
+    for (const ligne of lignes) {
+      if (ligne.prixUnitaire !== undefined && ligne.prixUnitaire !== null && ligne.prixUnitaire !== "" && Number(ligne.prixUnitaire) < 0) {
+        return NextResponse.json({ error: `Le prix unitaire ne peut pas être négatif (produit #${ligne.produitId})` }, { status: 400 });
+      }
+    }
+
     const reception = await prisma.$transaction(async (tx) => {
       const ref = `REC-${Date.now()}-${randomUUID().slice(0, 6).toUpperCase()}`;
 
