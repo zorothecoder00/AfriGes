@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { signIn } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import AfriSimeLogo from '@/components/AfriSimeLogo'
      
 // Définition du type pour nos erreurs
 type Errors = {
@@ -109,6 +110,11 @@ export default function LoginPage() {
           {/* Header */}
           <div className="bg-gradient-to-br from-slate-800 to-slate-900 px-8 py-6 text-center relative overflow-hidden">
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.1)_20%,transparent_70%)] animate-pulse opacity-50" />
+            <div className="relative z-10 mb-4 flex justify-center">
+              <div className="bg-white/95 rounded-2xl px-3 py-2 shadow-lg">
+                <AfriSimeLogo className="h-10 w-auto md:h-12" priority />
+              </div>
+            </div>
             <h1 className="text-4xl font-bold text-white mb-2 relative z-10 font-serif tracking-tight">
               Bienvenue
             </h1>

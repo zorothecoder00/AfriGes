@@ -1,0 +1,21 @@
+<svg width="980" height="260" viewBox="0 0 980 260" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="980" height="260" rx="18" fill="#F6F3EA"/>
+
+  <!-- Cart icon -->
+  <g transform="translate(36 38)" fill="#62B238" stroke="#62B238" stroke-width="10" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M10 10H42L58 138H202" fill="none"/>
+    <path d="M62 40H222L194 108H74" fill="none"/>
+    <circle cx="90" cy="176" r="16"/>
+    <circle cx="188" cy="176" r="16"/>
+  </g>
+
+  <!-- Leaf mark -->
+  <g transform="translate(104 70)">
+    <path d="M14 48C30 24 58 12 90 10C70 38 40 54 16 58" fill="#7ACB4E"/>
+    <path d="M16 58C30 44 58 30 88 22" stroke="#4F8F30" stroke-width="6" stroke-linecap="round"/>
+  </g>
+
+  <!-- Wordmark -->
+  <text x="290" y="118" font-family="Inter, Arial, sans-serif" font-size="94" font-weight="700" fill="#195936">AfriSime</text>
+  <text x="292" y="188" font-family="Inter, Arial, sans-serif" font-size="58" letter-spacing="12" font-weight="600" fill="#0F5132">COMMUNAUTÉ</text>
+</svg>

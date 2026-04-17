@@ -1651,7 +1651,7 @@ export default function LogistiqueApprovisionnementPage() {
                 </button>
                 <button
                   type="submit"
-                  disabled={
+                  disabled={  
                     affLoading ||
                     !affProduit ||
                     !affForm.quantite ||

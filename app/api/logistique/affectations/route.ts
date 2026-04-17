@@ -29,7 +29,7 @@ export async function GET(req: Request) {
     const skip    = (page - 1) * limit;
     const search  = searchParams.get("search")  || "";
     const pdvId   = searchParams.get("pdvId");
-
+   
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const where: any = {
       type:      "ENTREE",
@@ -217,7 +217,7 @@ export async function POST(req: Request) {
         message:  `${operateur} a transféré ${qty} unité(s) de "${stockSource.produit.nom}" vers "${pdvCible.nom}". Stock source (${stockSource.pointDeVente.nom}) décrémenté.`,
         priorite: PrioriteNotification.NORMAL,
         actionUrl:`/dashboard/user/logistiquesApprovisionnements`,
-      });
+      }); 
 
       await notify(tx, destStaff.map((a) => a.userId), {
         titre:    `Entrée de stock : ${stockSource.produit.nom}`,
