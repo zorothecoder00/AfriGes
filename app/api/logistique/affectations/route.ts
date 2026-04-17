@@ -3,7 +3,7 @@ import { PrioriteNotification } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getLogistiqueSession } from "@/lib/authLogistique";
 import { randomUUID } from "crypto";
-import { notifyRoles, auditLog } from "@/lib/notifications";
+import { notify, notifyAdmins, auditLog } from "@/lib/notifications";
 
 /**
  * GET /api/logistique/affectations
@@ -15,6 +15,14 @@ export async function GET(req: Request) {
     const session = await getLogistiqueSession();
     if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
 
+    const affectation = await prisma.gestionnaireAffectation.findFirst({
+      where: { userId: Number(session.user.id), actif: true },
+      select: { pointDeVenteId: true, pointDeVente: { select: { id: true, nom: true, code: true, type: true } } },
+    });  
+    if (!affectation) {
+      return NextResponse.json({ error: "Aucun point de vente source actif trouvé pour cet utilisateur" }, { status: 400 });
+    }
+
     const { searchParams } = new URL(req.url);
     const page    = Math.max(1, Number(searchParams.get("page")  || 1));
     const limit   = Math.min(50, Math.max(1, Number(searchParams.get("limit") || 15)));
@@ -25,7 +33,7 @@ export async function GET(req: Request) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const where: any = {
       type:      "ENTREE",
-      typeEntree:"AJUSTEMENT_POSITIF",
+      typeEntree:"TRANSFERT_ENTRANT",
       motif:     { startsWith: "Affectation logistique" },
     };
     if (pdvId)  where.pointDeVenteId = Number(pdvId);
@@ -49,7 +57,7 @@ export async function GET(req: Request) {
       }),
       prisma.mouvementStock.count({ where }),
       prisma.pointDeVente.findMany({
-        where: { actif: true },
+        where: { actif: true, id: { not: affectation.pointDeVenteId } },
         select: { id: true, nom: true, code: true, type: true },
         orderBy: { nom: "asc" },
       }),
@@ -63,6 +71,7 @@ export async function GET(req: Request) {
     return NextResponse.json({
       data: mouvements,
       pdvs,
+      sourcePdv: affectation.pointDeVente,
       produits,
       meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
     });
@@ -86,11 +95,11 @@ export async function POST(req: Request) {
     if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
 
     const body = await req.json();
-    const { produitId, pointDeVenteId, depotSourceId, quantite, notes } = body;
+    const { produitId, pointDeVenteId, quantite, notes } = body;
 
-    if (!produitId || !pointDeVenteId || !depotSourceId || !quantite) {
+    if (!produitId || !pointDeVenteId || !quantite) {
       return NextResponse.json(
-        { error: "produitId, pointDeVenteId, depotSourceId, quantite sont obligatoires" },
+        { error: "produitId, pointDeVenteId, quantite sont obligatoires" },
         { status: 400 }
       );
     }
@@ -100,12 +109,24 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "La quantité doit être un entier positif" }, { status: 400 });
     }
 
+    const affectation = await prisma.gestionnaireAffectation.findFirst({
+      where: { userId: Number(session.user.id), actif: true },
+      select: { pointDeVenteId: true, pointDeVente: { select: { nom: true } } },
+    });
+    if (!affectation) {
+      return NextResponse.json({ error: "Aucun point de vente source actif trouvé pour cet utilisateur" }, { status: 400 });
+    }
+    const sourcePdvId = affectation.pointDeVenteId;
+    if (Number(pointDeVenteId) === sourcePdvId) {
+      return NextResponse.json({ error: "Le point de vente destination doit être différent du point source" }, { status: 400 });
+    }
+
     // Vérifier stock disponible au dépôt source
     const stockSource = await prisma.stockSite.findUnique({
       where: {
         produitId_pointDeVenteId: {
           produitId:      Number(produitId),
-          pointDeVenteId: Number(depotSourceId),
+          pointDeVenteId: sourcePdvId,
         },
       },
       include: { produit: true, pointDeVente: { select: { nom: true } } },
@@ -130,7 +151,7 @@ export async function POST(req: Request) {
     const result = await prisma.$transaction(async (tx) => {
       // 1. Décrémenter stock dépôt source
       await tx.stockSite.update({
-        where: { produitId_pointDeVenteId: { produitId: Number(produitId), pointDeVenteId: Number(depotSourceId) } },
+        where: { produitId_pointDeVenteId: { produitId: Number(produitId), pointDeVenteId: sourcePdvId } },
         data: { quantite: { decrement: qty } },
       });
 
@@ -145,7 +166,7 @@ export async function POST(req: Request) {
       await tx.mouvementStock.create({
         data: {
           produitId:      Number(produitId),
-          pointDeVenteId: Number(depotSourceId),
+          pointDeVenteId: sourcePdvId,
           type:           "SORTIE",
           typeSortie:     "TRANSFERT_SORTANT",
           quantite:       qty,
@@ -171,11 +192,45 @@ export async function POST(req: Request) {
 
       await auditLog(tx, parseInt(session.user.id), "AFFECTATION_STOCK", "MouvementStock", mvtEntree.id);
 
-      await notifyRoles(tx, ["MAGAZINIER", "RESPONSABLE_POINT_DE_VENTE"], {
-        titre:    `Affectation stock : ${stockSource.produit.nom}`,
-        message:  `${operateur} a affecté ${qty} unité(s) de "${stockSource.produit.nom}" au PDV "${pdvCible.nom}". Dépôt source : ${stockSource.pointDeVente.nom}.`,
+      const rolesNotifies = ["MAGAZINIER", "RESPONSABLE_POINT_DE_VENTE"] as const;
+      const [sourceStaff, destStaff] = await Promise.all([
+        tx.gestionnaireAffectation.findMany({
+          where: {
+            pointDeVenteId: sourcePdvId,
+            actif: true,
+            user: { gestionnaire: { role: { in: [...rolesNotifies] as never[] }, actif: true } },
+          },
+          select: { userId: true },
+        }),
+        tx.gestionnaireAffectation.findMany({
+          where: {
+            pointDeVenteId: Number(pointDeVenteId),
+            actif: true,
+            user: { gestionnaire: { role: { in: [...rolesNotifies] as never[] }, actif: true } },
+          },
+          select: { userId: true },
+        }),
+      ]);
+
+      await notify(tx, sourceStaff.map((a) => a.userId), {
+        titre:    `Sortie de stock : ${stockSource.produit.nom}`,
+        message:  `${operateur} a transféré ${qty} unité(s) de "${stockSource.produit.nom}" vers "${pdvCible.nom}". Stock source (${stockSource.pointDeVente.nom}) décrémenté.`,
         priorite: PrioriteNotification.NORMAL,
-        actionUrl:`/dashboard/logistique/stock`,
+        actionUrl:`/dashboard/user/logistiquesApprovisionnements`,
+      });
+
+      await notify(tx, destStaff.map((a) => a.userId), {
+        titre:    `Entrée de stock : ${stockSource.produit.nom}`,
+        message:  `${operateur} a affecté ${qty} unité(s) de "${stockSource.produit.nom}" à votre PDV "${pdvCible.nom}" depuis "${stockSource.pointDeVente.nom}".`,
+        priorite: PrioriteNotification.NORMAL,
+        actionUrl:`/dashboard/user/logistiquesApprovisionnements`,
+      });
+
+      await notifyAdmins(tx, {
+        titre:    `Affectation stock : ${stockSource.produit.nom}`,
+        message:  `${operateur} a transféré ${qty} unité(s) de "${stockSource.produit.nom}" de "${stockSource.pointDeVente.nom}" vers "${pdvCible.nom}".`,
+        priorite: PrioriteNotification.NORMAL,
+        actionUrl:`/dashboard/user/logistiquesApprovisionnements`,
       });
 
       return mvtEntree;

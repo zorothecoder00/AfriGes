@@ -129,11 +129,14 @@ export async function POST(req: Request) {
           notes:             notes  || null,
           receptionneParId:  parseInt(session.user.id),
           lignes: {
-            create: lignes.map((l: { produitId: number; quantiteAttendue: number; prixUnitaire?: number }) => ({
-              produitId:        Number(l.produitId),
-              quantiteAttendue: Number(l.quantiteAttendue),
-              prixUnitaire:     l.prixUnitaire ?? null,
-            })),
+            create: lignes.map((l: { produitId: number; quantiteAttendue: number; prixUnitaire?: number | string | null }) => {
+              const hasPrixUnitaire = l.prixUnitaire !== undefined && l.prixUnitaire !== null && l.prixUnitaire !== "";
+              return {
+                produitId:        Number(l.produitId),
+                quantiteAttendue: Number(l.quantiteAttendue),
+                prixUnitaire:     hasPrixUnitaire ? Number(l.prixUnitaire) : null,
+              };
+            }),
           },
         },
         include: {

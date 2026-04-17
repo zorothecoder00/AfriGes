@@ -57,15 +57,17 @@ interface ReceptionsResponse {
   meta:  { total: number; page: number; limit: number; totalPages: number };
 }
 
-interface Responsable {
+interface PDVOption {
   id: number;
   nom: string;
-  prenom: string;
+  code: string;
+  type: string
 }
 
 interface AffectationsResponse {
   data:  Mouvement[];
-  responsables: Responsable[];
+  pdvs: PDVOption[];
+  sourcePdv?: PDVOption;
   stats: { totalAffectations30j: number; totalQuantiteAffectee30j: number };
   meta:  { total: number; page: number; limit: number; totalPages: number };
 }
@@ -317,7 +319,7 @@ export default function LogistiqueApprovisionnementPage() {
   const { data: affectationsRes, refetch: refetchAffectations } =
     useApi<AffectationsResponse>(`/api/logistique/affectations?${affParams}`);
 
-  const responsables = affectationsRes?.responsables ?? [];
+  const pdvs = affectationsRes?.pdvs ?? [];
 
   // ── Journal ───────────────────────────────────────────────────────────────
   const [journalPage, setJournalPage]   = useState(1);
@@ -376,8 +378,7 @@ export default function LogistiqueApprovisionnementPage() {
   // ── Modal Affectation ─────────────────────────────────────────────────────
   const [affModal, setAffModal]       = useState(false);
   const [affProduit, setAffProduit]   = useState<Produit | null>(null);
-  const [affForm, setAffForm] = useState({ quantite: "", pointDeVente: "", notes: "" });
-  const [affPdVLibre, setAffPdVLibre] = useState(false); // toggle: dropdown vs texte libre
+  const [affForm, setAffForm] = useState({ quantite: "", pointDeVenteId: "", notes: "" });
 
   const { mutate: createAffectation, loading: affLoading } =
     useMutation<unknown, object>("/api/logistique/affectations", "POST", {
@@ -386,8 +387,7 @@ export default function LogistiqueApprovisionnementPage() {
 
   const openAffModal = (p: Produit | null) => {
     setAffProduit(p);
-    setAffForm({ quantite: "", pointDeVente: "", notes: "" });
-    setAffPdVLibre(responsables.length === 0);
+    setAffForm({ quantite: "", pointDeVenteId: "", notes: "" });
     setAffModal(true);
   };
 
@@ -400,10 +400,10 @@ export default function LogistiqueApprovisionnementPage() {
     e.preventDefault();
     if (!affProduit) return;
     const result = await createAffectation({
-      produitId:   affProduit.id,
-      quantite:    Number(affForm.quantite),
-      pointDeVente: affForm.pointDeVente,
-      notes:       affForm.notes || undefined,
+      produitId:      affProduit.id,
+      quantite:       Number(affForm.quantite),
+      pointDeVenteId: Number(affForm.pointDeVenteId),
+      notes:          affForm.notes || undefined,
     });
     if (result) {
       closeAffModal();
@@ -776,7 +776,7 @@ export default function LogistiqueApprovisionnementPage() {
                           }`}
                         >
                           <Truck size={14} />
-                          Réceptionner une livraison
+                          Enregistrer un réapprovisionnement
                         </button>
                       </div>
                     );
@@ -885,7 +885,7 @@ export default function LogistiqueApprovisionnementPage() {
         )}
 
         {/* ══════════════════════════════════════════════════════════════════ */}
-        {/* TAB 3 – SUIVI DES LIVRAISONS                                     */}
+        {/* TAB 3 – SUIVI LOGISTIQUE (RÉCEPTIONS D'APPROVISIONNEMENT + LIVRAISONS)                                     */}
         {/* ══════════════════════════════════════════════════════════════════ */}
         {activeTab === "livraisons" && (
           <div className="space-y-5">
@@ -1139,7 +1139,7 @@ export default function LogistiqueApprovisionnementPage() {
                   <ArrowUpCircle className="text-emerald-600 w-7 h-7" />
                 </div>
                 <div>
-                  <p className="text-slate-500 text-sm">Livraisons réceptionnées (30j)</p>
+                  <p className="text-slate-500 text-sm">Approvisionnements réceptionnés (30j)</p>
                   <p className="text-3xl font-bold text-slate-800">{receptionsRes?.stats?.totalReceptions30j ?? 0}</p>
                 </div>
               </div>
@@ -1179,12 +1179,12 @@ export default function LogistiqueApprovisionnementPage() {
                   </span>
                 )}
               </div>
-
+   
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead className="bg-slate-50 border-b border-slate-200">
                     <tr>
-                      {["Référence livraison", "Produit", "Qté reçue", "Motif / Fournisseur", "Date réception"].map(h => (
+                      {["Référence approvisionnement", "Produit", "Qté reçue", "Motif / Fournisseur", "Date réception"].map(h => (
                         <th key={h} className="px-6 py-3.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">{h}</th>
                       ))}
                     </tr>
@@ -1539,7 +1539,7 @@ export default function LogistiqueApprovisionnementPage() {
                 {affProduit.stock === 0 && (
                   <div className="mt-3 flex items-center gap-2 bg-red-50 border border-red-200 rounded-xl p-3">
                     <AlertTriangle size={16} className="text-red-500 shrink-0" />
-                    <p className="text-sm text-red-700">Ce produit est en rupture. Effectuez d&apos;abord une réception.</p>
+                    <p className="text-sm text-red-700">Ce produit est en rupture. Effectuez d&apos;abord un réapprovisionnement.</p>
                   </div>
                 )}
               </div>
@@ -1605,44 +1605,26 @@ export default function LogistiqueApprovisionnementPage() {
               </div>
 
               <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className="text-sm font-medium text-slate-700">
-                    Point de vente destination <span className="text-red-500">*</span>
-                  </label>
-                  {responsables.length > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => setAffPdVLibre(v => !v)}
-                      className="text-xs text-purple-600 hover:text-purple-800 underline"
-                    >
-                      {affPdVLibre ? "Choisir un responsable" : "Saisie libre"}
-                    </button>
-                  )}
-                </div>
-
-                {!affPdVLibre && responsables.length > 0 ? (
-                  <select
-                    required
-                    value={affForm.pointDeVente}
-                    onChange={e => setAffForm(f => ({ ...f, pointDeVente: e.target.value }))}
-                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 bg-slate-50 text-sm"
-                  >
-                    <option value="">— Sélectionnez un responsable —</option>
-                    {responsables.map(r => (
-                      <option key={r.id} value={`${r.prenom} ${r.nom}`}>
-                        {r.prenom} {r.nom}
-                      </option>
-                    ))}
-                  </select>
-                ) : (
-                  <input
-                    type="text"
-                    required
-                    value={affForm.pointDeVente}
-                    onChange={e => setAffForm(f => ({ ...f, pointDeVente: e.target.value }))}
-                    placeholder="Ex : Point de vente Marché Central"
-                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 bg-slate-50 text-sm"
-                  />
+                <label className="text-sm font-medium text-slate-700 block mb-1.5">
+                  Point de vente destination <span className="text-red-500">*</span>
+                </label>
+                <select
+                  required
+                  value={affForm.pointDeVenteId}
+                  onChange={e => setAffForm(f => ({ ...f, pointDeVenteId: e.target.value }))}
+                  className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 bg-slate-50 text-sm"
+                >
+                  <option value="">— Sélectionnez un point de vente —</option>
+                  {pdvs.map(p => (
+                    <option key={p.id} value={p.id}>
+                      {p.nom} ({p.code})
+                    </option>
+                  ))}
+                </select>
+                {affectationsRes?.sourcePdv && (
+                  <p className="text-xs text-slate-500 mt-1">
+                    Source automatique : <b>{affectationsRes.sourcePdv.nom}</b> ({affectationsRes.sourcePdv.code})
+                  </p>
                 )}
               </div>
 
@@ -1675,7 +1657,7 @@ export default function LogistiqueApprovisionnementPage() {
                     !affForm.quantite ||
                     Number(affForm.quantite) <= 0 ||
                     Number(affForm.quantite) > (affProduit?.stock ?? 0) ||
-                    !affForm.pointDeVente.trim() ||
+                    !affForm.pointDeVenteId ||
                     (affProduit?.stock ?? 0) === 0
                   }
                   className="flex-1 py-2.5 bg-purple-600 text-white rounded-xl hover:bg-purple-700 font-medium text-sm transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
