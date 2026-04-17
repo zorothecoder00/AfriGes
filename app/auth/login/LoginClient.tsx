@@ -5,7 +5,7 @@ import { signIn } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import AfriSimeLogo from '@/components/AfriSimeLogo'
-     
+      
 // Définition du type pour nos erreurs
 type Errors = {
   email?: string
@@ -106,6 +106,7 @@ export default function LoginPage() {
       </div>
 
       <div className="w-full max-w-sm md:max-w-md mx-auto relative z-10 animate-[slideUp_0.6s_ease-out]">
+        
         <div className="bg-white rounded-3xl shadow-[0_20px_60px_rgba(44,62,80,0.25)] overflow-hidden transition-transform hover:-translate-y-1 duration-300">
           {/* Header */}
           <div className="bg-gradient-to-br from-slate-800 to-slate-900 px-8 py-6 text-center relative overflow-hidden">

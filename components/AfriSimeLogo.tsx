@@ -10,8 +10,9 @@ export default function AfriSimeLogo({ className = '', priority = false }: AfriS
     <Image
       src="/afrisime-logo.svg"
       alt="AfriSime Communauté"
-      width={300}
-      height={90}
+      width={980}
+      height={260}
+      unoptimized
       priority={priority}
       className={className}
     />
