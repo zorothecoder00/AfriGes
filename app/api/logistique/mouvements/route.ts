@@ -7,11 +7,19 @@ import { getLogistiqueSession } from "@/lib/authLogistique";
  * GET /api/logistique/mouvements
  * Journal complet de tous les mouvements de stock (ENTREE, SORTIE, AJUSTEMENT).
  * Utilisé pour l'onglet suivi des livraisons et journal d'audit.
- */
+ */  
 export async function GET(req: Request) {     
   try {
     const session = await getLogistiqueSession();
     if (!session) return NextResponse.json({ error: "Acces refuse" }, { status: 403 });
+
+    const affectation = await prisma.gestionnaireAffectation.findFirst({
+      where: { userId: Number(session.user.id), actif: true },
+      select: { pointDeVenteId: true },
+    });
+    if (!affectation) {
+      return NextResponse.json({ error: "Aucun point de vente actif trouvé pour cet utilisateur" }, { status: 400 });
+    }
 
     const { searchParams } = new URL(req.url);
     const page      = Math.max(1, Number(searchParams.get("page")  || 1));
@@ -22,6 +30,7 @@ export async function GET(req: Request) {
     const produitId = searchParams.get("produitId");
 
     const where: Prisma.MouvementStockWhereInput = {
+      pointDeVenteId: affectation.pointDeVenteId,
       ...(typeParam && ["ENTREE", "SORTIE", "AJUSTEMENT"].includes(typeParam) && {
         type: typeParam as "ENTREE" | "SORTIE" | "AJUSTEMENT",
       }),
@@ -51,9 +60,9 @@ export async function GET(req: Request) {
     since30j.setDate(since30j.getDate() - 30);
 
     const [totalEntrees, totalSorties, totalAjustements] = await Promise.all([
-      prisma.mouvementStock.count({ where: { type: "ENTREE",     dateMouvement: { gte: since30j } } }),
-      prisma.mouvementStock.count({ where: { type: "SORTIE",     dateMouvement: { gte: since30j } } }),
-      prisma.mouvementStock.count({ where: { type: "AJUSTEMENT", dateMouvement: { gte: since30j } } }),
+      prisma.mouvementStock.count({ where: { pointDeVenteId: affectation.pointDeVenteId, type: "ENTREE",     dateMouvement: { gte: since30j } } }),
+      prisma.mouvementStock.count({ where: { pointDeVenteId: affectation.pointDeVenteId, type: "SORTIE",     dateMouvement: { gte: since30j } } }),
+      prisma.mouvementStock.count({ where: { pointDeVenteId: affectation.pointDeVenteId, type: "AJUSTEMENT", dateMouvement: { gte: since30j } } }),
     ]);
 
     return NextResponse.json({
