@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthSession } from "@/lib/auth";
 import { notifyAdmins } from "@/lib/notifications";
+import { traiterExpirations } from "@/lib/expirationAuto";
 
 /**
  * GET — Toutes les souscriptions avec filtres optionnels :
@@ -19,6 +20,9 @@ export async function GET(req: Request) {
     const statut = searchParams.get("statut");
     const typePack = searchParams.get("type");
     const search = searchParams.get("search");
+
+     // Synchroniser les statuts avant affichage dashboard admin
+    await traiterExpirations();
 
     const souscriptions = await prisma.souscriptionPack.findMany({
       where: {
@@ -118,6 +122,13 @@ export async function POST(req: Request) {
     const adminNom = `${session.user.prenom ?? ""} ${session.user.nom ?? ""}`.trim();
     const montantTotalNum = parseFloat(montantTotal);
     const acompteNum = acompteInitial ? parseFloat(acompteInitial) : 0;
+
+    const debut = dateDebut ? new Date(dateDebut) : new Date();
+    const dateFinRes = dateFin
+      ? new Date(dateFin)
+      : pack.dureeJours
+      ? new Date(debut.getTime() + Number(pack.dureeJours) * 24 * 60 * 60 * 1000)
+      : null;
 
     // Bug #7: Validation acompte minimum pour URGENCE
     if (pack.type === "URGENCE" && pack.acomptePercent) {

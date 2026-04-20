@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAgentTerrainSession } from "@/lib/authAgentTerrain";
+import { traiterExpirations } from "@/lib/expirationAuto";
 
 /**
- * GET /api/agentTerrain/packs
+ * GET /api/agentTerrain/packs  
  * Souscriptions actives / en attente avec la prochaine échéance à collecter.
  *   ?search=nom&type=ALIMENTAIRE
  */
@@ -25,10 +26,36 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const search = searchParams.get("search") ?? "";
     const typePack = searchParams.get("type") ?? "";
+    const now = new Date();
+    await traiterExpirations();
+
+    // 1) Marquer automatiquement les échéances dépassées
+    await prisma.echeancePack.updateMany({
+      where: {
+        statut: "EN_ATTENTE",
+        datePrevue: { lt: now },
+        souscription: {
+          client: { pointDeVenteId: pdvId },
+        },
+      }, 
+      data: { statut: "EN_RETARD" },
+    });
+
+    // 2) Suspendre les souscriptions expirées mais non soldées
+    await prisma.souscriptionPack.updateMany({
+      where: {
+        statut: { in: ["EN_ATTENTE", "ACTIF"] },
+        dateFin: { not: null, lt: now },
+        montantRestant: { gt: 0 },
+        client: { pointDeVenteId: pdvId },
+      },
+      data: { statut: "SUSPENDU" },
+    });
 
     const souscriptions = await prisma.souscriptionPack.findMany({
       where: {
         statut: { in: ["EN_ATTENTE", "ACTIF"] },
+        OR: [{ dateFin: null }, { dateFin: { gte: now } }],
         // Filtrer uniquement les clients du PDV de l'agent
         client: { pointDeVenteId: pdvId },
         ...(typePack ? { pack: { type: typePack as never } } : {}),
@@ -65,12 +92,21 @@ export async function GET(req: Request) {
       s.echeances.some((e) => e.statut === "EN_RETARD")
     ).length;
 
+    const expirees = await prisma.souscriptionPack.count({
+      where: {
+        statut: "SUSPENDU",
+        montantRestant: { gt: 0 },
+        client: { pointDeVenteId: pdvId },
+      },
+    });
+
     return NextResponse.json({
       souscriptions,
       stats: {
         total: souscriptions.length,
         totalMontantRestant,
         enRetard,
+        expirees,
       },
     });
   } catch (error) {

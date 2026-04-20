@@ -7,7 +7,7 @@ import {
   Banknote, Calendar, LucideIcon, Layers, Plus, ChevronRight,
   Loader2, Truck, Package, ShoppingCart, X, Send, BadgeCheck, XCircle,
 } from "lucide-react";
-import Link from "next/link";
+import Link from "next/link";  
 import SignOutButton from "@/components/SignOutButton";
 import NotificationBell from "@/components/NotificationBell";
 import MessagesLink from "@/components/MessagesLink";
@@ -46,7 +46,7 @@ interface Souscription {
 
 interface PacksResponse {
   souscriptions: Souscription[];
-  stats: { total: number; totalMontantRestant: number; enRetard: number };
+  stats: { total: number; totalMontantRestant: number; enRetard: number; expirees: number };
 }
 
 interface Client {
@@ -57,7 +57,7 @@ interface Client {
   adresse: string | null;
   etat: string;
   createdAt: string;
-  _count?: { souscriptions: number };
+  _count?: { souscriptionsPacks: number };
 }
 
 interface ClientsResponse {
@@ -452,7 +452,8 @@ export default function AgentTerrainPage() {
     { label: "Clients", value: String(clientsMeta?.total ?? 0), subtitle: "Portefeuille", icon: Users, color: "text-blue-500", lightBg: "bg-blue-50" },
     { label: "Souscriptions actives", value: String(packStats?.total ?? 0), subtitle: "À collecter", icon: Layers, color: "text-teal-500", lightBg: "bg-teal-50" },
     { label: "Montant restant", value: formatCurrency(packStats?.totalMontantRestant ?? 0), subtitle: "Total à collecter", icon: Banknote, color: "text-emerald-500", lightBg: "bg-emerald-50" },
-    { label: "En retard", value: String(packStats?.enRetard ?? 0), subtitle: "Échéances dépassées", icon: AlertCircle, color: "text-red-500", lightBg: "bg-red-50" },
+    { label: "Échéances en retard", value: String(packStats?.enRetard ?? 0), subtitle: "Paiements dépassés", icon: AlertCircle, color: "text-red-500", lightBg: "bg-red-50" },
+    { label: "Souscriptions échues", value: String(packStats?.expirees ?? 0), subtitle: "Suspendues automatiquement", icon: XCircle, color: "text-amber-600", lightBg: "bg-amber-50" },
   ];
 
   const tabs: { key: TabKey; label: string; icon: LucideIcon; badge?: number }[] = [
@@ -514,7 +515,7 @@ export default function AgentTerrainPage() {
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-5">
           {statCards.map((s, i) => <StatCard key={i} {...s} />)}
         </div>
 
@@ -1071,10 +1072,10 @@ export default function AgentTerrainPage() {
                         <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${getStatusStyle(client.etat)}`}>
                           {getStatusLabel(client.etat)}
                         </span>
-                      </td>
+                      </td>  
                       <td className="px-6 py-4">
-                        <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${(client._count?.souscriptions ?? 0) > 0 ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-600"}`}>
-                          {client._count?.souscriptions ?? 0} souscription(s)
+                        <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${(client._count?.souscriptionsPacks ?? 0) > 0 ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-600"}`}>
+                          {client._count?.souscriptionsPacks ?? 0} souscription(s)
                         </span>
                       </td>
                       <td className="px-6 py-4 text-sm text-slate-600">{formatDate(client.createdAt)}</td>

@@ -5,7 +5,7 @@ import { notifyAdmins } from "@/lib/notifications";
 
 type Ctx = { params: Promise<{ id: string }> };  
     
-/**
+/**  
  * POST /api/agentTerrain/packs/[id]/collecte
  * Enregistre un versement de terrain sur une souscription pack.
  * Body: { montant, notes?, echeanceId? }
@@ -27,14 +27,29 @@ export async function POST(req: Request, { params }: Ctx) {
     const souscription = await prisma.souscriptionPack.findUnique({
       where: { id: souscriptionId },
       include: { pack: true, client: { select: { nom: true, prenom: true } } },
-    });
+    });  
 
     if (!souscription) {
       return NextResponse.json({ error: "Souscription introuvable" }, { status: 404 });
     }
-    if (souscription.statut === "ANNULE" || souscription.statut === "COMPLETE") {
+    if (
+      souscription.statut === "ANNULE" ||
+      souscription.statut === "COMPLETE" ||
+      souscription.statut === "SUSPENDU"
+    ) {
       return NextResponse.json(
         { error: `Souscription déjà ${souscription.statut.toLowerCase()}` },
+        { status: 400 }
+      );
+    }
+
+    if (souscription.dateFin && new Date(souscription.dateFin) < new Date()) {
+      await prisma.souscriptionPack.update({
+        where: { id: souscriptionId },
+        data: { statut: "SUSPENDU" },
+      });
+      return NextResponse.json(
+        { error: "Cette souscription est échue (date de fin dépassée) et ne peut plus être collectée." },
         { status: 400 }
       );
     }

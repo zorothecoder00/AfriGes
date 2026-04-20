@@ -5,6 +5,7 @@ interface ExpirationResult {
   echeancesEnRetard: number;
   souscriptionsCompletes: number;
   souscriptionsAnnulees: number;
+  souscriptionsSuspendues: number;
 }
 
 /**
@@ -68,11 +69,47 @@ export async function traiterExpirations(): Promise<ExpirationResult> {
     });
   }
 
-  // ─── 4. Notifications admins si des changements ont eu lieu ─────────────────
+  // ─── 4. Souscriptions EN_ATTENTE/ACTIF expirées non soldées → SUSPENDU ───
+  // Règle d'expiration :
+  // - dateFin explicite si renseignée
+  // - sinon dateDebut + pack.dureeJours (si durée définie)
+  const candidatesSuspend = await prisma.souscriptionPack.findMany({
+    where: {
+      statut: { in: [StatutSouscription.EN_ATTENTE, StatutSouscription.ACTIF] },
+      montantRestant: { gt: 0 },
+    },
+    select: {
+      id: true,
+      dateDebut: true,
+      dateFin: true,
+      pack: { select: { dureeJours: true } },
+    },
+  });
+
+  const idsSuspendues = candidatesSuspend
+    .filter((s) => {
+      const deadline = s.dateFin
+        ? new Date(s.dateFin)
+        : s.pack.dureeJours
+        ? new Date(s.dateDebut.getTime() + s.pack.dureeJours * 24 * 60 * 60 * 1000)
+        : null;
+      return deadline ? deadline < now : false;
+    })
+    .map((s) => s.id);
+
+  if (idsSuspendues.length > 0) {
+    await prisma.souscriptionPack.updateMany({
+      where: { id: { in: idsSuspendues } },
+      data: { statut: StatutSouscription.SUSPENDU },
+    });
+  }
+
+  // ─── 5. Notifications admins si des changements ont eu lieu ─────────────────
   const totalModifications =
     echeancesARetarder.length +
     souscriptionsACompleter.length +
-    souscriptionsAnnulees.length;
+    souscriptionsAnnulees.length +
+    idsSuspendues.length;
 
   if (totalModifications > 0) {
     const admins = await prisma.user.findMany({
@@ -88,6 +125,8 @@ export async function traiterExpirations(): Promise<ExpirationResult> {
         lignes.push(`${souscriptionsACompleter.length} souscription(s) complétée(s) automatiquement`);
       if (souscriptionsAnnulees.length > 0)
         lignes.push(`${souscriptionsAnnulees.length} souscription(s) annulée(s) (jamais activées)`);
+      if (idsSuspendues.length > 0)
+        lignes.push(`${idsSuspendues.length} souscription(s) suspendue(s) (échéance dépassée)`);
 
       await prisma.notification.createMany({
         data: admins.map((admin) => ({
@@ -101,7 +140,7 @@ export async function traiterExpirations(): Promise<ExpirationResult> {
     }
   }
 
-  // ─── 5. Audit log ────────────────────────────────────────────────────────────
+  // ─── 6. Audit log ────────────────────────────────────────────────────────────
   if (totalModifications > 0) {
     await prisma.auditLog.create({
       data: {
@@ -115,5 +154,6 @@ export async function traiterExpirations(): Promise<ExpirationResult> {
     echeancesEnRetard: echeancesARetarder.length,
     souscriptionsCompletes: souscriptionsACompleter.length,
     souscriptionsAnnulees: souscriptionsAnnulees.length,
+    souscriptionsSuspendues: idsSuspendues.length,
   };
 }

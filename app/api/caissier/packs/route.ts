@@ -112,6 +112,12 @@ export async function POST(req: Request) {
     const caissierNom = `${session.user.prenom ?? ""} ${session.user.nom ?? ""}`.trim();
     const montantTotalNum = parseFloat(montantTotal);
     const acompteNum = acompteInitial ? parseFloat(acompteInitial) : 0;
+    const debut = dateDebut ? new Date(dateDebut) : new Date();
+    const dateFinRes = dateFin
+      ? new Date(dateFin)
+      : pack.dureeJours
+      ? new Date(debut.getTime() + Number(pack.dureeJours) * 24 * 60 * 60 * 1000)
+      : null;
 
     // Bug #7: Validation acompte minimum pour URGENCE
     if (pack.type === "URGENCE" && pack.acomptePercent) {
@@ -140,14 +146,13 @@ export async function POST(req: Request) {
           montantTotal: montantTotalNum,
           montantVerse: acompteNum,
           montantRestant: montantTotalNum - acompteNum,
-          dateDebut: dateDebut ? new Date(dateDebut) : new Date(),
-          dateFin: dateFin ? new Date(dateFin) : null,
+          dateDebut: debut,
+          dateFin: dateFinRes,
           notes,
           enregistrePar: caissierNom,
         },
       });
 
-      const debut = dateDebut ? new Date(dateDebut) : new Date();
       const montantRestant = montantTotalNum - acompteNum;
 
       // ──────────────────────────────────────────────────────────────────────

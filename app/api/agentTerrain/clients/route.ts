@@ -8,7 +8,7 @@ import { getAgentTerrainSession } from "@/lib/authAgentTerrain";
  * Liste clients du PDV de l'agent terrain, avec pagination et recherche.
  */
 export async function GET(req: Request) {
-  try {
+  try {       
     const session = await getAgentTerrainSession();
     if (!session) {
       return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
@@ -44,11 +44,17 @@ export async function GET(req: Request) {
     const [clients, total] = await Promise.all([
       prisma.client.findMany({
         where,
-        skip,
+        skip,  
         take: limit,
         orderBy: { createdAt: "desc" },
         include: {
-          _count: { select: { souscriptionsPacks: true } },
+          _count: {
+            select: {
+              souscriptionsPacks: {
+                where: { statut: { in: ["EN_ATTENTE", "ACTIF"] } },
+              },
+            },
+          },
         },
       }),
       prisma.client.count({ where }),
