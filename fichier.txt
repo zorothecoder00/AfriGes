@@ -6,16 +6,14 @@ Ce code :
  const a = document.createElement("a");
  a.href = url;           
  a.download = filename;                  
- a.click();           
+ a.click();                         
  permet de créer un téléchargement via un clic sur une URL ( utile pour les exports)
 import { randomUUID } from "crypto";  permet de générer des UUID(sorte d'identifiant unique aléatoire) par exemple pour des factures ou des pièces justificatives
-      
+        
+
 -Pas une erreur mais un bug ; normalement au niveau du point de vente de
   l'utilisateur , on ne devrait pas mettre un unique point de vente pour le
   chef_agence ou responsable_communaute (vu qu'il gère plusieurs points de vente)
-
--Sur /dashboard/user/agentsTerrain, j'ai remarqué un comportement illogique . Dans l'onglet Clients , au niveau de Souscriptions je vois 0 pour tous mes clients , pourtant dans les stats je vois 2 souscriptions actives à collecter ; et puis au niveau de l'onglet Collecte packs je vois en effet ces 2 souscriptions(à collecter) mais leur échéance est arrivée à terme (pourtant ce n'est pas indiqué que c'est à terme ni dans les stats , ni dans l'onglet Collecte packs) ; donc ce qui signifie aussi que la durée de l'échéance est soit mal calculée , soit n'est même pas calculée, ou soit quand l'échéance arrive à terme , rien ne l'indique (la valeur nest pas prise en compte dans la base , soit encore je n'ai pas codé de fonction pour gérer les échéances passées)
-En bref , quand une souscription arrive à terme (echeance) , ce n'est signalé nulle part(même dans le dashboard/admin) et c'est même possible toujours de le modifier , de collecter encore de l'argent , de livrer etc etc ( pourtant ça ne devrait pas être le cas , puisque l'échéance est déjà passée)
 
 -On doit avoir un prix d'achat côté stock des produits ( côté admin ) . Et les admins doivent être les seuls à pouvoir insérer(ou plutôt modifier) un prix pour les produits ( mais tous les utilisateurs doivent être notifiés )     
 

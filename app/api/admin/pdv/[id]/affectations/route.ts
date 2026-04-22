@@ -11,9 +11,9 @@ async function getAdminSession() {
   if (!s) return null;
   if (s.user.role !== "ADMIN" && s.user.role !== "SUPER_ADMIN") return null;
   return s;
-}
+}     
 
-/**
+/**   
  * GET /api/admin/pdv/[id]/affectations
  * Liste des affectations actives (gestionnaires assignés à ce PDV).
  */
@@ -182,7 +182,7 @@ export async function DELETE(req: Request, { params }: Ctx) {
       await tx.gestionnaireAffectation.update({
         where: { id: affectation.id },
         data:  { actif: false },
-      });
+      });   
 
       // Nettoyer le champ spécial du PDV si cet utilisateur l'occupait
       if (role === "RESPONSABLE_POINT_DE_VENTE") {

@@ -138,7 +138,7 @@ export async function traiterExpirations(): Promise<ExpirationResult> {
         })),
       });
     }
-  }
+  }  
 
   // ─── 6. Audit log ────────────────────────────────────────────────────────────
   if (totalModifications > 0) {

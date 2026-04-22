@@ -8,7 +8,7 @@ import { prisma } from "@/lib/prisma";
 
 interface RouteParams {
   params: Promise<{
-    id: string;
+    id: string; 
   }>;
 }  
 
@@ -176,7 +176,7 @@ export async function PATCH(
       { status: 500 }
     );
   }
-}
+}  
 
 /**
  * ==========================
@@ -217,7 +217,7 @@ export async function DELETE(
           action: "SUPPRESSION_CLIENT",
           entite: "Client",
           entiteId: clientId,
-        },
+        },    
       });
 
       // Notification ADMIN & SUPER_ADMIN

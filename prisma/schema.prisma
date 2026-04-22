@@ -6,8 +6,8 @@
   
 generator client {
   provider = "prisma-client-js"
-}                                    
-                 
+}                                          
+                        
 datasource db {
   provider = "postgresql"
 }          
@@ -582,6 +582,9 @@ model PointDeVente {
   chefAgenceId Int?
   chefAgence   User? @relation("ChefAgencePDV", fields: [chefAgenceId], references: [id])
 
+  // Bulk pour clients
+  clientsPDV ClientPointDeVente[]
+
   // Relations opérationnelles
   affectations          GestionnaireAffectation[]
   clients               Client[]
@@ -632,22 +635,39 @@ model GestionnaireAffectation {
 // ============================================================
 
 model Client {
-  id             Int          @id @default(autoincrement())
-  nom            String
-  prenom         String   
-  telephone      String       @unique
-  adresse        String?
-  etat           MemberStatus @default(ACTIF)
+  id                 Int               @id @default(autoincrement())
+  nom                String
+  prenom             String   
+  telephone          String            @unique
+  adresse            String?
+  etat               MemberStatus      @default(ACTIF)
   // PDV de rattachement (optionnel)
   pointDeVenteId Int?
 
   pointDeVente       PointDeVente?      @relation(fields: [pointDeVenteId], references: [id])
+  pointsDeVente      ClientPointDeVente[]
   souscriptionsPacks SouscriptionPack[]
   pointsFidelite     PointsFidelite?
   ventesDirectes     VenteDirecte[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model ClientPointDeVente {
+  id              Int @id @default(autoincrement())
+
+  clientId        Int
+  pointDeVenteId  Int
+
+  client          Client        @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  pointDeVente    PointDeVente  @relation(fields: [pointDeVenteId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([clientId, pointDeVenteId])
+  @@index([clientId])
+  @@index([pointDeVenteId])
 }
   
 // ============================================================

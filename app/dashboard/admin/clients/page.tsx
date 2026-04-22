@@ -45,7 +45,7 @@ export default function ClientsPage() {
 
   const limit = 10;
 
-  useEffect(() => {
+  useEffect(() => {  
     const timer = setTimeout(() => setDebouncedSearch(searchQuery), 400);
     return () => clearTimeout(timer);
   }, [searchQuery]);
@@ -58,11 +58,11 @@ export default function ClientsPage() {
     useApi<ClientsResponse>(`/api/admin/clients?${params}`);
   const clients = response?.data ?? [];
   const meta    = response?.meta;
-
+   
   // PDV pour filtres et sélecteurs
   const { data: pdvResponse } = useApi<{ data: PDVOption[] }>('/api/admin/pdv?limit=200&actif=true');
   const pdvOptions = pdvResponse?.data ?? [];
-  
+           
   // Mutations
   const { mutate: addClient, loading: adding, error: addError } =
     useMutation('/api/admin/clients', 'POST', { successMessage: 'Client ajouté avec succès' });

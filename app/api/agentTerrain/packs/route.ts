@@ -91,7 +91,7 @@ export async function GET(req: Request) {
     const enRetard = souscriptions.filter((s) =>
       s.echeances.some((e) => e.statut === "EN_RETARD")
     ).length;
-
+  
     const expirees = await prisma.souscriptionPack.count({
       where: {
         statut: "SUSPENDU",

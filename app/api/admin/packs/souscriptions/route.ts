@@ -168,14 +168,13 @@ export async function POST(req: Request) {
           montantTotal: montantTotalNum,
           montantVerse: acompteNum,
           montantRestant: montantTotalNum - acompteNum,
-          dateDebut: dateDebut ? new Date(dateDebut) : new Date(),
-          dateFin: dateFin ? new Date(dateFin) : null,
+          dateDebut: debut,
+          dateFin: dateFinRes,
           notes,
           enregistrePar: adminNom,
         },
       });
 
-      const debut = dateDebut ? new Date(dateDebut) : new Date();
       const montantRestant = montantTotalNum - acompteNum;
 
       // ────────────────────────────────────────────────────────────────────────
