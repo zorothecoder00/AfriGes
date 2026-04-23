@@ -3,8 +3,8 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getRPVSession } from "@/lib/authRPV";
 import { auditLog } from "@/lib/notifications";
-
-/**
+   
+/**  
  * GET /api/rpv/clients
  * Liste paginée des clients du point de vente.
  * Query: search, page, limit
@@ -27,7 +27,16 @@ export async function GET(req: Request) {
     });
 
     const where: Prisma.ClientWhereInput = {
-      ...(pdv && { pointDeVenteId: pdv.id }),
+      ...(pdv && {
+        AND: [
+          {
+            OR: [
+              { pointDeVenteId: pdv.id },
+              { pointsDeVente: { some: { pointDeVenteId: pdv.id } } },
+            ],
+          },
+        ],
+      }),
       ...(search && {
         OR: [
           { nom:       { contains: search, mode: "insensitive" } },
@@ -45,6 +54,12 @@ export async function GET(req: Request) {
         orderBy: { createdAt: "desc" },
         include: {
           _count: { select: { souscriptionsPacks: true } },
+          pointDeVente: { select: { id: true, nom: true, code: true } },
+          pointsDeVente: {
+            select: {
+              pointDeVente: { select: { id: true, nom: true, code: true } },
+            },
+          },
         },
       }),
       prisma.client.count({ where }),
@@ -98,6 +113,13 @@ export async function POST(req: Request) {
       const c = await tx.client.create({
         data: { nom, prenom, telephone, adresse: adresse || null, pointDeVenteId: pdvRPV?.id ?? null },
       });
+
+      if (pdvRPV?.id) {
+        await tx.clientPointDeVente.create({
+          data: { clientId: c.id, pointDeVenteId: pdvRPV.id },
+        });
+      }
+      
       await auditLog(tx, parseInt(session.user.id), "CLIENT_CREE", "Client", c.id);
       return c;
     });

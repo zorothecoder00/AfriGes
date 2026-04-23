@@ -8,7 +8,7 @@ import { prisma } from "@/lib/prisma";
 
 interface RouteParams {
   params: Promise<{
-    id: string; 
+    id: string;   
   }>;
 }  
 
@@ -35,6 +35,12 @@ export async function GET(
     const client = await prisma.client.findUnique({
       where: { id: clientId },
       include: {
+        pointDeVente: { select: { id: true, nom: true, code: true } },
+        pointsDeVente: {
+          select: {
+            pointDeVente: { select: { id: true, nom: true, code: true } },
+          },
+        },
         souscriptionsPacks: {
           include: { pack: true },
         },
@@ -78,8 +84,8 @@ export async function PATCH(
       );
     }
 
-    const body = await req.json();
-    const { nom, prenom, telephone, adresse, etat, pointDeVenteId } = body;
+    const body = await req.json();  
+    const { nom, prenom, telephone, adresse, etat, pointDeVenteId, pointsDeVenteIds } = body;
 
     // Valider le statut si fourni
     if (etat && !Object.values(MemberStatus).includes(etat)) {
@@ -108,6 +114,21 @@ export async function PATCH(
         }
       }
 
+      const normalizeIds = (value: unknown): number[] => {
+        if (!Array.isArray(value)) return [];
+        return [...new Set(value.map((v) => Number(v)).filter((v) => Number.isInteger(v) && v > 0))];
+      };
+
+      const hasLegacyPdvUpdate = pointDeVenteId !== undefined;
+      const hasBulkPdvUpdate = pointsDeVenteIds !== undefined;
+
+      const nextLegacyPdvId = hasLegacyPdvUpdate
+        ? pointDeVenteId
+          ? Number(pointDeVenteId)
+          : null
+        : undefined;
+      const nextBulkIds = hasBulkPdvUpdate ? normalizeIds(pointsDeVenteIds) : [];
+
       const updated = await tx.client.update({
         where: { id: clientId },
         data: {
@@ -116,10 +137,37 @@ export async function PATCH(
           ...(telephone && { telephone }),
           ...(adresse !== undefined && { adresse: adresse || null }),
           ...(etat && { etat }),
-          ...(pointDeVenteId !== undefined && { pointDeVenteId: pointDeVenteId ? Number(pointDeVenteId) : null }),
+          ...(hasBulkPdvUpdate
+            ? { pointDeVenteId: nextBulkIds[0] ?? null }
+            : hasLegacyPdvUpdate
+              ? { pointDeVenteId: nextLegacyPdvId }
+              : {}),
         },
       });
 
+      if (hasBulkPdvUpdate) {
+        await tx.clientPointDeVente.deleteMany({ where: { clientId } });
+        if (nextBulkIds.length > 0) {
+          await tx.clientPointDeVente.createMany({
+            data: nextBulkIds.map((id) => ({
+              clientId,
+              pointDeVenteId: id,
+            })),
+            skipDuplicates: true,
+          });
+        }
+      } else if (hasLegacyPdvUpdate) {
+        if (nextLegacyPdvId) {
+          await tx.clientPointDeVente.upsert({
+            where: { clientId_pointDeVenteId: { clientId, pointDeVenteId: nextLegacyPdvId } },
+            update: {},
+            create: { clientId, pointDeVenteId: nextLegacyPdvId },
+          });
+        } else {
+          await tx.clientPointDeVente.deleteMany({ where: { clientId } });
+        }
+      }
+      
       // Audit log
       await tx.auditLog.create({
         data: {

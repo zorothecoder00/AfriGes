@@ -7,7 +7,7 @@ import { getChefAgenceSession, getChefAgencePdvIds } from "@/lib/authChefAgence"
  *
  * Base clients de toute la zone du chef d'agence, avec filtres.
  */
-export async function GET(req: Request) {
+export async function GET(req: Request) {  
   try {
     const session = await getChefAgenceSession();
     if (!session) return NextResponse.json({ message: "Accès refusé" }, { status: 403 });
@@ -26,9 +26,18 @@ export async function GET(req: Request) {
       : pdvIds;
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const where: any = {
-      ...(effectivePdvIds ? { pointDeVenteId: { in: effectivePdvIds } } : {}),
-    };
+    const where: any = {};
+
+    if (effectivePdvIds) {
+      where.AND = [
+        {
+          OR: [
+            { pointDeVenteId: { in: effectivePdvIds } },
+            { pointsDeVente: { some: { pointDeVenteId: { in: effectivePdvIds } } } },
+          ],
+        },
+      ];
+    }
 
     if (etat) where.etat = etat;
     if (search) {
@@ -51,6 +60,11 @@ export async function GET(req: Request) {
           id: true, nom: true, prenom: true, telephone: true, adresse: true, etat: true,
           createdAt: true,
           pointDeVente: { select: { id: true, nom: true, code: true } },
+          pointsDeVente: {
+            select: {
+              pointDeVente: { select: { id: true, nom: true, code: true } },
+            },
+          },
           souscriptionsPacks: {
             where:  { statut: { in: ["ACTIF", "EN_ATTENTE"] } },
             select: { id: true, statut: true, montantTotal: true, montantVerse: true, montantRestant: true,
@@ -69,7 +83,7 @@ export async function GET(req: Request) {
       adresse:     c.adresse,
       etat:        c.etat,
       createdAt:   c.createdAt.toISOString(),
-      pdv:         c.pointDeVente,
+      pdv:         c.pointDeVente ?? c.pointsDeVente[0]?.pointDeVente ?? null,
       souscriptionsActives: c.souscriptionsPacks.map((s) => ({
         id:             s.id,
         statut:         s.statut,

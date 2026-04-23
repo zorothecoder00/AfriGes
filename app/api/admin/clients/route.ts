@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { MemberStatus, PrioriteNotification, Prisma, Role } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 
-/**
+/**  
  * ==========================
  * GET /api/admin/clients
  * ==========================
@@ -18,8 +18,19 @@ export async function GET(req: Request) {
     const search = searchParams.get("search") || "";
     const pdvId  = searchParams.get("pdvId");
 
+    const pdvIdNumber = pdvId ? Number(pdvId) : null;
+
     const where: Prisma.ClientWhereInput = {
-      ...(pdvId && { pointDeVenteId: Number(pdvId) }),
+      ...(pdvIdNumber && {
+        AND: [
+          {
+            OR: [
+              { pointDeVenteId: pdvIdNumber },
+              { pointsDeVente: { some: { pointDeVenteId: pdvIdNumber } } },
+            ],
+          },
+        ],
+      }),
       ...(search && {
         OR: [
           { nom: { contains: search, mode: "insensitive" } },
@@ -38,6 +49,11 @@ export async function GET(req: Request) {
         include: {
           _count: { select: { souscriptionsPacks: true } },
           pointDeVente: { select: { id: true, nom: true, code: true } },
+          pointsDeVente: {
+            select: {
+              pointDeVente: { select: { id: true, nom: true, code: true } },
+            },
+          },
         },
       }),
       prisma.client.count({ where }),
@@ -70,7 +86,7 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { nom, prenom, telephone, adresse, pointDeVenteId } = body;
+    const { nom, prenom, telephone, adresse, pointDeVenteId, pointsDeVenteIds } = body;
 
     if (!nom || !prenom || !telephone) {
       return NextResponse.json(
@@ -91,18 +107,40 @@ export async function POST(req: Request) {
       );
     }
 
+    const normalizeIds = (value: unknown): number[] => {
+      if (!Array.isArray(value)) return [];
+      return [...new Set(value.map((v) => Number(v)).filter((v) => Number.isInteger(v) && v > 0))];
+    };
+
+    const relationIdsFromBody = normalizeIds(pointsDeVenteIds);
+    const legacyPdvId = pointDeVenteId ? Number(pointDeVenteId) : null;
+    const finalRelationIds = legacyPdvId
+      ? [...new Set([...relationIdsFromBody, legacyPdvId])]
+      : relationIdsFromBody;
+    const pdvIdToStore = legacyPdvId ?? finalRelationIds[0] ?? null;
+
     const result = await prisma.$transaction(async (tx) => {
       // 1. Création du client
       const client = await tx.client.create({
         data: {
           nom,
-          prenom,
+          prenom,     
           telephone,
           adresse: adresse || null,
           etat: MemberStatus.ACTIF,
-          pointDeVenteId: pointDeVenteId ? Number(pointDeVenteId) : null,
+          pointDeVenteId: pdvIdToStore,
         },
       });
+
+      if (finalRelationIds.length > 0) {
+        await tx.clientPointDeVente.createMany({
+          data: finalRelationIds.map((id) => ({
+            clientId: client.id,
+            pointDeVenteId: id,
+          })),
+          skipDuplicates: true,
+        });
+      }
 
       // 2. Audit log
       await tx.auditLog.create({
