@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthSession } from "@/lib/auth";
 import { auditLog } from "@/lib/notifications";
-
+  
 type Ctx = { params: Promise<{ id: string }> };
 
 async function getAdminSession() {

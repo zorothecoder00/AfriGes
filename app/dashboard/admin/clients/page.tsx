@@ -1,4 +1,4 @@
-"use client";
+"use client";  
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Search, Plus, Phone, MapPin, Eye, Edit, Trash2, ArrowLeft, Store, Building2, Link2, Link2Off, X } from 'lucide-react';
@@ -9,6 +9,7 @@ import { formatDate } from '@/lib/format';
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface PDVOption { id: number; nom: string; code: string; type: string; }
+interface ClientPdv { id: number; nom: string; code: string }
 
 interface Client {
   id: number;
@@ -18,7 +19,8 @@ interface Client {
   adresse: string | null;
   etat: string;
   createdAt: string;
-  pointDeVente: { id: number; nom: string; code: string } | null;
+  pointDeVente: ClientPdv | null;
+  pointsDeVente?: { pointDeVente: ClientPdv }[];
   _count: { souscriptionsPacks: number };
 }
 
@@ -35,11 +37,17 @@ export default function ClientsPage() {
   const [page, setPage]                   = useState(1);
   const [filterPdvId, setFilterPdvId]     = useState('');
   const [modalOpen, setModalOpen]         = useState(false);
-  const [formData, setFormData]           = useState({ nom: '', prenom: '', telephone: '', adresse: '', pointDeVenteId: '' });
+  const [formData, setFormData]           = useState({
+    nom: '',
+    prenom: '',
+    telephone: '',
+    adresse: '',
+    pointsDeVenteIds: [] as number[],
+  });
 
   // ── Modal affectation PDV ───────────────────────────────────────────────────
   const [affectClient, setAffectClient]   = useState<Client | null>(null);
-  const [affectPdvId, setAffectPdvId]     = useState('');
+  const [affectPdvIds, setAffectPdvIds]   = useState<number[]>([]);
   const [affectLoading, setAffectLoading] = useState(false);
   const [affectError, setAffectError]     = useState('');
 
@@ -70,6 +78,23 @@ export default function ClientsPage() {
   const affectClientIdRef = useRef<number | null>(null);
   const { mutate: patchClient } =
     useMutation(() => `/api/admin/clients/${affectClientIdRef.current}`, 'PATCH', { successMessage: 'Affectation mise à jour !' });
+
+  const getClientPdvs = (client: Client): ClientPdv[] => {
+    const relationPdvs = (client.pointsDeVente ?? [])
+      .map((r) => r.pointDeVente)
+      .filter(Boolean);
+
+    const combined = [...relationPdvs];
+    if (client.pointDeVente && !combined.some((p) => p.id === client.pointDeVente?.id)) {
+      combined.unshift(client.pointDeVente);
+    }
+
+    return combined;
+  };
+
+  const toggleId = (list: number[], id: number) =>
+    list.includes(id) ? list.filter((x) => x !== id) : [...list, id];
+
     
   // ── Handlers ────────────────────────────────────────────────────────────────
 
@@ -80,18 +105,19 @@ export default function ClientsPage() {
       prenom: formData.prenom,
       telephone: formData.telephone,
       adresse: formData.adresse || null,
-      pointDeVenteId: formData.pointDeVenteId ? Number(formData.pointDeVenteId) : null,
+      pointsDeVenteIds: formData.pointsDeVenteIds,
+      pointDeVenteId: formData.pointsDeVenteIds[0] ?? null,
     });
     if (result) {
       setModalOpen(false);
-      setFormData({ nom: '', prenom: '', telephone: '', adresse: '', pointDeVenteId: '' });
+      setFormData({ nom: '', prenom: '', telephone: '', adresse: '', pointsDeVenteIds: [] });
       refetch();
     }
   };
 
   const openAffectModal = (client: Client) => {
     setAffectClient(client);
-    setAffectPdvId(client.pointDeVente ? String(client.pointDeVente.id) : '');
+    setAffectPdvIds(getClientPdvs(client).map((p) => p.id));
     setAffectError('');
   };
 
@@ -100,7 +126,10 @@ export default function ClientsPage() {
     setAffectLoading(true);
     setAffectError('');
     affectClientIdRef.current = affectClient.id;
-    const res = await patchClient({ pointDeVenteId: affectPdvId ? Number(affectPdvId) : null });
+    const res = await patchClient({
+      pointsDeVenteIds: affectPdvIds,
+      pointDeVenteId: affectPdvIds[0] ?? null,
+    });
     setAffectLoading(false);
     if (res) { setAffectClient(null); refetch(); }
     else setAffectError('Erreur lors de l\'affectation');
@@ -111,7 +140,7 @@ export default function ClientsPage() {
     setAffectLoading(true);
     setAffectError('');
     affectClientIdRef.current = affectClient.id;
-    const res = await patchClient({ pointDeVenteId: null });
+    const res = await patchClient({ pointsDeVenteIds: [], pointDeVenteId: null });
     setAffectLoading(false);
     if (res) { setAffectClient(null); refetch(); }
     else setAffectError('Erreur lors de la désaffectation');
@@ -187,17 +216,25 @@ export default function ClientsPage() {
                   onChange={e => setFormData({ ...formData, adresse: e.target.value })}
                   className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50" />
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">
-                    <Store size={13} className="inline mr-1 text-slate-400" />Point de vente de rattachement (optionnel)
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    <Store size={13} className="inline mr-1 text-slate-400" />
+                    Points de vente (optionnel, multi-choix)
                   </label>
-                  <select value={formData.pointDeVenteId}
-                    onChange={e => setFormData({ ...formData, pointDeVenteId: e.target.value })}
-                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm">
-                    <option value="">Aucun PDV</option>
-                    {pdvOptions.map(p => (
-                      <option key={p.id} value={p.id}>{p.nom} ({p.code})</option>
+                  <div className="max-h-44 overflow-y-auto border border-slate-200 rounded-xl p-2 space-y-1 bg-slate-50">
+                    {pdvOptions.map((p) => (
+                      <label key={p.id} className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-white cursor-pointer text-sm">
+                        <input
+                          type="checkbox"
+                          checked={formData.pointsDeVenteIds.includes(p.id)}
+                          onChange={() => setFormData((prev) => ({
+                            ...prev,
+                            pointsDeVenteIds: toggleId(prev.pointsDeVenteIds, p.id),
+                          }))}
+                        />
+                        <span>{p.type === 'DEPOT_CENTRAL' ? '🏭' : '🏪'} {p.nom} ({p.code})</span>
+                      </label>
                     ))}
-                  </select>
+                  </div>
                 </div>
                 <button type="submit" disabled={adding}
                   className="w-full py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-all font-medium">
@@ -221,12 +258,14 @@ export default function ClientsPage() {
                 {affectClient.prenom} {affectClient.nom} — {affectClient.telephone}
               </p>
 
-              {affectClient.pointDeVente && (
+              {getClientPdvs(affectClient).length > 0 && (
                 <div className="mb-4 flex items-center gap-3 bg-blue-50 border border-blue-200 rounded-xl px-4 py-3">
                   <Store size={15} className="text-blue-500 shrink-0" />
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-slate-800 truncate">{affectClient.pointDeVente.nom}</p>
-                    <p className="text-xs text-slate-500">{affectClient.pointDeVente.code} — PDV actuel</p>
+                    <p className="text-sm font-semibold text-slate-800 truncate">PDV actuels ({getClientPdvs(affectClient).length})</p>
+                    <p className="text-xs text-slate-500 truncate">
+                      {getClientPdvs(affectClient).map((p) => `${p.nom} (${p.code})`).join(" • ")}
+                    </p>
                   </div>
                   <button onClick={handleDesaffecter} disabled={affectLoading}
                     className="flex items-center gap-1 text-xs text-red-600 hover:text-red-800 font-medium border border-red-200 bg-red-50 hover:bg-red-100 px-2 py-1 rounded-lg transition-colors disabled:opacity-50">
@@ -241,21 +280,24 @@ export default function ClientsPage() {
 
               <div className="space-y-3">
                 <label className="block text-sm font-medium text-slate-700">
-                  {affectClient.pointDeVente ? 'Réaffecter à un autre PDV' : 'Choisir un PDV'}
+                  {getClientPdvs(affectClient).length > 0 ? 'Modifier les PDV du client' : 'Choisir un ou plusieurs PDV'}
                 </label>
-                <select value={affectPdvId} onChange={e => setAffectPdvId(e.target.value)}
-                  className="w-full px-4 py-2.5 border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm">
-                  <option value="">Sélectionner un PDV…</option>
-                  {pdvOptions.map(p => (
-                    <option key={p.id} value={p.id}>
-                      {p.type === 'DEPOT_CENTRAL' ? '🏭 ' : '🏪 '}{p.nom} ({p.code})
-                    </option>
+                <div className="max-h-52 overflow-y-auto border border-slate-200 rounded-xl p-2 space-y-1 bg-slate-50">
+                  {pdvOptions.map((p) => (
+                    <label key={p.id} className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-white cursor-pointer text-sm">
+                      <input
+                        type="checkbox"
+                        checked={affectPdvIds.includes(p.id)}
+                        onChange={() => setAffectPdvIds((prev) => toggleId(prev, p.id))}
+                      />
+                      <span>{p.type === 'DEPOT_CENTRAL' ? '🏭' : '🏪'} {p.nom} ({p.code})</span>
+                    </label>
                   ))}
-                </select>
-                <button onClick={handleAffecter} disabled={affectLoading || !affectPdvId}
+                </div>
+                <button onClick={handleAffecter} disabled={affectLoading}
                   className="w-full py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 disabled:opacity-60 font-medium flex items-center justify-center gap-2 transition-colors">
                   <Link2 size={15} />
-                  {affectLoading ? 'En cours…' : affectClient.pointDeVente ? 'Réaffecter' : 'Affecter au PDV'}
+                  {affectLoading ? 'En cours…' : 'Enregistrer les assignations'}
                 </button>
               </div>
             </div>
@@ -271,13 +313,13 @@ export default function ClientsPage() {
           <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/60">
             <span className="text-slate-600 text-sm font-medium">Avec PDV</span>
             <p className="text-3xl font-bold text-slate-800 mt-1">
-              {clients.filter(c => c.pointDeVente).length}
+              {clients.filter(c => getClientPdvs(c).length > 0).length}
             </p>
           </div>
           <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/60">
             <span className="text-slate-600 text-sm font-medium">Sans PDV</span>
             <p className="text-3xl font-bold text-slate-800 mt-1">
-              {clients.filter(c => !c.pointDeVente).length}
+              {clients.filter(c => getClientPdvs(c).length === 0).length}
             </p>
           </div>
           <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/60">
@@ -348,14 +390,17 @@ export default function ClientsPage() {
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      {client.pointDeVente ? (
+                      {getClientPdvs(client).length > 0 ? (
                         <div className="flex items-center gap-2">
                           <div className="w-6 h-6 bg-blue-100 rounded-lg flex items-center justify-center">
                             <Store size={12} className="text-blue-600" />
                           </div>
                           <div>
-                            <p className="text-sm font-medium text-slate-800">{client.pointDeVente.nom}</p>
-                            <p className="text-xs text-slate-400 font-mono">{client.pointDeVente.code}</p>
+                            <p className="text-sm font-medium text-slate-800">{getClientPdvs(client)[0].nom}</p>
+                            <p className="text-xs text-slate-400 font-mono">
+                              {getClientPdvs(client)[0].code}
+                              {getClientPdvs(client).length > 1 ? ` +${getClientPdvs(client).length - 1}` : ""}
+                            </p>
                           </div>
                         </div>
                       ) : (
@@ -369,8 +414,8 @@ export default function ClientsPage() {
                         </span>
                       ) : (
                         <span className="text-xs text-slate-400">Aucune</span>
-                      )}
-                    </td>
+                      )}     
+                    </td>      
                     <td className="px-6 py-4">
                       <span className="text-sm text-slate-600">{formatDate(client.createdAt)}</span>
                     </td>
@@ -386,8 +431,8 @@ export default function ClientsPage() {
                         </Link>
                         <button onClick={() => openAffectModal(client)}
                           className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
-                          title={client.pointDeVente ? 'Réaffecter PDV' : 'Affecter à un PDV'}>
-                          {client.pointDeVente ? <Building2 size={16} /> : <Store size={16} />}
+                          title={getClientPdvs(client).length > 0 ? 'Modifier affectations PDV' : 'Affecter à un PDV'}>
+                          {getClientPdvs(client).length > 0 ? <Building2 size={16} /> : <Store size={16} />}
                         </button>
                         <button className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Supprimer">
                           <Trash2 size={16} />

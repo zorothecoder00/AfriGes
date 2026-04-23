@@ -8,15 +8,11 @@ import {
   User,
   Phone,
   MapPin,
-  Calendar,
+  Calendar,   
   Activity,
   ArrowLeft,
   Edit,
   Trash2,
-  CreditCard,
-  ShoppingBag,
-  Wallet,
-  Users,
   CheckCircle,
   XCircle,
   AlertTriangle,
@@ -61,6 +57,8 @@ interface Client {
   etat: string;
   createdAt: string;    
   updatedAt: string;
+  pointDeVente?: { id: number; nom: string; code: string } | null;
+  pointsDeVente?: { pointDeVente: { id: number; nom: string; code: string } }[];
   souscriptionsPacks?: SouscriptionPack[];
 }
 
@@ -151,6 +149,10 @@ export default function ClientDetails({ clientId }: ClientDetailsProps) {
   if (!client) return null;
 
   const totalActivites = client.souscriptionsPacks?.length || 0;
+  const pdvList = [
+    ...(client.pointsDeVente ?? []).map((r) => r.pointDeVente),
+    ...(client.pointDeVente ? [client.pointDeVente] : []),
+  ].filter((pdv, idx, arr) => arr.findIndex((x) => x.id === pdv.id) === idx);
 
   return (
     <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
@@ -297,6 +299,20 @@ export default function ClientDetails({ clientId }: ClientDetailsProps) {
                   </p>
                 </div>
               </div>
+            </div>
+            <div className="mt-4">
+              <p className="text-xs text-gray-500 mb-2">Points de vente assignés</p>
+              {pdvList.length === 0 ? (
+                <p className="text-sm text-gray-500 italic">Aucun PDV assigné</p>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {pdvList.map((pdv) => (
+                    <span key={pdv.id} className="px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 text-xs font-medium">
+                      {pdv.nom} ({pdv.code})
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 

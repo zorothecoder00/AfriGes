@@ -11,7 +11,7 @@ async function getAdminSession() {
   if (!s) return null;
   if (s.user.role !== "ADMIN" && s.user.role !== "SUPER_ADMIN") return null;
   return s;
-}     
+}       
 
 /**   
  * GET /api/admin/pdv/[id]/affectations
@@ -83,10 +83,10 @@ export async function POST(req: Request, { params }: Ctx) {
       select: { id: true, nom: true, prenom: true, gestionnaire: { select: { role: true } } },
     });
     if (!user) return NextResponse.json({ error: "Utilisateur introuvable" }, { status: 404 });
-    if (!user.gestionnaire) return NextResponse.json({ error: "Cet utilisateur n'est pas un gestionnaire" }, { status: 400 });
-
+    if (!user.gestionnaire) return NextResponse.json({ error: "Cet utilisateur n'est pas un gestionnaire" }, { status: 400 });   
+   
     const role = user.gestionnaire!.role;
-
+    
     const affectation = await prisma.$transaction(async (tx) => {
       // Désactiver toutes les affectations actives de cet utilisateur sur d'autres PDVs
       await tx.gestionnaireAffectation.updateMany({
