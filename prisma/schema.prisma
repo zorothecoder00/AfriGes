@@ -584,7 +584,7 @@ model PointDeVente {
 
   // Bulk pour clients
   clientsPDV ClientPointDeVente[]
-
+     
   // Relations opérationnelles
   affectations          GestionnaireAffectation[]
   clients               Client[]

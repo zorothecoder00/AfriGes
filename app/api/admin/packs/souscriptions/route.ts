@@ -4,7 +4,7 @@ import { getAuthSession } from "@/lib/auth";
 import { notifyAdmins } from "@/lib/notifications";
 import { traiterExpirations } from "@/lib/expirationAuto";
 
-/**
+/**  
  * GET — Toutes les souscriptions avec filtres optionnels :
  *   ?statut=ACTIF&type=REVENDEUR&search=jean
  * POST — Crée une nouvelle souscription client.
@@ -47,7 +47,7 @@ export async function GET(req: Request) {
       },
       orderBy: { createdAt: "desc" },
       include: {
-        pack: { select: { nom: true, type: true } },
+        pack: { select: { id: true, nom: true, type: true } },
         user: { select: { nom: true, prenom: true, telephone: true } },
         client: { select: { nom: true, prenom: true, telephone: true } },
         _count: { select: { versements: true, echeances: true, receptions: true } },

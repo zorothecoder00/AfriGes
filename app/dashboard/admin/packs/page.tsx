@@ -4,9 +4,9 @@ import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   Plus, Search, ArrowLeft, Package, Layers, Users, CheckCircle,
   Clock, AlertTriangle, XCircle, ChevronRight, ChevronDown, ChevronUp,
-  Truck, CreditCard, RefreshCw, Edit2, ToggleLeft, ToggleRight, Trash2,
+  Truck, CreditCard, RefreshCw, Edit2, ToggleLeft, ToggleRight, Trash2, Eye,
   Calendar, Phone, User, TrendingUp,
-} from "lucide-react";
+} from "lucide-react";   
 import Link from "next/link";
 import { useApi, useMutation } from "@/hooks/useApi";
 import { formatCurrency } from "@/lib/format";
@@ -39,11 +39,12 @@ interface Pack {
 
 interface Souscription {
   id: number;
-  pack: { nom: string; type: TypePack };
+  pack: { id: number; nom: string; type: TypePack };
   user?: { nom: string; prenom: string; telephone?: string };
   client?: { nom: string; prenom: string; telephone: string };
   statut: StatutSouscription;
   formuleRevendeur?: string;
+  frequenceVersement?: string;
   montantTotal: number;
   montantVerse: number;
   montantRestant: number;
@@ -222,6 +223,9 @@ function TabSouscriptions() {
   const [filterType, setFilterType]     = useState("");
   const [showModal, setShowModal]       = useState(false);
   const [versementTarget, setVersementTarget] = useState<number | null>(null);
+  const [readTarget, setReadTarget] = useState<Souscription | null>(null);
+  const [editTarget, setEditTarget] = useState<Souscription | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Souscription | null>(null);
   const [expanded, setExpanded] = useState<number | null>(null);
 
   useEffect(() => {
@@ -235,6 +239,16 @@ function TabSouscriptions() {
   if (filterType)   params.set("type", filterType);
 
   const { data, loading, refetch } = useApi<SouscriptionsData>(`/api/admin/packs/souscriptions?${params}`);
+  const { mutate: patchSouscription, loading: patchingSouscription } = useMutation(
+    () => `/api/admin/packs/souscriptions/${editTarget?.id ?? 0}`,
+    "PATCH",
+    { successMessage: "Souscription modifiée !" }
+  );
+  const { mutate: deleteSouscription, loading: deletingSouscription } = useMutation(
+    () => `/api/admin/packs/souscriptions/${deleteTarget?.id ?? 0}`,
+    "DELETE",
+    { successMessage: "Souscription supprimée !" }
+  );
   const souscriptions = data?.souscriptions ?? [];
   const stats = data?.stats ?? [];
 
@@ -364,6 +378,24 @@ function TabSouscriptions() {
 
                     {/* Actions */}
                     <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        onClick={() => setReadTarget(s)}
+                        className="inline-flex items-center gap-1 px-3 py-1.5 bg-slate-100 text-slate-700 text-xs font-medium rounded-lg hover:bg-slate-200 transition-colors"
+                      >
+                        <Eye className="w-3.5 h-3.5" /> Lire
+                      </button>
+                      <button
+                        onClick={() => setEditTarget(s)}
+                        className="inline-flex items-center gap-1 px-3 py-1.5 bg-amber-100 text-amber-800 text-xs font-medium rounded-lg hover:bg-amber-200 transition-colors"
+                      >
+                        <Edit2 className="w-3.5 h-3.5" /> Modifier
+                      </button>
+                      <button
+                        onClick={() => setDeleteTarget(s)}
+                        className="inline-flex items-center gap-1 px-3 py-1.5 bg-rose-100 text-rose-700 text-xs font-medium rounded-lg hover:bg-rose-200 transition-colors"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" /> Supprimer
+                      </button>
                       {(s.statut === "ACTIF" || s.statut === "EN_ATTENTE") && (
                         <button
                           onClick={() => setVersementTarget(s.id)}
@@ -442,6 +474,40 @@ function TabSouscriptions() {
           souscriptionId={versementTarget}
           onClose={() => setVersementTarget(null)}
           onSuccess={() => { refetch(); }}
+        />
+      )}
+      {readTarget && (
+        <ModalReadSouscription
+          souscription={readTarget}
+          onClose={() => setReadTarget(null)}
+        />
+      )}
+      {editTarget && (
+        <ModalEditSouscription
+          souscription={editTarget}
+          loading={patchingSouscription}
+          onClose={() => setEditTarget(null)}
+          onSubmit={async (payload) => {
+            const ok = await patchSouscription(payload);
+            if (ok) {
+              setEditTarget(null);
+              refetch();
+            }
+          }}
+        />
+      )}
+      {deleteTarget && (
+        <ModalConfirmDeleteSouscription
+          souscription={deleteTarget}
+          loading={deletingSouscription}
+          onClose={() => setDeleteTarget(null)}
+          onConfirm={async () => {
+            const ok = await deleteSouscription({});
+            if (ok) {
+              setDeleteTarget(null);
+              refetch();
+            }
+          }}
         />
       )}
     </>
@@ -1378,6 +1444,250 @@ function ModalCreerPack({ pack, onClose, onSuccess }: { pack: Pack | null; onClo
 }
 
 // ─── Modal : Nouvelle souscription (2 étapes) ─────────────────────────────────
+function ModalEditSouscription({
+  souscription,
+  loading,
+  onClose,
+  onSubmit,
+}: {
+  souscription: Souscription;
+  loading: boolean;
+  onClose: () => void;
+  onSubmit: (payload: {
+    packId: number;
+    statut: StatutSouscription;
+    formuleRevendeur?: string;
+    frequenceVersement?: string;
+    montantTotal: number;
+    dateDebut: string;
+    notes: string;
+  }) => Promise<void>;
+}) {
+  const { data: packs } = useApi<Pack[]>("/api/admin/packs");
+  const [packId, setPackId] = useState(String(souscription.pack.id));
+  const [statut, setStatut] = useState<StatutSouscription>(souscription.statut);
+  const [formuleRevendeur, setFormuleRevendeur] = useState(souscription.formuleRevendeur ?? "");
+  const [frequenceVersement, setFrequenceVersement] = useState("HEBDOMADAIRE");
+  const [montantTotal, setMontantTotal] = useState(String(souscription.montantTotal));
+  const [dateDebut, setDateDebut] = useState(new Date(souscription.dateDebut).toISOString().slice(0, 10));
+  const [notes, setNotes] = useState(souscription.notes ?? "");
+  const selectedPack = (packs ?? []).find((p) => p.id === parseInt(packId, 10));
+
+  useEffect(() => {
+    if (!selectedPack) return;
+    if (selectedPack.type === "REVENDEUR") {
+      setFormuleRevendeur(selectedPack.formuleRevendeur ?? formuleRevendeur);
+    }
+    if (selectedPack.type === "FAMILIAL" && souscription.frequenceVersement) {
+      setFrequenceVersement(souscription.frequenceVersement);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [packId]);
+
+  return (
+    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+      <div className="w-full max-w-lg bg-white rounded-2xl shadow-2xl p-6 space-y-4">
+        <h3 className="text-xl font-bold text-slate-800">Modifier la souscription #{souscription.id}</h3>
+        <p className="text-sm text-slate-500">{nom(souscription)} — {souscription.pack.nom}</p>
+
+        <div>
+          <label className="text-sm font-medium text-slate-700">Pack</label>
+          <select
+            value={packId}
+            onChange={(e) => setPackId(e.target.value)}
+            className="mt-1 w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+          >
+            {(packs ?? []).filter((p) => p.actif).map((p) => (
+              <option key={p.id} value={p.id}>{p.nom} ({PACK_LABELS[p.type]})</option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label className="text-sm font-medium text-slate-700">Statut</label>
+          <select
+            value={statut}
+            onChange={(e) => setStatut(e.target.value as StatutSouscription)}
+            className="mt-1 w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+          >
+            {(["EN_ATTENTE", "ACTIF", "SUSPENDU", "COMPLETE", "ANNULE"] as StatutSouscription[]).map((s) => (
+              <option key={s} value={s}>{STATUT_CFG[s].label}</option>
+            ))}
+          </select>
+        </div>
+
+        {selectedPack?.type === "REVENDEUR" && (
+          <div>
+            <label className="text-sm font-medium text-slate-700">Formule revendeur</label>
+            {selectedPack.formuleRevendeur ? (
+              <div className="mt-1 p-3 rounded-xl border border-blue-300 bg-blue-50 text-blue-800 text-sm">
+                {selectedPack.formuleRevendeur === "FORMULE_1" ? "Formule 1 (verrouillée par le pack)" : "Formule 2 (verrouillée par le pack)"}
+              </div>
+            ) : (
+              <select
+                value={formuleRevendeur}
+                onChange={(e) => setFormuleRevendeur(e.target.value)}
+                className="mt-1 w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              >
+                <option value="FORMULE_1">Formule 1</option>
+                <option value="FORMULE_2">Formule 2</option>
+              </select>
+            )}
+          </div>
+        )}
+
+        {selectedPack?.type === "FAMILIAL" && (
+          <div>
+            <label className="text-sm font-medium text-slate-700">Fréquence de versement</label>
+            <select
+              value={frequenceVersement}
+              onChange={(e) => setFrequenceVersement(e.target.value)}
+              className="mt-1 w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            >
+              <option value="HEBDOMADAIRE">Hebdomadaire</option>
+              <option value="BIMENSUEL">Bimensuel</option>
+              <option value="MENSUEL">Mensuel</option>
+            </select>
+          </div>
+        )}
+
+        <div>
+          <label className="text-sm font-medium text-slate-700">Montant total</label>
+          <input
+            type="number"
+            min={1}
+            value={montantTotal}
+            onChange={(e) => setMontantTotal(e.target.value)}
+            className="mt-1 w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+          />
+        </div>
+
+        <div>
+          <label className="text-sm font-medium text-slate-700">Date de début</label>
+          <input
+            type="date"
+            value={dateDebut}
+            onChange={(e) => setDateDebut(e.target.value)}
+            className="mt-1 w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+          />
+        </div>
+
+        <div>
+          <label className="text-sm font-medium text-slate-700">Notes</label>
+          <textarea
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            rows={3}
+            className="mt-1 w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+          />
+        </div>
+
+        <div className="flex justify-end gap-2 pt-2">
+          <button onClick={onClose} className="px-4 py-2 rounded-xl border border-slate-200 text-sm">
+            Annuler
+          </button>
+          <button
+            disabled={loading}
+            onClick={() => onSubmit({
+              packId: parseInt(packId, 10),
+              statut,
+              formuleRevendeur: selectedPack?.type === "REVENDEUR" ? (selectedPack.formuleRevendeur ?? formuleRevendeur) : undefined,
+              frequenceVersement: selectedPack?.type === "FAMILIAL" ? frequenceVersement : undefined,
+              montantTotal: parseFloat(montantTotal),
+              dateDebut,
+              notes,
+            })}
+            className="px-4 py-2 rounded-xl bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700 disabled:opacity-50"
+          >
+            {loading ? "Enregistrement..." : "Enregistrer"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ModalReadSouscription({ souscription, onClose }: { souscription: Souscription; onClose: () => void }) {
+  const progress = pct(Number(souscription.montantVerse), Number(souscription.montantTotal));
+  const cfg = STATUT_CFG[souscription.statut];
+
+  return (
+    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+      <div className="w-full max-w-xl bg-white rounded-2xl shadow-2xl p-6 space-y-4">
+        <div className="flex items-start justify-between">
+          <div>
+            <h3 className="text-xl font-bold text-slate-800">Lecture souscription #{souscription.id}</h3>
+            <p className="text-sm text-slate-500">{nom(souscription)} — {souscription.pack.nom}</p>
+          </div>
+          <button onClick={onClose} className="px-2 py-1 text-slate-500 hover:bg-slate-100 rounded-lg">✕</button>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4 text-sm">
+          <div><span className="text-slate-400">Client</span><p className="font-medium">{nom(souscription)}</p></div>
+          <div><span className="text-slate-400">Téléphone</span><p className="font-medium">{tel(souscription)}</p></div>
+          <div><span className="text-slate-400">Pack</span><p className="font-medium">{souscription.pack.nom}</p></div>
+          <div><span className="text-slate-400">Type</span><p className="font-medium">{PACK_LABELS[souscription.pack.type]}</p></div>
+          <div><span className="text-slate-400">Date début</span><p className="font-medium">{fmtD(souscription.dateDebut)}</p></div>
+          <div><span className="text-slate-400">Date fin</span><p className="font-medium">{fmtD(souscription.dateFin)}</p></div>
+          <div><span className="text-slate-400">Montant total</span><p className="font-medium">{formatCurrency(souscription.montantTotal)}</p></div>
+          <div><span className="text-slate-400">Montant versé</span><p className="font-medium">{formatCurrency(souscription.montantVerse)}</p></div>
+        </div>
+
+        <div>
+          <div className="flex items-center justify-between text-xs text-slate-500 mb-1">
+            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full ${cfg.cls}`}>{cfg.icon} {cfg.label}</span>
+            <span>{progress}%</span>
+          </div>
+          <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+            <div className="h-full bg-emerald-500" style={{ width: `${progress}%` }} />
+          </div>
+        </div>
+
+        {souscription.notes && (
+          <div className="p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm text-slate-700">
+            <p className="text-xs text-slate-400 mb-1">Notes</p>
+            {souscription.notes}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ModalConfirmDeleteSouscription({
+  souscription,
+  loading,
+  onClose,
+  onConfirm,
+}: {
+  souscription: Souscription;
+  loading: boolean;
+  onClose: () => void;
+  onConfirm: () => Promise<void>;
+}) {
+  return (
+    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+      <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl p-6 space-y-4">
+        <h3 className="text-lg font-bold text-slate-800">Supprimer cette souscription ?</h3>
+        <p className="text-sm text-slate-600">
+          Cette action est irréversible. Souscription <strong>#{souscription.id}</strong> — {nom(souscription)}.
+        </p>
+        <div className="flex justify-end gap-2 pt-2">
+          <button onClick={onClose} className="px-4 py-2 rounded-xl border border-slate-200 text-sm">
+            Annuler
+          </button>
+          <button
+            disabled={loading}
+            onClick={onConfirm}
+            className="px-4 py-2 rounded-xl bg-rose-600 text-white text-sm font-medium hover:bg-rose-700 disabled:opacity-50"
+          >
+            {loading ? "Suppression..." : "Supprimer"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function ModalNouvelleSouscription({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
   const [step, setStep] = useState<1 | 2>(1);

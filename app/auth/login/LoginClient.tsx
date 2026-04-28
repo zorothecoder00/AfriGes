@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import AfriSimeLogo from '@/components/AfriSimeLogo'
       
-// Définition du type pour nos erreurs
+// Définition du type pour nos erreurs  
 type Errors = {
   email?: string
   password?: string
@@ -98,7 +98,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="h-screen overflow-hidden flex items-center justify-center bg-gradient-to-br from-violet-600 to-purple-800 px-4 relative">
+    <div className="h-screen overflow-hidden flex items-center justify-center bg-gradient-to-br from-emerald-800 to-green-700 px-4 relative">
 
       {/* Animated background pattern */}
       <div className="absolute inset-0 opacity-10">
@@ -107,12 +107,12 @@ export default function LoginPage() {
 
       <div className="w-full max-w-sm md:max-w-md mx-auto relative z-10 animate-[slideUp_0.6s_ease-out]">
         
-        <div className="bg-white rounded-3xl shadow-[0_20px_60px_rgba(44,62,80,0.25)] overflow-hidden transition-transform hover:-translate-y-1 duration-300">
+        <div className="bg-white/95 backdrop-blur-sm rounded-3xl shadow-[0_20px_60px_rgba(44,62,80,0.25)] overflow-hidden transition-transform hover:-translate-y-1 duration-300">
           {/* Header */}
-          <div className="bg-gradient-to-br from-slate-800 to-slate-900 px-8 py-6 text-center relative overflow-hidden">
+          <div className="bg-gradient-to-br from-emerald-900 to-emerald-700 px-8 py-6 text-center relative overflow-hidden">
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.1)_20%,transparent_70%)] animate-pulse opacity-50" />
             <div className="relative z-10 mb-4 flex justify-center">
-              <div className="bg-white/95 rounded-2xl px-3 py-2 shadow-lg">
+              <div className="bg-white/97 border border-emerald-100 rounded-2xl px-3 py-2 shadow-lg">
                 <AfriSimeLogo className="h-10 w-auto md:h-12" priority />
               </div>
             </div>
@@ -125,7 +125,7 @@ export default function LoginPage() {
           </div>
 
           {infoMessage && (
-            <div className="text-green-600 text-sm text-center mb-4">
+            <div className="text-emerald-600 text-sm text-center mb-4">
               {infoMessage}
             </div>
           )}
@@ -140,7 +140,7 @@ export default function LoginPage() {
               )}
 
               <div>
-                <label htmlFor="email" className="block text-sm font-medium text-slate-800 mb-2">
+                <label htmlFor="email" className="block text-sm font-medium text-emerald-900 mb-2">
                   Email <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -151,12 +151,12 @@ export default function LoginPage() {
                   onChange={handleChange}
                   placeholder="votre.email@exemple.com"
                   required
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:border-slate-800 focus:outline-none focus:ring-4 focus:ring-violet-100 transition-all"
+                  className="w-full px-4 py-3 border border-green-200 rounded-xl focus:border-emerald-600 focus:outline-none focus:ring-4 focus:ring-emerald-100 transition-all"
                 />
               </div>
 
               <div>
-                <label htmlFor="password" className="block text-sm font-medium text-slate-800 mb-2">
+                <label htmlFor="password" className="block text-sm font-medium text-emerald-900 mb-2">
                   Mot de passe <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
@@ -168,7 +168,7 @@ export default function LoginPage() {
                     onChange={handleChange}
                     placeholder="••••••••"
                     required
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:border-slate-800 focus:outline-none focus:ring-4 focus:ring-violet-100 transition-all"
+                    className="w-full px-4 py-3 border border-green-200 rounded-xl focus:border-emerald-600 focus:outline-none focus:ring-4 focus:ring-emerald-100 transition-all"
                   />
                   <button
                     type="button"
@@ -188,15 +188,15 @@ export default function LoginPage() {
                     name="remember"
                     checked={formData.remember}
                     onChange={handleChange}
-                    className="w-4 h-4 rounded border-gray-300 text-slate-800 focus:ring-violet-500"
+                    className="w-4 h-4 rounded border-gray-300 text-emerald-700 focus:ring-emerald-500"
                   />
-                  <label htmlFor="remember" className="ml-2 text-sm text-gray-600">
+                  <label htmlFor="remember" className="ml-2 text-sm text-emerald-900">
                     Se souvenir de moi
                   </label>
                 </div>
                 <Link
                   href="/auth/forgot-password"
-                  className="text-sm text-red-500 hover:text-red-600 font-medium transition-colors"
+                  className="text-sm text-emerald-600 hover:text-emerald-700 font-medium transition-colors"
                 >
                   Mot de passe oublié ?
                 </Link>
@@ -205,7 +205,7 @@ export default function LoginPage() {
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full bg-gradient-to-r from-red-500 to-red-600 text-white py-4 rounded-xl font-semibold hover:-translate-y-0.5 hover:shadow-[0_6px_20px_rgba(239,68,68,0.4)] transition-all disabled:opacity-60 disabled:cursor-not-allowed shadow-[0_4px_15px_rgba(239,68,68,0.3)]"
+                className="w-full bg-gradient-to-r from-emerald-600 to-green-700 text-white py-4 rounded-xl font-semibold hover:-translate-y-0.5 hover:shadow-[0_6px_20px_rgba(16,185,129,0.4)] transition-all disabled:opacity-60 disabled:cursor-not-allowed shadow-[0_4px_15px_rgba(16,185,129,0.3)]"
               >
                 {isLoading ? 'Connexion en cours...' : 'Se connecter'}
               </button>
