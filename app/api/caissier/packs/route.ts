@@ -25,7 +25,7 @@ export async function GET(req: Request) {
     // Utilise AND explicite pour éviter que le filtre search (OR) écrase le filtre PDV (OR)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const andConditions: any[] = [
-      { statut: statut ? (statut as never) : { in: ["EN_ATTENTE", "ACTIF"] } },
+      { statut: statut ? (statut as never) : { in: ["EN_ATTENTE", "ACTIF", "SUSPENDU"] } },
     ];
     if (pdvId) andConditions.push(souscriptionPdvWhere(pdvId));
     if (search) {

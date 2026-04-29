@@ -6,7 +6,7 @@ import {
   Clock, AlertTriangle, XCircle, ChevronRight, ChevronDown, ChevronUp,
   Truck, CreditCard, RefreshCw, Edit2, ToggleLeft, ToggleRight, Trash2, Eye,
   Calendar, Phone, User, TrendingUp,
-} from "lucide-react";   
+} from "lucide-react";    
 import Link from "next/link";
 import { useApi, useMutation } from "@/hooks/useApi";
 import { formatCurrency } from "@/lib/format";
@@ -26,7 +26,7 @@ interface Pack {
   dureeJours?: number;
   frequenceVersement: string;
   montantVersement?: number;
-  formuleRevendeur?: string;
+  formuleRevendeur?: string; 
   montantCredit?: number;
   montantSeuil?: number;
   bonusPourcentage?: number;
@@ -226,6 +226,8 @@ function TabSouscriptions() {
   const [readTarget, setReadTarget] = useState<Souscription | null>(null);
   const [editTarget, setEditTarget] = useState<Souscription | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Souscription | null>(null);
+  const [alerteTarget, setAlerteTarget] = useState<Souscription | null>(null);
+  const [alerteMotif, setAlerteMotif] = useState("Date dépassée / collecte urgente");
   const [expanded, setExpanded] = useState<number | null>(null);
 
   useEffect(() => {
@@ -249,6 +251,13 @@ function TabSouscriptions() {
     "DELETE",
     { successMessage: "Souscription supprimée !" }
   );
+
+  const { mutate: alerterUrgence, loading: alertingUrgence } = useMutation(
+    () => `/api/admin/packs/souscriptions/${alerteTarget?.id ?? 0}/alerte-urgence`,
+    "POST",
+    { successMessage: "Alerte urgence envoyée." }
+  );
+
   const souscriptions = data?.souscriptions ?? [];
   const stats = data?.stats ?? [];
 
@@ -396,6 +405,18 @@ function TabSouscriptions() {
                       >
                         <Trash2 className="w-3.5 h-3.5" /> Supprimer
                       </button>
+                       {(s.statut === "SUSPENDU" || s.statut === "ANNULE") && (
+                        <button
+                          onClick={() => {
+                            setAlerteTarget(s);
+                            setAlerteMotif("Date dépassée / collecte urgente");
+                          }}
+                          disabled={alertingUrgence}
+                          className="inline-flex items-center gap-1 px-3 py-1.5 bg-orange-100 text-orange-800 text-xs font-medium rounded-lg hover:bg-orange-200 transition-colors disabled:opacity-60"
+                        >
+                          <AlertTriangle className="w-3.5 h-3.5" /> Alerte urgence
+                        </button>
+                      )}
                       {(s.statut === "ACTIF" || s.statut === "EN_ATTENTE") && (
                         <button
                           onClick={() => setVersementTarget(s.id)}
@@ -403,7 +424,7 @@ function TabSouscriptions() {
                         >
                           <CreditCard className="w-3.5 h-3.5" /> Versement
                         </button>
-                      )}
+                      )}  
                       <button
                         onClick={() => setExpanded(isExpanded ? null : s.id)}
                         className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
@@ -510,6 +531,46 @@ function TabSouscriptions() {
           }}
         />
       )}
+
+       {alerteTarget && (
+        <div className="fixed inset-0 z-[70] bg-black/40 backdrop-blur-[1px] flex items-center justify-center p-4">
+          <div className="w-full max-w-lg bg-white rounded-2xl shadow-xl border border-slate-200 p-5 space-y-4">
+            <h3 className="text-lg font-bold text-slate-800">Alerte urgence</h3>
+            <p className="text-sm text-slate-600">
+              Souscription <strong>#{alerteTarget.id}</strong> — {nom(alerteTarget)}
+            </p>
+            <textarea
+              value={alerteMotif}
+              onChange={(e) => setAlerteMotif(e.target.value)}
+              rows={4}
+              className="w-full border border-slate-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+              placeholder="Décrivez la raison de l'alerte"
+            />
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setAlerteTarget(null)}
+                className="px-4 py-2 text-sm rounded-lg border border-slate-200 hover:bg-slate-50"
+              >
+                Annuler
+              </button>
+              <button
+                disabled={alertingUrgence}
+                onClick={async () => {
+                  const ok = await alerterUrgence({ motif: alerteMotif });
+                  if (ok) {
+                    setAlerteTarget(null);
+                    refetch();
+                  }
+                }}
+                className="px-4 py-2 text-sm rounded-lg bg-orange-600 text-white hover:bg-orange-700 disabled:opacity-60"
+              >
+                Envoyer l&apos;alerte
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+       
     </>
   );
 }

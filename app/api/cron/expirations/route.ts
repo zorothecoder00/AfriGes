@@ -11,7 +11,7 @@ import { traiterExpirations } from "@/lib/expirationAuto";
  * - Vercel Cron : configuré dans vercel.json
  * - Manuel : curl "https://monsite.com/api/cron/expirations?secret=MA_CLE"
  * - cron-job.org, easycron, etc.
- */
+ */    
 export async function GET(req: Request) {
   try {    
     // Vérification de la clé secrète
@@ -23,7 +23,7 @@ export async function GET(req: Request) {
     if (!cronSecret || secret !== cronSecret) {
       return NextResponse.json({ error: "Non autorise" }, { status: 401 });
     }
-
+   
     const result = await traiterExpirations();
 
     return NextResponse.json({
@@ -31,7 +31,7 @@ export async function GET(req: Request) {
       message: "Traitement des expirations packs terminé",
       echeancesEnRetard: result.echeancesEnRetard,
       souscriptionsCompletes: result.souscriptionsCompletes,
-      souscriptionsAnnulees: result.souscriptionsAnnulees,
+      souscriptionsExpireesSignalees: result.souscriptionsExpireesSignalees,
     });
   } catch (error) {
     console.error("CRON /expirations error:", error);

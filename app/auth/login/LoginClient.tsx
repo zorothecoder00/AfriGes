@@ -96,7 +96,7 @@ export default function LoginPage() {
       console.error(`${provider} login error:`, error);
     }
   };
-
+   
   return (
     <div className="h-screen overflow-hidden flex items-center justify-center bg-gradient-to-br from-emerald-800 to-green-700 px-4 relative">
 

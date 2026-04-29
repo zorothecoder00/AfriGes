@@ -9,7 +9,7 @@ type Ctx = { params: Promise<{ id: string }> };
  * POST — Enregistre un versement sur une souscription pack.
  * Met à jour automatiquement montantVerse, montantRestant et le statut
  * de la souscription (COMPLETE si soldée).
- * Si une échéance correspond à la date, elle est marquée PAYEE.
+ * Si une échéance correspond à la date, elle est marquée PAYEE. 
  */
 export async function POST(req: Request, { params }: Ctx) {
   try {
@@ -55,9 +55,17 @@ export async function POST(req: Request, { params }: Ctx) {
         return NextResponse.json({ error: "Vous ne pouvez pas encaisser sur une souscription hors de votre PDV" }, { status: 403 });
       }
     }
+
     if (souscription.statut === "ANNULE" || souscription.statut === "COMPLETE") {
       return NextResponse.json(
-        { error: `Souscription déjà ${souscription.statut.toLowerCase()}` },
+        {
+          error: `Souscription déjà ${souscription.statut.toLowerCase()}`,
+          needsAdminIntervention: true,
+          adminActions: [
+            "Changer le statut de la souscription (ex: ACTIF)",
+            "Déclencher une alerte via POST /api/admin/packs/souscriptions/{id}/alerte-urgence",
+          ],
+        },
         { status: 400 }
       );
     }

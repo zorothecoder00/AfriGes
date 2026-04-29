@@ -34,34 +34,22 @@ export async function GET(req: Request) {
       where: {
         statut: "EN_ATTENTE",
         datePrevue: { lt: now },
-        souscription: {
+        souscription: {  
           client: { pointDeVenteId: pdvId },
         },
       }, 
       data: { statut: "EN_RETARD" },
     });
 
-    // 2) Suspendre les souscriptions expirées mais non soldées
-    await prisma.souscriptionPack.updateMany({
-      where: {
-        statut: { in: ["EN_ATTENTE", "ACTIF"] },
-        dateFin: { not: null, lt: now },
-        montantRestant: { gt: 0 },
-        client: { pointDeVenteId: pdvId },
-      },
-      data: { statut: "SUSPENDU" },
-    });
-
     const souscriptions = await prisma.souscriptionPack.findMany({
       where: {
-        statut: { in: ["EN_ATTENTE", "ACTIF"] },
-        OR: [{ dateFin: null }, { dateFin: { gte: now } }],
+        statut: { in: ["EN_ATTENTE", "ACTIF", "SUSPENDU"] },
         // Filtrer uniquement les clients du PDV de l'agent
         client: { pointDeVenteId: pdvId },
         ...(typePack ? { pack: { type: typePack as never } } : {}),
         ...(search
           ? {
-              OR: [
+              OR: [   
                 { client: { nom: { contains: search, mode: "insensitive" } } },
                 { client: { prenom: { contains: search, mode: "insensitive" } } },
                 { client: { telephone: { contains: search } } },

@@ -4,11 +4,13 @@
 On peut aussi utiliser du SVG pour les graphiques ( sans forcément dépendance externe)  
 Ce code :      
  const a = document.createElement("a");
- a.href = url;           
- a.download = filename;              
+ a.href = url;             
+ a.download = filename;                     
  a.click();                             
  permet de créer un téléchargement via un clic sur une URL ( utile pour les exports)
 import { randomUUID } from "crypto";  permet de générer des UUID(sorte d'identifiant unique aléatoire) par exemple pour des factures ou des pièces justificatives
+
+-Au niveau des souscriptions avec statut(StatutSouscription SUSPENDU ou ANNULE), je veux que l'admin ait soit la possibilité de changer leur statut , soit de juste donner une alerte ( parce que quand les souscirptions sont en statut SUSPENDU ou ANNULE , la caisse, la comptabilité et les agents de terrain ne peuvent plus faire d'opérations dessus ce qui est problématique par exemple collecter ou enregistrer des versements  ) , par exemple date dépassée donc collecte en urgence, statutStatutVersementPack EN_RETARD , etc etc . Bon toi aussi analyse et propose moi une solution
         
 -Pas une erreur mais un bug ; normalement au niveau du point de vente de
   l'utilisateur , on ne devrait pas mettre un unique point de vente pour le

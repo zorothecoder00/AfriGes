@@ -4,7 +4,7 @@ import { getAgentTerrainSession } from "@/lib/authAgentTerrain";
 import { notifyAdmins } from "@/lib/notifications";
 
 type Ctx = { params: Promise<{ id: string }> };  
-    
+       
 /**  
  * POST /api/agentTerrain/packs/[id]/collecte
  * Enregistre un versement de terrain sur une souscription pack.
@@ -32,24 +32,17 @@ export async function POST(req: Request, { params }: Ctx) {
     if (!souscription) {
       return NextResponse.json({ error: "Souscription introuvable" }, { status: 404 });
     }
-    if (
-      souscription.statut === "ANNULE" ||
-      souscription.statut === "COMPLETE" ||
-      souscription.statut === "SUSPENDU"
-    ) {
-      return NextResponse.json(
-        { error: `Souscription déjà ${souscription.statut.toLowerCase()}` },
-        { status: 400 }
-      );
-    }
 
-    if (souscription.dateFin && new Date(souscription.dateFin) < new Date()) {
-      await prisma.souscriptionPack.update({
-        where: { id: souscriptionId },
-        data: { statut: "SUSPENDU" },
-      });
+    if (souscription.statut === "ANNULE" || souscription.statut === "COMPLETE" ) {
       return NextResponse.json(
-        { error: "Cette souscription est échue (date de fin dépassée) et ne peut plus être collectée." },
+        {    
+          error: `Souscription déjà ${souscription.statut.toLowerCase()}`,
+          needsAdminIntervention: true,
+          adminActions: [
+            "Changer le statut de la souscription (ex: ACTIF)",
+            "Déclencher une alerte via POST /api/admin/packs/souscriptions/{id}/alerte-urgence",
+          ],
+        },
         { status: 400 }
       );
     }
