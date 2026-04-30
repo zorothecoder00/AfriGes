@@ -7,7 +7,7 @@
 generator client {
   provider = "prisma-client-js"
 }                                          
-                        
+                         
 datasource db {
   provider = "postgresql"
 }          
@@ -201,10 +201,10 @@ enum FormuleRevendeur {
 }
 
 enum FrequenceVersement {
-  QUOTIDIEN
+  QUOTIDIEN   
   HEBDOMADAIRE
   BIMENSUEL
-  MENSUEL
+  MENSUEL  
 }
 
 enum StatutSouscription {
@@ -817,10 +817,10 @@ model ReceptionApprovisionnement {
   updatedAt DateTime @updatedAt
 
   @@index([statut])
-  @@index([type])
+  @@index([type])   
   @@index([pointDeVenteId])
-}
-
+}   
+  
 model LigneReceptionAppro {
   id               Int     @id @default(autoincrement())
   receptionId      Int

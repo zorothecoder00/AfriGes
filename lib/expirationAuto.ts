@@ -40,7 +40,7 @@ export async function traiterExpirations(): Promise<ExpirationResult> {
   const souscriptionsACompleter = await prisma.souscriptionPack.findMany({
     where: {
       statut: StatutSouscription.ACTIF,
-      dateFin: { not: null, lt: now },
+      dateFin: { not: null, lt: now },  
       montantRestant: { lte: 0 },
     },
     select: { id: true },

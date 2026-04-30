@@ -10,7 +10,7 @@ import AfriSimeLogo from '@/components/AfriSimeLogo'
 type Errors = {
   email?: string
   password?: string
-  general?: string      
+  general?: string             
 }
 
 export default function LoginPage() {  
@@ -98,12 +98,22 @@ export default function LoginPage() {
   };
    
   return (
-    <div className="h-screen overflow-hidden flex items-center justify-center bg-gradient-to-br from-emerald-800 to-green-700 px-4 relative">
+    <div className="h-screen overflow-hidden flex items-center justify-center px-4 relative bg-gradient-to-br from-green-400 via-emerald-600 to-emerald-900">
 
-      {/* Animated background pattern */}
-      <div className="absolute inset-0 opacity-10">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.1)_1px,transparent_1px)] bg-[length:50px_50px] animate-[patternMove_20s_linear_infinite]" />
-      </div>
+      {/* Bulle haut gauche */}
+      <div className="absolute -top-20 -left-20 w-72 h-72 rounded-full bg-green-300/20 blur-sm" />
+
+      {/* Bulle bas gauche */}
+      <div className="absolute -bottom-16 left-[5%] w-56 h-56 rounded-full bg-green-200/15 blur-sm" />
+
+      {/* Bulle haut droite */}
+      <div className="absolute top-[5%] -right-12 w-48 h-48 rounded-full bg-emerald-300/20 blur-sm" />
+
+      {/* Bulle milieu droite */}
+      <div className="absolute bottom-[20%] right-[3%] w-36 h-36 rounded-full bg-green-300/15 blur-sm" />
+
+      {/* Pattern points subtil */}
+      <div className="absolute inset-0 opacity-5 bg-[radial-gradient(circle,rgba(255,255,255,0.8)_1px,transparent_1px)] bg-[length:40px_40px]" />
 
       <div className="w-full max-w-sm md:max-w-md mx-auto relative z-10 animate-[slideUp_0.6s_ease-out]">
         

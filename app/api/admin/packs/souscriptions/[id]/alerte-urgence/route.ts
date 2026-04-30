@@ -62,7 +62,7 @@ export async function POST(req: Request, { params }: Ctx) {
         priorite: "HAUTE",
         actionUrl: "/dashboard/admin/packs",
       });
-
+  
       if (cibles.length > 0) {
         await tx.notification.createMany({
           data: cibles.map((u) => ({
