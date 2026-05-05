@@ -125,12 +125,12 @@ export default function GestionStockPage() {
     if (grandStockItems.length > 0) return grandStockItems.map(p => ({ id: p.id, nom: p.nom }));
     const seen = new Set<number>();
     const result: { id: number; nom: string }[] = [];
-    for (const item of stockItems) {
+    for (const item of stockItems) {  
       if (!seen.has(item.produitId)) {
         seen.add(item.produitId);
         result.push({ id: item.produitId, nom: item.produit.nom });
       }
-    }
+    }  
     return result;
   }, [tousProduitsResp, grandStockItems, stockItems]);
 

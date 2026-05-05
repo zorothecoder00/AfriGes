@@ -1,20 +1,21 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
-import {
+import {  
   Package, Archive, AlertTriangle, TrendingUp, Search, ArrowLeft,
   RefreshCw, Eye, ClipboardList, ArrowUpCircle, ArrowDownCircle,
   BarChart3, Boxes, LucideIcon, CheckCircle, X, Plus, ArrowRightLeft,
   ChevronDown, ChevronUp, Truck, FileText, Printer, ShieldAlert,
   Trash2, Gift, MinusCircle, Send, Clock, CheckSquare, XCircle, PackageCheck, ShoppingBag
 } from 'lucide-react';
-import Link from 'next/link';
+import Link from 'next/link';  
 import SignOutButton from '@/components/SignOutButton';
 import NotificationBell from '@/components/NotificationBell';
 import MessagesLink from '@/components/MessagesLink';
 import UserPdvBadge from '@/components/UserPdvBadge';
 import { useApi, useMutation } from '@/hooks/useApi';
 import { formatCurrency, formatDate } from '@/lib/format';
+import { useT } from "@/contexts/AppSettingsContext";
 
 // ============================================================================
 // TYPES
@@ -157,6 +158,8 @@ const StatCard = ({ label, value, icon: Icon, color, lightBg }: {
 // ============================================================================
 
 export default function MagasinierPage() {
+  const t = useT();
+
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [page, setPage] = useState(1);
@@ -626,7 +629,7 @@ export default function MagasinierPage() {
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-orange-50/30 to-amber-50/20 flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
           <div className="w-12 h-12 border-4 border-orange-200 border-t-orange-600 rounded-full animate-spin"></div>
-          <p className="text-slate-500 font-medium">Chargement de l&apos;inventaire...</p>
+          <p className="text-slate-500 font-medium" suppressHydrationWarning>{t("store_loading_inventory")}</p>
         </div>
       </div>
     );
@@ -662,7 +665,7 @@ export default function MagasinierPage() {
                 <ArrowLeft className="w-5 h-5 text-slate-600" />
               </Link>
               <h1 className="text-xl font-bold bg-gradient-to-r from-orange-600 to-amber-600 bg-clip-text text-transparent">
-                Magasinier
+                <span suppressHydrationWarning>{t("store_role")}</span>
               </h1>
             </div>
             <div className="flex items-center gap-3">
@@ -679,8 +682,8 @@ export default function MagasinierPage() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-3xl font-bold text-slate-800 mb-2">Tableau de Bord - Magasinier</h2>
-            <p className="text-slate-500">Gerez l&apos;inventaire, suivez les mouvements et receptionnez le stock</p>
+            <h2 className="text-3xl font-bold text-slate-800 mb-2" suppressHydrationWarning>{t("store_dash_title")}</h2>
+            <p className="text-slate-500" suppressHydrationWarning>{t("store_subtitle")}</p>
           </div>
           <div className="flex gap-2">
             {activeTab === 'inventaire' && (
@@ -746,7 +749,7 @@ export default function MagasinierPage() {
                 onChange={(e) => setFilterStatut(e.target.value as StatutStock | '')}
                 className="px-4 py-3 border border-slate-200 rounded-xl text-slate-700 focus:outline-none focus:ring-2 focus:ring-orange-500 bg-slate-50"
               >
-                <option value="">Tous les statuts</option>
+                <option value="">{t("store_all_statuses")}</option>
                 <option value="EN_STOCK">En stock</option>
                 <option value="STOCK_FAIBLE">Stock faible</option>
                 <option value="RUPTURE">Rupture</option>
@@ -758,7 +761,7 @@ export default function MagasinierPage() {
                 onChange={(e) => { setFilterType(e.target.value as typeof filterType); setJournalPage(1); }}
                 className="px-4 py-3 border border-slate-200 rounded-xl text-slate-700 focus:outline-none focus:ring-2 focus:ring-orange-500 bg-slate-50"
               >
-                <option value="">Tous les types</option>
+                <option value="">{t("store_all_types")}</option>
                 <option value="ENTREE">Entrees</option>
                 <option value="SORTIE">Sorties</option>
                 <option value="AJUSTEMENT">Ajustements</option>
@@ -775,7 +778,7 @@ export default function MagasinierPage() {
             <div className="px-6 py-4 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <ClipboardList size={20} className="text-orange-600" />
-                <h3 className="font-bold text-slate-800">Inventaire Physique</h3>
+                <h3 className="font-bold text-slate-800">{t("store_physical_inventory")}</h3>
               </div>
               <span className="text-sm text-slate-500">{filteredProduits.length} produit{filteredProduits.length !== 1 ? 's' : ''}</span>
             </div>
@@ -868,7 +871,7 @@ export default function MagasinierPage() {
                     );
                   })}
                   {filteredProduits.length === 0 && (
-                    <tr><td colSpan={8} className="px-6 py-12 text-center text-slate-500">Aucun produit trouve</td></tr>
+                    <tr><td colSpan={8} className="px-6 py-12 text-center text-slate-500">Aucun produit trouvé</td></tr>
                   )}
                 </tbody>
               </table>
@@ -1980,7 +1983,7 @@ export default function MagasinierPage() {
                     <p className="text-3xl font-bold">{stats?.enRupture ?? 0} produits</p>
                   </div>
                 </div>
-                <p className="text-red-100 text-sm">Reapprovisionnement urgent necessaire</p>
+                <p className="text-red-100 text-sm">Réapprovisionnement urgent necessaire</p>
               </div>
               <div className="bg-gradient-to-br from-amber-500 to-amber-600 rounded-2xl p-6 text-white shadow-lg shadow-amber-200">
                 <div className="flex items-center gap-3 mb-3">

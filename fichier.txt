@@ -5,10 +5,12 @@ On peut aussi utiliser du SVG pour les graphiques ( sans forcément dépendance 
 Ce code :      
  const a = document.createElement("a");
  a.href = url;             
- a.download = filename;                       
+ a.download = filename;                          
  a.click();                             
  permet de créer un téléchargement via un clic sur une URL ( utile pour les exports)
 import { randomUUID } from "crypto";  permet de générer des UUID(sorte d'identifiant unique aléatoire) par exemple pour des factures ou des pièces justificatives
+
+-Sur le dashboard/admin/ au niveau des souscriptions des packs , on doit les scinder ou classer par mois par mois ( Janvier , Février etc etc ) pour y voir plus clair
 
 -Au niveau des souscriptions avec statut(StatutSouscription SUSPENDU ou ANNULE), je veux que l'admin ait soit la possibilité de changer leur statut , soit de juste donner une alerte ( parce que quand les souscirptions sont en statut SUSPENDU ou ANNULE , la caisse, la comptabilité et les agents de terrain ne peuvent plus faire d'opérations dessus ce qui est problématique par exemple collecter ou enregistrer des versements  ) , par exemple date dépassée donc collecte en urgence, statutStatutVersementPack EN_RETARD , etc etc . Bon toi aussi analyse et propose moi une solution
         
@@ -17,7 +19,7 @@ import { randomUUID } from "crypto";  permet de générer des UUID(sorte d'ident
   chef_agence ou responsable_communaute (vu qu'il gère plusieurs points de vente)
 
 -On doit avoir un prix d'achat côté stock des produits ( côté admin ) . Et les admins doivent être les seuls à pouvoir insérer(ou plutôt modifier) un prix pour les produits ( mais tous les utilisateurs doivent être notifiés )     
-
+       
 -Fais des await dans toutes mes api où je fais trop de requêtes parallèles
 
 -Vérifie mon schema et mes api de produits , approvisionnements et lignereceptionapprovisionnement pour que prixAchat de produit soit calculé au moment où on renseigne le prixUnitaire dans LigneReceptionAppro . Je veux pas aussi qu'on mélange le prix d'achat et le prix du produit ( qui est peut être un ancien prix calculé ou inséré avant et que sa valeur sur le marché a changé et lors d'un nouvel approvisionnement on l'a pris à un autre prix)
@@ -27,3 +29,5 @@ import { randomUUID } from "crypto";  permet de générer des UUID(sorte d'ident
 -Essaie d'implémenter les prixAchat directement dans les approvisionnements au lieu d'être chaque fois obligé de le faire dans les updates
 
 -npm i -g @openai/codex   permet d'installer le CLI de codex (agent ia d'openai qui permet d'interagir depuis le terminal)
+
+-curl -fsSL https://claude.ai/install.cmd -o install.cmd && install.cmd && del install.cmd pour installer claude via le terminal cmd

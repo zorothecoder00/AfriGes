@@ -10,7 +10,7 @@ async function getAdminSession() {
   if (!s) return null;
   if (s.user.role !== "ADMIN" && s.user.role !== "SUPER_ADMIN") return null;
   return s;
-}
+}  
 
 /**
  * GET /api/admin/stock

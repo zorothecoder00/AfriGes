@@ -7,7 +7,7 @@ import {
   Banknote, Calendar, LucideIcon, Layers, Plus, ChevronRight,
   Loader2, Truck, Package, ShoppingCart, X, Send, BadgeCheck, XCircle,
 } from "lucide-react";
-import Link from "next/link";  
+import Link from "next/link";    
 import SignOutButton from "@/components/SignOutButton";
 import NotificationBell from "@/components/NotificationBell";
 import MessagesLink from "@/components/MessagesLink";
@@ -15,6 +15,7 @@ import UserPdvBadge from "@/components/UserPdvBadge";
 import { useApi, useMutation } from "@/hooks/useApi";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { getStatusStyle, getStatusLabel } from "@/lib/status";
+import { useT } from "@/contexts/AppSettingsContext";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -106,7 +107,7 @@ interface VenteTerrain {
   clientNom: string | null; clientTelephone: string | null;
   client: { id: number; nom: string; prenom: string; telephone: string } | null;
   lignes: LigneVente[];
-  createdAt: string;
+  createdAt: string;   
 }
 interface VentesTerrainResponse {
   data: VenteTerrain[];
@@ -164,6 +165,7 @@ function ModalCollecte({
   onClose: () => void;
   onSuccess: () => void;
 }) {
+  const t = useT();
   const prochaine = souscription.echeances[0];
   const type = souscription.pack.type;
 
@@ -208,7 +210,7 @@ function ModalCollecte({
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
         <div className="flex items-center justify-between mb-5">
-          <h2 className="text-xl font-bold text-slate-800">Collecte terrain</h2>
+          <h2 className="text-xl font-bold text-slate-800">{t("field_collection")}</h2>
           <button onClick={onClose} className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg font-bold text-lg transition-colors">×</button>
         </div>
 
@@ -290,6 +292,7 @@ function ModalCollecte({
 type TabKey = "prospects" | "packs" | "livraisons" | "ventes";
 
 export default function AgentTerrainPage() {
+  const t = useT();
   const [searchQuery, setSearchQuery]   = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [activeTab, setActiveTab]       = useState<TabKey>("packs");
@@ -506,7 +509,7 @@ export default function AgentTerrainPage() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-3xl font-bold text-slate-800 mb-1">Tableau de Bord — Agent Terrain</h2>
+            <h2 className="text-3xl font-bold text-slate-800 mb-1">{t("field_dash_title")}</h2>
             <p className="text-slate-500 text-sm">Collectez les versements packs et gérez votre portefeuille clients</p>
           </div>
           <button onClick={refetchAll} className="px-5 py-3 bg-white border border-slate-200 rounded-xl text-slate-700 hover:bg-slate-50 transition-all shadow-sm flex items-center gap-2 font-medium">
@@ -552,7 +555,7 @@ export default function AgentTerrainPage() {
             {activeTab === "packs" && (
               <select value={packTypeFilter} onChange={(e) => setPackTypeFilter(e.target.value)}
                 className="px-3 py-2.5 border border-slate-200 rounded-xl text-sm text-slate-700 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-teal-500">
-                <option value="">Tous les types</option>
+                <option value="">{t("field_all_types")}</option>
                 <option value="ALIMENTAIRE">Alimentaire</option>
                 <option value="REVENDEUR">Revendeur</option>
                 <option value="FAMILIAL">Familial</option>
@@ -563,7 +566,7 @@ export default function AgentTerrainPage() {
             {activeTab === "prospects" && (
               <button onClick={() => setAddClientModal(true)}
                 className="px-4 py-2.5 bg-teal-600 text-white rounded-xl hover:bg-teal-700 shadow-lg shadow-teal-200 flex items-center gap-2 text-sm font-medium">
-                <Plus size={16} /> Ajouter client
+                <Plus size={16} /> {t("field_add_client")}
               </button>
             )}
           </div>
@@ -827,7 +830,7 @@ export default function AgentTerrainPage() {
                 onClick={() => setShowVenteForm(v => !v)}
                 className="flex items-center gap-2 px-4 py-2.5 bg-teal-600 text-white rounded-xl hover:bg-teal-700 text-sm font-medium shadow-lg shadow-teal-200"
               >
-                <Plus size={16} /> Nouvelle demande
+                <Plus size={16} /> {t("field_new_request")}
               </button>
             </div>
 
@@ -837,7 +840,7 @@ export default function AgentTerrainPage() {
                 <div className="px-6 py-4 border-b border-teal-200 bg-teal-50 flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <ShoppingCart size={18} className="text-teal-600" />
-                    <h3 className="font-bold text-slate-800">Nouvelle demande de vente terrain</h3>
+                    <h3 className="font-bold text-slate-800">{t("field_new_direct_sale_request")}</h3>
                   </div>
                   <button onClick={() => setShowVenteForm(false)} className="p-1 text-slate-400 hover:text-slate-600 rounded-lg"><X size={16} /></button>
                 </div>
@@ -1007,7 +1010,7 @@ export default function AgentTerrainPage() {
                         )}
                         {v.statut === "CONFIRMEE" && (
                           <span className="flex items-center gap-1.5 px-3 py-2 bg-blue-50 text-blue-700 border border-blue-200 rounded-xl text-xs font-medium shrink-0">
-                            <Package size={14} /> Magasinier sort le stock
+                            <Package size={14} /> {t("field_storekeeper_release_stock")}
                           </span>
                         )}
                         {v.statut === "SORTIE_VALIDEE" && (
@@ -1082,7 +1085,7 @@ export default function AgentTerrainPage() {
                     </tr>
                   ))}
                   {clients.length === 0 && (
-                    <tr><td colSpan={6} className="px-6 py-12 text-center text-slate-500">Aucun client trouvé</td></tr>
+                    <tr><td colSpan={6} className="px-6 py-12 text-center text-slate-500">{t("field_no_client_found")}</td></tr>
                   )}
                 </tbody>
               </table>

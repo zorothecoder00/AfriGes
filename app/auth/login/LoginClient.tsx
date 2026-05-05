@@ -8,7 +8,7 @@ import AfriSimeLogo from '@/components/AfriSimeLogo'
       
 // Définition du type pour nos erreurs  
 type Errors = {
-  email?: string
+  email?: string      
   password?: string
   general?: string             
 }
@@ -87,7 +87,7 @@ export default function LoginPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  };   
 
   const handleSocialLogin = async (provider: 'google' | 'microsoft') => {
     try {
@@ -102,13 +102,13 @@ export default function LoginPage() {
 
       {/* Bulle haut gauche */}
       <div className="absolute -top-20 -left-20 w-72 h-72 rounded-full bg-green-300/20 blur-sm" />
-
+  
       {/* Bulle bas gauche */}
       <div className="absolute -bottom-16 left-[5%] w-56 h-56 rounded-full bg-green-200/15 blur-sm" />
 
       {/* Bulle haut droite */}
       <div className="absolute top-[5%] -right-12 w-48 h-48 rounded-full bg-emerald-300/20 blur-sm" />
-
+   
       {/* Bulle milieu droite */}
       <div className="absolute bottom-[20%] right-[3%] w-36 h-36 rounded-full bg-green-300/15 blur-sm" />
 

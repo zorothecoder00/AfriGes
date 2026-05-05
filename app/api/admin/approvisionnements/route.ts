@@ -6,11 +6,11 @@ import { notifyAdmins, notify, auditLog } from "@/lib/notifications";
 import { randomUUID } from "crypto";
 
 /**
- * GET /api/admin/approvisionnements
+ * GET /api/admin/approvisionnements   
  * Liste paginée des réceptions d'approvisionnement (créées par l'admin)
  */
 export async function GET(req: Request) {
-  try {
+  try {     
     const session = await getAuthSession();
     if (!session || !["ADMIN", "SUPER_ADMIN"].includes(session.user.role ?? "")) {
       return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
