@@ -16,6 +16,7 @@ import MessagesLink from "@/components/MessagesLink";
 import { useApi } from "@/hooks/useApi";
 import { useMutation } from "@/hooks/useApi";
 import { formatCurrency, formatDate } from "@/lib/format";
+import { useT } from "@/contexts/AppSettingsContext";
 
 // ============================================================================
 // TYPES
@@ -169,6 +170,8 @@ const StatCard = ({ label, value, subtitle, icon: Icon, color, lightBg }: {
 // ============================================================================
 
 export default function ActionnairePage() {
+  const t = useT();
+  
   const [activeTab, setActiveTab] = useState<
     "profil" | "actions" | "rapports" | "dividendes" | "assemblees" | "documents" | "packs"
   >("profil");
@@ -551,7 +554,7 @@ export default function ActionnairePage() {
                 <ArrowLeft className="w-5 h-5 text-slate-600" />
               </Link>
               <h1 className="text-xl font-bold bg-gradient-to-r from-indigo-600 to-blue-600 bg-clip-text text-transparent">
-                Espace Actionnaire
+                {t("role_actionnaire_title")}
               </h1>
             </div>
             <div className="flex items-center gap-3">

@@ -16,6 +16,7 @@ import MessagesLink from "@/components/MessagesLink";
 import UserPdvBadge from "@/components/UserPdvBadge";
 import { useApi, useMutation } from "@/hooks/useApi";
 import { formatCurrency, formatDate, formatDateTime } from "@/lib/format";
+import { useT } from "@/contexts/AppSettingsContext";
 
 // ============================================================================
 // TYPES
@@ -626,6 +627,8 @@ function TicketVenteDirecte({ data, onClose }: { data: RecuVenteDirecteData["dat
 // ============================================================================
 
 export default function CaissierPage() {
+  const t = useT();
+  
   const [activeTab, setActiveTab] = useState<TabKey>("synthese");
 
   // ── Recherche / filtres historique ───────────────────────────────────────

@@ -1,13 +1,13 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import {
+import {    
   Users, MapPin, Phone, TrendingUp, Clock, CheckCircle,
   AlertCircle, Search, ArrowLeft, RefreshCw, UserPlus,
   Banknote, Calendar, LucideIcon, Layers, Plus, ChevronRight,
   Loader2, Truck, Package, ShoppingCart, X, Send, BadgeCheck, XCircle,
 } from "lucide-react";
-import Link from "next/link";    
+import Link from "next/link";      
 import SignOutButton from "@/components/SignOutButton";
 import NotificationBell from "@/components/NotificationBell";
 import MessagesLink from "@/components/MessagesLink";
@@ -222,10 +222,10 @@ function ModalCollecte({
             </span>
             <span className="text-sm font-semibold text-slate-800">{souscription.pack.nom}</span>
           </div>
-          <p className="text-sm text-slate-600"><span className="font-medium">Client :</span> {personne}</p>
+          <p className="text-sm text-slate-600"><span className="font-medium">{t('field_client')} :</span> {personne}</p>
           <p className="text-xs text-slate-500 italic">{typeInfo[type]}</p>
           <div className="flex justify-between text-sm pt-1 border-t border-slate-100">
-            <span className="text-slate-500">Restant</span>
+            <span className="text-slate-500">{t('remaining')}</span>
             <span className="font-bold text-red-600">{formatCurrency(Number(souscription.montantRestant))}</span>
           </div>
           {prochaine && (
@@ -241,7 +241,7 @@ function ModalCollecte({
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Montant collecté (FCFA) *</label>
+            <label className="block text-sm font-medium text-slate-700 mb-1">{t('amount_collected')} *</label>
             <input
               type="number" min="1" max={Number(souscription.montantRestant)} required
               value={montant} onChange={(e) => setMontant(e.target.value)}
@@ -253,16 +253,16 @@ function ModalCollecte({
               placeholder="Ex : 5000"
             />
             <p className="text-xs text-slate-400 mt-1">
-              Maximum autorisé : <span className="font-semibold text-slate-600">{formatCurrency(Number(souscription.montantRestant))}</span>
+              {t('max_allowed')} : <span className="font-semibold text-slate-600">{formatCurrency(Number(souscription.montantRestant))}</span>
             </p>
             {montant && parseFloat(montant) > Number(souscription.montantRestant) && (
               <p className="text-xs text-red-600 mt-1 font-medium">
-                Le montant saisi dépasse le restant dû ({formatCurrency(Number(souscription.montantRestant))})
+                {t('amount_exceeds_remaining')} ({formatCurrency(Number(souscription.montantRestant))})
               </p>
             )}
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Notes (optionnel)</label>
+            <label className="block text-sm font-medium text-slate-700 mb-1">{t('notes_optional')}</label>
             <textarea
               value={notes} onChange={(e) => setNotes(e.target.value)} rows={2}
               className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 resize-none"
@@ -272,13 +272,13 @@ function ModalCollecte({
           <div className="flex gap-3 pt-1">
             <button type="button" onClick={onClose}
               className="flex-1 py-2.5 border border-slate-200 text-slate-700 rounded-xl hover:bg-slate-50 text-sm font-medium">
-              Annuler
+              {t('field_cancel')}
             </button>
             <button
               type="submit"
               disabled={loading || !montant || parseFloat(montant) <= 0 || parseFloat(montant) > Number(souscription.montantRestant)}
               className="flex-1 py-2.5 bg-teal-600 text-white rounded-xl hover:bg-teal-700 disabled:opacity-50 text-sm font-medium flex items-center justify-center gap-2">
-              {loading ? <><Loader2 className="w-4 h-4 animate-spin" /> Enregistrement…</> : "Confirmer collecte"}
+              {loading ? <><Loader2 className="w-4 h-4 animate-spin" /> {t('saving')}</> : "Confirmer collecte"}
             </button>
           </div>
         </form>
@@ -491,7 +491,7 @@ export default function AgentTerrainPage() {
                 <ArrowLeft className="w-5 h-5 text-slate-600" />
               </Link>
               <h1 className="text-xl font-bold bg-gradient-to-r from-teal-600 to-emerald-600 bg-clip-text text-transparent">
-                Agent Terrain
+                {t('field_agent')}
               </h1>
             </div>
             <div className="flex items-center gap-3">
@@ -510,10 +510,10 @@ export default function AgentTerrainPage() {
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-3xl font-bold text-slate-800 mb-1">{t("field_dash_title")}</h2>
-            <p className="text-slate-500 text-sm">Collectez les versements packs et gérez votre portefeuille clients</p>
+            <p className="text-slate-500 text-sm">{t('field_dash_subtitle')}</p>
           </div>
           <button onClick={refetchAll} className="px-5 py-3 bg-white border border-slate-200 rounded-xl text-slate-700 hover:bg-slate-50 transition-all shadow-sm flex items-center gap-2 font-medium">
-            <RefreshCw size={18} /> Actualiser
+            <RefreshCw size={18} /> {t('refresh')}
           </button>
         </div>
 
@@ -584,7 +584,7 @@ export default function AgentTerrainPage() {
             {!packsLoading && souscriptions.length === 0 && (
               <div className="bg-white rounded-2xl p-12 text-center border border-slate-200">
                 <Layers className="w-10 h-10 text-slate-300 mx-auto mb-3" />
-                <p className="text-slate-500 font-medium">Aucune souscription active à collecter</p>
+                <p className="text-slate-500 font-medium">{t('no_active_subscription')}</p>
               </div>
             )}
 
@@ -627,13 +627,13 @@ export default function AgentTerrainPage() {
                       {/* Barre de progression */}
                       <div className="mb-3">
                         <div className="flex justify-between text-xs text-slate-500 mb-1">
-                          <span>{formatCurrency(Number(s.montantVerse))} versés</span>
-                          <span>{formatCurrency(Number(s.montantRestant))} restants</span>
+                          <span>{formatCurrency(Number(s.montantVerse))} {t('paid')}</span>
+                          <span>{formatCurrency(Number(s.montantRestant))} {t('remaining_plural')}</span>
                         </div>
                         <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
                           <div className="h-full bg-teal-500 rounded-full transition-all" style={{ width: `${progression}%` }} />
                         </div>
-                        <p className="text-xs text-slate-400 mt-0.5">{progression}% payé</p>
+                        <p className="text-xs text-slate-400 mt-0.5">{progression}% {t('paid_status')}</p>
                       </div>
 
                       {/* Prochaine échéance */}
@@ -641,15 +641,15 @@ export default function AgentTerrainPage() {
                         <div className={`flex items-center gap-2 text-sm rounded-lg px-3 py-2 ${retard ? "bg-red-50 text-red-700" : "bg-slate-50 text-slate-600"}`}>
                           {retard ? <AlertCircle size={14} className="text-red-500 shrink-0" /> : <Calendar size={14} className="text-slate-400 shrink-0" />}
                           <span>
-                            Échéance #{prochaine.numero} — <strong>{formatCurrency(Number(prochaine.montant))}</strong>
+                            {t('due_date')} #{prochaine.numero} — <strong>{formatCurrency(Number(prochaine.montant))}</strong>
                             {" "}— {formatDate(prochaine.datePrevue)}
-                            {retard && <span className="ml-1 font-bold">⚠ EN RETARD</span>}
+                            {retard && <span className="ml-1 font-bold">⚠ {t('overdue')}</span>}
                           </span>
                         </div>
                       ) : (
                         <div className="flex items-center gap-2 text-sm text-emerald-600 bg-emerald-50 rounded-lg px-3 py-2">
                           <CheckCircle size={14} className="shrink-0" />
-                          <span>Toutes les échéances sont à jour</span>
+                          <span>{t('field_due_up_to_date')}</span>
                         </div>
                       )}
                     </div>
@@ -658,7 +658,7 @@ export default function AgentTerrainPage() {
                     <button
                       onClick={() => setCollectTarget(s)}
                       className="shrink-0 flex items-center gap-1.5 px-4 py-2.5 bg-teal-600 text-white rounded-xl hover:bg-teal-700 text-sm font-medium transition-colors shadow-sm">
-                      <Banknote size={15} /> Collecter
+                      <Banknote size={15} /> {t('field_collect')}
                     </button>
                   </div>
                 </div>
@@ -677,7 +677,7 @@ export default function AgentTerrainPage() {
                   <Clock className="w-6 h-6 text-amber-600" />
                 </div>
                 <div>
-                  <p className="text-slate-500 text-sm">À confirmer</p>
+                  <p className="text-slate-500 text-sm">{t('to_confirm')}</p>
                   <p className="text-3xl font-bold text-amber-600">
                     {livraisonsResponse?.stats.totalPlanifiees ?? 0}
                   </p>
@@ -688,7 +688,7 @@ export default function AgentTerrainPage() {
                   <CheckCircle className="w-6 h-6 text-emerald-600" />
                 </div>
                 <div>
-                  <p className="text-slate-500 text-sm">Total livrées</p>
+                  <p className="text-slate-500 text-sm">{t('field_total_delivered')}</p>
                   <p className="text-3xl font-bold text-emerald-600">
                     {livraisonsResponse?.stats.totalLivrees ?? 0}
                   </p>
@@ -700,7 +700,7 @@ export default function AgentTerrainPage() {
             <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 overflow-hidden">
               <div className="px-6 py-4 border-b border-slate-200 bg-amber-50 flex items-center gap-2">
                 <Truck size={18} className="text-amber-600" />
-                <h3 className="font-bold text-slate-800">Livraisons à confirmer</h3>
+                <h3 className="font-bold text-slate-800">{t('field_deliveries_to_confirm')}</h3>
                 {(livraisonsResponse?.planifiees.length ?? 0) > 0 && (
                   <span className="bg-amber-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">
                     {livraisonsResponse!.planifiees.length}
@@ -715,7 +715,7 @@ export default function AgentTerrainPage() {
               ) : (livraisonsResponse?.planifiees.length ?? 0) === 0 ? (
                 <div className="p-12 text-center">
                   <Truck className="w-10 h-10 text-slate-200 mx-auto mb-3" />
-                  <p className="text-slate-500">Aucune livraison planifiée en attente</p>
+                  <p className="text-slate-500">{t('field_no_planned_pending_delivery')}</p>
                 </div>
               ) : (
                 <div className="divide-y divide-slate-100">
@@ -782,7 +782,7 @@ export default function AgentTerrainPage() {
               <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 overflow-hidden">
                 <div className="px-6 py-4 border-b border-slate-200 bg-emerald-50 flex items-center gap-2">
                   <CheckCircle size={18} className="text-emerald-600" />
-                  <h3 className="font-bold text-slate-800">Confirmées récemment (30j)</h3>
+                  <h3 className="font-bold text-slate-800">{t('field_recent_confirmed_30d')}</h3>
                 </div>
                 <div className="divide-y divide-slate-100">
                   {livraisonsResponse!.livreesRecentes.map((rec) => {
@@ -823,7 +823,7 @@ export default function AgentTerrainPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-slate-500">
-                  Créez une demande de vente directe. Le RPV valide, le magasinier sort le stock, puis vous confirmez la livraison au client.
+                  {t('field_direct_sale_help')}
                 </p>
               </div>
               <button
@@ -846,16 +846,16 @@ export default function AgentTerrainPage() {
                 </div>
                 <form onSubmit={handleSubmitVente} className="p-5 space-y-4">
                   <p className="text-xs text-blue-700 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
-                    Le RPV valide la demande → le magasinier sort le stock → vous confirmez la livraison au client.
+                    {t('field_request_flow')}
                   </p>
 
                   {/* Client */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-xs font-medium text-slate-600 mb-1">Client (depuis votre PDV)</label>
+                      <label className="block text-xs font-medium text-slate-600 mb-1">{t('client_from_pdv')}</label>
                       <select value={vClientId} onChange={e => { setVClientId(e.target.value); setVClientNom(""); setVClientTel(""); }}
                         className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-teal-500">
-                        <option value="">— Saisir manuellement —</option>
+                        <option value="">— {t('manual_entry')} —</option>
                         {clientsDispo.map(c => (
                           <option key={c.id} value={c.id}>{c.prenom} {c.nom} ({c.telephone})</option>
                         ))}
@@ -873,7 +873,7 @@ export default function AgentTerrainPage() {
 
                   {/* Produits */}
                   <div>
-                    <label className="block text-xs font-medium text-slate-600 mb-1">Produits *</label>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">{t('products')} *</label>
                     <div className="space-y-2">
                       {vLignes.map((l, i) => {
                         const produitSel = produitsDispo.find(p => p.produit.id === Number(l.produitId));
@@ -885,7 +885,7 @@ export default function AgentTerrainPage() {
                                 setVLignes(prev => prev.map((x, j) => j === i ? { ...x, produitId: e.target.value, prixUnitaire: p ? String(p.produit.prixUnitaire) : "" } : x));
                               }}
                               className="flex-1 px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-teal-500">
-                              <option value="">Choisir un produit…</option>
+                              <option value="">{t('choose_product')}…</option>
                               {produitsDispo.map(p => (
                                 <option key={p.produit.id} value={p.produit.id}>
                                   {p.produit.nom} (dispo: {p.quantite})
@@ -907,7 +907,7 @@ export default function AgentTerrainPage() {
                       })}
                       <button type="button" onClick={() => setVLignes(prev => [...prev, { produitId: "", quantite: "", prixUnitaire: "" }])}
                         className="text-xs text-teal-700 hover:underline flex items-center gap-1">
-                        <Plus size={12} /> Ajouter un produit
+                        <Plus size={12} /> {t('field_add_product')}
                       </button>
                     </div>
                   </div>
@@ -915,7 +915,7 @@ export default function AgentTerrainPage() {
                   {/* Paiement */}
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-xs font-medium text-slate-600 mb-1">Mode paiement</label>
+                      <label className="block text-xs font-medium text-slate-600 mb-1">{t('field_payment_mode')}</label>
                       <select value={vModePaiement} onChange={e => setVModePaiement(e.target.value)}
                         className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-teal-500">
                         <option value="ESPECES">Espèces</option>
@@ -938,10 +938,10 @@ export default function AgentTerrainPage() {
 
                   <div className="flex gap-3 pt-1">
                     <button type="button" onClick={() => setShowVenteForm(false)}
-                      className="flex-1 py-2.5 border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50 text-sm">Annuler</button>
+                      className="flex-1 py-2.5 border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50 text-sm">{t('field_cancel')}</button>
                     <button type="submit" disabled={venteSubmitLoading || vLignes.every(l => !l.produitId)}
                       className="flex-1 py-2.5 bg-teal-600 text-white rounded-xl hover:bg-teal-700 disabled:opacity-50 text-sm font-semibold flex items-center justify-center gap-2">
-                      {venteSubmitLoading ? <><Loader2 size={14} className="animate-spin" /> Envoi…</> : <><Send size={14} /> Envoyer au RPV</>}
+                      {venteSubmitLoading ? <><Loader2 size={14} className="animate-spin" /> {t('sending')}…</> : <><Send size={14} /> {t('send_to_rpv')}</>}
                     </button>
                   </div>
                 </form>
@@ -956,7 +956,7 @@ export default function AgentTerrainPage() {
             ) : ventesData.length === 0 ? (
               <div className="bg-white rounded-2xl border border-slate-200 p-10 text-center">
                 <ShoppingCart className="w-10 h-10 text-slate-300 mx-auto mb-3" />
-                <p className="text-slate-500">Aucune vente terrain enregistrée</p>
+                <p className="text-slate-500">{t('field_no_sales')}</p>
               </div>
             ) : (
               <div className="space-y-3">
@@ -1005,7 +1005,7 @@ export default function AgentTerrainPage() {
                         {v.statut === "BROUILLON" && (
                           <button onClick={() => handleCancelVente(v.id)}
                             className="flex items-center gap-1.5 px-3 py-2 text-red-600 border border-red-200 rounded-xl hover:bg-red-50 text-xs font-medium shrink-0">
-                            <XCircle size={14} /> Annuler
+                            <XCircle size={14} /> {t('field_cancel')}
                           </button>
                         )}
                         {v.statut === "CONFIRMEE" && (
@@ -1020,14 +1020,14 @@ export default function AgentTerrainPage() {
                             className="flex items-center gap-1.5 px-3 py-2 bg-violet-600 text-white border border-violet-600 rounded-xl hover:bg-violet-700 text-xs font-medium shrink-0 disabled:opacity-60"
                           >
                             {livrerLoading && livrerVenteIdRef.current === v.id
-                              ? <><Loader2 size={13} className="animate-spin" /> En cours…</>
-                              : <><Truck size={13} /> Confirmer la livraison</>
+                              ? <><Loader2 size={13} className="animate-spin" /> {t('field_in_progress')}…</>
+                              : <><Truck size={13} /> {t('field_confirm_delivery')}</>
                             }
                           </button>
                         )}
                         {v.statut === "LIVREE" && (
                           <span className="flex items-center gap-1.5 px-3 py-2 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-xl text-xs font-medium shrink-0">
-                            <CheckCircle size={14} /> Livré
+                            <CheckCircle size={14} /> {t('field_delivered')}
                           </span>
                         )}
                       </div>
@@ -1046,12 +1046,12 @@ export default function AgentTerrainPage() {
               <table className="w-full">
                 <thead className="bg-slate-50 border-b border-slate-200">
                   <tr>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase">Client</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase">Téléphone</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase">Adresse</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase">Statut</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase">Souscriptions</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase">Inscription</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase">{t('field_client')}</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase">{t('field_phone')}</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase">{t('field_address')}</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase">{t('field_status')}</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase">{t('field_subscriptions')}</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase">{t('field_registration')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -1092,13 +1092,13 @@ export default function AgentTerrainPage() {
             </div>
             {clientsMeta && clientsMeta.totalPages > 1 && (
               <div className="px-6 py-4 border-t border-slate-200 flex items-center justify-between">
-                <p className="text-sm text-slate-600">Page {clientsMeta.page} sur {clientsMeta.totalPages} ({clientsMeta.total} clients)</p>
+                <p className="text-sm text-slate-600">{t('page')} {clientsMeta.page} sur {clientsMeta.totalPages} ({clientsMeta.total} clients)</p>
                 <div className="flex items-center gap-2">
                   <button onClick={() => setClientPage((p) => Math.max(1, p - 1))} disabled={clientPage <= 1}
                     className="px-4 py-2 border rounded-lg text-slate-600 hover:bg-slate-50 disabled:opacity-50 text-sm">Précédent</button>
                   <span className="px-4 py-2 bg-teal-600 text-white rounded-lg font-medium text-sm">{clientPage}</span>
                   <button onClick={() => setClientPage((p) => Math.min(clientsMeta.totalPages, p + 1))} disabled={clientPage >= clientsMeta.totalPages}
-                    className="px-4 py-2 border rounded-lg text-slate-600 hover:bg-slate-50 disabled:opacity-50 text-sm">Suivant</button>
+                    className="px-4 py-2 border rounded-lg text-slate-600 hover:bg-slate-50 disabled:opacity-50 text-sm">{t('field_next')}</button>
                 </div>
               </div>
             )}
@@ -1120,7 +1120,7 @@ export default function AgentTerrainPage() {
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
             <div className="flex items-center justify-between mb-5">
-              <h2 className="text-xl font-bold text-slate-800">Nouveau client</h2>
+              <h2 className="text-xl font-bold text-slate-800">{t('field_new_client')}</h2>
               <button onClick={() => setAddClientModal(false)} className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg font-bold text-lg">×</button>
             </div>
             <form onSubmit={handleAddClient} className="space-y-4">
@@ -1141,7 +1141,7 @@ export default function AgentTerrainPage() {
               <div className="flex gap-3 pt-1">
                 <button type="button" onClick={() => setAddClientModal(false)}
                   className="flex-1 py-2.5 border border-slate-200 text-slate-700 rounded-xl hover:bg-slate-50 text-sm font-medium">
-                  Annuler
+                  {t('field_cancel')}
                 </button>
                 <button type="submit" disabled={addingClient}
                   className="flex-1 py-2.5 bg-teal-600 text-white rounded-xl hover:bg-teal-700 disabled:opacity-50 text-sm font-medium">

@@ -14,6 +14,7 @@ import MessagesLink from "@/components/MessagesLink";
 import UserPdvBadge from "@/components/UserPdvBadge";
 import { useApi, useMutation } from "@/hooks/useApi";
 import { formatCurrency, formatDate, formatDateTime } from "@/lib/format";
+import { useT } from "@/contexts/AppSettingsContext";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TYPES
@@ -166,6 +167,8 @@ type Tab = "reception" | "affectation" | "livraisons" | "journal";
 
 export default function LogistiqueApprovisionnementPage() {
   // ── Tabs ──────────────────────────────────────────────────────────────────
+  const t = useT();
+
   const [activeTab, setActiveTab] = useState<Tab>("reception");
 
   // ── Stock / produits ──────────────────────────────────────────────────────
@@ -460,7 +463,7 @@ export default function LogistiqueApprovisionnementPage() {
                   <Truck className="w-4 h-4 text-white" />
                 </div>
                 <h1 className="text-xl font-bold bg-gradient-to-r from-cyan-600 to-blue-600 bg-clip-text text-transparent">
-                  Logistique & Approvisionnement
+                  {t("role_logistique_title")}
                 </h1>
               </div>
             </div>

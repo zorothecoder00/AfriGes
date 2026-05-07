@@ -5,14 +5,14 @@ import {
   TrendingUp, Users, UserCheck, Package, Layers,
   ShoppingCart, MoreVertical, Download, Plus, ChevronDown, MessageSquare, Store, Shield,
   Activity, AlertTriangle, CheckCircle, XCircle, Wallet, BarChart2, Truck, RefreshCw,
-} from 'lucide-react';
+} from 'lucide-react';  
 import Link from "next/link"; 
 import { useSession } from 'next-auth/react';
 import { useT } from '@/contexts/AppSettingsContext';
 import NotificationBell from '@/components/NotificationBell';
 import SignOutButton from '@/components/SignOutButton';
-import MessageModal from '@/components/MessageModal';
-import { useApi } from '@/hooks/useApi';  
+import MessageModal from '@/components/MessageModal';   
+import { useApi } from '@/hooks/useApi';     
 import { formatCurrency } from '@/lib/format';
 import { exportToCsv } from '@/lib/exportCsv';
 
@@ -211,10 +211,10 @@ export default function AfriGesDashboard() {
           <div className="w-12 h-12 bg-red-50 rounded-full flex items-center justify-center">
             <span className="text-red-500 text-2xl">!</span>
           </div>
-          <h3 className="text-lg font-bold text-slate-800">Erreur de chargement</h3>
+          <h3 className="text-lg font-bold text-slate-800">{t('loading_error')}</h3>
           <p className="text-slate-500 text-sm">{error}</p>
           <button onClick={refetch} className="px-5 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-200 font-medium">
-            Réessayer
+            {t('retry')}
           </button>
         </div>
       </div>
@@ -254,7 +254,7 @@ export default function AfriGesDashboard() {
         <aside className="w-72 flex-shrink-0">
           <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 overflow-hidden sticky top-28">
             <div className="p-4 border-b border-slate-100">
-              <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Principal</h3>
+              <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">{t('main')}</h3>
               <nav className="space-y-1">
                 <button className="w-full flex items-center gap-3 px-4 py-3 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-xl font-medium transition-all shadow-md shadow-emerald-200">
                   <TrendingUp size={20} /><span>{t('nav_dashboard')}</span>
@@ -266,13 +266,13 @@ export default function AfriGesDashboard() {
               </nav>
             </div>
             <div className="p-4 border-b border-slate-100">
-              <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Packs &amp; Ventes</h3>
+              <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">{t('packs_sales')}</h3>
               <nav className="space-y-1">
                 <Link href="/dashboard/admin/packs" className="w-full flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-50 rounded-xl transition-all"><Layers size={20} /><span>{t('nav_packs')}</span></Link>
               </nav>
             </div>
             <div className="p-4 border-b border-slate-100">
-              <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Commerce</h3>
+              <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">{t('commerce')}</h3>
               <nav className="space-y-1">
                 <Link href="/dashboard/admin/ventes" className="w-full flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-50 rounded-xl transition-all"><ShoppingCart size={20} /><span>{t('nav_ventes')}</span></Link>
                 <Link href="/dashboard/admin/stock"  className="w-full flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-50 rounded-xl transition-all"><Package size={20} /><span>{t('nav_stock')}</span></Link>
@@ -324,16 +324,16 @@ export default function AfriGesDashboard() {
                 </button>
                 {showMenu && (
                   <div className="absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-slate-200 py-2 z-50">
-                    <Link href="/dashboard/admin/packs"   onClick={() => setShowMenu(false)} className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 transition-colors"><Layers size={18} className="text-blue-500" /><span className="text-sm font-medium text-slate-700">Nouvelle souscription pack</span></Link>
-                    <Link href="/dashboard/admin/ventes"  onClick={() => setShowMenu(false)} className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 transition-colors"><Package size={18} className="text-emerald-500" /><span className="text-sm font-medium text-slate-700">Nouvelle vente / livraison</span></Link>
-                    <Link href="/dashboard/admin/membres" onClick={() => setShowMenu(false)} className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 transition-colors"><Users size={18} className="text-amber-500" /><span className="text-sm font-medium text-slate-700">Ajouter un membre</span></Link>
+                    <Link href="/dashboard/admin/packs"   onClick={() => setShowMenu(false)} className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 transition-colors"><Layers size={18} className="text-blue-500" /><span className="text-sm font-medium text-slate-700">{t('new_pack_subscription')}</span></Link>
+                    <Link href="/dashboard/admin/ventes"  onClick={() => setShowMenu(false)} className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 transition-colors"><Package size={18} className="text-emerald-500" /><span className="text-sm font-medium text-slate-700">{t('new_sale_delivery')}</span></Link>
+                    <Link href="/dashboard/admin/membres" onClick={() => setShowMenu(false)} className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 transition-colors"><Users size={18} className="text-amber-500" /><span className="text-sm font-medium text-slate-700">{t('add_member')}</span></Link>
                     <div className="border-t border-slate-100 my-1" />
                     <button
                       onClick={() => { setShowMenu(false); setShowMessageModal(true); }}
                       className="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-50 transition-colors"
                     >
                       <MessageSquare size={18} className="text-purple-500" />
-                      <span className="text-sm font-medium text-slate-700">Envoyer un message</span>
+                      <span className="text-sm font-medium text-slate-700">{t('send_message')}</span>
                     </button>
                   </div>
                 )}
@@ -356,7 +356,7 @@ export default function AfriGesDashboard() {
                     </div>
                     <div>
                       <h3 className="text-sm font-bold text-slate-800">{t('dash_activity')}</h3>
-                      <p className="text-xs text-slate-400">Opérations effectuées aujourd&apos;hui</p>
+                      <p className="text-xs text-slate-400">{t('dash_operations_today')}</p>
                     </div>
                   </div>
                   <button
@@ -396,7 +396,7 @@ export default function AfriGesDashboard() {
                   </div>
                   <div>
                     <h3 className="text-sm font-bold text-slate-800">{t('dash_modules')}</h3>
-                    <p className="text-xs text-slate-400">{act?.modules.total ?? '—'} modules configurés</p>
+                    <p className="text-xs text-slate-400">{act?.modules.total ?? '—'} {t("admin_modules_configured")}</p>
                   </div>
                 </div>
                 <div className="flex gap-3 mb-3">
@@ -440,8 +440,8 @@ export default function AfriGesDashboard() {
                 {!act || act.alertes.length === 0 ? (
                   <div className="flex flex-col items-center gap-2 py-4 text-center">
                     <CheckCircle size={28} className="text-emerald-400" />
-                    <p className="text-sm text-slate-500">Aucune alerte active</p>
-                    <p className="text-xs text-slate-400">Tout fonctionne normalement</p>
+                    <p className="text-sm text-slate-500">{t('admin_no_active_alert')}</p>
+                    <p className="text-xs text-slate-400">{t('admin_all_normal')}</p>
                   </div>
                 ) : (
                   <div className="space-y-2">
@@ -490,7 +490,7 @@ export default function AfriGesDashboard() {
                       <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">{t('dash_caisse')}</span>
                     </div>
                     <p className="text-sm font-bold text-slate-800">{act ? formatCurrency(act.rapports.caisse.versementsMontant) : '—'}</p>
-                    <p className="text-[10px] text-slate-400">{act?.rapports.caisse.sessionsOuvertes ?? '—'} session(s) ouverte(s)</p>
+                    <p className="text-[10px] text-slate-400">{act?.rapports.caisse.sessionsOuvertes ?? '—'} {t('admin_sessions_open')}</p>
                   </div>
                   {/* Stock */}
                   <div className="p-3 bg-slate-50 rounded-xl">
@@ -498,8 +498,8 @@ export default function AfriGesDashboard() {
                       <Package size={13} className="text-amber-500" />
                       <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">{t('dash_stock')}</span>
                     </div>
-                    <p className="text-sm font-bold text-slate-800">{act?.rapports.stock.alertes ?? '—'} alerte(s)</p>
-                    <p className="text-[10px] text-slate-400">Produits sous le seuil</p>
+                    <p className="text-sm font-bold text-slate-800">{act?.rapports.stock.alertes ?? '—'} {t('admin_alerts_count')}</p>
+                    <p className="text-[10px] text-slate-400">{t('admin_low_stock')}</p>
                   </div>
                   {/* Ventes */}
                   <div className="p-3 bg-slate-50 rounded-xl">
@@ -508,7 +508,7 @@ export default function AfriGesDashboard() {
                       <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">{t('dash_ventes')}</span>
                     </div>
                     <p className="text-sm font-bold text-slate-800">{act ? formatCurrency(act.rapports.ventes.montant) : '—'}</p>
-                    <p className="text-[10px] text-slate-400">{act?.rapports.ventes.count ?? '—'} vente(s) directe(s)</p>
+                    <p className="text-[10px] text-slate-400">{act?.rapports.ventes.count ?? '—'} {t('admin_direct_sales')}</p>
                   </div>
                   {/* Approvisionnement */}
                   <div className="p-3 bg-slate-50 rounded-xl">
@@ -516,7 +516,7 @@ export default function AfriGesDashboard() {
                       <Truck size={13} className="text-blue-500" />
                       <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">{t('dash_appro')}</span>
                     </div>
-                    <p className="text-sm font-bold text-slate-800">{act?.rapports.approvisionnement.enAttente ?? '—'} en attente</p>
+                    <p className="text-sm font-bold text-slate-800">{act?.rapports.approvisionnement.enAttente ?? '—'} {t('admin_pending_supply')}</p>
                     <p className="text-[10px] text-slate-400">{t('dash_receptions_valider')}</p>
                   </div>
                 </div>
@@ -641,7 +641,7 @@ export default function AfriGesDashboard() {
                   </>
                 ) : (
                   <div className="h-full flex items-center justify-center text-slate-400 text-sm">
-                    Aucune donnée sur cette période
+                    {t('admin_no_data_period')}
                   </div>
                 )}
               </div>

@@ -17,6 +17,7 @@ import UserPdvBadge from "@/components/UserPdvBadge";
 import { useApi } from "@/hooks/useApi";
 import { formatCurrency, formatDate, formatDateTime } from "@/lib/format";
 import { exportToCsv } from "@/lib/exportCsv";
+import { useT } from "@/contexts/AppSettingsContext";
 
 // ============================================================================
 // TYPES
@@ -403,6 +404,8 @@ const StatCard = ({
 // ============================================================================
 
 export default function AuditeurInternePage() {
+  const t = useT();
+  
   const [activeTab, setActiveTab] = useState<
     "overview" | "journal" | "stock" | "finances" | "ventes_logistique" | "ventes" | "caisses" | "transferts" | "utilisateurs" | "logs_systeme" | "mouvements" | "rapports"
   >("overview");
@@ -649,7 +652,7 @@ export default function AuditeurInternePage() {
     const now = new Date().toLocaleDateString("fr-FR");
     const score = d?.stats.scoreConformite ?? 100;
     const templates: Record<string, string> = {
-      AUDIT: `RAPPORT D'AUDIT INTERNE\n${"=".repeat(40)}\nDate : ${now}\nPériode : ${rapportPeriode || "Non précisée"}\nTitre : ${rapportTitre || "Rapport d'audit"}\n\nSCORE DE CONFORMITÉ : ${score}/100\nAnomalies détectées : ${d?.stats.anomaliesCount ?? 0}\n\nCONTENU :\n${rapportContenu || "[Saisir le contenu du rapport]"}\n\n--- Généré par AfriGes Audit Interne ---`,
+      AUDIT: `RAPPORT D'AUDIT INTERNE\n${"=".repeat(40)}\nDate : ${now}\nPériode : ${rapportPeriode || "Non précisée"}\nTitre : ${rapportTitre || "Rapport d'audit"}\n\nSCORE DE CONFORMITÉ : ${score}/100\nAnomalies détectées : ${d?.stats.anomaliesCount ?? 0}\n\nCONTENU :\n${rapportContenu || "[Saisir le contenu du rapport]"}\n\n--- Généré par AfriGes {t("role_auditeur_short")} ---`,
       ANOMALIES: `RAPPORT D'ANOMALIES DÉTECTÉES\n${"=".repeat(40)}\nDate : ${now}\nPériode : ${rapportPeriode || "Non précisée"}\nTitre : ${rapportTitre || "Rapport d'anomalies"}\n\nANOMALIES IDENTIFIÉES :\n${(d?.anomalies ?? []).map((a, i) => `${i + 1}. [${a.niveau}] ${a.description} (${a.entite})`).join("\n") || "Aucune anomalie détectée."}\n\nOBSERVATIONS :\n${rapportContenu || "[Saisir les observations]"}\n\n--- Généré par AfriGes Audit Interne ---`,
       RECOMMANDATIONS: `RAPPORT DE RECOMMANDATIONS\n${"=".repeat(40)}\nDate : ${now}\nPériode : ${rapportPeriode || "Non précisée"}\nTitre : ${rapportTitre || "Recommandations"}\n\nRECOMMANDATIONS :\n${rapportContenu || "[Saisir les recommandations]"}\n\n--- Généré par AfriGes Audit Interne ---`,
       CONSOLIDE: `RAPPORT CONSOLIDÉ\n${"=".repeat(40)}\nDate : ${now}\nPériode : ${rapportPeriode || "Non précisée"}\nTitre : ${rapportTitre || "Rapport consolidé"}\n\nSYNTHÈSE STOCK :\n- Produits : ${d?.stock.totalProduits ?? 0} | Ruptures : ${d?.stock.enRupture ?? 0} | Stock faible : ${d?.stock.stockFaible ?? 0}\n- Valeur totale : ${formatCurrency(d?.stock.valeurTotale ?? 0)}\n\nSYNTHÈSE FINANCES :\n- Souscriptions actives : ${d?.finances.souscriptions.actives ?? 0}\n- Montant versé : ${formatCurrency(d?.finances.souscriptions.montantTotalVerse ?? 0)}\n- Échéances en retard : ${d?.finances.echeancesEnRetard ?? 0}\n\nSYNTHÈSE CAISSE (7j) :\n${(d?.clotureCaisse.historique ?? []).map((c) => `  ${formatDate(c.date)} — ${c.totalVentes} ventes — ${formatCurrency(c.montantTotal)}`).join("\n") || "  Aucune clôture."}\n\nCONTENU LIBRE :\n${rapportContenu || "[Saisir le contenu]"}\n\n--- Généré par AfriGes Audit Interne ---`,
@@ -707,7 +710,7 @@ export default function AuditeurInternePage() {
         {/* Header */}
         <div className="flex items-center justify-between flex-wrap gap-4">
           <div>
-            <h2 className="text-3xl font-bold text-slate-800 mb-1">Tableau de Bord — Auditeur Interne</h2>
+            <h2 className="text-3xl font-bold text-slate-800 mb-1">{t("role_auditeur_title")}</h2>
             <p className="text-slate-500">Supervisez la conformité, analysez les flux et détectez les anomalies</p>
           </div>
           <button

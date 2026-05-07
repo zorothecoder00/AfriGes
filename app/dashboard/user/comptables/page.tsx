@@ -20,6 +20,7 @@ import { formatCurrency, formatDateShort, formatDateTime } from "@/lib/format";
 import { exportToCsv } from "@/lib/exportCsv";
 import { generateUploadButton } from "@uploadthing/react";
 import type { OurFileRouter } from "@/app/api/uploadthing/core";
+import { useT } from "@/contexts/AppSettingsContext";
 
 const UploadButton = generateUploadButton<OurFileRouter>();
 
@@ -358,6 +359,8 @@ type Tab    = "synthese" | "journal" | "tresorerie" | "balance" | "grandlivre" |
             | "plan" | "saisie" | "tva" | "rapprochement";
 
 export default function ComptablePage() {
+  const t = useT();
+
   const [selectedPeriod, setSelectedPeriod] = useState<Period>("30");
   const [activeTab, setActiveTab]           = useState<Tab>("synthese");
 
@@ -903,7 +906,7 @@ export default function ComptablePage() {
               <div className="w-8 h-8 bg-violet-600 rounded-lg flex items-center justify-center">
                 <Calculator className="w-4 h-4 text-white" />
               </div>
-              <h1 className="text-lg font-bold text-slate-800">Comptabilité</h1>
+              <h1 className="text-lg font-bold text-slate-800">{t("role_comptable_title")}</h1>
             </div>
           </div>
 
@@ -943,7 +946,7 @@ export default function ComptablePage() {
 
         {/* ── Header ── */}
         <div>
-          <h2 className="text-3xl font-bold text-slate-800">Comptabilité Générale</h2>
+          <h2 className="text-3xl font-bold text-slate-800">{t("role_comptable_title")} Générale</h2> 
           <p className="text-slate-500 text-sm mt-0.5">
             Période : {sd ? formatDateShort(sd.periode.debut) : "…"} → {sd ? formatDateShort(sd.periode.fin) : "…"}
           </p>

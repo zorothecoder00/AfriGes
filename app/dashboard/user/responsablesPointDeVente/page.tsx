@@ -17,6 +17,7 @@ import MessagesLink from "@/components/MessagesLink";
 import UserPdvBadge from "@/components/UserPdvBadge";
 import { useApi, useMutation } from "@/hooks/useApi";
 import { formatCurrency, formatDate, formatDateTime } from "@/lib/format";
+import { useT } from "@/contexts/AppSettingsContext";
 
 // ============================================================================
 // TYPES
@@ -310,6 +311,8 @@ function MiniBarChart({ data }: { data: { heure: number; count: number; montant:
 // ============================================================================
 
 export default function ResponsablePDVPage() {
+  const t = useT();
+  
   const [activeTab,   setActiveTab]   = useState<TabKey>("synthese");
   const [stockSub,    setStockSub]    = useState<StockSub>("inventaire");
   const [equipeSub,   setEquipeSub]   = useState<"membres" | "performances" | "presences">("membres");
@@ -1746,7 +1749,7 @@ export default function ResponsablePDVPage() {
                 <MapPin className="w-4 h-4 text-white" />
               </div>
               <h1 className="text-xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-                Responsable PDV
+                {t("role_rpv_title")}
               </h1>
             </div>
             <div className="flex items-center gap-2">

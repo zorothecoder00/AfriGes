@@ -17,6 +17,7 @@ import { useApi } from "@/hooks/useApi";
 import { useMutation } from "@/hooks/useApi";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { exportToCsv } from "@/lib/exportCsv";
+import { useT } from "@/contexts/AppSettingsContext";
 
 // ============================================================================
 // TYPES
@@ -255,6 +256,8 @@ function EmptyState({ message }: { message: string }) {
 // ============================================================================
 
 export default function ChefAgenceDashboard() {
+  const t = useT();
+  
   const [activeTab, setActiveTab] = useState<Tab>("vue_generale");
 
   // ── Filtres Ventes ───────────────────────────────────────────────────────
@@ -455,7 +458,7 @@ export default function ChefAgenceDashboard() {
 
   // ── Tabs config ──────────────────────────────────────────────────────────
   const tabs: { key: Tab; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
-    { key: "vue_generale",     label: "Vue Générale",     icon: LayoutDashboard },
+    { key: "vue_generale",     label: t("chef_tab_overview"),     icon: LayoutDashboard },
     { key: "pdvs",             label: "Points de Vente",  icon: Store },
     { key: "ventes",           label: "Ventes",           icon: TrendingUp },
     { key: "stock",            label: "Stock",            icon: Package },
