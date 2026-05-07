@@ -4,6 +4,7 @@ import "./globals.css";
 import { SessionWrapper } from "@/components/SessionWrapper";
 import ToastProvider from "@/components/ToastProvider";
 import { AppSettingsProvider } from "@/contexts/AppSettingsContext";
+import GoogleTranslate from "@/components/GoogleTranslate";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",     
@@ -12,7 +13,7 @@ const geistSans = Geist({
   
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
-  subsets: ["latin"],
+  subsets: ["latin"],  
 });  
 
 export const metadata: Metadata = {
@@ -32,8 +33,13 @@ export default function RootLayout({
       > 
         <SessionWrapper>
           <AppSettingsProvider>
+
+            <GoogleTranslate />
+
             <ToastProvider/>
+
             {children}
+            
           </AppSettingsProvider>
         </SessionWrapper>
       </body>

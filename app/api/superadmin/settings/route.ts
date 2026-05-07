@@ -8,10 +8,10 @@ const DEFAULTS: Record<string, string> = {
   // Plateforme
   "platform.nom":       "AfriGes",
   "platform.devise":    "FCFA",
-  "platform.langue":    "fr",
+  "platform.langue":    "fr",   
   "platform.theme":     "light",
   // Numérotation
-  "numbering.facture":  "FAC-{YYYY}-{SEQ}",
+  "numbering.facture":  "FAC-{YYYY}-{SEQ}",   
   "numbering.vente":    "VNT-{YYYY}-{SEQ}",
   "numbering.mouvement":"MVT-{YYYY}-{SEQ}",
   "numbering.reception":"REC-{YYYY}-{SEQ}",

@@ -6,7 +6,7 @@
   
 generator client {
   provider = "prisma-client-js"
-}                                                    
+}                                                        
                          
 datasource db {
   provider = "postgresql"
@@ -497,6 +497,8 @@ model User {
   souscriptionsPacks   SouscriptionPack[]
   pointsFidelite       PointsFidelite?
 
+  clientsAssignes      Client[]             @relation("ClientAgentTerrain")
+
   // Comptabilité
   cloturesComptables   ClotureComptable[]
   ecrituresComptables  EcritureComptable[]
@@ -645,6 +647,10 @@ model Client {
   pointDeVenteId Int?
 
   pointDeVente       PointDeVente?      @relation(fields: [pointDeVenteId], references: [id])
+
+  agentTerrainId Int?
+  agentTerrain       User?              @relation("ClientAgentTerrain", fields: [agentTerrainId], references: [id])
+
   pointsDeVente      ClientPointDeVente[]
   souscriptionsPacks SouscriptionPack[]
   pointsFidelite     PointsFidelite?
@@ -1911,7 +1917,7 @@ model UserPermission {
   userId     Int
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   module     String
-  permission String
+  permission String  
   granted    Boolean  @default(true)
   grantedBy  Int?
   notes      String?
