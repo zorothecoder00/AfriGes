@@ -49,9 +49,51 @@ export async function GET(req: Request) {
         client: { select: { nom: true, prenom: true, telephone: true } },
         _count: { select: { versements: true } },
         echeances: {
-          where: { statut: { in: ["EN_ATTENTE", "EN_RETARD"] } },
-          orderBy: { datePrevue: "asc" },
+          where: {
+            statut: { in: ["EN_ATTENTE", "EN_RETARD"] },
+          },
+          orderBy: {
+            datePrevue: "asc",
+          },
           take: 3,
+          include: {
+            souscription: {
+              select: {
+                id: true,
+                createdAt: true,
+                dateDebut: true,
+                dateFin: true,
+                statut: true,
+                montantTotal: true,
+                montantVerse: true,
+                montantRestant: true,
+                pack: {
+                  select: {
+                    id: true,
+                    nom: true,
+                    type: true,
+                    frequenceVersement: true,
+                  },
+                },
+                client: {
+                  select: {
+                    id: true,
+                    nom: true,
+                    prenom: true,
+                    telephone: true,
+                  },
+                },
+                user: {
+                  select: {
+                    id: true,
+                    nom: true,
+                    prenom: true,
+                    telephone: true,
+                  },
+                },
+              },
+            },
+          },
         },
       },
     });

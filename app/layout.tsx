@@ -4,7 +4,6 @@ import "./globals.css";
 import { SessionWrapper } from "@/components/SessionWrapper";
 import ToastProvider from "@/components/ToastProvider";
 import { AppSettingsProvider } from "@/contexts/AppSettingsContext";
-import GoogleTranslate from "@/components/GoogleTranslate";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",     
@@ -33,8 +32,6 @@ export default function RootLayout({
       > 
         <SessionWrapper>
           <AppSettingsProvider>
-
-            <GoogleTranslate />
 
             <ToastProvider/>
 

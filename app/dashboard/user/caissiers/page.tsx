@@ -8,7 +8,7 @@ import {
   Lock, Calendar, FileText, Filter, Layers, Eye, XCircle, Package,
   Wallet, Power, Pause, Play, ArrowDownCircle, ArrowUpCircle,
   ArrowLeftRight, CreditCard, Building2, Send, ShoppingBag,
-} from "lucide-react";
+} from "lucide-react";   
 import Link from "next/link";
 import SignOutButton from "@/components/SignOutButton";
 import NotificationBell from "@/components/NotificationBell";
@@ -23,9 +23,45 @@ import { useT } from "@/contexts/AppSettingsContext";
 // ============================================================================
 
 interface EcheanceRetard {
-  id: number; numero: number; montant: number; datePrevue: string;
-  packNom: string; packType: string;
-  client: { nom: string; prenom: string; telephone: string } | null;
+  id: number;
+  numero: number;
+  montant: number;
+  datePrevue: string;
+  statut: string;
+
+  souscription: {
+    id: number;
+
+    createdAt: string;
+    dateDebut: string;
+
+    statut: string;
+
+    montantTotal: string;
+    montantVerse: string;
+    montantRestant: string;
+
+    pack: {
+      id: number;
+      nom: string;
+      type: string;
+      frequenceVersement?: string | null;
+    };
+
+    client: {
+      id: number;
+      nom: string;
+      prenom: string;
+      telephone: string;
+    } | null;
+
+    user: {
+      id: number;
+      nom: string;
+      prenom: string;
+      telephone: string | null;
+    } | null;
+  };
 }
 
 interface SessionCaisse {
@@ -177,19 +213,53 @@ interface ClotureData {
 interface EcheanceItem {
   id: number; numero: number; montant: string; datePrevue: string; statut: string;
 }
+
 interface SouscriptionItem {
   id: number;
+
   statut: string;
+
   montantTotal: string;
   montantVerse: string;
   montantRestant: string;
+
   numeroCycle: number;
-  pack: { nom: string; type: string; frequenceVersement: string };
-  user:   { nom: string; prenom: string; telephone: string } | null;
-  client: { nom: string; prenom: string; telephone: string } | null;
-  _count: { versements: number };
+
+  createdAt: string;
+  updatedAt: string;
+
+  dateDebut: string;
+  dateFin: string | null;
+  dateCloture: string | null;
+
+  pack: {
+    id?: number;
+    nom: string;
+    type: string;
+    frequenceVersement: string;
+  };
+
+  user: {
+    id?: number;
+    nom: string;
+    prenom: string;
+    telephone: string | null;
+  } | null;
+
+  client: {
+    id?: number;
+    nom: string;
+    prenom: string;
+    telephone: string;
+  } | null;
+
+  _count: {
+    versements: number;
+  };
+
   echeances: EcheanceItem[];
 }
+
 interface PackItem { id: number; nom: string; type: string }
 interface PacksResponse { souscriptions: SouscriptionItem[]; packs: PackItem[] }
 
@@ -313,14 +383,14 @@ function TicketRecu({ data, onClose }: { data: RecuData["data"]; onClose: () => 
     <div class="row"><span>Client :</span><span class="bold">${data.client.nom}</span></div>
     ${data.client.telephone ? `<div class="row"><span>Tél :</span><span>${data.client.telephone}</span></div>` : ""}
     <div class="line"></div>
-    <div class="row"><span>Pack :</span><span class="bold">${data.souscription.packNom}</span></div>
+    <div class="row"><span>Pack :</span><span class="bold">${data.souscription?.packNom}</span></div>
     <div class="row"><span>Type versement :</span><span>${data.versement.typeLabel}</span></div>
     <div class="line"></div>
     <div class="row total"><span>MONTANT VERSÉ</span><span>${data.versement.montant.toLocaleString("fr-FR")} FCFA</span></div>
     <div class="line"></div>
-    <div class="row"><span>Total du pack :</span><span>${data.souscription.montantTotal.toLocaleString("fr-FR")} FCFA</span></div>
-    <div class="row"><span>Total versé :</span><span>${data.souscription.montantVerse.toLocaleString("fr-FR")} FCFA</span></div>
-    <div class="row bold"><span>Reste à verser :</span><span>${data.souscription.montantRestant.toLocaleString("fr-FR")} FCFA</span></div>
+    <div class="row"><span>Total du pack :</span><span>${data.souscription?.montantTotal.toLocaleString("fr-FR")} FCFA</span></div>
+    <div class="row"><span>Total versé :</span><span>${data.souscription?.montantVerse.toLocaleString("fr-FR")} FCFA</span></div>
+    <div class="row bold"><span>Reste à verser :</span><span>${data.souscription?.montantRestant.toLocaleString("fr-FR")} FCFA</span></div>
     ${data.versement.notes ? `<div class="line"></div><div class="row"><span>Note :</span><span>${data.versement.notes}</span></div>` : ""}
     <div class="line"></div>
     <div class="center">Merci de votre confiance !</div>
@@ -359,7 +429,7 @@ function TicketRecu({ data, onClose }: { data: RecuData["data"]; onClose: () => 
           <div className="flex justify-between text-xs"><span className="text-slate-500">Client</span><span className="font-semibold">{data.client.nom}</span></div>
           {data.client.telephone && <div className="flex justify-between text-xs"><span className="text-slate-500">Tél</span><span>{data.client.telephone}</span></div>}
           <div className="border-t border-dashed border-slate-300 my-3" />
-          <div className="flex justify-between text-xs"><span className="text-slate-500">Pack</span><span className="font-semibold">{data.souscription.packNom}</span></div>
+          <div className="flex justify-between text-xs"><span className="text-slate-500">Pack</span><span className="font-semibold">{data.souscription?.packNom}</span></div>
           <div className="flex justify-between text-xs"><span className="text-slate-500">Type</span><span>{data.versement.typeLabel}</span></div>
           <div className="border-t border-dashed border-slate-300 my-3" />
           <div className="flex justify-between font-bold text-base">
@@ -367,9 +437,9 @@ function TicketRecu({ data, onClose }: { data: RecuData["data"]; onClose: () => 
             <span className="text-emerald-600">{formatCurrency(data.versement.montant)}</span>
           </div>
           <div className="border-t border-dashed border-slate-300 my-3" />
-          <div className="flex justify-between text-xs"><span className="text-slate-500">Total pack</span><span>{formatCurrency(data.souscription.montantTotal)}</span></div>
-          <div className="flex justify-between text-xs"><span className="text-slate-500">Total versé</span><span>{formatCurrency(data.souscription.montantVerse)}</span></div>
-          <div className="flex justify-between text-xs font-bold"><span className="text-slate-500">Reste à payer</span><span className={data.souscription.montantRestant > 0 ? "text-amber-600" : "text-emerald-600"}>{formatCurrency(data.souscription.montantRestant)}</span></div>
+          <div className="flex justify-between text-xs"><span className="text-slate-500">Total pack</span><span>{formatCurrency(data.souscription?.montantTotal)}</span></div>
+          <div className="flex justify-between text-xs"><span className="text-slate-500">Total versé</span><span>{formatCurrency(data.souscription?.montantVerse)}</span></div>
+          <div className="flex justify-between text-xs font-bold"><span className="text-slate-500">Reste à payer</span><span className={data.souscription?.montantRestant > 0 ? "text-amber-600" : "text-emerald-600"}>{formatCurrency(data.souscription?.montantRestant)}</span></div>
           {data.versement.notes && (
             <>
               <div className="border-t border-dashed border-slate-300 my-3" />
@@ -829,8 +899,8 @@ export default function CaissierPage() {
   const openVersementModal = (souscription: SouscriptionItem) => {
     setVersementSouscriptionId(souscription.id);
     setSelectedSouscription(souscription);
-    const echeancesEnRetard = souscription.echeances.filter((e) => e.statut === "EN_RETARD");
-    const prochaineEcheance = souscription.echeances.find(
+    const echeancesEnRetard = souscription?.echeances.filter((e) => e.statut === "EN_RETARD");
+    const prochaineEcheance = souscription?.echeances.find(
       (e) => e.statut === "EN_ATTENTE" || e.statut === "EN_RETARD"
     );
     if (echeancesEnRetard.length > 1) {
@@ -841,7 +911,7 @@ export default function CaissierPage() {
       setVersementMontant(
         prochaineEcheance
           ? String(Number(prochaineEcheance.montant))
-          : String(Number(souscription.montantRestant))
+          : String(Number(souscription?.montantRestant))
       );
     }
     setVersementNotes("");
@@ -1111,13 +1181,13 @@ export default function CaissierPage() {
                 <div>
                   <h2 className="text-xl font-bold text-slate-800">Encaisser un versement</h2>
                   <p className="text-sm text-slate-500">
-                    {selectedSouscription.client
-                      ? `${selectedSouscription.client.prenom} ${selectedSouscription.client.nom}`
-                      : selectedSouscription.user
-                      ? `${selectedSouscription.user.prenom} ${selectedSouscription.user.nom}`
+                    {selectedSouscription?.client
+                      ? `${selectedSouscription?.client.prenom} ${selectedSouscription?.client.nom}`
+                      : selectedSouscription?.user
+                      ? `${selectedSouscription?.user.prenom} ${selectedSouscription?.user.nom}`
                       : "—"}
                     {" · "}
-                    {selectedSouscription.pack.nom}
+                    {selectedSouscription?.pack.nom}
                   </p>
                 </div>
               </div>
@@ -1141,19 +1211,19 @@ export default function CaissierPage() {
               <div className="bg-slate-50 rounded-xl p-4 space-y-2 border border-slate-200">
                 <div className="flex justify-between text-sm">
                   <span className="text-slate-500">Montant total</span>
-                  <span className="font-semibold">{formatCurrency(Number(selectedSouscription.montantTotal))}</span>
+                  <span className="font-semibold">{formatCurrency(Number(selectedSouscription?.montantTotal))}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-slate-500">Déjà versé</span>
-                  <span className="font-semibold text-emerald-600">{formatCurrency(Number(selectedSouscription.montantVerse))}</span>
+                  <span className="font-semibold text-emerald-600">{formatCurrency(Number(selectedSouscription?.montantVerse))}</span>
                 </div>
                 <div className="flex justify-between text-sm font-bold">
                   <span className="text-slate-600">Reste à payer</span>
-                  <span className="text-amber-600">{formatCurrency(Number(selectedSouscription.montantRestant))}</span>
+                  <span className="text-amber-600">{formatCurrency(Number(selectedSouscription?.montantRestant))}</span>
                 </div>
-                {selectedSouscription.echeances.length > 0 && (() => {
-                  const enRetard = selectedSouscription.echeances.filter((e) => e.statut === "EN_RETARD");
-                  const prochaine = selectedSouscription.echeances[0];
+                {selectedSouscription?.echeances.length > 0 && (() => {
+                  const enRetard = selectedSouscription?.echeances.filter((e) => e.statut === "EN_RETARD");
+                  const prochaine = selectedSouscription?.echeances[0];
                   if (enRetard.length > 1) {
                     const totalRetard = enRetard.reduce((s, e) => s + Number(e.montant), 0);
                     return (
@@ -1184,7 +1254,7 @@ export default function CaissierPage() {
                 <input
                   type="number"
                   min="1"
-                  max={Number(selectedSouscription.montantRestant)}
+                  max={Number(selectedSouscription?.montantRestant)}
                   step="1"
                   value={versementMontant}
                   onChange={(e) => setVersementMontant(e.target.value)}
@@ -1413,8 +1483,9 @@ export default function CaissierPage() {
                   Échéances en retard ({dashboard!.echeancesEnRetard.length})
                 </h3>
                 <div className="space-y-2">
+                  
                   {dashboard!.echeancesEnRetard.map((e) => {
-                    const person = e.client;
+                    const person = e.souscription?.client ?? e.souscription?.user;
                     return (
                       <div key={e.id} className="flex items-center justify-between py-2.5 border-b border-red-50 last:border-0">
                         <div className="flex items-center gap-3">
@@ -1422,10 +1493,14 @@ export default function CaissierPage() {
                             <AlertCircle size={14} className="text-red-500" />
                           </div>
                           <div>
-                            <p className="text-sm font-semibold text-slate-800">
-                              {person ? `${person.prenom} ${person.nom}` : "—"} — {e.packNom}
+                            
+                            <p className="text-xs text-slate-500 mt-0.5">
+                              {e.souscription?.pack?.nom ?? "—"} — Éch. #{e.numero}
                             </p>
-                            <p className="text-xs text-slate-500">Éch. #{e.numero} · Prévue le {formatDate(e.datePrevue)}</p>
+  
+                            <p className="text-[11px] text-slate-400 mt-1">
+                              Souscription : {formatDate(e.souscription?.dateDebut)}
+                            </p>
                           </div>
                         </div>
                         <span className="font-bold text-red-600 text-sm shrink-0">{formatCurrency(e.montant)}</span>
@@ -2028,7 +2103,7 @@ export default function CaissierPage() {
                   <Banknote size={20} className="text-emerald-600" />
                   Souscriptions en cours — Collecte de versements packs
                 </h3>
-                <span className="text-xs text-slate-400">{souscriptions.length} souscription(s)</span>
+                <span className="text-xs text-slate-400">{souscriptions?.length} souscription(s)</span>
               </div>
               <div className="relative">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
@@ -2061,19 +2136,48 @@ export default function CaissierPage() {
                       (s) => s.echeances.some((ec) => ec.id === e.id)
                     );
                     return (
-                      <div key={e.id} className="bg-red-50 rounded-xl p-4 border border-red-200">
-                        <p className="font-semibold text-slate-800 text-sm">
-                          {e.client ? `${e.client.prenom} ${e.client.nom}` : `Éch. #${e.id}`}
-                        </p>
-                        <p className="text-xs text-slate-500 mt-0.5">{e.packNom} — Éch. #{e.numero}</p>
-                        <div className="flex items-center justify-between mt-2">
-                          <span className="text-xs text-red-500 font-medium">{joursRetard} j de retard</span>
-                          <span className="text-red-600 font-bold text-sm">{formatCurrency(e.montant)}</span>
+                      <div
+                        key={e.id}
+                        className="bg-red-50 rounded-xl p-4 border border-red-200"
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <p className="font-semibold text-slate-800 text-sm">
+                              {e.souscription?.client
+                                ? `${e.souscription?.client?.prenom} ${e.souscription?.client?.nom}`
+                                : e.souscription?.user
+                                ? `${e.souscription?.user?.prenom} ${e.souscription?.user?.nom}`
+                                : `Échéance #${e.id}`}
+                            </p>
+
+                            <p className="text-xs text-slate-500 mt-0.5">
+                              {e.souscription?.pack?.nom} — Éch. #{e.numero}
+                            </p>
+
+                            <p className="text-[11px] text-slate-400 mt-1">
+                              Souscription : {formatDate(e.souscription?.dateDebut)}
+                            </p>
+
+                            <p className="text-[11px] text-slate-400">
+                              Prévue le : {formatDate(e.datePrevue)}
+                            </p>
+                          </div>
+
+                          <span className="text-red-600 font-bold text-sm">
+                            {formatCurrency(e.montant)}
+                          </span>
                         </div>
+
+                        <div className="flex items-center justify-between mt-3">
+                          <span className="text-xs text-red-500 font-semibold">
+                            ⚠ {joursRetard} jour(s) de retard
+                          </span>
+                        </div>
+
                         {souscription && (
                           <button
                             onClick={() => openVersementModal(souscription)}
-                            className="mt-2 w-full py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-semibold transition-colors"
+                            className="mt-3 w-full py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-semibold transition-colors"
                           >
                             Encaisser →
                           </button>
@@ -2086,7 +2190,7 @@ export default function CaissierPage() {
             )}
 
             {/* Liste des souscriptions en cours */}
-            {souscriptions.length === 0 ? (
+            {souscriptions?.length === 0 ? (
               <div className="bg-white rounded-2xl p-12 text-center shadow-sm border border-slate-200/60">
                 <ShoppingCart className="w-12 h-12 text-slate-200 mx-auto mb-3" />
                 <p className="text-slate-400 font-medium">Aucune souscription en cours</p>
@@ -2118,6 +2222,9 @@ export default function CaissierPage() {
                             {person?.telephone && (
                               <p className="text-xs text-slate-400">{person.telephone}</p>
                             )}
+                            <p className="text-[11px] text-slate-400 mt-1">
+                              Souscrit le {formatDate(s.dateDebut)}
+                            </p>
                           </div>
                           {packTypeBadge(s.pack.type)}
                         </div>
@@ -2271,15 +2378,15 @@ export default function CaissierPage() {
                       </thead>
                       <tbody className="divide-y divide-slate-100">
                         {versements.map((v) => {
-                          const person = v.souscription.client ?? v.souscription.user;
+                          const person = v.souscription?.client ?? v.souscription?.user;
                           return (
                             <tr key={v.id} className="hover:bg-slate-50 transition-colors">
                               <td className="px-5 py-3.5 text-xs font-mono text-slate-400 flex items-center gap-1">
                                 <Hash size={12} />{v.id}
                               </td>
                               <td className="px-5 py-3.5">
-                                <p className="font-semibold text-slate-800 text-sm">{v.souscription.pack.nom}</p>
-                                <div className="mt-0.5">{packTypeBadge(v.souscription.pack.type)}</div>
+                                <p className="font-semibold text-slate-800 text-sm">{v.souscription?.pack?.nom}</p>
+                                <div className="mt-0.5">{packTypeBadge(v.souscription?.pack?.type)}</div>
                               </td>
                               <td className="px-5 py-3.5 text-sm text-slate-600">
                                 {person ? `${person.prenom} ${person.nom}` : "—"}
@@ -2525,9 +2632,9 @@ export default function CaissierPage() {
             {versements.filter((v) => {
               if (!debouncedSearch) return true;
               const q = debouncedSearch.toLowerCase();
-              const person = v.souscription.client ?? v.souscription.user;
+              const person = v.souscription?.client ?? v.souscription?.user;
               const name = person ? `${person.prenom} ${person.nom}`.toLowerCase() : "";
-              return name.includes(q) || v.souscription.pack.nom.toLowerCase().includes(q) || String(v.id).includes(q);
+              return name.includes(q) || v.souscription?.pack?.nom.toLowerCase().includes(q) || String(v.id).includes(q);
             }).length > 0 && (
               <div>
                 <h4 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-3 flex items-center gap-2">
@@ -2539,12 +2646,12 @@ export default function CaissierPage() {
                     .filter((v) => {
                       if (!debouncedSearch) return true;
                       const q = debouncedSearch.toLowerCase();
-                      const person = v.souscription.client ?? v.souscription.user;
+                      const person = v.souscription?.client ?? v.souscription?.user;
                       const name = person ? `${person.prenom} ${person.nom}`.toLowerCase() : "";
-                      return name.includes(q) || v.souscription.pack.nom.toLowerCase().includes(q) || String(v.id).includes(q);
+                      return name.includes(q) || v.souscription?.pack?.nom.toLowerCase().includes(q) || String(v.id).includes(q);
                     })
                     .map((v) => {
-                      const person = v.souscription.client ?? v.souscription.user;
+                      const person = v.souscription?.client ?? v.souscription?.user;
                       return (
                         <div key={v.id} className="bg-white rounded-xl shadow-sm border border-slate-200 hover:shadow-md transition-all">
                           <div className="p-5">
@@ -2564,7 +2671,7 @@ export default function CaissierPage() {
                               </div>
                               <div className="flex justify-between text-sm">
                                 <span className="text-slate-500">Pack</span>
-                                <span className="font-semibold text-slate-800 text-right max-w-[130px] truncate">{v.souscription.pack.nom}</span>
+                                <span className="font-semibold text-slate-800 text-right max-w-[130px] truncate">{v.souscription?.pack?.nom}</span>
                               </div>
                               <div className="flex justify-between text-sm">
                                 <span className="text-slate-500">Type</span>

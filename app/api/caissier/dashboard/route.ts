@@ -74,10 +74,10 @@ export async function GET() {
           encaisseParNom: true,
           souscription: {
             select: {
-              pack:   { select: { nom: true, type: true } },
-              client: { select: { nom: true, prenom: true } },
-              user:   { select: { nom: true, prenom: true } },
-            },
+              pack:   { select: { id: true, nom: true, type: true } },
+              client: { select: { id: true, nom: true, prenom: true, telephone: true } },
+              user:   { select: { id: true, nom: true, prenom: true, telephone: true } },
+                    },
           },
         },
         orderBy: { datePaiement: "desc" },
@@ -135,9 +135,9 @@ export async function GET() {
         include: {
           souscription: {
             include: {
-              pack:   { select: { nom: true, type: true } },
-              client: { select: { nom: true, prenom: true, telephone: true } },
-              user:   { select: { nom: true, prenom: true, telephone: true } },
+              pack:   { select: { id: true, nom: true, type: true } },
+              client: { select: { id: true, nom: true, prenom: true, telephone: true } },
+              user:   { select: { id: true, nom: true, prenom: true, telephone: true } },
             },
           },
         },
@@ -314,9 +314,37 @@ export async function GET() {
           numero:     e.numero,
           montant:    Number(e.montant),
           datePrevue: e.datePrevue.toISOString(),
-          packNom:    e.souscription.pack.nom,
-          packType:   e.souscription.pack.type,
-          client:     e.souscription.client ?? e.souscription.user,
+          statut:     e.statut,
+          souscription: {
+            id:             e.souscription.id,
+            createdAt:      e.souscription.createdAt.toISOString(),
+            dateDebut:      e.souscription.dateDebut.toISOString(),
+            statut:         e.souscription.statut,
+            montantTotal:   String(e.souscription.montantTotal),
+            montantVerse:   String(e.souscription.montantVerse),
+            montantRestant: String(e.souscription.montantRestant),
+            pack: {
+              id:  e.souscription.pack.id,
+              nom: e.souscription.pack.nom,
+              type: e.souscription.pack.type,
+            },
+            client: e.souscription.client
+              ? {
+                  id:        e.souscription.client.id,
+                  nom:       e.souscription.client.nom,
+                  prenom:    e.souscription.client.prenom,
+                  telephone: e.souscription.client.telephone,
+                }
+              : null,
+            user: e.souscription.user
+              ? {
+                  id:        e.souscription.user.id,
+                  nom:       e.souscription.user.nom,
+                  prenom:    e.souscription.user.prenom,
+                  telephone: e.souscription.user.telephone,
+                }
+              : null,
+          },
         })),
         derniereCloture: derniereCloture
           ? {

@@ -2,7 +2,7 @@ import Image from 'next/image'
 
 type AfriSimeLogoProps = {
   className?: string
-  priority?: boolean
+  priority?: boolean  
 }
 
 export default function AfriSimeLogo({ className = '', priority = false }: AfriSimeLogoProps) {
