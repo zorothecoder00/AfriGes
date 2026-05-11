@@ -16,6 +16,10 @@ Du genre , ce que je veux c'est que l'admin en approvisionnant un produit , doit
 
 -On doit pouvoir aussi affecter les clients aux commerciaux (agents de terrain)
 
+-Sur le dashboard/admin/clients , on doit pouvoir voir l'historique des versements , des souscriptions, du total ( versement + achat direct ) des clients    
+
+-Sur le dashboard/user/caissier je veux pouvoir modifier la date d'un versement ( je peux faire une erreur lorsque je remplis la modale de collecte de versement )  pour pouvoir corriger des erreurs.
+
 -Pas une erreur mais un bug ; normalement au niveau du point de vente de
   l'utilisateur , on ne devrait pas mettre un unique point de vente pour le
   chef_agence ou responsable_communaute (vu qu'il gère plusieurs points de vente)
@@ -34,6 +38,3 @@ Du genre , ce que je veux c'est que l'admin en approvisionnant un produit , doit
    
 -curl -fsSL https://claude.ai/install.cmd -o install.cmd && install.cmd && del install.cmd pour installer claude via le terminal cmd
 
--Sur le dashboard/admin/clients , on doit pouvoir voir l'historique des versements , des souscriptions, du total ( versement + achat direct ) des clients    
-
--Sur le dashboard/user/caissier je veux pouvoir modifier la date d'un versement ( je peux faire une erreur lorsque j'avais collecté un versement)  
