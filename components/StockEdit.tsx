@@ -11,7 +11,7 @@ import {
   AlertCircle,
   Loader2,
 } from 'lucide-react';
-    
+      
 interface Produit {
   id: number;
   nom: string;
@@ -150,13 +150,16 @@ export default function StockEdit({ produitId }: StockEditProps) {
                 <textarea id="description" name="description" value={formData.description} onChange={handleChange} rows={3} className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none resize-none" />
               </div>
               <div>
-                <label htmlFor="prixUnitaire" className="block text-sm font-medium text-gray-700 mb-2">Prix unitaire (XOF) *</label>
+                <label htmlFor="prixUnitaire" className="block text-sm font-medium text-gray-700 mb-2">Prix de vente unitaire (XOF) *</label>
                 <input type="number" id="prixUnitaire" name="prixUnitaire" value={formData.prixUnitaire} onChange={handleChange} required min="0" step="0.01" className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none" />
               </div>
               <div>
                 <label htmlFor="prixAchat" className="block text-sm font-medium text-gray-700 mb-2">
                   Prix d&apos;achat (XOF)
                 </label>
+                <p className="text-xs text-gray-500 mb-2">
+                  Coût d&apos;approvisionnement interne (modifiable uniquement par l&apos;administration).
+                </p>
                 <input
                   type="number"
                   id="prixAchat"

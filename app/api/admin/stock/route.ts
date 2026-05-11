@@ -11,7 +11,7 @@ async function getAdminSession() {
   if (s.user.role !== "ADMIN" && s.user.role !== "SUPER_ADMIN") return null;
   return s;
 }  
-
+   
 /**
  * GET /api/admin/stock
  * Vue globale du stock (StockSite) : tous les PDV × tous les produits.
@@ -54,17 +54,22 @@ export async function GET(req: Request) {
     const [allStocks, uniqueProduits] = await Promise.all([
       prisma.stockSite.findMany({
         where: statsWhere,
-        select: { quantite: true, alerteStock: true, produit: { select: { prixUnitaire: true, alerteStock: true } } },
+        select: { quantite: true, alerteStock: true, produit: { select: { prixUnitaire: true, prixAchat: true, alerteStock: true } } },
       }),
       prisma.stockSite.groupBy({ by: ["produitId"], where: statsWhere }),
     ]);
-
+   
     const enRuptureCount = allStocks.filter(s => s.quantite === 0).length;
     const faibleCount    = allStocks.filter(s => {
       const seuil = s.alerteStock ?? s.produit.alerteStock;
       return s.quantite > 0 && s.quantite <= seuil;
     }).length;
-    const valeurTotale  = allStocks.reduce((acc, s) => acc + s.quantite * Number(s.produit.prixUnitaire), 0);
+
+    const valeurTotale  = allStocks.reduce((acc, s) => {
+      const coutUnitaire = Number(s.produit.prixAchat ?? s.produit.prixUnitaire);
+      return acc + s.quantite * coutUnitaire;
+    }, 0);
+
     const totalProduits = aggregate
       ? await prisma.produit.count({ where: produitFilter })
       : uniqueProduits.length;

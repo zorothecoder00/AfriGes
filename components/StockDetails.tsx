@@ -9,7 +9,7 @@ import {
   Package,
   TrendingUp,
   TrendingDown,
-  AlertTriangle,
+  AlertTriangle,  
   ArrowUpCircle,
   ArrowDownCircle,
   RefreshCw,
@@ -29,6 +29,7 @@ interface Produit {
   nom: string;
   description: string | null;
   prixUnitaire: string;
+  prixAchat: string | null;
   stock: number;
   alerteStock: number;
   createdAt: string;
@@ -101,7 +102,8 @@ export default function StockDetails({ produitId }: StockDetailsProps) {
   if (!produit) return null;
 
   const status = getStockStatus(produit.stock, produit.alerteStock);
-  const valeurStock = Number(produit.prixUnitaire) * produit.stock;
+  const coutUnitaire = Number(produit.prixAchat ?? produit.prixUnitaire);
+  const valeurStock = coutUnitaire * produit.stock;
 
   return (
     <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
@@ -145,16 +147,19 @@ export default function StockDetails({ produitId }: StockDetailsProps) {
           <div className="bg-white rounded-xl border border-gray-200 p-5">
             <div className="flex items-center gap-3 mb-2">
               <TrendingUp className="w-5 h-5 text-emerald-500" />
-              <span className="text-sm text-gray-500">Prix unitaire</span>
+              <span className="text-sm text-gray-500">Prix de vente</span>
             </div>
             <p className="text-2xl font-bold text-gray-900">{formatCurrency(Number(produit.prixUnitaire))}</p>
-          </div>
+          </div>  
           <div className="bg-white rounded-xl border border-gray-200 p-5">
             <div className="flex items-center gap-3 mb-2">
               <TrendingDown className="w-5 h-5 text-purple-500" />
               <span className="text-sm text-gray-500">Valeur stock</span>
             </div>
             <p className="text-2xl font-bold text-gray-900">{formatCurrency(valeurStock)}</p>
+            <p className="text-xs text-gray-500 mt-1">
+              Base: {formatCurrency(coutUnitaire)} / unite
+            </p>
           </div>
         </div>
 

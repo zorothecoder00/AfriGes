@@ -1,4 +1,4 @@
-"use client";
+"use client";   
 
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import {
@@ -8,8 +8,8 @@ import {
   Lock, Calendar, FileText, Filter, Layers, Eye, XCircle, Package,
   Wallet, Power, Pause, Play, ArrowDownCircle, ArrowUpCircle,
   ArrowLeftRight, CreditCard, Building2, Send, ShoppingBag,
-} from "lucide-react";   
-import Link from "next/link";
+} from "lucide-react";     
+import Link from "next/link";          
 import SignOutButton from "@/components/SignOutButton";
 import NotificationBell from "@/components/NotificationBell";
 import MessagesLink from "@/components/MessagesLink";
@@ -721,6 +721,7 @@ export default function CaissierPage() {
   const [versementSouscriptionId, setVersementSouscriptionId] = useState(0);
   const [selectedSouscription, setSelectedSouscription] = useState<SouscriptionItem | null>(null);
   const [versementMontant,     setVersementMontant]     = useState("");
+  const [versementDate,        setVersementDate]        = useState<string>("");
   const [versementNotes,       setVersementNotes]       = useState("");
 
   const [recuModal,            setRecuModal]            = useState(false);
@@ -831,7 +832,7 @@ export default function CaissierPage() {
 
   // ── Mutations ────────────────────────────────────────────────────────────
   const { mutate: collecterVersement, loading: collectant, error: erreurVersement } =
-    useMutation<{ versement: { id: number } }, { montant: number; type: string; notes?: string }>(
+    useMutation<{ versement: { id: number } }, { montant: number; type: string; notes?: string ; datePaiement?: string; }>(
       `/api/caissier/packs/${versementSouscriptionId}/versement`,
       "POST",
       { successMessage: "Versement enregistré ✓" }
@@ -915,6 +916,9 @@ export default function CaissierPage() {
       );
     }
     setVersementNotes("");
+    // Pré-remplir avec aujourd'hui
+    setVersementDate(new Date().toISOString().slice(0, 10));
+    setVersementModal(false);
     setVersementModal(true);
   };
 
@@ -927,12 +931,14 @@ export default function CaissierPage() {
       montant: montantNum,
       type: "VERSEMENT_PERIODIQUE",
       notes: versementNotes || undefined,
+      datePaiement: versementDate || undefined, // 👈 nouveau champ
     });
     if (result) {
       setVersementModal(false);
       setSelectedSouscription(null);
       setVersementMontant("");
       setVersementNotes("");
+      setVersementDate("");  // 👈 reset
       refetchDashboard();
       refetchVersements();
       refetchPacks();
@@ -1274,6 +1280,26 @@ export default function CaissierPage() {
                   className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50 text-sm"
                   placeholder="Ex : paiement espèces"
                 />
+              </div>
+
+              {/* Date de collecte */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                  Date de collecte
+                </label>
+                <input
+                  type="date"
+                  value={versementDate}
+                  onChange={(e) => setVersementDate(e.target.value)}
+                  max={new Date().toISOString().slice(0, 10)}
+                  className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50 text-sm"
+                />
+                {versementDate && versementDate !== new Date().toISOString().slice(0, 10) && (
+                  <p className="text-xs text-amber-600 mt-1 flex items-center gap-1">
+                    <AlertCircle size={12} />
+                    Collecte antérieure enregistrée au {new Date(versementDate).toLocaleDateString("fr-FR")}
+                  </p>
+                )}
               </div>
 
               {/* Récapitulatif */}

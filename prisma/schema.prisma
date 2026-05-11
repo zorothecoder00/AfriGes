@@ -493,8 +493,8 @@ model User {
   messagesEnvoyes      Message[]            @relation("MessagesEnvoyes")
   messagesRecus        Message[]            @relation("MessagesRecus")
 
-  // Packs & fidélité
-  souscriptionsPacks   SouscriptionPack[]
+  // Packs & fidélité      
+  souscriptionsPacks   SouscriptionPack[]  
   pointsFidelite       PointsFidelite?
 
   clientsAssignes      Client[]             @relation("ClientAgentTerrain")

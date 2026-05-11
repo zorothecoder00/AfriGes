@@ -96,13 +96,13 @@ export const translations = {
   main:                  { fr: "Principal",                       en: "Main",                    ar: "الرئيسية",                  es: "Principal",                       pt: "Principal"},
   packs_sales:           { fr: "Packs & Ventes",                  en: "Packs & Sales",           ar: "الباقات والمبيعات",          es: "Paquetes y Ventas",              pt: "Pacotes e Vendas"},
   commerce:              { fr: "Commerce",                        en: "Commerce",                ar: "التجارة",                     es: "Comercio",                        pt: "Comércio"},
-  new_pack_subscription: { fr: "Nouvelle souscription pack",      en: "New pack subscription",   ar: "اشتراك جديد في باقة",      es: "Nueva suscripción de paquete",    pt: "Nova subscrição de pacote"},
+  new_pack_subscription: { fr: "Nouvelle souscription pack",      en: "New pack subscription",   ar: "اشتراك جديد في باقة",      es: "Nueva suscripción de paquete",    pt: "Nova subscrição de pacote"},  
   new_sale_delivery:     { fr: "Nouvelle vente / livraison",       en: "New sale / delivery",    ar: "عملية بيع / تسليم جديدة", es: "Nueva venta / entrega",          pt: "Nova venda / entrega"},
   add_member:            { fr: "Ajouter un membre",                en: "Add a member",            ar: "إضافة عضو",                es: "Agregar un miembro",             pt: "Adicionar um membro"},
   send_message:          { fr: "Envoyer un message",               en: "Send a message",         ar: "إرسال رسالة",                 es: "Enviar un mensaje",              pt: "Enviar uma mensagem"},
   admin_all_normal:      { fr: "Tout fonctionne normalement",      en: "Everything is running normally",          ar: "كل شيء يعمل بشكل طبيعي",             es: "Todo funciona con normalidad",         pt: "Tudo está funcionando normalmente"},
   admin_no_data_period:  { fr: "Aucune donnée sur cette période",  en: "No data for this period", ar: "لا توجد بيانات لهذه الفترة",  es: "No hay datos para este período",          pt: "Nenhum dado neste período" }, 
-
+  
   // ── Dashboard / Agent terrain ────────────────────────────────────────────
   field_dash_title:      { fr: "Tableau de Bord — Agent Terrain",  en: "Dashboard — Field Agent", ar: "لوحة التحكم — وكيل ميداني",   es: "Panel — Agente de campo",                pt: "Painel — Agente de Campo" },
   field_dash_subtitle:   { fr: "Collectez les versements packs et gérez votre portefeuille clients", en: "Collect pack payments and manage your client portfolio", ar: "اجمع مدفوعات الباقات وأدر محفظة عملائك",                   es: "Cobra los pagos de paquetes y gestiona tu cartera de clientes",                                                                       pt: "Colete os pagamentos de pacotes e gerencie sua carteira de clientes" },

@@ -5,7 +5,7 @@ import { notifyAdmins } from "@/lib/notifications";
 
 type Ctx = { params: Promise<{ id: string }> };
 
-/**
+/**  
  * POST — Enregistre un versement sur une souscription pack.
  * Met à jour automatiquement montantVerse, montantRestant et le statut
  * de la souscription (COMPLETE si soldée).
@@ -24,10 +24,26 @@ export async function POST(req: Request, { params }: Ctx) {
     const souscriptionId = parseInt(id);
 
     const body = await req.json();
-    const { montant, type, notes, echeanceId } = body;
+    const { montant, type, notes, echeanceId, datePaiement } = body;
 
     if (!montant || parseFloat(montant) <= 0) {
       return NextResponse.json({ error: "Montant obligatoire et > 0" }, { status: 400 });
+    }
+
+    // 👇 AJOUTER ICI
+    let datePaiementResolved: Date = new Date();
+    if (datePaiement) {
+      const parsed = new Date(datePaiement);
+      if (isNaN(parsed.getTime())) {
+        return NextResponse.json({ error: "Date de paiement invalide" }, { status: 400 });
+      }
+      if (parsed > new Date()) {
+        return NextResponse.json(
+          { error: "La date de collecte ne peut pas être dans le futur" },
+          { status: 400 }
+        );
+      }
+      datePaiementResolved = parsed;
     }
 
     const souscription = await prisma.souscriptionPack.findUnique({
@@ -85,7 +101,7 @@ export async function POST(req: Request, { params }: Ctx) {
           type: type ?? "VERSEMENT_PERIODIQUE",
           montant: montantNum,
           statut: "PAYE",
-          datePaiement: new Date(),
+          datePaiement: datePaiementResolved,  // ✅ date manuelle ou now()
           encaisseParId: parseInt(session.user.id),
           encaisseParNom: caissierNom,
           notes,
@@ -136,13 +152,13 @@ export async function POST(req: Request, { params }: Ctx) {
         // Échéance explicitement désignée
         await tx.echeancePack.update({
           where: { id: parseInt(echeanceId) },
-          data: { statut: "PAYE", datePaiement: new Date() },
+          data: { statut: "PAYE", datePaiement: datePaiementResolved },
         });
       } else if (estSolde) {
         // Souscription entièrement soldée → toutes les échéances restantes sont soldées
         await tx.echeancePack.updateMany({
           where: { souscriptionId, statut: { in: ["EN_ATTENTE", "EN_RETARD"] } },
-          data: { statut: "PAYE", datePaiement: new Date() },
+          data: { statut: "PAYE", datePaiement: datePaiementResolved },
         });
       } else {
         // Paiement partiel → marquer toutes les échéances couvertes par le montant versé
@@ -167,7 +183,7 @@ export async function POST(req: Request, { params }: Ctx) {
         if (idsAPayer.length > 0) {
           await tx.echeancePack.updateMany({
             where: { id: { in: idsAPayer } },
-            data: { statut: "PAYE", datePaiement: new Date() },
+            data: { statut: "PAYE", datePaiement: datePaiementResolved },
           });
         }
       }

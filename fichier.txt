@@ -6,13 +6,15 @@ Ce code :
  const a = document.createElement("a");
  a.href = url;             
  a.download = filename;                                 
- a.click();                             
+ a.click();                                  
  permet de créer un téléchargement via un clic sur une URL ( utile pour les exports)
 import { randomUUID } from "crypto";  permet de générer des UUID(sorte d'identifiant unique aléatoire) par exemple pour des factures ou des pièces justificatives
 
+Du genre , ce que je veux c'est que l'admin en approvisionnant un produit , doit mettre un prix d'achat qu'il doit être le seul à pouvoir mettre . Du genre le prix d'achat doit être le prix auquel on a payé le produit ( le prix de l'approvisionnement ) et on peut utiliser le prix unitaire pour être le prix de vente ( auquel on a vendu ça à un client donné ) . Je me demande alors si c'est pas mieux d'utiliser le prix d'achat pour le stock ?? Et un autre prix ( qui sera le vrai payé utilisé au client comme ça on a vraiment les marges et on sait réellement comment se passent les activités lors de l'approvsionnement et lors de la vente à un client
+
 -Sur le dashboard/admin/ au niveau des souscriptions des packs , on doit les scinder ou classer par mois ( Janvier , Février etc etc ) pour y voir plus clair
 
--On doit pouvoir affecter les clients aux commerciaux (agents de terrain)
+-On doit pouvoir aussi affecter les clients aux commerciaux (agents de terrain)
 
 -Pas une erreur mais un bug ; normalement au niveau du point de vente de
   l'utilisateur , on ne devrait pas mettre un unique point de vente pour le

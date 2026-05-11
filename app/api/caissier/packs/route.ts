@@ -7,7 +7,7 @@ import { notifyAdmins } from "@/lib/notifications";
  * GET — Souscriptions actives + en attente (vue caissier).
  *   ?search=nom&statut=ACTIF
  * POST — Crée une nouvelle souscription pour un client/membre.
- */
+ */    
 export async function GET(req: Request) {
   try {
     const session = await getCaissierSession();

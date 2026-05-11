@@ -5,8 +5,8 @@ import {
   TrendingUp, Users, UserCheck, Package, Layers,
   ShoppingCart, MoreVertical, Download, Plus, ChevronDown, MessageSquare, Store, Shield,
   Activity, AlertTriangle, CheckCircle, XCircle, Wallet, BarChart2, Truck, RefreshCw,
-} from 'lucide-react';  
-import Link from "next/link"; 
+} from 'lucide-react';      
+import Link from "next/link";     
 import { useSession } from 'next-auth/react';
 import { useT } from '@/contexts/AppSettingsContext';
 import NotificationBell from '@/components/NotificationBell';
@@ -224,7 +224,7 @@ export default function AfriGesDashboard() {
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-orange-50/30 to-emerald-50/20">
-
+      
       {/* Header */}
       <header className="bg-white border-b border-slate-200 sticky top-0 z-50">
         <div className="max-w-[1600px] mx-auto px-8 py-4 flex items-center justify-between">

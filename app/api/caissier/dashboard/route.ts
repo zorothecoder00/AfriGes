@@ -2,12 +2,12 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCaissierSession, getCaissierPdvId, souscriptionPdvWhere } from "@/lib/authCaissier";
 
-/**
- * GET /api/caissier/dashboard
+/**  
+ * GET /api/caissier/dashboard  
  *
  * Tableau de bord temps réel du caissier — strictement scoped au PDV du caissier.
  */
-export async function GET() {
+export async function GET() {  
   try {
     const session = await getCaissierSession();
     if (!session) {
