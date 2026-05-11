@@ -323,7 +323,7 @@ export async function POST(req: Request) {
           return {
             souscriptionId: souscription.id,
             numero: i + 1,
-            montant:
+            montant:      
               i === count - 1
                 ? Math.round((montantRestant - montantEcheance * (count - 1)) * 100) / 100
                 : montantEcheance,

@@ -355,7 +355,7 @@ export default function GestionnairesPage() {
 
         {/* ══ MODAL — Ajout gestionnaire ═══════════════════════════════════ */}
         {modalOpen && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[130]">
             <div className="bg-white rounded-2xl p-8 w-full max-w-md shadow-lg relative">
               <button onClick={() => setModalOpen(false)} className="absolute top-4 right-4 text-slate-400 hover:text-slate-600">
                 <X size={20} />
@@ -410,7 +410,7 @@ export default function GestionnairesPage() {
         {affectModal && (() => {
           const isChefAgence = ROLES_CHEF_AGENCE.has(affectModal.role);
           return (
-            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[130] p-4">
               <div className="bg-white rounded-2xl p-8 w-full max-w-lg shadow-xl relative">
                 <button onClick={() => setAffectModal(null)}
                   className="absolute top-4 right-4 text-slate-400 hover:text-slate-600">
@@ -575,7 +575,7 @@ export default function GestionnairesPage() {
 
         {/* ══ MODAL — Suppression ══════════════════════════════════════════ */}
         {deleteId && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[130]">
             <div className="bg-white rounded-2xl p-8 w-full max-w-sm shadow-lg text-center">
               <h2 className="text-lg font-bold text-slate-800 mb-2">Confirmer la suppression</h2>
               <p className="text-slate-500 text-sm mb-6">Cette action est irréversible.</p>

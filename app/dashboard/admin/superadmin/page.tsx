@@ -926,7 +926,7 @@ export default function SuperAdminPage() {
 
       {/* Modal détail utilisateur */}
       {modalUser === "detail" && selectedUser && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[130] flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between p-5 border-b border-slate-200 sticky top-0 bg-white">
               <h2 className="font-bold text-slate-800">Détail — {selectedUser.prenom} {selectedUser.nom}</h2>
@@ -978,7 +978,7 @@ export default function SuperAdminPage() {
 
       {/* Modal reset password */}
       {modalUser === "reset" && selectedUser && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[130] flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm">
             <div className="flex items-center justify-between p-5 border-b border-slate-200">
               <h2 className="font-bold text-slate-800 flex items-center gap-2"><Key size={18} className="text-amber-500" />Réinitialiser le mot de passe</h2>
@@ -1025,7 +1025,7 @@ export default function SuperAdminPage() {
 
       {/* Modal gestion permissions */}
       {modalUser === "permission" && selectedUser && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[130] flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
             <div className="flex items-center justify-between p-5 border-b border-slate-200">
               <h2 className="font-bold text-slate-800 flex items-center gap-2"><Shield size={18} className="text-violet-500" />Permissions — {selectedUser.prenom} {selectedUser.nom}</h2>

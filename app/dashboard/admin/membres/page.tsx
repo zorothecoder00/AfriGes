@@ -147,7 +147,7 @@ export default function MembresPage() {
 
         {/* Modal pour ajouter membre */}
         {modalOpen && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[130]">
             <div className="bg-white rounded-2xl p-8 w-full max-w-md shadow-lg relative">
               <button 
                 onClick={() => setModalOpen(false)}
@@ -260,7 +260,7 @@ export default function MembresPage() {
 
         {/* Modal Confirmation Suppression */}
         {deleteId && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[130]">
             <div className="bg-white rounded-2xl p-8 w-full max-w-sm shadow-lg text-center">
               <h2 className="text-lg font-bold text-slate-800 mb-2">Confirmer la suppression</h2>
               <p className="text-slate-500 text-sm mb-6">Voulez-vous vraiment supprimer ce membre ? Cette action est irreversible.</p>

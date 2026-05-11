@@ -403,7 +403,7 @@ export default function GestionStockPage() {
 
         {/* ══ MODAL — Ajout produit ════════════════════════════════════════ */}
         {modalOpen && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[130]">
             <div className="bg-white rounded-2xl p-8 w-full max-w-md shadow-lg relative max-h-[90vh] overflow-y-auto">
               <button onClick={() => setModalOpen(false)} className="absolute top-4 right-4 text-slate-400 hover:text-slate-600">
                 <X size={20} />
@@ -448,7 +448,7 @@ export default function GestionStockPage() {
 
         {/* ══ MODAL — Approvisionnement direct ════════════════════════════ */}
         {approModal && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[130] p-4">
             <div className="bg-white rounded-2xl p-8 w-full max-w-lg shadow-xl relative max-h-[90vh] overflow-y-auto">
               <button onClick={() => { setApproModal(false); resetApproForm(); }}
                 className="absolute top-4 right-4 text-slate-400 hover:text-slate-600">
@@ -544,7 +544,7 @@ export default function GestionStockPage() {
 
         {/* ══ MODAL — Transfert de stock ══════════════════════════════════ */}
         {transferModal && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[130] p-4">
             <div className="bg-white rounded-2xl p-8 w-full max-w-lg shadow-xl relative max-h-[90vh] overflow-y-auto">
               <button onClick={() => { setTransferModal(false); resetTransferForm(); }}
                 className="absolute top-4 right-4 text-slate-400 hover:text-slate-600">
@@ -650,7 +650,7 @@ export default function GestionStockPage() {
 
         {/* ══ MODAL — Suppression ══════════════════════════════════════════ */}
         {deleteId && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[130]">
             <div className="bg-white rounded-2xl p-8 w-full max-w-sm shadow-lg text-center">
               <h2 className="text-lg font-bold text-slate-800 mb-2">Supprimer ce produit ?</h2>
               <p className="text-slate-500 text-sm mb-6">Il ne doit pas avoir de ventes associées.</p>

@@ -13,7 +13,7 @@ interface ClientPdv { id: number; nom: string; code: string }
 
 interface Client {
   id: number;
-  nom: string;
+  nom: string; 
   prenom: string;
   telephone: string;
   adresse: string | null;
@@ -194,8 +194,8 @@ export default function ClientsPage() {
 
         {/* ══ MODAL — Ajout client ══════════════════════════════════════════ */}
         {modalOpen && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-2xl p-8 w-full max-w-md shadow-lg relative">
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[130] p-4 overflow-y-auto">
+            <div className="bg-white rounded-2xl p-6 sm:p-8 w-full max-w-md shadow-lg relative max-h-[90vh] overflow-y-auto">
               <button onClick={() => setModalOpen(false)}
                 className="absolute top-4 right-4 text-slate-400 hover:text-slate-600">
                 <X size={20} />
@@ -247,8 +247,8 @@ export default function ClientsPage() {
 
         {/* ══ MODAL — Affectation PDV client ════════════════════════════════ */}
         {affectClient && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-2xl p-8 w-full max-w-md shadow-xl relative">
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[130] p-4 overflow-y-auto">
+            <div className="bg-white rounded-2xl p-6 sm:p-8 w-full max-w-md shadow-xl relative max-h-[90vh] overflow-y-auto">
               <button onClick={() => setAffectClient(null)}
                 className="absolute top-4 right-4 text-slate-400 hover:text-slate-600">
                 <X size={20} />

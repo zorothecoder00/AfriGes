@@ -233,7 +233,7 @@ export default function PDVPage() {
             MODAL — Créer PDV
         ══════════════════════════════════════════════════════════════════ */}
         {createOpen && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[130] p-4">
             <div className="bg-white rounded-2xl p-8 w-full max-w-lg shadow-xl relative max-h-[90vh] overflow-y-auto">
               <button onClick={() => setCreateOpen(false)}
                 className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg">
@@ -339,7 +339,7 @@ export default function PDVPage() {
             MODAL — Éditer PDV
         ══════════════════════════════════════════════════════════════════ */}
         {editPdv && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[130] p-4">
             <div className="bg-white rounded-2xl p-8 w-full max-w-lg shadow-xl relative max-h-[90vh] overflow-y-auto">
               <button onClick={() => setEditPdv(null)}
                 className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg">
@@ -427,7 +427,7 @@ export default function PDVPage() {
             MODAL — Toggle actif
         ══════════════════════════════════════════════════════════════════ */}
         {togglePdv && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[130] p-4">
             <div className="bg-white rounded-2xl p-8 w-full max-w-sm shadow-xl text-center">
               <div className={`w-14 h-14 ${togglePdv.actif ? 'bg-red-100' : 'bg-emerald-100'} rounded-full flex items-center justify-center mx-auto mb-4`}>
                 {togglePdv.actif

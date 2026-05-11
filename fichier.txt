@@ -5,8 +5,8 @@ On peut aussi utiliser du SVG pour les graphiques ( sans forcément dépendance 
 Ce code :      
  const a = document.createElement("a");
  a.href = url;             
- a.download = filename;                                 
- a.click();                                  
+ a.download = filename;                                   
+ a.click();                                      
  permet de créer un téléchargement via un clic sur une URL ( utile pour les exports)
 import { randomUUID } from "crypto";  permet de générer des UUID(sorte d'identifiant unique aléatoire) par exemple pour des factures ou des pièces justificatives
 
@@ -31,5 +31,9 @@ Du genre , ce que je veux c'est que l'admin en approvisionnant un produit , doit
 -Essaie d'implémenter les prixAchat directement dans les approvisionnements au lieu d'être chaque fois obligé de le faire dans les updates
 
 -npm i -g @openai/codex   permet d'installer le CLI de codex (agent ia d'openai qui permet d'interagir depuis le terminal)
-
+   
 -curl -fsSL https://claude.ai/install.cmd -o install.cmd && install.cmd && del install.cmd pour installer claude via le terminal cmd
+
+-Sur le dashboard/admin/clients , on doit pouvoir voir l'historique des versements , des souscriptions, du total ( versement + achat direct ) des clients    
+
+-Sur le dashboard/user/caissier je veux pouvoir modifier la date d'un versement ( je peux faire une erreur lorsque j'avais collecté un versement)  
