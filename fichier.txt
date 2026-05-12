@@ -4,9 +4,9 @@
 On peut aussi utiliser du SVG pour les graphiques ( sans forcément dépendance externe)  
 Ce code :      
  const a = document.createElement("a");
- a.href = url;             
+ a.href = url;                
  a.download = filename;                                   
- a.click();                                      
+ a.click();                                                           
  permet de créer un téléchargement via un clic sur une URL ( utile pour les exports)
 import { randomUUID } from "crypto";  permet de générer des UUID(sorte d'identifiant unique aléatoire) par exemple pour des factures ou des pièces justificatives
 
@@ -17,8 +17,8 @@ Du genre , ce que je veux c'est que l'admin en approvisionnant un produit , doit
 -On doit pouvoir aussi affecter les clients aux commerciaux (agents de terrain)
 
 -Sur le dashboard/admin/clients , on doit pouvoir voir l'historique des versements , des souscriptions, du total ( versement + achat direct ) des clients    
-
--Sur le dashboard/user/caissier je veux pouvoir modifier la date d'un versement ( je peux faire une erreur lorsque je remplis la modale de collecte de versement )  pour pouvoir corriger des erreurs.
+  
+-Sur le dashboard/user/caissiers je veux pouvoir modifier la date (datePaiement) d'un versement ( puisque ça peut arriver de faire une erreur lors du remplissage du modale de collecte de versement )  pour pouvoir corriger des erreurs.
 
 -Pas une erreur mais un bug ; normalement au niveau du point de vente de
   l'utilisateur , on ne devrait pas mettre un unique point de vente pour le

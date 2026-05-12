@@ -7,7 +7,7 @@ import {
   Users, Hash, AlertTriangle, AlertCircle, Info, ChevronLeft, ChevronRight,
   Lock, Calendar, FileText, Filter, Layers, Eye, XCircle, Package,
   Wallet, Power, Pause, Play, ArrowDownCircle, ArrowUpCircle,
-  ArrowLeftRight, CreditCard, Building2, Send, ShoppingBag,
+  ArrowLeftRight, CreditCard, Building2, Send, ShoppingBag, Pencil,
 } from "lucide-react";     
 import Link from "next/link";          
 import SignOutButton from "@/components/SignOutButton";
@@ -724,6 +724,12 @@ export default function CaissierPage() {
   const [versementDate,        setVersementDate]        = useState<string>("");
   const [versementNotes,       setVersementNotes]       = useState("");
 
+  const [editDateModal,        setEditDateModal]        = useState(false);
+  const [editDateVersementId,  setEditDateVersementId]  = useState(0);
+  const [editDateValue,        setEditDateValue]        = useState("");
+  const [editMontantValue,     setEditMontantValue]     = useState("");
+  const [editMontantMax,       setEditMontantMax]       = useState(0);
+
   const [recuModal,            setRecuModal]            = useState(false);
   const [recuData,             setRecuData]             = useState<RecuData["data"] | null>(null);
   const [recuOpModal,          setRecuOpModal]          = useState(false);
@@ -874,6 +880,13 @@ export default function CaissierPage() {
       { successMessage: "Transfert enregistré ✓" }
     );
 
+  const { mutate: modifierDateVersement, loading: modifiantDate } =
+    useMutation<{ success: boolean }, { datePaiement: string; montant?: number }>(
+      `/api/caissier/versements/${editDateVersementId}`,
+      "PATCH",
+      { successMessage: "Versement corrigé ✓" }
+    );
+
   // ── Derived data ─────────────────────────────────────────────────────────
   const dashboard    = dashboardRes?.data;
   const sessionActive = dashboard?.sessionActive ?? null;
@@ -943,6 +956,30 @@ export default function CaissierPage() {
       refetchVersements();
       refetchPacks();
       if (result.versement?.id) handleVoirRecu(result.versement.id);
+    }
+  };
+
+  const handleOpenEditDate = (v: Versement) => {
+    setEditDateVersementId(v.id);
+    setEditDateValue(v.datePaiement ? v.datePaiement.slice(0, 10) : new Date().toISOString().slice(0, 10));
+    setEditMontantValue(String(Number(v.montant)));
+    // Max autorisé = montantTotal de la souscription (les autres versements seront recalculés côté serveur)
+    setEditMontantMax(Number(v.souscription?.montantTotal ?? 0));
+    setEditDateModal(true);
+  };
+
+  const handleSaveEditDate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editDateValue || !editMontantValue) return;
+    const result = await modifierDateVersement({
+      datePaiement: editDateValue,
+      montant: parseFloat(editMontantValue),
+    });
+    if (result) {
+      setEditDateModal(false);
+      refetchVersements();
+      refetchDashboard();
+      refetchPacks();
     }
   };
 
@@ -1321,6 +1358,92 @@ export default function CaissierPage() {
                   <><CheckCircle size={18} />Valider le versement</>
                 )}
               </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Modifier un versement (date + montant) */}
+      {editDateModal && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl w-full max-w-sm shadow-xl">
+            <div className="flex items-center justify-between p-6 border-b border-slate-100">
+              <div className="flex items-center gap-3">
+                <div className="bg-amber-50 p-3 rounded-xl"><Pencil className="text-amber-600 w-5 h-5" /></div>
+                <div>
+                  <h2 className="text-lg font-bold text-slate-800">Corriger le versement</h2>
+                  <p className="text-xs text-slate-500">Versement #{editDateVersementId}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setEditDateModal(false)}
+                className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <form onSubmit={handleSaveEditDate} className="p-6 space-y-4">
+              {/* Montant */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                  Montant versé (FCFA)
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  max={editMontantMax > 0 ? editMontantMax : undefined}
+                  step="1"
+                  value={editMontantValue}
+                  onChange={(e) => setEditMontantValue(e.target.value)}
+                  required
+                  className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 bg-slate-50 text-sm"
+                />
+                {editMontantMax > 0 && (
+                  <p className="text-xs text-slate-400 mt-1">Max : {formatCurrency(editMontantMax)}</p>
+                )}
+              </div>
+
+              {/* Date */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                  Date de paiement
+                </label>
+                <input
+                  type="date"
+                  value={editDateValue}
+                  onChange={(e) => setEditDateValue(e.target.value)}
+                  max={new Date().toISOString().slice(0, 10)}
+                  required
+                  className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 bg-slate-50 text-sm"
+                />
+                {editDateValue && editDateValue !== new Date().toISOString().slice(0, 10) && (
+                  <p className="text-xs text-amber-600 mt-1 flex items-center gap-1">
+                    <AlertTriangle size={12} />
+                    Collecte antérieure au {new Date(editDateValue).toLocaleDateString("fr-FR")}
+                  </p>
+                )}
+              </div>
+
+              <div className="flex gap-3 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setEditDateModal(false)}
+                  className="flex-1 py-2.5 border border-slate-200 text-slate-600 rounded-xl text-sm font-medium hover:bg-slate-50 transition-colors"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="submit"
+                  disabled={modifiantDate}
+                  className="flex-1 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-sm font-semibold transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                >
+                  {modifiantDate ? (
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  ) : (
+                    <><CheckCircle size={16} />Enregistrer</>
+                  )}
+                </button>
+              </div>
             </form>
           </div>
         </div>
@@ -2425,13 +2548,22 @@ export default function CaissierPage() {
                               <td className="px-5 py-3.5 font-bold text-emerald-600">{formatCurrency(Number(v.montant))}</td>
                               <td className="px-5 py-3.5 text-xs text-slate-500">{formatDateTime(v.datePaiement)}</td>
                               <td className="px-5 py-3.5">
-                                <button
-                                  onClick={() => handleVoirRecu(v.id)}
-                                  className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
-                                  title="Voir le reçu"
-                                >
-                                  <Eye size={15} />
-                                </button>
+                                <div className="flex items-center gap-1">
+                                  <button
+                                    onClick={() => handleVoirRecu(v.id)}
+                                    className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
+                                    title="Voir le reçu"
+                                  >
+                                    <Eye size={15} />
+                                  </button>
+                                  <button
+                                    onClick={() => handleOpenEditDate(v)}
+                                    className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
+                                    title="Corriger le versement"
+                                  >
+                                    <Pencil size={14} />
+                                  </button>
+                                </div>
                               </td>
                             </tr>
                           );

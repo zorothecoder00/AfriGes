@@ -7,7 +7,7 @@
 generator client {
   provider = "prisma-client-js"
 }                                                        
-                         
+                               
 datasource db {
   provider = "postgresql"
 }          
@@ -830,7 +830,7 @@ model ReceptionApprovisionnement {
 model LigneReceptionAppro {
   id               Int     @id @default(autoincrement())
   receptionId      Int
-  produitId        Int
+  produitId        Int   
   quantiteAttendue Int
   quantiteRecue    Int?
   prixUnitaire     Decimal?
