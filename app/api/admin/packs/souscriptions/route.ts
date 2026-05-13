@@ -19,7 +19,7 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const statut = searchParams.get("statut");
     const typePack = searchParams.get("type");
-    const search = searchParams.get("search");
+    const search = (searchParams.get("search") ?? "").trim();
 
      // Synchroniser les statuts avant affichage dashboard admin
     await traiterExpirations();
@@ -43,7 +43,7 @@ export async function GET(req: Request) {
                   { client: { prenom: { contains: search, mode: "insensitive" as const } } },
                   { client: { telephone: { contains: search } } },
                 ];
-                const parts = search.trim().split(/\s+/);
+                const parts = search.split(/\s+/);
                 if (parts.length >= 2) {
                   const first = parts[0];
                   const rest  = parts.slice(1).join(" ");

@@ -236,12 +236,22 @@ export default function GestionnairesPage() {
   };
 
   // Client-side search
-  const gestionnaires = allGestionnaires.filter(g =>
-    !debouncedSearch ||
-    g.member.nom.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
-    g.member.prenom.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
-    g.member.email.toLowerCase().includes(debouncedSearch.toLowerCase())
-  );
+  const gestionnaires = allGestionnaires.filter(g => {
+    if (!debouncedSearch) return true;
+    const q = debouncedSearch.toLowerCase().trim();
+    const nom    = g.member.nom.toLowerCase();
+    const prenom = g.member.prenom.toLowerCase();
+    const email  = g.member.email.toLowerCase();
+    if (nom.includes(q) || prenom.includes(q) || email.includes(q)) return true;
+    // Multi-mots : "prenom nom" ou "nom prenom"
+    const parts = q.split(/\s+/);
+    if (parts.length >= 2) {
+      const full1 = `${prenom} ${nom}`;
+      const full2 = `${nom} ${prenom}`;
+      if (full1.includes(q) || full2.includes(q)) return true;
+    }
+    return false;
+  });
 
   const apiStats = response?.stats;
   const stats = [

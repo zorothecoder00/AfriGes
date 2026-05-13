@@ -18,7 +18,7 @@ export async function GET(req: Request) {
     const page   = Math.max(1, Number(searchParams.get("page")  || 1));
     const limit  = Math.min(50, Number(searchParams.get("limit") || 15));
     const skip   = (page - 1) * limit;
-    const search = searchParams.get("search") || "";
+    const search = ( searchParams.get("search") || "" ).trim();
 
     // Trouver le PDV du RPV pour filtrer ses clients
     const pdv = await prisma.pointDeVente.findUnique({
@@ -37,13 +37,20 @@ export async function GET(req: Request) {
           },
         ],
       }),
-      ...(search && {
-        OR: [
+      ...(search && (() => {
+        const parts = search.split(/\s+/);
+        const conditions: object[] = [
           { nom:       { contains: search, mode: "insensitive" } },
           { prenom:    { contains: search, mode: "insensitive" } },
           { telephone: { contains: search, mode: "insensitive" } },
-        ],
-      }),
+        ];
+        if (parts.length >= 2) {
+          const [first, ...rest] = parts; const restStr = rest.join(" ");
+          conditions.push({ AND: [{ prenom: { contains: first, mode: "insensitive" } }, { nom: { contains: restStr, mode: "insensitive" } }] });
+          conditions.push({ AND: [{ nom: { contains: first, mode: "insensitive" } }, { prenom: { contains: restStr, mode: "insensitive" } }] });
+        }
+        return { OR: conditions };
+      })()),
     };
 
     const [clients, total] = await Promise.all([

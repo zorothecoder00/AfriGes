@@ -15,7 +15,7 @@ export async function GET(req: Request) {
     const page = Number(searchParams.get("page") || 1);
     const limit = Number(searchParams.get("limit") || 10);
     const skip = (page - 1) * limit;
-    const search = searchParams.get("search") || "";
+    const search = ( searchParams.get("search") || "" ).trim();
     const pdvId  = searchParams.get("pdvId");
 
     const pdvIdNumber = pdvId ? Number(pdvId) : null;
@@ -39,7 +39,7 @@ export async function GET(req: Request) {
             { telephone: { contains: search, mode: "insensitive" } },
           ];
           // Recherche combinée "prénom nom" ou "nom prénom"
-          const parts = search.trim().split(/\s+/);
+          const parts = search.split(/\s+/);
           if (parts.length >= 2) {
             const first = parts[0];
             const rest  = parts.slice(1).join(" ");

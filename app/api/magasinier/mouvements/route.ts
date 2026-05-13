@@ -31,7 +31,7 @@ export async function GET(req: Request) {
     const skip      = (page - 1) * limit;
     const typeParam = searchParams.get("type");
     const produitId = searchParams.get("produitId");
-    const search    = searchParams.get("search") || "";
+    const search    = ( searchParams.get("search") || "" ).trim();
 
     const where: Prisma.MouvementStockWhereInput = {
       pointDeVenteId: pdvId,

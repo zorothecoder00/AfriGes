@@ -22,7 +22,7 @@ export async function GET(req: Request) {
     if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
 
     const { searchParams } = new URL(req.url);
-    const search = searchParams.get("search") || "";
+    const search = ( searchParams.get("search") || "" ).trim();
     const actifQ = searchParams.get("actif");
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

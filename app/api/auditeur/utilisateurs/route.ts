@@ -18,18 +18,25 @@ export async function GET(req: Request) {
     const page   = Math.max(1, Number(searchParams.get("page") ?? "1"));
     const limit  = Math.min(100, Math.max(5, Number(searchParams.get("limit") ?? "25")));
     const role   = searchParams.get("role") ?? "";
-    const search = searchParams.get("search") ?? "";
+    const search = ( searchParams.get("search") ?? "" ).trim();
 
     // Build Prisma where clause
     const whereRole = role ? { role: role as never } : {};
     const whereMember = search
-      ? {
-          OR: [
+      ? (() => {
+          const parts = search.split(/\s+/);
+          const conditions: object[] = [
             { nom:    { contains: search, mode: "insensitive" as const } },
             { prenom: { contains: search, mode: "insensitive" as const } },
             { email:  { contains: search, mode: "insensitive" as const } },
-          ],
-        }
+          ];
+          if (parts.length >= 2) {
+            const [first, ...rest] = parts; const restStr = rest.join(" ");
+            conditions.push({ AND: [{ prenom: { contains: first, mode: "insensitive" } }, { nom: { contains: restStr, mode: "insensitive" } }] });
+            conditions.push({ AND: [{ nom: { contains: first, mode: "insensitive" } }, { prenom: { contains: restStr, mode: "insensitive" } }] });
+          }
+          return { OR: conditions };
+        })()
       : {};
 
     const where = {

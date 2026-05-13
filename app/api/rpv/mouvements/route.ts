@@ -24,7 +24,7 @@ export async function GET(req: Request) {
     const limit    = Math.min(50, Math.max(5, Number(searchParams.get("limit") ?? "20")));
     const type     = searchParams.get("type") ?? "";
     const produitId= searchParams.get("produitId") ?? "";
-    const search   = searchParams.get("search") ?? "";
+    const search   = ( searchParams.get("search") ?? "" ).trim();
 
     // Toujours filtré sur le PDV du RPV
     const where: Prisma.MouvementStockWhereInput = { pointDeVenteId: pdv.id };

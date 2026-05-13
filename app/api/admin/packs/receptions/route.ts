@@ -17,7 +17,7 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const page   = Math.max(1, parseInt(searchParams.get("page")  ?? "1"));
     const limit  = Math.min(50, parseInt(searchParams.get("limit") ?? "20"));
-    const search = searchParams.get("search") ?? "";
+    const search = ( searchParams.get("search") ?? "" ).trim();
     // "PLANIFIEE" | "LIVREE" | "ALL" (défaut : ALL)
     const statutFilter = searchParams.get("statut") ?? "ALL";
 

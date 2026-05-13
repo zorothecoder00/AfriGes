@@ -24,7 +24,7 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const page   = Math.max(1, Number(searchParams.get("page") ?? "1"));
     const limit  = Math.min(50, Math.max(5, Number(searchParams.get("limit") ?? "15")));
-    const search = searchParams.get("search") ?? "";
+    const search = ( searchParams.get("search") ?? "" ).trim();
     const statut = searchParams.get("statut") ?? "";
 
     // Filtrer uniquement les produits qui ont un StockSite sur ce PDV

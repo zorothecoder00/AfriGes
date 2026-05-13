@@ -43,11 +43,21 @@ export async function GET(req: Request) {
       if (dateDebut) where.createdAt.gte = new Date(dateDebut);
       if (dateFin)   where.createdAt.lte = new Date(dateFin + "T23:59:59.999Z");
     }
-    if (search) where.OR = [
-      { reference: { contains: search, mode: "insensitive" } },
-      { clientNom: { contains: search, mode: "insensitive" } },
-      { client:    { nom: { contains: search, mode: "insensitive" } } },
-    ];
+    if (search) {
+      const parts = search.split(/\s+/);
+      const conditions: object[] = [
+        { reference: { contains: search, mode: "insensitive" } },
+        { clientNom: { contains: search, mode: "insensitive" } },
+        { client:    { nom:    { contains: search, mode: "insensitive" } } },
+        { client:    { prenom: { contains: search, mode: "insensitive" } } },
+      ];
+      if (parts.length >= 2) {
+        const [first, ...rest] = parts; const restStr = rest.join(" ");
+        conditions.push({ client: { AND: [{ prenom: { contains: first, mode: "insensitive" } }, { nom: { contains: restStr, mode: "insensitive" } }] } });
+        conditions.push({ client: { AND: [{ nom: { contains: first, mode: "insensitive" } }, { prenom: { contains: restStr, mode: "insensitive" } }] } });
+      }
+      where.OR = conditions;
+    }
 
     const [ventes, total] = await Promise.all([
       prisma.venteDirecte.findMany({

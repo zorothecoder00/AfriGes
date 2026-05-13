@@ -96,7 +96,7 @@ export async function GET(req: Request) {
     const limit      = isGrandLivre ? 1000 : Math.min(50, Math.max(10, Number(searchParams.get("limit") ?? "20")));
     const typeFilter = searchParams.get("type") ?? "TOUS";
     const catFilter  = searchParams.get("categorie") ?? "";
-    const search     = (searchParams.get("search") ?? "").trim().toLowerCase();
+    const search     = (( searchParams.get("search") ?? "" ).trim()).trim().toLowerCase();
     // Nouveau paramètre source : "caisse" | "ventes" | "achats" | "paie" | ""
     const source     = searchParams.get("source") ?? "";
 

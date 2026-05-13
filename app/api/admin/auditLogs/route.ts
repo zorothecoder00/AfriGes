@@ -24,7 +24,7 @@ export async function GET(req: Request) {
     const userId = searchParams.get("userId") || "";
     const startDate = searchParams.get("startDate");
     const endDate = searchParams.get("endDate");
-    const search = searchParams.get("search") || "";
+    const search = ( searchParams.get("search") || "" ).trim();
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const where: any = {};

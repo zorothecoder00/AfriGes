@@ -16,7 +16,7 @@ export async function GET(req: Request) {
 
     const { searchParams } = new URL(req.url);
     const statut = searchParams.get("statut") ?? "EN_ATTENTE,EN_RETARD";
-    const search = searchParams.get("search");
+    const search = (searchParams.get("search") ?? "").trim();
     const limit = parseInt(searchParams.get("limit") ?? "50");
 
     // Marquer les échéances en retard
@@ -44,7 +44,7 @@ export async function GET(req: Request) {
                     { user:   { nom:       { contains: search, mode: "insensitive" as const } } },
                     { user:   { prenom:    { contains: search, mode: "insensitive" as const } } },
                   ];
-                  const parts = search.trim().split(/\s+/);
+                  const parts = search.split(/\s+/);
                   if (parts.length >= 2) {
                     const first = parts[0];
                     const rest  = parts.slice(1).join(" ");

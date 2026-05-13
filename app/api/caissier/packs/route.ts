@@ -18,7 +18,7 @@ export async function GET(req: Request) {
     const pdvId   = isAdmin ? null : await getCaissierPdvId(userId);
 
     const { searchParams } = new URL(req.url);
-    const search = searchParams.get("search");
+    const search = (searchParams.get("search") ?? "").trim();
     const statut = searchParams.get("statut");
 
     // Filtre PDV — restreint les souscriptions au périmètre du caissier
@@ -29,15 +29,22 @@ export async function GET(req: Request) {
     ];
     if (pdvId) andConditions.push(souscriptionPdvWhere(pdvId));
     if (search) {
-      andConditions.push({
-        OR: [
-          { user:   { nom:       { contains: search, mode: "insensitive" } } },
-          { user:   { prenom:    { contains: search, mode: "insensitive" } } },
-          { client: { nom:       { contains: search, mode: "insensitive" } } },
-          { client: { prenom:    { contains: search, mode: "insensitive" } } },
-          { client: { telephone: { contains: search } } },
-        ],
-      });
+      const parts = search.split(/\s+/);
+      const orConds: object[] = [
+        { user:   { nom:       { contains: search, mode: "insensitive" } } },
+        { user:   { prenom:    { contains: search, mode: "insensitive" } } },
+        { client: { nom:       { contains: search, mode: "insensitive" } } },
+        { client: { prenom:    { contains: search, mode: "insensitive" } } },
+        { client: { telephone: { contains: search, mode: "insensitive" } } },
+      ];
+      if (parts.length >= 2) {
+        const [first, ...rest] = parts; const restStr = rest.join(" ");
+        orConds.push({ user:   { AND: [{ prenom: { contains: first, mode: "insensitive" } }, { nom: { contains: restStr, mode: "insensitive" } }] } });
+        orConds.push({ user:   { AND: [{ nom: { contains: first, mode: "insensitive" } }, { prenom: { contains: restStr, mode: "insensitive" } }] } });
+        orConds.push({ client: { AND: [{ prenom: { contains: first, mode: "insensitive" } }, { nom: { contains: restStr, mode: "insensitive" } }] } });
+        orConds.push({ client: { AND: [{ nom: { contains: first, mode: "insensitive" } }, { prenom: { contains: restStr, mode: "insensitive" } }] } });
+      }
+      andConditions.push({ OR: orConds });
     }
 
     const souscriptions = await prisma.souscriptionPack.findMany({

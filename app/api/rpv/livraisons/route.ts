@@ -24,7 +24,7 @@ export async function GET(req: Request) {
     const limit  = Math.min(50, Math.max(5, Number(searchParams.get("limit") ?? "10")));
     const statut = searchParams.get("statut") ?? "";
     const type   = searchParams.get("type") ?? "";
-    const search = searchParams.get("search") ?? "";
+    const search = ( searchParams.get("search") ?? "" ).trim();
 
     const where: Prisma.ReceptionApprovisionnementWhereInput = { pointDeVenteId: pdv.id };
     if (statut) where.statut = statut as Prisma.EnumStatutReceptionApproFilter;

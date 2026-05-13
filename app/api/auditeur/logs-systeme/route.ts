@@ -20,7 +20,7 @@ export async function GET(req: Request) {
     const page      = Math.max(1, Number(searchParams.get("page") ?? "1"));
     const limit     = Math.min(100, Math.max(5, Number(searchParams.get("limit") ?? "25")));
     const type      = searchParams.get("type") ?? "all"; // "security" | "audit" | "all"
-    const search    = searchParams.get("search") ?? "";
+    const search    = ( searchParams.get("search") ?? "" ).trim();
     const action    = searchParams.get("action") ?? "";
     const startDate = searchParams.get("startDate") ?? "";
     const endDate   = searchParams.get("endDate") ?? "";

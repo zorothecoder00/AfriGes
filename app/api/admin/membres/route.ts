@@ -25,7 +25,7 @@ export async function GET(req: Request) {
     // -------------------------
     // Recherche
     // -------------------------
-    const search = searchParams.get("search") || "";
+    const search = ( searchParams.get("search") || "" ).trim();
 
     // -------------------------
     // Filtre rôle
@@ -52,13 +52,20 @@ export async function GET(req: Request) {
     // -------------------------
     const where: Prisma.UserWhereInput = {
       ...(role && { role }),
-      ...(search && {
-        OR: [
-          { nom: { contains: search, mode: "insensitive" } },
+      ...(search && (() => {
+        const parts = search.split(/\s+/);
+        const conditions: object[] = [
+          { nom:    { contains: search, mode: "insensitive" } },
           { prenom: { contains: search, mode: "insensitive" } },
-          { email: { contains: search, mode: "insensitive" } },
-        ],
-      }), 
+          { email:  { contains: search, mode: "insensitive" } },
+        ];
+        if (parts.length >= 2) {
+          const [first, ...rest] = parts; const restStr = rest.join(" ");
+          conditions.push({ AND: [{ prenom: { contains: first, mode: "insensitive" } }, { nom: { contains: restStr, mode: "insensitive" } }] });
+          conditions.push({ AND: [{ nom: { contains: first, mode: "insensitive" } }, { prenom: { contains: restStr, mode: "insensitive" } }] });
+        }
+        return { OR: conditions };
+      })()),
     };
 
     // -------------------------

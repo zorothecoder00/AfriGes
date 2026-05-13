@@ -13,7 +13,7 @@ export async function GET(req: Request) {
     const skip     = (page - 1) * limit;
     const type     = searchParams.get("type");
     const produitId = searchParams.get("produitId");
-    const search   = searchParams.get("search") || "";
+    const search   = ( searchParams.get("search") || "" ).trim();
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const where: any = {

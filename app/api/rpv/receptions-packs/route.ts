@@ -23,7 +23,7 @@ export async function GET(req: Request) {
     const limit  = Math.min(50, Number(searchParams.get("limit") || 15));
     const skip   = (page - 1) * limit;
     const statut = searchParams.get("statut") || "";
-    const search = searchParams.get("search") || "";
+    const search = ( searchParams.get("search") || "" ).trim();
 
     // Filtrer sur les clients du PDV du RPV
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

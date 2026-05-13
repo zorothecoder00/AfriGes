@@ -24,7 +24,7 @@ export async function GET(req: Request) {
     }
 
     const { searchParams } = new URL(req.url);
-    const search = searchParams.get("search") ?? "";
+    const search = ( searchParams.get("search") ?? "" ).trim();
     const typePack = searchParams.get("type") ?? "";
     const now = new Date();
     await traiterExpirations();
@@ -48,13 +48,20 @@ export async function GET(req: Request) {
         client: { pointDeVenteId: pdvId },
         ...(typePack ? { pack: { type: typePack as never } } : {}),
         ...(search
-          ? {
-              OR: [   
-                { client: { nom: { contains: search, mode: "insensitive" } } },
-                { client: { prenom: { contains: search, mode: "insensitive" } } },
-                { client: { telephone: { contains: search } } },
-              ],
-            }
+          ? (() => {
+              const parts = search.split(/\s+/);
+              const conditions: object[] = [
+                { client: { nom:       { contains: search, mode: "insensitive" } } },
+                { client: { prenom:    { contains: search, mode: "insensitive" } } },
+                { client: { telephone: { contains: search, mode: "insensitive" } } },
+              ];
+              if (parts.length >= 2) {
+                const [first, ...rest] = parts; const restStr = rest.join(" ");
+                conditions.push({ client: { AND: [{ prenom: { contains: first, mode: "insensitive" } }, { nom: { contains: restStr, mode: "insensitive" } }] } });
+                conditions.push({ client: { AND: [{ nom: { contains: first, mode: "insensitive" } }, { prenom: { contains: restStr, mode: "insensitive" } }] } });
+              }
+              return { OR: conditions };
+            })()
           : {}),
       },
       include: {

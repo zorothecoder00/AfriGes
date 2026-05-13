@@ -24,7 +24,7 @@ export async function GET(req: Request) {
     if (!pdv) return NextResponse.json({ message: "Aucun PDV associé" }, { status: 400 });
 
     const { searchParams } = new URL(req.url);
-    const search = searchParams.get("search") ?? "";
+    const search = ( searchParams.get("search") ?? "" ).trim();
 
     // Membres affectés à ce PDV (actifs uniquement)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -34,13 +34,18 @@ export async function GET(req: Request) {
     };
 
     if (search) {
-      where.user = {
-        OR: [
-          { nom:    { contains: search, mode: "insensitive" } },
-          { prenom: { contains: search, mode: "insensitive" } },
-          { email:  { contains: search, mode: "insensitive" } },
-        ],
-      };
+      const parts = search.split(/\s+/);
+      const conditions: object[] = [
+        { nom:    { contains: search, mode: "insensitive" } },
+        { prenom: { contains: search, mode: "insensitive" } },
+        { email:  { contains: search, mode: "insensitive" } },
+      ];
+      if (parts.length >= 2) {
+        const [first, ...rest] = parts; const restStr = rest.join(" ");
+        conditions.push({ AND: [{ prenom: { contains: first, mode: "insensitive" } }, { nom: { contains: restStr, mode: "insensitive" } }] });
+        conditions.push({ AND: [{ nom: { contains: first, mode: "insensitive" } }, { prenom: { contains: restStr, mode: "insensitive" } }] });
+      }
+      where.user = { OR: conditions };
     }
 
     const affectations = await prisma.gestionnaireAffectation.findMany({

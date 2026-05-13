@@ -67,7 +67,7 @@ export async function GET(req: Request) {
     if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
 
     const { searchParams } = new URL(req.url);
-    const search   = searchParams.get("search") || "";
+    const search   = ( searchParams.get("search") || "" ).trim();
     const classe   = searchParams.get("classe");
     const type     = searchParams.get("type");
     const nature   = searchParams.get("nature");

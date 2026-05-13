@@ -22,7 +22,7 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const pdvIdParam = searchParams.get("pdvId") ? Number(searchParams.get("pdvId")) : null;
     const role       = searchParams.get("role")   ?? "";
-    const search     = searchParams.get("search") ?? "";
+    const search     = ( searchParams.get("search") ?? "" ).trim();
 
     const effectivePdvIds = pdvIdParam
       ? (pdvIds === null || pdvIds.includes(pdvIdParam) ? [pdvIdParam] : [])
@@ -36,14 +36,18 @@ export async function GET(req: Request) {
 
     if (role) where.user = { ...where.user, gestionnaire: { role } };
     if (search) {
-      where.user = {
-        ...where.user,
-        OR: [
-          { nom:    { contains: search, mode: "insensitive" } },
-          { prenom: { contains: search, mode: "insensitive" } },
-          { email:  { contains: search, mode: "insensitive" } },
-        ],
-      };
+      const parts = search.split(/\s+/);
+      const conditions: object[] = [
+        { nom:    { contains: search, mode: "insensitive" } },
+        { prenom: { contains: search, mode: "insensitive" } },
+        { email:  { contains: search, mode: "insensitive" } },
+      ];
+      if (parts.length >= 2) {
+        const [first, ...rest] = parts; const restStr = rest.join(" ");
+        conditions.push({ AND: [{ prenom: { contains: first, mode: "insensitive" } }, { nom: { contains: restStr, mode: "insensitive" } }] });
+        conditions.push({ AND: [{ nom: { contains: first, mode: "insensitive" } }, { prenom: { contains: restStr, mode: "insensitive" } }] });
+      }
+      where.user = { ...where.user, OR: conditions };
     }
 
     const affectations = await prisma.gestionnaireAffectation.findMany({

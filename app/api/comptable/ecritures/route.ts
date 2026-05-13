@@ -22,7 +22,7 @@ export async function GET(req: Request) {
     const skip    = (page - 1) * limit;
     const journal = searchParams.get("journal");
     const statut  = searchParams.get("statut");
-    const search  = searchParams.get("search") || "";
+    const search  = ( searchParams.get("search") || "" ).trim();
     const dateMin = searchParams.get("dateMin");
     const dateMax = searchParams.get("dateMax");
 

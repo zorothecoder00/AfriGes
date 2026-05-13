@@ -18,7 +18,7 @@ export async function GET(req: Request) {
     const page       = Math.max(1, Number(searchParams.get("page")  ?? "1"));
     const limit      = Math.min(100, Math.max(5, Number(searchParams.get("limit") ?? "25")));
     const pdvIdParam = searchParams.get("pdvId")  ? Number(searchParams.get("pdvId")) : null;
-    const search     = searchParams.get("search") ?? "";
+    const search     = ( searchParams.get("search") ?? "" ).trim();
     const etat       = searchParams.get("etat")   ?? "";
 
     const effectivePdvIds = pdvIdParam
@@ -41,11 +41,18 @@ export async function GET(req: Request) {
 
     if (etat) where.etat = etat;
     if (search) {
-      where.OR = [
+      const parts = search.split(/\s+/);
+      const conditions: object[] = [
         { nom:       { contains: search, mode: "insensitive" } },
         { prenom:    { contains: search, mode: "insensitive" } },
         { telephone: { contains: search, mode: "insensitive" } },
       ];
+      if (parts.length >= 2) {
+        const [first, ...rest] = parts; const restStr = rest.join(" ");
+        conditions.push({ AND: [{ prenom: { contains: first, mode: "insensitive" } }, { nom: { contains: restStr, mode: "insensitive" } }] });
+        conditions.push({ AND: [{ nom: { contains: first, mode: "insensitive" } }, { prenom: { contains: restStr, mode: "insensitive" } }] });
+      }
+      where.OR = conditions;
     }
 
     const [total, clients] = await Promise.all([

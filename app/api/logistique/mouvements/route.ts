@@ -25,7 +25,7 @@ export async function GET(req: Request) {
     const page      = Math.max(1, Number(searchParams.get("page")  || 1));
     const limit     = Math.min(50, Math.max(1, Number(searchParams.get("limit") || 20)));
     const skip      = (page - 1) * limit;
-    const search    = searchParams.get("search") || "";
+    const search    = ( searchParams.get("search") || "" ).trim();
     const typeParam = searchParams.get("type");
     const produitId = searchParams.get("produitId");
 

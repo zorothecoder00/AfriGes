@@ -27,7 +27,7 @@ export async function GET(req: Request) {
       // ── Vue globale (onglet Pièces) ───────────────────────────────────
       const page       = Math.max(1, Number(searchParams.get("page")  ?? "1"));
       const limit      = Math.min(50, Math.max(10, Number(searchParams.get("limit") ?? "20")));
-      const search     = (searchParams.get("search") ?? "").trim();
+      const search     = (( searchParams.get("search") ?? "" ).trim()).trim();
       const srcType    = searchParams.get("sourceType") ?? "";
       const dateDebut  = searchParams.get("dateDebut");
       const dateFin    = searchParams.get("dateFin");
