@@ -28,6 +28,7 @@ export async function GET(req: Request) {
     const statut = searchParams.get("statut") ?? "";
 
     // Filtrer uniquement les produits qui ont un StockSite sur ce PDV
+    // (le POST crée toujours un StockSite dès la création, même à 0)
     const where: Prisma.ProduitWhereInput = {
       stocks: { some: { pointDeVenteId: pdv.id } },
     };
@@ -107,13 +108,12 @@ export async function POST(req: Request) {
 
     const stockInit = Math.max(0, Number(stock ?? 0));
 
-    // Récupérer le PDV du RPV pour créer le StockSite initial
-    const affectation = stockInit > 0
-      ? await prisma.gestionnaireAffectation.findFirst({
-          where: { userId: parseInt(session.user.id), actif: true },
-          select: { pointDeVenteId: true },
-        })
-      : null;
+    // Récupérer le PDV du RPV (cohérent avec GET qui utilise rpvId)
+    const pdv = await prisma.pointDeVente.findUnique({
+      where: { rpvId: parseInt(session.user.id) },
+      select: { id: true },
+    });
+    if (!pdv) return NextResponse.json({ message: "Aucun PDV associé" }, { status: 400 });
 
     const produit = await prisma.$transaction(async (tx) => {
       const created = await tx.produit.create({
@@ -125,18 +125,21 @@ export async function POST(req: Request) {
         },
       });
 
-      if (stockInit > 0 && affectation) {
-        await tx.stockSite.create({
-          data: {
-            produitId:      created.id,
-            pointDeVenteId: affectation.pointDeVenteId,
-            quantite:       stockInit,
-          },
-        });
+      // Toujours créer un StockSite pour ce PDV (même à 0) afin que le produit
+      // soit visible dans le stock et les modales d'approvisionnement du RPV
+      await tx.stockSite.create({
+        data: {
+          produitId:      created.id,
+          pointDeVenteId: pdv.id,
+          quantite:       stockInit,
+        },
+      });
+
+      if (stockInit > 0) {
         await tx.mouvementStock.create({
           data: {
             produitId:      created.id,
-            pointDeVenteId: affectation.pointDeVenteId,
+            pointDeVenteId: pdv.id,
             type:           "ENTREE",
             quantite:       stockInit,
             motif:          `Stock initial — créé par ${session.user.name ?? "RPV"}`,

@@ -40,45 +40,29 @@ export async function GET(_req: Request, { params }: Ctx) {
     }
 
     // Chercher les souscriptions pertinentes (EN_ATTENTE inclus pour REVENDEUR F2 crédit total)
-    // On filtre les receptions à celles LIVREE uniquement pour ne pas bloquer les PLANIFIEE
+    // Exclure uniquement celles avec une livraison PLANIFIEE déjà en cours (cohérent avec TabLivraisons)
     const souscriptions = await prisma.souscriptionPack.findMany({
       where: {
         clientId,
         statut: { in: ["EN_ATTENTE", "ACTIF", "COMPLETE"] },
+        // Pas de livraison en attente de confirmation
+        receptions: { none: { statut: "PLANIFIEE" } },
       },
       include: {
         pack: {
           select: { id: true, nom: true, type: true, frequenceVersement: true },
         },
-        receptions: {
-          where: { statut: "LIVREE" },
-          select: { id: true },
-        },
         _count: { select: { versements: true, echeances: true } },
       },
     });
 
-    // Filtrage par type de pack (cohérent avec la route livraison)
-    // - ALIMENTAIRE → livraison uniquement après paiement complet (COMPLETE)
-    // - URGENCE → livraison immédiate dès l'acompte (ACTIF ou COMPLETE)
-    // - REVENDEUR F1 → livraison immédiate après 50% acompte (ACTIF ou COMPLETE)
-    // - REVENDEUR F2 → crédit total, livraison immédiate (EN_ATTENTE, ACTIF ou COMPLETE)
-    // - Autres → COMPLETE uniquement
+    // Filtrage par type de pack — identique à TabLivraisons dans dashboard/admin/packs
     const souscriptionsEligibles = souscriptions.filter((s) => {
-      // Déjà livré → pas éligible
-      if (s.receptions.length > 0) return false;
-      // EN_ATTENTE uniquement autorisé pour REVENDEUR F2
-      if (s.statut === "EN_ATTENTE" && !(s.pack.type === "REVENDEUR" && s.formuleRevendeur === "FORMULE_2")) return false;
-
       switch (s.pack.type) {
-        case "ALIMENTAIRE":
-          return s.statut === "COMPLETE";
         case "URGENCE":
           return ["ACTIF", "COMPLETE"].includes(s.statut);
         case "REVENDEUR":
-          // F2 = crédit total → livraison avant tout remboursement
           if (s.formuleRevendeur === "FORMULE_2") return true;
-          // F1 = livraison après 50% acompte
           return ["ACTIF", "COMPLETE"].includes(s.statut);
         default:
           return s.statut === "COMPLETE";
@@ -89,8 +73,23 @@ export async function GET(_req: Request, { params }: Ctx) {
 
     if (souscriptionsEligibles.length === 0) {
       if (souscriptions.length === 0) {
-        raisons.push("Ce client n'a aucune souscription pack active.");
-        raisons.push("Créez d'abord une souscription depuis la page Packs.");
+        // Vérifier s'il y a des souscriptions bloquées par une PLANIFIEE en cours
+        const avecPlanifiee = await prisma.souscriptionPack.count({
+          where: { clientId, statut: { in: ["EN_ATTENTE", "ACTIF", "COMPLETE"] }, receptions: { some: { statut: "PLANIFIEE" } } },
+        });
+        if (avecPlanifiee > 0) {
+          raisons.push("Une livraison est déjà planifiée pour ce client.");
+          raisons.push("Attendez la confirmation avant d'en planifier une nouvelle.");
+        } else {
+          const total = await prisma.souscriptionPack.count({ where: { clientId, statut: { in: ["EN_ATTENTE", "ACTIF", "COMPLETE"] } } });
+          if (total === 0) {
+            raisons.push("Ce client n'a aucune souscription pack active.");
+            raisons.push("Créez d'abord une souscription depuis la page Packs.");
+          } else {
+            raisons.push("Aucune souscription éligible à une livraison pour ce client.");
+            raisons.push("Vérifiez le statut des souscriptions (paiement insuffisant ?).");
+          }
+        }
       } else {
         const alimentaireActives = souscriptions.filter(
           (s) => s.pack.type === "ALIMENTAIRE" && s.statut === "ACTIF"
@@ -99,8 +98,8 @@ export async function GET(_req: Request, { params }: Ctx) {
           raisons.push("Les packs Alimentaire nécessitent un paiement complet avant la livraison.");
           raisons.push("Continuez les versements jusqu'à solder la souscription.");
         } else {
-          raisons.push("Toutes les souscriptions de ce client ont déjà reçu leurs produits.");
-          raisons.push("Créez une nouvelle souscription pour une nouvelle livraison.");
+          raisons.push("Aucune souscription éligible (statut insuffisant ou type non éligible).");
+          raisons.push("Vérifiez l'avancement des versements.");
         }
       }
     }

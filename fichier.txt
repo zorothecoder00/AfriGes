@@ -14,10 +14,6 @@ import { randomUUID } from "crypto";  permet de générer des UUID(sorte d'ident
 
 -Fais des await dans toutes mes api où je fais trop de requêtes parallèles
 
--Je dois aussi vérifier dans mes get dans les api et dans mes pages front (où je n'ai pas encore ajouté prixAchat dans les résultats)
-
 -npm i -g @openai/codex   permet d'installer le CLI de codex (agent ia d'openai qui permet d'interagir depuis le terminal)
    
--curl -fsSL https://claude.ai/install.cmd -o install.cmd && install.cmd && del install.cmd pour installer claude via le terminal cmd
-
--Sur dashboard/admin/ventes le modal de planification de livraison a un problème d'affichage , le bord haut et le bord du bas se perdent un peu sans permettre même le scroll 
+-curl -fsSL https://claude.ai/install.cmd -o install.cmd && install.cmd && del install.cmd pour installer claude via le terminal cmd 

@@ -729,6 +729,7 @@ export default function CaissierPage() {
   const [editDateValue,        setEditDateValue]        = useState("");
   const [editMontantValue,     setEditMontantValue]     = useState("");
   const [editMontantMax,       setEditMontantMax]       = useState(0);
+  const [editNotesValue,       setEditNotesValue]       = useState("");
 
   const [recuModal,            setRecuModal]            = useState(false);
   const [recuData,             setRecuData]             = useState<RecuData["data"] | null>(null);
@@ -881,7 +882,7 @@ export default function CaissierPage() {
     );
 
   const { mutate: modifierDateVersement, loading: modifiantDate } =
-    useMutation<{ success: boolean }, { datePaiement: string; montant?: number }>(
+    useMutation<{ success: boolean }, { datePaiement: string; montant?: number; notes?: string | null }>(
       `/api/caissier/versements/${editDateVersementId}`,
       "PATCH",
       { successMessage: "Versement corrigé ✓" }
@@ -963,6 +964,7 @@ export default function CaissierPage() {
     setEditDateVersementId(v.id);
     setEditDateValue(v.datePaiement ? v.datePaiement.slice(0, 10) : new Date().toISOString().slice(0, 10));
     setEditMontantValue(String(Number(v.montant)));
+    setEditNotesValue(v.notes ?? "");
     // Max autorisé = montantTotal de la souscription (les autres versements seront recalculés côté serveur)
     setEditMontantMax(Number(v.souscription?.montantTotal ?? 0));
     setEditDateModal(true);
@@ -974,6 +976,7 @@ export default function CaissierPage() {
     const result = await modifierDateVersement({
       datePaiement: editDateValue,
       montant: parseFloat(editMontantValue),
+      notes: editNotesValue.trim() || null,
     });
     if (result) {
       setEditDateModal(false);
@@ -1422,6 +1425,20 @@ export default function CaissierPage() {
                     Collecte antérieure au {new Date(editDateValue).toLocaleDateString("fr-FR")}
                   </p>
                 )}
+              </div>
+
+              {/* Notes */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                  Note (facultatif)
+                </label>
+                <textarea
+                  value={editNotesValue}
+                  onChange={(e) => setEditNotesValue(e.target.value)}
+                  rows={2}
+                  placeholder="Correction, remarque…"
+                  className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 bg-slate-50 text-sm resize-none"
+                />
               </div>
 
               <div className="flex gap-3 pt-1">

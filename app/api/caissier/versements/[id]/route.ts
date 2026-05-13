@@ -21,9 +21,9 @@ export async function PATCH(req: Request, { params }: Ctx) {
     if (isNaN(versementId)) return NextResponse.json({ error: "ID invalide" }, { status: 400 });
 
     const body = await req.json();
-    const { datePaiement, montant } = body as { datePaiement?: string; montant?: number };
+    const { datePaiement, montant, notes } = body as { datePaiement?: string; montant?: number; notes?: string | null };
 
-    if (!datePaiement && montant === undefined) {
+    if (!datePaiement && montant === undefined && notes === undefined) {
       return NextResponse.json({ error: "Aucun champ à modifier" }, { status: 400 });
     }
 
@@ -77,6 +77,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
       const updateData: any = {};
       if (newDate) updateData.datePaiement = newDate;
       if (montant !== undefined) updateData.montant = montant;
+      if (notes !== undefined) updateData.notes = notes ?? null;
 
       await tx.versementPack.update({ where: { id: versementId }, data: updateData });
 
