@@ -1,17 +1,17 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getRPVSession } from "@/lib/authRPV";
-import { notifyAdmins, auditLog } from "@/lib/notifications";
+import { notifyAdmins, notifyRoles, notify, auditLog } from "@/lib/notifications";
+import { PrioriteNotification } from "@prisma/client";
 
 type Ctx = { params: Promise<{ id: string }> };
 
 /**
- * POST — Planifie ou valide la livraison du produit pour une souscription.
- * Body: { action: "planifier" | "livrer", lignes: [{produitId, quantite, prixUnitaire}], datePrevisionnelle?, livreurNom?, notes? }
+ * POST — Planifie la livraison du produit pour une souscription.
+ * Body: { action: "planifier", lignes: [{produitId, quantite, prixUnitaire}], datePrevisionnelle?, livreurNom?, notes? }
  *
- * - "planifier" : crée une ReceptionProduitPack PLANIFIEE avec les lignes
- * - "livrer"    : marque une réception existante (receptionId) comme LIVREE et
- *                 décrémente le stock des produits
+ * - "planifier" : crée une ReceptionProduitPack PLANIFIEE avec les lignes et notifie le magasinier
+ *   La confirmation de la sortie stock (LIVREE + décrémentation) est réservée au magasinier.
  */
 export async function POST(req: Request, { params }: Ctx) {
   try {
@@ -21,7 +21,7 @@ export async function POST(req: Request, { params }: Ctx) {
     const { id } = await params;
     const souscriptionId = parseInt(id);
     const body = await req.json();
-    const { action, lignes, datePrevisionnelle, livreurNom, notes, receptionId } = body;
+    const { action, lignes, datePrevisionnelle, livreurNom, notes } = body;
 
     const souscription = await prisma.souscriptionPack.findUnique({
       where: { id: souscriptionId },
@@ -33,6 +33,12 @@ export async function POST(req: Request, { params }: Ctx) {
     }
 
     const rpvNom = `${session.user.prenom ?? ""} ${session.user.nom ?? ""}`.trim();
+
+    // Récupère le PDV du RPV (il est responsable d'un seul PDV)
+    const rpvPdv = await prisma.pointDeVente.findFirst({
+      where: { rpvId: parseInt(session.user.id) },
+      select: { id: true, nom: true },
+    });
 
     if (action === "planifier") {
       if (!lignes || lignes.length === 0) {
@@ -47,6 +53,7 @@ export async function POST(req: Request, { params }: Ctx) {
             datePrevisionnelle: datePrevisionnelle ? new Date(datePrevisionnelle) : new Date(),
             livreurNom: livreurNom ?? null,
             notes,
+            ...(rpvPdv ? { pointDeVenteId: rpvPdv.id } : {}),
             lignes: {
               create: lignes.map((l: { produitId: number; quantite: number; prixUnitaire: number }) => ({
                 produitId: l.produitId,
@@ -58,9 +65,35 @@ export async function POST(req: Request, { params }: Ctx) {
           include: { lignes: { include: { produit: { select: { nom: true } } } } },
         });
 
+        // Notifier les magasiniers du PDV du RPV
+        if (rpvPdv) {
+          const magasiniers = await tx.user.findMany({
+            where: {
+              gestionnaire: { role: "MAGAZINIER", actif: true },
+              affectationsPDV: { some: { pointDeVenteId: rpvPdv.id, actif: true } },
+            },
+            select: { id: true },
+          });
+          if (magasiniers.length > 0) {
+            await notify(tx, magasiniers.map(u => u.id), {
+              titre: `Sortie stock à préparer — ${souscription.pack.nom}`,
+              message: `${rpvNom} a planifié une livraison (souscription #${souscriptionId}) sur le PDV "${rpvPdv.nom}". Confirmez la sortie des produits.`,
+              priorite: PrioriteNotification.HAUTE,
+              actionUrl: "/dashboard/user/magasiniers",
+            });
+          }
+        } else {
+          await notifyRoles(tx, ["MAGAZINIER"], {
+            titre: `Sortie stock à préparer — ${souscription.pack.nom}`,
+            message: `${rpvNom} a planifié une livraison (souscription #${souscriptionId}). Préparez la sortie des produits depuis votre stock.`,
+            priorite: PrioriteNotification.HAUTE,
+            actionUrl: "/dashboard/user/magasiniers",
+          });
+        }
+
         await notifyAdmins(tx, {
           titre: `Livraison planifiée — ${souscription.pack.nom}`,
-          message: `Une livraison de produits pour la souscription #${souscriptionId} a été planifiée par ${rpvNom}.`,
+          message: `Une livraison de produits pour la souscription #${souscriptionId} a été planifiée par ${rpvNom}${rpvPdv ? ` (PDV : ${rpvPdv.nom})` : ""}.`,
           priorite: "NORMAL",
           actionUrl: "/dashboard/user/packs",
         });
@@ -73,130 +106,7 @@ export async function POST(req: Request, { params }: Ctx) {
       return NextResponse.json(reception, { status: 201 });
     }
 
-    if (action === "livrer") {
-      if (!receptionId) {
-        return NextResponse.json({ error: "receptionId requis pour l'action 'livrer'" }, { status: 400 });
-      }
-
-      const reception = await prisma.$transaction(async (tx) => {
-        const rec = await tx.receptionProduitPack.findUnique({
-          where: { id: parseInt(receptionId) },
-          include: { lignes: true },
-        });
-
-        if (!rec || rec.souscriptionId !== souscriptionId) {
-          throw new Error("Réception introuvable");
-        }
-        if (rec.statut !== "PLANIFIEE") {
-          throw new Error(`Réception déjà ${rec.statut.toLowerCase()}`);
-        }
-
-        // Décrémenter le stock par site (greedy : site le plus stocké en premier)
-        for (const ligne of rec.lignes) {
-          const sites = await tx.stockSite.findMany({
-            where: { produitId: ligne.produitId, quantite: { gt: 0 } },
-            orderBy: { quantite: "desc" },
-          });
-          let remaining = ligne.quantite;
-          for (const site of sites) {
-            if (remaining <= 0) break;
-            const dec = Math.min(site.quantite, remaining);
-            await tx.stockSite.update({ where: { id: site.id }, data: { quantite: { decrement: dec } } });
-            remaining -= dec;
-          }
-          await tx.mouvementStock.create({
-            data: {
-              produitId: ligne.produitId,
-              type: "SORTIE",
-              quantite: ligne.quantite,
-              motif: `Livraison Pack #${souscriptionId} — ${souscription.pack.nom}`,
-              reference: `PACK-${souscriptionId}-REC-${rec.id}-${Date.now()}`,
-            },
-          });
-        }
-
-        const updated = await tx.receptionProduitPack.update({
-          where: { id: rec.id },
-          data: { statut: "LIVREE", dateLivraison: new Date(), ...(livreurNom ? { livreurNom } : {}) },
-        });
-
-        await notifyAdmins(tx, {
-          titre: `Produits livrés — ${souscription.pack.nom}`,
-          message: `La livraison pour la souscription #${souscriptionId} a été validée par ${rpvNom}.`,
-          priorite: "HAUTE",
-          actionUrl: "/dashboard/user/packs",
-        });
-
-        await auditLog(tx, parseInt(session.user.id), "LIVRAISON_PACK_LIVREE", "ReceptionProduitPack", updated.id);
-
-        // ── Renouvellement de cycle ────────────────────────────────────────
-        if (souscription.pack.type === "FAMILIAL") {
-          const freq = (souscription.frequenceVersement ?? souscription.pack.frequenceVersement ?? "HEBDOMADAIRE") as string;
-          const duree = souscription.pack.dureeJours ?? 30;
-          const step = freq === "QUOTIDIEN" ? 1 : freq === "HEBDOMADAIRE" ? 7 : freq === "BIMENSUEL" ? 14 : 30;
-          const count = Math.ceil(duree / step);
-          const montantTotal = Number(souscription.montantTotal);
-          const montantEcheance = Math.round((montantTotal / count) * 100) / 100;
-          const debut = new Date();
-
-          await tx.echeancePack.deleteMany({ where: { souscriptionId } });
-          await tx.echeancePack.createMany({
-            data: Array.from({ length: count }, (_, i) => {
-              const date = new Date(debut);
-              date.setDate(date.getDate() + (i + 1) * step);
-              return {
-                souscriptionId,
-                numero: i + 1,
-                montant: i === count - 1
-                  ? Math.round((montantTotal - montantEcheance * (count - 1)) * 100) / 100
-                  : montantEcheance,
-                datePrevue: date,
-                statut: "EN_ATTENTE" as const,
-              };
-            }),
-          });
-
-          await tx.souscriptionPack.update({
-            where: { id: souscriptionId },
-            data: { montantVerse: 0, montantRestant: montantTotal, statut: "ACTIF", dateCloture: null, dateDebut: debut },
-          });
-
-          await notifyAdmins(tx, {
-            titre: `Nouveau cycle FAMILIAL — ${souscription.pack.nom}`,
-            message: `Souscription #${souscriptionId} : cycle ${souscription.numeroCycle} complété, nouveau cycle démarré automatiquement.`,
-            priorite: "NORMAL",
-            actionUrl: "/dashboard/user/packs",
-          });
-        }
-
-        else if (souscription.pack.type === "EPARGNE_PRODUIT") {
-          await tx.echeancePack.deleteMany({ where: { souscriptionId } });
-          await tx.souscriptionPack.update({
-            where: { id: souscriptionId },
-            data: {
-              montantVerse: 0,
-              montantRestant: Number(souscription.montantTotal),
-              statut: "EN_ATTENTE",
-              dateCloture: null,
-              dateDebut: new Date(),
-            },
-          });
-
-          await notifyAdmins(tx, {
-            titre: `Nouveau cycle Épargne — ${souscription.pack.nom}`,
-            message: `Souscription #${souscriptionId} : produit livré, nouveau cycle d'épargne démarré automatiquement.`,
-            priorite: "NORMAL",
-            actionUrl: "/dashboard/user/packs",
-          });
-        }
-
-        return updated;
-      });
-
-      return NextResponse.json(reception);
-    }
-
-    return NextResponse.json({ error: "Action invalide : 'planifier' ou 'livrer'" }, { status: 400 });
+    return NextResponse.json({ error: "Action invalide : seule l'action 'planifier' est autorisée" }, { status: 400 });
   } catch (error) {
     console.error("POST /api/rpv/packs/[id]/livrer", error);
     return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });

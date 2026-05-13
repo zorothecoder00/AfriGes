@@ -212,6 +212,11 @@ export default function MagasinierPage() {
   // Ref pour update statut bon de sortie sans re-render
   const bonSortieUpdateIdRef = useRef<number | null>(null);
 
+  // Livraisons packs
+  const [confirmingPackLivId, setConfirmingPackLivId] = useState<number | null>(null);
+  const confirmingPackLivIdRef = useRef<number | null>(null);
+  const [expandedPackLivId, setExpandedPackLivId] = useState<number | null>(null);
+
   // Livraisons clients en attente (LIVRAISON_CLIENT BROUILLON)
   const [showLivClientForm, setShowLivClientForm] = useState(false);
   const [lcMotif, setLcMotif] = useState('');
@@ -370,6 +375,35 @@ export default function MagasinierPage() {
     meta: { total: number; page: number; limit: number; totalPages: number };
   }
 
+  // Livraisons packs (ReceptionProduitPack PLANIFIEE)
+  interface LigneLivraisonPack {
+    id: number;
+    produitId: number;
+    quantite: number;
+    prixUnitaire: string;
+    produit: { id: number; nom: string; unite: string | null; prixAchat?: string | null };
+  }
+  interface LivraisonPackPlanifiee {
+    id: number;
+    statut: 'PLANIFIEE' | 'LIVREE';
+    datePrevisionnelle: string | null;
+    dateLivraison: string | null;
+    livreurNom: string | null;
+    notes: string | null;
+    souscription: {
+      id: number;
+      pack: { id: number; nom: string; type: string };
+      client: { nom: string; prenom: string; telephone: string; pointDeVente?: { nom: string } | null } | null;
+      user: { nom: string; prenom: string } | null;
+    };
+    lignes: LigneLivraisonPack[];
+  }
+  interface LivraisonsPacksResponse {
+    planifiees: LivraisonPackPlanifiee[];
+    livreesRecentes: LivraisonPackPlanifiee[];
+    stats: { totalPlanifiees: number };
+  }
+
   const { data: livraisonsRpvRes, loading: livraisonsRpvLoading, refetch: refetchLivraisonsRpv } =
     useApi<LivraisonsRpvResponse>('/api/magasinier/livraisons-rpv');
 
@@ -440,6 +474,28 @@ export default function MagasinierPage() {
       'PATCH',
       { successMessage: 'Livraison client confirmée — stock mis à jour !' }
     );
+
+  // Livraisons packs — hook + mutation
+  const { data: livraisonsPacksRes, loading: livraisonsPacksLoading, refetch: refetchLivraisonsPacks } =
+    useApi<LivraisonsPacksResponse>(activeTab === 'livraisons' ? '/api/magasinier/livraisons-packs' : null);
+  const livraisonsPacksPlanifiees = livraisonsPacksRes?.planifiees ?? [];
+  const livraisonsPacksLivrees   = livraisonsPacksRes?.livreesRecentes ?? [];
+
+  const { mutate: doConfirmerPackLiv, loading: confirmPackLivLoading } =
+    useMutation<unknown, { action: string }>(
+      () => confirmingPackLivIdRef.current ? `/api/magasinier/livraisons-packs/${confirmingPackLivIdRef.current}` : '',
+      'PATCH',
+      { successMessage: 'Sortie stock confirmée — le RPV sera notifié !' }
+    );
+
+  const handleConfirmerPackLiv = async (id: number) => {
+    confirmingPackLivIdRef.current = id;
+    setConfirmingPackLivId(id);
+    const r = await doConfirmerPackLiv({ action: 'livrer' });
+    if (r) { refetchLivraisonsPacks(); refetchStock(); if (activeTab === 'journal') refetchJournal(); }
+    setConfirmingPackLivId(null);
+    confirmingPackLivIdRef.current = null;
+  };
 
   const { mutate: submitLivClient, loading: livClientSubmitLoading } =
     useMutation<unknown, { typeSortie: string; motif: string; notes?: string; lignes: { produitId: number; quantite: number }[] }>(
@@ -646,7 +702,7 @@ export default function MagasinierPage() {
     { key: 'inventaire'  as const, label: 'Inventaire',  icon: ClipboardList },
     { key: 'journal'     as const, label: 'Journal',     icon: BarChart3 },
     { key: 'reception'   as const, label: 'Reception',   icon: Plus },
-    { key: 'livraisons'  as const, label: 'Récep. & Livr.', icon: Truck, badge: nbLivraisonsEnCours + transfertsEntrantsMag.length + livClientsPending.length + ventesTerrainALivrer.length },
+    { key: 'livraisons'  as const, label: 'Récep. & Livr.', icon: Truck, badge: nbLivraisonsEnCours + transfertsEntrantsMag.length + livClientsPending.length + ventesTerrainALivrer.length + livraisonsPacksPlanifiees.length },
     { key: 'sorties'     as const, label: 'Sorties',     icon: Send },
     { key: 'anomalies'   as const, label: 'Anomalies',   icon: ShieldAlert },
     { key: 'alertes'     as const, label: 'Alertes',     icon: AlertTriangle, badge: (stats?.enRupture ?? 0) + (stats?.stockFaible ?? 0) },
@@ -1094,7 +1150,7 @@ export default function MagasinierPage() {
             })()}
 
             {/* Stats */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
               <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 flex items-center gap-3">
                 <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center shrink-0">
                   <PackageCheck className="text-blue-600 w-5 h-5" />
@@ -1120,6 +1176,15 @@ export default function MagasinierPage() {
                 <div>
                   <p className="text-xs text-amber-700 font-medium">Sorties clients en attente</p>
                   <p className="text-2xl font-bold text-amber-800">{livClientsPending.length}</p>
+                </div>
+              </div>
+              <div className="bg-orange-50 border border-orange-200 rounded-2xl p-4 flex items-center gap-3">
+                <div className="w-10 h-10 bg-orange-100 rounded-xl flex items-center justify-center shrink-0">
+                  <Gift className="text-orange-600 w-5 h-5" />
+                </div>
+                <div>
+                  <p className="text-xs text-orange-700 font-medium">Livraisons packs</p>
+                  <p className="text-2xl font-bold text-orange-800">{livraisonsPacksPlanifiees.length}</p>
                 </div>
               </div>
             </div>
@@ -1480,6 +1545,189 @@ export default function MagasinierPage() {
                           <span className="text-sm text-slate-700">{clientNom}</span>
                         </div>
                         <span className="text-xs text-slate-400 shrink-0">{Number(v.montantTotal).toLocaleString("fr-FR")} FCFA</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Livraisons packs à préparer (ReceptionProduitPack PLANIFIEE) */}
+            <div className="bg-white rounded-2xl shadow-sm border border-orange-200 overflow-hidden">
+              <div className="px-6 py-4 border-b border-orange-200 bg-orange-50 flex items-center gap-2">
+                <Gift size={18} className="text-orange-600" />
+                <h3 className="font-bold text-slate-800">Livraisons de packs — sortie stock à confirmer</h3>
+                {livraisonsPacksPlanifiees.length > 0 && (
+                  <span className="bg-orange-600 text-white text-xs font-bold px-2 py-0.5 rounded-full">
+                    {livraisonsPacksPlanifiees.length}
+                  </span>
+                )}
+                {livraisonsPacksLoading && <span className="text-xs text-slate-400 ml-auto">Chargement…</span>}
+              </div>
+              {livraisonsPacksPlanifiees.length === 0 && !livraisonsPacksLoading ? (
+                <div className="p-8 text-center">
+                  <Gift className="w-10 h-10 text-orange-200 mx-auto mb-3" />
+                  <p className="text-slate-500 text-sm">Aucune livraison de pack en attente.</p>
+                  <p className="text-slate-400 text-xs mt-1">Les livraisons planifiées par le RPV ou l&apos;admin apparaîtront ici.</p>
+                </div>
+              ) : (
+                <div className="divide-y divide-slate-100">
+                  {livraisonsPacksPlanifiees.map(liv => {
+                    const clientNom = liv.souscription.client
+                      ? `${liv.souscription.client.prenom} ${liv.souscription.client.nom}`
+                      : liv.souscription.user
+                      ? `${liv.souscription.user.prenom} ${liv.souscription.user.nom}`
+                      : 'Client';
+                    const tel = liv.souscription.client?.telephone;
+                    const pdvNom = liv.souscription.client?.pointDeVente?.nom;
+                    const isExpanded = expandedPackLivId === liv.id;
+                    return (
+                      <div key={liv.id}>
+                        <div
+                          className="p-5 flex items-start justify-between gap-4 cursor-pointer hover:bg-slate-50"
+                          onClick={() => setExpandedPackLivId(isExpanded ? null : liv.id)}
+                        >
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap mb-1">
+                              <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-orange-100 text-orange-700">
+                                {liv.souscription.pack.nom}
+                              </span>
+                              <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
+                                {liv.souscription.pack.type}
+                              </span>
+                              <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">
+                                À préparer
+                              </span>
+                            </div>
+                            <p className="text-sm font-semibold text-slate-800">Client : {clientNom}</p>
+                            {tel && <p className="text-xs text-slate-500 mt-0.5">Tél : {tel}</p>}
+                            {pdvNom && <p className="text-xs text-slate-500 mt-0.5">PDV : {pdvNom}</p>}
+                            {liv.datePrevisionnelle && (
+                              <p className="text-xs text-slate-400 mt-0.5">
+                                Date prévue : {formatDate(liv.datePrevisionnelle)}
+                              </p>
+                            )}
+                            {!isExpanded && (
+                              <div className="flex flex-wrap gap-1.5 mt-1.5">
+                                {liv.lignes.slice(0, 3).map(l => (
+                                  <span key={l.id} className="text-xs bg-orange-50 text-orange-700 border border-orange-200 px-2 py-0.5 rounded-lg">
+                                    {l.produit.nom} × {l.quantite}
+                                  </span>
+                                ))}
+                                {liv.lignes.length > 3 && (
+                                  <span className="text-xs text-slate-400">+{liv.lignes.length - 3} autres</span>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <button
+                              onClick={e => { e.stopPropagation(); handleConfirmerPackLiv(liv.id); }}
+                              disabled={confirmPackLivLoading && confirmingPackLivId === liv.id}
+                              className="flex items-center gap-1.5 px-4 py-2 bg-orange-600 text-white rounded-xl hover:bg-orange-700 text-sm font-medium transition-all shadow-md shadow-orange-200 disabled:opacity-60"
+                            >
+                              {confirmPackLivLoading && confirmingPackLivId === liv.id
+                                ? <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Sortie…</>
+                                : <><ArrowDownCircle size={14} /> Confirmer sortie stock</>}
+                            </button>
+                            {isExpanded ? <ChevronUp size={16} className="text-slate-400" /> : <ChevronDown size={16} className="text-slate-400" />}
+                          </div>
+                        </div>
+                        {isExpanded && (() => {
+                          const caTotal    = liv.lignes.reduce((s, l) => s + l.quantite * Number(l.prixUnitaire), 0);
+                          const margeTotal = liv.lignes.reduce((s, l) => {
+                            const pa = l.produit.prixAchat != null ? Number(l.produit.prixAchat) : null;
+                            return pa != null ? s + (Number(l.prixUnitaire) - pa) * l.quantite : s;
+                          }, 0);
+                          const hasMarge = liv.lignes.some((l) => l.produit.prixAchat != null);
+                          return (
+                            <div className="px-5 pb-5 border-t border-slate-100">
+                              <div className="mt-3 space-y-2">
+                                {liv.lignes.map(l => {
+                                  const pa = l.produit.prixAchat != null ? Number(l.produit.prixAchat) : null;
+                                  const marge = pa != null ? (Number(l.prixUnitaire) - pa) * l.quantite : null;
+                                  return (
+                                    <div key={l.id} className="bg-orange-50 rounded-xl px-4 py-2.5 border border-orange-100">
+                                      <div className="flex items-center justify-between">
+                                        <div>
+                                          <p className="font-medium text-slate-800 text-sm">{l.produit.nom}</p>
+                                          {l.produit.unite && <p className="text-xs text-slate-400">Unité : {l.produit.unite}</p>}
+                                        </div>
+                                        <div className="text-right">
+                                          <p className="text-xs text-slate-500">Qté × Prix vente</p>
+                                          <p className="font-bold text-orange-700">{l.quantite} × {Number(l.prixUnitaire).toLocaleString('fr-FR')} FCFA</p>
+                                          <p className="text-xs text-slate-500">{(l.quantite * Number(l.prixUnitaire)).toLocaleString('fr-FR')} FCFA</p>
+                                        </div>
+                                      </div>
+                                      {marge != null && (
+                                        <p className={`text-[11px] font-semibold mt-1 ${marge >= 0 ? "text-emerald-600" : "text-red-500"}`}>
+                                          Marge : {marge >= 0 ? "+" : ""}{marge.toLocaleString('fr-FR')} FCFA
+                                          <span className="text-slate-400 font-normal ml-1">(PA : {pa!.toLocaleString('fr-FR')} / u.)</span>
+                                        </p>
+                                      )}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                              <div className="mt-2 grid grid-cols-2 gap-2">
+                                {caTotal > 0 && (
+                                  <div className="flex items-center justify-between bg-orange-100 rounded-xl px-4 py-2 border border-orange-200">
+                                    <span className="text-xs font-semibold text-orange-700">CA</span>
+                                    <span className="text-sm font-bold text-orange-800">{caTotal.toLocaleString('fr-FR')} FCFA</span>
+                                  </div>
+                                )}
+                                {hasMarge && (
+                                  <div className={`flex items-center justify-between rounded-xl px-4 py-2 border ${margeTotal >= 0 ? "bg-emerald-50 border-emerald-200" : "bg-red-50 border-red-200"}`}>
+                                    <span className={`text-xs font-semibold ${margeTotal >= 0 ? "text-emerald-700" : "text-red-700"}`}>Marge</span>
+                                    <span className={`text-sm font-bold ${margeTotal >= 0 ? "text-emerald-800" : "text-red-700"}`}>
+                                      {margeTotal >= 0 ? "+" : ""}{margeTotal.toLocaleString('fr-FR')} FCFA
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
+                              {liv.notes && (
+                                <p className="mt-3 text-xs text-slate-500 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                                  Notes : {liv.notes}
+                                </p>
+                              )}
+                              {liv.livreurNom && (
+                                <p className="mt-2 text-xs text-slate-500">Livreur prévu : {liv.livreurNom}</p>
+                              )}
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+              {livraisonsPacksLivrees.length > 0 && (
+                <div className="border-t border-slate-100 divide-y divide-slate-100">
+                  <div className="px-6 py-3 bg-slate-50">
+                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Sorties packs récentes (30j)</p>
+                  </div>
+                  {livraisonsPacksLivrees.map(liv => {
+                    const clientNom = liv.souscription.client
+                      ? `${liv.souscription.client.prenom} ${liv.souscription.client.nom}`
+                      : liv.souscription.user
+                      ? `${liv.souscription.user.prenom} ${liv.souscription.user.nom}`
+                      : 'Client';
+                    const caLiv = liv.lignes.reduce((s, l) => s + l.quantite * Number(l.prixUnitaire), 0);
+                    return (
+                      <div key={liv.id} className="px-5 py-3 flex items-center gap-3 opacity-70">
+                        <CheckCircle size={15} className="text-emerald-500 shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <span className="text-xs font-semibold text-orange-700 mr-2">{liv.souscription.pack.nom}</span>
+                          <span className="text-sm text-slate-700">{clientNom}</span>
+                        </div>
+                        {caLiv > 0 && (
+                          <span className="text-xs font-semibold text-emerald-700 shrink-0">
+                            {caLiv.toLocaleString('fr-FR')} FCFA
+                          </span>
+                        )}
+                        <span className="text-xs text-slate-400 shrink-0">
+                          {liv.dateLivraison ? formatDate(liv.dateLivraison) : '—'}
+                        </span>
                       </div>
                     );
                   })}

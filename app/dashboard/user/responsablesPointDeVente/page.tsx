@@ -31,7 +31,7 @@ type StatutLiv   = "BROUILLON" | "EN_COURS" | "RECU" | "VALIDE" | "ANNULE";
 
 interface Produit {
   id: number; nom: string; description: string | null;
-  prixUnitaire: number; stock: number; alerteStock: number;
+  prixUnitaire: number; prixAchat?: number | null; stock: number; alerteStock: number;
   createdAt: string; updatedAt: string;
 }
 interface ProduitsResponse {
@@ -380,11 +380,11 @@ export default function ResponsablePDVPage() {
   const [selectedRecPack,   setSelectedRecPack]   = useState<ReceptionPack | null>(null);
   const [justifAnnul,       setJustifAnnul]       = useState("");
   // Modal planification livraison pack
-  const [modalPlanifLiv,    setModalPlanifLiv]    = useState(false);
-  const [planifSouscId,     setPlanifSouscId]     = useState("");
+  const [planifTarget,      setPlanifTarget]      = useState<SouscriptionActive | null>(null);
   const [planifDate,        setPlanifDate]        = useState("");
   const [planifNotes,       setPlanifNotes]       = useState("");
-  const [planifLignes,      setPlanifLignes]      = useState<{ produitId: string; quantite: string }[]>([{ produitId: "", quantite: "1" }]);
+  const [planifLivreurNom,  setPlanifLivreurNom]  = useState("");
+  const [planifLignes,      setPlanifLignes]      = useState<{ produitId: string; quantite: string; prixUnitaire: string }[]>([{ produitId: "", quantite: "1", prixUnitaire: "" }]);
 
   // Modal réapprovisionnement
   const [modalReappro,    setModalReappro]    = useState(false);
@@ -491,9 +491,10 @@ export default function ResponsablePDVPage() {
     `/api/rpv/equipe?${dSearchEquipe ? `search=${dSearchEquipe}` : ""}`
   );
   const { data: recPacksRes,   refetch: refetchRecPacks  } = useApi<ReceptionsPacksResponse>(`/api/rpv/receptions-packs?${recPackParams}`);
-  const { data: souscActives } = useApi<{ success: boolean; data: SouscriptionActive[] }>(
-    modalPlanifLiv ? "/api/rpv/souscriptions-actives" : null
-  );
+  const { data: souscActives, loading: souscActivesLoading, refetch: refetchSouscActives } =
+    useApi<{ success: boolean; data: SouscriptionActive[] }>(
+      activeTab === "livraisons" ? "/api/rpv/souscriptions-actives" : null
+    );
   const { data: clientsRes,    refetch: refetchClients   } = useApi<ClientsResponse>(`/api/rpv/clients?${clientParams}`);
   const { data: ventesRPVRes,  refetch: refetchVentesRPV } = useApi<VentesRPVResponse>(`/api/rpv/ventes?${ventesParams}`);
   const { data: caissePDVRes,  refetch: refetchCaissePDV } = useApi<CaissePDVResponse>("/api/rpv/caisse-pdv");
@@ -679,22 +680,31 @@ export default function ResponsablePDVPage() {
   // ── Handlers livraisons packs ─────────────────────────────────────────────
   const openAnnulPack = (r: ReceptionPack) => { setSelectedRecPack(r); setJustifAnnul(""); setModalAnnulPack(true); };
 
+  const closePlanifModal = () => {
+    setPlanifTarget(null);
+    setPlanifDate(""); setPlanifNotes(""); setPlanifLivreurNom("");
+    setPlanifLignes([{ produitId: "", quantite: "1", prixUnitaire: "" }]);
+  };
+
   const handlePlanifierLivPack = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!planifSouscId || !planifDate) return;
+    if (!planifTarget || !planifDate) return;
     const lignesValides = planifLignes.filter((l) => l.produitId && Number(l.quantite) > 0);
     if (!lignesValides.length) return;
     const r = await planifierLivPack({
-      souscriptionId:     Number(planifSouscId),
+      souscriptionId:     planifTarget.id,
       datePrevisionnelle: new Date(planifDate).toISOString(),
       notes:              planifNotes || null,
-      lignes:             lignesValides.map((l) => ({ produitId: Number(l.produitId), quantite: Number(l.quantite) })),
+      livreurNom:         planifLivreurNom || null,
+      lignes:             lignesValides.map((l) => ({
+        produitId:    Number(l.produitId),
+        quantite:     Number(l.quantite),
+        prixUnitaire: l.prixUnitaire ? Number(l.prixUnitaire) : undefined,
+      })),
     });
     if (r) {
-      setModalPlanifLiv(false);
-      setPlanifSouscId(""); setPlanifDate(""); setPlanifNotes("");
-      setPlanifLignes([{ produitId: "", quantite: "1" }]);
-      refetchRecPacks(); refetchDash();
+      closePlanifModal();
+      refetchRecPacks(); refetchSouscActives(); refetchDash();
     }
   };
   const openDetailPack = (r: ReceptionPack) => { setSelectedRecPack(r); setModalDetailPack(true); };
@@ -1327,140 +1337,175 @@ export default function ResponsablePDVPage() {
       )}
 
       {/* ── Modal Planifier livraison pack ── */}
-      {modalPlanifLiv && (() => {
-        const sousc = souscActives?.data.find((x) => x.id === Number(planifSouscId));
-        const produitsStock = produits;
+      {planifTarget && (() => {
+        const produitsStock = produits.filter((p) => p.stock > 0);
         const totalLivraison = planifLignes.reduce((sum, l) => {
-          const p = produits.find((x) => x.id === Number(l.produitId));
-          return sum + (p ? p.prixUnitaire * Number(l.quantite || 0) : 0);
+          const prix = Number(l.prixUnitaire) || produits.find((x) => x.id === Number(l.produitId))?.prixUnitaire || 0;
+          return sum + prix * Number(l.quantite || 0);
         }, 0);
-
-        // Calculs de budget pour la validation
-        const montantDejaLivre   = sousc?.montantDejaLivre ?? 0;
-        const montantTotalPack   = sousc?.montantTotal ?? 0;
-        const capaciteRestante   = montantTotalPack - montantDejaLivre;
-        const montantApresLiv    = montantDejaLivre + totalLivraison;
-        const depasseBudget      = sousc != null && totalLivraison > 0 && montantApresLiv > montantTotalPack;
-        const pctDejaLivre       = montantTotalPack > 0 ? Math.min(100, Math.round((montantDejaLivre / montantTotalPack) * 100)) : 0;
-        const pctNouvelleLiv     = montantTotalPack > 0 ? Math.min(100 - pctDejaLivre, Math.round((totalLivraison / montantTotalPack) * 100)) : 0;
+        const montantDejaLivre = planifTarget.montantDejaLivre;
+        const montantTotalPack = planifTarget.montantTotal;
+        const capaciteRestante = montantTotalPack - montantDejaLivre;
+        const montantApresLiv  = montantDejaLivre + totalLivraison;
+        const depasseBudget    = totalLivraison > 0 && montantApresLiv > montantTotalPack;
+        const pctDejaLivre     = montantTotalPack > 0 ? Math.min(100, Math.round((montantDejaLivre / montantTotalPack) * 100)) : 0;
+        const pctNouvelleLiv   = montantTotalPack > 0 ? Math.min(100 - pctDejaLivre, Math.round((totalLivraison / montantTotalPack) * 100)) : 0;
+        const clientNom        = planifTarget.client ? `${planifTarget.client.prenom} ${planifTarget.client.nom}` : "—";
+        const clientTel        = planifTarget.client?.telephone ?? null;
 
         return (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg my-4">
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[120] flex items-center justify-center p-4 overflow-y-auto">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xl my-4">
+
+              {/* En-tête */}
               <div className="flex items-center justify-between p-5 border-b border-slate-200">
                 <div className="flex items-center gap-3">
-                  <div className="bg-orange-100 p-2.5 rounded-xl"><ShoppingBag className="text-orange-600 w-5 h-5" /></div>
+                  <div className="bg-orange-100 p-2.5 rounded-xl"><Truck className="text-orange-600 w-5 h-5" /></div>
                   <div>
                     <h2 className="font-bold text-slate-800">Planifier une livraison</h2>
-                    <p className="text-xs text-slate-400">Pack client → Agent terrain confirmera la livraison</p>
+                    <p className="text-xs text-slate-400">Le magasinier confirmera la sortie stock</p>
                   </div>
                 </div>
-                <button onClick={() => setModalPlanifLiv(false)} className="p-2 text-slate-400 hover:text-slate-600 rounded-lg"><X size={18} /></button>
+                <button onClick={closePlanifModal} className="p-2 text-slate-400 hover:text-slate-600 rounded-lg"><X size={18} /></button>
               </div>
-              <form onSubmit={handlePlanifierLivPack} className="p-5 space-y-4">
 
-                {/* Souscription */}
-                <div>
-                  <label className="block text-xs font-medium text-slate-600 mb-1.5">Souscription client *</label>
-                  {!souscActives ? (
-                    <p className="text-xs text-slate-400 bg-slate-50 rounded-xl p-3">Chargement…</p>
-                  ) : souscActives.data.length === 0 ? (
-                    <p className="text-sm text-slate-500 bg-amber-50 border border-amber-200 rounded-xl p-3">
-                      Aucune souscription éligible. Les clients doivent avoir une souscription active sans livraison déjà planifiée.
-                    </p>
-                  ) : (
-                    <select required value={planifSouscId}
-                      onChange={(e) => { setPlanifSouscId(e.target.value); setPlanifLignes([{ produitId: "", quantite: "1" }]); }}
-                      className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 bg-slate-50">
-                      <option value="">-- Choisir une souscription --</option>
-                      {souscActives.data.map((s) => (
-                        <option key={s.id} value={s.id}>
-                          {s.client ? `${s.client.prenom} ${s.client.nom}` : "—"} — {s.pack.nom} ({s.pack.type}) — {s.statut}
-                        </option>
-                      ))}
-                    </select>
-                  )}
-                </div>
+              <form onSubmit={handlePlanifierLivPack} className="p-5 space-y-5">
 
-                {/* Infos souscription sélectionnée */}
-                {sousc && (
-                  <div className="bg-orange-50 border border-orange-200 rounded-xl p-3 space-y-3 text-xs">
-                    <div className="grid grid-cols-3 gap-2">
-                      <div><p className="text-orange-500 font-medium">Pack</p><p className="font-bold text-orange-800">{sousc.pack.nom}</p></div>
-                      <div><p className="text-orange-500 font-medium">Versé</p><p className="font-bold text-orange-800">{sousc.montantVerse.toLocaleString("fr-FR")} FCFA</p></div>
-                      <div><p className="text-orange-500 font-medium">Restant dû</p><p className="font-bold text-orange-800">{sousc.montantRestant.toLocaleString("fr-FR")} FCFA</p></div>
+                {/* Carte client + souscription */}
+                <div className="bg-orange-50 border border-orange-200 rounded-xl p-4 space-y-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <p className="font-bold text-slate-800">{clientNom}</p>
+                      {clientTel && <p className="text-xs text-slate-500 mt-0.5">{clientTel}</p>}
                     </div>
-                    {/* Jauge budget livraison */}
-                    <div className="pt-1">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-orange-600 font-semibold">Budget livraison</span>
-                        <span className="font-bold text-orange-900">{montantTotalPack.toLocaleString("fr-FR")} FCFA</span>
-                      </div>
-                      <div className="w-full bg-orange-100 rounded-full h-2.5 overflow-hidden">
-                        <div className="h-full flex">
-                          {pctDejaLivre > 0 && (
-                            <div className="bg-emerald-500 h-full transition-all" style={{ width: `${pctDejaLivre}%` }} title={`Déjà livré : ${montantDejaLivre.toLocaleString("fr-FR")} FCFA`} />
-                          )}
-                          {pctNouvelleLiv > 0 && (
-                            <div className={`h-full transition-all ${depasseBudget ? "bg-red-500" : "bg-orange-400"}`} style={{ width: `${pctNouvelleLiv}%` }} title={`Nouvelle livraison : ${totalLivraison.toLocaleString("fr-FR")} FCFA`} />
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex items-center justify-between mt-1.5 text-[11px]">
-                        <span className="text-slate-500">
-                          {montantDejaLivre > 0
-                            ? <><span className="inline-block w-2 h-2 rounded-full bg-emerald-500 mr-1" />Déjà livré : <strong>{montantDejaLivre.toLocaleString("fr-FR")} FCFA</strong></>
-                            : "Aucune livraison antérieure"
-                          }
-                        </span>
-                        <span className={`font-semibold ${depasseBudget ? "text-red-600" : "text-orange-700"}`}>
-                          Capacité restante : {capaciteRestante.toLocaleString("fr-FR")} FCFA
-                        </span>
-                      </div>
+                    <div className="text-right shrink-0">
+                      <span className="text-xs font-semibold px-2 py-1 rounded-full bg-orange-100 text-orange-700">
+                        {planifTarget.pack.nom}
+                      </span>
+                      <p className={`text-xs font-medium mt-1 ${
+                        planifTarget.statut === "COMPLETE" ? "text-green-600" :
+                        planifTarget.statut === "ACTIF"    ? "text-blue-600"  : "text-gray-500"
+                      }`}>{planifTarget.statut}</p>
                     </div>
                   </div>
-                )}
+                  <div className="grid grid-cols-3 gap-3 text-xs pt-1 border-t border-orange-100">
+                    <div>
+                      <p className="text-orange-500 font-medium">Total pack</p>
+                      <p className="font-bold text-orange-800">{montantTotalPack.toLocaleString("fr-FR")} FCFA</p>
+                    </div>
+                    <div>
+                      <p className="text-orange-500 font-medium">Versé</p>
+                      <p className="font-bold text-orange-800">{planifTarget.montantVerse.toLocaleString("fr-FR")} FCFA</p>
+                    </div>
+                    <div>
+                      <p className="text-orange-500 font-medium">Restant dû</p>
+                      <p className="font-bold text-orange-800">{planifTarget.montantRestant.toLocaleString("fr-FR")} FCFA</p>
+                    </div>
+                  </div>
+                  {/* Jauge budget livraison */}
+                  <div>
+                    <div className="flex items-center justify-between text-xs mb-1">
+                      <span className="text-orange-600 font-semibold">Budget livraison</span>
+                      <span className={`font-bold ${depasseBudget ? "text-red-600" : "text-orange-700"}`}>
+                        Capacité restante : {capaciteRestante.toLocaleString("fr-FR")} FCFA
+                      </span>
+                    </div>
+                    <div className="w-full bg-orange-100 rounded-full h-2.5 overflow-hidden">
+                      <div className="h-full flex">
+                        {pctDejaLivre > 0 && <div className="bg-emerald-500 h-full" style={{ width: `${pctDejaLivre}%` }} />}
+                        {pctNouvelleLiv > 0 && (
+                          <div className={`h-full ${depasseBudget ? "bg-red-500" : "bg-orange-400"}`} style={{ width: `${pctNouvelleLiv}%` }} />
+                        )}
+                      </div>
+                    </div>
+                    <p className="text-[11px] text-slate-400 mt-0.5">
+                      {montantDejaLivre > 0
+                        ? <><span className="inline-block w-2 h-2 rounded-full bg-emerald-500 mr-1 align-middle" />Déjà livré : <strong>{montantDejaLivre.toLocaleString("fr-FR")} FCFA</strong></>
+                        : "Première livraison"}
+                    </p>
+                  </div>
+                </div>
 
                 {/* Produits à livrer */}
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <label className="text-xs font-medium text-slate-600">Produits à livrer *</label>
+                    <label className="text-sm font-semibold text-slate-700">Produits à livrer *</label>
                     <button type="button"
-                      onClick={() => setPlanifLignes((l) => [...l, { produitId: "", quantite: "1" }])}
+                      onClick={() => setPlanifLignes((l) => [...l, { produitId: "", quantite: "1", prixUnitaire: "" }])}
                       className="text-xs text-orange-600 hover:text-orange-700 font-semibold flex items-center gap-1">
                       <Plus size={12} /> Ajouter un produit
                     </button>
                   </div>
+                  {produitsStock.length === 0 && (
+                    <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-xl p-3">
+                      Aucun produit en stock sur votre PDV. Effectuez un réapprovisionnement avant de planifier une livraison.
+                    </p>
+                  )}
                   <div className="space-y-2">
                     {planifLignes.map((ligne, idx) => {
                       const produitSelec = produitsStock.find((p) => p.id === Number(ligne.produitId));
+                      const prixVente = Number(ligne.prixUnitaire) || produitSelec?.prixUnitaire || 0;
+                      const sousTotal = prixVente * Number(ligne.quantite || 0);
+                      const prixAchat = produitSelec?.prixAchat != null ? Number(produitSelec.prixAchat) : null;
+                      const marge     = prixAchat != null && prixVente > 0 ? (prixVente - prixAchat) * Number(ligne.quantite || 0) : null;
                       return (
-                        <div key={idx} className="flex items-center gap-2">
-                          <select value={ligne.produitId}
-                            onChange={(e) => setPlanifLignes((ls) => ls.map((l, i) => i === idx ? { ...l, produitId: e.target.value } : l))}
-                            className="flex-1 px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 bg-slate-50">
-                            <option value="">-- Produit --</option>
-                            {produitsStock.map((p) => (
-                              <option key={p.id} value={p.id}>{p.nom} ({p.prixUnitaire.toLocaleString("fr-FR")} FCFA)</option>
-                            ))}
-                          </select>
-                          <input type="number" min="1" value={ligne.quantite}
-                            onChange={(e) => setPlanifLignes((ls) => ls.map((l, i) => i === idx ? { ...l, quantite: e.target.value } : l))}
-                            className="w-20 px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 bg-slate-50 text-center" />
+                        <div key={idx} className="border border-slate-200 rounded-xl p-3 space-y-2 bg-slate-50">
+                          {/* Ligne 1 : sélecteur produit + quantité */}
+                          <div className="flex items-center gap-2">
+                            <select value={ligne.produitId}
+                              onChange={(e) => {
+                                const p = produitsStock.find((x) => x.id === Number(e.target.value));
+                                setPlanifLignes((ls) => ls.map((l, i) => i === idx
+                                  ? { ...l, produitId: e.target.value, prixUnitaire: p ? String(p.prixUnitaire) : "" }
+                                  : l));
+                              }}
+                              className="flex-1 px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white">
+                              <option value="">— Choisir un produit —</option>
+                              {produitsStock.map((p) => (
+                                <option key={p.id} value={p.id}>{p.nom} (dispo : {p.stock})</option>
+                              ))}
+                            </select>
+                            <input type="number" min="1"
+                              max={produitSelec?.stock ?? undefined}
+                              value={ligne.quantite}
+                              onChange={(e) => setPlanifLignes((ls) => ls.map((l, i) => i === idx ? { ...l, quantite: e.target.value } : l))}
+                              className="w-20 px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white text-center"
+                              placeholder="Qté" />
+                            {planifLignes.length > 1 && (
+                              <button type="button" onClick={() => setPlanifLignes((ls) => ls.filter((_, i) => i !== idx))}
+                                className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg"><X size={13} /></button>
+                            )}
+                          </div>
+                          {/* Ligne 2 : prix de vente + sous-total + marge */}
                           {produitSelec && (
-                            <span className="text-xs text-slate-500 w-24 text-right shrink-0">
-                              {(produitSelec.prixUnitaire * Number(ligne.quantite || 0)).toLocaleString("fr-FR")} FCFA
-                            </span>
-                          )}
-                          {planifLignes.length > 1 && (
-                            <button type="button" onClick={() => setPlanifLignes((ls) => ls.filter((_, i) => i !== idx))}
-                              className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg"><X size={13} /></button>
+                            <div className="flex items-end gap-3">
+                              <div className="flex-1">
+                                <label className="text-[11px] text-slate-500 mb-0.5 block">Prix de vente au client (FCFA)</label>
+                                <input type="number" min="0" step="1" value={ligne.prixUnitaire}
+                                  onChange={(e) => setPlanifLignes((ls) => ls.map((l, i) => i === idx ? { ...l, prixUnitaire: e.target.value } : l))}
+                                  className="w-full px-3 py-2 border-2 border-orange-200 rounded-xl text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white"
+                                  placeholder={String(produitSelec.prixUnitaire)} />
+                                {prixAchat != null && (
+                                  <p className="text-[10px] text-slate-400 mt-0.5">Prix achat : {prixAchat.toLocaleString("fr-FR")} FCFA/u.</p>
+                                )}
+                              </div>
+                              <div className="text-right shrink-0 pb-1">
+                                <p className="text-[11px] text-slate-400">Sous-total</p>
+                                <p className="font-bold text-orange-700 text-sm">{sousTotal.toLocaleString("fr-FR")} FCFA</p>
+                                {marge != null && (
+                                  <p className={`text-[11px] font-semibold ${marge >= 0 ? "text-emerald-600" : "text-red-500"}`}>
+                                    Marge : {marge >= 0 ? "+" : ""}{marge.toLocaleString("fr-FR")} FCFA
+                                  </p>
+                                )}
+                              </div>
+                            </div>
                           )}
                         </div>
                       );
                     })}
                   </div>
-                  {/* Récapitulatif montant + alerte dépassement */}
+
+                  {/* Récapitulatif total + alerte */}
                   {totalLivraison > 0 && (
                     <div className={`mt-3 rounded-xl px-4 py-3 border ${depasseBudget ? "bg-red-50 border-red-300" : "bg-slate-50 border-slate-200"}`}>
                       <div className="flex items-center justify-between">
@@ -1469,19 +1514,17 @@ export default function ResponsablePDVPage() {
                           {totalLivraison.toLocaleString("fr-FR")} FCFA
                         </span>
                       </div>
-                      {sousc && (
-                        <div className="flex items-center justify-between mt-1 border-t border-dashed border-slate-200 pt-1.5">
-                          <span className="text-xs text-slate-500">Cumul total (déjà livré + cette livraison)</span>
-                          <span className={`text-xs font-bold ${depasseBudget ? "text-red-600" : "text-emerald-600"}`}>
-                            {montantApresLiv.toLocaleString("fr-FR")} / {montantTotalPack.toLocaleString("fr-FR")} FCFA
-                          </span>
-                        </div>
-                      )}
+                      <div className="flex items-center justify-between mt-1 border-t border-dashed border-slate-200 pt-1.5">
+                        <span className="text-xs text-slate-500">Cumul (déjà livré + cette livraison)</span>
+                        <span className={`text-xs font-bold ${depasseBudget ? "text-red-600" : "text-emerald-600"}`}>
+                          {montantApresLiv.toLocaleString("fr-FR")} / {montantTotalPack.toLocaleString("fr-FR")} FCFA
+                        </span>
+                      </div>
                       {depasseBudget && (
                         <div className="mt-2 flex items-start gap-2 bg-red-100 rounded-lg px-3 py-2">
                           <AlertTriangle size={14} className="text-red-600 mt-0.5 shrink-0" />
                           <p className="text-xs text-red-700 font-medium">
-                            Dépassement de {(montantApresLiv - montantTotalPack).toLocaleString("fr-FR")} FCFA. La livraison ne peut pas dépasser la capacité restante du pack ({capaciteRestante.toLocaleString("fr-FR")} FCFA).
+                            Dépassement de {(montantApresLiv - montantTotalPack).toLocaleString("fr-FR")} FCFA. Réduisez les quantités ou les prix.
                           </p>
                         </div>
                       )}
@@ -1489,27 +1532,39 @@ export default function ResponsablePDVPage() {
                   )}
                 </div>
 
-                {/* Date */}
-                <div>
-                  <label className="block text-xs font-medium text-slate-600 mb-1">Date prévisionnelle *</label>
-                  <input required type="date" value={planifDate} onChange={(e) => setPlanifDate(e.target.value)}
-                    min={new Date().toISOString().slice(0, 10)}
-                    className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 bg-slate-50" />
+                {/* Date prévisionnelle + Livreur */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">Date prévisionnelle *</label>
+                    <input required type="date" value={planifDate}
+                      onChange={(e) => setPlanifDate(e.target.value)}
+                      min={new Date().toISOString().slice(0, 10)}
+                      className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 bg-slate-50" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">Nom du livreur (optionnel)</label>
+                    <input type="text" value={planifLivreurNom}
+                      onChange={(e) => setPlanifLivreurNom(e.target.value)}
+                      className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 bg-slate-50"
+                      placeholder="Nom du livreur…" />
+                  </div>
                 </div>
 
                 {/* Notes */}
                 <div>
-                  <label className="block text-xs font-medium text-slate-600 mb-1">Notes pour l&apos;agent (optionnel)</label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Notes pour le magasinier (optionnel)</label>
                   <textarea rows={2} value={planifNotes} onChange={(e) => setPlanifNotes(e.target.value)}
                     className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 bg-slate-50 resize-none"
                     placeholder="Instructions de livraison, adresse, horaire…" />
                 </div>
 
                 <div className="flex gap-3 pt-1">
-                  <button type="button" onClick={() => setModalPlanifLiv(false)}
-                    className="flex-1 py-2.5 border border-slate-200 rounded-xl text-slate-600 text-sm hover:bg-slate-50">Annuler</button>
+                  <button type="button" onClick={closePlanifModal}
+                    className="flex-1 py-2.5 border border-slate-200 rounded-xl text-slate-600 text-sm font-medium hover:bg-slate-50">
+                    Annuler
+                  </button>
                   <button type="submit"
-                    disabled={planifiantLiv || !planifSouscId || planifLignes.every((l) => !l.produitId) || depasseBudget}
+                    disabled={planifiantLiv || planifLignes.every((l) => !l.produitId) || depasseBudget}
                     className="flex-1 py-2.5 bg-orange-600 hover:bg-orange-700 disabled:opacity-50 text-white rounded-xl text-sm font-semibold transition-colors">
                     {planifiantLiv ? "Planification…" : "Planifier la livraison"}
                   </button>
@@ -2358,13 +2413,83 @@ export default function ResponsablePDVPage() {
         ===================================================================== */}
         {activeTab === "livraisons" && (
           <div className="space-y-4">
-            {/* Header + bouton Planifier */}
+            {/* Header */}
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-bold text-slate-800">Livraisons clients (packs)</h2>
-              <button onClick={() => setModalPlanifLiv(true)}
-                className="flex items-center gap-2 px-4 py-2.5 bg-orange-600 hover:bg-orange-700 text-white rounded-xl text-sm font-semibold transition-colors">
-                <Plus size={16} /> Planifier une livraison
-              </button>
+            </div>
+
+            {/* Souscriptions éligibles à une livraison */}
+            <div className="bg-white rounded-2xl shadow-sm border border-orange-200 overflow-hidden">
+              <div className="px-5 py-4 border-b border-orange-200 bg-orange-50 flex items-center gap-2">
+                <Package size={18} className="text-orange-600" />
+                <h3 className="font-bold text-slate-800">Souscriptions éligibles à livraison</h3>
+                {souscActivesLoading && <span className="ml-auto text-xs text-slate-400">Chargement…</span>}
+              </div>
+              {!souscActivesLoading && (!souscActives || souscActives.data.length === 0) ? (
+                <div className="p-8 text-center">
+                  <ShoppingBag className="w-10 h-10 text-orange-200 mx-auto mb-3" />
+                  <p className="text-slate-500 text-sm font-medium">Aucune souscription éligible</p>
+                  <p className="text-slate-400 text-xs mt-1">
+                    Les souscriptions complètes ou actives (selon le type de pack) sans livraison déjà planifiée apparaîtront ici.
+                  </p>
+                </div>
+              ) : (
+                <div className="divide-y divide-slate-100">
+                  {(souscActives?.data ?? []).map((s) => {
+                    const clientNom = s.client ? `${s.client.prenom} ${s.client.nom}` : "—";
+                    const capaciteRestante = s.montantTotal - s.montantDejaLivre;
+                    const pctLivre = s.montantTotal > 0 ? Math.min(100, Math.round((s.montantDejaLivre / s.montantTotal) * 100)) : 0;
+                    const PACK_TYPE_LABELS: Record<string, string> = {
+                      ALIMENTAIRE: "Alimentaire", REVENDEUR: "Revendeur", FAMILIAL: "Familial",
+                      URGENCE: "Urgence", EPARGNE_PRODUIT: "Épargne-Produit", FIDELITE: "Fidélité",
+                    };
+                    return (
+                      <div key={s.id} className="p-5 flex items-center justify-between gap-4">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap mb-1">
+                            <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-orange-100 text-orange-700">
+                              {PACK_TYPE_LABELS[s.pack.type] ?? s.pack.type}
+                            </span>
+                            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+                              s.statut === "COMPLETE" ? "bg-green-100 text-green-700" :
+                              s.statut === "ACTIF"    ? "bg-blue-100 text-blue-700"  :
+                              "bg-gray-100 text-gray-700"
+                            }`}>{s.statut}</span>
+                          </div>
+                          <p className="font-semibold text-slate-800">{s.pack.nom}</p>
+                          <p className="text-sm text-slate-500 mt-0.5">
+                            Client : <span className="font-medium">{clientNom}</span>
+                            {s.client?.telephone && <span className="text-slate-400 ml-2">· {s.client.telephone}</span>}
+                          </p>
+                          <div className="mt-2 space-y-1">
+                            <div className="flex items-center justify-between text-xs text-slate-500">
+                              <span>Budget pack : <strong>{s.montantTotal.toLocaleString("fr-FR")} FCFA</strong></span>
+                              <span className="text-orange-600 font-semibold">Restant : {capaciteRestante.toLocaleString("fr-FR")} FCFA</span>
+                            </div>
+                            {pctLivre > 0 && (
+                              <div className="w-full bg-orange-100 rounded-full h-1.5 overflow-hidden">
+                                <div className="bg-emerald-500 h-full" style={{ width: `${pctLivre}%` }} />
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => {
+                            setPlanifTarget(s);
+                            setPlanifDate(new Date().toISOString().slice(0, 10));
+                            setPlanifLignes([{ produitId: "", quantite: "1", prixUnitaire: "" }]);
+                            setPlanifNotes("");
+                            setPlanifLivreurNom("");
+                          }}
+                          className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-xl hover:bg-orange-700 text-sm font-semibold transition-all shadow-md shadow-orange-200 shrink-0"
+                        >
+                          <Truck size={14} /> Planifier
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
             {/* Stats badges */}
             <div className="grid grid-cols-3 gap-3">

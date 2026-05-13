@@ -41,7 +41,11 @@ interface Souscription {
   id: number;
   pack: { id: number; nom: string; type: TypePack };
   user?: { nom: string; prenom: string; telephone?: string };
-  client?: { nom: string; prenom: string; telephone: string };
+  client?: {
+    nom: string; prenom: string; telephone: string; pointDeVenteId?: number | null;
+    pointDeVente?: { id: number; nom: string } | null;
+    pointsDeVente?: { pointDeVente: { id: number; nom: string } }[];
+  } | null;
   statut: StatutSouscription;
   formuleRevendeur?: string;
   frequenceVersement?: string;
@@ -95,7 +99,7 @@ interface ReceptionPack {
     client?: { nom: string; prenom: string; telephone: string };
     user?: { nom: string; prenom: string };
   };
-  lignes: { produit: { nom: string }; quantite: number; prixUnitaire: string }[];
+  lignes: { produit: { nom: string; prixAchat?: string | null }; quantite: number; prixUnitaire: string }[];
 }
 
 interface ReceptionsPackResponse {
@@ -115,7 +119,9 @@ interface Produit {
   id: number;
   nom: string;
   prixUnitaire: string;
+  prixAchat?: string | null;
   stock: number;
+  totalStock?: number;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -214,6 +220,26 @@ export default function PacksAdminPage() {
   );
 }
 
+// ─── Groupement par mois ──────────────────────────────────────────────────────
+
+function groupByMonth(items: Souscription[]) {
+  const map = new Map<string, Souscription[]>();
+  for (const s of items) {
+    const d = new Date(s.dateDebut);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    if (!map.has(key)) map.set(key, []);
+    map.get(key)!.push(s);
+  }
+  return Array.from(map.entries())
+    .sort(([a], [b]) => b.localeCompare(a))
+    .map(([key, list]) => ({
+      key,
+      // +02 pour éviter le décalage UTC qui reculerait d'un mois
+      label: new Date(key + "-02").toLocaleDateString("fr-FR", { month: "long", year: "numeric" }),
+      items: list,
+    }));
+}
+
 // ─── TAB: Souscriptions ───────────────────────────────────────────────────────
 
 function TabSouscriptions() {
@@ -229,6 +255,7 @@ function TabSouscriptions() {
   const [alerteTarget, setAlerteTarget] = useState<Souscription | null>(null);
   const [alerteMotif, setAlerteMotif] = useState("Date dépassée / collecte urgente");
   const [expanded, setExpanded] = useState<number | null>(null);
+  const [expandedMonths, setExpandedMonths] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     const t = setTimeout(() => setDSearch(search), 400);
@@ -260,6 +287,21 @@ function TabSouscriptions() {
 
   const souscriptions = data?.souscriptions ?? [];
   const stats = data?.stats ?? [];
+
+  // Ouvrir le mois le plus récent par défaut, ou tout ouvrir si filtre/recherche actif
+  useEffect(() => {
+    const grouped = groupByMonth(souscriptions);
+    if (grouped.length === 0) return;
+    if (dSearch || filterStatut || filterType) {
+      setExpandedMonths(new Set(grouped.map((g) => g.key)));
+    } else {
+      setExpandedMonths((prev) => {
+        if (prev.size > 0) return prev;
+        return new Set([grouped[0].key]);
+      });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [souscriptions]);
 
   const totalActifs  = stats.find((s) => s.statut === "ACTIF")?._count ?? 0;
   const totalEnAtt   = stats.find((s) => s.statut === "EN_ATTENTE")?._count ?? 0;
@@ -332,8 +374,44 @@ function TabSouscriptions() {
             <p className="text-slate-500 font-medium">Aucune souscription trouvée</p>
           </div>
         ) : (
-          <div className="divide-y divide-slate-100">
-            {souscriptions.map((s) => {
+          <div>
+            {groupByMonth(souscriptions).map(({ key, label, items }) => {
+              const isMonthOpen = expandedMonths.has(key);
+              const monthVerse = items.reduce((sum, s) => sum + Number(s.montantVerse), 0);
+              const monthTotal = items.reduce((sum, s) => sum + Number(s.montantTotal), 0);
+              const toggleMonth = () =>
+                setExpandedMonths((prev) => {
+                  const next = new Set(prev);
+                  next.has(key) ? next.delete(key) : next.add(key);
+                  return next;
+                });
+
+              return (
+                <div key={key} className="border-b border-slate-200 last:border-b-0">
+                  {/* ── En-tête de mois ── */}
+                  <button
+                    onClick={toggleMonth}
+                    className="w-full flex items-center gap-3 px-6 py-3 bg-slate-50 hover:bg-slate-100 transition-colors text-left"
+                  >
+                    {isMonthOpen
+                      ? <ChevronDown className="w-4 h-4 text-slate-400 shrink-0" />
+                      : <ChevronRight className="w-4 h-4 text-slate-400 shrink-0" />}
+                    <Calendar className="w-4 h-4 text-emerald-500 shrink-0" />
+                    <span className="font-semibold text-slate-700 capitalize">{label}</span>
+                    <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-xs font-semibold">
+                      {items.length} souscription{items.length > 1 ? "s" : ""}
+                    </span>
+                    <span className="ml-auto text-xs text-slate-400 hidden sm:block">
+                      {formatCurrency(monthVerse)} versé
+                      <span className="text-slate-300 mx-1">/</span>
+                      {formatCurrency(monthTotal)} total
+                    </span>
+                  </button>
+
+                  {/* ── Liste des souscriptions du mois ── */}
+                  {isMonthOpen && (
+                    <div className="divide-y divide-slate-100">
+                      {items.map((s) => {
               const cfg = STATUT_CFG[s.statut];
               const colors = PACK_COLORS[s.pack.type];
               const progress = pct(Number(s.montantVerse), Number(s.montantTotal));
@@ -474,6 +552,11 @@ function TabSouscriptions() {
                           <p className="font-bold text-slate-800 mt-1">{formatCurrency(s.echeances[0].montant)}</p>
                         </div>
                       )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
                     </div>
                   )}
                 </div>
@@ -799,6 +882,11 @@ function TabLivraisons() {
             {planifiees.map((rec) => {
               const colors = PACK_COLORS[rec.souscription.pack.type];
               const montant = rec.lignes.reduce((s, l) => s + l.quantite * Number(l.prixUnitaire), 0);
+              const margeTotal = rec.lignes.reduce((s, l) => {
+                const pa = l.produit.prixAchat != null ? Number(l.produit.prixAchat) : null;
+                return pa != null ? s + (Number(l.prixUnitaire) - pa) * l.quantite : s;
+              }, 0);
+              const hasMarge = rec.lignes.some((l) => l.produit.prixAchat != null);
               const clientNomR = rec.souscription.client
                 ? `${rec.souscription.client.prenom} ${rec.souscription.client.nom}`
                 : rec.souscription.user
@@ -819,6 +907,11 @@ function TabLivraisons() {
                         <span className="px-2 py-0.5 rounded-full text-xs bg-orange-100 text-orange-700 font-medium flex items-center gap-1">
                           <Clock className="w-3 h-3" /> Planifiée
                         </span>
+                        {hasMarge && (
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${margeTotal >= 0 ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"}`}>
+                            Marge : {margeTotal >= 0 ? "+" : ""}{formatCurrency(margeTotal)}
+                          </span>
+                        )}
                       </div>
                       <p className="font-semibold text-slate-800">{rec.souscription.pack.nom}</p>
                       <p className="text-sm text-slate-500 flex items-center gap-1 mt-0.5">
@@ -2138,8 +2231,46 @@ function ModalPlanifierLivraison({
   const [datePrevisionnelle, setDatePrevisionnelle] = useState(new Date().toISOString().split("T")[0]);
   const [notes, setNotes] = useState("");
 
-  const { data: stockData } = useApi<{ data: Produit[] }>("/api/admin/stock?limit=200");
-  const produits = (stockData?.data ?? []).filter((p) => p.stock > 0);
+  // ── PDV disponibles pour ce client ────────────────────────────────────────
+  const clientPdvs = React.useMemo(() => {
+    const map = new Map<number, string>();
+    const c = souscription.client;
+    if (c?.pointDeVenteId) {
+      map.set(c.pointDeVenteId, c.pointDeVente?.nom ?? `PDV #${c.pointDeVenteId}`);
+    }
+    c?.pointsDeVente?.forEach(({ pointDeVente: pdv }) => {
+      if (!map.has(pdv.id)) map.set(pdv.id, pdv.nom);
+    });
+    return [...map.entries()].map(([id, nom]) => ({ id, nom }));
+  }, [souscription.client]);
+
+  // Auto-sélectionner si 1 seul PDV
+  const [selectedPdvId, setSelectedPdvId] = useState<number | null>(
+    clientPdvs.length === 1 ? clientPdvs[0].id : null
+  );
+
+  const stockUrl = selectedPdvId
+    ? `/api/admin/stock?pdvId=${selectedPdvId}&limit=200`
+    : `/api/admin/stock?aggregate=true&limit=200`;
+
+  const { data: stockData } = useApi<{ data: Produit[] }>(stockUrl);
+
+  // En mode pdvId, l'API retourne des StockSite (quantite + produit{})
+  // En mode aggregate, elle retourne des Produit (totalStock + id/nom/prixUnitaire)
+  const produits: Produit[] = (stockData?.data ?? []).map((item: Produit & { quantite?: number; produit?: Produit }) => {
+    if (item.produit) {
+      // Format StockSite → aplatir vers Produit
+      return {
+        id: item.produit.id,
+        nom: item.produit.nom,
+        prixUnitaire: item.produit.prixUnitaire,
+        prixAchat: item.produit.prixAchat,
+        stock: (item as unknown as { quantite: number }).quantite ?? 0,
+        totalStock: (item as unknown as { quantite: number }).quantite ?? 0,
+      };
+    }
+    return item;
+  }).filter((p) => (p.totalStock ?? p.stock ?? 0) > 0);
 
   const { mutate: planifier, loading: saving } = useMutation(
     `/api/admin/packs/souscriptions/${souscription.id}/livrer`,
@@ -2170,14 +2301,18 @@ function ModalPlanifierLivraison({
   }, [produits]);
 
   // Budget en temps réel
-  const montantTotal = Number(souscription.montantTotal);
+  const montantTotal   = Number(souscription.montantTotal);
+  const montantVerse   = Number(souscription.montantVerse);
+  const montantRestant = Number(souscription.montantRestant);
+  // Budget disponible = ce que le client a payé (sauf si entièrement soldé)
+  const budgetDispo = montantVerse > 0 ? montantVerse : montantTotal;
   const montantLignes = lignes.reduce((sum, l) => {
     const qte = parseInt(l.quantite) || 0;
     const prix = parseFloat(l.prixUnitaire) || 0;
     return sum + qte * prix;
   }, 0);
-  const budgetDepasse = montantLignes > montantTotal;
-  const budgetPct = montantTotal > 0 ? Math.min(100, Math.round((montantLignes / montantTotal) * 100)) : 0;
+  const budgetDepasse = montantLignes > budgetDispo;
+  const budgetPct = budgetDispo > 0 ? Math.min(100, Math.round((montantLignes / budgetDispo) * 100)) : 0;
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -2192,7 +2327,8 @@ function ModalPlanifierLivraison({
 
     if (validLignes.length === 0) return;
 
-    const res = await planifier({ action: "planifier", lignes: validLignes, datePrevisionnelle, notes });
+    if (!selectedPdvId && clientPdvs.length > 0) return; // PDV requis
+    const res = await planifier({ action: "planifier", lignes: validLignes, datePrevisionnelle, notes, pointDeVenteId: selectedPdvId });
     if (res) { onSuccess(); onClose(); }
   }
 
@@ -2202,30 +2338,78 @@ function ModalPlanifierLivraison({
         <h2 className="text-lg font-bold text-slate-800 mb-1 flex items-center gap-2">
           <Truck className="w-5 h-5 text-emerald-600" /> Planifier une livraison
         </h2>
-        <p className="text-sm text-slate-500 mb-4">
+        <p className="text-sm text-slate-500 mb-1">
           Pack <strong>{souscription.pack.nom}</strong> — {PACK_LABELS[souscription.pack.type]}
         </p>
 
-        {/* Budget du pack */}
-        <div className={`rounded-xl p-3 mb-4 border ${budgetDepasse ? "bg-red-50 border-red-200" : "bg-emerald-50 border-emerald-200"}`}>
-          <div className="flex items-center justify-between text-sm mb-1.5">
-            <span className="text-slate-600 font-medium">Budget livraison</span>
-            <span className={`font-bold ${budgetDepasse ? "text-red-600" : "text-emerald-700"}`}>
-              {formatCurrency(montantLignes)} / {formatCurrency(montantTotal)}
-            </span>
+        {/* ── Sélection du PDV ── */}
+        {clientPdvs.length === 0 ? (
+          <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-1.5 mb-4">
+            Aucun PDV associé au client — stock global affiché. Affectez ce client à un PDV pour un suivi précis.
+          </p>
+        ) : clientPdvs.length === 1 ? (
+          <p className="text-xs text-sky-600 bg-sky-50 border border-sky-200 rounded-lg px-3 py-1.5 mb-4 flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-sky-400 shrink-0" />
+            PDV : <strong className="ml-1">{clientPdvs[0].nom}</strong> — stock et magasinier filtrés automatiquement.
+          </p>
+        ) : (
+          <div className="mb-4">
+            <label className="block text-sm font-semibold text-slate-700 mb-1">
+              Point de vente du client <span className="text-red-500">*</span>
+            </label>
+            <select
+              required
+              value={selectedPdvId ?? ""}
+              onChange={(e) => setSelectedPdvId(e.target.value ? Number(e.target.value) : null)}
+              className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
+            >
+              <option value="">— Choisir le point de vente —</option>
+              {clientPdvs.map((pdv) => (
+                <option key={pdv.id} value={pdv.id}>{pdv.nom}</option>
+              ))}
+            </select>
+            <p className="text-xs text-slate-400 mt-1">Le magasinier de ce PDV sera chargé de sortir le stock.</p>
           </div>
-          <div className="h-2 bg-white rounded-full border border-slate-200 overflow-hidden">
-            <div
-              className={`h-full rounded-full transition-all ${budgetDepasse ? "bg-red-500" : budgetPct >= 90 ? "bg-amber-500" : "bg-emerald-500"}`}
-              style={{ width: `${budgetPct}%` }}
-            />
+        )}
+
+        {/* Budget de la souscription */}
+        <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 mb-4 space-y-2">
+          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Budget souscription</p>
+          <div className="grid grid-cols-3 gap-2 text-center">
+            <div className="bg-white rounded-lg px-2 py-1.5 border border-slate-200">
+              <p className="text-xs text-slate-400">Total pack</p>
+              <p className="text-sm font-bold text-slate-700">{formatCurrency(montantTotal)}</p>
+            </div>
+            <div className="bg-white rounded-lg px-2 py-1.5 border border-emerald-200">
+              <p className="text-xs text-emerald-600">Payé</p>
+              <p className="text-sm font-bold text-emerald-700">{formatCurrency(montantVerse)}</p>
+            </div>
+            <div className={`bg-white rounded-lg px-2 py-1.5 border ${montantRestant > 0 ? "border-amber-200" : "border-slate-200"}`}>
+              <p className={`text-xs ${montantRestant > 0 ? "text-amber-600" : "text-slate-400"}`}>Restant dû</p>
+              <p className={`text-sm font-bold ${montantRestant > 0 ? "text-amber-700" : "text-slate-400"}`}>{formatCurrency(montantRestant)}</p>
+            </div>
           </div>
-          {budgetDepasse && (
-            <p className="text-xs text-red-600 font-medium mt-1.5 flex items-center gap-1">
-              <AlertTriangle className="w-3 h-3" />
-              Dépassement de {formatCurrency(montantLignes - montantTotal)} — ajustez les quantités ou les prix
-            </p>
-          )}
+          {/* Barre : valeur de cette livraison vs budget disponible (montant payé) */}
+          <div className={`rounded-lg p-2.5 border ${budgetDepasse ? "bg-red-50 border-red-200" : "bg-emerald-50 border-emerald-200"}`}>
+            <div className="flex items-center justify-between text-xs mb-1">
+              <span className="text-slate-600 font-medium">Cette livraison</span>
+              <span className={`font-bold ${budgetDepasse ? "text-red-600" : "text-emerald-700"}`}>
+                {formatCurrency(montantLignes)} / {formatCurrency(budgetDispo)} payés
+              </span>
+            </div>
+            <div className="h-2 bg-white rounded-full border border-slate-200 overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all ${budgetDepasse ? "bg-red-500" : budgetPct >= 90 ? "bg-amber-500" : "bg-emerald-500"}`}
+                style={{ width: `${budgetPct}%` }}
+              />
+            </div>
+            {budgetDepasse && (
+              <p className="text-xs text-red-600 font-medium mt-1 flex items-center gap-1">
+                <AlertTriangle className="w-3 h-3" />
+                Dépassement de {formatCurrency(montantLignes - budgetDispo)} — ajustez les quantités ou les prix
+              </p>
+            )}
+          </div>
         </div>
 
         <form onSubmit={submit} className="space-y-4">
@@ -2236,39 +2420,68 @@ function ModalPlanifierLivraison({
           </div>
 
           <div>
-            <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center justify-between mb-1">
               <label className="block text-sm font-medium text-slate-700">Produits à livrer</label>
               <button type="button" onClick={addLigne} className="text-xs text-emerald-600 hover:text-emerald-800 font-medium flex items-center gap-1">
                 <Plus className="w-3 h-3" /> Ajouter
               </button>
             </div>
+            {/* En-têtes colonnes */}
+            <div className="flex gap-2 px-1 mb-1">
+              <span className="flex-1 text-xs text-slate-400 font-medium">Produit (stock dispo)</span>
+              <span className="w-20 text-xs text-slate-400 font-medium text-center">Qté</span>
+              <span className="w-28 text-xs text-emerald-700 font-semibold text-center">Prix de vente</span>
+              {lignes.length > 1 && <span className="w-8" />}
+            </div>
             <div className="space-y-2">
-              {lignes.map((l, i) => (
-                <div key={i} className="flex gap-2 items-end">
-                  <div className="flex-1">
-                    <select value={l.produitId} onChange={(e) => updateLigne(i, "produitId", e.target.value)}
-                      className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white">
-                      <option value="">— Produit —</option>
-                      {produits.map((p) => (
-                        <option key={p.id} value={p.id}>{p.nom} (Stock: {p.stock})</option>
-                      ))}
-                    </select>
+              {lignes.map((l, i) => {
+                const prod = produits.find((pr) => pr.id === parseInt(l.produitId));
+                const prixAchat = prod?.prixAchat ? Number(prod.prixAchat) : null;
+                const prixRef = prod ? Number(prod.prixUnitaire) : null;
+                const prix = parseFloat(l.prixUnitaire) || 0;
+                const qte = parseInt(l.quantite) || 0;
+                const marge = prixAchat != null && prix > 0 && qte > 0 ? (prix - prixAchat) * qte : null;
+                return (
+                  <div key={i} className="space-y-1">
+                    <div className="flex gap-2 items-center">
+                      <div className="flex-1">
+                        <select value={l.produitId} onChange={(e) => updateLigne(i, "produitId", e.target.value)}
+                          className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white">
+                          <option value="">— Choisir un produit —</option>
+                          {produits.map((p) => (
+                            <option key={p.id} value={p.id}>{p.nom} (dispo : {p.totalStock ?? p.stock ?? 0})</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="w-20">
+                        <input type="number" min="1" max={prod ? (prod.totalStock ?? prod.stock ?? undefined) : undefined}
+                          value={l.quantite} onChange={(e) => updateLigne(i, "quantite", e.target.value)}
+                          placeholder="Qté" className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm text-center focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                      </div>
+                      <div className="w-28">
+                        <input type="number" min="0" step="1" value={l.prixUnitaire}
+                          onChange={(e) => updateLigne(i, "prixUnitaire", e.target.value)}
+                          placeholder="0 FCFA"
+                          className="w-full border-2 border-emerald-300 rounded-xl px-3 py-2 text-sm text-center font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-emerald-50" />
+                        {prixRef != null && (
+                          <p className="text-xs text-slate-400 text-center mt-0.5">réf. {formatCurrency(prixRef)}</p>
+                        )}
+                      </div>
+                      {lignes.length > 1 && (
+                        <button type="button" onClick={() => removeLigne(i)} className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+                          <XCircle className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+                    {marge != null && (
+                      <p className={`text-xs font-medium pl-1 ${marge >= 0 ? "text-emerald-600" : "text-red-500"}`}>
+                        Marge : {marge >= 0 ? "+" : ""}{formatCurrency(marge)}
+                        {prixAchat != null && <span className="text-slate-400 font-normal ml-1">(PA : {formatCurrency(prixAchat)} / u.)</span>}
+                      </p>
+                    )}
                   </div>
-                  <div className="w-20">
-                    <input type="number" min="1" value={l.quantite} onChange={(e) => updateLigne(i, "quantite", e.target.value)}
-                      placeholder="Qté" className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
-                  </div>
-                  <div className="w-28">
-                    <input type="number" min="0" step="0.01" value={l.prixUnitaire} onChange={(e) => updateLigne(i, "prixUnitaire", e.target.value)}
-                      placeholder="Prix" className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
-                  </div>
-                  {lignes.length > 1 && (
-                    <button type="button" onClick={() => removeLigne(i)} className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
-                      <XCircle className="w-4 h-4" />
-                    </button>
-                  )}
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
 
@@ -2280,7 +2493,11 @@ function ModalPlanifierLivraison({
 
           <div className="flex gap-3 pt-2">
             <button type="button" onClick={onClose} className="flex-1 py-2.5 border border-slate-200 text-slate-700 rounded-xl hover:bg-slate-50 text-sm font-medium transition-colors">Annuler</button>
-            <button type="submit" disabled={saving || budgetDepasse} className="flex-1 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 disabled:opacity-60 text-sm font-medium transition-colors">
+            <button
+              type="submit"
+              disabled={saving || budgetDepasse || (clientPdvs.length > 0 && !selectedPdvId)}
+              className="flex-1 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 disabled:opacity-60 text-sm font-medium transition-colors"
+            >
               {saving ? "Enregistrement…" : "Planifier"}
             </button>
           </div>

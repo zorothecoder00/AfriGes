@@ -14,16 +14,21 @@ import { exportToCsv } from '@/lib/exportCsv';
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface PDVOption { id: number; nom: string; code: string; }
-interface ClientOption { id: number; nom: string; prenom: string; telephone: string; }
+interface ClientOption {
+  id: number; nom: string; prenom: string; telephone: string;
+  pointDeVenteId?: number | null;
+  pointDeVente?: { id: number; nom: string } | null;
+  pointsDeVente?: { pointDeVente: { id: number; nom: string } }[];
+}
 
 // Vente directe
 interface LigneVente {
   produitId: number; nom: string; quantite: number;
-  prixUnitaire: number; stockDispo: number;
+  prixUnitaire: number; prixAchat?: number | null; stockDispo: number;
 }
 interface StockItem {
   produitId: number; quantite: number;
-  produit: { id: number; nom: string; reference?: string; prixUnitaire: string; unite?: string };
+  produit: { id: number; nom: string; reference?: string; prixUnitaire: string; prixAchat?: string | null; unite?: string };
 }
 interface VenteDirecte {
   id: number; reference: string; statut: 'BROUILLON' | 'CONFIRMEE' | 'ANNULEE';
@@ -59,10 +64,10 @@ interface ReceptionsResponse {
 }
 interface EligibilitePackResponse {
   eligible: boolean; raisons: string[];
-  souscriptions: { id: number; pack: { nom: string; type: string }; statut: string }[];
+  souscriptions: { id: number; pack: { nom: string; type: string }; statut: string; montantTotal: number; montantVerse: number; montantRestant: number }[];
   client: ClientOption;
 }
-interface ProduitOption { id: number; nom: string; prixUnitaire: string; stock: number; }
+interface ProduitOption { id: number; nom: string; prixUnitaire: string; prixAchat?: string | null; stock: number; totalStock?: number; }
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
 
@@ -157,11 +162,11 @@ export default function VentesPage() {
   const [packClientSearch, setPackClientSearch]     = useState('');
   const [debouncedPackClientSearch, setDebouncedPackClientSearch] = useState('');
   const [packSelectedClient, setPackSelectedClient] = useState<ClientOption | null>(null);
+  const [packSelectedPdvId, setPackSelectedPdvId]   = useState<number | null>(null);
   const [eligibilitePack, setEligibilitePack]       = useState<EligibilitePackResponse | null>(null);
   const [checkingEligibility, setCheckingEligibility] = useState(false);
   const [eligibiliteError, setEligibiliteError]     = useState<string | null>(null);
-  const [formPack, setFormPack]                     = useState({ souscriptionId: '', produitId: '', quantite: '1' });
-  const [confirmingId, setConfirmingId]             = useState<number | null>(null);
+  const [formPack, setFormPack]                     = useState({ souscriptionId: '', produitId: '', quantite: '1', prixUnitaire: '' });
   const [cancellingId, setCancellingId]             = useState<number | null>(null);
 
   useEffect(() => {
@@ -210,11 +215,36 @@ export default function VentesPage() {
   );
   const packClientsOptions = packClientsResponse?.data ?? [];
 
+  // ── PDVs disponibles pour le client sélectionné (modal pack) ─────────────
+  const packClientPdvs = React.useMemo(() => {
+    const map = new Map<number, string>();
+    const c = packSelectedClient;
+    if (c?.pointDeVenteId) map.set(c.pointDeVenteId, c.pointDeVente?.nom ?? `PDV #${c.pointDeVenteId}`);
+    c?.pointsDeVente?.forEach(({ pointDeVente: pdv }) => { if (!map.has(pdv.id)) map.set(pdv.id, pdv.nom); });
+    return [...map.entries()].map(([id, nom]) => ({ id, nom }));
+  }, [packSelectedClient]);
+
   // ── API – Produits stock (modal pack) ─────────────────────────────────────
-  const { data: produitsResponse } = useApi<{ data: ProduitOption[] }>(
-    packModalOpen && packStep === 2 ? '/api/admin/stock?limit=200' : null
-  );
-  const produits = (produitsResponse?.data ?? []).filter((p: ProduitOption) => p.stock > 0);
+  // Si un PDV est sélectionné → stock de ce PDV. Sinon → stock global.
+  const packPdvId = packSelectedPdvId;
+  const packStockUrl = packModalOpen && packStep === 2
+    ? packPdvId
+      ? `/api/admin/stock?pdvId=${packPdvId}&limit=200`
+      : `/api/admin/stock?aggregate=true&limit=200`
+    : null;
+  const { data: produitsResponse } = useApi<{ data: ProduitOption[] }>(packStockUrl);
+  // En mode pdvId → réponse StockSite (quantite + produit{}). En mode aggregate → Produit (totalStock).
+  const produits = (produitsResponse?.data ?? []).map((item: ProduitOption & { quantite?: number; produit?: ProduitOption }) => {
+    if (item.produit) {
+      return {
+        id: item.produit.id, nom: item.produit.nom,
+        prixUnitaire: item.produit.prixUnitaire, prixAchat: item.produit.prixAchat,
+        stock: (item as unknown as { quantite: number }).quantite ?? 0,
+        totalStock: (item as unknown as { quantite: number }).quantite ?? 0,
+      };
+    }
+    return item;
+  }).filter((p: ProduitOption) => (p.totalStock ?? p.stock ?? 0) > 0);
 
   // ── Mutations ──────────────────────────────────────────────────────────────
   const { mutate: createVente, loading: creatingVente, error: createVenteError } =
@@ -226,11 +256,6 @@ export default function VentesPage() {
     () => souscriptionIdRef.current ? `/api/admin/packs/souscriptions/${souscriptionIdRef.current}/livrer` : '',
     'POST',
     { successMessage: 'Livraison planifiée !' }
-  );
-  const confirmingSouscriptionIdRef = useRef<number | null>(null);
-  const { mutate: doConfirmer } = useMutation<unknown, { action: string; receptionId: number }>(
-    () => `/api/admin/packs/souscriptions/${confirmingSouscriptionIdRef.current}/livrer`,
-    'POST'
   );
   const cancellingIdRef = useRef<number | null>(null);
   const { mutate: doAnnuler } = useMutation(
@@ -286,6 +311,7 @@ export default function VentesPage() {
       nom:          stock.produit.nom,
       quantite:     1,
       prixUnitaire: Number(stock.produit.prixUnitaire),
+      prixAchat:    stock.produit.prixAchat != null ? Number(stock.produit.prixAchat) : null,
       stockDispo:   stock.quantite,
     }]);
     setProduitSelectId('');
@@ -294,6 +320,13 @@ export default function VentesPage() {
   const updateLigneQte = (produitId: number, qte: number) => {
     setLignes(ls => ls.map(l => l.produitId === produitId
       ? { ...l, quantite: Math.max(1, Math.min(l.stockDispo, qte)) }
+      : l
+    ));
+  };
+
+  const updateLignePrix = (produitId: number, prix: number) => {
+    setLignes(ls => ls.map(l => l.produitId === produitId
+      ? { ...l, prixUnitaire: Math.max(0, prix) }
       : l
     ));
   };
@@ -333,13 +366,15 @@ export default function VentesPage() {
     setPackStep(1);
     setPackClientSearch('');
     setPackSelectedClient(null);
+    setPackSelectedPdvId(null);
     setEligibilitePack(null);
     setEligibiliteError(null);
-    setFormPack({ souscriptionId: '', produitId: '', quantite: '1' });
+    setFormPack({ souscriptionId: '', produitId: '', quantite: '1', prixUnitaire: '' });
   };
 
   const checkEligibility = async (client: ClientOption) => {
     setPackSelectedClient(client);
+    setPackSelectedPdvId(null);
     setCheckingEligibility(true);
     setEligibilitePack(null);
     setEligibiliteError(null);
@@ -349,6 +384,11 @@ export default function VentesPage() {
       if (!res.ok) { setEligibiliteError((data as unknown as { error: string }).error || 'Erreur'); return; }
       setEligibilitePack(data);
       if (data.eligible) {
+        // Auto-sélectionner le PDV si le client n'en a qu'un
+        const pdvMap = new Map<number, string>();
+        if (client.pointDeVenteId) pdvMap.set(client.pointDeVenteId, client.pointDeVente?.nom ?? `PDV #${client.pointDeVenteId}`);
+        client.pointsDeVente?.forEach(({ pointDeVente: pdv }) => { if (!pdvMap.has(pdv.id)) pdvMap.set(pdv.id, pdv.nom); });
+        if (pdvMap.size === 1) setPackSelectedPdvId([...pdvMap.keys()][0]);
         setPackStep(2);
         if (data.souscriptions.length === 1) {
           setFormPack(f => ({ ...f, souscriptionId: String(data.souscriptions[0].id) }));
@@ -360,26 +400,26 @@ export default function VentesPage() {
 
   const handlePackSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formPack.souscriptionId || !formPack.produitId) return;
+    // Souscription : soit sélectionnée par l'user, soit unique (auto)
+    const souscriptionId = formPack.souscriptionId ||
+      (eligibilitePack?.souscriptions.length === 1 ? String(eligibilitePack.souscriptions[0].id) : '');
+    if (!souscriptionId || !formPack.produitId) return;
+    if (packClientPdvs.length > 0 && !packSelectedPdvId) return;
     const produit = produits.find(p => p.id === parseInt(formPack.produitId));
     if (!produit) return;
     const qte = parseInt(formPack.quantite);
-    if (qte > produit.stock) return;
+    const stockDispo = produit.totalStock ?? produit.stock ?? 0;
+    if (qte > stockDispo) return;
+    const prixVente = parseFloat(formPack.prixUnitaire) || parseFloat(String(produit.prixUnitaire));
+    // Met à jour la ref pour l'URL de la mutation
+    souscriptionIdRef.current = souscriptionId;
     const res = await addVente({
       action: 'planifier',
-      lignes: [{ produitId: parseInt(formPack.produitId), quantite: qte, prixUnitaire: parseFloat(produit.prixUnitaire) }],
+      lignes: [{ produitId: parseInt(formPack.produitId), quantite: qte, prixUnitaire: prixVente }],
       notes: `Livraison planifiée — ${produit.nom} × ${formPack.quantite}`,
+      pointDeVenteId: packSelectedPdvId,
     });
     if (res) { closePackModal(); refetchPacks(); }
-  };
-
-  const handleConfirmerLivraison = async (reception: Reception) => {
-    if (confirmingId) return;
-    confirmingSouscriptionIdRef.current = reception.souscription.id;
-    setConfirmingId(reception.id);
-    const res = await doConfirmer({ action: 'livrer', receptionId: reception.id });
-    if (res) { refetchPacks(); }
-    setConfirmingId(null);
   };
 
   const handleAnnulerLivraison = async (receptionId: number) => {
@@ -638,7 +678,7 @@ export default function VentesPage() {
                         .filter(s => !lignes.find(l => l.produitId === s.produitId))
                         .map(s => (
                           <option key={s.produitId} value={s.produitId}>
-                            {s.produit.nom} — {formatCurrency(s.produit.prixUnitaire)} (stock : {s.quantite})
+                            {s.produit.nom} — conseillé : {formatCurrency(s.produit.prixUnitaire)} · stock : {s.quantite}
                           </option>
                         ))}
                     </select>
@@ -655,25 +695,52 @@ export default function VentesPage() {
                   {/* Lignes */}
                   {lignes.length > 0 && (
                     <div className="border border-slate-200 rounded-xl overflow-hidden">
-                      {lignes.map((l, i) => (
-                        <div key={l.produitId}
-                          className={`flex items-center gap-3 px-4 py-3 ${i < lignes.length - 1 ? 'border-b border-slate-100' : ''}`}>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-slate-800 truncate">{l.nom}</p>
-                            <p className="text-xs text-slate-400">{formatCurrency(l.prixUnitaire)} / unité · Stock : {l.stockDispo}</p>
+                      {lignes.map((l, i) => {
+                        const margeUnit = l.prixAchat != null && l.prixAchat > 0 ? l.prixUnitaire - l.prixAchat : null;
+                        const margeTotale = margeUnit != null ? margeUnit * l.quantite : null;
+                        return (
+                          <div key={l.produitId}
+                            className={`px-4 py-3 ${i < lignes.length - 1 ? 'border-b border-slate-100' : ''}`}>
+                            {/* Nom + supprimer */}
+                            <div className="flex items-center justify-between mb-2">
+                              <p className="text-sm font-medium text-slate-800 truncate flex-1 mr-2">{l.nom}</p>
+                              <button type="button" onClick={() => removeLigne(l.produitId)}
+                                className="text-slate-300 hover:text-red-500 transition-colors shrink-0">
+                                <Trash2 size={14} />
+                              </button>
+                            </div>
+                            {/* Prix × Qté = Montant */}
+                            <div className="flex items-center gap-2 text-sm">
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-xs text-slate-500 shrink-0">Prix :</span>
+                                <input type="number" min="0" step="1" value={l.prixUnitaire}
+                                  onChange={e => updateLignePrix(l.produitId, Number(e.target.value))}
+                                  className="w-24 px-2 py-1 border border-slate-200 rounded-lg text-sm text-center focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                              </div>
+                              <span className="text-slate-400">×</span>
+                              <input type="number" min="1" max={l.stockDispo} value={l.quantite}
+                                onChange={e => updateLigneQte(l.produitId, Number(e.target.value))}
+                                className="w-16 px-2 py-1 border border-slate-200 rounded-lg text-sm text-center focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                              <span className="text-slate-400">=</span>
+                              <span className="font-semibold text-slate-800 w-20 text-right shrink-0">
+                                {formatCurrency(l.quantite * l.prixUnitaire)}
+                              </span>
+                            </div>
+                            {/* Marge + stock dispo */}
+                            <div className="flex items-center gap-3 mt-1.5">
+                              <span className="text-xs text-slate-400">Stock dispo : {l.stockDispo}</span>
+                              {margeTotale != null && (
+                                <span className={`text-xs font-semibold ${margeTotale >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+                                  Marge : {margeTotale >= 0 ? '+' : ''}{formatCurrency(margeTotale)}
+                                  <span className="font-normal text-slate-400 ml-1">
+                                    ({margeUnit! >= 0 ? '+' : ''}{formatCurrency(margeUnit!)} / u.)
+                                  </span>
+                                </span>
+                              )}
+                            </div>
                           </div>
-                          <input type="number" min="1" max={l.stockDispo} value={l.quantite}
-                            onChange={e => updateLigneQte(l.produitId, Number(e.target.value))}
-                            className="w-20 px-2 py-1.5 border border-slate-200 rounded-lg text-sm text-center focus:outline-none focus:ring-2 focus:ring-emerald-500" />
-                          <span className="text-sm font-semibold text-slate-700 w-24 text-right shrink-0">
-                            {formatCurrency(l.quantite * l.prixUnitaire)}
-                          </span>
-                          <button type="button" onClick={() => removeLigne(l.produitId)}
-                            className="text-slate-400 hover:text-red-500 transition-colors">
-                            <Trash2 size={15} />
-                          </button>
-                        </div>
-                      ))}
+                        );
+                      })}
                       <div className="flex items-center justify-between px-4 py-3 bg-slate-50 border-t border-slate-200">
                         <span className="text-sm font-semibold text-slate-700">Total</span>
                         <span className="text-lg font-bold text-emerald-700">{formatCurrency(montantTotal)}</span>
@@ -701,7 +768,7 @@ export default function VentesPage() {
                   <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-1">
                     {lignes.map(l => (
                       <div key={l.produitId} className="flex justify-between text-sm">
-                        <span className="text-slate-600">{l.nom} × {l.quantite}</span>
+                        <span className="text-slate-600">{l.nom} × {l.quantite} @ {formatCurrency(l.prixUnitaire)}</span>
                         <span className="font-medium text-slate-800">{formatCurrency(l.quantite * l.prixUnitaire)}</span>
                       </div>
                     ))}
@@ -709,6 +776,21 @@ export default function VentesPage() {
                       <span className="font-bold text-slate-800">Total à payer</span>
                       <span className="font-bold text-emerald-700 text-base">{formatCurrency(montantTotal)}</span>
                     </div>
+                    {(() => {
+                      const margeTotal = lignes.reduce((acc, l) => {
+                        if (l.prixAchat == null || l.prixAchat <= 0) return acc;
+                        return acc + (l.prixUnitaire - l.prixAchat) * l.quantite;
+                      }, 0);
+                      if (!lignes.some(l => l.prixAchat != null && l.prixAchat > 0)) return null;
+                      return (
+                        <div className="flex justify-between pt-1 border-t border-dashed border-slate-200 mt-1 text-sm">
+                          <span className="text-slate-500">Marge estimée</span>
+                          <span className={`font-semibold ${margeTotal >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+                            {margeTotal >= 0 ? '+' : ''}{formatCurrency(margeTotal)}
+                          </span>
+                        </div>
+                      );
+                    })()}
                   </div>
 
                   {/* Mode paiement */}
@@ -872,11 +954,39 @@ export default function VentesPage() {
                       </div>
                     </div>
                     <button type="button"
-                      onClick={() => { setPackStep(1); setEligibilitePack(null); setPackSelectedClient(null); setFormPack({ souscriptionId: '', produitId: '', quantite: '1' }); }}
+                      onClick={() => { setPackStep(1); setEligibilitePack(null); setPackSelectedClient(null); setFormPack({ souscriptionId: '', produitId: '', quantite: '1', prixUnitaire: '' }); }}
                       className="text-xs text-emerald-600 hover:text-emerald-800 font-medium underline underline-offset-2">
                       Changer
                     </button>
                   </div>
+                  {packClientPdvs.length === 0 ? (
+                    <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
+                      Aucun PDV associé à ce client — stock global affiché. Affectez ce client à un PDV pour un suivi précis.
+                    </p>
+                  ) : packClientPdvs.length === 1 ? (
+                    <p className="text-xs text-sky-700 bg-sky-50 border border-sky-200 rounded-xl px-3 py-2 flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-sky-400 shrink-0" />
+                      PDV : <strong className="ml-1">{packClientPdvs[0].nom}</strong> — stock et magasinier filtrés automatiquement.
+                    </p>
+                  ) : (
+                    <div>
+                      <label className="block text-sm font-semibold text-slate-700 mb-1">
+                        Point de vente <span className="text-red-500">*</span>
+                      </label>
+                      <select
+                        required
+                        value={packSelectedPdvId ?? ''}
+                        onChange={e => setPackSelectedPdvId(e.target.value ? Number(e.target.value) : null)}
+                        className="w-full px-4 py-2.5 border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm"
+                      >
+                        <option value="">— Choisir le point de vente —</option>
+                        {packClientPdvs.map(pdv => (
+                          <option key={pdv.id} value={pdv.id}>{pdv.nom}</option>
+                        ))}
+                      </select>
+                      <p className="text-xs text-slate-400 mt-1">Le magasinier de ce PDV confirmera la sortie stock.</p>
+                    </div>
+                  )}
 
                   {eligibilitePack.souscriptions.length === 1 ? (
                     <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3">
@@ -904,14 +1014,53 @@ export default function VentesPage() {
                     </div>
                   )}
 
+                  {/* Budget de la souscription sélectionnée */}
+                  {(() => {
+                    const souscId = formPack.souscriptionId ||
+                      (eligibilitePack.souscriptions.length === 1 ? String(eligibilitePack.souscriptions[0].id) : '');
+                    const sousc = eligibilitePack.souscriptions.find(s => String(s.id) === souscId)
+                      ?? (eligibilitePack.souscriptions.length === 1 ? eligibilitePack.souscriptions[0] : null);
+                    if (!sousc) return null;
+                    const mTotal   = Number(sousc.montantTotal);
+                    const mVerse   = Number(sousc.montantVerse);
+                    const mRestant = Number(sousc.montantRestant);
+                    const pct = mTotal > 0 ? Math.min(100, Math.round((mVerse / mTotal) * 100)) : 0;
+                    return (
+                      <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 space-y-2">
+                        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Budget de la souscription</p>
+                        <div className="grid grid-cols-3 gap-2 text-center">
+                          <div className="bg-white rounded-lg px-2 py-1.5 border border-slate-200">
+                            <p className="text-xs text-slate-400">Total pack</p>
+                            <p className="text-sm font-bold text-slate-700">{formatCurrency(mTotal)}</p>
+                          </div>
+                          <div className="bg-white rounded-lg px-2 py-1.5 border border-emerald-200">
+                            <p className="text-xs text-emerald-600">Payé</p>
+                            <p className="text-sm font-bold text-emerald-700">{formatCurrency(mVerse)}</p>
+                          </div>
+                          <div className={`bg-white rounded-lg px-2 py-1.5 border ${mRestant > 0 ? 'border-amber-200' : 'border-slate-200'}`}>
+                            <p className={`text-xs ${mRestant > 0 ? 'text-amber-600' : 'text-slate-400'}`}>Restant dû</p>
+                            <p className={`text-sm font-bold ${mRestant > 0 ? 'text-amber-700' : 'text-slate-400'}`}>{formatCurrency(mRestant)}</p>
+                          </div>
+                        </div>
+                        <div className="h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                          <div className="h-full bg-emerald-500 rounded-full transition-all" style={{ width: `${pct}%` }} />
+                        </div>
+                        <p className="text-xs text-slate-400">{pct}% payé — budget disponible pour livraison : <strong className="text-emerald-700">{formatCurrency(mVerse)}</strong></p>
+                      </div>
+                    );
+                  })()}
+
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">Produit *</label>
                     <select required value={formPack.produitId}
-                      onChange={e => setFormPack(f => ({ ...f, produitId: e.target.value }))}
+                      onChange={e => {
+                        const p = produits.find(pr => pr.id === parseInt(e.target.value));
+                        setFormPack(f => ({ ...f, produitId: e.target.value, prixUnitaire: p ? String(p.prixUnitaire) : '' }));
+                      }}
                       className="w-full px-4 py-2.5 border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
                       <option value="">Sélectionner un produit</option>
                       {produits.map(p => (
-                        <option key={p.id} value={p.id}>{p.nom} — {formatCurrency(p.prixUnitaire)} (Stock : {p.stock})</option>
+                        <option key={p.id} value={p.id}>{p.nom} (Stock : {p.totalStock ?? p.stock ?? 0})</option>
                       ))}
                     </select>
                   </div>
@@ -919,18 +1068,64 @@ export default function VentesPage() {
                   {(() => {
                     const selectedProduit = produits.find(p => p.id === parseInt(formPack.produitId));
                     const qte = parseInt(formPack.quantite) || 0;
-                    const stockDepasse = selectedProduit ? qte > selectedProduit.stock : false;
+                    const prix = parseFloat(formPack.prixUnitaire) || 0;
+                    const stockDispo = selectedProduit ? (selectedProduit.totalStock ?? selectedProduit.stock ?? 0) : 0;
+                    const stockDepasse = selectedProduit ? qte > stockDispo : false;
+                    const totalLivraison = qte * prix;
+                    // Budget dispo = montantVerse de la souscription sélectionnée
+                    const souscId = formPack.souscriptionId ||
+                      (eligibilitePack.souscriptions.length === 1 ? String(eligibilitePack.souscriptions[0].id) : '');
+                    const sousc = eligibilitePack.souscriptions.find(s => String(s.id) === souscId)
+                      ?? (eligibilitePack.souscriptions.length === 1 ? eligibilitePack.souscriptions[0] : null);
+                    const budgetDispo = sousc ? Number(sousc.montantVerse) : 0;
+                    const budgetDepasse = totalLivraison > budgetDispo && budgetDispo > 0;
                     return (
-                      <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-1">Quantité</label>
-                        <input type="number" min="1" max={selectedProduit ? selectedProduit.stock : undefined}
-                          required value={formPack.quantite}
-                          onChange={e => setFormPack(f => ({ ...f, quantite: e.target.value }))}
-                          className={`w-full px-4 py-2.5 border rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 ${stockDepasse ? 'border-red-400 bg-red-50' : 'border-slate-200'}`} />
-                        {selectedProduit && (
-                          <p className="text-xs mt-1 text-slate-400">
-                            Stock disponible : <span className="font-semibold text-slate-600">{selectedProduit.stock}</span>
+                      <div className="space-y-3">
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-sm font-medium text-slate-700 mb-1">Quantité</label>
+                            <input type="number" min="1" max={stockDispo || undefined}
+                              required value={formPack.quantite}
+                              onChange={e => setFormPack(f => ({ ...f, quantite: e.target.value }))}
+                              className={`w-full px-4 py-2.5 border rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 ${stockDepasse ? 'border-red-400 bg-red-50' : 'border-slate-200'}`} />
+                            {selectedProduit && (
+                              <p className="text-xs mt-1 text-slate-400">
+                                Stock dispo : <span className="font-semibold text-slate-600">{stockDispo}</span>
+                              </p>
+                            )}
+                          </div>
+                          <div>
+                            <label className="block text-sm font-semibold text-emerald-700 mb-1">Prix de vente *</label>
+                            <input type="number" min="0" step="1"
+                              required value={formPack.prixUnitaire}
+                              onChange={e => setFormPack(f => ({ ...f, prixUnitaire: e.target.value }))}
+                              placeholder="0 FCFA"
+                              className="w-full px-4 py-2.5 border-2 border-emerald-300 rounded-xl bg-emerald-50 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-semibold" />
+                            {selectedProduit && (
+                              <p className="text-xs mt-1 text-slate-400">
+                                Réf. : {formatCurrency(selectedProduit.prixUnitaire)}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                        {/* Total livraison vs budget */}
+                        {prix > 0 && qte > 0 && (
+                          <div className={`rounded-xl px-3 py-2.5 border text-sm flex items-center justify-between ${budgetDepasse ? 'bg-red-50 border-red-200' : 'bg-emerald-50 border-emerald-200'}`}>
+                            <span className="text-slate-600">Total livraison</span>
+                            <span className={`font-bold ${budgetDepasse ? 'text-red-600' : 'text-emerald-700'}`}>
+                              {formatCurrency(totalLivraison)}
+                              {budgetDispo > 0 && <span className="font-normal text-slate-400"> / {formatCurrency(budgetDispo)} payés</span>}
+                            </span>
+                          </div>
+                        )}
+                        {budgetDepasse && (
+                          <p className="text-xs text-red-600 font-medium flex items-center gap-1">
+                            <AlertCircle className="w-3.5 h-3.5" />
+                            Dépasse le budget payé de {formatCurrency(totalLivraison - budgetDispo)}
                           </p>
+                        )}
+                        {stockDepasse && (
+                          <p className="text-xs text-red-600 font-medium">Stock insuffisant</p>
                         )}
                       </div>
                     );
@@ -942,7 +1137,16 @@ export default function VentesPage() {
                       Retour
                     </button>
                     <button type="submit"
-                      disabled={adding || (() => { const p = produits.find(x => x.id === parseInt(formPack.produitId)); return !!p && parseInt(formPack.quantite) > p.stock; })()}
+                      disabled={adding || (packClientPdvs.length > 0 && !packSelectedPdvId) || (() => {
+                        const p = produits.find(x => x.id === parseInt(formPack.produitId));
+                        if (!p) return true;
+                        if (parseInt(formPack.quantite) > (p.totalStock ?? p.stock ?? 0)) return true;
+                        const souscId = formPack.souscriptionId || (eligibilitePack.souscriptions.length === 1 ? String(eligibilitePack.souscriptions[0].id) : '');
+                        const sousc = eligibilitePack.souscriptions.find(s => String(s.id) === souscId) ?? (eligibilitePack.souscriptions.length === 1 ? eligibilitePack.souscriptions[0] : null);
+                        const budgetDispo = sousc ? Number(sousc.montantVerse) : 0;
+                        const total = (parseInt(formPack.quantite) || 0) * (parseFloat(formPack.prixUnitaire) || 0);
+                        return budgetDispo > 0 && total > budgetDispo;
+                      })()}
                       className="flex-1 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 disabled:opacity-60 font-medium text-sm flex items-center justify-center gap-2 transition-colors">
                       <Truck size={15} />
                       {adding ? 'Enregistrement…' : 'Planifier la livraison'}
@@ -1254,14 +1458,9 @@ export default function VentesPage() {
                                   <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-orange-100 text-orange-700 rounded-full text-xs font-semibold w-fit">
                                     <Truck size={10} /> Planifiée
                                   </span>
-                                  <button onClick={() => handleConfirmerLivraison(r)}
-                                    disabled={confirmingId === r.id || cancellingId === r.id}
-                                    className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-600 text-white rounded-lg text-xs font-medium hover:bg-emerald-700 disabled:opacity-50 transition-colors">
-                                    <CheckCircle size={11} />
-                                    {confirmingId === r.id ? 'En cours…' : 'Confirmer livraison'}
-                                  </button>
+                                  <span className="text-xs text-slate-400 italic">En attente magasinier</span>
                                   <button onClick={() => handleAnnulerLivraison(r.id)}
-                                    disabled={cancellingId === r.id || confirmingId === r.id}
+                                    disabled={cancellingId === r.id}
                                     className="inline-flex items-center gap-1 px-2 py-1 bg-red-50 border border-red-200 text-red-700 rounded-lg text-xs font-medium hover:bg-red-100 disabled:opacity-50 transition-colors">
                                     <XCircle size={11} />
                                     {cancellingId === r.id ? 'Annulation…' : 'Annuler'}

@@ -7,7 +7,7 @@
 generator client {
   provider = "prisma-client-js"
 }                                                        
-                               
+                                 
 datasource db {
   provider = "postgresql"
 }          
@@ -605,6 +605,7 @@ model PointDeVente {
   receptionsCommeOrigine ReceptionApprovisionnement[] @relation("ReceptionsEnTantQuOrigine")
   commandesInternes     CommandeInterne[]
   visitesControle       VisiteControle[]
+  livraisonsPacks       ReceptionProduitPack[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -758,6 +759,7 @@ model MouvementStock {
   typeEntree     TypeEntreeStock? // précision si type == ENTREE
   typeSortie     TypeSortieStock? // précision si type == SORTIE
   quantite       Int
+  prixUnitaire   Decimal?         // prix de vente au client (renseigné pour les sorties livraison pack)
   motif          String?
   reference      String           @unique
   dateMouvement  DateTime         @default(now())
@@ -1437,10 +1439,16 @@ model ReceptionProduitPack {
   livreurNom     String?
   notes          String?
 
+  // PDV cible : détermine quel magasinier doit confirmer la sortie stock
+  pointDeVenteId Int?
+  pointDeVente   PointDeVente? @relation(fields: [pointDeVenteId], references: [id])
+
   lignes LigneReceptionPack[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([pointDeVenteId])
 }
 
 model LigneReceptionPack {

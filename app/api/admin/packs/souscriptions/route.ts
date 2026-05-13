@@ -35,13 +35,27 @@ export async function GET(req: Request) {
         ...(typePack ? { pack: { type: typePack as never } } : {}),
         ...(search
           ? {
-              OR: [
-                { user: { nom: { contains: search, mode: "insensitive" } } },
-                { user: { prenom: { contains: search, mode: "insensitive" } } },
-                { client: { nom: { contains: search, mode: "insensitive" } } },
-                { client: { prenom: { contains: search, mode: "insensitive" } } },
-                { client: { telephone: { contains: search } } },
-              ],
+              OR: (() => {
+                const conditions = [
+                  { user:   { nom:    { contains: search, mode: "insensitive" as const } } },
+                  { user:   { prenom: { contains: search, mode: "insensitive" as const } } },
+                  { client: { nom:    { contains: search, mode: "insensitive" as const } } },
+                  { client: { prenom: { contains: search, mode: "insensitive" as const } } },
+                  { client: { telephone: { contains: search } } },
+                ];
+                const parts = search.trim().split(/\s+/);
+                if (parts.length >= 2) {
+                  const first = parts[0];
+                  const rest  = parts.slice(1).join(" ");
+                  // prénom → first, nom → rest
+                  conditions.push({ user:   { AND: [{ prenom: { contains: first, mode: "insensitive" } }, { nom: { contains: rest, mode: "insensitive" } }] } } as never);
+                  conditions.push({ client: { AND: [{ prenom: { contains: first, mode: "insensitive" } }, { nom: { contains: rest, mode: "insensitive" } }] } } as never);
+                  // ordre inversé : nom → first, prénom → rest
+                  conditions.push({ user:   { AND: [{ nom: { contains: first, mode: "insensitive" } }, { prenom: { contains: rest, mode: "insensitive" } }] } } as never);
+                  conditions.push({ client: { AND: [{ nom: { contains: first, mode: "insensitive" } }, { prenom: { contains: rest, mode: "insensitive" } }] } } as never);
+                }
+                return conditions;
+              })(),
             }
           : {}),
       },
@@ -49,7 +63,13 @@ export async function GET(req: Request) {
       include: {
         pack: { select: { id: true, nom: true, type: true } },
         user: { select: { nom: true, prenom: true, telephone: true } },
-        client: { select: { nom: true, prenom: true, telephone: true } },
+        client: {
+          select: {
+            nom: true, prenom: true, telephone: true, pointDeVenteId: true,
+            pointDeVente: { select: { id: true, nom: true } },
+            pointsDeVente: { select: { pointDeVente: { select: { id: true, nom: true } } } },
+          },
+        },
         _count: { select: { versements: true, echeances: true, receptions: true } },
         // Bug #2: inclure seulement les réceptions LIVREE pour filtrer correctement dans TabLivraisons
         receptions: {

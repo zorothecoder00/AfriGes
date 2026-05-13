@@ -25,7 +25,7 @@ interface StockItem {
 // Mode grand stock (agrégé par produit)
 interface GrandStockItem {
   id: number; nom: string; reference?: string; categorie?: string; unite?: string;
-  prixUnitaire: string; alerteStock: number;
+  prixUnitaire: string; prixAchat?: string | null; alerteStock: number;
   totalStock: number;
   stocks: { quantite: number; alerteStock: number | null; pointDeVente: { id: number; nom: string; code: string; type: string } }[];
 }
@@ -65,7 +65,7 @@ export default function GestionStockPage() {
 
   // Modal ajout produit
   const [modalOpen, setModalOpen]           = useState(false);
-  const [formData, setFormData]             = useState({ nom: '', description: '', reference: '', categorie: '', unite: '', prixUnitaire: '', alerteStock: '' });
+  const [formData, setFormData]             = useState({ nom: '', description: '', reference: '', categorie: '', unite: '', prixUnitaire: '', prixAchat: '', alerteStock: '' });
 
   // Modal transfert de stock
   const [transferModal, setTransferModal]   = useState(false);
@@ -159,11 +159,12 @@ export default function GestionStockPage() {
       categorie:    formData.categorie    || undefined,
       unite:        formData.unite        || undefined,
       prixUnitaire: Number(formData.prixUnitaire),
+      prixAchat:    formData.prixAchat ? Number(formData.prixAchat) : undefined,
       alerteStock:  Number(formData.alerteStock) || 0,
     });
     if (result) {
       setModalOpen(false);
-      setFormData({ nom: '', description: '', reference: '', categorie: '', unite: '', prixUnitaire: '', alerteStock: '' });
+      setFormData({ nom: '', description: '', reference: '', categorie: '', unite: '', prixUnitaire: '', prixAchat: '', alerteStock: '' });
       refetch();
     }
   };
@@ -427,10 +428,13 @@ export default function GestionStockPage() {
                   <input type="text" placeholder="Unité (ex: kg, L, pcs)" value={formData.unite}
                     onChange={e => setFormData({ ...formData, unite: e.target.value })}
                     className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50" />
-                  <input type="number" placeholder="Prix unitaire *" required min="0.01" step="0.01" value={formData.prixUnitaire}
+                  <input type="number" placeholder="Prix de vente * (FCFA)" required min="0.01" step="0.01" value={formData.prixUnitaire}
                     onChange={e => setFormData({ ...formData, prixUnitaire: e.target.value })}
                     className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50" />
                 </div>
+                <input type="number" placeholder="Prix d'achat (FCFA) — optionnel" min="0" step="0.01" value={formData.prixAchat}
+                  onChange={e => setFormData({ ...formData, prixAchat: e.target.value })}
+                  className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50" />
                 <input type="text" placeholder="Description (optionnel)" value={formData.description}
                   onChange={e => setFormData({ ...formData, description: e.target.value })}
                   className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50" />
@@ -679,7 +683,7 @@ export default function GestionStockPage() {
               <table className="w-full">
                 <thead className="bg-slate-50 border-b border-slate-200">
                   <tr>
-                    {['ID', 'Produit', 'Stock total', 'Répartition PDV', 'Prix unitaire', 'Valeur totale', 'Statut', 'Actions'].map(h => (
+                    {['ID', 'Produit', 'Stock total', 'Répartition PDV', 'Prix achat', 'Prix vente de réf.', 'Marge de réf.', 'Valeur stock', 'Statut', 'Actions'].map(h => (
                       <th key={h} className="px-5 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">{h}</th>
                     ))}
                   </tr>
@@ -688,7 +692,11 @@ export default function GestionStockPage() {
                   {grandStockItems.map(p => {
                     const statut = getStatut(p.totalStock, p.alerteStock);
                     const s = STATUT_STYLES[statut];
-                    const valeur = p.totalStock * Number(p.prixUnitaire);
+                    const prixVente = Number(p.prixUnitaire);
+                    const prixAchat = p.prixAchat ? Number(p.prixAchat) : null;
+                    const margeUnit = prixAchat !== null ? prixVente - prixAchat : null;
+                    const margePct  = prixAchat !== null && prixAchat > 0 ? (margeUnit! / prixAchat) * 100 : null;
+                    const valeur = p.totalStock * prixVente;
                     const expanded = expandedRows.has(p.id);
                     return (
                       <React.Fragment key={p.id}>
@@ -719,7 +727,28 @@ export default function GestionStockPage() {
                             )}
                           </td>
                           <td className="px-5 py-4">
-                            <span className="text-sm font-semibold text-slate-800">{formatCurrency(p.prixUnitaire)}</span>
+                            {prixAchat !== null
+                              ? <span className="text-sm font-semibold text-slate-600">{formatCurrency(prixAchat)}</span>
+                              : <span className="text-xs text-slate-300 italic">—</span>}
+                          </td>
+                          <td className="px-5 py-4">
+                            <span className="text-sm font-semibold text-slate-800">{formatCurrency(prixVente)}</span>
+                          </td>
+                          <td className="px-5 py-4">
+                            {margeUnit !== null ? (
+                              <div>
+                                <span className={`text-sm font-bold ${margeUnit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+                                  {margeUnit >= 0 ? '+' : ''}{formatCurrency(margeUnit)}
+                                </span>
+                                {margePct !== null && (
+                                  <p className={`text-xs ${margeUnit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                                    {margePct >= 0 ? '+' : ''}{margePct.toFixed(1)}%
+                                  </p>
+                                )}
+                              </div>
+                            ) : (
+                              <span className="text-xs text-slate-300 italic">—</span>
+                            )}
                           </td>
                           <td className="px-5 py-4">
                             <span className="text-base font-bold text-slate-800">{formatCurrency(valeur)}</span>

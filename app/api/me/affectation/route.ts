@@ -4,8 +4,9 @@ import { getAuthSession } from "@/lib/auth";
 
 /**
  * GET /api/me/affectation
- * Retourne le PDV actif de l'utilisateur connecté (via GestionnaireAffectation).
- * Utilisé par le badge UserPdvBadge sur les dashboards gestionnaires.
+ * Retourne tous les PDVs actifs de l'utilisateur connecté.
+ * - pdvs : liste complète (pour les rôles multi-PDV comme CHEF_AGENCE, RESPONSABLE_COMMUNAUTE)
+ * - pdv  : premier PDV (rétrocompat pour les rôles mono-PDV)
  */
 export async function GET() {
   try {
@@ -14,24 +15,30 @@ export async function GET() {
 
     const userId = parseInt(session.user.id);
 
-    // 1. Chercher via GestionnaireAffectation (magasinier, agent terrain, caissier, logistique…)
-    const aff = await prisma.gestionnaireAffectation.findFirst({
+    // 1. Toutes les affectations actives (CHEF_AGENCE et RESPONSABLE_COMMUNAUTE peuvent en avoir plusieurs)
+    const affs = await prisma.gestionnaireAffectation.findMany({
       where:   { userId, actif: true },
       select:  { pointDeVente: { select: { id: true, nom: true, code: true } } },
       orderBy: { dateDebut: "desc" },
     });
 
-    if (aff?.pointDeVente) {
-      return NextResponse.json({ pdv: aff.pointDeVente });
+    const pdvs = affs.map((a) => a.pointDeVente).filter(Boolean) as { id: number; nom: string; code: string }[];
+
+    if (pdvs.length > 0) {
+      return NextResponse.json({ pdv: pdvs[0], pdvs });
     }
 
     // 2. Fallback : l'utilisateur est RPV (PointDeVente.rpvId)
-    const pdvRpv = await prisma.pointDeVente.findFirst({
+    const pdvsRpv = await prisma.pointDeVente.findMany({
       where:  { rpvId: userId, actif: true },
       select: { id: true, nom: true, code: true },
     });
 
-    return NextResponse.json({ pdv: pdvRpv ?? null });
+    if (pdvsRpv.length > 0) {
+      return NextResponse.json({ pdv: pdvsRpv[0], pdvs: pdvsRpv });
+    }
+
+    return NextResponse.json({ pdv: null, pdvs: [] });
   } catch (error) {
     console.error("GET /api/me/affectation:", error);
     return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });

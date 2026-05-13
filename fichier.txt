@@ -5,36 +5,19 @@ On peut aussi utiliser du SVG pour les graphiques ( sans forcément dépendance 
 Ce code :      
  const a = document.createElement("a");
  a.href = url;                
- a.download = filename;                                   
+ a.download = filename;                                     
  a.click();                                                           
  permet de créer un téléchargement via un clic sur une URL ( utile pour les exports)
 import { randomUUID } from "crypto";  permet de générer des UUID(sorte d'identifiant unique aléatoire) par exemple pour des factures ou des pièces justificatives
 
-Du genre , ce que je veux c'est que l'admin en approvisionnant un produit , doit mettre un prix d'achat qu'il doit être le seul à pouvoir mettre . Du genre le prix d'achat doit être le prix auquel on a payé le produit ( le prix de l'approvisionnement ) et on peut utiliser le prix unitaire pour être le prix de vente ( auquel on a vendu ça à un client donné ) . Je me demande alors si c'est pas mieux d'utiliser le prix d'achat pour le stock ?? Et un autre prix ( qui sera le vrai payé utilisé au client comme ça on a vraiment les marges et on sait réellement comment se passent les activités lors de l'approvsionnement et lors de la vente à un client
-
--Sur le dashboard/admin/ au niveau des souscriptions des packs , on doit les scinder ou classer par mois ( Janvier , Février etc etc ) pour y voir plus clair
-
 -On doit pouvoir aussi affecter les clients aux commerciaux (agents de terrain)
 
--Sur le dashboard/admin/clients , on doit pouvoir voir l'historique des versements , des souscriptions, du total ( versement + achat direct ) des clients    
-  
--Sur le dashboard/user/caissiers je veux pouvoir modifier la date (datePaiement) d'un versement ( puisque ça peut arriver de faire une erreur lors du remplissage du modale de collecte de versement )  pour pouvoir corriger des erreurs.
-
--Pas une erreur mais un bug ; normalement au niveau du point de vente de
-  l'utilisateur , on ne devrait pas mettre un unique point de vente pour le
-  chef_agence ou responsable_communaute (vu qu'il gère plusieurs points de vente)
-
--On doit avoir un prix d'achat côté stock des produits ( côté admin ) . Et les admins doivent être les seuls à pouvoir insérer(ou plutôt modifier) un prix pour les produits ( mais tous les utilisateurs doivent être notifiés )     
-       
 -Fais des await dans toutes mes api où je fais trop de requêtes parallèles
 
--Vérifie mon schema et mes api de produits , approvisionnements et lignereceptionapprovisionnement pour que prixAchat de produit soit calculé au moment où on renseigne le prixUnitaire dans LigneReceptionAppro . Je veux pas aussi qu'on mélange le prix d'achat et le prix du produit ( qui est peut être un ancien prix calculé ou inséré avant et que sa valeur sur le marché a changé et lors d'un nouvel approvisionnement on l'a pris à un autre prix)
-   
 -Je dois aussi vérifier dans mes get dans les api et dans mes pages front (où je n'ai pas encore ajouté prixAchat dans les résultats)
-
--Essaie d'implémenter les prixAchat directement dans les approvisionnements au lieu d'être chaque fois obligé de le faire dans les updates
 
 -npm i -g @openai/codex   permet d'installer le CLI de codex (agent ia d'openai qui permet d'interagir depuis le terminal)
    
 -curl -fsSL https://claude.ai/install.cmd -o install.cmd && install.cmd && del install.cmd pour installer claude via le terminal cmd
 
+-Sur dashboard/admin/ventes le modal de planification de livraison a un problème d'affichage , le bord haut et le bord du bas se perdent un peu sans permettre même le scroll 

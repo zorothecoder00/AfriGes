@@ -66,7 +66,7 @@ export async function GET(req: Request) {
             },
           },
           lignes: {
-            include: { produit: { select: { nom: true } } },
+            include: { produit: { select: { nom: true, prixAchat: true } } },
           },
         },
       }),

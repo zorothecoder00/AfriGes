@@ -4,18 +4,16 @@ import { getRPVSession } from "@/lib/authRPV";
 
 /**
  * GET /api/rpv/souscriptions-actives
- * Liste les souscriptions éligibles à une livraison pour les clients du PDV du RPV.
+ * Liste les souscriptions éligibles à une livraison pour les clients/membres du PDV du RPV.
  *
- * Règles d'éligibilité (identiques à /api/admin/clients/[id]/eligibilite-pack) :
- *  - ALIMENTAIRE  → COMPLETE (paiement intégral requis)
- *  - URGENCE      → ACTIF ou COMPLETE (dès l'acompte)
- *  - REVENDEUR F1 → ACTIF ou COMPLETE (après 50% acompte)
- *  - REVENDEUR F2 → toujours éligible (crédit total)
- *  - Autres       → COMPLETE uniquement
+ * Règles d'éligibilité — strictement alignées sur /api/admin/packs/souscriptions/[id]/livrer :
+ *  - URGENCE              → ACTIF ou COMPLETE
+ *  - REVENDEUR FORMULE_1  → ACTIF ou COMPLETE
+ *  - REVENDEUR FORMULE_2  → EN_ATTENTE, ACTIF ou COMPLETE
+ *  - ALIMENTAIRE, FAMILIAL, EPARGNE_PRODUIT, FIDELITE, autres → COMPLETE uniquement
  *
- * Exclusions :
- *  - Souscriptions déjà livréees (au moins une réception LIVREE)
- *  - Souscriptions avec une réception PLANIFIEE déjà en cours
+ * Exclusion : souscription avec une réception PLANIFIEE déjà en cours.
+ * Les livraisons passées (LIVREE) n'excluent PAS — seul le statut compte.
  */
 export async function GET() {
   try {
@@ -29,8 +27,15 @@ export async function GET() {
     const souscriptions = await prisma.souscriptionPack.findMany({
       where: {
         statut: { in: ["EN_ATTENTE", "ACTIF", "COMPLETE"] },
-        client: { pointDeVenteId: pdv.id },
-        // Pas de PLANIFIEE en attente
+        OR: [
+          // Client rattaché à ce PDV (association primaire)
+          { client: { pointDeVenteId: pdv.id } },
+          // Client rattaché à ce PDV (association secondaire multi-PDV)
+          { client: { pointsDeVente: { some: { pointDeVenteId: pdv.id } } } },
+          // Membre (User) affecté à ce PDV
+          { user: { affectationsPDV: { some: { pointDeVenteId: pdv.id, actif: true } } } },
+        ],
+        // Pas de livraison déjà PLANIFIEE en attente
         receptions: { none: { statut: "PLANIFIEE" } },
       },
       include: {
@@ -42,11 +47,11 @@ export async function GET() {
           },
         },
         client: { select: { id: true, nom: true, prenom: true, telephone: true } },
-        // Inclure les lignes des réceptions LIVREE pour calculer le montant déjà livré
         receptions: {
           where: { statut: "LIVREE" },
           select: {
             id: true,
+            dateLivraison: true,
             lignes: { select: { quantite: true, prixUnitaire: true } },
           },
         },
@@ -54,41 +59,34 @@ export async function GET() {
       orderBy: { createdAt: "desc" },
     });
 
-    // Types autorisant plusieurs livraisons partielles
-    const TYPES_MULTI_LIVRAISON = ["FAMILIAL", "EPARGNE_PRODUIT"];
-
-    // Appliquer les règles d'éligibilité par type
+    /**
+     * Règles d'éligibilité — strictement alignées sur /api/admin/packs/souscriptions/[id]/livrer :
+     *
+     *  URGENCE              → ACTIF ou COMPLETE
+     *  REVENDEUR FORMULE_1  → ACTIF ou COMPLETE
+     *  REVENDEUR FORMULE_2  → EN_ATTENTE, ACTIF ou COMPLETE (crédit total, toujours livrable)
+     *  FAMILIAL             → COMPLETE uniquement (le cycle se réinitialise après chaque livraison)
+     *  EPARGNE_PRODUIT      → COMPLETE uniquement
+     *  ALIMENTAIRE          → COMPLETE uniquement
+     *  FIDELITE / autres    → COMPLETE uniquement
+     *
+     * Aucune exclusion basée sur les livraisons passées : seul le statut compte.
+     * (L'API de livraison vérifie elle-même le budget et les doublons PLANIFIEE.)
+     */
     const eligibles = souscriptions.filter((s) => {
-      const hasLivrees = s.receptions.length > 0;
-
-      // Pour les types mono-livraison : déjà livré = plus éligible
-      if (hasLivrees && !TYPES_MULTI_LIVRAISON.includes(s.pack.type)) return false;
-
-      // EN_ATTENTE uniquement autorisé pour REVENDEUR F2
-      if (s.statut === "EN_ATTENTE" && !(s.pack.type === "REVENDEUR" && s.formuleRevendeur === "FORMULE_2")) return false;
-
-      // Pour les types multi-livraison déjà entamés : vérifier qu'il reste de la capacité
-      if (hasLivrees && TYPES_MULTI_LIVRAISON.includes(s.pack.type)) {
-        const montantDejaLivre = s.receptions.reduce(
-          (sum, r) => sum + r.lignes.reduce((s2, l) => s2 + Number(l.prixUnitaire) * l.quantite, 0),
-          0
-        );
-        if (montantDejaLivre >= Number(s.montantTotal)) return false; // pack entièrement livré
-        return ["ACTIF", "COMPLETE"].includes(s.statut);
-      }
-
       switch (s.pack.type) {
-        case "ALIMENTAIRE":
-          return s.statut === "COMPLETE";
         case "URGENCE":
           return ["ACTIF", "COMPLETE"].includes(s.statut);
+
         case "REVENDEUR":
-          if (s.formuleRevendeur === "FORMULE_2") return true;
+          if (s.formuleRevendeur === "FORMULE_2") {
+            return ["EN_ATTENTE", "ACTIF", "COMPLETE"].includes(s.statut);
+          }
+          // FORMULE_1 : acompte 50% requis → ACTIF ou COMPLETE
           return ["ACTIF", "COMPLETE"].includes(s.statut);
-        case "FAMILIAL":
-        case "EPARGNE_PRODUIT":
-          return ["ACTIF", "COMPLETE"].includes(s.statut);
+
         default:
+          // ALIMENTAIRE, FAMILIAL, EPARGNE_PRODUIT, FIDELITE, etc.
           return s.statut === "COMPLETE";
       }
     });
@@ -96,7 +94,17 @@ export async function GET() {
     return NextResponse.json({
       success: true,
       data: eligibles.map((s) => {
-        const montantDejaLivre = s.receptions.reduce(
+        // Pour FAMILIAL/EPARGNE_PRODUIT, le cycle se réinitialise après chaque livraison :
+        // on ne compte que les réceptions du cycle actuel (dateLivraison >= dateDebut).
+        // Pour les autres types, toutes les réceptions LIVREE sont comptées.
+        const TYPES_CYCLE = ["FAMILIAL", "EPARGNE_PRODUIT"];
+        const receptionsRef = TYPES_CYCLE.includes(s.pack.type)
+          ? s.receptions.filter(
+              (r) => r.dateLivraison != null && new Date(r.dateLivraison) >= new Date(s.dateDebut)
+            )
+          : s.receptions;
+
+        const montantDejaLivre = receptionsRef.reduce(
           (sum, r) => sum + r.lignes.reduce((s2, l) => s2 + Number(l.prixUnitaire) * l.quantite, 0),
           0
         );

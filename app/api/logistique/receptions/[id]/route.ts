@@ -133,10 +133,18 @@ export async function PATCH(req: Request, { params }: Ctx) {
 
         const typeEntree = reception.type === "FOURNISSEUR" ? "RECEPTION_FOURNISSEUR" : "RECEPTION_INTERNE";
 
-        // Mettre en stock chaque produit reçu
+        // Mettre en stock chaque produit reçu + mettre à jour le prixAchat du produit
         for (const ligne of lignesMaj) {
           const qte = ligne.quantiteRecue ?? ligne.quantiteAttendue;
           if (qte <= 0) continue;
+
+          // Mise à jour du prix d'achat de référence si la ligne a un prix d'achat renseigné
+          if (ligne.prixUnitaire !== null && ligne.prixUnitaire !== undefined) {
+            await tx.produit.update({
+              where: { id: ligne.produitId },
+              data:  { prixAchat: ligne.prixUnitaire },
+            });
+          }
 
           await tx.stockSite.upsert({
             where: {

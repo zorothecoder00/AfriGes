@@ -86,13 +86,16 @@ export async function POST(req: Request) {
     if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
 
     const body = await req.json();
-    const { nom, description, reference, categorie, unite, prixUnitaire, alerteStock } = body;
+    const { nom, description, reference, categorie, unite, prixUnitaire, prixAchat, alerteStock } = body;
 
     if (!nom || prixUnitaire === undefined) {
       return NextResponse.json({ error: "nom et prixUnitaire sont obligatoires" }, { status: 400 });
     }
     if (Number(prixUnitaire) <= 0) {
-      return NextResponse.json({ error: "Le prix unitaire doit être supérieur à 0" }, { status: 400 });
+      return NextResponse.json({ error: "Le prix de vente doit être supérieur à 0" }, { status: 400 });
+    }
+    if (prixAchat !== undefined && prixAchat !== null && prixAchat !== "" && Number(prixAchat) < 0) {
+      return NextResponse.json({ error: "Le prix d'achat ne peut pas être négatif" }, { status: 400 });
     }
 
     if (reference) {
@@ -108,8 +111,9 @@ export async function POST(req: Request) {
           reference:   reference   || null,
           categorie:   categorie   || null,
           unite:       unite       || null,
-          prixUnitaire:new Prisma.Decimal(prixUnitaire),
-          alerteStock: Number(alerteStock) || 0,
+          prixUnitaire: new Prisma.Decimal(prixUnitaire),
+          prixAchat:    prixAchat !== undefined && prixAchat !== null && prixAchat !== "" ? new Prisma.Decimal(prixAchat) : null,
+          alerteStock:  Number(alerteStock) || 0,
         },
       });
 

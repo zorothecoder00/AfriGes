@@ -65,7 +65,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
     const { id } = await params;
 
     const body = await req.json();
-    const { nom, description, reference, categorie, unite, prixUnitaire, alerteStock, actif } = body;
+    const { nom, description, reference, categorie, unite, prixUnitaire, prixAchat, alerteStock, actif } = body;
 
     const existing = await prisma.produit.findUnique({ where: { id: Number(id) } });
     if (!existing) return NextResponse.json({ error: "Produit introuvable" }, { status: 404 });
@@ -87,6 +87,9 @@ export async function PATCH(req: Request, { params }: Ctx) {
           ...(alerteStock  !== undefined && { alerteStock: Number(alerteStock) }),
           ...(actif        !== undefined && { actif }),
           ...(prixUnitaire !== undefined && { prixUnitaire: new Prisma.Decimal(prixUnitaire) }),
+          ...(prixAchat    !== undefined && {
+            prixAchat: prixAchat !== null && prixAchat !== "" ? new Prisma.Decimal(prixAchat) : null,
+          }),
         },
       });
       await auditLog(tx, parseInt(session.user.id), "PRODUIT_MODIFIE", "Produit", p.id);

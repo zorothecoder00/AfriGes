@@ -32,11 +32,34 @@ export async function GET(req: Request) {
         ],
       }),
       ...(search && {
-        OR: [
-          { nom: { contains: search, mode: "insensitive" } },
-          { prenom: { contains: search, mode: "insensitive" } },
-          { telephone: { contains: search, mode: "insensitive" } },
-        ],
+        OR: (() => {
+          const conditions: Prisma.ClientWhereInput[] = [
+            { nom:       { contains: search, mode: "insensitive" } },
+            { prenom:    { contains: search, mode: "insensitive" } },
+            { telephone: { contains: search, mode: "insensitive" } },
+          ];
+          // Recherche combinée "prénom nom" ou "nom prénom"
+          const parts = search.trim().split(/\s+/);
+          if (parts.length >= 2) {
+            const first = parts[0];
+            const rest  = parts.slice(1).join(" ");
+            // prénom → first, nom → rest
+            conditions.push({
+              AND: [
+                { prenom: { contains: first, mode: "insensitive" } },
+                { nom:    { contains: rest,  mode: "insensitive" } },
+              ],
+            });
+            // nom → first, prénom → rest (ordre inversé)
+            conditions.push({
+              AND: [
+                { nom:    { contains: first, mode: "insensitive" } },
+                { prenom: { contains: rest,  mode: "insensitive" } },
+              ],
+            });
+          }
+          return conditions;
+        })(),
       }),
     };
 

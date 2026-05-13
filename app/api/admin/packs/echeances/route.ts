@@ -36,13 +36,25 @@ export async function GET(req: Request) {
         ...(search
           ? {
               souscription: {
-                OR: [
-                  { client: { nom: { contains: search, mode: "insensitive" } } },
-                  { client: { prenom: { contains: search, mode: "insensitive" } } },
-                  { client: { telephone: { contains: search } } },
-                  { user: { nom: { contains: search, mode: "insensitive" } } },
-                  { user: { prenom: { contains: search, mode: "insensitive" } } },
-                ],
+                OR: (() => {
+                  const conditions = [
+                    { client: { nom:       { contains: search, mode: "insensitive" as const } } },
+                    { client: { prenom:    { contains: search, mode: "insensitive" as const } } },
+                    { client: { telephone: { contains: search } } },
+                    { user:   { nom:       { contains: search, mode: "insensitive" as const } } },
+                    { user:   { prenom:    { contains: search, mode: "insensitive" as const } } },
+                  ];
+                  const parts = search.trim().split(/\s+/);
+                  if (parts.length >= 2) {
+                    const first = parts[0];
+                    const rest  = parts.slice(1).join(" ");
+                    conditions.push({ client: { AND: [{ prenom: { contains: first, mode: "insensitive" } }, { nom: { contains: rest, mode: "insensitive" } }] } } as never);
+                    conditions.push({ client: { AND: [{ nom: { contains: first, mode: "insensitive" } }, { prenom: { contains: rest, mode: "insensitive" } }] } } as never);
+                    conditions.push({ user:   { AND: [{ prenom: { contains: first, mode: "insensitive" } }, { nom: { contains: rest, mode: "insensitive" } }] } } as never);
+                    conditions.push({ user:   { AND: [{ nom: { contains: first, mode: "insensitive" } }, { prenom: { contains: rest, mode: "insensitive" } }] } } as never);
+                  }
+                  return conditions;
+                })(),
               },
             }
           : {}),

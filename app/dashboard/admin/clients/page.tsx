@@ -1,10 +1,12 @@
-"use client";  
+"use client";
 
-import React, { useState, useEffect, useRef } from 'react';
-import { Search, Plus, Phone, MapPin, Eye, Edit, Trash2, ArrowLeft, Store, Building2, Link2, Link2Off, X } from 'lucide-react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { Search, Plus, Phone, MapPin, Eye, Edit, Trash2, ArrowLeft, Store, Building2, Link2, Link2Off, X,
+  TrendingUp, TrendingDown, CreditCard, ShoppingBag, ChevronDown, ChevronRight, Banknote, Hash,
+  Calendar, CheckCircle, Clock, AlertTriangle, Package } from 'lucide-react';
 import Link from 'next/link';
 import { useApi, useMutation } from '@/hooks/useApi';
-import { formatDate } from '@/lib/format';
+import { formatDate, formatDateTime, formatCurrency } from '@/lib/format';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -13,7 +15,7 @@ interface ClientPdv { id: number; nom: string; code: string }
 
 interface Client {
   id: number;
-  nom: string; 
+  nom: string;
   prenom: string;
   telephone: string;
   adresse: string | null;
@@ -27,6 +29,66 @@ interface Client {
 interface ClientsResponse {
   data: Client[];
   meta: { total: number; page: number; limit: number; totalPages: number };
+}
+
+// ─── Types Historique ─────────────────────────────────────────────────────────
+
+interface VersementHisto {
+  id: number;
+  montant: string;
+  type: string;
+  datePaiement: string;
+  encaisseParNom: string | null;
+  notes: string | null;
+}
+
+interface SouscriptionHisto {
+  id: number;
+  statut: string;
+  montantTotal: string;
+  montantVerse: string;
+  montantRestant: string;
+  dateDebut: string;
+  dateFin: string | null;
+  dateCloture: string | null;
+  createdAt: string;
+  pack: { id: number; nom: string; type: string };
+  versements: VersementHisto[];
+}
+
+interface LigneVente {
+  quantite: number;
+  prixUnitaire: string;
+  montant: string;
+  produit: { nom: string };
+}
+
+interface VenteDirecteHisto {
+  id: number;
+  reference: string;
+  montantTotal: string;
+  montantPaye: string;
+  modePaiement: string;
+  statut: string;
+  notes: string | null;
+  createdAt: string;
+  pointDeVente: { nom: string; code: string } | null;
+  lignes: LigneVente[];
+}
+
+interface HistoriqueData {
+  success: boolean;
+  client: Client & { pointsDeVente: { pointDeVente: ClientPdv }[] };
+  souscriptions: SouscriptionHisto[];
+  ventesDirectes: VenteDirecteHisto[];
+  totaux: {
+    totalVersementsPacks: number;
+    totalAchatsDirects: number;
+    totalPaye: number;
+    totalDu: number;
+    nbSouscriptions: number;
+    nbAchats: number;
+  };
 }
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
@@ -44,6 +106,13 @@ export default function ClientsPage() {
     adresse: '',
     pointsDeVenteIds: [] as number[],
   });
+
+  // ── Drawer historique ──────────────────────────────────────────────────────
+  const [histoClient,  setHistoClient]    = useState<Client | null>(null);
+  const [histoData,    setHistoData]      = useState<HistoriqueData | null>(null);
+  const [histoLoading, setHistoLoading]   = useState(false);
+  const [expandedSouscriptions, setExpandedSouscriptions] = useState<Set<number>>(new Set());
+  const [expandedVentes, setExpandedVentes] = useState<Set<number>>(new Set());
 
   // ── Modal affectation PDV ───────────────────────────────────────────────────
   const [affectClient, setAffectClient]   = useState<Client | null>(null);
@@ -145,6 +214,34 @@ export default function ClientsPage() {
     if (res) { setAffectClient(null); refetch(); }
     else setAffectError('Erreur lors de la désaffectation');
   };
+
+  const openHistorique = useCallback(async (client: Client) => {
+    setHistoClient(client);
+    setHistoData(null);
+    setHistoLoading(true);
+    setExpandedSouscriptions(new Set());
+    setExpandedVentes(new Set());
+    try {
+      const res = await fetch(`/api/admin/clients/${client.id}/historique`);
+      const json: HistoriqueData = await res.json();
+      if (json.success) setHistoData(json);
+    } catch { /* ignore */ }
+    finally { setHistoLoading(false); }
+  }, []);
+
+  const toggleSouscription = (id: number) =>
+    setExpandedSouscriptions(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+
+  const toggleVente = (id: number) =>
+    setExpandedVentes(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
 
   const getInitials = (nom: string, prenom: string) => `${prenom?.[0] ?? ''}${nom?.[0] ?? ''}`.toUpperCase();
 
@@ -421,10 +518,10 @@ export default function ClientsPage() {
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-1">
-                        <Link href={`/dashboard/admin/clients/${client.id}`}
-                          className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors" title="Voir">
+                        <button onClick={() => openHistorique(client)}
+                          className="p-2 text-amber-600 hover:bg-amber-50 rounded-lg transition-colors" title="Voir l'historique">
                           <Eye size={16} />
-                        </Link>
+                        </button>
                         <Link href={`/dashboard/admin/clients/${client.id}/edit`}
                           className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Modifier">
                           <Edit size={16} />
@@ -470,6 +567,266 @@ export default function ClientsPage() {
           )}
         </div>
       </div>
+
+      {/* ══ DRAWER — Historique client ════════════════════════════════════ */}
+      {histoClient && (
+        <>
+          {/* Overlay */}
+          <div
+            className="fixed inset-0 bg-black/40 z-[140]"
+            onClick={() => setHistoClient(null)}
+          />
+          {/* Panneau latéral */}
+          <div className="fixed top-0 right-0 h-full w-full max-w-2xl bg-white shadow-2xl z-[150] flex flex-col overflow-hidden">
+
+            {/* Header drawer */}
+            <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100 bg-gradient-to-r from-amber-50 to-orange-50 shrink-0">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-gradient-to-br from-amber-500 to-orange-500 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-md">
+                  {getInitials(histoClient.nom, histoClient.prenom)}
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-slate-800">{histoClient.prenom} {histoClient.nom}</h2>
+                  <div className="flex items-center gap-3 mt-0.5">
+                    <span className="text-sm text-slate-500 flex items-center gap-1"><Phone size={12} />{histoClient.telephone}</span>
+                    {getClientPdvs(histoClient).length > 0 && (
+                      <span className="text-sm text-slate-500 flex items-center gap-1"><Store size={12} />{getClientPdvs(histoClient)[0].nom}</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <button onClick={() => setHistoClient(null)} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-white/60 rounded-xl transition-colors">
+                <X size={22} />
+              </button>
+            </div>
+
+            {/* Contenu scrollable */}
+            <div className="flex-1 overflow-y-auto p-6 space-y-6">
+
+              {histoLoading && (
+                <div className="flex flex-col items-center justify-center py-20 gap-4">
+                  <div className="w-10 h-10 border-4 border-amber-200 border-t-amber-500 rounded-full animate-spin" />
+                  <p className="text-slate-400 text-sm">Chargement de l&apos;historique…</p>
+                </div>
+              )}
+
+              {!histoLoading && histoData && (
+                <>
+                  {/* ── Cartes résumé ── */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4">
+                      <div className="flex items-center gap-2 mb-1">
+                        <TrendingUp size={16} className="text-emerald-600" />
+                        <span className="text-xs font-semibold text-emerald-700 uppercase tracking-wide">Total payé</span>
+                      </div>
+                      <p className="text-2xl font-bold text-emerald-700">{formatCurrency(histoData.totaux.totalPaye)}</p>
+                      <p className="text-xs text-emerald-600 mt-1">
+                        Packs : {formatCurrency(histoData.totaux.totalVersementsPacks)}
+                        {histoData.totaux.totalAchatsDirects > 0 && ` · Achats : ${formatCurrency(histoData.totaux.totalAchatsDirects)}`}
+                      </p>
+                    </div>
+                    <div className="bg-red-50 border border-red-200 rounded-2xl p-4">
+                      <div className="flex items-center gap-2 mb-1">
+                        <TrendingDown size={16} className="text-red-600" />
+                        <span className="text-xs font-semibold text-red-700 uppercase tracking-wide">Total dû</span>
+                      </div>
+                      <p className="text-2xl font-bold text-red-600">{formatCurrency(histoData.totaux.totalDu)}</p>
+                      <p className="text-xs text-red-500 mt-1">Sur souscriptions en cours</p>
+                    </div>
+                    <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4">
+                      <div className="flex items-center gap-2 mb-1">
+                        <CreditCard size={16} className="text-blue-600" />
+                        <span className="text-xs font-semibold text-blue-700 uppercase tracking-wide">Souscriptions</span>
+                      </div>
+                      <p className="text-2xl font-bold text-blue-700">{histoData.totaux.nbSouscriptions}</p>
+                    </div>
+                    <div className="bg-purple-50 border border-purple-200 rounded-2xl p-4">
+                      <div className="flex items-center gap-2 mb-1">
+                        <ShoppingBag size={16} className="text-purple-600" />
+                        <span className="text-xs font-semibold text-purple-700 uppercase tracking-wide">Achats directs</span>
+                      </div>
+                      <p className="text-2xl font-bold text-purple-700">{histoData.totaux.nbAchats}</p>
+                    </div>
+                  </div>
+
+                  {/* ── Souscriptions packs ── */}
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wide mb-3 flex items-center gap-2">
+                      <CreditCard size={15} className="text-blue-500" />
+                      Souscriptions packs ({histoData.souscriptions.length})
+                    </h3>
+                    {histoData.souscriptions.length === 0 ? (
+                      <div className="text-center py-8 text-slate-400 text-sm bg-slate-50 rounded-2xl">Aucune souscription</div>
+                    ) : (
+                      <div className="space-y-3">
+                        {histoData.souscriptions.map((s) => {
+                          const isExpanded = expandedSouscriptions.has(s.id);
+                          const statutColor =
+                            s.statut === 'COMPLETE' ? 'bg-emerald-100 text-emerald-700' :
+                            s.statut === 'ACTIF'    ? 'bg-blue-100 text-blue-700' :
+                            s.statut === 'ANNULE'   ? 'bg-red-100 text-red-700' :
+                                                      'bg-amber-100 text-amber-700';
+                          return (
+                            <div key={s.id} className="border border-slate-200 rounded-2xl overflow-hidden">
+                              {/* En-tête souscription */}
+                              <button
+                                onClick={() => toggleSouscription(s.id)}
+                                className="w-full flex items-center justify-between px-4 py-3 hover:bg-slate-50 transition-colors text-left"
+                              >
+                                <div className="flex items-center gap-3">
+                                  <div className="w-8 h-8 bg-blue-100 rounded-xl flex items-center justify-center">
+                                    <Banknote size={14} className="text-blue-600" />
+                                  </div>
+                                  <div>
+                                    <p className="font-semibold text-slate-800 text-sm">{s.pack.nom}</p>
+                                    <p className="text-xs text-slate-400">{formatDate(s.createdAt)} · {s.versements.length} versement{s.versements.length > 1 ? 's' : ''}</p>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-3">
+                                  <div className="text-right">
+                                    <p className="text-sm font-bold text-emerald-600">{formatCurrency(Number(s.montantVerse))}</p>
+                                    {Number(s.montantRestant) > 0 && (
+                                      <p className="text-xs text-red-500">Reste : {formatCurrency(Number(s.montantRestant))}</p>
+                                    )}
+                                  </div>
+                                  <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${statutColor}`}>{s.statut}</span>
+                                  {isExpanded ? <ChevronDown size={16} className="text-slate-400 shrink-0" /> : <ChevronRight size={16} className="text-slate-400 shrink-0" />}
+                                </div>
+                              </button>
+
+                              {/* Détail versements */}
+                              {isExpanded && (
+                                <div className="border-t border-slate-100 bg-slate-50/60 px-4 pb-3">
+                                  {/* Barre progression */}
+                                  <div className="pt-3 pb-2">
+                                    <div className="flex justify-between text-xs text-slate-500 mb-1">
+                                      <span>Progression</span>
+                                      <span>{Math.min(100, Math.round((Number(s.montantVerse) / Number(s.montantTotal)) * 100))}%</span>
+                                    </div>
+                                    <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
+                                      <div
+                                        className="h-full bg-emerald-500 rounded-full transition-all"
+                                        style={{ width: `${Math.min(100, (Number(s.montantVerse) / Number(s.montantTotal)) * 100)}%` }}
+                                      />
+                                    </div>
+                                    <div className="flex justify-between text-xs mt-1">
+                                      <span className="text-emerald-600 font-medium">{formatCurrency(Number(s.montantVerse))} versé</span>
+                                      <span className="text-slate-500">{formatCurrency(Number(s.montantTotal))} total</span>
+                                    </div>
+                                  </div>
+
+                                  {/* Liste versements */}
+                                  {s.versements.length === 0 ? (
+                                    <p className="text-xs text-slate-400 text-center py-3">Aucun versement enregistré</p>
+                                  ) : (
+                                    <div className="space-y-1.5 mt-1">
+                                      {s.versements.map((v) => (
+                                        <div key={v.id} className="flex items-center justify-between bg-white rounded-xl px-3 py-2 border border-slate-100">
+                                          <div className="flex items-center gap-2">
+                                            <Hash size={11} className="text-slate-300" />
+                                            <div>
+                                              <p className="text-xs font-medium text-slate-700">{formatCurrency(Number(v.montant))}</p>
+                                              <p className="text-xs text-slate-400">{v.encaisseParNom ?? '—'}</p>
+                                            </div>
+                                          </div>
+                                          <div className="text-right">
+                                            <p className="text-xs text-slate-500">{formatDateTime(v.datePaiement)}</p>
+                                            {v.notes && <p className="text-xs text-slate-400 italic truncate max-w-[120px]">{v.notes}</p>}
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* ── Ventes directes ── */}
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wide mb-3 flex items-center gap-2">
+                      <ShoppingBag size={15} className="text-purple-500" />
+                      Achats directs ({histoData.ventesDirectes.length})
+                    </h3>
+                    {histoData.ventesDirectes.length === 0 ? (
+                      <div className="text-center py-8 text-slate-400 text-sm bg-slate-50 rounded-2xl">Aucun achat direct</div>
+                    ) : (
+                      <div className="space-y-3">
+                        {histoData.ventesDirectes.map((v) => {
+                          const isExpanded = expandedVentes.has(v.id);
+                          const statutColor =
+                            v.statut === 'VALIDEE'   ? 'bg-emerald-100 text-emerald-700' :
+                            v.statut === 'PARTIELLE' ? 'bg-amber-100 text-amber-700' :
+                            v.statut === 'ANNULEE'   ? 'bg-red-100 text-red-700' :
+                                                       'bg-slate-100 text-slate-600';
+                          return (
+                            <div key={v.id} className="border border-slate-200 rounded-2xl overflow-hidden">
+                              <button
+                                onClick={() => toggleVente(v.id)}
+                                className="w-full flex items-center justify-between px-4 py-3 hover:bg-slate-50 transition-colors text-left"
+                              >
+                                <div className="flex items-center gap-3">
+                                  <div className="w-8 h-8 bg-purple-100 rounded-xl flex items-center justify-center">
+                                    <Package size={14} className="text-purple-600" />
+                                  </div>
+                                  <div>
+                                    <p className="font-semibold text-slate-800 text-sm font-mono">{v.reference}</p>
+                                    <p className="text-xs text-slate-400">{formatDate(v.createdAt)} · {v.lignes.length} article{v.lignes.length > 1 ? 's' : ''}</p>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-3">
+                                  <div className="text-right">
+                                    <p className="text-sm font-bold text-purple-600">{formatCurrency(Number(v.montantPaye))}</p>
+                                    <p className="text-xs text-slate-400">{v.modePaiement}</p>
+                                  </div>
+                                  <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${statutColor}`}>{v.statut}</span>
+                                  {isExpanded ? <ChevronDown size={16} className="text-slate-400 shrink-0" /> : <ChevronRight size={16} className="text-slate-400 shrink-0" />}
+                                </div>
+                              </button>
+
+                              {isExpanded && (
+                                <div className="border-t border-slate-100 bg-slate-50/60 px-4 py-3 space-y-1.5">
+                                  {v.lignes.map((l, i) => (
+                                    <div key={i} className="flex items-center justify-between bg-white rounded-xl px-3 py-2 border border-slate-100 text-xs">
+                                      <span className="font-medium text-slate-700">{l.produit.nom}</span>
+                                      <span className="text-slate-500">{l.quantite} × {formatCurrency(Number(l.prixUnitaire))} = <span className="font-semibold text-slate-700">{formatCurrency(Number(l.montant))}</span></span>
+                                    </div>
+                                  ))}
+                                  {v.notes && (
+                                    <p className="text-xs text-slate-400 italic px-1">Note : {v.notes}</p>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="px-6 py-4 border-t border-slate-100 bg-slate-50 shrink-0 flex items-center justify-between">
+              <Link
+                href={`/dashboard/admin/clients/${histoClient.id}`}
+                className="text-sm text-blue-600 hover:text-blue-800 font-medium flex items-center gap-1.5"
+              >
+                <Eye size={14} /> Voir la fiche complète
+              </Link>
+              <button onClick={() => setHistoClient(null)} className="px-4 py-2 text-sm text-slate-500 hover:text-slate-700 font-medium">
+                Fermer
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+
     </div>
   );
 }

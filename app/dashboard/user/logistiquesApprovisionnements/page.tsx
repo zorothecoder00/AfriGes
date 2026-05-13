@@ -768,7 +768,7 @@ export default function LogistiqueApprovisionnementPage() {
                           </span>
                         </div>
                         <p className="text-sm text-slate-600 mb-3">
-                          <span className="font-medium">Prix unit. :</span> {formatCurrency(p.prixUnitaire)}
+                          <span className="font-medium">Prix de vente :</span> {formatCurrency(p.prixUnitaire)}
                         </p>
                         <button
                           onClick={() => openReceptionModal(p)}
@@ -1407,7 +1407,7 @@ export default function LogistiqueApprovisionnementPage() {
                   <p className="font-bold text-slate-800 text-lg">{recProduit.alerteStock}</p>
                 </div>
                 <div>
-                  <p className="text-slate-500">Prix unitaire</p>
+                  <p className="text-slate-500">Prix de vente</p>
                   <p className="font-semibold text-slate-700">{formatCurrency(recProduit.prixUnitaire)}</p>
                 </div>
                 <div>
@@ -1535,7 +1535,7 @@ export default function LogistiqueApprovisionnementPage() {
                     </p>
                   </div>
                   <div>
-                    <p className="text-slate-500">Prix unitaire</p>
+                    <p className="text-slate-500">Prix de vente</p>
                     <p className="font-semibold text-slate-700">{formatCurrency(affProduit.prixUnitaire)}</p>
                   </div>
                 </div>

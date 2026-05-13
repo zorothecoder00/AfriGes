@@ -148,7 +148,12 @@ export async function POST(req: Request) {
       where: { id: Number(souscriptionId) },
       include: {
         pack:   { select: { nom: true, type: true } },
-        client: { select: { id: true, nom: true, prenom: true, pointDeVenteId: true } },
+        client: {
+          select: {
+            id: true, nom: true, prenom: true, pointDeVenteId: true,
+            pointsDeVente: { select: { pointDeVenteId: true } },
+          },
+        },
         // Récupérer les lignes des réceptions LIVREE pour calculer le montant déjà livré
         receptions: {
           where:   { statut: "LIVREE" },
@@ -158,7 +163,11 @@ export async function POST(req: Request) {
     });
     if (!souscription)
       return NextResponse.json({ error: "Souscription introuvable" }, { status: 404 });
-    if (souscription.client?.pointDeVenteId !== pdv.id)
+
+    const clientBelongsToPdv =
+      souscription.client?.pointDeVenteId === pdv.id ||
+      souscription.client?.pointsDeVente?.some((p) => p.pointDeVenteId === pdv.id);
+    if (!clientBelongsToPdv)
       return NextResponse.json({ error: "Ce client n'appartient pas à votre PDV" }, { status: 403 });
 
     const { statut, formuleRevendeur, pack } = souscription;
@@ -200,10 +209,11 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: `Une livraison est déjà planifiée (#${existing.id}) pour cette souscription` }, { status: 409 });
 
     // 3. Vérifier stock PDV + récupérer prix pour chaque produit
-    type LigneInput = { produitId: number; quantite: number };
+    type LigneInput = { produitId: number; quantite: number; prixUnitaire?: number };
     const lignesInput: LigneInput[] = (lignes as LigneInput[]).map((l) => ({
-      produitId: Number(l.produitId),
-      quantite:  Number(l.quantite),
+      produitId:    Number(l.produitId),
+      quantite:     Number(l.quantite),
+      prixUnitaire: l.prixUnitaire != null ? Number(l.prixUnitaire) : undefined,
     }));
 
     const produitIds = lignesInput.map((l) => l.produitId);
@@ -231,8 +241,9 @@ export async function POST(req: Request) {
     }
 
     // 4. Vérifier que le montant cumulé (déjà livré + nouvelle livraison) ne dépasse pas le montant total du pack
+    // Priorité au prix soumis par le RPV, sinon on utilise le prix catalogue du produit
     const montantNouvelleLivraison = lignesInput.reduce(
-      (s, l) => s + Number(produitMap.get(l.produitId)!.prixUnitaire) * l.quantite,
+      (s, l) => s + (l.prixUnitaire ?? Number(produitMap.get(l.produitId)!.prixUnitaire)) * l.quantite,
       0
     );
     const montantDejaLivre = souscription.receptions.reduce(
@@ -264,7 +275,7 @@ export async function POST(req: Request) {
             create: lignesInput.map((l) => ({
               produitId:    l.produitId,
               quantite:     l.quantite,
-              prixUnitaire: produitMap.get(l.produitId)!.prixUnitaire,
+              prixUnitaire: l.prixUnitaire ?? produitMap.get(l.produitId)!.prixUnitaire,
             })),
           },
         },
