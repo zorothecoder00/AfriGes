@@ -71,10 +71,9 @@ export async function GET(req: Request) {
           },
         },
         _count: { select: { versements: true, echeances: true, receptions: true } },
-        // Bug #2: inclure seulement les réceptions LIVREE pour filtrer correctement dans TabLivraisons
         receptions: {
-          where: { statut: "LIVREE" },
-          select: { id: true },
+          where:  { statut: "LIVREE" },
+          select: { id: true, dateLivraison: true, lignes: { select: { quantite: true, prixUnitaire: true } } },
         },
         echeances: {
           where: { statut: { in: ["EN_ATTENTE", "EN_RETARD"] } },
@@ -90,7 +89,21 @@ export async function GET(req: Request) {
       _sum: { montantVerse: true, montantTotal: true },
     });
 
-    return NextResponse.json({ souscriptions, stats });
+    const TYPES_CYCLE = ["FAMILIAL", "EPARGNE_PRODUIT"];
+    const souscriptionsAvecBudget = souscriptions.map((s) => {
+      const receptionsRef = TYPES_CYCLE.includes(s.pack.type)
+        ? s.receptions.filter(
+            (r) => r.dateLivraison != null && new Date(r.dateLivraison) >= new Date(s.dateDebut)
+          )
+        : s.receptions;
+      const montantDejaLivre = receptionsRef.reduce(
+        (sum, r) => sum + r.lignes.reduce((s2, l) => s2 + Number(l.prixUnitaire) * l.quantite, 0),
+        0
+      );
+      return { ...s, montantDejaLivre };
+    });
+
+    return NextResponse.json({ souscriptions: souscriptionsAvecBudget, stats });
   } catch (error) {
     console.error("GET /api/admin/packs/souscriptions", error);
     return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });

@@ -45,12 +45,13 @@ export async function GET(_req: Request, { params }: Ctx) {
       where: {
         clientId,
         statut: { in: ["EN_ATTENTE", "ACTIF", "COMPLETE"] },
-        // Pas de livraison en attente de confirmation
         receptions: { none: { statut: "PLANIFIEE" } },
       },
       include: {
-        pack: {
-          select: { id: true, nom: true, type: true, frequenceVersement: true },
+        pack: { select: { id: true, nom: true, type: true, frequenceVersement: true } },
+        receptions: {
+          where:  { statut: "LIVREE" },
+          select: { dateLivraison: true, lignes: { select: { quantite: true, prixUnitaire: true } } },
         },
         _count: { select: { versements: true, echeances: true } },
       },
@@ -67,6 +68,22 @@ export async function GET(_req: Request, { params }: Ctx) {
         default:
           return s.statut === "COMPLETE";
       }
+    });
+
+    // Calcul du montant déjà livré par souscription (cycle-aware pour FAMILIAL/EPARGNE_PRODUIT)
+    const TYPES_CYCLE = ["FAMILIAL", "EPARGNE_PRODUIT"];
+    const eligiblesAvecBudget = souscriptionsEligibles.map((s) => {
+      const receptionsRef = TYPES_CYCLE.includes(s.pack.type)
+        ? s.receptions.filter(
+            (r) => r.dateLivraison != null && new Date(r.dateLivraison) >= new Date(s.dateDebut)
+          )
+        : s.receptions;
+      const montantDejaLivre = receptionsRef.reduce(
+        (sum, r) => sum + r.lignes.reduce((s2, l) => s2 + Number(l.prixUnitaire) * l.quantite, 0),
+        0
+      );
+      const { receptions: _r, ...rest } = s;
+      return { ...rest, montantDejaLivre };
     });
 
     const raisons: string[] = [];
@@ -105,8 +122,8 @@ export async function GET(_req: Request, { params }: Ctx) {
     }
 
     return NextResponse.json({
-      eligible: souscriptionsEligibles.length > 0,
-      souscriptions: souscriptionsEligibles,
+      eligible: eligiblesAvecBudget.length > 0,
+      souscriptions: eligiblesAvecBudget,
       client,
       raisons,
     });

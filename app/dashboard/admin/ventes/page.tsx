@@ -64,7 +64,7 @@ interface ReceptionsResponse {
 }
 interface EligibilitePackResponse {
   eligible: boolean; raisons: string[];
-  souscriptions: { id: number; pack: { nom: string; type: string }; statut: string; montantTotal: number; montantVerse: number; montantRestant: number }[];
+  souscriptions: { id: number; pack: { nom: string; type: string }; statut: string; montantTotal: number; montantVerse: number; montantRestant: number; montantDejaLivre: number }[];
   client: ClientOption;
 }
 interface ProduitOption { id: number; nom: string; prixUnitaire: string; prixAchat?: string | null; stock: number; totalStock?: number; }
@@ -1021,9 +1021,11 @@ export default function VentesPage() {
                     const sousc = eligibilitePack.souscriptions.find(s => String(s.id) === souscId)
                       ?? (eligibilitePack.souscriptions.length === 1 ? eligibilitePack.souscriptions[0] : null);
                     if (!sousc) return null;
-                    const mTotal   = Number(sousc.montantTotal);
-                    const mVerse   = Number(sousc.montantVerse);
-                    const mRestant = Number(sousc.montantRestant);
+                    const mTotal        = Number(sousc.montantTotal);
+                    const mVerse        = Number(sousc.montantVerse);
+                    const mRestant      = Number(sousc.montantRestant);
+                    const mDejaLivre    = Number(sousc.montantDejaLivre ?? 0);
+                    const mDispoLivr    = Math.max(0, (mVerse > 0 ? mVerse : mTotal) - mDejaLivre);
                     const pct = mTotal > 0 ? Math.min(100, Math.round((mVerse / mTotal) * 100)) : 0;
                     return (
                       <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 space-y-2">
@@ -1045,7 +1047,10 @@ export default function VentesPage() {
                         <div className="h-1.5 bg-slate-200 rounded-full overflow-hidden">
                           <div className="h-full bg-emerald-500 rounded-full transition-all" style={{ width: `${pct}%` }} />
                         </div>
-                        <p className="text-xs text-slate-400">{pct}% payé — budget disponible pour livraison : <strong className="text-emerald-700">{formatCurrency(mVerse)}</strong></p>
+                        {mDejaLivre > 0 && (
+                          <p className="text-xs text-orange-600">Déjà livré : <strong>{formatCurrency(mDejaLivre)}</strong></p>
+                        )}
+                        <p className="text-xs text-slate-400">Budget disponible pour cette livraison : <strong className="text-emerald-700">{formatCurrency(mDispoLivr)}</strong></p>
                       </div>
                     );
                   })()}
@@ -1072,12 +1077,13 @@ export default function VentesPage() {
                     const stockDispo = selectedProduit ? (selectedProduit.totalStock ?? selectedProduit.stock ?? 0) : 0;
                     const stockDepasse = selectedProduit ? qte > stockDispo : false;
                     const totalLivraison = qte * prix;
-                    // Budget dispo = montantVerse de la souscription sélectionnée
                     const souscId = formPack.souscriptionId ||
                       (eligibilitePack.souscriptions.length === 1 ? String(eligibilitePack.souscriptions[0].id) : '');
                     const sousc = eligibilitePack.souscriptions.find(s => String(s.id) === souscId)
                       ?? (eligibilitePack.souscriptions.length === 1 ? eligibilitePack.souscriptions[0] : null);
-                    const budgetDispo = sousc ? Number(sousc.montantVerse) : 0;
+                    const mVerse2      = sousc ? Number(sousc.montantVerse) : 0;
+                    const mDejaLivre2  = sousc ? Number(sousc.montantDejaLivre ?? 0) : 0;
+                    const budgetDispo  = Math.max(0, (mVerse2 > 0 ? mVerse2 : (sousc ? Number(sousc.montantTotal) : 0)) - mDejaLivre2);
                     const budgetDepasse = totalLivraison > budgetDispo && budgetDispo > 0;
                     return (
                       <div className="space-y-3">
@@ -1143,7 +1149,9 @@ export default function VentesPage() {
                         if (parseInt(formPack.quantite) > (p.totalStock ?? p.stock ?? 0)) return true;
                         const souscId = formPack.souscriptionId || (eligibilitePack.souscriptions.length === 1 ? String(eligibilitePack.souscriptions[0].id) : '');
                         const sousc = eligibilitePack.souscriptions.find(s => String(s.id) === souscId) ?? (eligibilitePack.souscriptions.length === 1 ? eligibilitePack.souscriptions[0] : null);
-                        const budgetDispo = sousc ? Number(sousc.montantVerse) : 0;
+                        const mv = sousc ? Number(sousc.montantVerse) : 0;
+                        const mdl = sousc ? Number(sousc.montantDejaLivre ?? 0) : 0;
+                        const budgetDispo = Math.max(0, (mv > 0 ? mv : (sousc ? Number(sousc.montantTotal) : 0)) - mdl);
                         const total = (parseInt(formPack.quantite) || 0) * (parseFloat(formPack.prixUnitaire) || 0);
                         return budgetDispo > 0 && total > budgetDispo;
                       })()}

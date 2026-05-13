@@ -52,6 +52,7 @@ interface Souscription {
   montantTotal: number;
   montantVerse: number;
   montantRestant: number;
+  montantDejaLivre: number;
   numeroCycle: number;
   dateDebut: string;
   dateFin?: string;
@@ -2301,11 +2302,12 @@ function ModalPlanifierLivraison({
   }, [produits]);
 
   // Budget en temps réel
-  const montantTotal   = Number(souscription.montantTotal);
-  const montantVerse   = Number(souscription.montantVerse);
-  const montantRestant = Number(souscription.montantRestant);
-  // Budget disponible = ce que le client a payé (sauf si entièrement soldé)
-  const budgetDispo = montantVerse > 0 ? montantVerse : montantTotal;
+  const montantTotal      = Number(souscription.montantTotal);
+  const montantVerse      = Number(souscription.montantVerse);
+  const montantRestant    = Number(souscription.montantRestant);
+  const montantDejaLivre  = Number(souscription.montantDejaLivre ?? 0);
+  // Budget disponible = ce que le client a payé MOINS ce qui a déjà été livré
+  const budgetDispo = Math.max(0, (montantVerse > 0 ? montantVerse : montantTotal) - montantDejaLivre);
   const montantLignes = lignes.reduce((sum, l) => {
     const qte = parseInt(l.quantite) || 0;
     const prix = parseFloat(l.prixUnitaire) || 0;
