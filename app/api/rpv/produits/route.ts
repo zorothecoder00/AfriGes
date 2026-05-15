@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { Prisma, PrioriteNotification } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getRPVSession } from "@/lib/authRPV";
-import { randomUUID } from "crypto";
 import { notifyRoles, auditLog } from "@/lib/notifications";
 
 /**
@@ -97,7 +96,7 @@ export async function POST(req: Request) {
     const session = await getRPVSession();
     if (!session) return NextResponse.json({ message: "Accès refusé" }, { status: 403 });
 
-    const { nom, prixUnitaire, description, stock, alerteStock } = await req.json();
+    const { nom, prixUnitaire, description, alerteStock } = await req.json();
 
     if (!nom || !prixUnitaire) {
       return NextResponse.json({ message: "nom et prixUnitaire sont requis" }, { status: 400 });
@@ -105,8 +104,6 @@ export async function POST(req: Request) {
     if (Number(prixUnitaire) <= 0) {
       return NextResponse.json({ message: "Le prix unitaire doit être positif" }, { status: 400 });
     }
-
-    const stockInit = Math.max(0, Number(stock ?? 0));
 
     // Récupérer le PDV du RPV (cohérent avec GET qui utilise rpvId)
     const pdv = await prisma.pointDeVente.findUnique({
@@ -125,28 +122,15 @@ export async function POST(req: Request) {
         },
       });
 
-      // Toujours créer un StockSite pour ce PDV (même à 0) afin que le produit
-      // soit visible dans le stock et les modales d'approvisionnement du RPV
+      // Créer un StockSite à 0 pour ce PDV afin que le produit soit visible
+      // dans le stock. Le stock est alimenté uniquement via "Approvisionner".
       await tx.stockSite.create({
         data: {
           produitId:      created.id,
           pointDeVenteId: pdv.id,
-          quantite:       stockInit,
+          quantite:       0,
         },
       });
-
-      if (stockInit > 0) {
-        await tx.mouvementStock.create({
-          data: {
-            produitId:      created.id,
-            pointDeVenteId: pdv.id,
-            type:           "ENTREE",
-            quantite:       stockInit,
-            motif:          `Stock initial — créé par ${session.user.name ?? "RPV"}`,
-            reference:      `RPV-INIT-${randomUUID()}`,
-          },
-        });
-      }
 
       await auditLog(tx, parseInt(session.user.id), "CREATION_PRODUIT_RPV", "Produit", created.id);
 
@@ -155,7 +139,7 @@ export async function POST(req: Request) {
         ["MAGAZINIER", "AGENT_LOGISTIQUE_APPROVISIONNEMENT"],
         {
           titre:    `Nouveau produit : ${nom}`,
-          message:  `${session.user.name ?? "RPV"} a créé le produit "${nom}" (prix : ${Number(prixUnitaire).toLocaleString("fr-FR")} FCFA${stockInit > 0 ? `, stock initial : ${stockInit}` : ""}).`,
+          message:  `${session.user.name ?? "RPV"} a créé le produit "${nom}" (prix : ${Number(prixUnitaire).toLocaleString("fr-FR")} FCFA). Stock à 0 — à approvisionner.`,
           priorite: PrioriteNotification.BASSE,
           actionUrl: `/dashboard/admin/stock`,
         }

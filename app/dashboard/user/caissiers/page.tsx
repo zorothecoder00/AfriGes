@@ -1447,7 +1447,7 @@ export default function CaissierPage() {
                   onClick={() => setEditDateModal(false)}
                   className="flex-1 py-2.5 border border-slate-200 text-slate-600 rounded-xl text-sm font-medium hover:bg-slate-50 transition-colors"
                 >
-                  Annuler
+                  {t('btn_cancel')}
                 </button>
                 <button
                   type="submit"

@@ -20,16 +20,45 @@ const AppSettingsContext = createContext<AppSettingsCtx>({
 });
 
 export function AppSettingsProvider({ children }: { children: React.ReactNode }) {
-  const [langue, setLangue] = useState<Langue>(() => {
-    if (typeof window === "undefined") return "fr";
-    return getStoredSetting("platform.langue", "fr") as Langue;
-  });
+  const [langue, setLangue] = useState<Langue>("fr");
 
   useEffect(() => {
-    // Initialise uniquement les effets DOM (thème, lang attr, dir)
+    // 1. Appliquer immédiatement les settings DOM depuis localStorage (pas de setState = pas de re-render)
     initAppSettings();
-    // Écoute les changements de stockage (si la même app est ouverte dans plusieurs onglets)
-    const listener = () => initAppSettings();
+
+    // 2. Synchroniser depuis la BDD (async → setState uniquement en callback, jamais synchrone)
+    fetch("/api/app-settings")
+      .then((r) => r.ok ? r.json() : null)
+      .then((json) => {
+        const localStored = getStoredSetting("platform.langue", "fr") as Langue;
+        if (!json?.success || !json.data) {
+          // Fetch échoué → fallback localStorage
+          setLangue(localStored);
+          return;
+        }
+        const data: Record<string, string> = json.data;
+        // Sync localStorage
+        const current = (() => {
+          try { return JSON.parse(localStorage.getItem("afriges_app_settings") ?? "{}"); }
+          catch { return {}; }
+        })();
+        localStorage.setItem("afriges_app_settings", JSON.stringify({ ...current, ...data }));
+        // Appliquer au DOM
+        applySettingsToDOM(data);
+        // Un seul setState, en callback async
+        const dbLangue = (data["platform.langue"] ?? localStored) as Langue;
+        setLangue(dbLangue);
+      })
+      .catch(() => {
+        // Fetch échoué → fallback localStorage
+        setLangue(getStoredSetting("platform.langue", "fr") as Langue);
+      });
+
+    // 3. Écoute les changements de stockage (multi-onglets)
+    const listener = () => {
+      setLangue(getStoredSetting("platform.langue", "fr") as Langue);
+      initAppSettings();
+    };
     window.addEventListener("storage", listener);
     return () => window.removeEventListener("storage", listener);
   }, []);

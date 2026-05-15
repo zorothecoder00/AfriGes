@@ -76,7 +76,8 @@ export async function GET() {
       alertes.push({
         type: "stock",
         niveau: alertesStock.length > 5 ? "critique" : "warning",
-        message: `${alertesStock.length} produit(s) en dessous du seuil d'alerte`,
+        alertKey: "alert_low_stock",
+        count: alertesStock.length,
         detail: alertesStock.slice(0, 3).map((s) => `${s.produit.nom} (${s.pointDeVente.nom})`).join(", "),
       });
     }
@@ -84,7 +85,8 @@ export async function GET() {
       alertes.push({
         type: "appro",
         niveau: "info",
-        message: `${approsEnAttente} réception(s) d'approvisionnement en attente`,
+        alertKey: "alert_appro_pending",
+        count: approsEnAttente,
         detail: "",
       });
     }
@@ -92,7 +94,8 @@ export async function GET() {
       alertes.push({
         type: "caisse",
         niveau: "info",
-        message: `${sessionsCaisseOuvertes} session(s) de caisse ouvertes`,
+        alertKey: "alert_sessions_open",
+        count: sessionsCaisseOuvertes,
         detail: "",
       });
     }

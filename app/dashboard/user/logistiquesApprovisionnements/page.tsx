@@ -697,7 +697,7 @@ export default function LogistiqueApprovisionnementPage() {
                       {produits.length === 0 && !stockLoading && (
                         <tr>
                           <td colSpan={7} className="px-6 py-12 text-center text-slate-400">
-                            Aucun produit trouvé
+                            {t('text_no_result')}
                           </td>
                         </tr>
                       )}
@@ -717,7 +717,7 @@ export default function LogistiqueApprovisionnementPage() {
                       disabled={stockPage <= 1}
                       className="px-4 py-2 border border-slate-200 rounded-lg text-sm text-slate-600 hover:bg-slate-50 disabled:opacity-40"
                     >
-                      Précédent
+                      {t('btn_prev')}
                     </button>
                     <span className="px-4 py-2 bg-cyan-600 text-white rounded-lg text-sm font-medium">{stockPage}</span>
                     <button
@@ -725,7 +725,7 @@ export default function LogistiqueApprovisionnementPage() {
                       disabled={stockPage >= meta.totalPages}
                       className="px-4 py-2 border border-slate-200 rounded-lg text-sm text-slate-600 hover:bg-slate-50 disabled:opacity-40"
                     >
-                      Suivant
+                      {t('btn_next')}
                     </button>
                   </div>
                 </div>
@@ -861,7 +861,7 @@ export default function LogistiqueApprovisionnementPage() {
                     {(affectationsRes?.data ?? []).length === 0 && (
                       <tr>
                         <td colSpan={6} className="px-6 py-12 text-center text-slate-400">
-                          Aucune affectation enregistrée
+                          {t('text_no_result')}
                         </td>
                       </tr>
                     )}
@@ -876,10 +876,10 @@ export default function LogistiqueApprovisionnementPage() {
                   </p>
                   <div className="flex items-center gap-2">
                     <button onClick={() => setAffPage(p => Math.max(1, p - 1))} disabled={affPage <= 1}
-                      className="px-4 py-2 border border-slate-200 rounded-lg text-sm text-slate-600 hover:bg-slate-50 disabled:opacity-40">Précédent</button>
+                      className="px-4 py-2 border border-slate-200 rounded-lg text-sm text-slate-600 hover:bg-slate-50 disabled:opacity-40">{t('btn_prev')}</button>
                     <span className="px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium">{affPage}</span>
                     <button onClick={() => setAffPage(p => Math.min(affectationsRes.meta.totalPages, p + 1))} disabled={affPage >= affectationsRes.meta.totalPages}
-                      className="px-4 py-2 border border-slate-200 rounded-lg text-sm text-slate-600 hover:bg-slate-50 disabled:opacity-40">Suivant</button>
+                      className="px-4 py-2 border border-slate-200 rounded-lg text-sm text-slate-600 hover:bg-slate-50 disabled:opacity-40">{t('btn_next')}</button>
                   </div>
                 </div>
               )}
@@ -946,7 +946,11 @@ export default function LogistiqueApprovisionnementPage() {
                           <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">En attente</span>
                         </div>
                         <p className="text-sm font-medium text-slate-700">Fournisseur : {liv.fournisseurNom ?? "Non précisé"}</p>
-                        <p className="text-xs text-slate-400 mt-0.5">Prévu le {formatDate(liv.datePrevisionnelle)} — {liv.lignes.length} produit(s)</p>
+                        <p className="text-xs text-slate-400 mt-0.5">
+                          Prévu le {formatDate(liv.datePrevisionnelle)}
+                          {liv.dateReception && <> · <span className="text-emerald-600 font-medium">Reçu le {formatDate(liv.dateReception)}</span></>}
+                          {' '}— {liv.lignes.length} produit(s)
+                        </p>
                         <div className="flex flex-wrap gap-1.5 mt-1.5">
                           {liv.lignes.map(l => (
                             <span key={l.id} className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-lg">
@@ -991,7 +995,11 @@ export default function LogistiqueApprovisionnementPage() {
                             <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-teal-100 text-teal-700">En cours</span>
                           </div>
                           <p className="text-sm text-slate-700">Fournisseur : {liv.fournisseurNom ?? "—"}</p>
-                          <p className="text-xs text-slate-400 mt-0.5">Prévu le {formatDate(liv.datePrevisionnelle)} — en attente de confirmation par le Magasinier</p>
+                          <p className="text-xs text-slate-400 mt-0.5">
+                            Prévu le {formatDate(liv.datePrevisionnelle)}
+                            {liv.dateReception && <> · <span className="text-emerald-600 font-medium">Reçu le {formatDate(liv.dateReception)}</span></>}
+                            {' '}— en attente de confirmation par le Magasinier
+                          </p>
                         </div>
                         {expandedRpvId === liv.id ? <ChevronUp size={16} className="text-slate-400 shrink-0" /> : <ChevronDown size={16} className="text-slate-400 shrink-0" />}
                       </div>
@@ -1116,8 +1124,9 @@ export default function LogistiqueApprovisionnementPage() {
                             ))}
                           </div>
                           <p className="text-xs text-slate-400 mt-1">
-                            Prévu le {formatDate(rec.datePrevisionnelle)} —{" "}
-                            {new Intl.NumberFormat("fr-FR", { style: "currency", currency: "XOF" }).format(montantTotal)}
+                            Prévu le {formatDate(rec.datePrevisionnelle)}
+                            {rec.dateLivraison && <> · <span className="text-emerald-600 font-medium">Livré le {formatDate(rec.dateLivraison)}</span></>}
+                            {" "}— {new Intl.NumberFormat("fr-FR", { style: "currency", currency: "XOF" }).format(montantTotal)}
                           </p>
                         </div>
                         <button
@@ -1216,7 +1225,7 @@ export default function LogistiqueApprovisionnementPage() {
                     {(receptionsRes?.data ?? []).length === 0 && (
                       <tr>
                         <td colSpan={5} className="px-6 py-12 text-center text-slate-400">
-                          Aucune réception enregistrée
+                          {t('text_no_result')}
                         </td>
                       </tr>
                     )}
@@ -1231,10 +1240,10 @@ export default function LogistiqueApprovisionnementPage() {
                   </p>
                   <div className="flex items-center gap-2">
                     <button onClick={() => setLivrPage(p => Math.max(1, p - 1))} disabled={livrPage <= 1}
-                      className="px-4 py-2 border border-slate-200 rounded-lg text-sm disabled:opacity-40">Précédent</button>
+                      className="px-4 py-2 border border-slate-200 rounded-lg text-sm disabled:opacity-40">{t('btn_prev')}</button>
                     <span className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-medium">{livrPage}</span>
                     <button onClick={() => setLivrPage(p => Math.min(receptionsRes.meta.totalPages, p + 1))} disabled={livrPage >= receptionsRes.meta.totalPages}
-                      className="px-4 py-2 border border-slate-200 rounded-lg text-sm disabled:opacity-40">Suivant</button>
+                      className="px-4 py-2 border border-slate-200 rounded-lg text-sm disabled:opacity-40">{t('btn_next')}</button>
                   </div>
                 </div>
               )}
@@ -1346,7 +1355,7 @@ export default function LogistiqueApprovisionnementPage() {
                     {(journalRes?.data ?? []).length === 0 && (
                       <tr>
                         <td colSpan={7} className="px-6 py-12 text-center text-slate-400">
-                          Aucun mouvement trouvé
+                          {t('text_no_result')}
                         </td>
                       </tr>
                     )}
@@ -1361,10 +1370,10 @@ export default function LogistiqueApprovisionnementPage() {
                   </p>
                   <div className="flex items-center gap-2">
                     <button onClick={() => setJournalPage(p => Math.max(1, p - 1))} disabled={journalPage <= 1}
-                      className="px-4 py-2 border border-slate-200 rounded-lg text-sm disabled:opacity-40">Précédent</button>
+                      className="px-4 py-2 border border-slate-200 rounded-lg text-sm disabled:opacity-40">{t('btn_prev')}</button>
                     <span className="px-4 py-2 bg-cyan-600 text-white rounded-lg text-sm font-medium">{journalPage}</span>
                     <button onClick={() => setJournalPage(p => Math.min(journalRes.meta.totalPages, p + 1))} disabled={journalPage >= journalRes.meta.totalPages}
-                      className="px-4 py-2 border border-slate-200 rounded-lg text-sm disabled:opacity-40">Suivant</button>
+                      className="px-4 py-2 border border-slate-200 rounded-lg text-sm disabled:opacity-40">{t('btn_next')}</button>
                   </div>
                 </div>
               )}
@@ -1480,7 +1489,7 @@ export default function LogistiqueApprovisionnementPage() {
                   onClick={closeReceptionModal}
                   className="flex-1 py-2.5 border border-slate-200 text-slate-700 rounded-xl hover:bg-slate-50 font-medium text-sm transition-colors"
                 >
-                  Annuler
+                  {t('btn_cancel')}
                 </button>
                 <button
                   type="submit"
@@ -1650,7 +1659,7 @@ export default function LogistiqueApprovisionnementPage() {
                   onClick={closeAffModal}
                   className="flex-1 py-2.5 border border-slate-200 text-slate-700 rounded-xl hover:bg-slate-50 font-medium text-sm transition-colors"
                 >
-                  Annuler
+                  {t('btn_cancel')}
                 </button>
                 <button
                   type="submit"

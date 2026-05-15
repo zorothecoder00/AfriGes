@@ -9,6 +9,7 @@ import {
 import Link from 'next/link';
 import { useApi, useMutation } from '@/hooks/useApi';
 import { formatDate } from '@/lib/format';
+import { useT } from '@/contexts/AppSettingsContext';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -47,6 +48,7 @@ function initials(nom: string, prenom: string) {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function PDVPage() {
+  const t = useT();
   const [search, setSearch]         = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [page, setPage]             = useState(1);
@@ -175,22 +177,22 @@ export default function PDVPage() {
               <ArrowLeft className="w-5 h-5 text-slate-600" />
             </Link>
             <div>
-              <h1 className="text-4xl font-bold text-slate-800 mb-2">Points de vente</h1>
-              <p className="text-slate-500">Gérez vos PDV, dépôts et leurs responsables</p>
+              <h1 className="text-4xl font-bold text-slate-800 mb-2">{t('pdv_page_title')}</h1>
+              <p className="text-slate-500">{t('pdv_page_subtitle')}</p>
             </div>
           </div>
           <button onClick={() => setCreateOpen(true)}
             className="px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all shadow-lg shadow-blue-200 flex items-center gap-2 font-medium">
-            <Plus size={20} /> Nouveau PDV / Dépôt
+            <Plus size={20} /> {t('pdv_new_btn')}
           </button>
         </div>
 
         {/* ── Stats ─────────────────────────────────────────────────────── */}
         <div className="grid grid-cols-3 gap-5">
           {[
-            { label: 'Points de vente', value: String(stats?.totalPDV ?? 0),    icon: Store,     color: 'bg-blue-500',   lightBg: 'bg-blue-50' },
-            { label: 'Dépôts centraux', value: String(stats?.totalDepot ?? 0),  icon: Building2, color: 'bg-purple-500', lightBg: 'bg-purple-50' },
-            { label: 'Actifs',          value: String(stats?.totalActifs ?? 0), icon: CheckCircle,color:'bg-emerald-500',lightBg: 'bg-emerald-50' },
+            { label: t('pdv_type_pdv'),   value: String(stats?.totalPDV ?? 0),    icon: Store,      color: 'bg-blue-500',   lightBg: 'bg-blue-50' },
+            { label: t('pdv_type_depot'), value: String(stats?.totalDepot ?? 0),  icon: Building2, color: 'bg-purple-500', lightBg: 'bg-purple-50' },
+            { label: t('pdv_actifs_count'), value: String(stats?.totalActifs ?? 0), icon: CheckCircle, color: 'bg-emerald-500', lightBg: 'bg-emerald-50' },
           ].map((s, i) => {
             const Icon = s.icon;
             return (
@@ -210,21 +212,21 @@ export default function PDVPage() {
           <div className="flex gap-3">
             <div className="flex-1 relative">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-              <input type="text" placeholder="Rechercher par nom ou code…" value={search}
+              <input type="text" placeholder={t('pdv_search_ph')} value={search}
                 onChange={e => { setSearch(e.target.value); setPage(1); }}
                 className="w-full pl-11 pr-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50 text-sm" />
             </div>
             <select value={filterType} onChange={e => { setFilterType(e.target.value); setPage(1); }}
               className="px-4 py-2.5 border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
-              <option value="">Tous les types</option>
-              <option value="POINT_DE_VENTE">Point de vente</option>
-              <option value="DEPOT_CENTRAL">Dépôt central</option>
+              <option value="">{t('pdv_all_types')}</option>
+              <option value="POINT_DE_VENTE">{t('pdv_type_pdv')}</option>
+              <option value="DEPOT_CENTRAL">{t('pdv_type_depot')}</option>
             </select>
             <select value={filterActif} onChange={e => { setFilterActif(e.target.value); setPage(1); }}
               className="px-4 py-2.5 border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
-              <option value="">Tous statuts</option>
-              <option value="true">Actifs</option>
-              <option value="false">Inactifs</option>
+              <option value="">{t('pdv_all_statuts')}</option>
+              <option value="true">{t('text_actifs')}</option>
+              <option value="false">{t('text_inactifs')}</option>
             </select>
           </div>
         </div>
@@ -239,49 +241,49 @@ export default function PDVPage() {
                 className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg">
                 <X size={18} />
               </button>
-              <h2 className="text-xl font-bold text-slate-800 mb-1">Nouveau point de vente</h2>
-              <p className="text-sm text-slate-500 mb-5">Créer un PDV ou un dépôt central</p>
+              <h2 className="text-xl font-bold text-slate-800 mb-1">{t('pdv_create_title')}</h2>
+              <p className="text-sm text-slate-500 mb-5">{t('pdv_create_subtitle')}</p>
               {createError && (
                 <p className="text-red-500 text-sm bg-red-50 border border-red-200 rounded-xl px-3 py-2 mb-4">{createError}</p>
               )}
               <form onSubmit={handleCreate} className="space-y-4">
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Code *</label>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">{t('label_code')} *</label>
                     <input type="text" required placeholder="Ex: PDV-DAKAR-01" value={createForm.code}
                       onChange={e => setCreateForm(f => ({ ...f, code: e.target.value.toUpperCase() }))}
                       className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm font-mono" />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Type</label>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">{t('label_type')}</label>
                     <select value={createForm.type}
                       onChange={e => setCreateForm(f => ({ ...f, type: e.target.value }))}
                       className="w-full px-4 py-2.5 border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
-                      <option value="POINT_DE_VENTE">Point de vente</option>
-                      <option value="DEPOT_CENTRAL">Dépôt central</option>
+                      <option value="POINT_DE_VENTE">{t('pdv_type_pdv')}</option>
+                      <option value="DEPOT_CENTRAL">{t('pdv_type_depot')}</option>
                     </select>
                   </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Nom *</label>
-                  <input type="text" required placeholder="Nom complet du PDV" value={createForm.nom}
+                  <label className="block text-sm font-medium text-slate-700 mb-1">{t('label_nom')} *</label>
+                  <input type="text" required placeholder={t('label_nom')} value={createForm.nom}
                     onChange={e => setCreateForm(f => ({ ...f, nom: e.target.value }))}
                     className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm" />
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">
-                      <MapPin size={13} className="inline mr-1 text-slate-400" />Adresse
+                      <MapPin size={13} className="inline mr-1 text-slate-400" />{t('label_adresse')}
                     </label>
-                    <input type="text" placeholder="Adresse" value={createForm.adresse}
+                    <input type="text" placeholder={t('label_adresse')} value={createForm.adresse}
                       onChange={e => setCreateForm(f => ({ ...f, adresse: e.target.value }))}
                       className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm" />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">
-                      <Phone size={13} className="inline mr-1 text-slate-400" />Téléphone
+                      <Phone size={13} className="inline mr-1 text-slate-400" />{t('label_telephone')}
                     </label>
-                    <input type="text" placeholder="Téléphone" value={createForm.telephone}
+                    <input type="text" placeholder={t('label_telephone')} value={createForm.telephone}
                       onChange={e => setCreateForm(f => ({ ...f, telephone: e.target.value }))}
                       className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm" />
                   </div>
@@ -289,12 +291,12 @@ export default function PDVPage() {
                 {createForm.type === 'POINT_DE_VENTE' && (
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">
-                      <UserCheck size={13} className="inline mr-1 text-slate-400" />Responsable PDV (RPV)
+                      <UserCheck size={13} className="inline mr-1 text-slate-400" />{t('label_pdv_responsable')}
                     </label>
                     <select value={createForm.rpvId}
                       onChange={e => setCreateForm(f => ({ ...f, rpvId: e.target.value }))}
                       className="w-full px-4 py-2.5 border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
-                      <option value="">Aucun (assigner plus tard)</option>
+                      <option value="">{t('text_none_assign_later')}</option>
                       {rpvOptions.map(g => (
                         <option key={g.id} value={g.member.id}>
                           {g.member.prenom} {g.member.nom}
@@ -305,12 +307,12 @@ export default function PDVPage() {
                 )}
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">
-                    <User size={13} className="inline mr-1 text-slate-400" />Chef d&apos;agence
+                    <User size={13} className="inline mr-1 text-slate-400" />{t('label_chef_agence')}
                   </label>
                   <select value={createForm.chefAgenceId}
                     onChange={e => setCreateForm(f => ({ ...f, chefAgenceId: e.target.value }))}
                     className="w-full px-4 py-2.5 border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
-                    <option value="">Aucun (assigner plus tard)</option>
+                    <option value="">{t('text_none_assign_later')}</option>
                     {chefOptions.map(g => (
                       <option key={g.id} value={g.member.id}>
                         {g.member.prenom} {g.member.nom}
@@ -320,7 +322,7 @@ export default function PDVPage() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">
-                    <FileText size={13} className="inline mr-1 text-slate-400" />Notes
+                    <FileText size={13} className="inline mr-1 text-slate-400" />{t('label_notes')}
                   </label>
                   <textarea rows={2} placeholder="Notes internes…" value={createForm.notes}
                     onChange={e => setCreateForm(f => ({ ...f, notes: e.target.value }))}
@@ -328,7 +330,7 @@ export default function PDVPage() {
                 </div>
                 <button type="submit" disabled={creating}
                   className="w-full py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-60 font-medium transition-colors">
-                  {creating ? 'Création…' : 'Créer le point de vente'}
+                  {creating ? t('btn_creating') : t('pdv_create_btn')}
                 </button>
               </form>
             </div>
@@ -345,7 +347,7 @@ export default function PDVPage() {
                 className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg">
                 <X size={18} />
               </button>
-              <h2 className="text-xl font-bold text-slate-800 mb-1">Modifier — {editPdv.nom}</h2>
+              <h2 className="text-xl font-bold text-slate-800 mb-1">{t('pdv_edit_title')} — {editPdv.nom}</h2>
               <p className="text-sm text-slate-500 mb-5">
                 <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium mr-2 ${TYPE_BADGE[editPdv.type]}`}>
                   {TYPE_LABEL[editPdv.type]}
@@ -357,20 +359,20 @@ export default function PDVPage() {
               )}
               <form onSubmit={handleEdit} className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Nom *</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">{t('label_nom')} *</label>
                   <input type="text" required value={editForm.nom}
                     onChange={e => setEditForm(f => ({ ...f, nom: e.target.value }))}
                     className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm" />
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Adresse</label>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">{t('label_adresse')}</label>
                     <input type="text" value={editForm.adresse}
                       onChange={e => setEditForm(f => ({ ...f, adresse: e.target.value }))}
                       className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm" />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Téléphone</label>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">{t('label_telephone')}</label>
                     <input type="text" value={editForm.telephone}
                       onChange={e => setEditForm(f => ({ ...f, telephone: e.target.value }))}
                       className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm" />
@@ -379,12 +381,12 @@ export default function PDVPage() {
                 {editPdv.type === 'POINT_DE_VENTE' && (
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">
-                      <UserCheck size={13} className="inline mr-1 text-slate-400" />Responsable PDV (RPV)
+                      <UserCheck size={13} className="inline mr-1 text-slate-400" />{t('label_pdv_responsable')}
                     </label>
                     <select value={editForm.rpvId}
                       onChange={e => setEditForm(f => ({ ...f, rpvId: e.target.value }))}
                       className="w-full px-4 py-2.5 border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
-                      <option value="">Aucun</option>
+                      <option value="">{t('label_none')}</option>
                       {rpvOptions.map(g => (
                         <option key={g.id} value={g.member.id}>
                           {g.member.prenom} {g.member.nom}
@@ -395,12 +397,12 @@ export default function PDVPage() {
                 )}
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">
-                    <User size={13} className="inline mr-1 text-slate-400" />Chef d&apos;agence
+                    <User size={13} className="inline mr-1 text-slate-400" />{t('label_chef_agence')}
                   </label>
                   <select value={editForm.chefAgenceId}
                     onChange={e => setEditForm(f => ({ ...f, chefAgenceId: e.target.value }))}
                     className="w-full px-4 py-2.5 border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
-                    <option value="">Aucun</option>
+                    <option value="">{t('label_none')}</option>
                     {chefOptions.map(g => (
                       <option key={g.id} value={g.member.id}>
                         {g.member.prenom} {g.member.nom}
@@ -409,14 +411,14 @@ export default function PDVPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Notes</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">{t('label_notes')}</label>
                   <textarea rows={2} value={editForm.notes}
                     onChange={e => setEditForm(f => ({ ...f, notes: e.target.value }))}
                     className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm resize-none" />
                 </div>
                 <button type="submit" disabled={updating}
                   className="w-full py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-60 font-medium transition-colors">
-                  {updating ? 'Enregistrement…' : 'Enregistrer les modifications'}
+                  {updating ? t('btn_saving') : t('pdv_save_btn')}
                 </button>
               </form>
             </div>
@@ -435,22 +437,20 @@ export default function PDVPage() {
                   : <Power className="text-emerald-600 w-7 h-7" />}
               </div>
               <h2 className="text-lg font-bold text-slate-800 mb-2">
-                {togglePdv.actif ? 'Désactiver' : 'Réactiver'} ce PDV ?
+                {togglePdv.actif ? t('btn_deactivate') : t('btn_activate')} ce PDV ?
               </h2>
               <p className="text-slate-500 text-sm mb-6">
-                <strong>{togglePdv.nom}</strong>
-                {togglePdv.actif
-                  ? " ne sera plus accessible. Le stock et l'historique sont conservés."
-                  : ' sera à nouveau opérationnel.'}
+                <strong>{togglePdv.nom}</strong>{' '}
+                {togglePdv.actif ? t('pdv_deactivate_msg') : t('pdv_reactivate_msg')}
               </p>
               <div className="flex gap-3">
                 <button onClick={() => setTogglePdv(null)}
                   className="flex-1 py-2.5 border border-slate-200 rounded-xl text-slate-700 hover:bg-slate-50 font-medium">
-                  Annuler
+                  {t('btn_cancel')}
                 </button>
                 <button onClick={handleToggleActif} disabled={toggling}
                   className={`flex-1 py-2.5 ${togglePdv.actif ? 'bg-red-600 hover:bg-red-700' : 'bg-emerald-600 hover:bg-emerald-700'} text-white rounded-xl font-medium disabled:opacity-60 transition-colors`}>
-                  {toggling ? '…' : togglePdv.actif ? 'Désactiver' : 'Réactiver'}
+                  {toggling ? '…' : togglePdv.actif ? t('btn_deactivate') : t('btn_activate')}
                 </button>
               </div>
             </div>
@@ -460,7 +460,7 @@ export default function PDVPage() {
         {/* ── Table PDV ─────────────────────────────────────────────────── */}
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 overflow-hidden">
           <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
-            <h3 className="font-semibold text-slate-800">Points de vente et dépôts</h3>
+            <h3 className="font-semibold text-slate-800">{t('pdv_sites_count')}</h3>
             {meta && (
               <span className="text-xs text-slate-400 bg-slate-50 px-2 py-1 rounded-lg">
                 {meta.total} site{meta.total > 1 ? 's' : ''}
@@ -477,7 +477,7 @@ export default function PDVPage() {
               <table className="w-full">
                 <thead className="bg-slate-50 border-b border-slate-200">
                   <tr>
-                    {['Site', 'Type', 'RPV', 'Chef d\'agence', 'Équipe', 'Ventes', 'Statut', 'Actions'].map(h => (
+                    {[t('pdv_col_site'), t('label_type'), t('pdv_col_rpv'), t('label_chef_agence'), t('pdv_col_equipe'), t('pdv_col_ventes'), t('col_status'), t('col_actions')].map(h => (
                       <th key={h} className="px-5 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">{h}</th>
                     ))}
                   </tr>
@@ -511,7 +511,7 @@ export default function PDVPage() {
                             <span className="text-sm text-slate-700">{pdv.rpv.prenom} {pdv.rpv.nom}</span>
                           </div>
                         ) : (
-                          <span className="text-xs text-slate-400 italic">Non assigné</span>
+                          <span className="text-xs text-slate-400 italic">{t('text_no_assign')}</span>
                         )}
                       </td>
                       <td className="px-5 py-4">
@@ -523,7 +523,7 @@ export default function PDVPage() {
                             <span className="text-sm text-slate-700">{pdv.chefAgence.prenom} {pdv.chefAgence.nom}</span>
                           </div>
                         ) : (
-                          <span className="text-xs text-slate-400 italic">Non assigné</span>
+                          <span className="text-xs text-slate-400 italic">{t('text_no_assign')}</span>
                         )}
                       </td>
                       <td className="px-5 py-4">
@@ -541,11 +541,11 @@ export default function PDVPage() {
                       <td className="px-5 py-4">
                         {pdv.actif ? (
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-full text-xs font-semibold">
-                            <CheckCircle size={10} /> Actif
+                            <CheckCircle size={10} /> {t('status_actif')}
                           </span>
                         ) : (
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-red-100 text-red-700 rounded-full text-xs font-semibold">
-                            <XCircle size={10} /> Inactif
+                            <XCircle size={10} /> {t('status_inactif')}
                           </span>
                         )}
                       </td>
@@ -572,7 +572,7 @@ export default function PDVPage() {
                     <tr>
                       <td colSpan={8} className="px-6 py-12 text-center">
                         <Store className="w-10 h-10 text-slate-200 mx-auto mb-3" />
-                        <p className="text-slate-500">Aucun point de vente enregistré</p>
+                        <p className="text-slate-500">{t('pdv_none_registered')}</p>
                         <p className="text-slate-400 text-sm mt-1">Cliquez sur &ldquo;Nouveau PDV&rdquo;pour commencer.</p>
                       </td>
                     </tr>
@@ -591,12 +591,12 @@ export default function PDVPage() {
               <div className="flex items-center gap-2">
                 <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page <= 1}
                   className="px-4 py-2 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 disabled:opacity-50 transition-colors text-sm">
-                  Précédent
+                  {t('btn_prev')}
                 </button>
                 <span className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium text-sm">{page}</span>
                 <button onClick={() => setPage(p => Math.min(meta.totalPages, p + 1))} disabled={page >= meta.totalPages}
                   className="px-4 py-2 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 disabled:opacity-50 transition-colors text-sm">
-                  Suivant
+                  {t('btn_next')}
                 </button>
               </div>
             </div>

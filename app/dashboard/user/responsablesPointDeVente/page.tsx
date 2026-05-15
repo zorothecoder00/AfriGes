@@ -412,7 +412,6 @@ export default function ResponsablePDVPage() {
   // Forms
   const [fNom, setFNom] = useState(""); const [fPrix, setFPrix] = useState("");
   const [fDesc, setFDesc] = useState(""); const [fAlerte, setFAlerte] = useState("0");
-  const [fStock, setFStock] = useState("0");
   const [mvtProdId, setMvtProdId] = useState(""); const [mvtType, setMvtType] = useState<"ENTREE"|"SORTIE"|"AJUSTEMENT">("ENTREE");
   const [mvtQte, setMvtQte] = useState(""); const [mvtMotif, setMvtMotif] = useState("");
   const [livType, setLivType] = useState<TypeLiv>("FOURNISSEUR");
@@ -630,19 +629,19 @@ export default function ResponsablePDVPage() {
 
   // ── Handlers produit ─────────────────────────────────────────────────────
   const openCreateProduit = () => {
-    setFNom(""); setFPrix(""); setFDesc(""); setFAlerte("0"); setFStock("0");
+    setFNom(""); setFPrix(""); setFDesc(""); setFAlerte("0");
     setModalProduit("create");
   };
   const openEditProduit = (p: Produit) => {
     setSelectedProduit(p);
     setFNom(p.nom); setFPrix(String(p.prixUnitaire)); setFDesc(p.description ?? "");
-    setFAlerte(String(p.alerteStock)); setFStock("0");
+    setFAlerte(String(p.alerteStock));
     setModalProduit("edit");
   };
   const handleSaveProduit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (modalProduit === "create") {
-      const r = await createProduit({ nom: fNom, prixUnitaire: Number(fPrix), description: fDesc || null, stock: Number(fStock), alerteStock: Number(fAlerte) });
+      const r = await createProduit({ nom: fNom, prixUnitaire: Number(fPrix), description: fDesc || null, alerteStock: Number(fAlerte) });
       if (r) { setModalProduit(null); refetchProduits(); refetchDash(); }
     } else {
       const r = await updateProduit({ nom: fNom, prixUnitaire: Number(fPrix), description: fDesc || null, alerteStock: Number(fAlerte) });
@@ -965,7 +964,7 @@ export default function ResponsablePDVPage() {
                   className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50" />
               </div>
               <div className="flex gap-3 pt-1">
-                <button type="button" onClick={() => setModalOuvrirCaisse(false)} className="flex-1 py-2.5 border border-slate-200 rounded-xl text-slate-600 text-sm font-medium hover:bg-slate-50">Annuler</button>
+                <button type="button" onClick={() => setModalOuvrirCaisse(false)} className="flex-1 py-2.5 border border-slate-200 rounded-xl text-slate-600 text-sm font-medium hover:bg-slate-50">{t('btn_cancel')}</button>
                 <button type="submit" disabled={ouvreCaisse}
                   className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-semibold transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
                   {ouvreCaisse ? <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />Ouverture...</> : <><CheckCircle size={15} />Ouvrir la caisse</>}
@@ -1012,7 +1011,7 @@ export default function ResponsablePDVPage() {
                 </select>
               </div>
               <div className="flex gap-3 pt-1">
-                <button type="button" onClick={() => setModalDepense(false)} className="flex-1 py-2.5 border border-slate-200 rounded-xl text-slate-600 text-sm font-medium hover:bg-slate-50">Annuler</button>
+                <button type="button" onClick={() => setModalDepense(false)} className="flex-1 py-2.5 border border-slate-200 rounded-xl text-slate-600 text-sm font-medium hover:bg-slate-50">{t('btn_cancel')}</button>
                 <button type="submit" disabled={enregistreDepense}
                   className="flex-1 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-sm font-semibold transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
                   {enregistreDepense ? <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />Enregistrement...</> : <><ArrowDownCircle size={15} />Enregistrer</>}
@@ -1052,13 +1051,6 @@ export default function ResponsablePDVPage() {
                   <input type="number" min="0" value={fAlerte} onChange={(e) => setFAlerte(e.target.value)}
                     className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-50" />
                 </div>
-                {modalProduit === "create" && (
-                  <div>
-                    <label className="block text-xs font-medium text-slate-600 mb-1">Stock initial</label>
-                    <input type="number" min="0" value={fStock} onChange={(e) => setFStock(e.target.value)}
-                      className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-50" />
-                  </div>
-                )}
                 <div className={modalProduit === "create" ? "" : "col-span-2"}>
                   <label className="block text-xs font-medium text-slate-600 mb-1">Description</label>
                   <input value={fDesc} onChange={(e) => setFDesc(e.target.value)}
@@ -1067,7 +1059,7 @@ export default function ResponsablePDVPage() {
                 </div>
               </div>
               <div className="flex gap-3 pt-1">
-                <button type="button" onClick={() => setModalProduit(null)} className="flex-1 py-2.5 border border-slate-200 rounded-xl text-slate-600 text-sm font-medium hover:bg-slate-50">Annuler</button>
+                <button type="button" onClick={() => setModalProduit(null)} className="flex-1 py-2.5 border border-slate-200 rounded-xl text-slate-600 text-sm font-medium hover:bg-slate-50">{t('btn_cancel')}</button>
                 <button type="submit" disabled={creatingProd || updatingProd}
                   className="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-semibold transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
                   {(creatingProd || updatingProd)
@@ -1124,7 +1116,7 @@ export default function ResponsablePDVPage() {
                   placeholder="Optionnel" />
               </div>
               <div className="flex gap-3">
-                <button type="button" onClick={() => setModalMvt(false)} className="flex-1 py-2.5 border border-slate-200 rounded-xl text-slate-600 text-sm hover:bg-slate-50">Annuler</button>
+                <button type="button" onClick={() => setModalMvt(false)} className="flex-1 py-2.5 border border-slate-200 rounded-xl text-slate-600 text-sm hover:bg-slate-50">{t('btn_cancel')}</button>
                 <button type="submit" disabled={creatingMvt} className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-semibold disabled:opacity-50 flex items-center justify-center gap-2">
                   {creatingMvt ? <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />Enregistrement...</> : <><CheckCircle size={15} />Valider</>}
                 </button>
@@ -1214,7 +1206,7 @@ export default function ResponsablePDVPage() {
                 </div>
               </div>
               <div className="flex gap-3 pt-1">
-                <button type="button" onClick={() => setModalLivraison(null)} className="flex-1 py-2.5 border border-slate-200 rounded-xl text-slate-600 text-sm hover:bg-slate-50">Annuler</button>
+                <button type="button" onClick={() => setModalLivraison(null)} className="flex-1 py-2.5 border border-slate-200 rounded-xl text-slate-600 text-sm hover:bg-slate-50">{t('btn_cancel')}</button>
                 <button type="submit" disabled={creatingLiv} className="flex-1 py-2.5 bg-sky-600 hover:bg-sky-700 text-white rounded-xl text-sm font-semibold disabled:opacity-50 flex items-center justify-center gap-2">
                   {creatingLiv ? <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />Planification...</> : <><Truck size={15} />Planifier</>}
                 </button>
@@ -1253,6 +1245,12 @@ export default function ResponsablePDVPage() {
                 <div className="bg-slate-50 rounded-xl p-3">
                   <p className="text-xs text-slate-500 mb-0.5">Date prévue</p>
                   <p className="font-semibold text-slate-800">{formatDate(selectedLiv.datePrevisionnelle)}</p>
+                </div>
+                <div className="bg-slate-50 rounded-xl p-3">
+                  <p className="text-xs text-slate-500 mb-0.5">Date réception</p>
+                  <p className="font-semibold text-slate-800">
+                    {selectedLiv.dateLivraison ? formatDate(selectedLiv.dateLivraison) : <span className="text-slate-400 text-sm italic">Non encore reçu</span>}
+                  </p>
                 </div>
                 <div className="bg-slate-50 rounded-xl p-3">
                   <p className="text-xs text-slate-500 mb-0.5">Planifié par</p>
@@ -1325,7 +1323,7 @@ export default function ResponsablePDVPage() {
                 <p className="text-xs text-slate-400 mt-1">{justifAnnul.length}/5 caractères minimum</p>
               </div>
               <div className="flex gap-3">
-                <button type="button" onClick={() => setModalAnnulPack(false)} className="flex-1 py-2.5 border border-slate-200 rounded-xl text-slate-600 text-sm hover:bg-slate-50">Annuler</button>
+                <button type="button" onClick={() => setModalAnnulPack(false)} className="flex-1 py-2.5 border border-slate-200 rounded-xl text-slate-600 text-sm hover:bg-slate-50">{t('btn_cancel')}</button>
                 <button type="submit" disabled={annulantRecPack || justifAnnul.trim().length < 5}
                   className="flex-1 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-sm font-semibold disabled:opacity-50 flex items-center justify-center gap-2">
                   {annulantRecPack ? <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />Annulation…</> : <><XCircle size={15} />Confirmer</>}
@@ -1561,7 +1559,7 @@ export default function ResponsablePDVPage() {
                 <div className="flex gap-3 pt-1">
                   <button type="button" onClick={closePlanifModal}
                     className="flex-1 py-2.5 border border-slate-200 rounded-xl text-slate-600 text-sm font-medium hover:bg-slate-50">
-                    Annuler
+                    {t('btn_cancel')}
                   </button>
                   <button type="submit"
                     disabled={planifiantLiv || planifLignes.every((l) => !l.produitId) || depasseBudget}
@@ -1681,7 +1679,7 @@ export default function ResponsablePDVPage() {
                   placeholder="Raison, urgence, etc." />
               </div>
               <div className="flex gap-3">
-                <button type="button" onClick={() => setModalReappro(false)} className="flex-1 py-2.5 border border-slate-200 rounded-xl text-slate-600 text-sm hover:bg-slate-50">Annuler</button>
+                <button type="button" onClick={() => setModalReappro(false)} className="flex-1 py-2.5 border border-slate-200 rounded-xl text-slate-600 text-sm hover:bg-slate-50">{t('btn_cancel')}</button>
                 <button type="submit" disabled={creatingReappro} className="flex-1 py-2.5 bg-violet-600 hover:bg-violet-700 text-white rounded-xl text-sm font-semibold disabled:opacity-50 flex items-center justify-center gap-2">
                   {creatingReappro ? <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />Envoi…</> : <><RefreshCw size={15} />Envoyer</>}
                 </button>
@@ -1734,7 +1732,7 @@ export default function ResponsablePDVPage() {
                   placeholder="Décrivez l'anomalie constatée…" />
               </div>
               <div className="flex gap-3">
-                <button type="button" onClick={() => setModalAnomalie(false)} className="flex-1 py-2.5 border border-slate-200 rounded-xl text-slate-600 text-sm hover:bg-slate-50">Annuler</button>
+                <button type="button" onClick={() => setModalAnomalie(false)} className="flex-1 py-2.5 border border-slate-200 rounded-xl text-slate-600 text-sm hover:bg-slate-50">{t('btn_cancel')}</button>
                 <button type="submit" disabled={creatingAnomalie} className="flex-1 py-2.5 bg-orange-600 hover:bg-orange-700 text-white rounded-xl text-sm font-semibold disabled:opacity-50 flex items-center justify-center gap-2">
                   {creatingAnomalie ? <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />Envoi…</> : <><Wrench size={15} />Signaler</>}
                 </button>
@@ -1781,7 +1779,7 @@ export default function ResponsablePDVPage() {
                 </div>
               </div>
               <div className="flex gap-3 pt-1">
-                <button type="button" onClick={() => setModalClient(null)} className="flex-1 py-2.5 border border-slate-200 rounded-xl text-slate-600 text-sm hover:bg-slate-50">Annuler</button>
+                <button type="button" onClick={() => setModalClient(null)} className="flex-1 py-2.5 border border-slate-200 rounded-xl text-slate-600 text-sm hover:bg-slate-50">{t('btn_cancel')}</button>
                 <button type="submit" disabled={creatingClient || updatingClient}
                   className="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-semibold disabled:opacity-50 flex items-center justify-center gap-2">
                   {(creatingClient || updatingClient) ? <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />Enregistrement…</> : <><CheckCircle size={15} />{modalClient === "create" ? "Créer" : "Enregistrer"}</>}
@@ -2195,7 +2193,7 @@ export default function ResponsablePDVPage() {
                           );
                         })}
                         {produits.length === 0 && (
-                          <tr><td colSpan={7} className="px-5 py-12 text-center text-slate-400 text-sm">Aucun produit trouvé</td></tr>
+                          <tr><td colSpan={7} className="px-5 py-12 text-center text-slate-400 text-sm">{t('text_no_result')}</td></tr>
                         )}
                       </tbody>
                     </table>
@@ -2282,7 +2280,7 @@ export default function ResponsablePDVPage() {
                             </tr>
                           );
                         })}
-                        {mvts.length === 0 && <tr><td colSpan={6} className="px-5 py-12 text-center text-slate-400 text-sm">Aucun mouvement trouvé</td></tr>}
+                        {mvts.length === 0 && <tr><td colSpan={6} className="px-5 py-12 text-center text-slate-400 text-sm">{t('text_no_result')}</td></tr>}
                       </tbody>
                     </table>
                   </div>
@@ -2354,7 +2352,7 @@ export default function ResponsablePDVPage() {
                 <table className="w-full">
                   <thead className="bg-slate-50 border-b border-slate-200">
                     <tr>
-                      {["Référence", "Type", "Statut", "Fournisseur / Destin.", "Date prév.", "Lignes", "Planifié par", ""].map((h) => (
+                      {["Référence", "Type", "Statut", "Fournisseur / Destin.", "Date prév.", "Date réception", "Lignes", "Planifié par", ""].map((h) => (
                         <th key={h} className="px-5 py-3.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">{h}</th>
                       ))}
                     </tr>
@@ -2377,6 +2375,11 @@ export default function ResponsablePDVPage() {
                           </td>
                           <td className="px-5 py-3.5 text-sm text-slate-700">{l.fournisseurNom ?? l.destinataireNom ?? "—"}</td>
                           <td className="px-5 py-3.5 text-sm text-slate-600">{formatDate(l.datePrevisionnelle)}</td>
+                          <td className="px-5 py-3.5 text-sm">
+                            {l.dateLivraison
+                              ? <span className="text-emerald-700 font-medium">{formatDate(l.dateLivraison)}</span>
+                              : <span className="text-slate-300">—</span>}
+                          </td>
                           <td className="px-5 py-3.5"><span className="bg-slate-100 text-slate-600 text-xs font-bold px-2.5 py-1 rounded-full">{l.lignes.length}</span></td>
                           <td className="px-5 py-3.5 text-sm text-slate-500">{l.planifiePar}</td>
                           <td className="px-5 py-3.5">
@@ -2390,7 +2393,7 @@ export default function ResponsablePDVPage() {
                         </tr>
                       );
                     })}
-                    {livs.length === 0 && <tr><td colSpan={8} className="px-5 py-12 text-center text-slate-400 text-sm">Aucune livraison trouvée</td></tr>}
+                    {livs.length === 0 && <tr><td colSpan={9} className="px-5 py-12 text-center text-slate-400 text-sm">{t('text_no_result')}</td></tr>}
                   </tbody>
                 </table>
               </div>
@@ -2586,7 +2589,7 @@ export default function ResponsablePDVPage() {
                       );
                     })}
                     {recPacks.length === 0 && (
-                      <tr><td colSpan={8} className="px-4 py-12 text-center text-slate-400 text-sm">Aucune livraison client trouvée</td></tr>
+                      <tr><td colSpan={8} className="px-4 py-12 text-center text-slate-400 text-sm">{t('text_no_result')}</td></tr>
                     )}
                   </tbody>
                 </table>
@@ -2692,7 +2695,7 @@ export default function ResponsablePDVPage() {
                           </tr>
                         ))}
                         {caissePDV.operations.length === 0 && (
-                          <tr><td colSpan={6} className="px-4 py-8 text-center text-slate-400 text-sm">Aucune opération enregistrée</td></tr>
+                          <tr><td colSpan={6} className="px-4 py-8 text-center text-slate-400 text-sm">{t('text_no_result')}</td></tr>
                         )}
                       </tbody>
                     </table>
@@ -2880,7 +2883,7 @@ export default function ResponsablePDVPage() {
                         </tr>
                       );
                     })}
-                    {ventesRPV.length === 0 && <tr><td colSpan={9} className="px-4 py-12 text-center text-slate-400 text-sm">Aucune vente trouvée</td></tr>}
+                    {ventesRPV.length === 0 && <tr><td colSpan={9} className="px-4 py-12 text-center text-slate-400 text-sm">{t('text_no_result')}</td></tr>}
                   </tbody>
                 </table>
               </div>
@@ -3099,7 +3102,7 @@ export default function ResponsablePDVPage() {
                             </td>
                           </tr>
                         ))}
-                        {equipe.length === 0 && <tr><td colSpan={6} className="px-5 py-12 text-center text-slate-400 text-sm">Aucun membre trouvé</td></tr>}
+                        {equipe.length === 0 && <tr><td colSpan={6} className="px-5 py-12 text-center text-slate-400 text-sm">{t('text_no_result')}</td></tr>}
                       </tbody>
                     </table>
                   </div>
@@ -3306,7 +3309,7 @@ export default function ResponsablePDVPage() {
                           </tr>
                         ))}
                         {equipe.filter(g => g.actif && g.member.etat === "ACTIF").length === 0 && (
-                          <tr><td colSpan={5} className="px-5 py-8 text-center text-slate-400 text-sm">Aucun membre actif</td></tr>
+                          <tr><td colSpan={5} className="px-5 py-8 text-center text-slate-400 text-sm">{t('text_no_result')}</td></tr>
                         )}
                       </tbody>
                     </table>
@@ -3396,7 +3399,7 @@ export default function ResponsablePDVPage() {
                       </tr>
                     ))}
                     {clients.length === 0 && (
-                      <tr><td colSpan={7} className="px-5 py-12 text-center text-slate-400 text-sm">Aucun client trouvé</td></tr>
+                      <tr><td colSpan={7} className="px-5 py-12 text-center text-slate-400 text-sm">{t('text_no_result')}</td></tr>
                     )}
                   </tbody>
                 </table>

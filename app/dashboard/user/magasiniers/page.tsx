@@ -927,7 +927,7 @@ export default function MagasinierPage() {
                     );
                   })}
                   {filteredProduits.length === 0 && (
-                    <tr><td colSpan={8} className="px-6 py-12 text-center text-slate-500">Aucun produit trouvé</td></tr>
+                    <tr><td colSpan={8} className="px-6 py-12 text-center text-slate-500">{t('text_no_result')}</td></tr>
                   )}
                 </tbody>
               </table>
@@ -938,9 +938,9 @@ export default function MagasinierPage() {
                   Page <span className="font-semibold">{meta.page}</span> sur <span className="font-semibold">{meta.totalPages}</span> ({meta.total} produits)
                 </p>
                 <div className="flex items-center gap-2">
-                  <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page <= 1} className="px-4 py-2 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 disabled:opacity-50">Precedent</button>
+                  <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page <= 1} className="px-4 py-2 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 disabled:opacity-50">{t('btn_prev')}</button>
                   <span className="px-4 py-2 bg-orange-600 text-white rounded-lg font-medium">{page}</span>
-                  <button onClick={() => setPage(p => Math.min(meta.totalPages, p + 1))} disabled={page >= meta.totalPages} className="px-4 py-2 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 disabled:opacity-50">Suivant</button>
+                  <button onClick={() => setPage(p => Math.min(meta.totalPages, p + 1))} disabled={page >= meta.totalPages} className="px-4 py-2 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 disabled:opacity-50">{t('btn_next')}</button>
                 </div>
               </div>
             )}
@@ -1062,9 +1062,9 @@ export default function MagasinierPage() {
                         Page <span className="font-semibold">{journalResponse.meta.page}</span> sur <span className="font-semibold">{journalResponse.meta.totalPages}</span> ({journalResponse.meta.total} mouvements)
                       </p>
                       <div className="flex items-center gap-2">
-                        <button onClick={() => setJournalPage(p => Math.max(1, p - 1))} disabled={journalPage <= 1} className="px-4 py-2 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 disabled:opacity-50">Precedent</button>
+                        <button onClick={() => setJournalPage(p => Math.max(1, p - 1))} disabled={journalPage <= 1} className="px-4 py-2 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 disabled:opacity-50">{t('btn_prev')}</button>
                         <span className="px-4 py-2 bg-orange-600 text-white rounded-lg font-medium">{journalPage}</span>
-                        <button onClick={() => setJournalPage(p => Math.min(journalResponse.meta.totalPages, p + 1))} disabled={journalPage >= journalResponse.meta.totalPages} className="px-4 py-2 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 disabled:opacity-50">Suivant</button>
+                        <button onClick={() => setJournalPage(p => Math.min(journalResponse.meta.totalPages, p + 1))} disabled={journalPage >= journalResponse.meta.totalPages} className="px-4 py-2 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 disabled:opacity-50">{t('btn_next')}</button>
                       </div>
                     </div>
                   )}
@@ -1131,7 +1131,7 @@ export default function MagasinierPage() {
                           onClick={() => { setValiderLivId(null); setValiderLignes({}); }}
                           className="flex-1 py-2.5 border border-slate-200 rounded-xl text-slate-600 text-sm hover:bg-slate-50"
                         >
-                          Annuler
+                          {t('btn_cancel')}
                         </button>
                         <button
                           onClick={() => handleValiderLivraison(liv)}
@@ -1409,7 +1409,7 @@ export default function MagasinierPage() {
                         onClick={() => { setShowLivClientForm(false); setLcMotif(''); setLcLignes([{ produitId: '', quantite: '' }]); }}
                         className="flex-1 py-2 border border-slate-200 rounded-xl text-slate-600 text-sm hover:bg-slate-50"
                       >
-                        Annuler
+                        {t('btn_cancel')}
                       </button>
                       <button
                         onClick={handleCreateLivClient}
@@ -1988,7 +1988,7 @@ export default function MagasinierPage() {
                 </div>
 
                 <div className="flex justify-end gap-3">
-                  <button onClick={() => setShowBonSortieForm(false)} className="px-5 py-3 border border-slate-200 rounded-xl text-slate-700 hover:bg-slate-50 font-medium">Annuler</button>
+                  <button onClick={() => setShowBonSortieForm(false)} className="px-5 py-3 border border-slate-200 rounded-xl text-slate-700 hover:bg-slate-50 font-medium">{t('btn_cancel')}</button>
                   <button
                     onClick={handleCreateBonSortie}
                     disabled={!bsMotif || bsLignes.every(l => !l.produitId) || bonSortieLoading}
@@ -2052,7 +2052,7 @@ export default function MagasinierPage() {
                         {bon.statut === 'EN_COURS' && (
                           <>
                             <button onClick={() => handleUpdateBonStatut(bon.id, 'EXPEDIE')} className="ml-auto text-xs px-3 py-1.5 bg-amber-100 text-amber-700 rounded-lg hover:bg-amber-200 transition-colors font-medium flex items-center gap-1"><Send size={12} /> Marquer expédié</button>
-                            <button onClick={() => handleUpdateBonStatut(bon.id, 'ANNULE')} className="text-xs px-3 py-1.5 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors font-medium flex items-center gap-1"><XCircle size={12} /> Annuler</button>
+                            <button onClick={() => handleUpdateBonStatut(bon.id, 'ANNULE')} className="text-xs px-3 py-1.5 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors font-medium flex items-center gap-1"><XCircle size={12} /> {t('btn_cancel')}</button>
                           </>
                         )}
                         {bon.statut === 'EXPEDIE' && (
@@ -2079,9 +2079,9 @@ export default function MagasinierPage() {
             {/* Pagination */}
             {(bonsSortieResponse?.meta.totalPages ?? 0) > 1 && (
               <div className="flex justify-center gap-2">
-                <button onClick={() => setBonsSortiePage(p => Math.max(1, p - 1))} disabled={bonsSortiePage === 1} className="px-4 py-2 border border-slate-200 rounded-xl text-sm disabled:opacity-40">Précédent</button>
+                <button onClick={() => setBonsSortiePage(p => Math.max(1, p - 1))} disabled={bonsSortiePage === 1} className="px-4 py-2 border border-slate-200 rounded-xl text-sm disabled:opacity-40">{t('btn_prev')}</button>
                 <span className="px-4 py-2 text-sm text-slate-600">{bonsSortiePage} / {bonsSortieResponse!.meta.totalPages}</span>
-                <button onClick={() => setBonsSortiePage(p => p + 1)} disabled={bonsSortiePage >= (bonsSortieResponse?.meta.totalPages ?? 1)} className="px-4 py-2 border border-slate-200 rounded-xl text-sm disabled:opacity-40">Suivant</button>
+                <button onClick={() => setBonsSortiePage(p => p + 1)} disabled={bonsSortiePage >= (bonsSortieResponse?.meta.totalPages ?? 1)} className="px-4 py-2 border border-slate-200 rounded-xl text-sm disabled:opacity-40">{t('btn_next')}</button>
               </div>
             )}
           </div>
@@ -2137,7 +2137,7 @@ export default function MagasinierPage() {
                   </div>
                 </div>
                 <div className="mt-4 flex justify-end gap-3">
-                  <button onClick={() => setShowAnomalieForm(false)} className="px-5 py-3 border border-slate-200 rounded-xl text-slate-700 hover:bg-slate-50 font-medium">Annuler</button>
+                  <button onClick={() => setShowAnomalieForm(false)} className="px-5 py-3 border border-slate-200 rounded-xl text-slate-700 hover:bg-slate-50 font-medium">{t('btn_cancel')}</button>
                   <button
                     onClick={handleSignalerAnomalie}
                     disabled={!anomalieProduitId || !anomalieQuantite || !anomalieDescription || anomalieLoading}

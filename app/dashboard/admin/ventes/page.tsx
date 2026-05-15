@@ -10,6 +10,7 @@ import Link from 'next/link';
 import { useApi, useMutation } from '@/hooks/useApi';
 import { formatCurrency, formatDateTime } from '@/lib/format';
 import { exportToCsv } from '@/lib/exportCsv';
+import { useT } from '@/contexts/AppSettingsContext';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -97,6 +98,7 @@ function initials(nom: string, prenom: string) {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function VentesPage() {
+  const t = useT();
   const [activeTab, setActiveTab] = useState<'ventes' | 'packs'>('ventes');
   const isVentesTab = activeTab === 'ventes';
 
@@ -474,7 +476,7 @@ export default function VentesPage() {
               <ArrowLeft className="w-5 h-5 text-slate-600" />
             </Link>
             <div>
-              <h1 className="text-4xl font-bold text-slate-800 mb-2">Ventes</h1>
+              <h1 className="text-4xl font-bold text-slate-800 mb-2">{t('ventes_title')}</h1>
               <p className="text-slate-500">
                 {isVentesTab ? 'Ventes directes produits — tous points de vente' : 'Livraisons de produits aux clients via pack'}
               </p>
@@ -485,11 +487,11 @@ export default function VentesPage() {
               <>
                 <button onClick={handleExportVentes}
                   className="px-5 py-3 bg-white border border-slate-200 rounded-xl text-slate-700 hover:bg-slate-50 transition-all shadow-sm flex items-center gap-2 font-medium">
-                  <Download size={18} /> Exporter
+                  <Download size={18} /> {t('btn_export')}
                 </button>
                 <button onClick={() => setVenteModalOpen(true)}
                   className="px-6 py-3 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-200 flex items-center gap-2 font-medium">
-                  <Plus size={20} /> Nouvelle vente
+                  <Plus size={20} /> {t('ventes_new_btn')}
                 </button>
               </>
             ) : (
@@ -528,7 +530,7 @@ export default function VentesPage() {
                 ×
               </button>
 
-              <h2 className="text-xl font-bold text-slate-800 mb-1">Nouvelle vente directe</h2>
+              <h2 className="text-xl font-bold text-slate-800 mb-1">{t('ventes_new_btn')}</h2>
               <p className="text-sm text-slate-500 mb-5">
                 {venteStep === 1 ? 'Sélectionner le PDV et le client' : venteStep === 2 ? 'Ajouter les produits' : 'Mode de paiement'}
               </p>
@@ -1174,7 +1176,7 @@ export default function VentesPage() {
             {/* Stats */}
             <div className="grid grid-cols-4 gap-5">
               {[
-                { label: 'Total ventes',   value: String(ventesStats?.total ?? 0),               icon: ShoppingCart, color: 'bg-emerald-500', lightBg: 'bg-emerald-50' },
+                { label: t('ventes_total'),   value: String(ventesStats?.total ?? 0),               icon: ShoppingCart, color: 'bg-emerald-500', lightBg: 'bg-emerald-50' },
                 { label: 'Confirmées',     value: String(ventesStats?.nbConfirmees ?? 0),         icon: CheckCircle,  color: 'bg-blue-500',    lightBg: 'bg-blue-50'    },
                 { label: 'Montant total',  value: formatCurrency(ventesStats?.montantTotal ?? 0), icon: DollarSign,   color: 'bg-violet-500',  lightBg: 'bg-violet-50'  },
                 { label: 'Panier moyen',   value: formatCurrency(ventesStats?.panierMoyen ?? 0),  icon: TrendingUp,   color: 'bg-amber-500',   lightBg: 'bg-amber-50'   },
@@ -1203,7 +1205,7 @@ export default function VentesPage() {
                 </div>
                 <select value={filterPdvId} onChange={e => { setFilterPdvId(e.target.value); setPageVentes(1); }}
                   className="px-4 py-2.5 border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm">
-                  <option value="">Tous les PDV</option>
+                  <option value="">{t('ventes_all_pdv')}</option>
                   {pdvOptions.map(p => <option key={p.id} value={p.id}>{p.nom}</option>)}
                 </select>
                 <select value={filterStatut} onChange={e => { setFilterStatut(e.target.value); setPageVentes(1); }}
@@ -1311,7 +1313,7 @@ export default function VentesPage() {
                         <tr>
                           <td colSpan={8} className="px-6 py-12 text-center">
                             <ShoppingCart className="w-10 h-10 text-slate-200 mx-auto mb-3" />
-                            <p className="text-slate-500">Aucune vente directe enregistrée</p>
+                            <p className="text-slate-500">{t('ventes_none_found')}</p>
                             <p className="text-slate-400 text-sm mt-1">Cliquez sur &quot;Nouvelle vente&quot; pour commencer.</p>
                           </td>
                         </tr>
@@ -1328,12 +1330,12 @@ export default function VentesPage() {
                   <div className="flex items-center gap-2">
                     <button onClick={() => setPageVentes(p => Math.max(1, p - 1))} disabled={pageVentes <= 1}
                       className="px-4 py-2 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 disabled:opacity-50 transition-colors text-sm">
-                      Précédent
+                      {t('btn_prev')}
                     </button>
                     <span className="px-4 py-2 bg-emerald-600 text-white rounded-lg font-medium text-sm">{pageVentes}</span>
                     <button onClick={() => setPageVentes(p => Math.min(ventesMeta.totalPages, p + 1))} disabled={pageVentes >= ventesMeta.totalPages}
                       className="px-4 py-2 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 disabled:opacity-50 transition-colors text-sm">
-                      Suivant
+                      {t('btn_next')}
                     </button>
                   </div>
                 </div>
@@ -1504,12 +1506,12 @@ export default function VentesPage() {
                   <div className="flex items-center gap-2">
                     <button onClick={() => setPagePacks(p => Math.max(1, p - 1))} disabled={pagePacks <= 1}
                       className="px-4 py-2 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 disabled:opacity-50 transition-colors">
-                      Précédent
+                      {t('btn_prev')}
                     </button>
                     <span className="px-4 py-2 bg-emerald-600 text-white rounded-lg font-medium">{pagePacks}</span>
                     <button onClick={() => setPagePacks(p => Math.min(packsMeta.totalPages, p + 1))} disabled={pagePacks >= packsMeta.totalPages}
                       className="px-4 py-2 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 disabled:opacity-50 transition-colors">
-                      Suivant
+                      {t('btn_next')}
                     </button>
                   </div>
                 </div>

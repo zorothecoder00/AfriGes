@@ -9,6 +9,7 @@ import Link from 'next/link';
 import { useApi, useMutation } from '@/hooks/useApi';
 import { formatDate } from '@/lib/format';
 import { getStatusLabel, getStatusStyle } from '@/lib/status';
+import { useT } from '@/contexts/AppSettingsContext';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -66,6 +67,7 @@ const ROLES_AVEC_PDV = new Set([
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function GestionnairesPage() {
+  const t = useT();
   const [searchQuery, setSearchQuery]     = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [page, setPage]                   = useState(1);
@@ -255,10 +257,10 @@ export default function GestionnairesPage() {
 
   const apiStats = response?.stats;
   const stats = [
-    { label: 'Total Gestionnaires', value: String(meta?.total ?? 0), icon: Users, color: 'bg-blue-500', lightBg: 'bg-blue-50' },
-    { label: 'Actifs', value: String(apiStats?.totalActifs ?? 0), icon: CheckCircle, color: 'bg-emerald-500', lightBg: 'bg-emerald-50' },
-    { label: 'Inactifs', value: String(apiStats?.totalInactifs ?? 0), icon: Clock, color: 'bg-amber-500', lightBg: 'bg-amber-50' },
-    { label: 'Rôles distincts', value: String(apiStats?.totalRoles ?? 0), icon: Shield, color: 'bg-purple-500', lightBg: 'bg-purple-50' },
+    { label: t('gest_total'), value: String(meta?.total ?? 0), icon: Users, color: 'bg-blue-500', lightBg: 'bg-blue-50' },
+    { label: t('text_actifs'), value: String(apiStats?.totalActifs ?? 0), icon: CheckCircle, color: 'bg-emerald-500', lightBg: 'bg-emerald-50' },
+    { label: t('text_inactifs'), value: String(apiStats?.totalInactifs ?? 0), icon: Clock, color: 'bg-amber-500', lightBg: 'bg-amber-50' },
+    { label: t('gest_roles_distincts'), value: String(apiStats?.totalRoles ?? 0), icon: Shield, color: 'bg-purple-500', lightBg: 'bg-purple-50' },
   ];
 
   const getInitials = (nom: string, prenom: string) => `${prenom?.[0] ?? ''}${nom?.[0] ?? ''}`.toUpperCase();
@@ -268,7 +270,7 @@ export default function GestionnairesPage() {
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50/30 to-blue-50/20 flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
           <div className="w-12 h-12 border-4 border-purple-200 border-t-purple-600 rounded-full animate-spin" />
-          <p className="text-slate-500 font-medium">Chargement des gestionnaires...</p>
+          <p className="text-slate-500 font-medium">{t('gest_loading')}</p>
         </div>
       </div>
     );
@@ -278,9 +280,9 @@ export default function GestionnairesPage() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50/30 to-blue-50/20 flex items-center justify-center">
         <div className="flex flex-col items-center gap-4 bg-white rounded-2xl p-8 shadow-sm border max-w-md text-center">
-          <h3 className="text-lg font-bold text-slate-800">Erreur de chargement</h3>
+          <h3 className="text-lg font-bold text-slate-800">{t('text_error_loading')}</h3>
           <p className="text-slate-500 text-sm">{error}</p>
-          <button onClick={refetch} className="px-5 py-2.5 bg-purple-600 text-white rounded-xl hover:bg-purple-700 font-medium">Réessayer</button>
+          <button onClick={refetch} className="px-5 py-2.5 bg-purple-600 text-white rounded-xl hover:bg-purple-700 font-medium">{t('btn_retry')}</button>
         </div>
       </div>
     );
@@ -297,18 +299,18 @@ export default function GestionnairesPage() {
               <ArrowLeft className="w-5 h-5 text-slate-600" />
             </Link>
             <div>
-              <h1 className="text-4xl font-bold text-slate-800 mb-2">Gestionnaires</h1>
-              <p className="text-slate-500">Gérez les gestionnaires et leurs affectations PDV</p>
+              <h1 className="text-4xl font-bold text-slate-800 mb-2">{t('gest_title')}</h1>
+              <p className="text-slate-500">{t('gest_subtitle')}</p>
             </div>
           </div>
           <div className="flex gap-3">
             <Link href="/dashboard/admin/pdv"
               className="px-5 py-3 bg-white border border-slate-200 rounded-xl text-slate-700 hover:bg-slate-50 transition-all shadow-sm flex items-center gap-2 font-medium">
-              <Store size={18} /> Gérer les PDV
+              <Store size={18} /> {t('gest_manage_pdv')}
             </Link>
             <button onClick={() => setModalOpen(true)}
               className="px-6 py-3 bg-purple-600 text-white rounded-xl hover:bg-purple-700 transition-all shadow-lg shadow-purple-200 flex items-center gap-2 font-medium">
-              <Plus size={20} /> Ajouter un gestionnaire
+              <Plus size={20} /> {t('gest_add_btn')}
             </button>
           </div>
         </div>
@@ -334,7 +336,7 @@ export default function GestionnairesPage() {
           <div className="flex items-center gap-4">
             <div className="flex-1 relative">
               <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400" size={20} />
-              <input type="text" placeholder="Rechercher un gestionnaire..."
+              <input type="text" placeholder={t('gest_search_ph')}
                 value={searchQuery}
                 onChange={e => { setSearchQuery(e.target.value); setPage(1); }}
                 className="w-full pl-12 pr-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 bg-slate-50" />
@@ -342,7 +344,7 @@ export default function GestionnairesPage() {
             <select value={roleFilter}
               onChange={e => { setRoleFilter(e.target.value); setPage(1); }}
               className="px-4 py-3 border border-slate-200 rounded-xl text-slate-700 focus:outline-none focus:ring-2 focus:ring-purple-500 bg-slate-50">
-              <option value="">Tous les rôles</option>
+              <option value="">{t('text_all_roles')}</option>
               <option value="RESPONSABLE_POINT_DE_VENTE">Resp. point de vente</option>
               <option value="CHEF_AGENCE">Chef d&apos;agence</option>
               <option value="RESPONSABLE_COMMUNAUTE">Resp. communauté</option>
@@ -370,22 +372,22 @@ export default function GestionnairesPage() {
               <button onClick={() => setModalOpen(false)} className="absolute top-4 right-4 text-slate-400 hover:text-slate-600">
                 <X size={20} />
               </button>
-              <h2 className="text-xl font-bold mb-4">Ajouter un gestionnaire</h2>
+              <h2 className="text-xl font-bold mb-4">{t('gest_add_title')}</h2>
               {addError && <p className="text-red-500 mb-2 text-sm">{addError}</p>}
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Membre</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">{t('label_membre')}</label>
                   <select required value={formData.memberId}
                     onChange={e => setFormData({ ...formData, memberId: e.target.value })}
                     className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 bg-slate-50">
-                    <option value="">Sélectionner un membre</option>
+                    <option value="">{t('text_select_member')}</option>
                     {allMembers.map(m => (
                       <option key={m.id} value={m.id}>{m.prenom} {m.nom} ({m.email})</option>
                     ))}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Rôle</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">{t('label_role')}</label>
                   <select value={formData.role}
                     onChange={e => setFormData({ ...formData, role: e.target.value })}
                     className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 bg-slate-50">
@@ -409,7 +411,7 @@ export default function GestionnairesPage() {
                 </div>
                 <button type="submit" disabled={adding}
                   className="w-full py-2.5 bg-purple-600 text-white rounded-xl hover:bg-purple-700 transition-all font-medium">
-                  {adding ? 'Ajout en cours...' : 'Ajouter le gestionnaire'}
+                  {adding ? t('btn_adding') : t('gest_add_submit')}
                 </button>
               </form>
             </div>
@@ -428,7 +430,7 @@ export default function GestionnairesPage() {
                 </button>
 
                 <h2 className="text-xl font-bold text-slate-800 mb-1">
-                  {isChefAgence ? 'Gérer la zone' : 'Affecter à un PDV'}
+                  {isChefAgence ? t('gest_zone_modal_title') : t('gest_assign_modal_title')}
                 </h2>
                 <p className="text-sm text-slate-500 mb-5">
                   {affectModal.member.prenom} {affectModal.member.nom} —{' '}
@@ -443,8 +445,7 @@ export default function GestionnairesPage() {
                     <div className="flex items-start gap-2 bg-indigo-50 border border-indigo-200 rounded-xl px-3 py-2.5 text-xs text-indigo-800">
                       <MapPin size={13} className="mt-0.5 shrink-0" />
                       <span>
-                        Le chef d&apos;agence supervise une <strong>zone de plusieurs PDVs</strong>.
-                        Ajoutez ou retirez des PDVs ci-dessous pour définir sa zone de supervision.
+                        {t('gest_zone_hint')}
                       </span>
                     </div>
 
@@ -456,14 +457,14 @@ export default function GestionnairesPage() {
                     <div>
                       <p className="text-sm font-semibold text-slate-700 mb-2 flex items-center gap-1.5">
                         <Store size={14} className="text-blue-500" />
-                        PDVs dans la zone
+                        {t('gest_zone_pdvs')}
                         <span className="text-xs font-normal text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full ml-1">
                           {localZonePdvs.length}
                         </span>
                       </p>
                       {localZonePdvs.length === 0 && (
                         <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                          Aucun PDV assigné à cette zone pour l&apos;instant.
+                          {t('gest_zone_none')}
                         </p>
                       )}
                       <div className="space-y-2 max-h-44 overflow-y-auto pr-1">
@@ -481,7 +482,7 @@ export default function GestionnairesPage() {
                               disabled={zoneLoading}
                               className="flex items-center gap-1 text-xs text-red-600 hover:text-red-800 border border-red-200 bg-red-50 hover:bg-red-100 px-2 py-1 rounded-lg transition-colors disabled:opacity-50"
                             >
-                              <Link2Off size={11} /> Retirer
+                              <Link2Off size={11} /> {t('gest_remove_btn')}
                             </button>
                           </div>
                         ))}
@@ -490,14 +491,14 @@ export default function GestionnairesPage() {
 
                     {/* Ajouter un PDV à la zone */}
                     <div>
-                      <p className="text-sm font-semibold text-slate-700 mb-2">Ajouter un PDV à la zone</p>
+                      <p className="text-sm font-semibold text-slate-700 mb-2">{t('gest_zone_add_pdv')}</p>
                       <div className="flex gap-2">
                         <select
                           value={selectedPdvId}
                           onChange={e => setSelectedPdvId(e.target.value)}
                           className="flex-1 px-3 py-2.5 border border-slate-200 rounded-xl bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                         >
-                          <option value="">Sélectionner un PDV…</option>
+                          <option value="">{t('text_select_pdv')}</option>
                           {pdvOptions
                             .filter(p => !localZonePdvs.some(z => z.id === p.id))
                             .map(p => (
@@ -511,7 +512,7 @@ export default function GestionnairesPage() {
                           disabled={zoneLoading || !selectedPdvId}
                           className="px-4 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-60 flex items-center gap-1.5 text-sm font-medium transition-colors"
                         >
-                          {zoneLoading ? '…' : <><Plus size={14} /> Ajouter</>}
+                          {zoneLoading ? '…' : <><Plus size={14} /> {t('btn_add')}</>}
                         </button>
                       </div>
                     </div>
@@ -520,7 +521,7 @@ export default function GestionnairesPage() {
                       onClick={() => setAffectModal(null)}
                       className="w-full py-2.5 border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 font-medium text-sm"
                     >
-                      Fermer
+                      {t('btn_close')}
                     </button>
                   </div>
 
@@ -535,12 +536,12 @@ export default function GestionnairesPage() {
                             {affectModal.member.affectationsPDV[0].pointDeVente.nom}
                           </p>
                           <p className="text-xs text-slate-500">
-                            {affectModal.member.affectationsPDV[0].pointDeVente.code} — PDV actuel
+                            {affectModal.member.affectationsPDV[0].pointDeVente.code} — {t('gest_pdv_actuel')}
                           </p>
                         </div>
                         <button onClick={handleDesaffecter} disabled={affectLoading}
                           className="flex items-center gap-1 text-xs text-red-600 hover:text-red-800 font-medium border border-red-200 bg-red-50 hover:bg-red-100 px-2 py-1 rounded-lg transition-colors disabled:opacity-50">
-                          <Link2Off size={12} /> Désaffecter
+                          <Link2Off size={12} /> {t('gest_unassign_btn')}
                         </button>
                       </div>
                     )}
@@ -559,11 +560,11 @@ export default function GestionnairesPage() {
 
                     <div className="space-y-3">
                       <label className="block text-sm font-medium text-slate-700">
-                        {affectModal.member.affectationsPDV[0] ? 'Réaffecter à un autre PDV' : 'Choisir un PDV'}
+                        {affectModal.member.affectationsPDV[0] ? t('gest_reassign') : t('gest_choose_pdv')}
                       </label>
                       <select value={selectedPdvId} onChange={e => setSelectedPdvId(e.target.value)}
                         className="w-full px-4 py-2.5 border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
-                        <option value="">Sélectionner un PDV…</option>
+                        <option value="">{t('text_select_pdv')}</option>
                         {pdvOptions.map(p => (
                           <option key={p.id} value={p.id}>
                             {p.type === 'DEPOT_CENTRAL' ? '🏭 ' : '🏪 '}{p.nom} ({p.code})
@@ -573,7 +574,7 @@ export default function GestionnairesPage() {
                       <button onClick={handleAffecter} disabled={affectLoading || !selectedPdvId}
                         className="w-full py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-60 font-medium flex items-center justify-center gap-2 transition-colors">
                         <Link2 size={15} />
-                        {affectLoading ? 'En cours…' : affectModal.member.affectationsPDV[0] ? 'Réaffecter' : 'Affecter au PDV'}
+                        {affectLoading ? t('text_in_progress') : affectModal.member.affectationsPDV[0] ? t('btn_reassign') : t('btn_assign')}
                       </button>
                     </div>
                   </>
@@ -587,16 +588,16 @@ export default function GestionnairesPage() {
         {deleteId && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[130]">
             <div className="bg-white rounded-2xl p-8 w-full max-w-sm shadow-lg text-center">
-              <h2 className="text-lg font-bold text-slate-800 mb-2">Confirmer la suppression</h2>
-              <p className="text-slate-500 text-sm mb-6">Cette action est irréversible.</p>
+              <h2 className="text-lg font-bold text-slate-800 mb-2">{t('text_confirm_delete')}</h2>
+              <p className="text-slate-500 text-sm mb-6">{t('text_irreversible')}</p>
               <div className="flex gap-3">
                 <button onClick={() => setDeleteId(null)}
                   className="flex-1 py-2.5 border border-slate-200 rounded-xl text-slate-700 hover:bg-slate-50 font-medium">
-                  Annuler
+                  {t('btn_cancel')}
                 </button>
                 <button onClick={handleDelete} disabled={deleting}
                   className="flex-1 py-2.5 bg-red-600 text-white rounded-xl hover:bg-red-700 font-medium">
-                  {deleting ? 'Suppression...' : 'Supprimer'}
+                  {deleting ? t('btn_deleting') : t('btn_delete')}
                 </button>
               </div>
             </div>
@@ -609,13 +610,13 @@ export default function GestionnairesPage() {
             <table className="w-full">
               <thead className="bg-slate-50 border-b border-slate-200">
                 <tr>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Gestionnaire</th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Contact</th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Rôle</th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">PDV affecté</th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Statut</th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Création</th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Actions</th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">{t('gest_title')}</th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">{t('col_contact')}</th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">{t('col_role')}</th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">{t('gest_col_pdv_affecte')}</th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">{t('col_status')}</th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">{t('label_date')}</th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">{t('col_actions')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -733,7 +734,7 @@ export default function GestionnairesPage() {
                 })}
                 {gestionnaires.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="px-6 py-12 text-center text-slate-500">Aucun gestionnaire trouvé</td>
+                    <td colSpan={7} className="px-6 py-12 text-center text-slate-500">{t('gest_none_found')}</td>
                   </tr>
                 )}
               </tbody>
@@ -743,17 +744,17 @@ export default function GestionnairesPage() {
           {meta && (
             <div className="px-6 py-4 border-t border-slate-200 flex items-center justify-between">
               <p className="text-sm text-slate-600">
-                Page <span className="font-semibold">{meta.page}</span> sur <span className="font-semibold">{meta.totalPages}</span> ({meta.total} gestionnaires)
+                {t('page')} <span className="font-semibold">{meta.page}</span> / <span className="font-semibold">{meta.totalPages}</span> ({meta.total} {t('gest_title').toLowerCase()})
               </p>
               <div className="flex items-center gap-2">
                 <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page <= 1}
                   className="px-4 py-2 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-50">
-                  Précédent
+                  {t('btn_prev')}
                 </button>
                 <span className="px-4 py-2 bg-purple-600 text-white rounded-lg font-medium">{page}</span>
                 <button onClick={() => setPage(p => Math.min(meta.totalPages, p + 1))} disabled={page >= meta.totalPages}
                   className="px-4 py-2 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-50">
-                  Suivant
+                  {t('btn_next')}
                 </button>
               </div>
             </div>

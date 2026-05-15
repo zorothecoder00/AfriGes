@@ -10,6 +10,7 @@ import {
 import Link from "next/link";
 import { useApi, useMutation } from "@/hooks/useApi";
 import { formatCurrency } from "@/lib/format";
+import { useT } from "@/contexts/AppSettingsContext";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -170,6 +171,7 @@ type Tab = "overview" | "modeles" | "souscriptions" | "echeances" | "livraisons"
 // ─── Page principale ──────────────────────────────────────────────────────────
 
 export default function PacksAdminPage() {
+  const t = useT();
   const [tab, setTab] = useState<Tab>("souscriptions");
 
   const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
@@ -189,7 +191,7 @@ export default function PacksAdminPage() {
             <ArrowLeft className="w-5 h-5 text-slate-600" />
           </Link>
           <div>
-            <h1 className="text-4xl font-bold text-slate-800 mb-1">Packs clients</h1>
+            <h1 className="text-4xl font-bold text-slate-800 mb-1">{t('packs_title')}</h1>
             <p className="text-slate-500">Gérez les souscriptions, versements et livraisons par pack</p>
           </div>
         </div>
@@ -244,6 +246,7 @@ function groupByMonth(items: Souscription[]) {
 // ─── TAB: Souscriptions ───────────────────────────────────────────────────────
 
 function TabSouscriptions() {
+  const t = useT();
   const [search, setSearch]     = useState("");
   const [dSearch, setDSearch]   = useState("");
   const [filterStatut, setFilterStatut] = useState("");
@@ -314,10 +317,10 @@ function TabSouscriptions() {
       {/* Stat cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         {[
-          { label: "Actives", val: totalActifs, cls: "text-blue-600", icon: <RefreshCw className="w-5 h-5" /> },
-          { label: "En attente", val: totalEnAtt, cls: "text-amber-600", icon: <Clock className="w-5 h-5" /> },
-          { label: "Complètes", val: totalComplet, cls: "text-green-600", icon: <CheckCircle className="w-5 h-5" /> },
-          { label: "Total versé", val: formatCurrency(totalVerse), cls: "text-emerald-700", icon: <TrendingUp className="w-5 h-5" /> },
+          { label: t('dash_actives'), val: totalActifs, cls: "text-blue-600", icon: <RefreshCw className="w-5 h-5" /> },
+          { label: t('status_en_attente'), val: totalEnAtt, cls: "text-amber-600", icon: <Clock className="w-5 h-5" /> },
+          { label: t('dash_completes'), val: totalComplet, cls: "text-green-600", icon: <CheckCircle className="w-5 h-5" /> },
+          { label: t('packs_col_verse'), val: formatCurrency(totalVerse), cls: "text-emerald-700", icon: <TrendingUp className="w-5 h-5" /> },
         ].map((s) => (
           <div key={s.label} className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60">
             <div className="flex items-center gap-3 mb-2">
@@ -358,7 +361,7 @@ function TabSouscriptions() {
           onClick={() => setShowModal(true)}
           className="flex items-center gap-2 px-5 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 text-sm font-medium transition-all shadow-md shadow-emerald-200"
         >
-          <Plus className="w-4 h-4" /> Nouvelle souscription
+          <Plus className="w-4 h-4" /> {t('packs_new_btn')}
         </button>
       </div>
 
@@ -372,7 +375,7 @@ function TabSouscriptions() {
         ) : souscriptions.length === 0 ? (
           <div className="p-12 text-center">
             <Package className="w-10 h-10 text-slate-300 mx-auto mb-3" />
-            <p className="text-slate-500 font-medium">Aucune souscription trouvée</p>
+            <p className="text-slate-500 font-medium">{t('packs_none_found')}</p>
           </div>
         ) : (
           <div>
@@ -662,6 +665,7 @@ function TabSouscriptions() {
 // ─── TAB: Versements & Échéances ──────────────────────────────────────────────
 
 function TabEcheances() {
+  const t = useT();
   const [search, setSearch]   = useState("");
   const [dSearch, setDSearch] = useState("");
   const [filterStatut, setFilterStatut] = useState("EN_ATTENTE,EN_RETARD");
@@ -815,6 +819,7 @@ function TabEcheances() {
 // ─── TAB: Livraisons produits ─────────────────────────────────────────────────
 
 function TabLivraisons() {
+  const t = useT();
   const [livraisonTarget, setLivraisonTarget] = useState<Souscription | null>(null);
   const [cancellingId, setCancellingId] = useState<number | null>(null);
 
@@ -1014,6 +1019,7 @@ function TabLivraisons() {
 // ─── TAB: Modèles de packs ────────────────────────────────────────────────────
 
 function TabModeles() {
+  const t = useT();
   const [showCreate, setShowCreate] = useState(false);
   const [editTarget, setEditTarget] = useState<Pack | null>(null);
   const [togglePackId, setTogglePackId] = useState<number | null>(null);
@@ -1845,6 +1851,7 @@ function ModalConfirmDeleteSouscription({
 }
 
 function ModalNouvelleSouscription({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
+  const t = useT();
   const [step, setStep] = useState<1 | 2>(1);
   const [clientSearch, setClientSearch] = useState("");
   const [dClientSearch, setDClientSearch] = useState("");
@@ -1924,7 +1931,7 @@ function ModalNouvelleSouscription({ onClose, onSuccess }: { onClose: () => void
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 max-h-[90vh] overflow-y-auto">
         <button onClick={onClose} className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg font-bold text-lg transition-colors">×</button>
 
-        <h2 className="text-xl font-bold text-slate-800 mb-1">Nouvelle souscription</h2>
+        <h2 className="text-xl font-bold text-slate-800 mb-1">{t('packs_new_btn')}</h2>
         <p className="text-sm text-slate-500 mb-5">
           {step === 1 ? "Sélectionnez le client" : "Configurez la souscription"}
         </p>

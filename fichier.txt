@@ -4,9 +4,9 @@
 On peut aussi utiliser du SVG pour les graphiques ( sans forcément dépendance externe)  
 Ce code :      
  const a = document.createElement("a");
- a.href = url;                
+ a.href = url;                  
  a.download = filename;                                     
- a.click();                                                           
+ a.click();                                                             
  permet de créer un téléchargement via un clic sur une URL ( utile pour les exports)
 import { randomUUID } from "crypto";  permet de générer des UUID(sorte d'identifiant unique aléatoire) par exemple pour des factures ou des pièces justificatives
 
@@ -14,6 +14,16 @@ import { randomUUID } from "crypto";  permet de générer des UUID(sorte d'ident
 
 -Fais des await dans toutes mes api où je fais trop de requêtes parallèles
 
--npm i -g @openai/codex   permet d'installer le CLI de codex (agent ia d'openai qui permet d'interagir depuis le terminal)
-   
+-npm i -g @openai/codex permet d'installer le CLI de codex (agent ia d'openai qui permet d'interagir depuis le terminal)
+      
 -curl -fsSL https://claude.ai/install.cmd -o install.cmd && install.cmd && del install.cmd pour installer claude via le terminal cmd 
+
+-On veut avoir pour chaque approvisionnement le prixAchat et les dates d'approvisionements qui seront affichés dans le stock
+-Le prix de vente(prixUnitaire) aussi peut être fixé par l'admin ( bon qui doit être fixé par l'admin et personne d'autres); les autres utilisateurs le voit en lecture et ne peuvent ni modifier le prix d'achat ni le prix de vente (prixUnitaire)
+-Aussi pour l'ajout de produit sur dashboard/admin ou sur dashboard/user/rpv , pn peut ajouter un produit avec une quantité de base ( je me demande si c'est logique ou si c'est préférable de toujours ajouté un produit avec une quantité nulle )
+-Elargissement de /lib/transaltions + traductions sur les dashboard/user et sur le dashboard/admin puis ses routes principales
+-créer un endpoint léger /api/app-settings accessible à tout
+  utilisateur authentifié, et l'appeler au démarrage dans AppSettingsContext
+  pour toujours synchroniser DB → localStorage → DOM.
+ -Mettre à jour AppSettingsContext pour appeler cet endpoint au
+  démarrage et synchroniser les settings depuis la BDD

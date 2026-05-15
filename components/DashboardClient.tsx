@@ -23,7 +23,8 @@ interface DayPoint { date: string; montant: number; }
 interface ActivityAlerte {
   type: string;
   niveau: 'critique' | 'warning' | 'info';
-  message: string;
+  alertKey: string;
+  count: number;
   detail: string;
 }
 
@@ -102,16 +103,18 @@ function normalizePoints(data: DayPoint[]): { x: number; y: number }[] {
 /** Donut chart pour les souscriptions */
 const CIRCUMFERENCE = 2 * Math.PI * 80;
 
-function souscSegments(actives: number, completes: number, annulees: number) {
+interface SouscLabels { noSousc: string; actives: string; completes: string; annulees: string; }
+
+function souscSegments(actives: number, completes: number, annulees: number, labels: SouscLabels) {
   const total = actives + completes + annulees;
   if (total === 0) {
-    return [{ len: CIRCUMFERENCE, color: '#e2e8f0', offset: 0, label: 'Aucune souscription', pct: '—' }];
+    return [{ len: CIRCUMFERENCE, color: '#e2e8f0', offset: 0, label: labels.noSousc, pct: '—' }];
   }
   const seg = (n: number) => (n / total) * CIRCUMFERENCE;
   return [
-    { len: seg(actives),   color: '#10b981', offset: 0,                              label: 'Actives',   pct: `${Math.round((actives   / total) * 100)}%`, count: actives   },
-    { len: seg(completes), color: '#6366f1', offset: -seg(actives),                  label: 'Complètes', pct: `${Math.round((completes / total) * 100)}%`, count: completes },
-    { len: seg(annulees),  color: '#94a3b8', offset: -(seg(actives)+seg(completes)), label: 'Annulées',  pct: `${Math.round((annulees  / total) * 100)}%`, count: annulees  },
+    { len: seg(actives),   color: '#10b981', offset: 0,                              label: labels.actives,   pct: `${Math.round((actives   / total) * 100)}%`, count: actives   },
+    { len: seg(completes), color: '#6366f1', offset: -seg(actives),                  label: labels.completes, pct: `${Math.round((completes / total) * 100)}%`, count: completes },
+    { len: seg(annulees),  color: '#94a3b8', offset: -(seg(actives)+seg(completes)), label: labels.annulees,  pct: `${Math.round((annulees  / total) * 100)}%`, count: annulees  },
   ];
 }
 
@@ -166,8 +169,13 @@ export default function AfriGesDashboard() {
   const souscPoints      = useMemo(() => normalizePoints(d?.evolutionSouscriptions ?? []), [d]);
   const donuts = useMemo(() => {
     const r = d?.repartitionSouscriptions;
-    return r ? souscSegments(r.actives, r.completes, r.annulees) : null;
-  }, [d]);
+    return r ? souscSegments(r.actives, r.completes, r.annulees, {
+      noSousc:  t('dash_no_subscriptions'),
+      actives:  t('dash_actives'),
+      completes: t('dash_completes'),
+      annulees: t('dash_annulees'),
+    }) : null;
+  }, [d, t]);
 
   const maxVersements = useMemo(() =>
     Math.max(...(d?.evolutionVersements ?? []).map(p => p.montant), 1),
@@ -198,7 +206,7 @@ export default function AfriGesDashboard() {
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-orange-50/30 to-emerald-50/20 flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
           <div className="w-12 h-12 border-4 border-emerald-200 border-t-emerald-600 rounded-full animate-spin" />
-          <p className="text-slate-500 font-medium">Chargement du tableau de bord…</p>
+          <p className="text-slate-500 font-medium">{t('loading_dashboard')}</p>
         </div>
       </div>
     );
@@ -238,7 +246,7 @@ export default function AfriGesDashboard() {
             <NotificationBell href="/dashboard/admin/notifications" />
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 bg-slate-200 rounded-full" />
-              <span className="text-sm font-medium text-slate-700">Admin</span>
+              <span className="text-sm font-medium text-slate-700">{t('dash_admin_role')}</span>
             </div>
             <SignOutButton
               redirectTo="/auth/login?logout=success"
@@ -282,7 +290,7 @@ export default function AfriGesDashboard() {
             {/* Visible pour ADMIN et SUPER_ADMIN */}
             <div className="p-4 border-b border-slate-100">
               <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
-                {isSuperAdmin ? 'Super Admin' : 'Administration'}
+                {isSuperAdmin ? t('nav_superadmin_short') : t('nav_admin_section')}
               </h3>
               <nav className="space-y-1">
                 <Link href="/dashboard/admin/superadmin"
@@ -362,7 +370,7 @@ export default function AfriGesDashboard() {
                   <button
                     onClick={() => { refetch(); refetchActivity(); }}
                     className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-lg transition-colors"
-                    title="Actualiser"
+                    title={t('refresh')}
                   >
                     <RefreshCw size={14} />
                   </button>
@@ -410,15 +418,22 @@ export default function AfriGesDashboard() {
                   </div>
                 </div>
                 <div className="space-y-1 max-h-24 overflow-y-auto">
-                  {act?.modules.liste.slice(0, 5).map((m) => (
+                  {act?.modules.liste.slice(0, 5).map((m) => {
+                    const moduleLabel = (() => {
+                      const key = `module_${m.key}` as Parameters<typeof t>[0];
+                      const result = t(key);
+                      return result === key ? m.nom : result;
+                    })();
+                    return (
                     <div key={m.key} className="flex items-center justify-between py-0.5">
-                      <span className="text-xs text-slate-600 truncate flex-1">{m.nom}</span>
+                      <span className="text-xs text-slate-600 truncate flex-1">{moduleLabel}</span>
                       {m.actif
                         ? <CheckCircle size={12} className="text-emerald-500 flex-shrink-0" />
                         : <XCircle    size={12} className="text-slate-300 flex-shrink-0" />
                       }
                     </div>
-                  ))}
+                  );
+                  })}
                 </div>
               </div>
             </div>
@@ -462,7 +477,7 @@ export default function AfriGesDashboard() {
                           <p className={`font-medium text-xs ${
                             a.niveau === 'critique' ? 'text-red-700' :
                             a.niveau === 'warning'  ? 'text-amber-700' : 'text-blue-700'
-                          }`}>{a.message}</p>
+                          }`}>{a.count} {t(a.alertKey as Parameters<typeof t>[0])}</p>
                           {a.detail && <p className="text-[10px] text-slate-500 mt-0.5">{a.detail}</p>}
                         </div>
                       </div>
@@ -686,7 +701,7 @@ export default function AfriGesDashboard() {
                           {d.repartitionSouscriptions.actives + d.repartitionSouscriptions.completes + d.repartitionSouscriptions.annulees}
                         </text>
                         <text x="110" y="122" textAnchor="middle" fill="#94a3b8" fontSize="10">
-                          total
+                          {t('dash_total')}
                         </text>
                       </>
                     )}

@@ -4,22 +4,34 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   Plus, Search, Download, Package, TrendingUp, AlertTriangle, Archive,
   Eye, Edit, Trash2, RefreshCw, X, ArrowLeft, Store, Building2, Layers, ChevronDown, ChevronRight,
-  ArrowRightLeft, Trash, PackagePlus,
+  ArrowRightLeft, Trash, PackagePlus, Calendar, History,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useApi, useMutation } from '@/hooks/useApi';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { exportToCsv } from '@/lib/exportCsv';
+import { useT } from '@/contexts/AppSettingsContext';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface PDVOption { id: number; nom: string; code: string; type: string; }
 
+interface ApproHistorique {
+  prixUnitaire: string | null;
+  quantiteRecue: number | null;
+  dateReception: string | null;
+  datePrevisionnelle: string;
+  statut: string;
+  reference: string;
+  fournisseurNom: string | null;
+}
+
 // Mode par-PDV (StockSite)
 interface StockItem {
   id: number; produitId: number; pointDeVenteId: number; quantite: number; alerteStock: number | null;
-  produit: { id: number; nom: string; reference?: string; categorie?: string; unite?: string; prixUnitaire: string; alerteStock: number };
+  produit: { id: number; nom: string; reference?: string; categorie?: string; unite?: string; prixUnitaire: string; prixAchat?: string | null; alerteStock: number };
   pointDeVente: { id: number; nom: string; code: string; type: string };
+  appros: ApproHistorique[];
 }
 
 // Mode grand stock (agrégé par produit)
@@ -56,12 +68,14 @@ const STATUT_STYLES: Record<StatutStock, { bg: string; text: string; border: str
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function GestionStockPage() {
+  const t = useT();
   const [vue, setVue]                       = useState<Vue>('grand');
   const [searchQuery, setSearchQuery]       = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [page, setPage]                     = useState(1);
   const [filterPdvId, setFilterPdvId]       = useState('');
   const [expandedRows, setExpandedRows]     = useState<Set<number>>(new Set());
+  const [expandedPdvRows, setExpandedPdvRows] = useState<Set<number>>(new Set());
 
   // Modal ajout produit
   const [modalOpen, setModalOpen]           = useState(false);
@@ -241,6 +255,14 @@ export default function GestionStockPage() {
     });
   };
 
+  const togglePdvExpand = (id: number) => {
+    setExpandedPdvRows(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
   const handleExport = () => {
     if (vue === 'grand') {
       exportToCsv(
@@ -285,7 +307,7 @@ export default function GestionStockPage() {
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-purple-50/20 flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
           <div className="w-12 h-12 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
-          <p className="text-slate-500 font-medium">Chargement du stock...</p>
+          <p className="text-slate-500 font-medium">{t('stock_loading')}</p>
         </div>
       </div>
     );
@@ -314,7 +336,7 @@ export default function GestionStockPage() {
               <ArrowLeft className="w-5 h-5 text-slate-600" />
             </Link>
             <div>
-              <h1 className="text-4xl font-bold text-slate-800 mb-2">Gestion du Stock</h1>
+              <h1 className="text-4xl font-bold text-slate-800 mb-2">{t('stock_title')}</h1>
               <p className="text-slate-500">
                 {vue === 'grand' ? 'Vue globale — total tous PDV confondus' : 'Vue par point de vente'}
               </p>
@@ -334,7 +356,7 @@ export default function GestionStockPage() {
               <ArrowRightLeft size={18} /> Transférer du stock
             </button>
             <button onClick={() => setModalOpen(true)} className="px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all shadow-lg shadow-blue-200 flex items-center gap-2 font-medium">
-              <Plus size={20} /> Nouveau produit
+              <Plus size={20} /> {t('stock_new_product')}
             </button>
           </div>
         </div>
@@ -346,23 +368,23 @@ export default function GestionStockPage() {
             setPage(1);
           }}
             className={`flex items-center gap-2 px-5 py-2.5 rounded-lg font-medium text-sm transition-all ${vue === 'grand' ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
-            <Layers size={15} /> Grand stock
+            <Layers size={15} /> {t('stock_grand_stock')}
           </button>
           <button onClick={() => {
             setVue('pdv');
             setPage(1);
           }}
             className={`flex items-center gap-2 px-5 py-2.5 rounded-lg font-medium text-sm transition-all ${vue === 'pdv' ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
-            <Store size={15} /> Par PDV
+            <Store size={15} /> {t('stock_par_pdv')}
           </button>
         </div>
 
         {/* Stats Cards */}
         <div className="grid grid-cols-4 gap-5">
           {[
-            { label: 'Valeur Totale', value: formatCurrency(stats?.valeurTotale ?? 0), icon: TrendingUp, color: 'bg-emerald-500', lightBg: 'bg-emerald-50' },
-            { label: 'Produits actifs', value: String(stats?.totalProduits ?? 0), icon: Package, color: 'bg-blue-500', lightBg: 'bg-blue-50' },
-            { label: 'Stock faible', value: String(stats?.faibleCount ?? 0), icon: AlertTriangle, color: 'bg-amber-500', lightBg: 'bg-amber-50' },
+            { label: t('stock_valeur'), value: formatCurrency(stats?.valeurTotale ?? 0), icon: TrendingUp, color: 'bg-emerald-500', lightBg: 'bg-emerald-50' },
+            { label: t('stock_total_produits'), value: String(stats?.totalProduits ?? 0), icon: Package, color: 'bg-blue-500', lightBg: 'bg-blue-50' },
+            { label: t('stock_faible'), value: String(stats?.faibleCount ?? 0), icon: AlertTriangle, color: 'bg-amber-500', lightBg: 'bg-amber-50' },
             { label: 'Ruptures', value: String(stats?.enRuptureCount ?? 0), icon: Archive, color: 'bg-red-500', lightBg: 'bg-red-50' },
           ].map((stat, i) => {
             const Icon = stat.icon;
@@ -383,7 +405,7 @@ export default function GestionStockPage() {
           <div className="flex items-center gap-4">
             <div className="flex-1 relative">
               <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400" size={20} />
-              <input type="text" placeholder="Rechercher un produit..."
+              <input type="text" placeholder={t('stock_search_ph')}
                 value={searchQuery}
                 onChange={e => { setSearchQuery(e.target.value); setPage(1); }}
                 className="w-full pl-12 pr-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50" />
@@ -391,7 +413,7 @@ export default function GestionStockPage() {
             {vue === 'pdv' && (
               <select value={filterPdvId} onChange={e => { setFilterPdvId(e.target.value); setPage(1)}}
                 className="px-4 py-3 border border-slate-200 rounded-xl text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50 min-w-[220px]">
-                <option value="">Tous les PDV</option>
+                <option value="">{t('stock_all_pdv')}</option>
                 {pdvs.map(p => (
                   <option key={p.id} value={p.id}>
                     {p.type === 'DEPOT_CENTRAL' ? '🏭 ' : '🏪 '}{p.nom} ({p.code})
@@ -675,7 +697,7 @@ export default function GestionStockPage() {
           <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 overflow-hidden">
             <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
               <h3 className="font-semibold text-slate-800 flex items-center gap-2">
-                <Layers size={16} className="text-blue-500" /> Grand stock — total tous PDV
+                <Layers size={16} className="text-blue-500" /> {t('stock_grand_stock')} — total tous PDV
               </h3>
               {meta && <span className="text-xs text-slate-400 bg-slate-50 px-2 py-1 rounded-lg">{meta.total} produit{meta.total > 1 ? 's' : ''}</span>}
             </div>
@@ -683,7 +705,7 @@ export default function GestionStockPage() {
               <table className="w-full">
                 <thead className="bg-slate-50 border-b border-slate-200">
                   <tr>
-                    {['ID', 'Produit', 'Stock total', 'Répartition PDV', 'Prix achat', 'Prix vente de réf.', 'Marge de réf.', 'Valeur stock', 'Statut', 'Actions'].map(h => (
+                    {['ID', t('stock_col_product'), t('stock_col_total_stock'), 'Répartition PDV', t('stock_col_prix_achat'), t('stock_col_prix_vente'), 'Marge de réf.', 'Valeur stock', t('col_status'), t('col_actions')].map(h => (
                       <th key={h} className="px-5 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">{h}</th>
                     ))}
                   </tr>
@@ -800,7 +822,7 @@ export default function GestionStockPage() {
                   })}
                   {grandStockItems.length === 0 && (
                     <tr>
-                      <td colSpan={8} className="px-6 py-12 text-center text-slate-500">Aucun produit trouvé</td>
+                      <td colSpan={8} className="px-6 py-12 text-center text-slate-500">{t('stock_none_found')}</td>
                     </tr>
                   )}
                 </tbody>
@@ -837,7 +859,7 @@ export default function GestionStockPage() {
               <table className="w-full">
                 <thead className="bg-slate-50 border-b border-slate-200">
                   <tr>
-                    {['Produit', 'PDV', 'Quantité', 'Niveau', 'Prix', 'Valeur stock', 'Statut', 'Actions'].map(h => (
+                    {[t('stock_col_product'), t('stock_col_pdv'), t('label_quantite'), 'Niveau', t('stock_col_prix_vente'), t('stock_col_prix_achat'), 'Valeur stock', t('stock_col_appros'), t('col_status'), t('col_actions')].map(h => (
                       <th key={h} className="px-5 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">{h}</th>
                     ))}
                   </tr>
@@ -849,77 +871,160 @@ export default function GestionStockPage() {
                     const s = STATUT_STYLES[statut];
                     const pct = seuil > 0 ? Math.min(100, (item.quantite / seuil) * 100) : (item.quantite > 0 ? 100 : 0);
                     const barColor = item.quantite === 0 ? 'bg-red-500' : item.quantite <= seuil ? 'bg-amber-500' : 'bg-emerald-500';
+                    const prixAchat = item.produit.prixAchat ? Number(item.produit.prixAchat) : null;
+                    const dernierAppro = item.appros[0] ?? null;
+                    const pdvExpanded = expandedPdvRows.has(item.id);
                     return (
-                      <tr key={item.id} className="hover:bg-slate-50 transition-colors">
-                        <td className="px-5 py-4">
-                          <div>
-                            <p className="font-semibold text-slate-800">{item.produit.nom}</p>
-                            {item.produit.reference && <p className="text-xs text-slate-400 font-mono">{item.produit.reference}</p>}
-                          </div>
-                        </td>
-                        <td className="px-5 py-4">
-                          <div className="flex items-center gap-2">
-                            <div className={`w-6 h-6 ${item.pointDeVente.type === 'DEPOT_CENTRAL' ? 'bg-purple-100' : 'bg-blue-100'} rounded flex items-center justify-center`}>
-                              {item.pointDeVente.type === 'DEPOT_CENTRAL'
-                                ? <Building2 size={12} className="text-purple-600" />
-                                : <Store size={12} className="text-blue-600" />}
-                            </div>
+                      <React.Fragment key={item.id}>
+                        <tr className="hover:bg-slate-50 transition-colors">
+                          <td className="px-5 py-4">
                             <div>
-                              <p className="text-sm font-medium text-slate-800">{item.pointDeVente.nom}</p>
-                              <p className="text-xs text-slate-400 font-mono">{item.pointDeVente.code}</p>
+                              <p className="font-semibold text-slate-800">{item.produit.nom}</p>
+                              {item.produit.reference && <p className="text-xs text-slate-400 font-mono">{item.produit.reference}</p>}
                             </div>
-                          </div>
-                        </td>
-                        <td className="px-5 py-4">
-                          <p className="text-2xl font-bold text-slate-800">{item.quantite}</p>
-                          {item.produit.unite && <p className="text-xs text-slate-400">{item.produit.unite}</p>}
-                        </td>
-                        <td className="px-5 py-4">
-                          <div className="w-28 space-y-1">
-                            <p className="text-xs text-slate-400">Seuil : {seuil}</p>
-                            <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-                              <div className={`h-full ${barColor} rounded-full transition-all`} style={{ width: `${pct}%` }} />
+                          </td>
+                          <td className="px-5 py-4">
+                            <div className="flex items-center gap-2">
+                              <div className={`w-6 h-6 ${item.pointDeVente.type === 'DEPOT_CENTRAL' ? 'bg-purple-100' : 'bg-blue-100'} rounded flex items-center justify-center`}>
+                                {item.pointDeVente.type === 'DEPOT_CENTRAL'
+                                  ? <Building2 size={12} className="text-purple-600" />
+                                  : <Store size={12} className="text-blue-600" />}
+                              </div>
+                              <div>
+                                <p className="text-sm font-medium text-slate-800">{item.pointDeVente.nom}</p>
+                                <p className="text-xs text-slate-400 font-mono">{item.pointDeVente.code}</p>
+                              </div>
                             </div>
-                          </div>
-                        </td>
-                        <td className="px-5 py-4">
-                          <span className="text-sm font-semibold text-slate-800">{formatCurrency(item.produit.prixUnitaire)}</span>
-                        </td>
-                        <td className="px-5 py-4">
-                          <span className="text-base font-bold text-slate-800">{formatCurrency(item.quantite * Number(item.produit.prixUnitaire))}</span>
-                        </td>
-                        <td className="px-5 py-4">
-                          <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-semibold border ${s.bg} ${s.text} ${s.border}`}>
-                            <div className={`w-1.5 h-1.5 rounded-full ${s.dot}`} /> {s.label}
-                          </span>
-                        </td>
-                        <td className="px-5 py-4">
-                          <div className="flex items-center gap-1">
-                            <Link href={`/dashboard/admin/stock/${item.produit.id}`}
-                              className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
-                              <Eye size={15} />
-                            </Link>
-                            <Link href={`/dashboard/admin/stock/${item.produit.id}/edit`}
-                              className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
-                              <Edit size={15} />
-                            </Link>
-                            <button
-                              onClick={() => {
-                                setTransferForm(f => ({ ...f, origineId: String(item.pointDeVenteId), lignes: [{ produitId: String(item.produit.id), quantite: '' }] }));
-                                setTransferModal(true);
-                              }}
-                              className="p-2 text-amber-600 hover:bg-amber-50 rounded-lg transition-colors" title="Transférer ce stock">
-                              <ArrowRightLeft size={15} />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
+                          </td>
+                          <td className="px-5 py-4">
+                            <p className="text-2xl font-bold text-slate-800">{item.quantite}</p>
+                            {item.produit.unite && <p className="text-xs text-slate-400">{item.produit.unite}</p>}
+                          </td>
+                          <td className="px-5 py-4">
+                            <div className="w-28 space-y-1">
+                              <p className="text-xs text-slate-400">Seuil : {seuil}</p>
+                              <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                                <div className={`h-full ${barColor} rounded-full transition-all`} style={{ width: `${pct}%` }} />
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-5 py-4">
+                            <span className="text-sm font-semibold text-slate-800">{formatCurrency(item.produit.prixUnitaire)}</span>
+                          </td>
+                          {/* Prix achat */}
+                          <td className="px-5 py-4">
+                            {prixAchat !== null
+                              ? <span className="text-sm font-semibold text-emerald-700">{formatCurrency(prixAchat)}</span>
+                              : dernierAppro?.prixUnitaire
+                                ? <span className="text-sm font-semibold text-emerald-600">{formatCurrency(Number(dernierAppro.prixUnitaire))}</span>
+                                : <span className="text-xs text-slate-300 italic">—</span>}
+                          </td>
+                          <td className="px-5 py-4">
+                            <span className="text-base font-bold text-slate-800">{formatCurrency(item.quantite * Number(item.produit.prixUnitaire))}</span>
+                          </td>
+                          {/* Appros récents */}
+                          <td className="px-5 py-4">
+                            {item.appros.length > 0 ? (
+                              <button onClick={() => togglePdvExpand(item.id)}
+                                className="flex items-center gap-1.5 text-xs text-violet-600 hover:text-violet-800 font-medium group">
+                                {pdvExpanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
+                                <History size={13} />
+                                {item.appros.length} appro{item.appros.length > 1 ? 's' : ''}
+                                <span className="text-slate-400 group-hover:text-slate-600 ml-1">
+                                  · {formatDate(dernierAppro!.dateReception ?? dernierAppro!.datePrevisionnelle)}
+                                </span>
+                              </button>
+                            ) : (
+                              <span className="text-xs text-slate-300 italic">Aucun</span>
+                            )}
+                          </td>
+                          <td className="px-5 py-4">
+                            <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-semibold border ${s.bg} ${s.text} ${s.border}`}>
+                              <div className={`w-1.5 h-1.5 rounded-full ${s.dot}`} /> {s.label}
+                            </span>
+                          </td>
+                          <td className="px-5 py-4">
+                            <div className="flex items-center gap-1">
+                              <Link href={`/dashboard/admin/stock/${item.produit.id}`}
+                                className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
+                                <Eye size={15} />
+                              </Link>
+                              <Link href={`/dashboard/admin/stock/${item.produit.id}/edit`}
+                                className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
+                                <Edit size={15} />
+                              </Link>
+                              <button
+                                onClick={() => {
+                                  setTransferForm(f => ({ ...f, origineId: String(item.pointDeVenteId), lignes: [{ produitId: String(item.produit.id), quantite: '' }] }));
+                                  setTransferModal(true);
+                                }}
+                                className="p-2 text-amber-600 hover:bg-amber-50 rounded-lg transition-colors" title="Transférer ce stock">
+                                <ArrowRightLeft size={15} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                        {/* Lignes dépliables — historique des approvisionnements */}
+                        {pdvExpanded && (
+                          <tr className="bg-violet-50/60">
+                            <td colSpan={10} className="px-8 py-3">
+                              <div className="flex items-center gap-2 mb-2">
+                                <History size={13} className="text-violet-500" />
+                                <span className="text-xs font-semibold text-violet-700 uppercase tracking-wide">
+                                  Historique approvisionnements — {item.produit.nom} @ {item.pointDeVente.nom}
+                                </span>
+                              </div>
+                              <table className="w-full text-xs">
+                                <thead>
+                                  <tr className="text-slate-500">
+                                    <th className="text-left pb-1 pr-6 font-medium">Référence</th>
+                                    <th className="text-left pb-1 pr-6 font-medium">Date réception</th>
+                                    <th className="text-left pb-1 pr-6 font-medium">Qté reçue</th>
+                                    <th className="text-left pb-1 pr-6 font-medium">Prix achat unitaire</th>
+                                    <th className="text-left pb-1 pr-6 font-medium">Fournisseur</th>
+                                    <th className="text-left pb-1 font-medium">Statut</th>
+                                  </tr>
+                                </thead>
+                                <tbody className="divide-y divide-violet-100">
+                                  {item.appros.map((a, idx) => (
+                                    <tr key={idx} className="hover:bg-violet-100/40">
+                                      <td className="py-1.5 pr-6 font-mono text-slate-500">{a.reference}</td>
+                                      <td className="py-1.5 pr-6 flex items-center gap-1 text-slate-700">
+                                        <Calendar size={11} className="text-violet-400 shrink-0" />
+                                        {a.dateReception
+                                          ? formatDate(a.dateReception)
+                                          : <span className="text-slate-400 italic">Prév. {formatDate(a.datePrevisionnelle)}</span>}
+                                      </td>
+                                      <td className="py-1.5 pr-6 font-semibold text-slate-800">
+                                        {a.quantiteRecue !== null ? a.quantiteRecue : <span className="text-slate-400">—</span>}
+                                      </td>
+                                      <td className="py-1.5 pr-6 font-semibold text-emerald-700">
+                                        {a.prixUnitaire ? formatCurrency(Number(a.prixUnitaire)) : <span className="text-slate-400 italic">—</span>}
+                                      </td>
+                                      <td className="py-1.5 pr-6 text-slate-600">
+                                        {a.fournisseurNom ?? <span className="text-slate-400 italic">—</span>}
+                                      </td>
+                                      <td className="py-1.5">
+                                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                                          a.statut === 'VALIDE' ? 'bg-emerald-100 text-emerald-700' :
+                                          a.statut === 'RECU'   ? 'bg-blue-100 text-blue-700' :
+                                          'bg-slate-100 text-slate-600'
+                                        }`}>{a.statut}</span>
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>
                     );
                   })}
                   {stockItems.length === 0 && (
                     <tr>
-                      <td colSpan={8} className="px-6 py-12 text-center text-slate-500">
-                        {filterPdvId ? 'Aucun produit en stock sur ce PDV' : 'Aucune entrée de stock'}
+                      <td colSpan={10} className="px-6 py-12 text-center text-slate-500">
+                        {filterPdvId ? t('stock_none_found') : t('stock_none_found')}
                       </td>
                     </tr>
                   )}

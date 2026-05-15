@@ -149,8 +149,67 @@ export async function GET(req: Request) {
       prisma.stockSite.count({ where }),
     ]);
 
+    // Historique des approvisionnements par produit × PDV (pour la page courante)
+    const approsMap = new Map<string, Array<{
+      prixUnitaire: string | null;
+      quantiteRecue: number | null;
+      dateReception: Date | null;
+      datePrevisionnelle: Date;
+      statut: string;
+      reference: string;
+      fournisseurNom: string | null;
+    }>>();
+
+    if (stocks.length > 0) {
+      const pairs = stocks.map(s => ({ produitId: s.produitId, pointDeVenteId: s.pointDeVenteId }));
+      const appros = await prisma.ligneReceptionAppro.findMany({
+        where: {
+          OR: pairs.map(p => ({
+            produitId: p.produitId,
+            reception: { pointDeVenteId: p.pointDeVenteId, statut: { in: ["RECU", "VALIDE"] } },
+          })),
+        },
+        orderBy: { receptionId: "desc" },
+        select: {
+          produitId: true,
+          prixUnitaire: true,
+          quantiteRecue: true,
+          reception: {
+            select: {
+              pointDeVenteId: true,
+              dateReception: true,
+              datePrevisionnelle: true,
+              statut: true,
+              reference: true,
+              fournisseurNom: true,
+            },
+          },
+        },
+      });
+
+      for (const a of appros) {
+        const key = `${a.produitId}_${a.reception.pointDeVenteId}`;
+        if (!approsMap.has(key)) approsMap.set(key, []);
+        const arr = approsMap.get(key)!;
+        if (arr.length < 5) arr.push({
+          prixUnitaire:      a.prixUnitaire?.toString() ?? null,
+          quantiteRecue:     a.quantiteRecue,
+          dateReception:     a.reception.dateReception,
+          datePrevisionnelle: a.reception.datePrevisionnelle,
+          statut:            a.reception.statut,
+          reference:         a.reception.reference,
+          fournisseurNom:    a.reception.fournisseurNom,
+        });
+      }
+    }
+
+    const stocksWithAppros = stocks.map(s => ({
+      ...s,
+      appros: approsMap.get(`${s.produitId}_${s.pointDeVenteId}`) ?? [],
+    }));
+
     return NextResponse.json({
-      data:  stocks,
+      data:  stocksWithAppros,
       pdvs,
       stats: { totalProduits, enRuptureCount, faibleCount, valeurTotale },
       meta:  { total, page, limit, totalPages: Math.ceil(total / limit) },

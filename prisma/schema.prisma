@@ -749,7 +749,7 @@ model StockSite {
   @@unique([produitId, pointDeVenteId])
   @@index([pointDeVenteId])
 }
-
+  
 // Journal de chaque mouvement de stock (entrée / sortie / ajustement)
 model MouvementStock {
   id             Int              @id @default(autoincrement())

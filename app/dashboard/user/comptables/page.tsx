@@ -1067,7 +1067,7 @@ export default function ComptablePage() {
                   </>
                 ) : (
                   <div className="h-full flex items-center justify-center text-slate-400 text-sm">
-                    Aucune donnée sur cette période
+                    {t('text_no_result')}
                   </div>
                 )}
               </div>
@@ -1376,7 +1376,7 @@ export default function ComptablePage() {
                     <Plus size={14} /> Ajouter une ligne
                   </button>
                   <div className="flex gap-2">
-                    <button onClick={() => setShowJournalOD(false)} className="px-4 py-2 border border-slate-200 rounded-xl text-sm text-slate-600 hover:bg-slate-50">Annuler</button>
+                    <button onClick={() => setShowJournalOD(false)} className="px-4 py-2 border border-slate-200 rounded-xl text-sm text-slate-600 hover:bg-slate-50">{t('btn_cancel')}</button>
                     <button onClick={handleJournalODSubmit}
                       disabled={creatingEcriture || !journalODForm.libelle || !journalODForm.date}
                       className="flex items-center gap-2 px-4 py-2 bg-violet-600 text-white rounded-xl text-sm font-semibold hover:bg-violet-700 disabled:opacity-50">
@@ -1481,7 +1481,7 @@ export default function ComptablePage() {
                         );
                       })}
                       {(journalData?.data ?? []).length === 0 && !journalLoading && (
-                        <tr><td colSpan={8} className="px-5 py-12 text-center text-slate-400">Aucune écriture pour ces filtres</td></tr>
+                        <tr><td colSpan={8} className="px-5 py-12 text-center text-slate-400">{t('text_no_result')}</td></tr>
                       )}
                     </tbody>
                   </table>
@@ -2476,7 +2476,7 @@ export default function ComptablePage() {
                   </div>
                 </div>
                 <div className="flex gap-3 mt-4">
-                  <button onClick={() => setShowAddCompte(false)} className="px-4 py-2 border border-slate-200 rounded-xl text-sm text-slate-600 hover:bg-slate-50">Annuler</button>
+                  <button onClick={() => setShowAddCompte(false)} className="px-4 py-2 border border-slate-200 rounded-xl text-sm text-slate-600 hover:bg-slate-50">{t('btn_cancel')}</button>
                   <button onClick={handleCreateCompte} disabled={creatingCompte || !newCompte.numero || !newCompte.libelle}
                     className="flex items-center gap-2 px-4 py-2 bg-violet-600 text-white rounded-xl text-sm font-semibold hover:bg-violet-700 disabled:opacity-50">
                     {creatingCompte ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Save size={15} />} Créer
@@ -2724,7 +2724,7 @@ export default function ComptablePage() {
                     <Plus size={14} /> Ajouter une ligne
                   </button>
                   <div className="flex gap-2">
-                    <button onClick={() => setShowSaisie(false)} className="px-4 py-2 border border-slate-200 rounded-xl text-sm text-slate-600 hover:bg-slate-50">Annuler</button>
+                    <button onClick={() => setShowSaisie(false)} className="px-4 py-2 border border-slate-200 rounded-xl text-sm text-slate-600 hover:bg-slate-50">{t('btn_cancel')}</button>
                     <button onClick={handleSaisieSubmit}
                       disabled={creatingEcriture || !saisieForm.libelle || !saisieForm.date}
                       className="flex items-center gap-2 px-4 py-2 bg-violet-600 text-white rounded-xl text-sm font-semibold hover:bg-violet-700 disabled:opacity-50">
@@ -2879,7 +2879,7 @@ export default function ComptablePage() {
                           {e.statut === "VALIDE" && (
                             <button onClick={() => handleAnnulerEcriture(e.id)}
                               className="flex items-center gap-1 px-2.5 py-1.5 border border-red-200 text-red-600 rounded-lg text-xs font-semibold hover:bg-red-50">
-                              <X size={13} /> Annuler
+                              <X size={13} /> {t('btn_cancel')}
                             </button>
                           )}
                         </div>
@@ -3144,7 +3144,7 @@ export default function ComptablePage() {
                   onClick={() => setClotureModal(null)}
                   className="flex-1 px-4 py-2.5 border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 text-sm font-medium"
                 >
-                  Annuler
+                  {t('btn_cancel')}
                 </button>
                 <button
                   onClick={() => handleCloture(clotureModal.mois)}

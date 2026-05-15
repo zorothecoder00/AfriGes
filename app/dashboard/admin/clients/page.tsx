@@ -7,6 +7,7 @@ import { Search, Plus, Phone, MapPin, Eye, Edit, Trash2, ArrowLeft, Store, Build
 import Link from 'next/link';
 import { useApi, useMutation } from '@/hooks/useApi';
 import { formatDate, formatDateTime, formatCurrency } from '@/lib/format';
+import { useT } from '@/contexts/AppSettingsContext';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -94,6 +95,7 @@ interface HistoriqueData {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function ClientsPage() {
+  const t = useT();
   const [searchQuery, setSearchQuery]     = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [page, setPage]                   = useState(1);
@@ -250,7 +252,7 @@ export default function ClientsPage() {
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-emerald-50/20 flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
           <div className="w-12 h-12 border-4 border-emerald-200 border-t-emerald-600 rounded-full animate-spin" />
-          <p className="text-slate-500 font-medium">Chargement des clients...</p>
+          <p className="text-slate-500 font-medium">{t('clients_loading')}</p>
         </div>
       </div>
     );
@@ -260,9 +262,9 @@ export default function ClientsPage() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-emerald-50/20 flex items-center justify-center">
         <div className="flex flex-col items-center gap-4 bg-white rounded-2xl p-8 shadow-sm border max-w-md text-center">
-          <h3 className="text-lg font-bold text-slate-800">Erreur de chargement</h3>
+          <h3 className="text-lg font-bold text-slate-800">{t('text_error_loading')}</h3>
           <p className="text-slate-500 text-sm">{error}</p>
-          <button onClick={refetch} className="px-5 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 font-medium">Réessayer</button>
+          <button onClick={refetch} className="px-5 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 font-medium">{t('btn_retry')}</button>
         </div>
       </div>
     );
@@ -279,13 +281,13 @@ export default function ClientsPage() {
               <ArrowLeft className="w-5 h-5 text-slate-600" />
             </Link>
             <div>
-              <h1 className="text-4xl font-bold text-slate-800 mb-2">Clients</h1>
-              <p className="text-slate-500">Gérez les clients et leur affectation aux points de vente</p>
+              <h1 className="text-4xl font-bold text-slate-800 mb-2">{t('clients_title')}</h1>
+              <p className="text-slate-500">{t('clients_subtitle')}</p>
             </div>
           </div>
           <button onClick={() => setModalOpen(true)}
             className="px-6 py-3 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-200 flex items-center gap-2 font-medium">
-            <Plus size={20} /> Ajouter un client
+            <Plus size={20} /> {t('clients_add_btn')}
           </button>
         </div>
 
@@ -335,7 +337,7 @@ export default function ClientsPage() {
                 </div>
                 <button type="submit" disabled={adding}
                   className="w-full py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-all font-medium">
-                  {adding ? 'Ajout en cours...' : 'Ajouter le client'}
+                  {adding ? t('btn_adding') : t('clients_add_btn')}
                 </button>
               </form>
             </div>
@@ -404,7 +406,7 @@ export default function ClientsPage() {
         {/* Stats */}
         <div className="grid grid-cols-4 gap-5">
           <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/60">
-            <span className="text-slate-600 text-sm font-medium">Total Clients</span>
+            <span className="text-slate-600 text-sm font-medium">{t('clients_total')}</span>
             <p className="text-3xl font-bold text-slate-800 mt-1">{meta?.total ?? '—'}</p>
           </div>
           <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/60">
@@ -430,14 +432,14 @@ export default function ClientsPage() {
           <div className="flex items-center gap-4">
             <div className="flex-1 relative">
               <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400" size={20} />
-              <input type="text" placeholder="Rechercher par nom, prénom, téléphone..."
+              <input type="text" placeholder={t('clients_search_ph')}
                 value={searchQuery}
                 onChange={e => { setSearchQuery(e.target.value); setPage(1); }}
                 className="w-full pl-12 pr-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50" />
             </div>
             <select value={filterPdvId} onChange={e => { setFilterPdvId(e.target.value); setPage(1); }}
               className="px-4 py-3 border border-slate-200 rounded-xl text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50 min-w-[200px]">
-              <option value="">Tous les PDV</option>
+              <option value="">{t('clients_all_pdv')}</option>
               {pdvOptions.map(p => (
                 <option key={p.id} value={p.id}>{p.nom} ({p.code})</option>
               ))}
@@ -454,7 +456,7 @@ export default function ClientsPage() {
                   <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Client</th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Téléphone</th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Adresse</th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">PDV rattaché</th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">{t('clients_pdv_affecte')}</th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Activités</th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Date</th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Actions</th>
@@ -501,7 +503,7 @@ export default function ClientsPage() {
                           </div>
                         </div>
                       ) : (
-                        <span className="text-xs text-slate-400 italic">Non affecté</span>
+                        <span className="text-xs text-slate-400 italic">{t('text_no_assign')}</span>
                       )}
                     </td>
                     <td className="px-6 py-4">
@@ -540,7 +542,7 @@ export default function ClientsPage() {
                 ))}
                 {clients.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="px-6 py-12 text-center text-slate-500">Aucun client trouvé</td>
+                    <td colSpan={7} className="px-6 py-12 text-center text-slate-500">{t('clients_none_found')}</td>
                   </tr>
                 )}
               </tbody>
@@ -550,17 +552,17 @@ export default function ClientsPage() {
           {meta && (
             <div className="px-6 py-4 border-t border-slate-200 flex items-center justify-between">
               <p className="text-sm text-slate-600">
-                Page <span className="font-semibold">{meta.page}</span> sur <span className="font-semibold">{meta.totalPages}</span> ({meta.total} clients)
+                {t('page')} <span className="font-semibold">{meta.page}</span> / <span className="font-semibold">{meta.totalPages}</span> ({meta.total} {t('clients_title').toLowerCase()})
               </p>
               <div className="flex items-center gap-2">
                 <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page <= 1}
                   className="px-4 py-2 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-50">
-                  Précédent
+                  {t('btn_prev')}
                 </button>
                 <span className="px-4 py-2 bg-emerald-600 text-white rounded-lg font-medium">{page}</span>
                 <button onClick={() => setPage(p => Math.min(meta.totalPages, p + 1))} disabled={page >= meta.totalPages}
                   className="px-4 py-2 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-50">
-                  Suivant
+                  {t('btn_next')}
                 </button>
               </div>
             </div>
