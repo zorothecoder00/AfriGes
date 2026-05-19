@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { ArrowLeft, Send, MessageSquare, ChevronDown, ChevronUp, Clock, Smile } from "lucide-react";
-import Link from "next/link";
+import DashboardBackButton from "@/components/DashboardBackButton";
 import { useApi, useMutation } from "@/hooks/useApi";
 import { formatDateTime } from "@/lib/format";
 
@@ -238,9 +238,7 @@ export default function GestionnaireMessagesPage() {
 
         {/* Header */}
         <div className="flex items-center gap-4">
-          <Link href="/dashboard/user" className="p-2 hover:bg-white rounded-lg transition-colors">
-            <ArrowLeft className="w-5 h-5 text-slate-600" />
-          </Link>
+          <DashboardBackButton />
           <div className="flex-1">
             <h1 className="text-3xl font-bold text-slate-800">Mes messages</h1>
             <p className="text-slate-500 text-sm mt-0.5">

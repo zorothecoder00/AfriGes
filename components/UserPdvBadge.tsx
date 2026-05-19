@@ -2,6 +2,7 @@
 
 import { useSession } from "next-auth/react";
 import { useApi } from "@/hooks/useApi";
+import { useViewAs } from "@/contexts/ViewAsContext";
 import { MapPin } from "lucide-react";
 
 interface PDVInfo { id: number; nom: string; code: string }
@@ -18,10 +19,12 @@ interface AffectationResponse {
  */
 export default function UserPdvBadge() {
   const { data: session } = useSession();
+  const { viewAs } = useViewAs();
   const { data } = useApi<AffectationResponse>("/api/me/affectation");
 
-  const prenom = session?.user?.prenom ?? "";
-  const nom    = session?.user?.nom    ?? "";
+  // En mode viewAs, afficher les infos du gestionnaire ciblé (pas de l'admin connecté)
+  const prenom = viewAs?.prenom ?? session?.user?.prenom ?? "";
+  const nom    = viewAs?.nom    ?? session?.user?.nom    ?? "";
   const pdvs   = data?.pdvs ?? (data?.pdv ? [data.pdv] : []);
 
   if (!prenom && !nom) return null;

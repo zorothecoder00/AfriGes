@@ -14,6 +14,7 @@ import SignOutButton from "@/components/SignOutButton";
 import NotificationBell from "@/components/NotificationBell";
 import MessagesLink from "@/components/MessagesLink";
 import UserPdvBadge from "@/components/UserPdvBadge";
+import DashboardBackButton from "@/components/DashboardBackButton";
 import { useApi, useMutation } from "@/hooks/useApi";
 import { formatCurrency, formatDate, formatDateTime } from "@/lib/format";
 import { useT } from "@/contexts/AppSettingsContext";
@@ -1482,9 +1483,7 @@ export default function CaissierPage() {
         <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center gap-4">
-              <Link href="/dashboard/user" className="p-2 hover:bg-slate-100 rounded-lg transition-colors">
-                <ArrowLeft className="w-5 h-5 text-slate-600" />
-              </Link>
+              <DashboardBackButton />
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-lg flex items-center justify-center">
                   <Banknote className="w-4 h-4 text-white" />

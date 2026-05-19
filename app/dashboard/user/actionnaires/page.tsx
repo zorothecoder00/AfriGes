@@ -13,6 +13,7 @@ import Link from "next/link";
 import SignOutButton from "@/components/SignOutButton";
 import NotificationBell from "@/components/NotificationBell";
 import MessagesLink from "@/components/MessagesLink";
+import DashboardBackButton from "@/components/DashboardBackButton";
 import { useApi } from "@/hooks/useApi";
 import { useMutation } from "@/hooks/useApi";
 import { formatCurrency, formatDate } from "@/lib/format";
@@ -550,9 +551,7 @@ export default function ActionnairePage() {
         <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center gap-4">
-              <Link href="/dashboard/user" className="p-2 hover:bg-slate-100 rounded-lg transition-colors">
-                <ArrowLeft className="w-5 h-5 text-slate-600" />
-              </Link>
+              <DashboardBackButton />
               <h1 className="text-xl font-bold bg-gradient-to-r from-indigo-600 to-blue-600 bg-clip-text text-transparent">
                 {t("role_actionnaire_title")}
               </h1>
