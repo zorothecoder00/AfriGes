@@ -1,6 +1,7 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getChefAgenceSession, getChefAgencePdvIds } from "@/lib/authChefAgence";
+import { resolveViewAs } from "@/lib/viewAs";
 
 /**
  * GET /api/chef-agence/dashboard
@@ -12,12 +13,14 @@ import { getChefAgenceSession, getChefAgencePdvIds } from "@/lib/authChefAgence"
  *   - Anomalies résumé
  *   - Dernières ventes de la zone
  */
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
     const session = await getChefAgenceSession();
     if (!session) return NextResponse.json({ message: "Accès refusé" }, { status: 403 });
 
-    const pdvIds = await getChefAgencePdvIds(session);
+    const isAdmin = session.user.role === "ADMIN" || session.user.role === "SUPER_ADMIN";
+    const viewAs  = isAdmin ? resolveViewAs(req) : null;
+    const pdvIds  = await getChefAgencePdvIds(session, viewAs?.userId);
     // pdvIds === null → admin, pas de restriction ; [] → pas de PDV
 
     const now          = new Date();

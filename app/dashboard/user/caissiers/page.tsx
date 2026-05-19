@@ -17,6 +17,7 @@ import UserPdvBadge from "@/components/UserPdvBadge";
 import { useApi, useMutation } from "@/hooks/useApi";
 import { formatCurrency, formatDate, formatDateTime } from "@/lib/format";
 import { useT } from "@/contexts/AppSettingsContext";
+import { usePageAccess } from "@/hooks/usePageAccess";
 
 // ============================================================================
 // TYPES
@@ -698,7 +699,8 @@ function TicketVenteDirecte({ data, onClose }: { data: RecuVenteDirecteData["dat
 
 export default function CaissierPage() {
   const t = useT();
-  
+  const { isAllowed, allowedPages } = usePageAccess();
+
   const [activeTab, setActiveTab] = useState<TabKey>("synthese");
 
   // ── Recherche / filtres historique ───────────────────────────────────────
@@ -1197,7 +1199,7 @@ export default function CaissierPage() {
   // RENDER
   // ============================================================================
 
-  const tabs: { key: TabKey; label: string; icon: React.ElementType }[] = [
+  const allTabs: { key: TabKey; label: string; icon: React.ElementType }[] = [
     { key: "synthese",            label: "Synthèse",        icon: BarChart3       },
     { key: "session",             label: "Session",         icon: Power           },
     { key: "encaissement_caisse", label: "Encaissements",   icon: ArrowUpCircle   },
@@ -1208,6 +1210,15 @@ export default function CaissierPage() {
     { key: "recus",               label: "Reçus",           icon: Receipt         },
     { key: "cloture",             label: "Clôture",         icon: Lock            },
   ];
+  const tabs = allTabs.filter((t) => isAllowed(t.key));
+
+  useEffect(() => {
+    if (allowedPages && !allowedPages.includes(activeTab)) {
+      const first = allTabs.find((t) => allowedPages.includes(t.key));
+      if (first) setActiveTab(first.key);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allowedPages]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-sky-50/30 to-indigo-50/20 font-['DM_Sans',sans-serif]">

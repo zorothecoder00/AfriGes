@@ -1,25 +1,28 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { Prisma, PrioriteNotification } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCaissierSession } from "@/lib/authCaissier";
 import { notifyRoles, auditLog } from "@/lib/notifications";
+import { resolveViewAs } from "@/lib/viewAs";
 
 /**
  * GET /api/caissier/session
  * Retourne la session active (OUVERTE ou SUSPENDUE) du caissier connecté, ou null.
  */
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
     const session = await getCaissierSession();
     if (!session) return NextResponse.json({ message: "Accès refusé" }, { status: 403 });
 
     const userId   = parseInt(session.user.id);
     const isAdmin  = session.user.role === "ADMIN" || session.user.role === "SUPER_ADMIN";
+    const viewAs   = isAdmin ? resolveViewAs(req) : null;
+    const effectiveUserId = viewAs?.userId ?? userId;
 
     const sessionActive = await prisma.sessionCaisse.findFirst({
       where: {
         statut: { in: ["OUVERTE", "SUSPENDUE"] },
-        ...(isAdmin ? {} : { caissierId: userId }),
+        ...((isAdmin && !viewAs) ? {} : { caissierId: effectiveUserId }),
       },
       orderBy: { createdAt: "desc" },
     });

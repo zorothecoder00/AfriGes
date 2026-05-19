@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
   LayoutDashboard, Store, TrendingUp, Package, Wallet, Users,
   UserCheck, ShoppingBag, FileText, RefreshCw, Download,
@@ -18,6 +18,7 @@ import { useMutation } from "@/hooks/useApi";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { exportToCsv } from "@/lib/exportCsv";
 import { useT } from "@/contexts/AppSettingsContext";
+import { usePageAccess } from "@/hooks/usePageAccess";
 
 // ============================================================================
 // TYPES
@@ -257,7 +258,8 @@ function EmptyState({ message }: { message: string }) {
 
 export default function ChefAgenceDashboard() {
   const t = useT();
-  
+  const { isAllowed, allowedPages } = usePageAccess();
+
   const [activeTab, setActiveTab] = useState<Tab>("vue_generale");
 
   // ── Filtres Ventes ───────────────────────────────────────────────────────
@@ -457,17 +459,26 @@ export default function ChefAgenceDashboard() {
   }
 
   // ── Tabs config ──────────────────────────────────────────────────────────
-  const tabs: { key: Tab; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
+  const allTabs: { key: Tab; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
     { key: "vue_generale",     label: t("chef_tab_overview"),     icon: LayoutDashboard },
-    { key: "pdvs",             label: "Points de Vente",  icon: Store },
-    { key: "ventes",           label: "Ventes",           icon: TrendingUp },
-    { key: "stock",            label: "Stock",            icon: Package },
-    { key: "caisse",           label: "Caisse",           icon: Wallet },
-    { key: "equipe",           label: "Équipe",           icon: Users },
-    { key: "clients",          label: "Clients",          icon: UserCheck },
-    { key: "approvisionnement",label: "Approvisionnement",icon: ShoppingBag },
-    { key: "rapports",         label: "Rapports",         icon: FileText },
+    { key: "pdvs",             label: "Points de Vente",   icon: Store },
+    { key: "ventes",           label: "Ventes",            icon: TrendingUp },
+    { key: "stock",            label: "Stock",             icon: Package },
+    { key: "caisse",           label: "Caisse",            icon: Wallet },
+    { key: "equipe",           label: "Équipe",            icon: Users },
+    { key: "clients",          label: "Clients",           icon: UserCheck },
+    { key: "approvisionnement",label: "Approvisionnement", icon: ShoppingBag },
+    { key: "rapports",         label: "Rapports",          icon: FileText },
   ];
+  const tabs = allTabs.filter((t) => isAllowed(t.key));
+
+  useEffect(() => {
+    if (allowedPages && !allowedPages.includes(activeTab)) {
+      const first = allTabs.find((t) => allowedPages.includes(t.key));
+      if (first) setActiveTab(first.key);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allowedPages]);
 
   // ── Render ───────────────────────────────────────────────────────────────
   return (

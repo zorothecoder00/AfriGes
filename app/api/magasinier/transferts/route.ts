@@ -1,6 +1,7 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getMagasinierSession } from "@/lib/authMagasinier";
+import { resolveViewAs } from "@/lib/viewAs";
 
 /**
  * GET /api/magasinier/transferts
@@ -8,10 +9,14 @@ import { getMagasinierSession } from "@/lib/authMagasinier";
  * Redirige vers le même endpoint logistique/transferts avec filtre.
  * Query: statut, pdvId, page, limit
  */
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
   try {
     const session = await getMagasinierSession();
     if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
+
+    const isAdmin = session.user.role === "ADMIN" || session.user.role === "SUPER_ADMIN";
+    const viewAs  = isAdmin ? resolveViewAs(req) : null;
+    const effectiveUserId = viewAs?.userId ?? parseInt(session.user.id);
 
     const { searchParams } = new URL(req.url);
     const page    = Math.max(1, Number(searchParams.get("page")  || 1));
@@ -25,9 +30,9 @@ export async function GET(req: Request) {
     const where: any = {};
 
     if (entrants) {
-      // Transferts entrants à confirmer pour le PDV du magasinier
+      // Transferts entrants à confirmer pour le PDV du magasinier (ou cible viewAs)
       const aff = await prisma.gestionnaireAffectation.findFirst({
-        where: { userId: parseInt(session.user.id), actif: true },
+        where: { userId: effectiveUserId, actif: true },
         select: { pointDeVenteId: true },
       });
       if (aff?.pointDeVenteId) {

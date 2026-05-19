@@ -1,19 +1,24 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getRPVSession } from "@/lib/authRPV";
+import { resolveViewAs } from "@/lib/viewAs";
 
 /**
  * GET /api/rpv/stock
  * Stock disponible au PDV du RPV connecté.
  * Query: search, enRupture (bool), page, limit
  */
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
   try {
     const session = await getRPVSession();
     if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
 
+    const isAdmin = session.user.role === "ADMIN" || session.user.role === "SUPER_ADMIN";
+    const viewAs  = isAdmin ? resolveViewAs(req) : null;
+    const effectiveUserId = viewAs?.userId ?? parseInt(session.user.id);
+
     const pdv = await prisma.pointDeVente.findUnique({
-      where: { rpvId: parseInt(session.user.id) },
+      where: { rpvId: effectiveUserId },
       select: { id: true, nom: true, code: true },
     });
     if (!pdv) return NextResponse.json({ error: "Aucun PDV associé" }, { status: 400 });

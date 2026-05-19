@@ -1,7 +1,8 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getComptableSession, getComptablePdvId } from "@/lib/authComptable";
+import { resolveViewAs } from "@/lib/viewAs";
 
 /**
  * GET /api/comptable/synthese?period=7|30|90|365
@@ -10,12 +11,15 @@ import { getComptableSession, getComptablePdvId } from "@/lib/authComptable";
  *   Encaissements : VersementPack + OperationCaisse ENCAISSEMENT
  *   Décaissements : MouvementStock ENTREE + OperationCaisse DECAISSEMENT (salaires, avances, etc.)
  */
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
   try {
     const session = await getComptableSession();
     if (!session) {
       return NextResponse.json({ message: "Accès refusé" }, { status: 403 });
     }
+
+    const isAdmin = session.user.role === "ADMIN" || session.user.role === "SUPER_ADMIN";
+    const viewAs  = isAdmin ? resolveViewAs(req) : null;
 
     const { searchParams } = new URL(req.url);
     const periodParam = Number(searchParams.get("period") ?? "30");
@@ -26,7 +30,7 @@ export async function GET(req: Request) {
     since.setDate(since.getDate() - period);
 
     // ── Récupérer le PDV du comptable ─────────────────────────────────────────
-    const pdvId = await getComptablePdvId(session);
+    const pdvId = await getComptablePdvId(session, viewAs?.userId);
 
     // Fragments SQL conditionnels selon le PDV
     const approPdvFilter  = pdvId !== null ? Prisma.sql`AND m."pointDeVenteId" = ${pdvId}` : Prisma.empty;

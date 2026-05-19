@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { MemberStatus, PrioriteNotification, Prisma, Role } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { getAdminSession } from "@/lib/authAdmin";
 
 /**  
  * ==========================
@@ -10,6 +11,9 @@ import { prisma } from "@/lib/prisma";
  */
 export async function GET(req: Request) {
   try {
+    const session = await getAdminSession();
+    if (!session) return NextResponse.json({ message: "Accès refusé" }, { status: 403 });
+
     const { searchParams } = new URL(req.url);
 
     const page = Number(searchParams.get("page") || 1);
@@ -108,6 +112,9 @@ export async function GET(req: Request) {
  */
 export async function POST(req: Request) {
   try {
+    const session = await getAdminSession();
+    if (!session) return NextResponse.json({ message: "Accès refusé" }, { status: 403 });
+
     const body = await req.json();
     const { nom, prenom, telephone, adresse, pointDeVenteId, pointsDeVenteIds } = body;
 

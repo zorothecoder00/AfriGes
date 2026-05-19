@@ -1,23 +1,28 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getMagasinierSession } from "@/lib/authMagasinier";
+import { resolveViewAs } from "@/lib/viewAs";
 
 /**
  * GET /api/magasinier/mouvements
  * Journal des mouvements de stock du PDV du magasinier connecté.
  * Query: type, produitId, search, page, limit
  */
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
   try {
     const session = await getMagasinierSession();
     if (!session) {
       return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
     }
 
-    // Résoudre le PDV du magasinier
+    const isAdmin = session.user.role === "ADMIN" || session.user.role === "SUPER_ADMIN";
+    const viewAs  = isAdmin ? resolveViewAs(req) : null;
+    const effectiveUserId = viewAs?.userId ?? parseInt(session.user.id);
+
+    // Résoudre le PDV du magasinier (ou du gestionnaire ciblé en viewAs)
     const aff = await prisma.gestionnaireAffectation.findFirst({
-      where: { userId: parseInt(session.user.id), actif: true },
+      where: { userId: effectiveUserId, actif: true },
       select: { pointDeVenteId: true },
     });
     const pdvId = aff?.pointDeVenteId;

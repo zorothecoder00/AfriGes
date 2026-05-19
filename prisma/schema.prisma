@@ -10,7 +10,7 @@ generator client {
                                  
 datasource db {
   provider = "postgresql"
-}          
+}            
   
 // ============================================================
 // ENUMS — Rôles & statuts généraux
@@ -473,9 +473,11 @@ model User {
   role         Role?
   telephone    String?
   adresse      String?
-  passwordHash String?
-  etat         MemberStatus @default(ACTIF)
-  dateAdhesion DateTime     @default(now())
+  passwordHash        String?
+  etat                MemberStatus @default(ACTIF)
+  tokenVersion        Int          @default(0)
+  mustChangePassword  Boolean      @default(false)
+  dateAdhesion        DateTime     @default(now())
 
   // Profil gestionnaire (rôle opérationnel)
   gestionnaire         Gestionnaire?
@@ -1934,6 +1936,20 @@ model UserPermission {
 
   @@unique([userId, module, permission])
   @@index([userId])
+}
+
+/// Configuration d'accès aux sections/pages par rôle gestionnaire
+model RolePageAccess {
+  id        Int              @id @default(autoincrement())
+  role      RoleGestionnaire
+  pageKey   String
+  allowed   Boolean          @default(true)
+  updatedBy Int?
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  @@unique([role, pageKey])
+  @@index([role])
 }
 
 /// Modules de la plateforme — activation / désactivation

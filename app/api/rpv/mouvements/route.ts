@@ -1,22 +1,25 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { Prisma, PrioriteNotification, TypeMouvement } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getRPVSession } from "@/lib/authRPV";
 import { randomUUID } from "crypto";
 import { notifyRoles, auditLog } from "@/lib/notifications";
+import { resolveViewAs } from "@/lib/viewAs";
 
 /**
  * GET /api/rpv/mouvements
  * Journal de tous les mouvements de stock avec pagination et filtres.
  * Paramètres : page, limit, type (ENTREE|SORTIE|AJUSTEMENT), produitId, search
  */
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
   try {
     const session = await getRPVSession();
     if (!session) return NextResponse.json({ message: "Accès refusé" }, { status: 403 });
 
-    const userId = parseInt(session.user.id);
-    const pdv = await prisma.pointDeVente.findUnique({ where: { rpvId: userId } });
+    const isAdmin = session.user.role === "ADMIN" || session.user.role === "SUPER_ADMIN";
+    const viewAs  = isAdmin ? resolveViewAs(req) : null;
+    const effectiveUserId = viewAs?.userId ?? parseInt(session.user.id);
+    const pdv = await prisma.pointDeVente.findUnique({ where: { rpvId: effectiveUserId } });
     if (!pdv) return NextResponse.json({ message: "Aucun PDV associé" }, { status: 400 });
 
     const { searchParams } = new URL(req.url);

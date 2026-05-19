@@ -1,7 +1,8 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getComptableSession, getComptablePdvId } from "@/lib/authComptable";
+import { resolveViewAs } from "@/lib/viewAs";
 
 /**
  * GET /api/comptable/etats-financiers?annee=2025
@@ -11,12 +12,15 @@ import { getComptableSession, getComptablePdvId } from "@/lib/authComptable";
  *   Charges  (CPC) : MouvementStock ENTREE + OperationCaisse DECAISSEMENT
  *   Bilan          : snapshot actuel (stock + souscriptions actives)
  */
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
   try {
     const session = await getComptableSession();
     if (!session) {
       return NextResponse.json({ message: "Accès refusé" }, { status: 403 });
     }
+
+    const isAdmin = session.user.role === "ADMIN" || session.user.role === "SUPER_ADMIN";
+    const viewAs  = isAdmin ? resolveViewAs(req) : null;
 
     const { searchParams } = new URL(req.url);
     const currentYear = new Date().getFullYear();
@@ -25,7 +29,7 @@ export async function GET(req: Request) {
     const yearEnd   = new Date(annee, 11, 31, 23, 59, 59, 999);
 
     // ── Filtre PDV ─────────────────────────────────────────────────────────────
-    const pdvId = await getComptablePdvId(session);
+    const pdvId = await getComptablePdvId(session, viewAs?.userId);
     const approPdvFilter  = pdvId !== null ? Prisma.sql`AND m."pointDeVenteId" = ${pdvId}` : Prisma.empty;
     const caissePdvJoin   = pdvId !== null ? Prisma.sql`JOIN "SessionCaisse" sc ON sc.id = oc."sessionId"` : Prisma.empty;
     const caissePdvFilter = pdvId !== null ? Prisma.sql`AND sc."pointDeVenteId" = ${pdvId}` : Prisma.empty;

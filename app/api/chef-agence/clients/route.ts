@@ -1,18 +1,21 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getChefAgenceSession, getChefAgencePdvIds } from "@/lib/authChefAgence";
+import { resolveViewAs } from "@/lib/viewAs";
 
 /**
  * GET /api/chef-agence/clients?pdvId=X&search=X&page=1&limit=25&etat=X
  *
  * Base clients de toute la zone du chef d'agence, avec filtres.
  */
-export async function GET(req: Request) {  
+export async function GET(req: NextRequest) {
   try {
     const session = await getChefAgenceSession();
     if (!session) return NextResponse.json({ message: "Accès refusé" }, { status: 403 });
 
-    const pdvIds = await getChefAgencePdvIds(session);
+    const isAdmin = session.user.role === "ADMIN" || session.user.role === "SUPER_ADMIN";
+    const viewAs  = isAdmin ? resolveViewAs(req) : null;
+    const pdvIds  = await getChefAgencePdvIds(session, viewAs?.userId);
 
     const { searchParams } = new URL(req.url);
     const page       = Math.max(1, Number(searchParams.get("page")  ?? "1"));

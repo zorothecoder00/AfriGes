@@ -21,6 +21,7 @@ import { exportToCsv } from "@/lib/exportCsv";
 import { generateUploadButton } from "@uploadthing/react";
 import type { OurFileRouter } from "@/app/api/uploadthing/core";
 import { useT } from "@/contexts/AppSettingsContext";
+import { usePageAccess } from "@/hooks/usePageAccess";
 
 const UploadButton = generateUploadButton<OurFileRouter>();
 
@@ -360,6 +361,7 @@ type Tab    = "synthese" | "journal" | "tresorerie" | "balance" | "grandlivre" |
 
 export default function ComptablePage() {
   const t = useT();
+  const { isAllowed, allowedPages } = usePageAccess();
 
   const [selectedPeriod, setSelectedPeriod] = useState<Period>("30");
   const [activeTab, setActiveTab]           = useState<Tab>("synthese");
@@ -861,6 +863,29 @@ export default function ComptablePage() {
     [yMax]
   );
 
+  const allTabs: { key: Tab; label: string; icon: React.ElementType }[] = [
+    { key: "synthese",       label: "Synthèse",              icon: BarChart3    },
+    { key: "plan",           label: "Plan Comptable",        icon: BookMarked   },
+    { key: "saisie",         label: "Écritures",             icon: Edit2        },
+    { key: "journal",        label: "Journal",               icon: BookOpen     },
+    { key: "tresorerie",     label: "Trésorerie",            icon: Wallet       },
+    { key: "balance",        label: "Balance",               icon: Calculator   },
+    { key: "grandlivre",     label: "Grand Livre",           icon: BookOpen     },
+    { key: "tva",            label: "TVA",                   icon: Percent      },
+    { key: "rapprochement",  label: "Rapprochement",         icon: Building2    },
+    { key: "etats",          label: "États Financiers",      icon: FileText     },
+    { key: "pieces",         label: "Pièces justificatives", icon: Paperclip    },
+  ];
+  const tabs = allTabs.filter((t) => isAllowed(t.key));
+
+  useEffect(() => {
+    if (allowedPages && !allowedPages.includes(activeTab)) {
+      const first = allTabs.find((t) => allowedPages.includes(t.key));
+      if (first) setActiveTab(first.key);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allowedPages]);
+
   // ── Loading state ──────────────────────────────────────────────────────
 
   if (synthLoading && !sd) {
@@ -877,20 +902,6 @@ export default function ComptablePage() {
   const enc  = sd?.encaissements;
   const dec  = sd?.decaissements;
   const snap = sd?.snapshot;
-
-  const tabs: { key: Tab; label: string; icon: React.ElementType }[] = [
-    { key: "synthese",       label: "Synthèse",              icon: BarChart3    },
-    { key: "plan",           label: "Plan Comptable",        icon: BookMarked   },
-    { key: "saisie",         label: "Écritures",             icon: Edit2        },
-    { key: "journal",        label: "Journal",               icon: BookOpen     },
-    { key: "tresorerie",     label: "Trésorerie",            icon: Wallet       },
-    { key: "balance",        label: "Balance",               icon: Calculator   },
-    { key: "grandlivre",     label: "Grand Livre",           icon: BookOpen     },
-    { key: "tva",            label: "TVA",                   icon: Percent      },
-    { key: "rapprochement",  label: "Rapprochement",         icon: Building2    },
-    { key: "etats",          label: "États Financiers",      icon: FileText     },
-    { key: "pieces",         label: "Pièces justificatives", icon: Paperclip    },
-  ];
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-violet-50/30 to-indigo-50/20">

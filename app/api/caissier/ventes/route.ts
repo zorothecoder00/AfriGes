@@ -1,25 +1,32 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { PrioriteNotification } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCaissierSession } from "@/lib/authCaissier";
-import { randomUUID } from "crypto";  
+import { randomUUID } from "crypto";
 import { notifyRoles, auditLog } from "@/lib/notifications";
+import { resolveViewAs } from "@/lib/viewAs";
 
 /**  
  * GET /api/caissier/ventes
  * Ventes directes enregistrées sur le PDV du caissier.
  * Query: statut, dateDebut, dateFin, search, page, limit
  */
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
   try {
     const session = await getCaissierSession();
     if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
 
-    const userId = parseInt(session.user.id);
+    const userId  = parseInt(session.user.id);
+    const isAdmin = session.user.role === "ADMIN" || session.user.role === "SUPER_ADMIN";
+    const viewAs  = isAdmin ? resolveViewAs(req) : null;
+    const effectiveUserId = viewAs?.userId ?? userId;
 
-    // Trouver le PDV du caissier via session caisse ouverte
+    // Trouver le PDV du caissier via session caisse ouverte (ou du gestionnaire ciblé en viewAs)
     const sessionCaisse = await prisma.sessionCaisse.findFirst({
-      where: { caissierId: userId, statut: "OUVERTE" },
+      where: {
+        statut: "OUVERTE",
+        ...((isAdmin && !viewAs) ? {} : { caissierId: effectiveUserId }),
+      },
       select: { id: true, pointDeVenteId: true, pointDeVente: { select: { id: true, nom: true } } },
     });
 

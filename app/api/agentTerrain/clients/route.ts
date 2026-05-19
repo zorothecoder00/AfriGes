@@ -1,22 +1,27 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { Prisma, PrioriteNotification, Role } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getAgentTerrainSession } from "@/lib/authAgentTerrain";
+import { resolveViewAs } from "@/lib/viewAs";
 
 /**
  * GET /api/agentTerrain/clients
  * Liste clients du PDV de l'agent terrain, avec pagination et recherche.
  */
-export async function GET(req: Request) {
-  try {       
+export async function GET(req: NextRequest) {
+  try {
     const session = await getAgentTerrainSession();
     if (!session) {
       return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
     }
 
-    // Résoudre le PDV de l'agent terrain
+    const isAdmin = session.user.role === "ADMIN" || session.user.role === "SUPER_ADMIN";
+    const viewAs  = isAdmin ? resolveViewAs(req) : null;
+    const effectiveUserId = viewAs?.userId ?? parseInt(session.user.id);
+
+    // Résoudre le PDV de l'agent terrain (ou du gestionnaire ciblé en viewAs)
     const aff = await prisma.gestionnaireAffectation.findFirst({
-      where: { userId: parseInt(session.user.id), actif: true },
+      where: { userId: effectiveUserId, actif: true },
       select: { pointDeVenteId: true },
     });
     const pdvId = aff?.pointDeVenteId;

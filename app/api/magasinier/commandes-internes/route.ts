@@ -1,10 +1,11 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { PrioriteNotification } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getMagasinierSession } from "@/lib/authMagasinier";
 import { getRPVSession } from "@/lib/authRPV";
 import { randomUUID } from "crypto";
 import { notifyRoles, auditLog } from "@/lib/notifications";
+import { resolveViewAs } from "@/lib/viewAs";
 
 async function getSession() {
   return (await getMagasinierSession()) ?? (await getRPVSession());
@@ -32,12 +33,16 @@ async function getOwnPDV(userId: number): Promise<number | null> {
  * Liste des demandes de réapprovisionnement du PDV du magasinier/RPV connecté.
  * Query: statut, page, limit
  */
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
   try {
     const session = await getSession();
     if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
 
-    const pdvId = await getOwnPDV(parseInt(session.user.id));
+    const isAdmin = session.user.role === "ADMIN" || session.user.role === "SUPER_ADMIN";
+    const viewAs  = isAdmin ? resolveViewAs(req) : null;
+    const effectiveUserId = viewAs?.userId ?? parseInt(session.user.id);
+
+    const pdvId = await getOwnPDV(effectiveUserId);
     if (!pdvId) return NextResponse.json({ error: "Aucun point de vente associé" }, { status: 400 });
 
     const { searchParams } = new URL(req.url);

@@ -5,6 +5,7 @@ import {
   PrioriteNotification,
 } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { getAdminSession } from "@/lib/authAdmin";
 
 interface RouteParams {
   params: Promise<{
@@ -23,6 +24,9 @@ export async function GET(
   { params }: RouteParams
 ) {
   try {
+    const session = await getAdminSession();
+    if (!session) return NextResponse.json({ message: "Accès refusé" }, { status: 403 });
+
     const { id } = await params;
     const clientId = Number(id);
     if (isNaN(clientId)) {
@@ -75,6 +79,9 @@ export async function PATCH(
   { params }: RouteParams
 ) {
   try {
+    const session = await getAdminSession();
+    if (!session) return NextResponse.json({ message: "Accès refusé" }, { status: 403 });
+
     const { id } = await params;
     const clientId = Number(id);
     if (isNaN(clientId)) {
@@ -237,6 +244,9 @@ export async function DELETE(
   { params }: RouteParams
 ) {
   try {
+    const session = await getAdminSession();
+    if (!session) return NextResponse.json({ message: "Accès refusé" }, { status: 403 });
+
     const { id } = await params;
     const clientId = Number(id);
     if (isNaN(clientId)) {

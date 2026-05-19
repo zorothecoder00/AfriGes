@@ -16,6 +16,7 @@ import { useApi, useMutation } from "@/hooks/useApi";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { getStatusStyle, getStatusLabel } from "@/lib/status";
 import { useT } from "@/contexts/AppSettingsContext";
+import { usePageAccess } from "@/hooks/usePageAccess";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -293,6 +294,8 @@ type TabKey = "prospects" | "packs" | "livraisons" | "ventes";
 
 export default function AgentTerrainPage() {
   const t = useT();
+  const { isAllowed, allowedPages } = usePageAccess();
+
   const [searchQuery, setSearchQuery]   = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [activeTab, setActiveTab]       = useState<TabKey>("packs");
@@ -459,14 +462,23 @@ export default function AgentTerrainPage() {
     { label: "Souscriptions échues", value: String(packStats?.expirees ?? 0), subtitle: "Suspendues automatiquement", icon: XCircle, color: "text-amber-600", lightBg: "bg-amber-50" },
   ];
 
-  const tabs: { key: TabKey; label: string; icon: LucideIcon; badge?: number }[] = [
-    { key: "packs",       label: "Collecte Packs",  icon: Banknote },
+  const allTabs: { key: TabKey; label: string; icon: LucideIcon; badge?: number }[] = [
+    { key: "packs",       label: "Collecte Packs",   icon: Banknote },
     { key: "livraisons",  label: "Livraisons Pack",  icon: Truck,
       badge: livraisonsResponse?.stats.totalPlanifiees ?? 0 },
     { key: "ventes",      label: "Ventes Terrain",   icon: ShoppingCart,
       badge: ventesEnAttente },
     { key: "prospects",   label: "Clients",          icon: Users },
   ];
+  const tabs = allTabs.filter((t) => isAllowed(t.key));
+
+  useEffect(() => {
+    if (allowedPages && !allowedPages.includes(activeTab)) {
+      const first = allTabs.find((t) => allowedPages.includes(t.key));
+      if (first) setActiveTab(first.key);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allowedPages]);
 
   if (clientsLoading && !clientsResponse && !packsResponse) {
     return (

@@ -1,13 +1,14 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCaissierSession, getCaissierPdvId, souscriptionPdvWhere } from "@/lib/authCaissier";
+import { resolveViewAs } from "@/lib/viewAs";
 
 /**  
  * GET /api/caissier/dashboard  
  *
  * Tableau de bord temps réel du caissier — strictement scoped au PDV du caissier.
  */
-export async function GET() {  
+export async function GET(req: NextRequest) {
   try {
     const session = await getCaissierSession();
     if (!session) {
@@ -16,7 +17,9 @@ export async function GET() {
 
     const userId  = parseInt(session.user.id);
     const isAdmin = session.user.role === "ADMIN" || session.user.role === "SUPER_ADMIN";
-    const pdvId   = isAdmin ? null : await getCaissierPdvId(userId);
+    const viewAs  = isAdmin ? resolveViewAs(req) : null;
+    const effectiveUserId = viewAs?.userId ?? userId;
+    const pdvId   = (isAdmin && !viewAs) ? null : await getCaissierPdvId(effectiveUserId);
 
     const now = new Date();
     const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
@@ -44,7 +47,7 @@ export async function GET() {
     const sessionActive = await prisma.sessionCaisse.findFirst({
       where: {
         statut: { in: ["OUVERTE", "SUSPENDUE"] },
-        ...(isAdmin ? {} : { caissierId: userId }),
+        ...((isAdmin && !viewAs) ? {} : { caissierId: effectiveUserId }),
       },
       orderBy: { createdAt: "desc" },
     });
@@ -145,11 +148,11 @@ export async function GET() {
 
       // Dernière clôture du PDV/caissier
       prisma.clotureCaisse.findFirst({
-        where: isAdmin
+        where: (isAdmin && !viewAs)
           ? {}
           : pdvId
             ? { pointDeVenteId: pdvId }
-            : { session: { caissierId: userId } },
+            : { session: { caissierId: effectiveUserId } },
         orderBy: { date: "desc" },
       }),
     ]);
@@ -243,7 +246,7 @@ export async function GET() {
     // Filtrer par sessionId directement (plus simple que passer par la relation session)
     const sessionIdFilter = sessionActive
       ? { sessionId: sessionActive.id }
-      : isAdmin
+      : (isAdmin && !viewAs)
         ? {}
         : { sessionId: -1 }; // caissier sans session → aucune opération
 

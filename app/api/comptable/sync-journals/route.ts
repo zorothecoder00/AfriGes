@@ -1,6 +1,7 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getComptableSession, getComptablePdvId } from "@/lib/authComptable";
+import { resolveViewAs } from "@/lib/viewAs";
 
 /**
  * POST /api/comptable/sync-journals
@@ -334,16 +335,19 @@ async function syncAchats(
 // Route handler
 // ─────────────────────────────────────────────────────────────────────────────
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
     const session = await getComptableSession();
     if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
+
+    const isAdmin = session.user.role === "ADMIN" || session.user.role === "SUPER_ADMIN";
+    const viewAs  = isAdmin ? resolveViewAs(req) : null;
 
     const body = await req.json();
     const { action = "all", dateMin, dateMax } = body;
 
     const userId = Number(session.user.id);
-    const pdvId  = await getComptablePdvId(session);
+    const pdvId  = await getComptablePdvId(session, viewAs?.userId);
 
     // Fenêtre temporelle (défaut : tout depuis 1 an)
     const fin   = dateMax ? new Date(dateMax + "T23:59:59") : new Date();
@@ -388,10 +392,13 @@ export async function POST(req: Request) {
 }
 
 /** GET : aperçu — combien d'opérations non encore importées */
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
   try {
     const session = await getComptableSession();
     if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
+
+    const isAdmin = session.user.role === "ADMIN" || session.user.role === "SUPER_ADMIN";
+    const viewAs  = isAdmin ? resolveViewAs(req) : null;
 
     const { searchParams } = new URL(req.url);
     const dateMin = searchParams.get("dateMin");
@@ -400,7 +407,7 @@ export async function GET(req: Request) {
     const fin   = dateMax ? new Date(dateMax + "T23:59:59") : new Date();
     const debut = dateMin ? new Date(dateMin) : new Date(fin.getFullYear() - 1, fin.getMonth(), fin.getDate());
 
-    const pdvId = await getComptablePdvId(session);
+    const pdvId = await getComptablePdvId(session, viewAs?.userId);
     const pdvCaisseFilter    = pdvId !== null ? { session: { pointDeVenteId: pdvId } } : {};
     const pdvMouvFilter      = pdvId !== null ? { pointDeVenteId: pdvId } : {};
     const pdvVersFilter      = pdvId !== null ? { souscription: { client: { pointDeVenteId: pdvId } } } : {};

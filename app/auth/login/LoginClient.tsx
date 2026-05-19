@@ -22,22 +22,26 @@ export default function LoginPage() {
     remember: false,  
   });
   const [showPassword, setShowPassword] = useState(false);
-  const [infoMessage, setInfoMessage] = useState('')
+  const [infoMessage, setInfoMessage] = useState<{ text: string; warn?: boolean } | null>(null)
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<Errors>({}) // ✅ Typage;
 
   useEffect(() => {
     if (!searchParams) return;
 
-    const registered = searchParams.get('registered')
-    const logout = searchParams.get('logout')
+    const registered      = searchParams.get('registered')
+    const logout          = searchParams.get('logout')
+    const changed         = searchParams.get('changed')
+    const sessionExpired  = searchParams.get('sessionExpired')
 
     if (registered === 'success') {
-      setInfoMessage('✅ Compte créé avec succès. Veuillez vous connecter.')
-    }
-
-    if (logout === 'success') {
-      setInfoMessage('✅ Déconnexion réussie.')
+      setInfoMessage({ text: 'Compte créé avec succès. Veuillez vous connecter.' })
+    } else if (logout === 'success') {
+      setInfoMessage({ text: 'Déconnexion réussie.' })
+    } else if (changed === 'true') {
+      setInfoMessage({ text: 'Mot de passe changé avec succès. Veuillez vous reconnecter.' })
+    } else if (sessionExpired === 'true') {
+      setInfoMessage({ text: 'Votre session a été révoquée par un administrateur. Veuillez vous reconnecter.', warn: true })
     }
   }, [searchParams])
 
@@ -135,8 +139,8 @@ export default function LoginPage() {
           </div>
 
           {infoMessage && (
-            <div className="text-emerald-600 text-sm text-center mb-4">
-              {infoMessage}
+            <div className={`text-sm text-center px-4 py-2 mb-2 rounded-lg mx-4 ${infoMessage.warn ? 'bg-amber-50 text-amber-700 border border-amber-200' : 'bg-emerald-50 text-emerald-700 border border-emerald-200'}`}>
+              {infoMessage.text}
             </div>
           )}
 

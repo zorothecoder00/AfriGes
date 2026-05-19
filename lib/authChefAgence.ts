@@ -23,14 +23,26 @@ export async function getChefAgenceSession() {
 
 /**
  * Retourne les IDs des points de vente supervisés par ce chef d'agence.
- *  - Admin / SuperAdmin → null (vue globale, pas de restriction)
- *  - Chef d'agence      → tableau d'IDs des PDV ayant chefAgenceId = userId
- *                         (peut être [] si aucun PDV rattaché)
+ *  - Admin / SuperAdmin sans viewAs → null (vue globale, pas de restriction)
+ *  - Admin avec viewAsUserId        → tableau d'IDs du chef d'agence ciblé
+ *  - Chef d'agence                  → tableau d'IDs de ses propres PDV
+ *                                     (peut être [] si aucun PDV rattaché)
  */
 export async function getChefAgencePdvIds(
-  session: NonNullable<Awaited<ReturnType<typeof getChefAgenceSession>>>
+  session: NonNullable<Awaited<ReturnType<typeof getChefAgenceSession>>>,
+  viewAsUserId?: number
 ): Promise<number[] | null> {
   const role = session.user.role;
+
+  // Admin en mode viewAs → scoper sur le chef d'agence ciblé
+  if ((role === "ADMIN" || role === "SUPER_ADMIN") && viewAsUserId !== undefined) {
+    const pdvs = await prisma.pointDeVente.findMany({
+      where: { chefAgenceId: viewAsUserId, actif: true },
+      select: { id: true },
+    });
+    return pdvs.map((p) => p.id);
+  }
+
   if (role === "ADMIN" || role === "SUPER_ADMIN") return null; // pas de restriction
 
   const userId = Number(session.user.id);

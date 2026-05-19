@@ -1,22 +1,27 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getMagasinierSession } from "@/lib/authMagasinier";
+import { resolveViewAs } from "@/lib/viewAs";
 
 /**
  * GET /api/magasinier/livraisons-rpv
  * Liste les livraisons RPV EN_COURS à réceptionner physiquement,
  * ainsi que les LIVREE récentes (30j) pour historique.
  */
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
     const session = await getMagasinierSession();
     if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
 
     const since30j = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 
-    // Auto-détecter le PDV du magasinier
+    const isAdmin = session.user.role === "ADMIN" || session.user.role === "SUPER_ADMIN";
+    const viewAs  = isAdmin ? resolveViewAs(req) : null;
+    const effectiveUserId = viewAs?.userId ?? parseInt(session.user.id);
+
+    // Auto-détecter le PDV du magasinier (ou du gestionnaire ciblé en viewAs)
     const aff = await prisma.gestionnaireAffectation.findFirst({
-      where: { userId: parseInt(session.user.id), actif: true },
+      where: { userId: effectiveUserId, actif: true },
       select: { pointDeVenteId: true },
     });
     const pdvFilter = aff ? { pointDeVenteId: aff.pointDeVenteId } : {};

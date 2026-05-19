@@ -15,6 +15,7 @@ import UserPdvBadge from "@/components/UserPdvBadge";
 import { useApi, useMutation } from "@/hooks/useApi";
 import { formatCurrency, formatDate, formatDateTime } from "@/lib/format";
 import { useT } from "@/contexts/AppSettingsContext";
+import { usePageAccess } from "@/hooks/usePageAccess";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TYPES
@@ -168,6 +169,7 @@ type Tab = "reception" | "affectation" | "livraisons" | "journal";
 export default function LogistiqueApprovisionnementPage() {
   // ── Tabs ──────────────────────────────────────────────────────────────────
   const t = useT();
+  const { isAllowed, allowedPages } = usePageAccess();
 
   const [activeTab, setActiveTab] = useState<Tab>("reception");
 
@@ -436,12 +438,21 @@ export default function LogistiqueApprovisionnementPage() {
     return s === "RUPTURE" || s === "STOCK_FAIBLE";
   });
 
-  const tabs: { key: Tab; label: string; icon: LucideIcon }[] = [
-    { key: "reception",  label: "Stock & Réception",   icon: ArrowUpCircle  },
-    { key: "affectation",label: "Affectation PdV",     icon: MapPin         },
-    { key: "livraisons", label: "Suivi des Livraisons",icon: Truck          },
-    { key: "journal",    label: "Journal des Mouvements", icon: ClipboardList },
+  const allTabs: { key: Tab; label: string; icon: LucideIcon }[] = [
+    { key: "reception",  label: "Stock & Réception",      icon: ArrowUpCircle  },
+    { key: "affectation",label: "Affectation PdV",        icon: MapPin         },
+    { key: "livraisons", label: "Suivi des Livraisons",   icon: Truck          },
+    { key: "journal",    label: "Journal des Mouvements", icon: ClipboardList  },
   ];
+  const tabs = allTabs.filter((t) => isAllowed(t.key));
+
+  useEffect(() => {
+    if (allowedPages && !allowedPages.includes(activeTab)) {
+      const first = allTabs.find((t) => allowedPages.includes(t.key));
+      if (first) setActiveTab(first.key);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allowedPages]);
 
   // ─────────────────────────────────────────────────────────────────────────
   // RENDER

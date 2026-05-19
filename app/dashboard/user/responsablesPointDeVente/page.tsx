@@ -18,6 +18,7 @@ import UserPdvBadge from "@/components/UserPdvBadge";
 import { useApi, useMutation } from "@/hooks/useApi";
 import { formatCurrency, formatDate, formatDateTime } from "@/lib/format";
 import { useT } from "@/contexts/AppSettingsContext";
+import { usePageAccess } from "@/hooks/usePageAccess";
 
 // ============================================================================
 // TYPES
@@ -312,7 +313,8 @@ function MiniBarChart({ data }: { data: { heure: number; count: number; montant:
 
 export default function ResponsablePDVPage() {
   const t = useT();
-  
+  const { isAllowed, allowedPages } = usePageAccess();
+
   const [activeTab,   setActiveTab]   = useState<TabKey>("synthese");
   const [stockSub,    setStockSub]    = useState<StockSub>("inventaire");
   const [equipeSub,   setEquipeSub]   = useState<"membres" | "performances" | "presences">("membres");
@@ -875,7 +877,7 @@ export default function ResponsablePDVPage() {
   // RENDER
   // ============================================================================
 
-  const tabs: { key: TabKey; label: string; icon: React.ElementType; badge?: number }[] = [
+  const allTabs: { key: TabKey; label: string; icon: React.ElementType; badge?: number }[] = [
     { key: "synthese",           label: "Synthèse",           icon: BarChart3    },
     { key: "ventes",             label: "Ventes",             icon: ShoppingCart, badge: ventesRPVRes?.stats.total },
     { key: "stock",              label: "Stock & Produits",   icon: Package      },
@@ -888,6 +890,16 @@ export default function ResponsablePDVPage() {
     { key: "equipe",             label: "Équipe",             icon: Users        },
     { key: "rapports",           label: "Rapports",           icon: Download     },
   ];
+  const tabs = allTabs.filter((t) => isAllowed(t.key));
+
+  // Réinitialise l'onglet actif si inaccessible après chargement des droits
+  useEffect(() => {
+    if (allowedPages && !allowedPages.includes(activeTab)) {
+      const first = allTabs.find((t) => allowedPages.includes(t.key));
+      if (first) setActiveTab(first.key);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allowedPages]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50/30 to-purple-50/20 font-['DM_Sans',sans-serif]">

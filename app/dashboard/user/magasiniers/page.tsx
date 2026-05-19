@@ -14,6 +14,7 @@ import NotificationBell from '@/components/NotificationBell';
 import MessagesLink from '@/components/MessagesLink';
 import UserPdvBadge from '@/components/UserPdvBadge';
 import { useApi, useMutation } from '@/hooks/useApi';
+import { usePageAccess } from '@/hooks/usePageAccess';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { useT } from "@/contexts/AppSettingsContext";
 
@@ -159,6 +160,7 @@ const StatCard = ({ label, value, icon: Icon, color, lightBg }: {
 
 export default function MagasinierPage() {
   const t = useT();
+  const { isAllowed, allowedPages } = usePageAccess();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -680,6 +682,25 @@ export default function MagasinierPage() {
     if (w) { w.document.write(html); w.document.close(); w.print(); }
   };
 
+  const allTabs = [
+    { key: 'inventaire'  as const, label: 'Inventaire',  icon: ClipboardList },
+    { key: 'journal'     as const, label: 'Journal',     icon: BarChart3 },
+    { key: 'reception'   as const, label: 'Reception',   icon: Plus },
+    { key: 'livraisons'  as const, label: 'Récep. & Livr.', icon: Truck, badge: nbLivraisonsEnCours + transfertsEntrantsMag.length + livClientsPending.length + ventesTerrainALivrer.length + livraisonsPacksPlanifiees.length },
+    { key: 'sorties'     as const, label: 'Sorties',     icon: Send },
+    { key: 'anomalies'   as const, label: 'Anomalies',   icon: ShieldAlert },
+    { key: 'alertes'     as const, label: 'Alertes',     icon: AlertTriangle, badge: (stats?.enRupture ?? 0) + (stats?.stockFaible ?? 0) },
+  ];
+  const tabs = allTabs.filter((t) => isAllowed(t.key));
+
+  useEffect(() => {
+    if (allowedPages && !allowedPages.includes(activeTab)) {
+      const first = allTabs.find((t) => allowedPages.includes(t.key));
+      if (first) setActiveTab(first.key);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allowedPages]);
+
   if (stockLoading && !stockResponse) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-orange-50/30 to-amber-50/20 flex items-center justify-center">
@@ -696,16 +717,6 @@ export default function MagasinierPage() {
     { label: 'Produits en Stock', value: String(stats?.totalProduits ?? 0), icon: Package, color: 'text-blue-500', lightBg: 'bg-blue-50' },
     { label: 'Stock Faible', value: String(stats?.stockFaible ?? 0), icon: AlertTriangle, color: 'text-amber-500', lightBg: 'bg-amber-50' },
     { label: 'Ruptures', value: String(stats?.enRupture ?? 0), icon: Archive, color: 'text-red-500', lightBg: 'bg-red-50' },
-  ];
-
-  const tabs = [
-    { key: 'inventaire'  as const, label: 'Inventaire',  icon: ClipboardList },
-    { key: 'journal'     as const, label: 'Journal',     icon: BarChart3 },
-    { key: 'reception'   as const, label: 'Reception',   icon: Plus },
-    { key: 'livraisons'  as const, label: 'Récep. & Livr.', icon: Truck, badge: nbLivraisonsEnCours + transfertsEntrantsMag.length + livClientsPending.length + ventesTerrainALivrer.length + livraisonsPacksPlanifiees.length },
-    { key: 'sorties'     as const, label: 'Sorties',     icon: Send },
-    { key: 'anomalies'   as const, label: 'Anomalies',   icon: ShieldAlert },
-    { key: 'alertes'     as const, label: 'Alertes',     icon: AlertTriangle, badge: (stats?.enRupture ?? 0) + (stats?.stockFaible ?? 0) },
   ];
 
   const detailProduit = detailResponse?.data;

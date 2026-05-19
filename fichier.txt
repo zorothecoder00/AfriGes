@@ -9,7 +9,11 @@ Ce code :
  a.click();                                                             
  permet de créer un téléchargement via un clic sur une URL ( utile pour les exports)
 import { randomUUID } from "crypto";  permet de générer des UUID(sorte d'identifiant unique aléatoire) par exemple pour des factures ou des pièces justificatives
+Prisma 7 est une breaking change majeure : url dans schema.prisma n'est plus
+  supporté. La connexion doit passer par prisma.config.ts + un driver adapter.
+  Je fais la migration complète :
 
+  
 -On doit pouvoir aussi affecter les clients aux commerciaux (agents de terrain)
 
 -Fais des await dans toutes mes api où je fais trop de requêtes parallèles
@@ -18,12 +22,84 @@ import { randomUUID } from "crypto";  permet de générer des UUID(sorte d'ident
       
 -curl -fsSL https://claude.ai/install.cmd -o install.cmd && install.cmd && del install.cmd pour installer claude via le terminal cmd 
 
--On veut avoir pour chaque approvisionnement le prixAchat et les dates d'approvisionements qui seront affichés dans le stock
--Le prix de vente(prixUnitaire) aussi peut être fixé par l'admin ( bon qui doit être fixé par l'admin et personne d'autres); les autres utilisateurs le voit en lecture et ne peuvent ni modifier le prix d'achat ni le prix de vente (prixUnitaire)
--Aussi pour l'ajout de produit sur dashboard/admin ou sur dashboard/user/rpv , pn peut ajouter un produit avec une quantité de base ( je me demande si c'est logique ou si c'est préférable de toujours ajouté un produit avec une quantité nulle )
--Elargissement de /lib/transaltions + traductions sur les dashboard/user et sur le dashboard/admin puis ses routes principales
 -créer un endpoint léger /api/app-settings accessible à tout
   utilisateur authentifié, et l'appeler au démarrage dans AppSettingsContext
   pour toujours synchroniser DB → localStorage → DOM.
  -Mettre à jour AppSettingsContext pour appeler cet endpoint au
   démarrage et synchroniser les settings depuis la BDD
+
+-Pouvoir customiser les accès en lecture côté admin/superadmin
+Architecture:
+  Nouveau fichier lib\pagesRegistry.ts   
+  Nouveau modèle Prisma RolePageAccess (config par rôle) + réutilisation de
+  UserPermission existant (override individuel)
+  - API GET/PUT /api/admin/acces-roles + GET/PUT /api/admin/acces-roles/[userId]
+  - API GET /api/user/page-access (côté gestionnaire)
+  - Hook usePageAccess() partagé
+  - Nouvel onglet "Accès" dans la page superadmin
+  - Import de usePageAccess from "@/hooks/usePageAccess et Enforcement dans les 7 pages gestionnaire (RPV, Caissier, Magasinier,
+  Logistique, Comptable, Chef Agence, Agent Terrain)
+  
+-Connecter les onglets "Modules et accès" puis "Accès sections":
+  Le plan : ajouter un champ module dans chaque section du registre, puis dans
+    /api/user/page-access croiser avec les modules actifs — si le module est
+    désactivé, la section est bloquée quelles que soient les configs
+    rôle/utilisateur.      
+
+-Correction de l'onglet "Utilisateurs" sur le dashboard/admin/superadmin
+  1. force_disconnect — purement cosmétique (JWT, aucune vraie invalidation)
+  2. suspend — change l'état en DB mais le JWT reste valide 1h
+  3. Suppression définitive — un seul clic, aucune confirmation
+  4. selectedUser stale — le modal détail garde les vieilles permissions après
+  ajout
+  5. Impossible de supprimer une permission — remove_permission existe en API
+  mais aucun bouton dans l'UI
+  6. motifAction pas effacé quand on ferme un modal avec X
+
+  Solutions
+  1. ajout de la ligne tokenVersion dans le model User  
+  2. ajout de tokenVersion et de error dans l'interface session au niveau de types\next-auth.d.ts
+  3. ajouter la lecture du tokenVersion au login, et
+  la vérification etat+tokenVersion sur chaque appel suivant dans le fichier lib/authOptions.ts
+  4. getAuthSession() — rejeter la session si elle porte une erreur
+  5. Maintenant force_disconnect dans l'API action — incrémenter tokenVersion pour
+  vraiment révoquer le JWT dans le fichier \api\superadmin\users\[id]\action\route.ts
+
+-Implémentation d'un mécanisme de changement de mot de passe , si l'admin/superadmin réinitialise les mots de passe d'un compte:
+  1. Champ mustChangePassword sur User — posé à true lors du reset
+  2. API PATCH /api/user/change-password — l'utilisateur change son mot de passe
+  3. Middleware/guard — redirige vers une page de changement de mot de passe si
+  le flag est actif
+  4. Page /auth/change-password — formulaire simple
+  5. Création de SessionGuard dans '@/components/SessionGuard pour détecter SESSION_INVALID côté client et forcer la déconnexion puis import dans dashboard/layout
+
+-Donner un accès en lecture à l'admin/superadmin pour tous les dashboards des user/gestionnaires:
+  Ce qu'il faudrait créer/modifier
+  Fichier: lib/viewAs.ts
+  Action: Helper resolveGestionnaire(req, role) — détecte admin+viewAs ou
+  session
+    propre
+  ────────────────────────────────────────
+  Fichier: contexts/ViewAsContext.tsx
+  Action: Contexte React + cookie
+  ────────────────────────────────────────
+  Fichier: components/ViewAsBanner.tsx
+  Action: Bandeau sticky "Mode lecture — [Nom] ([Rôle])" + bouton sortir
+  ────────────────────────────────────────
+  Fichier: app/dashboard/layout.tsx  
+  Action: Intégrer le banner et le context ViewAsContext
+  ────────────────────────────────────────
+  Fichier: hooks/useApi.ts
+  Action: Injecter ?viewAs=userId automatiquement sur les GETs
+  ────────────────────────────────────────
+  Fichier: proxy.ts
+  Action: Autoriser les admins sur /dashboard/user/* si cookie viewAs présent
+          Blocage mutations en mode viewAs pour que l'admin regarde mais ne puisse rien modifier
+  ────────────────────────────────────────
+  Fichier: app/dashboard/admin/gestionnaires/page.tsx
+  Action: Bouton "Voir dashboard" par gestionnaire
+  ────────────────────────────────────────
+  Fichier: Toutes les routes API gestionnaire
+  Action: Remplacer getXxxSession() par resolveGestionnaire()
+
+

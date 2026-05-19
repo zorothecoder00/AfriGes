@@ -1,18 +1,23 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getRPVSession } from "@/lib/authRPV";
 import { auditLog } from "@/lib/notifications";
+import { resolveViewAs } from "@/lib/viewAs";
    
 /**  
  * GET /api/rpv/clients
  * Liste paginée des clients du point de vente.
  * Query: search, page, limit
  */
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
   try {
     const session = await getRPVSession();
     if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
+
+    const isAdmin = session.user.role === "ADMIN" || session.user.role === "SUPER_ADMIN";
+    const viewAs  = isAdmin ? resolveViewAs(req) : null;
+    const effectiveUserId = viewAs?.userId ?? parseInt(session.user.id);
 
     const { searchParams } = new URL(req.url);
     const page   = Math.max(1, Number(searchParams.get("page")  || 1));
@@ -20,9 +25,9 @@ export async function GET(req: Request) {
     const skip   = (page - 1) * limit;
     const search = ( searchParams.get("search") || "" ).trim();
 
-    // Trouver le PDV du RPV pour filtrer ses clients
+    // Trouver le PDV du RPV (ou du gestionnaire ciblé en viewAs) pour filtrer ses clients
     const pdv = await prisma.pointDeVente.findUnique({
-      where: { rpvId: parseInt(session.user.id) },
+      where: { rpvId: effectiveUserId },
       select: { id: true },
     });
 

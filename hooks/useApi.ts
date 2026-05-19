@@ -1,31 +1,50 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
-import { toast } from "sonner"; 
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { toast } from "sonner";
+import { useViewAs } from "@/contexts/ViewAsContext";
 
-interface UseApiResult<T> {      
+interface UseApiResult<T> {
   data: T | null;
-  loading: boolean;   
-  error: string | null;       
+  loading: boolean;
+  error: string | null;
   refetch: () => void;
 }
 
+/**
+ * Injecte ?viewAs=<userId> dans une URL si le contexte viewAs est actif.
+ * Cela permet aux routes API de scoper les données au gestionnaire ciblé.
+ */
+function injectViewAs(url: string | null, viewAsUserId: number | undefined): string | null {
+  if (!url || !viewAsUserId) return url;
+  const separator = url.includes("?") ? "&" : "?";
+  return `${url}${separator}viewAs=${viewAsUserId}`;
+}
+
 export function useApi<T>(url: string | null, options?: RequestInit): UseApiResult<T> {
+  const { viewAs } = useViewAs();
   const [data, setData] = useState<T | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const optionsRef = useRef(options);
   optionsRef.current = options;
 
+  // Injection automatique de ?viewAs= sur tous les GETs
+  const effectiveUrl = useMemo(
+    () => injectViewAs(url, viewAs?.userId),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [url, viewAs?.userId]
+  );
+
   const fetchData = useCallback(async () => {
-    if (!url) {
+    if (!effectiveUrl) {
       setLoading(false);
       return;
     }
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(url, optionsRef.current);
+      const res = await fetch(effectiveUrl, optionsRef.current);
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
         throw new Error(body.message || body.error || `Erreur ${res.status}`);
@@ -37,7 +56,7 @@ export function useApi<T>(url: string | null, options?: RequestInit): UseApiResu
     } finally {
       setLoading(false);
     }
-  }, [url]);
+  }, [effectiveUrl]);
 
   useEffect(() => {
     fetchData();
@@ -58,11 +77,11 @@ export function useMutation<TData = unknown, TBody = unknown>(
   method: "POST" | "PUT" | "PATCH" | "DELETE" = "POST",
   options?: { successMessage?: string; errorMessage?: string }
 ): UseMutationResult<TData, TBody> {
+  const { viewAs } = useViewAs();
   const [data, setData] = useState<TData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Stocke toujours la valeur la plus récente sans déclencher de re-render
   const urlRef = useRef(url);
   urlRef.current = url;
   const optionsRef = useRef(options);
@@ -70,6 +89,14 @@ export function useMutation<TData = unknown, TBody = unknown>(
 
   const mutate = useCallback(
     async (body: TBody): Promise<TData | null> => {
+      // Bloquer toute mutation en mode lecture (viewAs actif)
+      if (viewAs) {
+        const msg = "Action impossible en mode lecture";
+        setError(msg);
+        toast.error(msg);
+        return null;
+      }
+
       const resolvedUrl =
         typeof urlRef.current === "function" ? urlRef.current() : urlRef.current;
       setLoading(true);
@@ -98,7 +125,7 @@ export function useMutation<TData = unknown, TBody = unknown>(
         setLoading(false);
       }
     },
-    [method] // url et options lus via refs — plus besoin dans les deps
+    [method, viewAs]
   );
 
   return { mutate, data, loading, error };

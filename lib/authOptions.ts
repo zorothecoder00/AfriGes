@@ -87,13 +87,39 @@ export const authOptions: NextAuthOptions = {
 				token.nom = user.nom ?? user.name?.split(" ").slice(1).join(" ")
 				token.photo = user.photo ?? user.image ?? null
 				token.role = user.role ?? null
+				delete token.error
 
-				// Récupérer le rôle gestionnaire depuis la DB
-				const gestionnaire = await prisma.gestionnaire.findUnique({
-					where: { memberId: Number(user.id) },
-					select: { role: true },
-				})
+				// Récupérer le rôle gestionnaire + tokenVersion + mustChangePassword depuis la DB
+				const [gestionnaire, dbUser] = await Promise.all([
+					prisma.gestionnaire.findUnique({
+						where: { memberId: Number(user.id) },
+						select: { role: true },
+					}),
+					prisma.user.findUnique({
+						where: { id: Number(user.id) },
+						select: { tokenVersion: true, mustChangePassword: true },
+					}),
+				])
 				token.gestionnaireRole = gestionnaire?.role ?? null
+				token.tokenVersion = dbUser?.tokenVersion ?? 0
+				token.mustChangePassword = dbUser?.mustChangePassword ?? false
+			} else {
+				// Requêtes suivantes : vérifier que le compte est toujours actif
+				// et que le token n'a pas été révoqué (force_disconnect)
+				const dbUser = await prisma.user.findUnique({
+					where: { id: Number(token.id) },
+					select: { etat: true, tokenVersion: true, mustChangePassword: true },
+				})
+				if (
+					!dbUser ||
+					dbUser.etat === "SUSPENDU" ||
+					dbUser.tokenVersion !== (token.tokenVersion as number)
+				) {
+					token.error = "SESSION_INVALID"
+				} else {
+					delete token.error
+					token.mustChangePassword = dbUser.mustChangePassword
+				}
 			}
 			return token
 		},
@@ -105,6 +131,8 @@ export const authOptions: NextAuthOptions = {
 				session.user.photo = (token.photo as string) ?? null
 		        session.user.role = token.role as Role ?? null;
 		        session.user.gestionnaireRole = (token.gestionnaireRole as RoleGestionnaire) ?? null;
+		        if (token.error) session.user.error = token.error as string;
+		        session.user.mustChangePassword = (token.mustChangePassword as boolean) ?? false;
 			}
 			return session
 		},

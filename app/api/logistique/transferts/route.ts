@@ -1,10 +1,11 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { PrioriteNotification } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getLogistiqueSession } from "@/lib/authLogistique";
 import { getMagasinierSession } from "@/lib/authMagasinier";
 import { randomUUID } from "crypto";
 import { notifyRoles, auditLog } from "@/lib/notifications";
+import { resolveViewAs } from "@/lib/viewAs";
 
 async function getSession() {
   return (await getLogistiqueSession()) ?? (await getMagasinierSession());
@@ -14,10 +15,14 @@ async function getSession() {
  * GET /api/logistique/transferts
  * Liste des transferts de stock entre PDV/dépôts.
  */
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
   try {
     const session = await getSession();
     if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
+
+    const isAdmin = session.user.role === "ADMIN" || session.user.role === "SUPER_ADMIN";
+    const viewAs  = isAdmin ? resolveViewAs(req) : null;
+    const effectiveUserId = viewAs?.userId ?? parseInt(session.user.id);
 
     const { searchParams } = new URL(req.url);
     const page    = Math.max(1, Number(searchParams.get("page")  || 1));
@@ -35,7 +40,7 @@ export async function GET(req: Request) {
     if (entrants) {
       // Transferts à confirmer par cet utilisateur (destination = son PDV, statut EN_COURS ou EXPEDIE)
       const aff = await prisma.gestionnaireAffectation.findFirst({
-        where: { userId: parseInt(session.user.id), actif: true },
+        where: { userId: effectiveUserId, actif: true },
         select: { pointDeVenteId: true },
       });
       if (aff?.pointDeVenteId) {

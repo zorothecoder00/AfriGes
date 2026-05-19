@@ -1,8 +1,9 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getLogistiqueSession } from "@/lib/authLogistique";
 import { getMagasinierSession } from "@/lib/authMagasinier";
 import { getAuthSession } from "@/lib/auth";
+import { resolveViewAs } from "@/lib/viewAs";
 
 async function getSession() {
   const logistique = await getLogistiqueSession();
@@ -21,7 +22,7 @@ async function getSession() {
  * - Retourne une liste aplatie { id: produitId, nom, stock: quantite, ... } pour compat pages.
  * Query: pdvId (override), search, enRupture (bool), page, limit
  */
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
   try {
     const session = await getSession();
     if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
@@ -35,12 +36,14 @@ export async function GET(req: Request) {
     const enRupture = searchParams.get("enRupture") === "true";
 
     const isAdmin = session.user.role === "ADMIN" || session.user.role === "SUPER_ADMIN";
+    const viewAs  = isAdmin ? resolveViewAs(req) : null;
+    const effectiveUserId = viewAs?.userId ?? parseInt(session.user.id);
 
-    // Auto-détecter le PDV de l'utilisateur si non-admin et pdvId non fourni
+    // Auto-détecter le PDV de l'utilisateur si non-admin (ou viewAs) et pdvId non fourni
     let effectivePdvId: number | null = pdvIdQ ? Number(pdvIdQ) : null;
-    if (!effectivePdvId && !isAdmin) {
+    if (!effectivePdvId && (!isAdmin || viewAs)) {
       const aff = await prisma.gestionnaireAffectation.findFirst({
-        where: { userId: parseInt(session.user.id), actif: true },
+        where: { userId: effectiveUserId, actif: true },
         select: { pointDeVenteId: true },
       });
       if (aff) effectivePdvId = aff.pointDeVenteId;

@@ -19,10 +19,11 @@ import { formatCurrency, formatDate, formatDateTime } from "@/lib/format";
 import { toast } from "sonner";
 import SignOutButton from "@/components/SignOutButton";
 import NotificationBell from "@/components/NotificationBell";
+import { PAGES_REGISTRY } from "@/lib/pagesRegistry";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type TabKey = "systeme" | "utilisateurs" | "parametres" | "modules" | "logs";
+type TabKey = "systeme" | "utilisateurs" | "parametres" | "modules" | "logs" | "acces";
 type ParamSection = "platform" | "numbering" | "security" | "accounting" | "financial" | "stock" | "backup";
 type LogType = "audit" | "security";
 
@@ -60,6 +61,9 @@ interface LogItem {
   user: { nom: string; prenom: string; email?: string; role: string | null } | null;
 }
 interface LogsResponse { data: LogItem[]; meta: { total: number; page: number; totalPages: number; limit: number } }
+interface AccesRoleResponse { success: boolean; data: Record<string, Record<string, boolean>>; activeModules: string[]; }
+interface UserSectionItem { key: string; label: string; roleDefault: boolean; userOverride: boolean | null; effective: boolean; moduleBlocked: boolean; }
+interface UserAccesResponse { success: boolean; role: string; data: UserSectionItem[]; }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -106,7 +110,7 @@ export default function SuperAdminPage() {
   const [userEtat,   setUserEtat]     = useState("");
   const [userPage,   setUserPage]     = useState(1);
   const [selectedUser, setSelectedUser] = useState<UserSA | null>(null);
-  const [modalUser, setModalUser]     = useState<"detail" | "reset" | "permission" | null>(null);
+  const [modalUser, setModalUser]     = useState<"detail" | "reset" | "permission" | "confirm_delete" | null>(null);
   const [motifAction, setMotifAction] = useState("");
   const [tempPwd,    setTempPwd]      = useState("");
   const [permModule,  setPermModule]  = useState("");
@@ -124,6 +128,18 @@ export default function SuperAdminPage() {
   const [logSearch, setLogSearch] = useState("");
   const [logPage,  setLogPage]   = useState(1);
 
+  // ── États accès sections
+  const [accesSelectedRole, setAccesSelectedRole] = useState("RESPONSABLE_POINT_DE_VENTE");
+  const [accesRoleLocal, setAccesRoleLocal] = useState<Record<string, Record<string, boolean>>>({});
+  const [accesRoleDirty, setAccesRoleDirty] = useState(false);
+  const [accesUserSearch, setAccesUserSearch] = useState("");
+  const [accesSelectedUserId, setAccesSelectedUserId] = useState<number | null>(null);
+  const [accesUserData, setAccesUserData] = useState<UserSectionItem[] | null>(null);
+  const [accesUserRole, setAccesUserRole] = useState<string>("");
+  const [accesUserOverridesLocal, setAccesUserOverridesLocal] = useState<Record<string, boolean | null>>({});
+  const [accesUserDirty, setAccesUserDirty] = useState(false);
+  const [loadingUserAcces, setLoadingUserAcces] = useState(false);
+
   // ── Fetches
   const { data: statsRes, refetch: refetchStats } = useApi<StatsData>("/api/superadmin/stats");
   const usersParams = new URLSearchParams({ page: String(userPage), limit: "20", ...(userSearch ? { search: userSearch } : {}), ...(userEtat ? { etat: userEtat } : {}) }).toString();
@@ -132,6 +148,8 @@ export default function SuperAdminPage() {
   const { data: modulesRes, refetch: refetchModules } = useApi<ModulesResponse>(activeTab === "modules" ? "/api/superadmin/modules" : null);
   const logsParams = new URLSearchParams({ page: String(logPage), limit: "30", type: logType, ...(logSearch ? { search: logSearch } : {}) }).toString();
   const { data: logsRes, refetch: refetchLogs } = useApi<LogsResponse>(activeTab === "logs" ? `/api/superadmin/audit-logs?${logsParams}` : null);
+  const { data: accesRoleRes, refetch: refetchAccesRole } = useApi<AccesRoleResponse>(activeTab === "acces" ? "/api/admin/acces-roles" : null);
+  const { data: accesUsersRes } = useApi<UsersResponse>(activeTab === "acces" ? "/api/superadmin/users?page=1&limit=200" : null);
 
   // Sync settings depuis API → état local uniquement (pas de re-apply DOM ici,
   // sinon settingsDirty=false après save déclencherait un revert avec l'ancienne valeur cachée)
@@ -145,6 +163,22 @@ export default function SuperAdminPage() {
     }
   }, [settingsRes, settingsDirty]);
 
+  // Sync accès rôles depuis API → état local
+  React.useEffect(() => {
+    if (accesRoleRes?.data && !accesRoleDirty) {
+      setAccesRoleLocal(accesRoleRes.data);
+    }
+  }, [accesRoleRes, accesRoleDirty]);
+
+  // Sync selectedUser depuis la liste fraîche après chaque refetch
+  React.useEffect(() => {
+    if (selectedUser && usersRes?.data) {
+      const updated = usersRes.data.find((u) => u.id === selectedUser.id);
+      if (updated) setSelectedUser(updated);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [usersRes?.data]);
+
   // ── Mutations
   const actionUserIdRef = React.useRef<number | null>(null);
   const { mutate: doUserAction, loading: doingAction } = useMutation<{ success: boolean; tempPassword?: string; message: string }, unknown>(
@@ -154,6 +188,12 @@ export default function SuperAdminPage() {
   const { mutate: saveSettings, loading: savingSettings } = useMutation<{ success: boolean }, unknown>("/api/superadmin/settings", "PATCH", { successMessage: "Paramètres sauvegardés ✓" });
   const moduleKeyRef = React.useRef("");
   const { mutate: toggleModule, loading: togglingModule } = useMutation<{ success: boolean }, unknown>("/api/superadmin/modules", "PATCH", { successMessage: "" });
+  const { mutate: saveRoleAccess, loading: savingRoleAccess } = useMutation<{ success: boolean }, unknown>("/api/admin/acces-roles", "PUT", { successMessage: "Accès par rôle sauvegardés ✓" });
+  const accesUserIdRef = React.useRef<number | null>(null);
+  const { mutate: saveUserAccess, loading: savingUserAccess } = useMutation<{ success: boolean }, unknown>(
+    () => accesUserIdRef.current ? `/api/admin/acces-roles/${accesUserIdRef.current}` : "",
+    "PUT", { successMessage: "Accès utilisateur sauvegardés ✓" }
+  );
 
   // ── Handlers
   const handleUserAction = useCallback(async (user: UserSA, action: string, extra?: Record<string, unknown>) => {
@@ -164,6 +204,10 @@ export default function SuperAdminPage() {
     if (!res) return;
     if (action === "reset_password" && (res as { tempPassword?: string }).tempPassword) {
       setTempPwd((res as { tempPassword: string }).tempPassword);
+    } else if (action === "remove_permission") {
+      // Rester dans le modal détail après suppression d'une permission
+      toast.success((res as { message: string }).message);
+      refetchUsers();
     } else {
       toast.success((res as { message: string }).message);
       setModalUser(null); setMotifAction("");
@@ -218,6 +262,39 @@ export default function SuperAdminPage() {
     a.click();
   };
 
+  const loadUserAcces = React.useCallback(async (userId: number) => {
+    setLoadingUserAcces(true);
+    try {
+      const res = await fetch(`/api/admin/acces-roles/${userId}`);
+      const data = await res.json() as UserAccesResponse;
+      if (data.success) {
+        setAccesUserData(data.data);
+        setAccesUserRole(data.role);
+        const overrides: Record<string, boolean | null> = {};
+        for (const s of data.data) overrides[s.key] = s.userOverride;
+        setAccesUserOverridesLocal(overrides);
+        setAccesUserDirty(false);
+      }
+    } finally {
+      setLoadingUserAcces(false);
+    }
+  }, []);
+
+  const handleSaveRoleAccess = useCallback(async () => {
+    const roleData = accesRoleLocal[accesSelectedRole] ?? {};
+    const sections = Object.entries(roleData).map(([key, allowed]) => ({ key, allowed }));
+    const res = await saveRoleAccess({ role: accesSelectedRole, sections });
+    if (res) { setAccesRoleDirty(false); refetchAccesRole(); }
+  }, [accesRoleLocal, accesSelectedRole, saveRoleAccess, refetchAccesRole]);
+
+  const handleSaveUserAccess = useCallback(async () => {
+    if (!accesSelectedUserId) return;
+    accesUserIdRef.current = accesSelectedUserId;
+    const overrides = Object.entries(accesUserOverridesLocal).map(([key, granted]) => ({ key, granted }));
+    const res = await saveUserAccess({ overrides });
+    if (res) { setAccesUserDirty(false); accesUserIdRef.current = null; }
+  }, [accesSelectedUserId, accesUserOverridesLocal, saveUserAccess]);
+
   // ── Évite le "flash" d'erreur pendant l'hydratation de la session
   if (status === "loading") {
     return (
@@ -250,6 +327,7 @@ export default function SuperAdminPage() {
     { key: "parametres",   label: "Paramètres",      icon: Settings },
     { key: "modules",      label: "Modules & Accès", icon: Layers },
     { key: "logs",         label: "Logs & Audit",    icon: FileText },
+    { key: "acces",        label: "Accès sections",  icon: Eye },
   ];
 
   return (
@@ -493,7 +571,7 @@ export default function SuperAdminPage() {
                                 {/* Suppression définitive — SUPER_ADMIN uniquement */}
                                 {isSuperAdmin && (
                                   <button title="Supprimer définitivement" disabled={busy}
-                                    onClick={() => handleUserAction(u, "delete_permanent")}
+                                    onClick={() => { setSelectedUser(u); setModalUser("confirm_delete"); }}
                                     className="p-1.5 text-slate-300 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-40">
                                     <UserX size={14} />
                                   </button>
@@ -920,6 +998,204 @@ export default function SuperAdminPage() {
             </div>
           </div>
         )}
+        {/* ═══ TAB ACCÈS ═════════════════════════════════════════════════════ */}
+        {activeTab === "acces" && (
+          <div className="grid grid-cols-2 gap-6">
+
+            {/* ── Panneau gauche : Config par rôle ───────────────────────── */}
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+              <div className="flex items-center gap-2 mb-4">
+                <div className="bg-violet-50 p-2 rounded-xl"><Shield className="text-violet-600 w-4 h-4" /></div>
+                <div>
+                  <h2 className="font-bold text-slate-800 text-sm">Configuration par rôle</h2>
+                  <p className="text-xs text-slate-400">Sections accessibles pour chaque rôle gestionnaire</p>
+                </div>
+              </div>
+
+              {/* Sélecteur de rôle */}
+              <div className="flex flex-wrap gap-1.5 mb-5">
+                {PAGES_REGISTRY.map((r) => (
+                  <button key={r.role} onClick={() => setAccesSelectedRole(r.role)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all ${accesSelectedRole === r.role ? "bg-violet-600 text-white shadow-sm" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}>
+                    {r.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Liste des sections */}
+              {(() => {
+                const reg = PAGES_REGISTRY.find((r) => r.role === accesSelectedRole);
+                if (!reg) return null;
+                const activeModuleSet = new Set(accesRoleRes?.activeModules ?? []);
+                return (
+                  <div className="space-y-2">
+                    {reg.sections.map((s) => {
+                      const allowed = accesRoleLocal[accesSelectedRole]?.[s.key] ?? s.defaultAllowed;
+                      const moduleBlocked = s.module !== null && accesRoleRes != null && !activeModuleSet.has(s.module);
+                      return (
+                        <div key={s.key} className={`flex items-center justify-between py-2.5 px-3 rounded-xl ${moduleBlocked ? "bg-orange-50 opacity-70" : "bg-slate-50"}`}>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <p className="text-sm font-medium text-slate-700">{s.label}</p>
+                              {moduleBlocked && (
+                                <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-orange-100 text-orange-600 uppercase tracking-wide">
+                                  module désactivé
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-[10px] text-slate-400 font-mono">{s.key}</p>
+                          </div>
+                          <button
+                            disabled={moduleBlocked}
+                            onClick={() => {
+                              setAccesRoleLocal((prev) => ({
+                                ...prev,
+                                [accesSelectedRole]: { ...(prev[accesSelectedRole] ?? {}), [s.key]: !allowed },
+                              }));
+                              setAccesRoleDirty(true);
+                            }}
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all disabled:cursor-not-allowed disabled:opacity-50 ${allowed ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200" : "bg-red-100 text-red-700 hover:bg-red-200"}`}
+                          >
+                            {allowed ? <><CheckCircle size={12} /> Autorisé</> : <><XCircle size={12} /> Bloqué</>}
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
+
+              <div className="flex items-center justify-between mt-5 pt-4 border-t border-slate-100">
+                <p className="text-xs text-slate-400">{accesRoleDirty ? "Modifications non sauvegardées" : "Configuration à jour"}</p>
+                <button onClick={handleSaveRoleAccess} disabled={!accesRoleDirty || savingRoleAccess}
+                  className="flex items-center gap-2 px-4 py-2 bg-violet-600 text-white text-sm rounded-xl font-medium hover:bg-violet-700 transition-colors disabled:opacity-40">
+                  <Save size={14} />{savingRoleAccess ? "Sauvegarde…" : "Sauvegarder"}
+                </button>
+              </div>
+            </div>
+
+            {/* ── Panneau droit : Override par utilisateur ───────────────── */}
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+              <div className="flex items-center gap-2 mb-4">
+                <div className="bg-blue-50 p-2 rounded-xl"><UserCheck className="text-blue-600 w-4 h-4" /></div>
+                <div>
+                  <h2 className="font-bold text-slate-800 text-sm">Override par utilisateur</h2>
+                  <p className="text-xs text-slate-400">Personnaliser l&apos;accès d&apos;un gestionnaire individuel</p>
+                </div>
+              </div>
+
+              {/* Recherche utilisateur */}
+              <div className="flex items-center gap-2 bg-slate-50 rounded-xl px-3 py-2 border border-slate-200 mb-3">
+                <Search size={14} className="text-slate-400" />
+                <input value={accesUserSearch} onChange={(e) => setAccesUserSearch(e.target.value)}
+                  placeholder="Rechercher un gestionnaire…" className="flex-1 bg-transparent text-sm outline-none" />
+                {accesUserSearch && (
+                  <button onClick={() => setAccesUserSearch("")}><X size={13} className="text-slate-400 hover:text-slate-600" /></button>
+                )}
+              </div>
+
+              {/* Liste gestionnaires */}
+              <div className="space-y-1 max-h-44 overflow-y-auto mb-4 border border-slate-100 rounded-xl p-1">
+                {!accesUsersRes && (
+                  <p className="text-xs text-slate-400 text-center py-4">Chargement…</p>
+                )}
+                {(accesUsersRes?.data ?? [])
+                  .filter((u) => u.gestionnaire !== null)
+                  .filter((u) => !accesUserSearch || `${u.prenom} ${u.nom} ${u.email}`.toLowerCase().includes(accesUserSearch.toLowerCase()))
+                  .slice(0, 20)
+                  .map((u) => (
+                    <button key={u.id}
+                      onClick={() => { setAccesSelectedUserId(u.id); loadUserAcces(u.id); }}
+                      className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-sm transition-all ${accesSelectedUserId === u.id ? "bg-blue-600 text-white" : "hover:bg-slate-50 text-slate-700"}`}>
+                      <div className="text-left">
+                        <p className="font-medium">{u.prenom} {u.nom}</p>
+                        <p className={`text-xs ${accesSelectedUserId === u.id ? "text-blue-200" : "text-slate-400"}`}>
+                          {u.gestionnaire?.role}
+                        </p>
+                      </div>
+                      <ChevronRight size={14} className="flex-shrink-0" />
+                    </button>
+                  ))}
+                {accesUsersRes && (accesUsersRes.data ?? []).filter((u) => u.gestionnaire !== null).length === 0 && (
+                  <p className="text-xs text-slate-400 text-center py-4">Aucun gestionnaire trouvé</p>
+                )}
+              </div>
+
+              {/* Sections de l'utilisateur sélectionné */}
+              {accesSelectedUserId ? (
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="text-xs font-semibold text-slate-600">
+                      Sections — <span className="text-blue-600">{PAGES_REGISTRY.find((r) => r.role === accesUserRole)?.label ?? accesUserRole}</span>
+                    </p>
+                    <button onClick={() => { setAccesSelectedUserId(null); setAccesUserData(null); }}
+                      className="text-xs text-slate-400 hover:text-slate-600 flex items-center gap-1">
+                      <X size={12} /> Désélectionner
+                    </button>
+                  </div>
+
+                  {loadingUserAcces ? (
+                    <div className="flex justify-center py-6">
+                      <RefreshCw size={18} className="animate-spin text-slate-400" />
+                    </div>
+                  ) : accesUserData ? (
+                    <>
+                      <div className="space-y-2 max-h-56 overflow-y-auto">
+                        {accesUserData.map((s) => {
+                          const override = accesUserOverridesLocal[s.key] ?? null;
+                          return (
+                            <div key={s.key} className={`flex items-center justify-between py-2 px-3 rounded-xl ${s.moduleBlocked ? "bg-orange-50 opacity-70" : "bg-slate-50"}`}>
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <p className="text-sm font-medium text-slate-700">{s.label}</p>
+                                  {s.moduleBlocked && (
+                                    <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-orange-100 text-orange-600 uppercase tracking-wide">
+                                      module désactivé
+                                    </span>
+                                  )}
+                                </div>
+                                <p className="text-[10px] text-slate-400">
+                                  Rôle par défaut : {s.roleDefault ? "Autorisé" : "Bloqué"}
+                                </p>
+                              </div>
+                              <div className={`flex gap-1 ${s.moduleBlocked ? "pointer-events-none opacity-40" : ""}`}>
+                                {([
+                                  { label: "Défaut", value: null,  cls: "bg-slate-100 text-slate-600 hover:bg-slate-200" },
+                                  { label: "Autoriser", value: true,  cls: "bg-emerald-100 text-emerald-700 hover:bg-emerald-200" },
+                                  { label: "Bloquer",  value: false, cls: "bg-red-100 text-red-700 hover:bg-red-200" },
+                                ] as { label: string; value: boolean | null; cls: string }[]).map((opt) => (
+                                  <button key={String(opt.value)}
+                                    onClick={() => { setAccesUserOverridesLocal((prev) => ({ ...prev, [s.key]: opt.value })); setAccesUserDirty(true); }}
+                                    className={`px-2 py-1 rounded-lg text-[10px] font-medium transition-all ${override === opt.value ? "ring-2 ring-offset-1 ring-violet-400 " + opt.cls : opt.cls + " opacity-60"}`}>
+                                    {opt.label}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                      <div className="flex items-center justify-between mt-4 pt-4 border-t border-slate-100">
+                        <p className="text-xs text-slate-400">{accesUserDirty ? "Modifications non sauvegardées" : "À jour"}</p>
+                        <button onClick={handleSaveUserAccess} disabled={!accesUserDirty || savingUserAccess}
+                          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm rounded-xl font-medium hover:bg-blue-700 transition-colors disabled:opacity-40">
+                          <Save size={14} />{savingUserAccess ? "Sauvegarde…" : "Sauvegarder"}
+                        </button>
+                      </div>
+                    </>
+                  ) : null}
+                </div>
+              ) : (
+                <div className="flex flex-col items-center gap-2 py-8 text-center">
+                  <UserCheck size={28} className="text-slate-300" />
+                  <p className="text-sm text-slate-400">Sélectionnez un gestionnaire pour personnaliser ses accès</p>
+                </div>
+              )}
+            </div>
+
+          </div>
+        )}
+
       </div>
 
       {/* ═══ MODALS ══════════════════════════════════════════════════════════ */}
@@ -963,9 +1239,21 @@ export default function SuperAdminPage() {
                     {selectedUser.userPermissions.map((p, i) => (
                       <div key={i} className="flex items-center justify-between bg-slate-50 rounded-xl px-3 py-2">
                         <span className="text-xs font-mono text-slate-600">{p.module} → {p.permission}</span>
-                        <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${p.granted ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"}`}>
-                          {p.granted ? "Accordé" : "Refusé"}
-                        </span>
+                        <div className="flex items-center gap-2">
+                          <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${p.granted ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"}`}>
+                            {p.granted ? "Accordé" : "Refusé"}
+                          </span>
+                          <button
+                            title="Supprimer cette permission"
+                            disabled={processingUserId === selectedUser.id}
+                            onClick={async () => {
+                              await handleUserAction(selectedUser, "remove_permission", { module: p.module, permission: p.permission });
+                              refetchUsers();
+                            }}
+                            className="p-1 text-slate-300 hover:text-red-600 rounded-lg transition-colors disabled:opacity-40">
+                            <X size={12} />
+                          </button>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -982,7 +1270,7 @@ export default function SuperAdminPage() {
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm">
             <div className="flex items-center justify-between p-5 border-b border-slate-200">
               <h2 className="font-bold text-slate-800 flex items-center gap-2"><Key size={18} className="text-amber-500" />Réinitialiser le mot de passe</h2>
-              <button onClick={() => { setModalUser(null); setTempPwd(""); }} className="p-2 text-slate-400 hover:text-slate-600 rounded-lg"><X size={18} /></button>
+              <button onClick={() => { setModalUser(null); setTempPwd(""); setMotifAction(""); }} className="p-2 text-slate-400 hover:text-slate-600 rounded-lg"><X size={18} /></button>
             </div>
             <div className="p-5 space-y-4">
               {!tempPwd ? (
@@ -996,7 +1284,7 @@ export default function SuperAdminPage() {
                       className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 bg-slate-50" />
                   </div>
                   <div className="flex gap-3">
-                    <button onClick={() => setModalUser(null)} className="flex-1 py-2.5 border border-slate-200 rounded-xl text-slate-600 text-sm hover:bg-slate-50">Annuler</button>
+                    <button onClick={() => { setModalUser(null); setMotifAction(""); }} className="flex-1 py-2.5 border border-slate-200 rounded-xl text-slate-600 text-sm hover:bg-slate-50">Annuler</button>
                     <button onClick={() => handleUserAction(selectedUser, "reset_password")} disabled={doingAction}
                       className="flex-1 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-sm font-semibold disabled:opacity-50">
                       {doingAction ? "Génération…" : "Générer"}
@@ -1018,6 +1306,44 @@ export default function SuperAdminPage() {
                   </button>
                 </>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal confirmation suppression définitive */}
+      {modalUser === "confirm_delete" && selectedUser && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[130] flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm">
+            <div className="flex items-center justify-between p-5 border-b border-slate-200">
+              <h2 className="font-bold text-red-700 flex items-center gap-2"><UserX size={18} />Suppression définitive</h2>
+              <button onClick={() => setModalUser(null)} className="p-2 text-slate-400 hover:text-slate-600 rounded-lg"><X size={18} /></button>
+            </div>
+            <div className="p-5 space-y-4">
+              <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+                <p className="text-sm font-semibold text-red-800 mb-1">Cette action est irréversible.</p>
+                <p className="text-xs text-red-600">
+                  L&apos;utilisateur <strong>{selectedUser.prenom} {selectedUser.nom}</strong> ({selectedUser.email}) et toutes ses données associées seront supprimés définitivement.
+                </p>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Motif (optionnel)</label>
+                <input type="text" value={motifAction} onChange={(e) => setMotifAction(e.target.value)}
+                  placeholder="Ex: Demande de l'utilisateur"
+                  className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-red-500 bg-slate-50" />
+              </div>
+              <div className="flex gap-3">
+                <button onClick={() => { setModalUser(null); setMotifAction(""); }}
+                  className="flex-1 py-2.5 border border-slate-200 rounded-xl text-slate-600 text-sm hover:bg-slate-50">
+                  Annuler
+                </button>
+                <button
+                  disabled={doingAction}
+                  onClick={() => handleUserAction(selectedUser, "delete_permanent")}
+                  className="flex-1 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-sm font-semibold disabled:opacity-50 flex items-center justify-center gap-2">
+                  <UserX size={14} />{doingAction ? "Suppression…" : "Supprimer définitivement"}
+                </button>
+              </div>
             </div>
           </div>
         </div>

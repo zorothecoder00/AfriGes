@@ -29,11 +29,62 @@ export async function proxy(request: NextRequest) {
     }
   }
 
+  // Session révoquée (suspendu ou force_disconnect) → login
+  if (token?.error === "SESSION_INVALID") {
+    const loginUrl = new URL("/auth/login", request.url)
+    loginUrl.searchParams.set("sessionExpired", "true")
+    return NextResponse.redirect(loginUrl)
+  }
+
+  // Doit changer son mot de passe → page dédiée
+  if (
+    token?.mustChangePassword &&
+    !pathname.startsWith("/auth/change-password") &&
+    !pathname.startsWith("/api/user/change-password") &&
+    !pathname.startsWith("/api/auth")
+  ) {
+    return NextResponse.redirect(new URL("/auth/change-password", request.url))
+  }
+
   const role = token?.role
-  
-  // Admin/Super_admin qui tente d'acceder a /dashboard/user → redirection vers /dashboard/admin
+
+  // ── Blocage mutations en mode viewAs ────────────────────────────────────────
+  // Un admin avec le cookie viewAs ne peut pas écrire via les APIs gestionnaires
+  const GESTIONNAIRE_API_PREFIXES = [
+    "/api/caissier",
+    "/api/rpv",
+    "/api/chef-agence",
+    "/api/magasinier",
+    "/api/logistique",
+    "/api/agentTerrain",
+    "/api/comptable",
+    "/api/auditeur",
+    "/api/actionnaire",
+  ];
+  if (
+    request.method !== "GET" &&
+    request.method !== "HEAD" &&
+    (role === "ADMIN" || role === "SUPER_ADMIN") &&
+    GESTIONNAIRE_API_PREFIXES.some((p) => pathname.startsWith(p))
+  ) {
+    const viewAsCookie = request.cookies.get("viewAs")?.value;
+    if (viewAsCookie) {
+      return new NextResponse(
+        JSON.stringify({ error: "Action impossible en mode lecture" }),
+        { status: 403, headers: { "Content-Type": "application/json" } }
+      );
+    }
+  }
+
+  // Admin/Super_admin qui tente d'acceder a /dashboard/user
+  // → autoriser si cookie viewAs présent (mode lecture gestionnaire)
+  // → sinon rediriger vers /dashboard/admin
   if (pathname.startsWith("/dashboard/user") && (role === "ADMIN" || role === "SUPER_ADMIN")) {
-    return NextResponse.redirect(new URL("/dashboard/admin", request.url));
+    const viewAsCookie = request.cookies.get("viewAs")?.value;
+    if (!viewAsCookie) {
+      return NextResponse.redirect(new URL("/dashboard/admin", request.url));
+    }
+    // Cookie viewAs présent → laisser passer (mode lecture)
   }
 
   // User qui tente d'acceder a /dashboard/admin → redirection vers son dashboard gestionnaire
@@ -72,5 +123,17 @@ export async function proxy(request: NextRequest) {
 
 // Définir les routes protégées
 export const config = {
-  matcher: ["/dashboard/:path*"],
+  matcher: [
+    "/dashboard/:path*",
+    "/auth/change-password",
+    "/api/caissier/:path*",
+    "/api/rpv/:path*",
+    "/api/chef-agence/:path*",
+    "/api/magasinier/:path*",
+    "/api/logistique/:path*",
+    "/api/agentTerrain/:path*",
+    "/api/comptable/:path*",
+    "/api/auditeur/:path*",
+    "/api/actionnaire/:path*",
+  ],
 };

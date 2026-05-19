@@ -53,7 +53,7 @@ export async function POST(req: Request, { params }: Ctx) {
         const chars = "ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789@#!";
         const tempPassword = Array.from({ length: 12 }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
         const hash = await bcrypt.hash(tempPassword, 12);
-        await prisma.user.update({ where: { id: targetId }, data: { passwordHash: hash } });
+        await prisma.user.update({ where: { id: targetId }, data: { passwordHash: hash, tokenVersion: { increment: 1 }, mustChangePassword: true } });
         await prisma.securityLog.create({ data: {
           userId: targetId, userEmail: target.email, action: "PASSWORD_RESET",
           details: `Réinitialisé par ${callerRole} #${callerId}${motif ? ` — ${motif}` : ""}`,
@@ -83,12 +83,14 @@ export async function POST(req: Request, { params }: Ctx) {
       }
 
       case "force_disconnect": {
+        // Incrémenter tokenVersion invalide immédiatement tous les JWT existants de cet utilisateur
+        await prisma.user.update({ where: { id: targetId }, data: { tokenVersion: { increment: 1 } } });
         await prisma.securityLog.create({ data: {
           userId: targetId, userEmail: target.email, action: "FORCE_DISCONNECT",
           details: `Déconnexion forcée par ${callerRole} #${callerId}${motif ? ` — ${motif}` : ""}`,
         }});
         await auditLog(prisma, callerId, "ADMIN_FORCE_DISCONNECT", "User", targetId);
-        return NextResponse.json({ success: true, message: "Déconnexion forcée enregistrée" });
+        return NextResponse.json({ success: true, message: "Utilisateur déconnecté" });
       }
 
       case "set_permission": {

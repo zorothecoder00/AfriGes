@@ -1,6 +1,7 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getRPVSession } from "@/lib/authRPV";
+import { resolveViewAs } from "@/lib/viewAs";
 
 /**
  * GET /api/rpv/souscriptions-actives
@@ -15,13 +16,15 @@ import { getRPVSession } from "@/lib/authRPV";
  * Exclusion : souscription avec une réception PLANIFIEE déjà en cours.
  * Les livraisons passées (LIVREE) n'excluent PAS — seul le statut compte.
  */
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
     const session = await getRPVSession();
     if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
 
-    const userId = parseInt(session.user.id);
-    const pdv = await prisma.pointDeVente.findUnique({ where: { rpvId: userId } });
+    const isAdmin = session.user.role === "ADMIN" || session.user.role === "SUPER_ADMIN";
+    const viewAs  = isAdmin ? resolveViewAs(req) : null;
+    const effectiveUserId = viewAs?.userId ?? parseInt(session.user.id);
+    const pdv = await prisma.pointDeVente.findUnique({ where: { rpvId: effectiveUserId } });
     if (!pdv) return NextResponse.json({ error: "Aucun PDV associé" }, { status: 400 });
 
     const souscriptions = await prisma.souscriptionPack.findMany({

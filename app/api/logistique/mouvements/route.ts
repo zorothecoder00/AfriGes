@@ -1,20 +1,25 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getLogistiqueSession } from "@/lib/authLogistique";
+import { resolveViewAs } from "@/lib/viewAs";
 
 /**
  * GET /api/logistique/mouvements
  * Journal complet de tous les mouvements de stock (ENTREE, SORTIE, AJUSTEMENT).
  * Utilisé pour l'onglet suivi des livraisons et journal d'audit.
  */  
-export async function GET(req: Request) {     
+export async function GET(req: NextRequest) {
   try {
     const session = await getLogistiqueSession();
     if (!session) return NextResponse.json({ error: "Acces refuse" }, { status: 403 });
 
+    const isAdmin = session.user.role === "ADMIN" || session.user.role === "SUPER_ADMIN";
+    const viewAs  = isAdmin ? resolveViewAs(req) : null;
+    const effectiveUserId = viewAs?.userId ?? Number(session.user.id);
+
     const affectation = await prisma.gestionnaireAffectation.findFirst({
-      where: { userId: Number(session.user.id), actif: true },
+      where: { userId: effectiveUserId, actif: true },
       select: { pointDeVenteId: true },
     });
     if (!affectation) {

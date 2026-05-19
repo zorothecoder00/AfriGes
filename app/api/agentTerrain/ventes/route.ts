@@ -1,25 +1,28 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { PrioriteNotification } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getAgentTerrainSession } from "@/lib/authAgentTerrain";
 import { randomUUID } from "crypto";
 import { notifyRoles, auditLog } from "@/lib/notifications";
+import { resolveViewAs } from "@/lib/viewAs";
 
 /**
  * GET /api/agentTerrain/ventes
  * Ventes directes réalisées par l'agent terrain connecté.
  * Query: statut, dateDebut, dateFin, search, page, limit
  */
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
   try {
     const session = await getAgentTerrainSession();
     if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
 
-    const userId = parseInt(session.user.id);
+    const isAdmin = session.user.role === "ADMIN" || session.user.role === "SUPER_ADMIN";
+    const viewAs  = isAdmin ? resolveViewAs(req) : null;
+    const effectiveUserId = viewAs?.userId ?? parseInt(session.user.id);
 
-    // Trouver le PDV de l'agent via affectation active
+    // Trouver le PDV de l'agent via affectation active (ou du gestionnaire ciblé en viewAs)
     const affectation = await prisma.gestionnaireAffectation.findFirst({
-      where: { userId, actif: true },
+      where: { userId: effectiveUserId, actif: true },
       include: { pointDeVente: { select: { id: true, nom: true, code: true } } },
     });
 
@@ -33,7 +36,7 @@ export async function GET(req: Request) {
     const dateFin   = searchParams.get("dateFin");
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const where: any = { vendeurId: userId };
+    const where: any = { vendeurId: effectiveUserId };
     if (statut) where.statut = statut;
     if (dateDebut || dateFin) {
       where.createdAt = {};

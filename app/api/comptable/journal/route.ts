@@ -1,6 +1,7 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getComptableSession, getComptablePdvId } from "@/lib/authComptable";
+import { resolveViewAs } from "@/lib/viewAs";
 
 /**
  * GET /api/comptable/journal
@@ -83,12 +84,15 @@ const TYPE_LABELS: Record<string, string> = {
   AJUSTEMENT:           "Ajustement",
 };
 
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
   try {
     const session = await getComptableSession();
     if (!session) {
       return NextResponse.json({ message: "Accès refusé" }, { status: 403 });
     }
+
+    const isAdmin = session.user.role === "ADMIN" || session.user.role === "SUPER_ADMIN";
+    const viewAs  = isAdmin ? resolveViewAs(req) : null;
 
     const { searchParams } = new URL(req.url);
     const isGrandLivre = searchParams.get("grandlivre") === "1";
@@ -109,7 +113,7 @@ export async function GET(req: Request) {
     dateFin.setHours(23, 59, 59, 999);
 
     // ── Filtre PDV ─────────────────────────────────────────────────────────────
-    const pdvId = await getComptablePdvId(session);
+    const pdvId = await getComptablePdvId(session, viewAs?.userId);
     const pdvMouvFilter      = pdvId !== null ? { pointDeVenteId: pdvId } : {};
     const pdvCaisseFilter    = pdvId !== null ? { session: { pointDeVenteId: pdvId } } : {};
     // VersementPack → SouscriptionPack → Client.pointDeVenteId

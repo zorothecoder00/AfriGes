@@ -12,9 +12,9 @@ export const getAuthSession = async (
 		    ? await getServerSession(req, res, authOptions)  // pages/api/
 		    : await getServerSession(authOptions)            // app router
  		
- 	if (session?.user?.email) {
+ 	if (session?.user?.email && !session.user.error) {
 		return session
-	}     
+	}
 }
 
 export { authOptions }

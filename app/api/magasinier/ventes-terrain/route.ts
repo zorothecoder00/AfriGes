@@ -1,19 +1,24 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getMagasinierSession } from "@/lib/authMagasinier";
+import { resolveViewAs } from "@/lib/viewAs";
 
 /**
  * GET /api/magasinier/ventes-terrain
  * Ventes directes terrain CONFIRMEE (sortie stock à effectuer) du PDV du magasinier.
  * Inclut aussi les SORTIE_VALIDEE récentes (30j) pour historique.
  */
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
     const session = await getMagasinierSession();
     if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
 
+    const isAdmin = session.user.role === "ADMIN" || session.user.role === "SUPER_ADMIN";
+    const viewAs  = isAdmin ? resolveViewAs(req) : null;
+    const effectiveUserId = viewAs?.userId ?? parseInt(session.user.id);
+
     const aff = await prisma.gestionnaireAffectation.findFirst({
-      where: { userId: parseInt(session.user.id), actif: true },
+      where: { userId: effectiveUserId, actif: true },
       select: { pointDeVenteId: true },
     });
     if (!aff?.pointDeVenteId) {

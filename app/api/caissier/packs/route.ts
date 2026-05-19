@@ -1,21 +1,24 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCaissierSession, getCaissierPdvId, souscriptionPdvWhere } from "@/lib/authCaissier";
 import { notifyAdmins } from "@/lib/notifications";
+import { resolveViewAs } from "@/lib/viewAs";
 
 /**
  * GET — Souscriptions actives + en attente (vue caissier).
  *   ?search=nom&statut=ACTIF
  * POST — Crée une nouvelle souscription pour un client/membre.
  */    
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
   try {
     const session = await getCaissierSession();
     if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
 
     const userId  = parseInt(session.user.id);
     const isAdmin = session.user.role === "ADMIN" || session.user.role === "SUPER_ADMIN";
-    const pdvId   = isAdmin ? null : await getCaissierPdvId(userId);
+    const viewAs  = isAdmin ? resolveViewAs(req) : null;
+    const effectiveUserId = viewAs?.userId ?? userId;
+    const pdvId   = (isAdmin && !viewAs) ? null : await getCaissierPdvId(effectiveUserId);
 
     const { searchParams } = new URL(req.url);
     const search = (searchParams.get("search") ?? "").trim();

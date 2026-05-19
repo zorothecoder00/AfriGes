@@ -4,12 +4,14 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   Plus, Search, Shield, Users, Eye, Edit, CheckCircle, Clock,
   Mail, Phone, Trash2, X, ArrowLeft, Store, Building2, Link2, Link2Off, UserCheck, MapPin,
+  LayoutDashboard,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useApi, useMutation } from '@/hooks/useApi';
 import { formatDate } from '@/lib/format';
 import { getStatusLabel, getStatusStyle } from '@/lib/status';
 import { useT } from '@/contexts/AppSettingsContext';
+import { useViewAs } from '@/contexts/ViewAsContext';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -43,6 +45,21 @@ interface MemberOption {
   id: number; nom: string; prenom: string; email: string; role: string | null;
 }
 
+// Mapping rôle → chemin dashboard gestionnaire (pour le bouton "Voir dashboard")
+const ROLE_DASHBOARD_MAP: Record<string, string> = {
+  RESPONSABLE_POINT_DE_VENTE:           '/dashboard/user/responsablesPointDeVente',
+  CHEF_AGENCE:                          '/dashboard/user/chefAgence',
+  RESPONSABLE_COMMUNAUTE:               '/dashboard/user/chefAgence',
+  AGENT_LOGISTIQUE_APPROVISIONNEMENT:   '/dashboard/user/logistiquesApprovisionnements',
+  MAGAZINIER:                           '/dashboard/user/magasiniers',
+  CAISSIER:                             '/dashboard/user/caissiers',
+  COMPTABLE:                            '/dashboard/user/comptables',
+  AGENT_TERRAIN:                        '/dashboard/user/agentsTerrain',
+  AUDITEUR_INTERNE:                     '/dashboard/user/auditeursInterne',
+  ACTIONNAIRE:                          '/dashboard/user/actionnaires',
+  REVENDEUR:                            '/dashboard/user/revendeurs',
+};
+
 // Rôles qui gèrent une ZONE multi-PDV (chef d'agence)
 const ROLES_CHEF_AGENCE = new Set(['CHEF_AGENCE', 'RESPONSABLE_COMMUNAUTE']);
 
@@ -68,6 +85,7 @@ const ROLES_AVEC_PDV = new Set([
 
 export default function GestionnairesPage() {
   const t = useT();
+  const { enterViewAs } = useViewAs();
   const [searchQuery, setSearchQuery]     = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [page, setPage]                   = useState(1);
@@ -721,6 +739,22 @@ export default function GestionnairesPage() {
                             <button onClick={() => openAffectModal(g)}
                               className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors" title="Affecter PDV">
                               {pdvAffecte ? <Link2 size={16} /> : <Link2 size={16} />}
+                            </button>
+                          )}
+                          {/* Bouton "Voir dashboard" — accès lecture au dashboard du gestionnaire */}
+                          {ROLE_DASHBOARD_MAP[g.role] && (
+                            <button
+                              onClick={() => enterViewAs({
+                                userId:           g.member.id,
+                                gestionnaireRole: g.role,
+                                nom:              g.member.nom,
+                                prenom:           g.member.prenom,
+                                dashboardPath:    ROLE_DASHBOARD_MAP[g.role],
+                              })}
+                              className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                              title="Voir dashboard (mode lecture)"
+                            >
+                              <LayoutDashboard size={16} />
                             </button>
                           )}
                           <button onClick={() => setDeleteId(g.id)}
