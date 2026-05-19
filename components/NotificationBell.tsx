@@ -2,12 +2,14 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useViewAs } from '@/contexts/ViewAsContext';
 
 interface Props {
   href: string;
 }
 
 export default function NotificationBell({ href }: Props) {
+  const { viewAs } = useViewAs();
   const [count, setCount] = useState(0);
 
   useEffect(() => {
@@ -15,7 +17,10 @@ export default function NotificationBell({ href }: Props) {
 
     const fetchCount = async () => {
       try {
-        const res = await fetch('/api/notifications/unread', { cache: 'no-store' });
+        const url = viewAs
+          ? `/api/notifications/unread?viewAs=${viewAs.userId}`
+          : '/api/notifications/unread';
+        const res = await fetch(url, { cache: 'no-store' });
         if (res.ok && !cancelled) {
           const json = await res.json();
           setCount(json.data ?? 0);
@@ -29,7 +34,7 @@ export default function NotificationBell({ href }: Props) {
       cancelled = true;
       clearInterval(interval);
     };
-  }, []);
+  }, [viewAs?.userId]);
 
   return (
     <Link

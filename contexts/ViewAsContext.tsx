@@ -78,8 +78,9 @@ export function ViewAsProvider({ children }: { children: ReactNode }) {
   const exitViewAs = useCallback(() => {
     clearViewAsCookie();
     setViewAs(null);
-    router.push("/dashboard/admin");
-  }, [router]);
+    // Hard navigation ensures ViewAsProvider re-mounts with the cleared cookie
+    window.location.href = "/dashboard/admin/gestionnaires";
+  }, []);
 
   return (
     <ViewAsContext.Provider value={{ viewAs, enterViewAs, exitViewAs }}>

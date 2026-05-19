@@ -1,9 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
-import { ArrowLeft } from 'lucide-react';
 import { useApi, useMutation } from '@/hooks/useApi';
+import DashboardBackButton from '@/components/DashboardBackButton';
+import { useViewAs } from '@/contexts/ViewAsContext';
+import { toast } from 'sonner';
 
 type PrioriteNotification = 'URGENT' | 'HAUTE' | 'NORMAL' | 'BASSE';
 
@@ -23,17 +24,14 @@ interface NotificationsResponse {
   data: Notification[];
 }
 
-interface NotificationsPageProps {
-  backUrl?: string;
-}
-
-export default function NotificationsPage({ backUrl }: NotificationsPageProps) {
+export default function NotificationsPage() {
+  const { viewAs } = useViewAs();
   const [filter, setFilter] = useState('all');
 
   const { data: response, loading, error, refetch } = useApi<NotificationsResponse>('/api/notifications?limit=50');
   const notifications = response?.data ?? [];
 
-  // Mutations
+  // Mutations (bloquées automatiquement par useMutation en mode viewAs)
   const { mutate: markAllRead, loading: markingAll } = useMutation('/api/notifications/readAll', 'PATCH', { successMessage: 'Toutes les notifications marquées comme lues' });
   const { mutate: clearAll, loading: clearingAll } = useMutation('/api/notifications', 'DELETE', { successMessage: 'Toutes les notifications supprimées' });
 
@@ -48,6 +46,7 @@ export default function NotificationsPage({ backUrl }: NotificationsPageProps) {
   };
 
   const handleMarkAsRead = async (uuid: string) => {
+    if (viewAs) { toast.error('Action impossible en mode lecture'); return; }
     try {
       const res = await fetch(`/api/notifications/${uuid}/read`, {
         method: 'PATCH',
@@ -58,6 +57,7 @@ export default function NotificationsPage({ backUrl }: NotificationsPageProps) {
   };
 
   const handleDelete = async (uuid: string) => {
+    if (viewAs) { toast.error('Action impossible en mode lecture'); return; }
     try {
       const res = await fetch(`/api/notifications/${uuid}`, {
         method: 'DELETE',
@@ -138,11 +138,7 @@ export default function NotificationsPage({ backUrl }: NotificationsPageProps) {
           <div className="py-6">
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-4">
-                {backUrl && (
-                  <Link href={backUrl} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
-                    <ArrowLeft className="w-5 h-5 text-gray-600" />
-                  </Link>
-                )}
+                <DashboardBackButton exitViewAsOnBack={false} />
                 <div>
                   <h1 className="text-3xl font-bold text-gray-900 mb-1">
                     Notifications
