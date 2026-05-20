@@ -136,6 +136,25 @@ export async function PATCH(
         : undefined;
       const nextBulkIds = hasBulkPdvUpdate ? normalizeIds(pointsDeVenteIds) : [];
 
+      // Gestion historique affectation agent terrain
+      if (agentTerrainId !== undefined) {
+        const oldAgentId = existing.agentTerrainId;
+        const newAgentId = agentTerrainId ? Number(agentTerrainId) : null;
+        if (oldAgentId !== newAgentId) {
+          if (oldAgentId) {
+            await tx.clientAgentAffectation.updateMany({
+              where: { clientId, agentId: oldAgentId, actif: true },
+              data: { actif: false, dateFin: new Date() },
+            });
+          }
+          if (newAgentId) {
+            await tx.clientAgentAffectation.create({
+              data: { clientId, agentId: newAgentId, actif: true },
+            });
+          }
+        }
+      }
+
       const updated = await tx.client.update({
         where: { id: clientId },
         data: {

@@ -182,6 +182,13 @@ export async function POST(req: Request) {
         });
       }
 
+      // Historique affectation agent terrain
+      if (agentTerrainId) {
+        await tx.clientAgentAffectation.create({
+          data: { clientId: client.id, agentId: Number(agentTerrainId), actif: true },
+        });
+      }
+
       // 2. Audit log
       await tx.auditLog.create({
         data: {

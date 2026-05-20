@@ -500,6 +500,7 @@ model User {
   pointsFidelite       PointsFidelite?
 
   clientsAssignes      Client[]             @relation("ClientAgentTerrain")
+  clientAffectations   ClientAgentAffectation[] @relation("ClientAgentAffectations")
 
   // Comptabilité
   cloturesComptables   ClotureComptable[]
@@ -654,6 +655,7 @@ model Client {
   agentTerrainId Int?
   agentTerrain       User?              @relation("ClientAgentTerrain", fields: [agentTerrainId], references: [id])
 
+  agentAffectations  ClientAgentAffectation[]
   pointsDeVente      ClientPointDeVente[]
   souscriptionsPacks SouscriptionPack[]
   pointsFidelite     PointsFidelite?
@@ -661,6 +663,27 @@ model Client {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+// Historique des affectations client ↔ agent terrain
+// Permet un calcul de CA juste par période d'affectation (évite le double-comptage lors des réaffectations)
+model ClientAgentAffectation {
+  id        Int       @id @default(autoincrement())
+  clientId  Int
+  agentId   Int       // User.id du gestionnaire AGENT_TERRAIN
+  dateDebut DateTime  @default(now())
+  dateFin   DateTime?
+  actif     Boolean   @default(true)
+  notes     String?
+
+  client    Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  agent     User      @relation("ClientAgentAffectations", fields: [agentId], references: [id])
+
+  createdAt DateTime  @default(now())
+
+  @@index([clientId])
+  @@index([agentId])
+  @@index([clientId, agentId, actif])
 }
 
 model ClientPointDeVente {

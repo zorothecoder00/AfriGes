@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useApi } from '@/hooks/useApi';
 import { formatDate, formatDateTime, formatCurrency } from '@/lib/format';
@@ -8,6 +8,7 @@ import {
   User, Mail, Phone, MapPin, Calendar, Shield, Activity,
   CheckCircle, XCircle, ArrowLeft, Edit,
   Users, TrendingUp, ShoppingBag, Layers, Search, Store, ExternalLink, AlertTriangle,
+  UserPlus, UserMinus, X,
 } from 'lucide-react';
 
 interface GestionnaireDetailsProps {
@@ -62,6 +63,15 @@ interface AgentClientsResponse {
   meta: { total: number; caGlobal: number };
 }
 
+interface AvailableClient {
+  id: number;
+  nom: string;
+  prenom: string;
+  telephone: string;
+  etat: string;
+  pointDeVente: { id: number; nom: string; code: string } | null;
+}
+
 const getRoleBadgeColor = (role: string) => {
   switch (role) {
     case 'SUPER_ADMIN': return 'bg-red-100 text-red-700';
@@ -91,19 +101,105 @@ const getInitials = (nom: string, prenom: string) =>
 export default function GestionnaireDetails({ gestionnaireId }: GestionnaireDetailsProps) {
   const [search, setSearch] = useState('');
 
+  // ── Bulk assignment modal state ──────────────────────────────────────────
+  const [showBulkModal, setShowBulkModal]   = useState(false);
+  const [modalSearch, setModalSearch]       = useState('');
+  const [modalClients, setModalClients]     = useState<AvailableClient[]>([]);
+  const [modalLoading, setModalLoading]     = useState(false);
+  const [selectedIds, setSelectedIds]       = useState<Set<number>>(new Set());
+  const [bulkLoading, setBulkLoading]       = useState(false);
+  const [bulkError, setBulkError]           = useState<string | null>(null);
+  const [unassignLoading, setUnassignLoading] = useState<Set<number>>(new Set());
+
+  // Ref stable pour les IDs déjà assignés (évite les dépendances cycliques)
+  const assignedIdsRef = useRef<Set<number>>(new Set());
+
   const { data: response, loading, error, refetch } =
     useApi<GestionnaireResponse>(`/api/admin/gestionnaires/${gestionnaireId}`);
   const gestionnaire = response?.data;
 
   const isAgentTerrain = gestionnaire?.role === 'AGENT_TERRAIN';
 
-  const { data: clientsData } = useApi<AgentClientsResponse>(
+  const { data: clientsData, refetch: refetchClients } = useApi<AgentClientsResponse>(
     isAgentTerrain ? `/api/admin/gestionnaires/${gestionnaireId}/clients` : null
   );
 
   const clients = clientsData?.clients ?? [];
   const clientsMeta = clientsData?.meta;
   const agentPdvIds = clientsData?.agentPdvIds ?? [];
+
+  // Mise à jour du ref quand la liste des clients change
+  useEffect(() => {
+    assignedIdsRef.current = new Set(clients.map(c => c.id));
+  }, [clients]);
+
+  // Fetch des clients disponibles pour le modal (avec debounce)
+  useEffect(() => {
+    if (!showBulkModal) return;
+    setModalLoading(true);
+    const timer = setTimeout(() => {
+      const params = new URLSearchParams({ limit: '100' });
+      if (modalSearch.trim()) params.set('search', modalSearch.trim());
+      fetch(`/api/admin/clients?${params}`)
+        .then(r => r.json())
+        .then(data => {
+          const all: AvailableClient[] = data.data ?? [];
+          setModalClients(all.filter(c => !assignedIdsRef.current.has(c.id)));
+        })
+        .catch(() => setModalClients([]))
+        .finally(() => setModalLoading(false));
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [showBulkModal, modalSearch]);
+
+  const openBulkModal = () => {
+    setModalSearch('');
+    setSelectedIds(new Set());
+    setBulkError(null);
+    setShowBulkModal(true);
+  };
+
+  const toggleSelect = (id: number) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  const handleBulkAssign = async () => {
+    if (!selectedIds.size) return;
+    setBulkLoading(true);
+    setBulkError(null);
+    try {
+      const res = await fetch(`/api/admin/gestionnaires/${gestionnaireId}/clients`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ clientIds: Array.from(selectedIds) }),
+      });
+      if (!res.ok) throw new Error((await res.json()).message ?? 'Erreur');
+      setShowBulkModal(false);
+      refetchClients?.();
+    } catch (e) {
+      setBulkError(e instanceof Error ? e.message : 'Erreur serveur');
+    } finally {
+      setBulkLoading(false);
+    }
+  };
+
+  const handleUnassign = async (clientId: number) => {
+    setUnassignLoading(prev => new Set(prev).add(clientId));
+    try {
+      await fetch(`/api/admin/gestionnaires/${gestionnaireId}/clients`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ clientIds: [clientId] }),
+      });
+      refetchClients?.();
+    } finally {
+      setUnassignLoading(prev => { const next = new Set(prev); next.delete(clientId); return next; });
+    }
+  };
 
   const filtered = useMemo(() => {
     if (!search.trim()) return clients;
@@ -143,6 +239,7 @@ export default function GestionnaireDetails({ gestionnaireId }: GestionnaireDeta
   if (!gestionnaire) return null;
 
   return (
+    <>
     <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-5xl mx-auto space-y-6">
 
@@ -365,22 +462,30 @@ export default function GestionnaireDetails({ gestionnaireId }: GestionnaireDeta
 
             {/* Tableau clients */}
             <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 overflow-hidden">
-              <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+              <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between gap-3 flex-wrap">
                 <h2 className="text-lg font-bold text-slate-800">
                   Clients assignés
                   <span className="ml-2 text-sm font-normal text-slate-400">
                     ({clientsMeta?.total ?? 0})
                   </span>
                 </h2>
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                  <input
-                    type="text"
-                    placeholder="Rechercher…"
-                    value={search}
-                    onChange={e => setSearch(e.target.value)}
-                    className="pl-9 pr-4 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50 text-sm w-60"
-                  />
+                <div className="flex items-center gap-3">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                    <input
+                      type="text"
+                      placeholder="Rechercher…"
+                      value={search}
+                      onChange={e => setSearch(e.target.value)}
+                      className="pl-9 pr-4 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50 text-sm w-56"
+                    />
+                  </div>
+                  <button
+                    onClick={openBulkModal}
+                    className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white text-sm font-medium rounded-xl hover:bg-teal-700 transition-colors"
+                  >
+                    <UserPlus size={15} /> Affecter des clients
+                  </button>
                 </div>
               </div>
 
@@ -474,13 +579,25 @@ export default function GestionnaireDetails({ gestionnaireId }: GestionnaireDeta
                           <span className="text-xs text-slate-500">{formatDate(client.createdAt)}</span>
                         </td>
                         <td className="px-6 py-4">
-                          <Link
-                            href={`/dashboard/admin/clients/${client.id}`}
-                            className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors inline-flex"
-                            title="Voir la fiche client"
-                          >
-                            <ExternalLink size={14} />
-                          </Link>
+                          <div className="flex items-center gap-1">
+                            <Link
+                              href={`/dashboard/admin/clients/${client.id}`}
+                              className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors inline-flex"
+                              title="Voir la fiche client"
+                            >
+                              <ExternalLink size={14} />
+                            </Link>
+                            <button
+                              onClick={() => handleUnassign(client.id)}
+                              disabled={unassignLoading.has(client.id)}
+                              className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors inline-flex disabled:opacity-40"
+                              title="Désaffecter ce client"
+                            >
+                              {unassignLoading.has(client.id)
+                                ? <span className="w-3.5 h-3.5 border-2 border-red-400 border-t-transparent rounded-full animate-spin" />
+                                : <UserMinus size={14} />}
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -521,5 +638,150 @@ export default function GestionnaireDetails({ gestionnaireId }: GestionnaireDeta
 
       </div>
     </div>
+
+    {/* ── Modal bulk assignment ─────────────────────────────────────────── */}
+    {showBulkModal && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg flex flex-col max-h-[85vh]">
+
+          {/* Header */}
+          <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+            <div>
+              <h3 className="text-lg font-bold text-slate-800">Affecter des clients</h3>
+              <p className="text-xs text-slate-400 mt-0.5">
+                à {gestionnaire?.member.prenom} {gestionnaire?.member.nom}
+              </p>
+            </div>
+            <button
+              onClick={() => setShowBulkModal(false)}
+              className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+            >
+              <X size={18} className="text-slate-500" />
+            </button>
+          </div>
+
+          {/* Search */}
+          <div className="px-6 py-3 border-b border-slate-100">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
+              <input
+                type="text"
+                placeholder="Rechercher un client…"
+                value={modalSearch}
+                onChange={e => setModalSearch(e.target.value)}
+                autoFocus
+                className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 bg-slate-50 text-sm"
+              />
+            </div>
+          </div>
+
+          {/* Liste clients */}
+          <div className="flex-1 overflow-y-auto px-2 py-2">
+            {modalLoading ? (
+              <div className="flex items-center justify-center py-10">
+                <span className="w-6 h-6 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
+              </div>
+            ) : modalClients.length === 0 ? (
+              <p className="text-center text-sm text-slate-400 py-10">
+                {modalSearch ? 'Aucun résultat.' : 'Tous les clients sont déjà assignés ou aucun client disponible.'}
+              </p>
+            ) : (
+              <ul className="space-y-1">
+                {modalClients.map(c => {
+                  const pdvDifferent =
+                    agentPdvIds.length > 0 &&
+                    (!c.pointDeVente || !agentPdvIds.includes(c.pointDeVente.id));
+                  const checked = selectedIds.has(c.id);
+                  return (
+                    <li key={c.id}>
+                      <label className={`flex items-center gap-3 px-4 py-3 rounded-xl cursor-pointer transition-colors ${
+                        checked ? 'bg-teal-50 border border-teal-200' : 'hover:bg-slate-50 border border-transparent'
+                      }`}>
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => toggleSelect(c.id)}
+                          className="w-4 h-4 accent-teal-600 rounded"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-semibold text-slate-800">
+                              {c.prenom} {c.nom}
+                            </span>
+                            <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${
+                              c.etat === 'ACTIF' ? 'text-emerald-600 bg-emerald-50' : 'text-slate-500 bg-slate-100'
+                            }`}>
+                              {c.etat}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-3 mt-0.5">
+                            <span className="text-xs text-slate-400 flex items-center gap-1">
+                              <Phone size={10} /> {c.telephone}
+                            </span>
+                            {c.pointDeVente && (
+                              <span className={`text-xs flex items-center gap-1 ${pdvDifferent ? 'text-amber-600' : 'text-slate-400'}`}>
+                                <Store size={10} /> {c.pointDeVente.nom}
+                                {pdvDifferent && (
+                                  <AlertTriangle size={10} className="text-amber-500" />
+                                )}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </label>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
+
+          {/* Avertissement géographique global */}
+          {selectedIds.size > 0 && agentPdvIds.length > 0 && (() => {
+            const nbDiff = modalClients.filter(c =>
+              selectedIds.has(c.id) &&
+              (!c.pointDeVente || !agentPdvIds.includes(c.pointDeVente.id))
+            ).length;
+            return nbDiff > 0 ? (
+              <div className="mx-6 mb-2 flex items-start gap-2 bg-amber-50 border border-amber-200 text-amber-800 text-xs rounded-xl px-4 py-3">
+                <AlertTriangle size={14} className="mt-0.5 shrink-0" />
+                <span>
+                  <strong>{nbDiff} client{nbDiff > 1 ? 's' : ''}</strong> sélectionné{nbDiff > 1 ? 's' : ''} n&apos;est pas dans la zone de cet agent (PDV différent).
+                </span>
+              </div>
+            ) : null;
+          })()}
+
+          {/* Footer */}
+          <div className="px-6 py-4 border-t border-slate-100 flex items-center justify-between gap-3">
+            {bulkError && (
+              <p className="text-xs text-red-600 flex-1">{bulkError}</p>
+            )}
+            <div className="flex items-center gap-3 ml-auto">
+              <span className="text-xs text-slate-400">
+                {selectedIds.size} sélectionné{selectedIds.size > 1 ? 's' : ''}
+              </span>
+              <button
+                onClick={() => setShowBulkModal(false)}
+                className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={handleBulkAssign}
+                disabled={!selectedIds.size || bulkLoading}
+                className="flex items-center gap-2 px-5 py-2 bg-teal-600 text-white text-sm font-medium rounded-xl hover:bg-teal-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                {bulkLoading
+                  ? <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  : <UserPlus size={15} />}
+                Affecter ({selectedIds.size})
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   );
 }
