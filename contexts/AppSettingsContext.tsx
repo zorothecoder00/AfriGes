@@ -20,7 +20,10 @@ const AppSettingsContext = createContext<AppSettingsCtx>({
 });
 
 export function AppSettingsProvider({ children }: { children: React.ReactNode }) {
-  const [langue, setLangue] = useState<Langue>("fr");
+  const [langue, setLangue] = useState<Langue>(() => {
+    if (typeof window === "undefined") return "fr";
+    return getStoredSetting("platform.langue", "fr") as Langue;
+  });
 
   useEffect(() => {
     // 1. Appliquer immédiatement les settings DOM depuis localStorage (pas de setState = pas de re-render)

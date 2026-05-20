@@ -5,18 +5,21 @@ On peut aussi utiliser du SVG pour les graphiques ( sans forcément dépendance 
 Ce code :      
  const a = document.createElement("a");
  a.href = url;                  
- a.download = filename;                                     
+ a.download = filename;                                       
  a.click();                                                             
  permet de créer un téléchargement via un clic sur une URL ( utile pour les exports)
 import { randomUUID } from "crypto";  permet de générer des UUID(sorte d'identifiant unique aléatoire) par exemple pour des factures ou des pièces justificatives
 Prisma 7 est une breaking change majeure : url dans schema.prisma n'est plus
   supporté. La connexion doit passer par prisma.config.ts + un driver adapter.
-  Je fais la migration complète :
+netsh wlan show profiles permet d'afficher les réseaux wifi enregistrés sur un pc
+netsh wlan show profile name="NomDuWifi" key=clear affiche toutes les propriétés du wifi sélectionné (NomDuWifi par exemple) notamment le mot de passe
 
   
 -On doit pouvoir aussi affecter les clients aux commerciaux (agents de terrain)
 
 -Fais des await dans toutes mes api où je fais trop de requêtes parallèles
+
+
 
 -npm i -g @openai/codex permet d'installer le CLI de codex (agent ia d'openai qui permet d'interagir depuis le terminal)
       
@@ -101,5 +104,8 @@ Architecture:
   ────────────────────────────────────────
   Fichier: Toutes les routes API gestionnaire
   Action: Remplacer getXxxSession() par resolveGestionnaire()
+
+
+Faire des tags dans l'application pour permettre de retracer les informations sur les clients
 
 
