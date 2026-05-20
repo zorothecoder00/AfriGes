@@ -20,23 +20,21 @@ const AppSettingsContext = createContext<AppSettingsCtx>({
 });
 
 export function AppSettingsProvider({ children }: { children: React.ReactNode }) {
-  const [langue, setLangue] = useState<Langue>(() => {
-    if (typeof window === "undefined") return "fr";
-    return getStoredSetting("platform.langue", "fr") as Langue;
-  });
+  const [langue, setLangue] = useState<Langue>("fr");
 
   useEffect(() => {
     // 1. Appliquer immédiatement les settings DOM depuis localStorage (pas de setState = pas de re-render)
     initAppSettings();
+    // Lire localStorage une seule fois ici — utilisé comme fallback dans tous les cas
+    const localLangue = getStoredSetting("platform.langue", "fr") as Langue;
 
-    // 2. Synchroniser depuis la BDD (async → setState uniquement en callback, jamais synchrone)
+    // 2. Synchroniser depuis la BDD — setLangue appelé uniquement dans les callbacks async
     fetch("/api/app-settings")
       .then((r) => r.ok ? r.json() : null)
       .then((json) => {
-        const localStored = getStoredSetting("platform.langue", "fr") as Langue;
         if (!json?.success || !json.data) {
           // Fetch échoué → fallback localStorage
-          setLangue(localStored);
+          setLangue(localLangue);
           return;
         }
         const data: Record<string, string> = json.data;
@@ -49,12 +47,12 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
         // Appliquer au DOM
         applySettingsToDOM(data);
         // Un seul setState, en callback async
-        const dbLangue = (data["platform.langue"] ?? localStored) as Langue;
+        const dbLangue = (data["platform.langue"] ?? localLangue) as Langue;
         setLangue(dbLangue);
       })
       .catch(() => {
         // Fetch échoué → fallback localStorage
-        setLangue(getStoredSetting("platform.langue", "fr") as Langue);
+        setLangue(localLangue);
       });
 
     // 3. Écoute les changements de stockage (multi-onglets)
