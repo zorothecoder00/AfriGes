@@ -37,7 +37,7 @@ export async function GET(req: Request) {
       { code: { contains: search, mode: "insensitive" } },
     ];
 
-    const [pdvs, total] = await Promise.all([
+    const [pdvs, total, totalPDV, totalDepot, totalActifs] = await Promise.all([
       prisma.pointDeVente.findMany({
         where,
         skip,
@@ -56,9 +56,6 @@ export async function GET(req: Request) {
         },
       }),
       prisma.pointDeVente.count({ where }),
-    ]);
-
-    const [totalPDV, totalDepot, totalActifs] = await Promise.all([
       prisma.pointDeVente.count({ where: { type: "POINT_DE_VENTE" } }),
       prisma.pointDeVente.count({ where: { type: "DEPOT_CENTRAL" } }),
       prisma.pointDeVente.count({ where: { actif: true } }),

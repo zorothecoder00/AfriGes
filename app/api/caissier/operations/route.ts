@@ -44,16 +44,6 @@ export async function GET(req: Request) {
       };
     }
 
-    const [operations, total] = await Promise.all([
-      prisma.operationCaisse.findMany({
-        where,
-        orderBy: { createdAt: "desc" },
-        skip:    (page - 1) * limit,
-        take:    limit,
-      }),
-      prisma.operationCaisse.count({ where }),
-    ]);
-
     // Totaux du jour pour le périmètre du caissier
     const now        = new Date();
     const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -62,7 +52,14 @@ export async function GET(req: Request) {
     const todayWhere: Record<string, unknown> = { ...sessionScope, createdAt: { gte: startOfDay, lte: endOfDay } };
     if (sessionId) todayWhere.sessionId = sessionId;
 
-    const [totalEncaissDuJour, totalDecaissDuJour] = await Promise.all([
+    const [operations, total, totalEncaissDuJour, totalDecaissDuJour] = await Promise.all([
+      prisma.operationCaisse.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        skip:    (page - 1) * limit,
+        take:    limit,
+      }),
+      prisma.operationCaisse.count({ where }),
       prisma.operationCaisse.aggregate({
         _sum: { montant: true },
         where: { ...todayWhere, type: "ENCAISSEMENT" },

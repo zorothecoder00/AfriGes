@@ -14,13 +14,6 @@ Prisma 7 est une breaking change majeure : url dans schema.prisma n'est plus
 netsh wlan show profiles permet d'afficher les réseaux wifi enregistrés sur un pc
 netsh wlan show profile name="NomDuWifi" key=clear affiche toutes les propriétés du wifi sélectionné (NomDuWifi par exemple) notamment le mot de passe
 
-  
--On doit pouvoir aussi affecter les clients aux commerciaux (agents de terrain)
-
--Fais des await dans toutes mes api où je fais trop de requêtes parallèles
-
-
-
 -npm i -g @openai/codex permet d'installer le CLI de codex (agent ia d'openai qui permet d'interagir depuis le terminal)
       
 -curl -fsSL https://claude.ai/install.cmd -o install.cmd && install.cmd && del install.cmd pour installer claude via le terminal cmd 
@@ -105,7 +98,6 @@ Architecture:
   Fichier: Toutes les routes API gestionnaire
   Action: Remplacer getXxxSession() par resolveGestionnaire()
 
-
 Faire des tags dans l'application pour permettre de retracer les informations sur les clients
 
-
+Créer un menu RIA (commissions , finances etc etc)

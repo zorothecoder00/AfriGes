@@ -57,7 +57,11 @@ export async function GET(req: Request) {
       ];
     }
 
-    const [logs, total] = await Promise.all([
+    // Stats
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+
+    const [logs, total, totalActions, actionsToday, distinctEntites] = await Promise.all([
       prisma.auditLog.findMany({
         where,
         skip,
@@ -70,13 +74,6 @@ export async function GET(req: Request) {
         },
       }),
       prisma.auditLog.count({ where }),
-    ]);
-
-    // Stats
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
-
-    const [totalActions, actionsToday, distinctEntites] = await Promise.all([
       prisma.auditLog.count(),
       prisma.auditLog.count({ where: { createdAt: { gte: todayStart } } }),
       prisma.auditLog.findMany({

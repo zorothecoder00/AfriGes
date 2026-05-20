@@ -59,7 +59,7 @@ export async function GET(req: Request) {
       where.OR = conditions;
     }
 
-    const [ventes, total] = await Promise.all([
+    const [ventes, total, allMontants, pdvs] = await Promise.all([
       prisma.venteDirecte.findMany({
         where,
         skip,
@@ -75,18 +75,17 @@ export async function GET(req: Request) {
         },
       }),
       prisma.venteDirecte.count({ where }),
+      prisma.venteDirecte.findMany({
+        where: { ...where, statut: "CONFIRMEE" },
+        select: { montantTotal: true },
+      }),
+      prisma.pointDeVente.findMany({
+        where: { actif: true }, select: { id: true, nom: true, code: true }, orderBy: { nom: "asc" },
+      }),
     ]);
 
-    const allMontants = await prisma.venteDirecte.findMany({
-      where: { ...where, statut: "CONFIRMEE" },
-      select: { montantTotal: true },
-    });
     const montantTotal  = allMontants.reduce((acc, v) => acc + Number(v.montantTotal), 0);
     const panierMoyen   = allMontants.length > 0 ? montantTotal / allMontants.length : 0;
-
-    const pdvs = await prisma.pointDeVente.findMany({
-      where: { actif: true }, select: { id: true, nom: true, code: true }, orderBy: { nom: "asc" },
-    });
 
     return NextResponse.json({
       data: ventes,

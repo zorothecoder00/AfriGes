@@ -67,6 +67,14 @@ export async function GET(req: Request) {
       }),
     };
 
+    const agentTerrainIdParam = searchParams.get("agentTerrainId");
+    const agentTerrainIdNumber = agentTerrainIdParam ? Number(agentTerrainIdParam) : null;
+
+    if (agentTerrainIdNumber) {
+      if (!where.AND) where.AND = [];
+      (where.AND as object[]).push({ agentTerrainId: agentTerrainIdNumber });
+    }
+
     const [clients, total] = await Promise.all([
       prisma.client.findMany({
         where,
@@ -81,6 +89,7 @@ export async function GET(req: Request) {
               pointDeVente: { select: { id: true, nom: true, code: true } },
             },
           },
+          agentTerrain: { select: { id: true, nom: true, prenom: true } },
         },
       }),
       prisma.client.count({ where }),
@@ -116,7 +125,7 @@ export async function POST(req: Request) {
     if (!session) return NextResponse.json({ message: "Accès refusé" }, { status: 403 });
 
     const body = await req.json();
-    const { nom, prenom, telephone, adresse, pointDeVenteId, pointsDeVenteIds } = body;
+    const { nom, prenom, telephone, adresse, pointDeVenteId, pointsDeVenteIds, agentTerrainId } = body;
 
     if (!nom || !prenom || !telephone) {
       return NextResponse.json(
@@ -154,11 +163,12 @@ export async function POST(req: Request) {
       const client = await tx.client.create({
         data: {
           nom,
-          prenom,     
+          prenom,
           telephone,
           adresse: adresse || null,
           etat: MemberStatus.ACTIF,
           pointDeVenteId: pdvIdToStore,
+          ...(agentTerrainId ? { agentTerrainId: Number(agentTerrainId) } : {}),
         },
       });
 

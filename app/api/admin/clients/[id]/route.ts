@@ -91,8 +91,8 @@ export async function PATCH(
       );
     }
 
-    const body = await req.json();  
-    const { nom, prenom, telephone, adresse, etat, pointDeVenteId, pointsDeVenteIds } = body;
+    const body = await req.json();
+    const { nom, prenom, telephone, adresse, etat, pointDeVenteId, pointsDeVenteIds, agentTerrainId } = body;
 
     // Valider le statut si fourni
     if (etat && !Object.values(MemberStatus).includes(etat)) {
@@ -144,6 +144,9 @@ export async function PATCH(
           ...(telephone && { telephone }),
           ...(adresse !== undefined && { adresse: adresse || null }),
           ...(etat && { etat }),
+          ...(agentTerrainId !== undefined && {
+            agentTerrainId: agentTerrainId ? Number(agentTerrainId) : null,
+          }),
           ...(hasBulkPdvUpdate
             ? { pointDeVenteId: nextBulkIds[0] ?? null }
             : hasLegacyPdvUpdate

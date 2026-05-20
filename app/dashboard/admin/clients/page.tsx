@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Search, Plus, Phone, MapPin, Eye, Edit, Trash2, ArrowLeft, Store, Building2, Link2, Link2Off, X,
   TrendingUp, TrendingDown, CreditCard, ShoppingBag, ChevronDown, ChevronRight, Banknote, Hash,
-  Calendar, CheckCircle, Clock, AlertTriangle, Package } from 'lucide-react';
+  Calendar, CheckCircle, Clock, AlertTriangle, Package, UserCheck } from 'lucide-react';
 import Link from 'next/link';
 import { useApi, useMutation } from '@/hooks/useApi';
 import { formatDate, formatDateTime, formatCurrency } from '@/lib/format';
@@ -13,6 +13,15 @@ import { useT } from '@/contexts/AppSettingsContext';
 
 interface PDVOption { id: number; nom: string; code: string; type: string; }
 interface ClientPdv { id: number; nom: string; code: string }
+interface AgentTerrainOption {
+  id: number;
+  member: {
+    id: number;
+    nom: string;
+    prenom: string;
+    affectationsPDV: { id: number; pointDeVente: { id: number; nom: string; code: string } }[];
+  };
+}
 
 interface Client {
   id: number;
@@ -24,6 +33,7 @@ interface Client {
   createdAt: string;
   pointDeVente: ClientPdv | null;
   pointsDeVente?: { pointDeVente: ClientPdv }[];
+  agentTerrain: { id: number; nom: string; prenom: string } | null;
   _count: { souscriptionsPacks: number };
 }
 
@@ -122,6 +132,15 @@ export default function ClientsPage() {
   const [affectLoading, setAffectLoading] = useState(false);
   const [affectError, setAffectError]     = useState('');
 
+  // ── Modal affectation Agent Terrain ────────────────────────────────────────
+  const [affectAgentClient, setAffectAgentClient] = useState<Client | null>(null);
+  const [selectedAgentId, setSelectedAgentId]     = useState('');
+  const [affectAgentLoading, setAffectAgentLoading] = useState(false);
+  const [affectAgentError, setAffectAgentError]   = useState('');
+
+  // ── Filtre agent terrain ────────────────────────────────────────────────────
+  const [filterAgentId, setFilterAgentId] = useState('');
+
   const limit = 10;
 
   useEffect(() => {  
@@ -132,6 +151,7 @@ export default function ClientsPage() {
   const params = new URLSearchParams({ page: String(page), limit: String(limit) });
   if (debouncedSearch) params.set('search', debouncedSearch);
   if (filterPdvId)     params.set('pdvId', filterPdvId);
+  if (filterAgentId)   params.set('agentTerrainId', filterAgentId);
 
   const { data: response, loading, error, refetch } =
     useApi<ClientsResponse>(`/api/admin/clients?${params}`);
@@ -141,6 +161,11 @@ export default function ClientsPage() {
   // PDV pour filtres et sélecteurs
   const { data: pdvResponse } = useApi<{ data: PDVOption[] }>('/api/admin/pdv?limit=200&actif=true');
   const pdvOptions = pdvResponse?.data ?? [];
+
+  // Agents terrain pour filtres et modal d'affectation
+  const { data: agentsTerrainResponse } =
+    useApi<{ data: AgentTerrainOption[] }>('/api/admin/gestionnaires?role=AGENT_TERRAIN&actif=true&limit=200');
+  const agentsTerrainOptions = agentsTerrainResponse?.data ?? [];
            
   // Mutations
   const { mutate: addClient, loading: adding, error: addError } =
@@ -149,6 +174,10 @@ export default function ClientsPage() {
   const affectClientIdRef = useRef<number | null>(null);
   const { mutate: patchClient } =
     useMutation(() => `/api/admin/clients/${affectClientIdRef.current}`, 'PATCH', { successMessage: 'Affectation mise à jour !' });
+
+  const affectAgentClientIdRef = useRef<number | null>(null);
+  const { mutate: patchClientAgent } =
+    useMutation(() => `/api/admin/clients/${affectAgentClientIdRef.current}`, 'PATCH', { successMessage: 'Agent terrain mis à jour !' });
 
   const getClientPdvs = (client: Client): ClientPdv[] => {
     const relationPdvs = (client.pointsDeVente ?? [])
@@ -190,6 +219,34 @@ export default function ClientsPage() {
     setAffectClient(client);
     setAffectPdvIds(getClientPdvs(client).map((p) => p.id));
     setAffectError('');
+  };
+
+  const openAffectAgentModal = (client: Client) => {
+    setAffectAgentClient(client);
+    setSelectedAgentId(client.agentTerrain ? String(client.agentTerrain.id) : '');
+    setAffectAgentError('');
+  };
+
+  const handleAffecterAgent = async () => {
+    if (!affectAgentClient) return;
+    setAffectAgentLoading(true);
+    setAffectAgentError('');
+    affectAgentClientIdRef.current = affectAgentClient.id;
+    const res = await patchClientAgent({ agentTerrainId: selectedAgentId ? Number(selectedAgentId) : null });
+    setAffectAgentLoading(false);
+    if (res) { setAffectAgentClient(null); refetch(); }
+    else setAffectAgentError('Erreur lors de l\'affectation');
+  };
+
+  const handleDesaffecterAgent = async () => {
+    if (!affectAgentClient) return;
+    setAffectAgentLoading(true);
+    setAffectAgentError('');
+    affectAgentClientIdRef.current = affectAgentClient.id;
+    const res = await patchClientAgent({ agentTerrainId: null });
+    setAffectAgentLoading(false);
+    if (res) { setAffectAgentClient(null); refetch(); }
+    else setAffectAgentError('Erreur lors de la désaffectation');
   };
 
   const handleAffecter = async () => {
@@ -403,6 +460,105 @@ export default function ClientsPage() {
           </div>
         )}
 
+        {/* ══ MODAL — Affectation Agent Terrain ════════════════════════════ */}
+        {affectAgentClient && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[130] p-4 overflow-y-auto">
+            <div className="bg-white rounded-2xl p-6 sm:p-8 w-full max-w-md shadow-xl relative max-h-[90vh] overflow-y-auto">
+              <button onClick={() => setAffectAgentClient(null)}
+                className="absolute top-4 right-4 text-slate-400 hover:text-slate-600">
+                <X size={20} />
+              </button>
+              <h2 className="text-xl font-bold text-slate-800 mb-1">Affecter un agent terrain</h2>
+              <p className="text-sm text-slate-500 mb-5">
+                {affectAgentClient.prenom} {affectAgentClient.nom} — {affectAgentClient.telephone}
+              </p>
+
+              {affectAgentClient.agentTerrain && (
+                <div className="mb-4 flex items-center gap-3 bg-teal-50 border border-teal-200 rounded-xl px-4 py-3">
+                  <div className="w-7 h-7 bg-teal-100 rounded-lg flex items-center justify-center shrink-0">
+                    <UserCheck size={14} className="text-teal-600" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-slate-800">
+                      {affectAgentClient.agentTerrain.prenom} {affectAgentClient.agentTerrain.nom}
+                    </p>
+                    <p className="text-xs text-slate-500">Agent terrain actuel</p>
+                  </div>
+                  <button onClick={handleDesaffecterAgent} disabled={affectAgentLoading}
+                    className="flex items-center gap-1 text-xs text-red-600 hover:text-red-800 font-medium border border-red-200 bg-red-50 hover:bg-red-100 px-2 py-1 rounded-lg transition-colors disabled:opacity-50">
+                    <Link2Off size={12} /> Désaffecter
+                  </button>
+                </div>
+              )}
+
+              {affectAgentError && (
+                <p className="text-red-500 text-sm bg-red-50 border border-red-200 rounded-xl px-3 py-2 mb-4">
+                  {affectAgentError}
+                </p>
+              )}
+
+              {(() => {
+                // Calcul de l'avertissement de zone
+                const selectedAgent = selectedAgentId
+                  ? agentsTerrainOptions.find(a => String(a.member.id) === selectedAgentId)
+                  : null;
+                const agentPdvIds = selectedAgent?.member.affectationsPDV.map(a => a.pointDeVente.id) ?? [];
+                const clientPdvIds = getClientPdvs(affectAgentClient).map(p => p.id);
+                const pdvDifferent =
+                  selectedAgent !== null &&
+                  agentPdvIds.length > 0 &&
+                  clientPdvIds.length > 0 &&
+                  !clientPdvIds.some(id => agentPdvIds.includes(id));
+
+                return (
+                  <div className="space-y-3">
+                    <label className="block text-sm font-medium text-slate-700">
+                      {affectAgentClient.agentTerrain ? 'Changer d\'agent terrain' : 'Choisir un agent terrain'}
+                    </label>
+                    <select
+                      value={selectedAgentId}
+                      onChange={e => setSelectedAgentId(e.target.value)}
+                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-teal-500 text-sm">
+                      <option value="">— Aucun agent —</option>
+                      {agentsTerrainOptions.map(a => (
+                        <option key={a.id} value={String(a.member.id)}>
+                          {a.member.prenom} {a.member.nom}
+                          {a.member.affectationsPDV[0]
+                            ? ` — ${a.member.affectationsPDV[0].pointDeVente.nom}`
+                            : ''}
+                        </option>
+                      ))}
+                    </select>
+
+                    {pdvDifferent && (
+                      <div className="flex items-start gap-2.5 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
+                        <AlertTriangle size={15} className="text-amber-500 shrink-0 mt-0.5" />
+                        <p className="text-xs text-amber-800 leading-relaxed">
+                          <span className="font-semibold">Zones différentes.</span> Le client est rattaché à{' '}
+                          <span className="font-semibold">
+                            {getClientPdvs(affectAgentClient).map(p => p.nom).join(', ')}
+                          </span>{' '}
+                          alors que cet agent couvre{' '}
+                          <span className="font-semibold">
+                            {selectedAgent!.member.affectationsPDV.map(a => a.pointDeVente.nom).join(', ')}
+                          </span>.
+                          L&apos;affectation reste possible.
+                        </p>
+                      </div>
+                    )}
+
+                    <button onClick={handleAffecterAgent} disabled={affectAgentLoading || !selectedAgentId}
+                      className="w-full py-2.5 bg-teal-600 text-white rounded-xl hover:bg-teal-700 disabled:opacity-60 font-medium flex items-center justify-center gap-2 transition-colors">
+                      <Link2 size={15} />
+                      {affectAgentLoading ? 'En cours…' : affectAgentClient.agentTerrain ? 'Réaffecter' : 'Affecter'}
+                    </button>
+                  </div>
+                );
+              })()}
+            </div>
+          </div>
+        )}
+
         {/* Stats */}
         <div className="grid grid-cols-4 gap-5">
           <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/60">
@@ -444,6 +600,13 @@ export default function ClientsPage() {
                 <option key={p.id} value={p.id}>{p.nom} ({p.code})</option>
               ))}
             </select>
+            <select value={filterAgentId} onChange={e => { setFilterAgentId(e.target.value); setPage(1); }}
+              className="px-4 py-3 border border-slate-200 rounded-xl text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50 min-w-[200px]">
+              <option value="">Tous les agents terrain</option>
+              {agentsTerrainOptions.map(a => (
+                <option key={a.id} value={String(a.member.id)}>{a.member.prenom} {a.member.nom}</option>
+              ))}
+            </select>
           </div>
         </div>
 
@@ -457,6 +620,7 @@ export default function ClientsPage() {
                   <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Téléphone</th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Adresse</th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">{t('clients_pdv_affecte')}</th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Agent terrain</th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Activités</th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Date</th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Actions</th>
@@ -507,14 +671,30 @@ export default function ClientsPage() {
                       )}
                     </td>
                     <td className="px-6 py-4">
+                      {client.agentTerrain ? (
+                        <div className="flex items-center gap-2">
+                          <div className="w-6 h-6 bg-teal-100 rounded-lg flex items-center justify-center">
+                            <UserCheck size={12} className="text-teal-600" />
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium text-slate-800">
+                              {client.agentTerrain.prenom} {client.agentTerrain.nom}
+                            </p>
+                          </div>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-slate-400 italic">{t('text_no_assign')}</span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4">
                       {client._count.souscriptionsPacks > 0 ? (
                         <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 text-xs rounded-full font-medium">
                           {client._count.souscriptionsPacks} souscription{client._count.souscriptionsPacks > 1 ? 's' : ''}
                         </span>
                       ) : (
                         <span className="text-xs text-slate-400">Aucune</span>
-                      )}     
-                    </td>      
+                      )}
+                    </td>
                     <td className="px-6 py-4">
                       <span className="text-sm text-slate-600">{formatDate(client.createdAt)}</span>
                     </td>
@@ -533,6 +713,11 @@ export default function ClientsPage() {
                           title={getClientPdvs(client).length > 0 ? 'Modifier affectations PDV' : 'Affecter à un PDV'}>
                           {getClientPdvs(client).length > 0 ? <Building2 size={16} /> : <Store size={16} />}
                         </button>
+                        <button onClick={() => openAffectAgentModal(client)}
+                          className="p-2 text-teal-600 hover:bg-teal-50 rounded-lg transition-colors"
+                          title={client.agentTerrain ? 'Modifier agent terrain' : 'Affecter un agent terrain'}>
+                          <UserCheck size={16} />
+                        </button>
                         <button className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Supprimer">
                           <Trash2 size={16} />
                         </button>
@@ -542,7 +727,7 @@ export default function ClientsPage() {
                 ))}
                 {clients.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="px-6 py-12 text-center text-slate-500">{t('clients_none_found')}</td>
+                    <td colSpan={8} className="px-6 py-12 text-center text-slate-500">{t('clients_none_found')}</td>
                   </tr>
                 )}
               </tbody>

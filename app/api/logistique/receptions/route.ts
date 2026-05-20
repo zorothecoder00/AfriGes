@@ -40,7 +40,10 @@ export async function GET(req: Request) {
       { fournisseur:    { nom: { contains: search, mode: "insensitive" } } },
     ];
 
-    const [receptions, total] = await Promise.all([
+    // Stats 30 derniers jours
+    const since30j = new Date(); since30j.setDate(since30j.getDate() - 30);
+
+    const [receptions, total, pdvs, fournisseurs, produits, stats30j] = await Promise.all([
       prisma.receptionApprovisionnement.findMany({
         where,
         skip,
@@ -57,18 +60,12 @@ export async function GET(req: Request) {
         },
       }),
       prisma.receptionApprovisionnement.count({ where }),
-    ]);
-
-    // Données annexes pour le formulaire
-    const [pdvs, fournisseurs, produits] = await Promise.all([
+      // Données annexes pour le formulaire
       prisma.pointDeVente.findMany({ where: { actif: true }, select: { id: true, nom: true, code: true, type: true }, orderBy: { nom: "asc" } }),
       prisma.fournisseur.findMany({ where: { actif: true }, select: { id: true, nom: true, telephone: true }, orderBy: { nom: "asc" } }),
       prisma.produit.findMany({ where: { actif: true }, select: { id: true, nom: true, reference: true, unite: true, prixUnitaire: true }, orderBy: { nom: "asc" } }),
+      prisma.receptionApprovisionnement.count({ where: { createdAt: { gte: since30j } } }),
     ]);
-
-    // Stats 30 derniers jours
-    const since30j = new Date(); since30j.setDate(since30j.getDate() - 30);
-    const stats30j = await prisma.receptionApprovisionnement.count({ where: { createdAt: { gte: since30j } } });
 
     return NextResponse.json({
       data: receptions,
