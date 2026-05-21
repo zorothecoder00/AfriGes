@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, startTransition } from 'react';
 import {
   Plus, Search, RefreshCw, Filter, Calendar, CheckCircle,
   Clock, XCircle, Eye, ChevronDown, ChevronUp, Phone,
@@ -620,14 +620,16 @@ function SaisieCollecteModal({ id, onClose, onSaved }: { id: number; onClose: ()
 
   useEffect(() => {
     if (res?.data.lignes) {
-      setLignes(
-        res.data.lignes.map((l) => ({
-          ligneId:         l.id,
-          montantCollecte: Number(l.montantCollecte),
-          statut:          l.statut,
-          notes:           l.notes ?? '',
-        }))
-      );
+      startTransition(() => {
+        setLignes(
+          res.data.lignes.map((l) => ({
+            ligneId:         l.id,
+            montantCollecte: Number(l.montantCollecte),
+            statut:          l.statut,
+            notes:           l.notes ?? '',
+          }))
+        );
+      });
     }
   }, [res]);
 

@@ -5,10 +5,10 @@ import { useRouter } from 'next/navigation';
 import { useApi, useMutation } from '@/hooks/useApi';
 import { formatDate, formatDateTime, formatCurrency } from '@/lib/format';
 import {
-  User, Phone, MapPin, Calendar, Activity, ArrowLeft, Edit, Trash2,
-  CheckCircle, XCircle, AlertTriangle, Hash, Briefcase, Store,
-  CreditCard, TrendingDown, ShieldAlert, BarChart2, UserCheck,
-  ImageIcon, FileText, Navigation,
+  Phone, MapPin, Calendar, Activity, ArrowLeft, Edit, Trash2,
+  AlertTriangle, Hash, Briefcase, Store,
+  CreditCard, TrendingDown, BarChart2, UserCheck,
+  FileText, Navigation,
 } from 'lucide-react';
 import { useState } from 'react';
 
@@ -270,7 +270,7 @@ export default function ClientDetails({ clientId }: { clientId: string }) {
             <Field label="N° CNI"           value={client.numeroCNI}           icon={<FileText className="w-3 h-3" />} />
             {client.pieceIdentiteUrl && (
               <div>
-                <span className="text-xs text-gray-400 flex items-center gap-1 mb-1"><FileText className="w-3 h-3" />Pièce d'identité</span>
+                <span className="text-xs text-gray-400 flex items-center gap-1 mb-1"><FileText className="w-3 h-3" />Pièce d&apos;identité</span>
                 <a href={client.pieceIdentiteUrl} target="_blank" rel="noopener noreferrer"
                   className="text-sm text-blue-600 hover:underline">Voir le document</a>
               </div>
@@ -304,7 +304,7 @@ export default function ClientDetails({ clientId }: { clientId: string }) {
             <Field label="Activité / Métier" value={client.activite}   icon={<Briefcase className="w-3 h-3" />} />
             <Field label="Nom du commerce"   value={client.nomCommerce} icon={<Store className="w-3 h-3" />} />
             <div>
-              <span className="text-xs text-gray-400 mb-1 block">Date d'inscription</span>
+              <span className="text-xs text-gray-400 mb-1 block">Date d&apos;inscription</span>
               <span className="text-sm font-medium text-gray-800">{formatDate(client.createdAt)}</span>
             </div>
           </div>

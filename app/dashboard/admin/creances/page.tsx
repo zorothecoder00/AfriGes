@@ -2,14 +2,13 @@
 
 import React, { useState, useCallback } from 'react';
 import {
-  Search, AlertTriangle, Clock, CheckCircle, TrendingDown,
+  Search, Clock, CheckCircle, TrendingDown,
   ChevronDown, ChevronUp, Eye, Wallet, Users, Calendar,
-  Filter, RefreshCw, Phone, MapPin,
+  AlertTriangle, Filter, RefreshCw, Phone, MapPin,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useApi } from '@/hooks/useApi';
 import { formatDate, formatCurrency } from '@/lib/format';
-import { useT } from '@/contexts/AppSettingsContext';
 import ClienteleTabBar from '@/components/ClienteleTabBar';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -76,8 +75,6 @@ function pct(verse: string, total: string) {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function CreancesPage() {
-  const t = useT();
-
   const [page,     setPage]     = useState(1);
   const [search,   setSearch]   = useState('');
   const [searchInput, setSearchInput] = useState('');

@@ -5,8 +5,8 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useApi, useMutation } from '@/hooks/useApi';
 import {
-  ArrowLeft, Save, User, Phone, MapPin, Shield,
-  AlertCircle, Loader2, Briefcase, Store, Navigation,
+  ArrowLeft, Save, User, MapPin, Shield,
+  AlertCircle, Loader2, Briefcase, Navigation,
   FileText, CreditCard, UserCheck,
 } from 'lucide-react';
 
@@ -261,7 +261,7 @@ export default function ClientEdit({ clientId }: { clientId: string }) {
                 <input type="url" value={form.photoUrl} onChange={set('photoUrl')} className={INPUT} placeholder="https://…" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1.5">Pièce d'identité (URL)</label>
+                <label className="block text-xs font-medium text-gray-600 mb-1.5">Pièce d&apos;identité (URL)</label>
                 <input type="url" value={form.pieceIdentiteUrl} onChange={set('pieceIdentiteUrl')} className={INPUT} placeholder="https://…" />
               </div>
             </div>

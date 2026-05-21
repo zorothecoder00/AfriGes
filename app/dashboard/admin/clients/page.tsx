@@ -1,9 +1,9 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Search, Plus, Phone, MapPin, Eye, Edit, Trash2, ArrowLeft, Store, Building2, Link2, Link2Off, X,
+import { Search, Plus, Phone, MapPin, Eye, Edit, Trash2, Store, Building2, Link2, Link2Off, X,
   TrendingUp, TrendingDown, CreditCard, ShoppingBag, ChevronDown, ChevronRight, Banknote, Hash,
-  Calendar, CheckCircle, Clock, AlertTriangle, Package, UserCheck } from 'lucide-react';
+  AlertTriangle, Package, UserCheck } from 'lucide-react';
 import Link from 'next/link';
 import { useApi, useMutation } from '@/hooks/useApi';
 import { formatDate, formatDateTime, formatCurrency } from '@/lib/format';
@@ -499,7 +499,7 @@ export default function ClientsPage() {
                         className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="https://…" />
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-slate-600 mb-1">Pièce d'identité (URL)</label>
+                      <label className="block text-xs font-medium text-slate-600 mb-1">Pièce d&apos;identité (URL)</label>
                       <input type="url" value={formData.pieceIdentiteUrl} onChange={e => setFormData({...formData, pieceIdentiteUrl: e.target.value})}
                         className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="https://…" />
                     </div>
