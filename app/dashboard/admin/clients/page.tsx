@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Search, Plus, Phone, MapPin, Eye, Edit, Trash2, Store, Building2, Link2, Link2Off, X,
   TrendingUp, TrendingDown, CreditCard, ShoppingBag, ChevronDown, ChevronRight, Banknote, Hash,
-  AlertTriangle, Package, UserCheck } from 'lucide-react';
+  AlertTriangle, Package, UserCheck, Navigation, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { useApi, useMutation } from '@/hooks/useApi';
 import { formatDate, formatDateTime, formatCurrency } from '@/lib/format';
@@ -150,6 +150,34 @@ export default function ClientsPage() {
 
   // ── Filtre agent terrain ────────────────────────────────────────────────────
   const [filterAgentId, setFilterAgentId] = useState('');
+
+  // ── Géolocalisation (modal création) ───────────────────────────────────────
+  const [geoLoading, setGeoLoading] = useState(false);
+  const [geoError,   setGeoError]   = useState('');
+
+  const handleGeolocate = () => {
+    if (!navigator.geolocation) {
+      setGeoError('Géolocalisation non supportée par ce navigateur');
+      return;
+    }
+    setGeoLoading(true);
+    setGeoError('');
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setFormData((prev) => ({
+          ...prev,
+          latitude:  String(pos.coords.latitude),
+          longitude: String(pos.coords.longitude),
+        }));
+        setGeoLoading(false);
+      },
+      (err) => {
+        setGeoError(err.code === 1 ? 'Permission refusée par le navigateur' : 'Impossible d\'obtenir la position');
+        setGeoLoading(false);
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  };
 
   const limit = 10;
 
@@ -459,15 +487,31 @@ export default function ClientsPage() {
                       <input type="text" value={formData.ville} onChange={e => setFormData({...formData, ville: e.target.value})}
                         className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="Ville" />
                     </div>
-                    <div>
-                      <label className="block text-xs font-medium text-slate-600 mb-1">Latitude GPS</label>
-                      <input type="number" step="any" value={formData.latitude} onChange={e => setFormData({...formData, latitude: e.target.value})}
-                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="Ex : 5.3599517" />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-slate-600 mb-1">Longitude GPS</label>
-                      <input type="number" step="any" value={formData.longitude} onChange={e => setFormData({...formData, longitude: e.target.value})}
-                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="Ex : -4.0082563" />
+                    <div className="col-span-2">
+                      <label className="block text-xs font-medium text-slate-600 mb-1 flex items-center gap-1">
+                        <Navigation className="w-3 h-3" /> Localisation GPS
+                      </label>
+                      {formData.latitude && formData.longitude ? (
+                        <div className="flex items-center gap-2">
+                          <span className="flex-1 px-3 py-2 bg-emerald-50 border border-emerald-200 rounded-lg text-sm text-emerald-700 flex items-center gap-2">
+                            <Navigation className="w-3.5 h-3.5 shrink-0" />
+                            {Number(formData.latitude).toFixed(6)}, {Number(formData.longitude).toFixed(6)}
+                          </span>
+                          <button type="button"
+                            onClick={() => { setFormData(p => ({...p, latitude: '', longitude: ''})); setGeoError(''); }}
+                            className="p-2 text-red-400 hover:text-red-600 rounded-lg hover:bg-red-50">
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ) : (
+                        <button type="button" onClick={handleGeolocate} disabled={geoLoading}
+                          className="w-full flex items-center justify-center gap-2 px-3 py-2.5 border border-dashed border-slate-300 rounded-lg text-sm text-slate-600 hover:bg-slate-50 disabled:opacity-50 transition-colors">
+                          {geoLoading
+                            ? <><Loader2 className="w-4 h-4 animate-spin" /> Localisation en cours…</>
+                            : <><Navigation className="w-4 h-4" /> Obtenir ma position GPS</>}
+                        </button>
+                      )}
+                      {geoError && <p className="text-xs text-red-500 mt-1">{geoError}</p>}
                     </div>
                   </div>
                 </section>

@@ -104,6 +104,34 @@ export default function ClientEdit({ clientId }: { clientId: string }) {
   const set = (field: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
     setForm((prev) => ({ ...prev, [field]: e.target.value }));
 
+  // ── Géolocalisation ─────────────────────────────────────────────────────────
+  const [geoLoading, setGeoLoading] = useState(false);
+  const [geoError,   setGeoError]   = useState('');
+
+  const handleGeolocate = () => {
+    if (!navigator.geolocation) {
+      setGeoError('Géolocalisation non supportée par ce navigateur');
+      return;
+    }
+    setGeoLoading(true);
+    setGeoError('');
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setForm((prev) => ({
+          ...prev,
+          latitude:  String(pos.coords.latitude),
+          longitude: String(pos.coords.longitude),
+        }));
+        setGeoLoading(false);
+      },
+      (err) => {
+        setGeoError(err.code === 1 ? 'Permission refusée par le navigateur' : 'Impossible d\'obtenir la position');
+        setGeoLoading(false);
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const result = await mutate({
@@ -226,13 +254,31 @@ export default function ClientEdit({ clientId }: { clientId: string }) {
                 <label className="block text-xs font-medium text-gray-600 mb-1.5">Ville</label>
                 <input type="text" value={form.ville} onChange={set('ville')} className={INPUT} placeholder="Ville" />
               </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1.5 flex items-center gap-1"><Navigation className="w-3 h-3" />Latitude GPS</label>
-                <input type="number" step="any" value={form.latitude} onChange={set('latitude')} className={INPUT} placeholder="Ex : 5.3599517" />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1.5 flex items-center gap-1"><Navigation className="w-3 h-3" />Longitude GPS</label>
-                <input type="number" step="any" value={form.longitude} onChange={set('longitude')} className={INPUT} placeholder="Ex : -4.0082563" />
+              <div className="col-span-2">
+                <label className="block text-xs font-medium text-gray-600 mb-1.5 flex items-center gap-1">
+                  <Navigation className="w-3 h-3" /> Localisation GPS
+                </label>
+                {form.latitude && form.longitude ? (
+                  <div className="flex items-center gap-2">
+                    <span className="flex-1 px-3 py-2 bg-emerald-50 border border-emerald-200 rounded-lg text-sm text-emerald-700 flex items-center gap-2">
+                      <Navigation className="w-3.5 h-3.5 shrink-0" />
+                      {Number(form.latitude).toFixed(6)}, {Number(form.longitude).toFixed(6)}
+                    </span>
+                    <button type="button"
+                      onClick={() => { setForm(p => ({...p, latitude: '', longitude: ''})); setGeoError(''); }}
+                      className="p-2 text-red-400 hover:text-red-600 rounded-lg hover:bg-red-50">
+                      <span className="text-lg leading-none">×</span>
+                    </button>
+                  </div>
+                ) : (
+                  <button type="button" onClick={handleGeolocate} disabled={geoLoading}
+                    className={`${INPUT} w-full flex items-center justify-center gap-2 border-dashed text-gray-500 hover:bg-gray-50 disabled:opacity-50 cursor-pointer`}>
+                    {geoLoading
+                      ? <><Loader2 className="w-4 h-4 animate-spin" /> Localisation en cours…</>
+                      : <><Navigation className="w-4 h-4" /> Obtenir ma position GPS</>}
+                  </button>
+                )}
+                {geoError && <p className="text-xs text-red-500 mt-1">{geoError}</p>}
               </div>
             </div>
           </div>
