@@ -8,6 +8,7 @@ import Link from 'next/link';
 import { useApi, useMutation } from '@/hooks/useApi';
 import { formatDate, formatDateTime, formatCurrency } from '@/lib/format';
 import { useT } from '@/contexts/AppSettingsContext';
+import ClienteleTabBar from '@/components/ClienteleTabBar';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -112,11 +113,20 @@ export default function ClientsPage() {
   const [filterPdvId, setFilterPdvId]     = useState('');
   const [modalOpen, setModalOpen]         = useState(false);
   const [formData, setFormData]           = useState({
-    nom: '',
-    prenom: '',
-    telephone: '',
-    adresse: '',
-    pointsDeVenteIds: [] as number[],
+    // Legacy
+    nom: '', prenom: '', telephone: '', adresse: '', pointsDeVenteIds: [] as number[],
+    // Identité
+    sexe: '', dateNaissance: '', telephoneSecondaire: '',
+    quartier: '', ville: '',
+    photoUrl: '', pieceIdentiteUrl: '', numeroCNI: '',
+    // Activité
+    activite: '', nomCommerce: '',
+    // GPS
+    latitude: '', longitude: '',
+    // Type & crédit
+    typeClient: '', limiteCredit: '',
+    // Statut & affectation
+    etat: 'ACTIF', agentTerrainId: '',
   });
 
   // ── Drawer historique ──────────────────────────────────────────────────────
@@ -201,16 +211,32 @@ export default function ClientsPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const result = await addClient({
-      nom: formData.nom,
-      prenom: formData.prenom,
+      nom: formData.nom, prenom: formData.prenom,
       telephone: formData.telephone,
       adresse: formData.adresse || null,
       pointsDeVenteIds: formData.pointsDeVenteIds,
       pointDeVenteId: formData.pointsDeVenteIds[0] ?? null,
+      // Nouveaux champs
+      sexe:                formData.sexe               || null,
+      dateNaissance:       formData.dateNaissance       || null,
+      telephoneSecondaire: formData.telephoneSecondaire || null,
+      quartier:            formData.quartier            || null,
+      ville:               formData.ville               || null,
+      photoUrl:            formData.photoUrl            || null,
+      pieceIdentiteUrl:    formData.pieceIdentiteUrl    || null,
+      numeroCNI:           formData.numeroCNI           || null,
+      activite:            formData.activite            || null,
+      nomCommerce:         formData.nomCommerce         || null,
+      latitude:            formData.latitude            ? Number(formData.latitude)  : null,
+      longitude:           formData.longitude           ? Number(formData.longitude) : null,
+      typeClient:          formData.typeClient          || null,
+      limiteCredit:        formData.limiteCredit        ? Number(formData.limiteCredit) : null,
+      etat:                formData.etat,
+      agentTerrainId:      formData.agentTerrainId      ? Number(formData.agentTerrainId) : null,
     });
     if (result) {
       setModalOpen(false);
-      setFormData({ nom: '', prenom: '', telephone: '', adresse: '', pointsDeVenteIds: [] });
+      setFormData({ nom: '', prenom: '', telephone: '', adresse: '', pointsDeVenteIds: [], sexe: '', dateNaissance: '', telephoneSecondaire: '', quartier: '', ville: '', photoUrl: '', pieceIdentiteUrl: '', numeroCNI: '', activite: '', nomCommerce: '', latitude: '', longitude: '', typeClient: '', limiteCredit: '', etat: 'ACTIF', agentTerrainId: '' });
       refetch();
     }
   };
@@ -328,19 +354,15 @@ export default function ClientsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-emerald-50/20 font-['DM_Sans',sans-serif] p-8">
-      <div className="max-w-[1600px] mx-auto space-y-6">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-emerald-50/20 font-['DM_Sans',sans-serif]">
+      <ClienteleTabBar />
+      <div className="max-w-[1600px] mx-auto space-y-6 p-8">
 
         {/* Header */}
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Link href="/dashboard/admin" className="p-2 hover:bg-white rounded-lg transition-colors">
-              <ArrowLeft className="w-5 h-5 text-slate-600" />
-            </Link>
-            <div>
-              <h1 className="text-4xl font-bold text-slate-800 mb-2">{t('clients_title')}</h1>
-              <p className="text-slate-500">{t('clients_subtitle')}</p>
-            </div>
+          <div>
+            <h2 className="text-2xl font-bold text-slate-800">{t('clients_title')}</h2>
+            <p className="text-slate-500 text-sm mt-0.5">{t('clients_subtitle')}</p>
           </div>
           <button onClick={() => setModalOpen(true)}
             className="px-6 py-3 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-200 flex items-center gap-2 font-medium">
@@ -350,53 +372,206 @@ export default function ClientsPage() {
 
         {/* ══ MODAL — Ajout client ══════════════════════════════════════════ */}
         {modalOpen && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[130] p-4 overflow-y-auto">
-            <div className="bg-white rounded-2xl p-6 sm:p-8 w-full max-w-md shadow-lg relative max-h-[90vh] overflow-y-auto">
-              <button onClick={() => setModalOpen(false)}
-                className="absolute top-4 right-4 text-slate-400 hover:text-slate-600">
-                <X size={20} />
-              </button>
-              <h2 className="text-xl font-bold mb-4">Ajouter un nouveau client</h2>
-              {addError && <p className="text-red-500 mb-2">{addError}</p>}
-              <form onSubmit={handleSubmit} className="space-y-3">
-                <input type="text" placeholder="Nom" required value={formData.nom}
-                  onChange={e => setFormData({ ...formData, nom: e.target.value })}
-                  className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50" />
-                <input type="text" placeholder="Prénom" required value={formData.prenom}
-                  onChange={e => setFormData({ ...formData, prenom: e.target.value })}
-                  className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50" />
-                <input type="text" placeholder="Téléphone" required value={formData.telephone}
-                  onChange={e => setFormData({ ...formData, telephone: e.target.value })}
-                  className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50" />
-                <input type="text" placeholder="Adresse (optionnel)" value={formData.adresse}
-                  onChange={e => setFormData({ ...formData, adresse: e.target.value })}
-                  className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50" />
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    <Store size={13} className="inline mr-1 text-slate-400" />
-                    Points de vente (optionnel, multi-choix)
-                  </label>
-                  <div className="max-h-44 overflow-y-auto border border-slate-200 rounded-xl p-2 space-y-1 bg-slate-50">
-                    {pdvOptions.map((p) => (
-                      <label key={p.id} className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-white cursor-pointer text-sm">
-                        <input
-                          type="checkbox"
-                          checked={formData.pointsDeVenteIds.includes(p.id)}
-                          onChange={() => setFormData((prev) => ({
-                            ...prev,
-                            pointsDeVenteIds: toggleId(prev.pointsDeVenteIds, p.id),
-                          }))}
-                        />
-                        <span>{p.type === 'DEPOT_CENTRAL' ? '🏭' : '🏪'} {p.nom} ({p.code})</span>
-                      </label>
-                    ))}
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[130] p-4">
+            <div className="bg-white rounded-2xl w-full max-w-2xl shadow-xl flex flex-col max-h-[92vh]">
+              {/* Header fixe */}
+              <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 flex-shrink-0">
+                <h2 className="text-lg font-bold text-slate-800">Nouveau client</h2>
+                <button onClick={() => setModalOpen(false)} className="text-slate-400 hover:text-slate-600"><X size={20} /></button>
+              </div>
+
+              {/* Body scrollable */}
+              <form onSubmit={handleSubmit} className="overflow-y-auto flex-1 px-6 py-5 space-y-6">
+                {addError && <p className="text-red-500 text-sm bg-red-50 border border-red-200 rounded-lg px-3 py-2">{addError}</p>}
+
+                {/* ─ Identité ─ */}
+                <section>
+                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Identité</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600 mb-1">Nom <span className="text-red-500">*</span></label>
+                      <input type="text" required value={formData.nom} onChange={e => setFormData({...formData, nom: e.target.value})}
+                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50" placeholder="Nom" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600 mb-1">Prénom <span className="text-red-500">*</span></label>
+                      <input type="text" required value={formData.prenom} onChange={e => setFormData({...formData, prenom: e.target.value})}
+                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50" placeholder="Prénom" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600 mb-1">Sexe</label>
+                      <select value={formData.sexe} onChange={e => setFormData({...formData, sexe: e.target.value})}
+                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                        <option value="">-- Sélectionner --</option>
+                        <option value="MASCULIN">Masculin</option>
+                        <option value="FEMININ">Féminin</option>
+                        <option value="AUTRE">Autre</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600 mb-1">Date de naissance</label>
+                      <input type="date" value={formData.dateNaissance} onChange={e => setFormData({...formData, dateNaissance: e.target.value})}
+                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600 mb-1">Tél. principal <span className="text-red-500">*</span></label>
+                      <input type="text" required value={formData.telephone} onChange={e => setFormData({...formData, telephone: e.target.value})}
+                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="Ex : 07XXXXXXXX" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600 mb-1">Tél. secondaire</label>
+                      <input type="text" value={formData.telephoneSecondaire} onChange={e => setFormData({...formData, telephoneSecondaire: e.target.value})}
+                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="Optionnel" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600 mb-1">N° CNI</label>
+                      <input type="text" value={formData.numeroCNI} onChange={e => setFormData({...formData, numeroCNI: e.target.value})}
+                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="Numéro pièce d'identité" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600 mb-1">Statut <span className="text-red-500">*</span></label>
+                      <select value={formData.etat} onChange={e => setFormData({...formData, etat: e.target.value})}
+                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                        <option value="ACTIF">Actif</option>
+                        <option value="SUSPENDU">Suspendu</option>
+                        <option value="BLOQUE">Bloqué</option>
+                      </select>
+                    </div>
                   </div>
-                </div>
-                <button type="submit" disabled={adding}
-                  className="w-full py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-all font-medium">
+                </section>
+
+                {/* ─ Localisation ─ */}
+                <section>
+                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Localisation</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="col-span-2">
+                      <label className="block text-xs font-medium text-slate-600 mb-1">Adresse</label>
+                      <input type="text" value={formData.adresse} onChange={e => setFormData({...formData, adresse: e.target.value})}
+                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="Rue, numéro…" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600 mb-1">Quartier</label>
+                      <input type="text" value={formData.quartier} onChange={e => setFormData({...formData, quartier: e.target.value})}
+                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="Quartier" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600 mb-1">Ville</label>
+                      <input type="text" value={formData.ville} onChange={e => setFormData({...formData, ville: e.target.value})}
+                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="Ville" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600 mb-1">Latitude GPS</label>
+                      <input type="number" step="any" value={formData.latitude} onChange={e => setFormData({...formData, latitude: e.target.value})}
+                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="Ex : 5.3599517" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600 mb-1">Longitude GPS</label>
+                      <input type="number" step="any" value={formData.longitude} onChange={e => setFormData({...formData, longitude: e.target.value})}
+                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="Ex : -4.0082563" />
+                    </div>
+                  </div>
+                </section>
+
+                {/* ─ Activité & commerce ─ */}
+                <section>
+                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Activité & commerce</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600 mb-1">Activité / Métier</label>
+                      <input type="text" value={formData.activite} onChange={e => setFormData({...formData, activite: e.target.value})}
+                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="Ex : Commerçant, Agriculteur…" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600 mb-1">Nom du commerce</label>
+                      <input type="text" value={formData.nomCommerce} onChange={e => setFormData({...formData, nomCommerce: e.target.value})}
+                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="Nom de la boutique / entreprise" />
+                    </div>
+                  </div>
+                </section>
+
+                {/* ─ Documents ─ */}
+                <section>
+                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Documents (URLs)</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600 mb-1">Photo client (URL)</label>
+                      <input type="url" value={formData.photoUrl} onChange={e => setFormData({...formData, photoUrl: e.target.value})}
+                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="https://…" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600 mb-1">Pièce d'identité (URL)</label>
+                      <input type="url" value={formData.pieceIdentiteUrl} onChange={e => setFormData({...formData, pieceIdentiteUrl: e.target.value})}
+                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="https://…" />
+                    </div>
+                  </div>
+                </section>
+
+                {/* ─ Type client & crédit ─ */}
+                <section>
+                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Type client & crédit</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600 mb-1">Type client</label>
+                      <select value={formData.typeClient} onChange={e => setFormData({...formData, typeClient: e.target.value})}
+                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                        <option value="">-- Sélectionner --</option>
+                        <option value="COMPTANT">Comptant</option>
+                        <option value="CREDIT">Crédit</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600 mb-1">Limite de crédit (FCFA)</label>
+                      <input type="number" min={0} value={formData.limiteCredit} onChange={e => setFormData({...formData, limiteCredit: e.target.value})}
+                        disabled={formData.typeClient !== 'CREDIT'}
+                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:opacity-40" placeholder="0" />
+                    </div>
+                  </div>
+                </section>
+
+                {/* ─ Affectation ─ */}
+                <section>
+                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Affectation</p>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600 mb-1">Agent terrain</label>
+                      <select value={formData.agentTerrainId} onChange={e => setFormData({...formData, agentTerrainId: e.target.value})}
+                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                        <option value="">-- Aucun agent --</option>
+                        {agentsTerrainOptions.map(a => (
+                          <option key={a.id} value={a.id}>{a.member.prenom} {a.member.nom}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600 mb-2">
+                        <Store size={13} className="inline mr-1 text-slate-400" />
+                        Points de vente (multi-choix)
+                      </label>
+                      <div className="max-h-36 overflow-y-auto border border-slate-200 rounded-xl p-2 space-y-1 bg-slate-50">
+                        {pdvOptions.map((p) => (
+                          <label key={p.id} className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-white cursor-pointer text-sm">
+                            <input type="checkbox" checked={formData.pointsDeVenteIds.includes(p.id)}
+                              onChange={() => setFormData((prev) => ({ ...prev, pointsDeVenteIds: toggleId(prev.pointsDeVenteIds, p.id) }))} />
+                            <span>{p.type === 'DEPOT_CENTRAL' ? '🏭' : '🏪'} {p.nom} ({p.code})</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </section>
+              </form>
+
+              {/* Footer fixe */}
+              <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-slate-200 flex-shrink-0">
+                <button type="button" onClick={() => setModalOpen(false)}
+                  className="px-4 py-2 text-sm text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50">
+                  Annuler
+                </button>
+                <button onClick={handleSubmit as never} disabled={adding}
+                  className="px-5 py-2 text-sm bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 font-medium">
                   {adding ? t('btn_adding') : t('clients_add_btn')}
                 </button>
-              </form>
+              </div>
             </div>
           </div>
         )}

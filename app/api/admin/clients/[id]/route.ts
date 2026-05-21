@@ -39,14 +39,12 @@ export async function GET(
     const client = await prisma.client.findUnique({
       where: { id: clientId },
       include: {
-        pointDeVente: { select: { id: true, nom: true, code: true } },
-        pointsDeVente: {
-          select: {
-            pointDeVente: { select: { id: true, nom: true, code: true } },
-          },
-        },
+        pointDeVente:  { select: { id: true, nom: true, code: true } },
+        pointsDeVente: { select: { pointDeVente: { select: { id: true, nom: true, code: true } } } },
+        agentTerrain:  { select: { id: true, nom: true, prenom: true } },
         souscriptionsPacks: {
           include: { pack: true },
+          orderBy: { createdAt: "desc" },
         },
       },
     });
@@ -92,7 +90,15 @@ export async function PATCH(
     }
 
     const body = await req.json();
-    const { nom, prenom, telephone, adresse, etat, pointDeVenteId, pointsDeVenteIds, agentTerrainId } = body;
+    const {
+      nom, prenom, telephone, adresse, etat, pointDeVenteId, pointsDeVenteIds, agentTerrainId,
+      // Nouveaux champs
+      sexe, dateNaissance, telephoneSecondaire, quartier, ville,
+      photoUrl, pieceIdentiteUrl, numeroCNI,
+      activite, nomCommerce,
+      latitude, longitude,
+      typeClient, limiteCredit,
+    } = body;
 
     // Valider le statut si fourni
     if (etat && !Object.values(MemberStatus).includes(etat)) {
@@ -158,11 +164,12 @@ export async function PATCH(
       const updated = await tx.client.update({
         where: { id: clientId },
         data: {
-          ...(nom && { nom }),
-          ...(prenom && { prenom }),
+          // Champs legacy
+          ...(nom       && { nom }),
+          ...(prenom    && { prenom }),
           ...(telephone && { telephone }),
-          ...(adresse !== undefined && { adresse: adresse || null }),
-          ...(etat && { etat }),
+          ...(adresse       !== undefined && { adresse: adresse || null }),
+          ...(etat          && { etat: etat as MemberStatus }),
           ...(agentTerrainId !== undefined && {
             agentTerrainId: agentTerrainId ? Number(agentTerrainId) : null,
           }),
@@ -171,6 +178,21 @@ export async function PATCH(
             : hasLegacyPdvUpdate
               ? { pointDeVenteId: nextLegacyPdvId }
               : {}),
+          // Nouveaux champs (undefined = non envoyé = ignoré)
+          ...(sexe               !== undefined && { sexe: sexe || null }),
+          ...(dateNaissance      !== undefined && { dateNaissance: dateNaissance ? new Date(dateNaissance) : null }),
+          ...(telephoneSecondaire !== undefined && { telephoneSecondaire: telephoneSecondaire || null }),
+          ...(quartier           !== undefined && { quartier: quartier || null }),
+          ...(ville              !== undefined && { ville: ville || null }),
+          ...(photoUrl           !== undefined && { photoUrl: photoUrl || null }),
+          ...(pieceIdentiteUrl   !== undefined && { pieceIdentiteUrl: pieceIdentiteUrl || null }),
+          ...(numeroCNI          !== undefined && { numeroCNI: numeroCNI || null }),
+          ...(activite           !== undefined && { activite: activite || null }),
+          ...(nomCommerce        !== undefined && { nomCommerce: nomCommerce || null }),
+          ...(latitude           !== undefined && { latitude: latitude != null ? Number(latitude) : null }),
+          ...(longitude          !== undefined && { longitude: longitude != null ? Number(longitude) : null }),
+          ...(typeClient         !== undefined && { typeClient: typeClient || null }),
+          ...(limiteCredit       !== undefined && { limiteCredit: limiteCredit != null ? Number(limiteCredit) : null }),
         },
       });
 

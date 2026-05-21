@@ -26,6 +26,7 @@ enum MemberStatus {
   ACTIF
   INACTIF
   SUSPENDU
+  BLOQUE
 }         
 
 enum RoleGestionnaire {
@@ -47,6 +48,28 @@ enum RoleGestionnaire {
   RESPONSABLE_MARKETING
   ACTIONNAIRE
   REVENDEUR
+}
+
+// ============================================================
+// ENUMS — Clients
+// ============================================================
+
+enum Sexe {
+  MASCULIN
+  FEMININ
+  AUTRE
+}
+
+enum TypeClient {
+  COMPTANT
+  CREDIT
+}
+
+enum NiveauRisque {
+  FAIBLE
+  MOYEN
+  ELEVE
+  CRITIQUE
 }
 
 // ============================================================
@@ -228,6 +251,19 @@ enum StatutVersementPack {
   PAYE
   ANNULE
   EN_RETARD
+}
+
+enum StatutCollecte {
+  EN_COURS   // session ouverte, agent sur le terrain
+  VALIDEE    // validée par l'admin, versements générés
+  ANNULEE
+}
+
+enum StatutLigneCollecte {
+  EN_ATTENTE  // planifié, pas encore collecté
+  COLLECTE    // paiement intégral encaissé
+  PARTIEL     // paiement partiel encaissé
+  ECHEC       // client absent, refus, etc.
 }
 
 enum StatutReceptionPack {
@@ -502,6 +538,10 @@ model User {
   clientsAssignes      Client[]             @relation("ClientAgentTerrain")
   clientAffectations   ClientAgentAffectation[] @relation("ClientAgentAffectations")
 
+  // Collectes journalières
+  collectesAgent       CollecteJournaliere[] @relation("CollectesAgent")
+  collectesValidees    CollecteJournaliere[] @relation("CollectesValideur")
+
   // Comptabilité
   cloturesComptables   ClotureComptable[]
   ecrituresComptables  EcritureComptable[]
@@ -609,6 +649,7 @@ model PointDeVente {
   commandesInternes     CommandeInterne[]
   visitesControle       VisiteControle[]
   livraisonsPacks       ReceptionProduitPack[]
+  collectes             CollecteJournaliere[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -642,12 +683,41 @@ model GestionnaireAffectation {
 
 model Client {
   id                 Int               @id @default(autoincrement())
+
+  // ── Champs legacy (ne pas supprimer) ──────────────────────
   nom                String
-  prenom             String   
+  prenom             String
   telephone          String            @unique
   adresse            String?
   etat               MemberStatus      @default(ACTIF)
-  // PDV de rattachement (optionnel)
+
+  // ── Nouveaux champs identité ───────────────────────────────
+  codeClient         String?           @unique  // auto-généré (ex: CLI-00042)
+  sexe               Sexe?
+  dateNaissance      DateTime?
+  telephoneSecondaire String?
+  quartier           String?
+  ville              String?
+  photoUrl           String?           // URL stockage photo client
+  pieceIdentiteUrl   String?           // URL scan pièce d'identité
+  numeroCNI          String?           @unique  // numéro CNI (unique si renseigné)
+
+  // ── Activité & commerce ────────────────────────────────────
+  activite           String?           // métier / secteur d'activité
+  nomCommerce        String?           // nom de l'entreprise / boutique
+  latitude           Float?            // coordonnée GPS latitude
+  longitude          Float?            // coordonnée GPS longitude
+
+  // ── Type & crédit ──────────────────────────────────────────
+  typeClient         TypeClient?       // COMPTANT ou CREDIT
+  limiteCredit       Decimal?          // plafond de crédit accordé
+  soldeActuel        Decimal?          @default(0) // solde en cours (mis à jour automatiquement)
+
+  // ── Scoring (calculé automatiquement) ─────────────────────
+  niveauRisque       NiveauRisque?     // FAIBLE / MOYEN / ELEVE / CRITIQUE
+  scoreSolvabilite   Float?            // score 0–100
+
+  // ── PDV de rattachement (optionnel) ───────────────────────
   pointDeVenteId Int?
 
   pointDeVente       PointDeVente?      @relation(fields: [pointDeVenteId], references: [id])
@@ -660,9 +730,14 @@ model Client {
   souscriptionsPacks SouscriptionPack[]
   pointsFidelite     PointsFidelite?
   ventesDirectes     VenteDirecte[]
+  lignesCollecte     LigneCollecte[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([typeClient])
+  @@index([niveauRisque])
+  @@index([ville])
 }
 
 // Historique des affectations client ↔ agent terrain
@@ -700,6 +775,67 @@ model ClientPointDeVente {
   @@unique([clientId, pointDeVenteId])
   @@index([clientId])
   @@index([pointDeVenteId])
+}
+
+// ============================================================
+// COLLECTES JOURNALIÈRES (terrain)
+// ============================================================
+
+// Session de collecte d'un agent pour une journée donnée
+model CollecteJournaliere {
+  id              Int             @id @default(autoincrement())
+  reference       String          @unique  // ex: COL-20260521-001
+  agentId         Int                      // User AGENT_TERRAIN
+  pointDeVenteId  Int?                     // PDV de rattachement de l'agent
+  dateCollecte    DateTime                 // jour de la tournée
+  statut          StatutCollecte  @default(EN_COURS)
+  montantPrevu    Decimal         @default(0) // somme des montantAttendu des lignes
+  montantCollecte Decimal         @default(0) // somme réellement encaissée
+  notes           String?
+
+  // Validation admin
+  valideParId     Int?
+  dateValidation  DateTime?
+
+  agent           User            @relation("CollectesAgent",    fields: [agentId],        references: [id])
+  validePar       User?           @relation("CollectesValideur", fields: [valideParId],    references: [id])
+  pointDeVente    PointDeVente?   @relation(fields: [pointDeVenteId], references: [id])
+  lignes          LigneCollecte[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([agentId])
+  @@index([statut])
+  @@index([dateCollecte])
+  @@index([pointDeVenteId])
+}
+
+// Un encaissement dans une session de collecte → lié à une SouscriptionPack
+model LigneCollecte {
+  id               Int                  @id @default(autoincrement())
+  collecteId       Int
+  clientId         Int
+  souscriptionId   Int                  // SouscriptionPack concernée
+  montantAttendu   Decimal              // montant de l'échéance prévue
+  montantCollecte  Decimal              @default(0)
+  statut           StatutLigneCollecte  @default(EN_ATTENTE)
+  notes            String?
+
+  // Lien vers le VersementPack créé lors de la validation (null avant validation)
+  versementPackId  Int?                 @unique
+
+  collecte         CollecteJournaliere  @relation(fields: [collecteId],     references: [id], onDelete: Cascade)
+  client           Client               @relation(fields: [clientId],       references: [id])
+  souscription     SouscriptionPack     @relation(fields: [souscriptionId], references: [id])
+  versementPack    VersementPack?       @relation(fields: [versementPackId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([collecteId])
+  @@index([clientId])
+  @@index([souscriptionId])
 }
   
 // ============================================================
@@ -1411,9 +1547,10 @@ model SouscriptionPack {
   notes              String?
   enregistrePar      String?
 
-  versements VersementPack[]      
-  echeances  EcheancePack[]
-  receptions ReceptionProduitPack[]
+  versements     VersementPack[]
+  echeances      EcheancePack[]
+  receptions     ReceptionProduitPack[]
+  lignesCollecte LigneCollecte[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1432,6 +1569,8 @@ model VersementPack {
   notes          String?
   encaisseParId  Int?
   encaisseParNom String?
+
+  ligneCollecte  LigneCollecte?  // relation inverse (1 versement ↔ 1 ligne collecte max)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

@@ -23,7 +23,7 @@ interface Gestionnaire {
   actif: boolean;
   createdAt: string;
   member: {
-    id: number;
+    id: number; 
     nom: string;
     prenom: string;
     email: string;

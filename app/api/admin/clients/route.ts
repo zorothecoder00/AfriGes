@@ -125,7 +125,20 @@ export async function POST(req: Request) {
     if (!session) return NextResponse.json({ message: "Accès refusé" }, { status: 403 });
 
     const body = await req.json();
-    const { nom, prenom, telephone, adresse, pointDeVenteId, pointsDeVenteIds, agentTerrainId } = body;
+    const {
+      nom, prenom, telephone, adresse, pointDeVenteId, pointsDeVenteIds, agentTerrainId,
+      // Nouveaux champs identité
+      sexe, dateNaissance, telephoneSecondaire, quartier, ville,
+      photoUrl, pieceIdentiteUrl, numeroCNI,
+      // Activité & commerce
+      activite, nomCommerce,
+      // GPS
+      latitude, longitude,
+      // Type & crédit
+      typeClient, limiteCredit,
+      // Statut
+      etat,
+    } = body;
 
     if (!nom || !prenom || !telephone) {
       return NextResponse.json(
@@ -159,16 +172,38 @@ export async function POST(req: Request) {
     const pdvIdToStore = legacyPdvId ?? finalRelationIds[0] ?? null;
 
     const result = await prisma.$transaction(async (tx) => {
+      // Auto-génération du code client
+      const totalClients = await tx.client.count();
+      const codeClient = `CLI-${String(totalClients + 1).padStart(5, "0")}`;
+
       // 1. Création du client
       const client = await tx.client.create({
         data: {
+          // Champs legacy obligatoires
           nom,
           prenom,
           telephone,
-          adresse: adresse || null,
-          etat: MemberStatus.ACTIF,
+          adresse:    adresse    || null,
+          etat:       (etat as MemberStatus) || MemberStatus.ACTIF,
           pointDeVenteId: pdvIdToStore,
           ...(agentTerrainId ? { agentTerrainId: Number(agentTerrainId) } : {}),
+          // Nouveaux champs (tous optionnels)
+          codeClient,
+          sexe:               sexe               || null,
+          dateNaissance:      dateNaissance       ? new Date(dateNaissance)  : null,
+          telephoneSecondaire: telephoneSecondaire || null,
+          quartier:           quartier            || null,
+          ville:              ville               || null,
+          photoUrl:           photoUrl            || null,
+          pieceIdentiteUrl:   pieceIdentiteUrl    || null,
+          numeroCNI:          numeroCNI           || null,
+          activite:           activite            || null,
+          nomCommerce:        nomCommerce         || null,
+          latitude:           latitude            != null ? Number(latitude)  : null,
+          longitude:          longitude           != null ? Number(longitude) : null,
+          typeClient:         typeClient          || null,
+          limiteCredit:       limiteCredit        != null ? Number(limiteCredit) : null,
+          soldeActuel:        0,
         },
       });
 
