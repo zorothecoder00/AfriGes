@@ -121,6 +121,7 @@ export async function GET(req: Request) {
         id:        agent.id,
         memberId:  uid,
         actif:     agent.actif,
+        zone:      agent.zone ?? null,
         member:    agent.member,
         stats: {
           nbClients,

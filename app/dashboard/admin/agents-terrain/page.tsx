@@ -2,9 +2,9 @@
 
 import React, { useState, useCallback } from 'react';
 import {
-  UserCheck, Search, RefreshCw, Users, Wallet, TrendingUp,
-  Phone, MapPin, Calendar, AlertTriangle, ChevronRight, X,
-  BarChart2, Eye,
+  UserCheck, Search, RefreshCw, Users, Wallet,
+  Phone, MapPin, Calendar, AlertTriangle,
+  BarChart2, Eye, ArrowRightLeft, X, CheckCircle2,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useApi } from '@/hooks/useApi';
@@ -29,6 +29,7 @@ interface Agent {
   id:       number;
   memberId: number;
   actif:    boolean;
+  zone:     string | null;
   member: {
     id: number; nom: string; prenom: string;
     email: string; telephone: string | null; etat: string;
@@ -68,10 +69,16 @@ export default function AgentsTerrainPage() {
   const [searchInput, setSearchInput] = useState('');
   const [search,      setSearch]      = useState('');
   const [actifFilter, setActifFilter] = useState('');
-  const [selected,    setSelected]    = useState<Agent | null>(null);
+
+  // Transfert portefeuille
+  const [transferSource,   setTransferSource]   = useState<Agent | null>(null);
+  const [transferTargetId, setTransferTargetId] = useState('');
+  const [transferLoading,  setTransferLoading]  = useState(false);
+  const [transferError,    setTransferError]    = useState('');
+  const [transferSuccess,  setTransferSuccess]  = useState('');
 
   const query = new URLSearchParams({
-    ...(search     && { search }),
+    ...(search      && { search }),
     ...(actifFilter && { actif: actifFilter }),
   }).toString();
 
@@ -83,6 +90,38 @@ export default function AgentsTerrainPage() {
 
   const agents = res?.data ?? [];
   const stats  = res?.stats;
+
+  const openTransfer = (agent: Agent) => {
+    setTransferSource(agent);
+    setTransferTargetId('');
+    setTransferError('');
+    setTransferSuccess('');
+  };
+
+  const handleTransfer = async () => {
+    if (!transferSource || !transferTargetId) return;
+    setTransferLoading(true);
+    setTransferError('');
+    setTransferSuccess('');
+    try {
+      const res = await fetch(
+        `/api/admin/agents-terrain/${transferSource.memberId}/transferer`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ versAgentId: Number(transferTargetId) }),
+        }
+      );
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.message || 'Erreur lors du transfert');
+      setTransferSuccess(`${json.nbTransferes} client(s) transféré(s) avec succès.`);
+      refetch();
+    } catch (e: unknown) {
+      setTransferError(e instanceof Error ? e.message : 'Erreur');
+    } finally {
+      setTransferLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -106,9 +145,9 @@ export default function AgentsTerrainPage() {
         {/* KPIs */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {[
-            { label: 'Agents actifs',    value: stats?.actifs ?? 0,                     icon: <UserCheck className="w-5 h-5 text-blue-600" />,    bg: 'bg-blue-50',    fmt: 'n' },
-            { label: 'Clients affectés', value: stats?.totalClientsAffectes ?? 0,        icon: <Users className="w-5 h-5 text-violet-600" />,       bg: 'bg-violet-50',  fmt: 'n' },
-            { label: 'Total agents',     value: stats?.total ?? 0,                       icon: <BarChart2 className="w-5 h-5 text-slate-600" />,    bg: 'bg-slate-50',   fmt: 'n' },
+            { label: 'Agents actifs',    value: stats?.actifs ?? 0,                      icon: <UserCheck className="w-5 h-5 text-blue-600" />,    bg: 'bg-blue-50',    fmt: 'n' },
+            { label: 'Clients affectés', value: stats?.totalClientsAffectes ?? 0,         icon: <Users className="w-5 h-5 text-violet-600" />,       bg: 'bg-violet-50',  fmt: 'n' },
+            { label: 'Total agents',     value: stats?.total ?? 0,                        icon: <BarChart2 className="w-5 h-5 text-slate-600" />,    bg: 'bg-slate-50',   fmt: 'n' },
             { label: 'Collecté ce mois', value: formatCurrency(stats?.totalCollecteCeMois ?? 0), icon: <Wallet className="w-5 h-5 text-emerald-600" />, bg: 'bg-emerald-50', fmt: 'c' },
           ].map((k) => (
             <div key={k.label} className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm flex items-center gap-4">
@@ -162,6 +201,7 @@ export default function AgentsTerrainPage() {
                 <thead className="bg-gray-50 border-b border-gray-200">
                   <tr>
                     <th className="text-left px-5 py-3 font-semibold text-gray-600">Agent</th>
+                    <th className="text-left px-4 py-3 font-semibold text-gray-600">Zone</th>
                     <th className="text-center px-4 py-3 font-semibold text-gray-600">Clients</th>
                     <th className="text-center px-4 py-3 font-semibold text-gray-600">Créances actives</th>
                     <th className="text-right px-4 py-3 font-semibold text-gray-600">Collecté ce mois</th>
@@ -190,6 +230,17 @@ export default function AgentsTerrainPage() {
                             <div className="flex items-center gap-1 text-xs text-gray-400 mt-0.5">
                               <MapPin className="w-3 h-3" />{pdv.nom}
                             </div>
+                          )}
+                        </td>
+
+                        {/* Zone */}
+                        <td className="px-4 py-3">
+                          {agent.zone ? (
+                            <span className="inline-flex items-center gap-1 text-xs text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-full font-medium">
+                              <MapPin className="w-3 h-3" />{agent.zone}
+                            </span>
+                          ) : (
+                            <span className="text-xs text-gray-300">—</span>
                           )}
                         </td>
 
@@ -258,13 +309,22 @@ export default function AgentsTerrainPage() {
                         </td>
 
                         {/* Actions */}
-                        <td className="px-4 py-3 text-center">
-                          <button
-                            onClick={() => setSelected(agent)}
-                            className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 px-2 py-1 rounded hover:bg-blue-50"
-                          >
-                            <Eye className="w-3 h-3" /> Détail
-                          </button>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center justify-center gap-1">
+                            <Link
+                              href={`/dashboard/admin/agents-terrain/${agent.memberId}`}
+                              className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 px-2 py-1 rounded hover:bg-blue-50"
+                            >
+                              <Eye className="w-3 h-3" /> Détail
+                            </Link>
+                            <button
+                              onClick={() => openTransfer(agent)}
+                              title="Transférer le portefeuille"
+                              className="inline-flex items-center gap-1 text-xs text-violet-600 hover:text-violet-800 px-2 py-1 rounded hover:bg-violet-50"
+                            >
+                              <ArrowRightLeft className="w-3 h-3" /> Transférer
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );
@@ -276,90 +336,87 @@ export default function AgentsTerrainPage() {
         </div>
       </div>
 
-      {/* Modal détail agent */}
-      {selected && (
-        <AgentDetailModal agent={selected} onClose={() => setSelected(null)} />
-      )}
-    </div>
-  );
-}
+      {/* Modal transfert portefeuille */}
+      {transferSource && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl w-full max-w-md shadow-xl overflow-hidden">
+            {/* Header */}
+            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+              <div>
+                <h3 className="font-bold text-gray-900 text-lg">Transférer le portefeuille</h3>
+                <p className="text-sm text-gray-500 mt-0.5">
+                  De <span className="font-medium text-gray-700">{transferSource.member.prenom} {transferSource.member.nom}</span>
+                  {' '}({transferSource.stats.nbClients} client(s))
+                </p>
+              </div>
+              <button
+                onClick={() => setTransferSource(null)}
+                className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
 
-// ─── Modal détail agent ───────────────────────────────────────────────────────
+            <div className="p-6 space-y-4">
+              {/* Avertissement */}
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex gap-2 text-sm text-amber-800">
+                <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+                <p>Tous les clients de cet agent seront réaffectés à l&apos;agent sélectionné. L&apos;historique des affectations est conservé.</p>
+              </div>
 
-function AgentDetailModal({ agent, onClose }: { agent: Agent; onClose: () => void }) {
-  const s = agent.stats;
+              {/* Sélection agent destination */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Agent destination</label>
+                <select
+                  value={transferTargetId}
+                  onChange={(e) => setTransferTargetId(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-violet-500"
+                >
+                  <option value="">— Choisir un agent —</option>
+                  {agents
+                    .filter((a) => a.memberId !== transferSource.memberId)
+                    .map((a) => (
+                      <option key={a.memberId} value={a.memberId}>
+                        {a.member.prenom} {a.member.nom}
+                        {a.zone ? ` · ${a.zone}` : ''}
+                        {' '}({a.stats.nbClients} clients)
+                      </option>
+                    ))}
+                </select>
+              </div>
 
-  return (
-    <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl w-full max-w-lg shadow-xl overflow-hidden">
-        {/* Header */}
-        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-          <div>
-            <h3 className="font-bold text-gray-900 text-lg">
-              {agent.member.prenom} {agent.member.nom}
-            </h3>
-            <p className="text-sm text-gray-500">Agent de terrain · {agent.actif ? 'Actif' : 'Inactif'}</p>
+              {/* Feedback */}
+              {transferError && (
+                <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{transferError}</p>
+              )}
+              {transferSuccess && (
+                <div className="flex items-center gap-2 text-sm text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">
+                  <CheckCircle2 className="w-4 h-4 shrink-0" />{transferSuccess}
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="px-6 py-4 border-t border-gray-100 flex gap-3">
+              <button
+                onClick={() => setTransferSource(null)}
+                className="flex-1 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl text-sm font-medium hover:bg-gray-50"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={handleTransfer}
+                disabled={!transferTargetId || transferLoading || !!transferSuccess}
+                className="flex-1 py-2.5 bg-violet-600 text-white rounded-xl text-sm font-medium hover:bg-violet-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {transferLoading
+                  ? <><RefreshCw className="w-4 h-4 animate-spin" /> Transfert…</>
+                  : <><ArrowRightLeft className="w-4 h-4" /> Confirmer le transfert</>}
+              </button>
+            </div>
           </div>
-          <button onClick={onClose} className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100">
-            <X className="w-5 h-5" />
-          </button>
         </div>
-
-        {/* Stats */}
-        <div className="p-6 grid grid-cols-2 gap-3">
-          {[
-            { label: 'Clients affectés',    value: s.nbClients,                        color: 'text-blue-600',    bg: 'bg-blue-50' },
-            { label: 'Créances actives',     value: s.nbCreancesActives,                color: 'text-orange-600',  bg: 'bg-orange-50' },
-            { label: 'Collecté ce mois',     value: formatCurrency(s.montantCollecteCeMois), color: 'text-emerald-600', bg: 'bg-emerald-50' },
-            { label: 'Taux recouvrement',    value: `${s.tauxRecouvrement}%`,           color: TAUX_COLOR(s.tauxRecouvrement), bg: 'bg-gray-50' },
-            { label: 'Montant créances',     value: formatCurrency(s.montantCreances),  color: 'text-red-600',     bg: 'bg-red-50' },
-            { label: 'Total versé (packs)',  value: formatCurrency(s.totalVerse),       color: 'text-teal-600',    bg: 'bg-teal-50' },
-          ].map((item) => (
-            <div key={item.label} className={`${item.bg} rounded-xl p-4`}>
-              <p className="text-xs text-gray-500 mb-1">{item.label}</p>
-              <p className={`text-xl font-bold ${item.color}`}>{item.value}</p>
-            </div>
-          ))}
-        </div>
-
-        {/* Contact */}
-        <div className="px-6 pb-4 text-sm text-gray-600 space-y-1">
-          {agent.member.telephone && (
-            <div className="flex items-center gap-2">
-              <Phone className="w-4 h-4 text-gray-400" />
-              {agent.member.telephone}
-            </div>
-          )}
-          {agent.member.affectationsPDV[0] && (
-            <div className="flex items-center gap-2">
-              <MapPin className="w-4 h-4 text-gray-400" />
-              {agent.member.affectationsPDV[0].pointDeVente.nom}
-            </div>
-          )}
-          {s.derniereActivite && (
-            <div className="flex items-center gap-2">
-              <Calendar className="w-4 h-4 text-gray-400" />
-              Dernière collecte : {formatDate(s.derniereActivite)}
-            </div>
-          )}
-        </div>
-
-        {/* Footer */}
-        <div className="px-6 py-4 border-t border-gray-100 flex gap-3">
-          <Link
-            href={`/dashboard/admin/clients?agentTerrainId=${agent.memberId}`}
-            className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700"
-          >
-            <Users className="w-4 h-4" /> Voir les clients
-          </Link>
-          <Link
-            href={`/dashboard/admin/collectes?agentId=${agent.memberId}`}
-            className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl text-sm font-medium hover:bg-gray-50"
-          >
-            <TrendingUp className="w-4 h-4" /> Collectes <ChevronRight className="w-3 h-3" />
-          </Link>
-        </div>
-      </div>
+      )}
     </div>
   );
 }

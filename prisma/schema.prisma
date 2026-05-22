@@ -192,6 +192,12 @@ enum CategorieDecaissement {
 // ENUMS — Contrôle terrain
 // ============================================================
 
+enum StatutVisite {
+  PLANIFIEE
+  REALISEE
+  ANNULEE
+}
+
 enum StatutVisiteControle {
   PLANIFIEE
   EN_COURS
@@ -609,6 +615,9 @@ model User {
   creditsValides               CreditClient[]       @relation("CreditValidateur")
   remboursementsEnregistres    RemboursementCredit[]
 
+  // Visites terrain
+  visitesEffectuees            VisiteClient[]       @relation("VisitesAgent")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -619,6 +628,7 @@ model Gestionnaire {
   memberId Int              @unique
   role     RoleGestionnaire
   actif    Boolean          @default(true)
+  zone     String?          // Zone géographique de couverture (ex: "Cocody Nord")
 
   member                  User                   @relation(fields: [memberId], references: [id])
   assemblees              AssembleeParticipant[]
@@ -758,6 +768,7 @@ model Client {
   ventesDirectes     VenteDirecte[]
   lignesCollecte     LigneCollecte[]
   creditsClients     CreditClient[]
+  visites            VisiteClient[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -765,6 +776,30 @@ model Client {
   @@index([typeClient])
   @@index([niveauRisque])
   @@index([ville])
+}
+
+// ============================================================
+// VISITES CLIENTS (tournées agents terrain)
+// ============================================================
+
+model VisiteClient {
+  id         Int          @id @default(autoincrement())
+  agentId    Int
+  clientId   Int
+  statut     StatutVisite @default(REALISEE)
+  latitude   Float?
+  longitude  Float?
+  dateVisite DateTime     @default(now())
+  notes      String?
+
+  agent      User         @relation("VisitesAgent",  fields: [agentId],  references: [id])
+  client     Client       @relation(fields: [clientId], references: [id])
+
+  createdAt  DateTime     @default(now())
+
+  @@index([agentId])
+  @@index([clientId])
+  @@index([dateVisite])
 }
 
 // Historique des affectations client ↔ agent terrain
