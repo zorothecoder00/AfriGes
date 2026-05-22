@@ -2,9 +2,15 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Users, AlertTriangle, Calendar, TrendingUp, ArrowLeft } from "lucide-react";
+import { Users, AlertTriangle, Calendar, TrendingUp, ArrowLeft, LayoutDashboard, UserCheck, Bell, Shield, BarChart2, BellRing, CreditCard } from "lucide-react";
 
 const TABS = [
+  {
+    href:  "/dashboard/admin/clientele",
+    label: "Tableau de bord",
+    icon:  <LayoutDashboard className="w-4 h-4" />,
+    match: (p: string) => p === "/dashboard/admin/clientele",
+  },
   {
     href:  "/dashboard/admin/clients",
     label: "Clients",
@@ -28,6 +34,42 @@ const TABS = [
     label: "Remboursements",
     icon:  <TrendingUp className="w-4 h-4" />,
     match: (p: string) => p.startsWith("/dashboard/admin/remboursements"),
+  },
+  {
+    href:  "/dashboard/admin/credits",
+    label: "Crédits",
+    icon:  <CreditCard className="w-4 h-4" />,
+    match: (p: string) => p.startsWith("/dashboard/admin/credits"),
+  },
+  {
+    href:  "/dashboard/admin/agents-terrain",
+    label: "Agents",
+    icon:  <UserCheck className="w-4 h-4" />,
+    match: (p: string) => p.startsWith("/dashboard/admin/agents-terrain"),
+  },
+  {
+    href:  "/dashboard/admin/alertes-impayes",
+    label: "Alertes",
+    icon:  <Bell className="w-4 h-4" />,
+    match: (p: string) => p.startsWith("/dashboard/admin/alertes-impayes"),
+  },
+  {
+    href:  "/dashboard/admin/audit",
+    label: "Audit",
+    icon:  <Shield className="w-4 h-4" />,
+    match: (p: string) => p.startsWith("/dashboard/admin/audit"),
+  },
+  {
+    href:  "/dashboard/admin/notifications",
+    label: "Notifications",
+    icon:  <BellRing className="w-4 h-4" />,
+    match: (p: string) => p.startsWith("/dashboard/admin/notifications"),
+  },
+  {
+    href:  "/dashboard/admin/rapports",
+    label: "Rapports",
+    icon:  <BarChart2 className="w-4 h-4" />,
+    match: (p: string) => p.startsWith("/dashboard/admin/rapports"),
   },
 ];
 
@@ -53,7 +95,7 @@ export default function ClienteleTabBar() {
         <h1 className="text-xl font-bold text-gray-900 mb-3">Gestion de la clientèle</h1>
 
         {/* Tabs */}
-        <nav className="flex gap-1 -mb-px">
+        <nav className="flex gap-1 -mb-px overflow-x-auto scrollbar-hide">
           {TABS.map((tab) => {
             const active = tab.match(pathname);
             return (

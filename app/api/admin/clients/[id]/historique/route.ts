@@ -1,118 +1,163 @@
-import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { getAuthSession } from "@/lib/auth";
+import { NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
+import { getAdminSession } from '@/lib/authAdmin';
 
 type Ctx = { params: Promise<{ id: string }> };
 
 /**
- * GET /api/admin/clients/[id]/historique
- * Retourne l'historique complet d'un client :
- * - Ses souscriptions packs avec tous leurs versements
- * - Ses ventes directes
- * - Les totaux (totalPaye, totalDu)
+ * GET /api/admin/clients/[id]/historique?page=1&limit=30
+ * Timeline unifiée : collectes · versements · ventes · audit logs
  */
-export async function GET(_req: Request, { params }: Ctx) {
+export async function GET(req: Request, { params }: Ctx) {
   try {
-    const session = await getAuthSession();
-    if (!session || (session.user.role !== "ADMIN" && session.user.role !== "SUPER_ADMIN")) {
-      return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
-    }
+    const session = await getAdminSession();
+    if (!session) return NextResponse.json({ message: 'Accès refusé' }, { status: 403 });
 
     const { id } = await params;
     const clientId = Number(id);
-    if (isNaN(clientId)) return NextResponse.json({ error: "ID invalide" }, { status: 400 });
+    if (isNaN(clientId)) return NextResponse.json({ message: 'ID invalide' }, { status: 400 });
 
-    const client = await prisma.client.findUnique({
-      where: { id: clientId },
-      select: {
-        id: true,
-        nom: true,
-        prenom: true,
-        telephone: true,
-        adresse: true,
-        etat: true,
-        createdAt: true,
-        pointDeVente: { select: { id: true, nom: true, code: true } },
-        pointsDeVente: { select: { pointDeVente: { select: { id: true, nom: true, code: true } } } },
-      },
-    });
+    const { searchParams } = new URL(req.url);
+    const page  = Math.max(1, Number(searchParams.get('page')  ?? '1'));
+    const limit = Math.min(50, Number(searchParams.get('limit') ?? '30'));
 
-    if (!client) return NextResponse.json({ error: "Client introuvable" }, { status: 404 });
+    const [lignesCollecte, versements, ventes, auditLogs] = await Promise.all([
 
-    // Souscriptions avec versements
-    const souscriptions = await prisma.souscriptionPack.findMany({
-      where: { clientId },
-      orderBy: { createdAt: "desc" },
-      include: {
-        pack: { select: { id: true, nom: true, type: true } },
-        versements: {
-          orderBy: { datePaiement: "desc" },
-          select: {
-            id: true,
-            montant: true,
-            type: true,
-            datePaiement: true,
-            encaisseParNom: true,
-            notes: true,
+      prisma.ligneCollecte.findMany({
+        where: { clientId },
+        select: {
+          id:              true,
+          montantCollecte: true,
+          statut:          true,
+          createdAt:       true,
+          collecte: {
+            select: {
+              reference:    true,
+              dateCollecte: true,
+              statut:       true,
+              agent: { select: { nom: true, prenom: true } },
+            },
           },
+          souscription: { select: { pack: { select: { nom: true } } } },
         },
-      },
-    });
+        orderBy: { createdAt: 'desc' },
+      }),
 
-    // Ventes directes
-    const ventesDirectes = await prisma.venteDirecte.findMany({
-      where: { clientId },
-      orderBy: { createdAt: "desc" },
-      select: {
-        id: true,
-        reference: true,
-        montantTotal: true,
-        montantPaye: true,
-        modePaiement: true,
-        statut: true,
-        notes: true,
-        createdAt: true,
-        pointDeVente: { select: { nom: true, code: true } },
-        lignes: {
-          select: {
-            quantite: true,
-            prixUnitaire: true,
-            montant: true,
-            produit: { select: { nom: true } },
-          },
+      prisma.versementPack.findMany({
+        where: { souscription: { clientId } },
+        select: {
+          id:             true,
+          montant:        true,
+          type:           true,
+          statut:         true,
+          datePaiement:   true,
+          reference:      true,
+          encaisseParNom: true,
+          createdAt:      true,
+          souscription: { select: { pack: { select: { nom: true } } } },
         },
-      },
-    });
+        orderBy: { datePaiement: 'desc' },
+      }),
 
-    // Calcul des totaux
-    const totalVersementsPacks = souscriptions
-      .flatMap((s) => s.versements)
-      .reduce((sum, v) => sum + Number(v.montant), 0);
+      prisma.venteDirecte.findMany({
+        where: { clientId },
+        select: {
+          id:           true,
+          reference:    true,
+          statut:       true,
+          modePaiement: true,
+          montantTotal: true,
+          createdAt:    true,
+          pointDeVente: { select: { nom: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+      }),
 
-    const totalAchatsDirects = ventesDirectes
-      .filter((v) => v.statut !== "BROUILLON" && v.statut !== "ANNULEE")
-      .reduce((sum, v) => sum + Number(v.montantPaye), 0);
+      prisma.auditLog.findMany({
+        where: { entite: 'Client', entiteId: clientId },
+        select: {
+          id:        true,
+          action:    true,
+          createdAt: true,
+          user:      { select: { nom: true, prenom: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+      }),
+    ]);
 
-    const totalDu = souscriptions
-      .filter((s) => s.statut !== "COMPLETE" && s.statut !== "ANNULE")
-      .reduce((sum, s) => sum + Number(s.montantRestant), 0);
+    type TItem = {
+      id: string;
+      type: 'COLLECTE' | 'VERSEMENT' | 'VENTE' | 'AUDIT';
+      date: string;
+      titre: string;
+      detail: string;
+      montant?: number;
+      statut?: string;
+      reference?: string;
+    };
 
-    return NextResponse.json({
-      success: true,
-      client,
-      souscriptions,
-      ventesDirectes,
-      totaux: {
-        totalVersementsPacks,
-        totalAchatsDirects,
-        totalPaye: totalVersementsPacks + totalAchatsDirects,
-        totalDu,
-        nbSouscriptions: souscriptions.length,
-        nbAchats: ventesDirectes.length,
-      },
-    });
+    const items: TItem[] = [
+      ...lignesCollecte.map((l) => ({
+        id:      `col-${l.id}`,
+        type:    'COLLECTE' as const,
+        date:    l.collecte.dateCollecte.toISOString(),
+        titre:   `Collecte – ${l.souscription.pack.nom}`,
+        detail:  `Agent : ${l.collecte.agent.prenom} ${l.collecte.agent.nom} · Réf : ${l.collecte.reference}`,
+        montant: Number(l.montantCollecte),
+        statut:  l.statut,
+      })),
+      ...versements.map((v) => ({
+        id:        `ver-${v.id}`,
+        type:      'VERSEMENT' as const,
+        date:      v.datePaiement.toISOString(),
+        titre:     `Versement – ${v.souscription.pack.nom}`,
+        detail:    v.encaisseParNom ? `Encaissé par ${v.encaisseParNom}` : v.type.replace(/_/g, ' '),
+        montant:   Number(v.montant),
+        statut:    v.statut,
+        reference: v.reference ?? undefined,
+      })),
+      ...ventes.map((v) => ({
+        id:        `ven-${v.id}`,
+        type:      'VENTE' as const,
+        date:      v.createdAt.toISOString(),
+        titre:     `Vente – ${v.pointDeVente.nom}`,
+        detail:    `${v.modePaiement.replace(/_/g, ' ')} · ${v.reference}`,
+        montant:   Number(v.montantTotal),
+        statut:    v.statut,
+        reference: v.reference,
+      })),
+      ...auditLogs.map((a) => ({
+        id:     `aud-${a.id}`,
+        type:   'AUDIT' as const,
+        date:   a.createdAt.toISOString(),
+        titre:  auditLabel(a.action),
+        detail: a.user ? `Par ${a.user.prenom} ${a.user.nom}` : 'Système',
+      })),
+    ];
+
+    items.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+    const total      = items.length;
+    const totalPages = Math.ceil(total / limit) || 1;
+    const paged      = items.slice((page - 1) * limit, page * limit);
+
+    return NextResponse.json({ data: paged, meta: { total, page, limit, totalPages } });
   } catch (error) {
-    console.error("GET /api/admin/clients/[id]/historique:", error);
-    return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
+    console.error(error);
+    return NextResponse.json({ message: 'Erreur historique client' }, { status: 500 });
   }
+}
+
+function auditLabel(action: string) {
+  const map: Record<string, string> = {
+    CREATION_CLIENT:           'Création du client',
+    MODIFICATION_CLIENT:       'Modification du profil',
+    SUPPRESSION_CLIENT:        'Suppression du client',
+    CREATION_SOUSCRIPTION:     'Souscription créée',
+    MODIFICATION_SOUSCRIPTION: 'Souscription modifiée',
+    VALIDATION_COLLECTE:       'Collecte validée',
+    ANNULATION_COLLECTE:       'Collecte annulée',
+    CREATION_VERSEMENT:        'Versement enregistré',
+  };
+  return map[action] ?? action.replace(/_/g, ' ');
 }

@@ -3,7 +3,8 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Search, Plus, Phone, MapPin, Eye, Edit, Trash2, Store, Building2, Link2, Link2Off, X,
   TrendingUp, TrendingDown, CreditCard, ShoppingBag, ChevronDown, ChevronRight, Banknote, Hash,
-  AlertTriangle, Package, UserCheck, Navigation, Loader2 } from 'lucide-react';
+  AlertTriangle, Package, UserCheck, Navigation, Loader2,
+  Archive, PauseCircle, Ban, CheckCircle, Filter, SlidersHorizontal } from 'lucide-react';
 import Link from 'next/link';
 import { useApi, useMutation } from '@/hooks/useApi';
 import { formatDate, formatDateTime, formatCurrency } from '@/lib/format';
@@ -31,11 +32,18 @@ interface Client {
   telephone: string;
   adresse: string | null;
   etat: string;
+  codeClient: string | null;
+  quartier: string | null;
+  ville: string | null;
+  niveauRisque: string | null;
+  typeClient: string | null;
+  limiteCredit: string | number | null;
+  soldeActuel: string | number | null;
   createdAt: string;
   pointDeVente: ClientPdv | null;
   pointsDeVente?: { pointDeVente: ClientPdv }[];
   agentTerrain: { id: number; nom: string; prenom: string } | null;
-  _count: { souscriptionsPacks: number };
+  _count: { souscriptionsPacks: number; ventesDirectes: number };
 }
 
 interface ClientsResponse {
@@ -151,6 +159,60 @@ export default function ClientsPage() {
   // ── Filtre agent terrain ────────────────────────────────────────────────────
   const [filterAgentId, setFilterAgentId] = useState('');
 
+  // ── Filtre statut & filtres avancés ────────────────────────────────────────
+  const [filterEtat,    setFilterEtat]    = useState('');
+  const [filterAvance,  setFilterAvance]  = useState('');
+
+  // ── Quick action statut (suspendre/bloquer/archiver/activer) ───────────────
+  const [quickStatusClient, setQuickStatusClient] = useState<Client | null>(null);
+  const quickStatusRef = useRef<number | null>(null);
+  const { mutate: patchStatus } =
+    useMutation(() => `/api/admin/clients/${quickStatusRef.current}`, 'PATCH', { successMessage: 'Statut mis à jour' });
+
+  // ── Suppression inline ──────────────────────────────────────────────────────
+  const [deleteConfirmClient, setDeleteConfirmClient] = useState<Client | null>(null);
+  const deleteClientRef = useRef<number | null>(null);
+  const { mutate: deleteClientMutation, loading: deletingClient } =
+    useMutation(() => `/api/admin/clients/${deleteClientRef.current}`, 'DELETE', { successMessage: 'Client supprimé' });
+
+  // ── Modal plafond crédit ─────────────────────────────────────────────────────
+  const [plafondClient, setPlafondClient]     = useState<Client | null>(null);
+  const [plafondType, setPlafondType]         = useState('');
+  const [plafondLimite, setPlafondLimite]     = useState('');
+  const [plafondLoading, setPlafondLoading]   = useState(false);
+  const [plafondError, setPlafondError]       = useState('');
+
+  const openPlafondModal = (client: Client) => {
+    setPlafondClient(client);
+    setPlafondType(client.typeClient ?? '');
+    setPlafondLimite(client.limiteCredit != null ? String(client.limiteCredit) : '');
+    setPlafondError('');
+  };
+
+  const handlePlafondSubmit = async () => {
+    if (!plafondClient) return;
+    setPlafondLoading(true);
+    setPlafondError('');
+    try {
+      const res = await fetch(`/api/admin/clients/${plafondClient.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          typeClient:   plafondType  || null,
+          limiteCredit: plafondLimite ? Number(plafondLimite) : null,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) { setPlafondError(json.message ?? 'Erreur'); setPlafondLoading(false); return; }
+      setPlafondClient(null);
+      refetch();
+    } catch {
+      setPlafondError('Erreur réseau');
+    } finally {
+      setPlafondLoading(false);
+    }
+  };
+
   // ── Géolocalisation (modal création) ───────────────────────────────────────
   const [geoLoading, setGeoLoading] = useState(false);
   const [geoError,   setGeoError]   = useState('');
@@ -181,7 +243,7 @@ export default function ClientsPage() {
 
   const limit = 10;
 
-  useEffect(() => {  
+  useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(searchQuery), 400);
     return () => clearTimeout(timer);
   }, [searchQuery]);
@@ -190,6 +252,8 @@ export default function ClientsPage() {
   if (debouncedSearch) params.set('search', debouncedSearch);
   if (filterPdvId)     params.set('pdvId', filterPdvId);
   if (filterAgentId)   params.set('agentTerrainId', filterAgentId);
+  if (filterEtat)      params.set('etat', filterEtat);
+  if (filterAvance)    params.set('filtre', filterAvance);
 
   const { data: response, loading, error, refetch } =
     useApi<ClientsResponse>(`/api/admin/clients?${params}`);
@@ -204,7 +268,7 @@ export default function ClientsPage() {
   const { data: agentsTerrainResponse } =
     useApi<{ data: AgentTerrainOption[] }>('/api/admin/gestionnaires?role=AGENT_TERRAIN&actif=true&limit=200');
   const agentsTerrainOptions = agentsTerrainResponse?.data ?? [];
-           
+
   // Mutations
   const { mutate: addClient, loading: adding, error: addError } =
     useMutation('/api/admin/clients', 'POST', { successMessage: 'Client ajouté avec succès' });
@@ -328,6 +392,20 @@ export default function ClientsPage() {
     else setAffectError('Erreur lors de la désaffectation');
   };
 
+  const handleQuickStatus = async (client: Client, etat: string) => {
+    quickStatusRef.current = client.id;
+    setQuickStatusClient(null);
+    await patchStatus({ etat });
+    refetch();
+  };
+
+  const handleDeleteConfirmed = async () => {
+    if (!deleteConfirmClient) return;
+    deleteClientRef.current = deleteConfirmClient.id;
+    const ok = await deleteClientMutation({});
+    if (ok) { setDeleteConfirmClient(null); refetch(); }
+  };
+
   const openHistorique = useCallback(async (client: Client) => {
     setHistoClient(client);
     setHistoData(null);
@@ -382,7 +460,8 @@ export default function ClientsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-emerald-50/20 font-['DM_Sans',sans-serif]">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-emerald-50/20 font-['DM_Sans',sans-serif]"
+      onClick={() => setQuickStatusClient(null)}>
       <ClienteleTabBar />
       <div className="max-w-[1600px] mx-auto space-y-6 p-8">
 
@@ -392,11 +471,98 @@ export default function ClientsPage() {
             <h2 className="text-2xl font-bold text-slate-800">{t('clients_title')}</h2>
             <p className="text-slate-500 text-sm mt-0.5">{t('clients_subtitle')}</p>
           </div>
-          <button onClick={() => setModalOpen(true)}
-            className="px-6 py-3 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-200 flex items-center gap-2 font-medium">
-            <Plus size={20} /> {t('clients_add_btn')}
-          </button>
+          <div className="flex items-center gap-3">
+            <button onClick={() => setModalOpen(true)}
+              className="px-6 py-3 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-200 flex items-center gap-2 font-medium">
+              <Plus size={20} /> {t('clients_add_btn')}
+            </button>
+          </div>
         </div>
+
+
+        {/* ══ MODAL — Plafond crédit ════════════════════════════════════════ */}
+        {plafondClient && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[130] p-4">
+            <div className="bg-white rounded-2xl w-full max-w-md shadow-xl">
+              {/* Header */}
+              <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-violet-100 flex items-center justify-center">
+                    <CreditCard className="w-5 h-5 text-violet-600" />
+                  </div>
+                  <div>
+                    <h2 className="text-base font-bold text-slate-800">Plafond de crédit</h2>
+                    <p className="text-xs text-slate-500">{plafondClient.prenom} {plafondClient.nom}</p>
+                  </div>
+                </div>
+                <button onClick={() => setPlafondClient(null)} className="text-slate-400 hover:text-slate-600">
+                  <X size={20} />
+                </button>
+              </div>
+
+              {/* Body */}
+              <div className="px-6 py-5 space-y-4">
+                {plafondError && (
+                  <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{plafondError}</p>
+                )}
+
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1.5">Type client</label>
+                  <select value={plafondType} onChange={e => setPlafondType(e.target.value)}
+                    className="w-full px-3 py-2.5 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-violet-500">
+                    <option value="">-- Non défini --</option>
+                    <option value="COMPTANT">Comptant</option>
+                    <option value="CREDIT">Crédit</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1.5">Limite de crédit (FCFA)</label>
+                  <input
+                    type="number" min={0} value={plafondLimite}
+                    onChange={e => setPlafondLimite(e.target.value)}
+                    placeholder="Laisser vide = aucun plafond"
+                    className="w-full px-3 py-2.5 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-violet-500"
+                  />
+                  <p className="text-xs text-slate-400 mt-1">
+                    {plafondClient.soldeActuel != null
+                      ? <>Solde actuel : {Number(plafondClient.soldeActuel).toLocaleString('fr-FR')} FCFA
+                        {plafondLimite && Number(plafondLimite) > 0 &&
+                          <> — Utilisation : {Math.round((Number(plafondClient.soldeActuel) / Number(plafondLimite)) * 100)}%</>
+                        }
+                      </>
+                      : 'Aucun crédit en cours'
+                    }
+                  </p>
+                </div>
+
+                {plafondLimite && plafondClient.soldeActuel != null &&
+                  Number(plafondClient.soldeActuel) >= Number(plafondLimite) && (
+                  <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                    <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
+                    <p className="text-xs text-amber-700">
+                      Le solde actuel dépasse le plafond fixé — le client ne sera pas éligible à un nouveau crédit.
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Footer */}
+              <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-slate-200">
+                <button onClick={() => setPlafondClient(null)}
+                  className="px-4 py-2 text-sm text-slate-600 bg-slate-100 rounded-lg hover:bg-slate-200">
+                  Annuler
+                </button>
+                <button onClick={handlePlafondSubmit} disabled={plafondLoading}
+                  className="flex items-center gap-2 px-5 py-2 text-sm bg-violet-600 text-white rounded-lg hover:bg-violet-700 disabled:opacity-50 font-medium">
+                  {plafondLoading
+                    ? <><Loader2 className="w-4 h-4 animate-spin" /> Enregistrement…</>
+                    : <><CreditCard className="w-4 h-4" /> Enregistrer</>}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* ══ MODAL — Ajout client ══════════════════════════════════════════ */}
         {modalOpen && (
@@ -566,8 +732,7 @@ export default function ClientsPage() {
                     <div>
                       <label className="block text-xs font-medium text-slate-600 mb-1">Limite de crédit (FCFA)</label>
                       <input type="number" min={0} value={formData.limiteCredit} onChange={e => setFormData({...formData, limiteCredit: e.target.value})}
-                        disabled={formData.typeClient !== 'CREDIT'}
-                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:opacity-40" placeholder="0" />
+                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="Laisser vide = aucun plafond" />
                     </div>
                   </div>
                 </section>
@@ -803,29 +968,66 @@ export default function ClientsPage() {
         </div>
 
         {/* Filters */}
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/60">
-          <div className="flex items-center gap-4">
-            <div className="flex-1 relative">
-              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400" size={20} />
-              <input type="text" placeholder={t('clients_search_ph')}
+        <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60 space-y-3">
+          {/* Ligne 1 : recherche + selects */}
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="flex-1 min-w-[220px] relative">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+              <input type="text"
+                placeholder="Nom, téléphone, code client, quartier…"
                 value={searchQuery}
                 onChange={e => { setSearchQuery(e.target.value); setPage(1); }}
-                className="w-full pl-12 pr-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50" />
+                className="w-full pl-11 pr-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50" />
             </div>
+            <select value={filterEtat} onChange={e => { setFilterEtat(e.target.value); setFilterAvance(''); setPage(1); }}
+              className="px-3 py-2.5 border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50">
+              <option value="">Tous les statuts</option>
+              <option value="ACTIF">Actif</option>
+              <option value="SUSPENDU">Suspendu</option>
+              <option value="BLOQUE">Bloqué</option>
+              <option value="INACTIF">Archivé</option>
+            </select>
             <select value={filterPdvId} onChange={e => { setFilterPdvId(e.target.value); setPage(1); }}
-              className="px-4 py-3 border border-slate-200 rounded-xl text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50 min-w-[200px]">
+              className="px-3 py-2.5 border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50">
               <option value="">{t('clients_all_pdv')}</option>
               {pdvOptions.map(p => (
                 <option key={p.id} value={p.id}>{p.nom} ({p.code})</option>
               ))}
             </select>
             <select value={filterAgentId} onChange={e => { setFilterAgentId(e.target.value); setPage(1); }}
-              className="px-4 py-3 border border-slate-200 rounded-xl text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50 min-w-[200px]">
-              <option value="">Tous les agents terrain</option>
+              className="px-3 py-2.5 border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50">
+              <option value="">Tous les agents</option>
               {agentsTerrainOptions.map(a => (
                 <option key={a.id} value={String(a.member.id)}>{a.member.prenom} {a.member.nom}</option>
               ))}
             </select>
+            {(searchQuery || filterPdvId || filterAgentId || filterEtat || filterAvance) && (
+              <button onClick={() => { setSearchQuery(''); setDebouncedSearch(''); setFilterPdvId(''); setFilterAgentId(''); setFilterEtat(''); setFilterAvance(''); setPage(1); }}
+                className="flex items-center gap-1 px-3 py-2.5 text-xs text-red-500 border border-red-200 rounded-xl hover:bg-red-50">
+                <X size={14} /> Réinitialiser
+              </button>
+            )}
+          </div>
+
+          {/* Ligne 2 : filtres avancés */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="flex items-center gap-1 text-xs text-slate-400 font-medium mr-1">
+              <SlidersHorizontal size={13} /> Filtres avancés :
+            </span>
+            {([
+              { key: 'debiteurs',     label: 'Débiteurs',      color: 'bg-red-50 text-red-700 border-red-200',         activeColor: 'bg-red-600 text-white border-red-600' },
+              { key: 'en_retard',     label: 'En retard',      color: 'bg-orange-50 text-orange-700 border-orange-200', activeColor: 'bg-orange-500 text-white border-orange-500' },
+              { key: 'bloques',       label: 'Bloqués',        color: 'bg-rose-50 text-rose-700 border-rose-200',       activeColor: 'bg-rose-600 text-white border-rose-600' },
+              { key: 'gros_clients',  label: 'Gros clients',   color: 'bg-emerald-50 text-emerald-700 border-emerald-200', activeColor: 'bg-emerald-600 text-white border-emerald-600' },
+              { key: 'sans_activite', label: 'Sans activité',  color: 'bg-gray-100 text-gray-600 border-gray-200',     activeColor: 'bg-gray-600 text-white border-gray-600' },
+              { key: 'archives',      label: 'Archivés',       color: 'bg-slate-100 text-slate-600 border-slate-200',   activeColor: 'bg-slate-600 text-white border-slate-600' },
+            ] as const).map(({ key, label, color, activeColor }) => (
+              <button key={key}
+                onClick={() => { setFilterAvance(filterAvance === key ? '' : key); setFilterEtat(''); setPage(1); }}
+                className={`px-3 py-1.5 text-xs rounded-full border font-medium transition-colors ${filterAvance === key ? activeColor : color}`}>
+                {label}
+              </button>
+            ))}
           </div>
         </div>
 
@@ -850,7 +1052,12 @@ export default function ClientsPage() {
                   <tr key={client.id} className="hover:bg-slate-50 transition-colors">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-gradient-to-br from-amber-500 to-amber-600 rounded-full flex items-center justify-center text-white font-semibold shadow-md">
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold shadow-md ${
+                          client.etat === 'BLOQUE' ? 'bg-gradient-to-br from-red-500 to-red-600'
+                          : client.etat === 'SUSPENDU' ? 'bg-gradient-to-br from-amber-400 to-amber-500'
+                          : client.etat === 'INACTIF' ? 'bg-gradient-to-br from-gray-400 to-gray-500'
+                          : 'bg-gradient-to-br from-amber-500 to-amber-600'
+                        }`}>
                           {getInitials(client.nom, client.prenom)}
                         </div>
                         <div>
@@ -858,6 +1065,28 @@ export default function ClientsPage() {
                             className="font-semibold text-slate-800 hover:text-amber-600 transition-colors">
                             {client.prenom} {client.nom}
                           </Link>
+                          <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                            {client.codeClient && (
+                              <span className="text-xs text-slate-400 font-mono">{client.codeClient}</span>
+                            )}
+                            <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${
+                              client.etat === 'ACTIF'    ? 'bg-emerald-100 text-emerald-700'
+                              : client.etat === 'SUSPENDU' ? 'bg-amber-100 text-amber-700'
+                              : client.etat === 'BLOQUE'   ? 'bg-red-100 text-red-700'
+                              : 'bg-gray-100 text-gray-500'
+                            }`}>
+                              {client.etat === 'INACTIF' ? 'Archivé' : client.etat.charAt(0) + client.etat.slice(1).toLowerCase()}
+                            </span>
+                            {client.niveauRisque && client.niveauRisque !== 'FAIBLE' && (
+                              <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${
+                                client.niveauRisque === 'CRITIQUE' ? 'bg-red-100 text-red-700'
+                                : client.niveauRisque === 'ELEVE' ? 'bg-orange-100 text-orange-700'
+                                : 'bg-amber-100 text-amber-700'
+                              }`}>
+                                ⚠ {client.niveauRisque}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </td>
@@ -867,8 +1096,12 @@ export default function ClientsPage() {
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <div className="flex items-center gap-2 text-sm text-slate-600">
-                        <MapPin size={14} className="text-slate-400" /> {client.adresse || '—'}
+                      <div className="text-sm text-slate-600">
+                        {client.quartier || client.ville ? (
+                          <span className="flex items-center gap-1"><MapPin size={13} className="text-slate-400 shrink-0" />{[client.quartier, client.ville].filter(Boolean).join(', ')}</span>
+                        ) : client.adresse ? (
+                          <span className="flex items-center gap-1"><MapPin size={13} className="text-slate-400 shrink-0" />{client.adresse}</span>
+                        ) : <span className="text-slate-400">—</span>}
                       </div>
                     </td>
                     <td className="px-6 py-4">
@@ -906,13 +1139,21 @@ export default function ClientsPage() {
                       )}
                     </td>
                     <td className="px-6 py-4">
-                      {client._count.souscriptionsPacks > 0 ? (
-                        <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 text-xs rounded-full font-medium">
-                          {client._count.souscriptionsPacks} souscription{client._count.souscriptionsPacks > 1 ? 's' : ''}
-                        </span>
-                      ) : (
-                        <span className="text-xs text-slate-400">Aucune</span>
-                      )}
+                      <div className="flex flex-col gap-1">
+                        {client._count.souscriptionsPacks > 0 ? (
+                          <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 text-xs rounded-full font-medium w-fit">
+                            {client._count.souscriptionsPacks} pack{client._count.souscriptionsPacks > 1 ? 's' : ''}
+                          </span>
+                        ) : null}
+                        {client._count.ventesDirectes > 0 ? (
+                          <span className="px-2 py-0.5 bg-blue-50 text-blue-700 text-xs rounded-full font-medium w-fit">
+                            {client._count.ventesDirectes} vente{client._count.ventesDirectes > 1 ? 's' : ''}
+                          </span>
+                        ) : null}
+                        {client._count.souscriptionsPacks === 0 && client._count.ventesDirectes === 0 && (
+                          <span className="text-xs text-slate-400 italic">Sans activité</span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-6 py-4">
                       <span className="text-sm text-slate-600">{formatDate(client.createdAt)}</span>
@@ -920,7 +1161,7 @@ export default function ClientsPage() {
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-1">
                         <button onClick={() => openHistorique(client)}
-                          className="p-2 text-amber-600 hover:bg-amber-50 rounded-lg transition-colors" title="Voir l'historique">
+                          className="p-2 text-amber-600 hover:bg-amber-50 rounded-lg transition-colors" title="Historique">
                           <Eye size={16} />
                         </button>
                         <Link href={`/dashboard/admin/clients/${client.id}/edit`}
@@ -929,15 +1170,56 @@ export default function ClientsPage() {
                         </Link>
                         <button onClick={() => openAffectModal(client)}
                           className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
-                          title={getClientPdvs(client).length > 0 ? 'Modifier affectations PDV' : 'Affecter à un PDV'}>
+                          title={getClientPdvs(client).length > 0 ? 'PDV affectés' : 'Affecter PDV'}>
                           {getClientPdvs(client).length > 0 ? <Building2 size={16} /> : <Store size={16} />}
                         </button>
                         <button onClick={() => openAffectAgentModal(client)}
                           className="p-2 text-teal-600 hover:bg-teal-50 rounded-lg transition-colors"
-                          title={client.agentTerrain ? 'Modifier agent terrain' : 'Affecter un agent terrain'}>
+                          title={client.agentTerrain ? 'Modifier agent' : 'Affecter agent'}>
                           <UserCheck size={16} />
                         </button>
-                        <button className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Supprimer">
+                        <button onClick={() => openPlafondModal(client)}
+                          className="p-2 text-violet-600 hover:bg-violet-50 rounded-lg transition-colors"
+                          title="Fixer le plafond de crédit">
+                          <CreditCard size={16} />
+                        </button>
+                        {/* Menu statut rapide */}
+                        <div className="relative" onClick={(e) => e.stopPropagation()}>
+                          <button onClick={() => setQuickStatusClient(quickStatusClient?.id === client.id ? null : client)}
+                            className="p-2 text-slate-500 hover:bg-slate-100 rounded-lg transition-colors" title="Changer le statut">
+                            <SlidersHorizontal size={16} />
+                          </button>
+                          {quickStatusClient?.id === client.id && (
+                            <div className="absolute right-0 top-9 z-50 bg-white border border-slate-200 rounded-xl shadow-lg w-44 py-1">
+                              {client.etat !== 'ACTIF' && (
+                                <button onClick={() => handleQuickStatus(client, 'ACTIF')}
+                                  className="w-full flex items-center gap-2 px-4 py-2 text-sm text-emerald-700 hover:bg-emerald-50">
+                                  <CheckCircle size={14} /> Activer
+                                </button>
+                              )}
+                              {client.etat !== 'SUSPENDU' && (
+                                <button onClick={() => handleQuickStatus(client, 'SUSPENDU')}
+                                  className="w-full flex items-center gap-2 px-4 py-2 text-sm text-amber-700 hover:bg-amber-50">
+                                  <PauseCircle size={14} /> Suspendre
+                                </button>
+                              )}
+                              {client.etat !== 'BLOQUE' && (
+                                <button onClick={() => handleQuickStatus(client, 'BLOQUE')}
+                                  className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-700 hover:bg-red-50">
+                                  <Ban size={14} /> Bloquer
+                                </button>
+                              )}
+                              {client.etat !== 'INACTIF' && (
+                                <button onClick={() => handleQuickStatus(client, 'INACTIF')}
+                                  className="w-full flex items-center gap-2 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50">
+                                  <Archive size={14} /> Archiver
+                                </button>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                        <button onClick={() => setDeleteConfirmClient(client)}
+                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Supprimer">
                           <Trash2 size={16} />
                         </button>
                       </div>
@@ -973,6 +1255,41 @@ export default function ClientsPage() {
           )}
         </div>
       </div>
+
+      {/* ══ MODAL — Confirmation suppression ════════════════════════════ */}
+      {deleteConfirmClient && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[160] p-4">
+          <div className="bg-white rounded-2xl p-8 w-full max-w-md shadow-xl">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+                <AlertTriangle className="w-6 h-6 text-red-600" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-slate-900">Confirmer la suppression</h3>
+                <p className="text-sm text-slate-500">Cette action est irréversible</p>
+              </div>
+            </div>
+            <p className="text-slate-600 mb-6">
+              Supprimer <strong>{deleteConfirmClient.prenom} {deleteConfirmClient.nom}</strong> ?
+              {(deleteConfirmClient._count.souscriptionsPacks > 0 || deleteConfirmClient._count.ventesDirectes > 0) && (
+                <span className="block mt-2 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                  ⚠ Ce client a {deleteConfirmClient._count.souscriptionsPacks} souscription(s) et {deleteConfirmClient._count.ventesDirectes} vente(s) associées.
+                </span>
+              )}
+            </p>
+            <div className="flex justify-end gap-3">
+              <button onClick={() => setDeleteConfirmClient(null)}
+                className="px-4 py-2 text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50">
+                Annuler
+              </button>
+              <button onClick={handleDeleteConfirmed} disabled={deletingClient}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50">
+                {deletingClient ? 'Suppression…' : 'Supprimer'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ══ DRAWER — Historique client ════════════════════════════════════ */}
       {histoClient && (

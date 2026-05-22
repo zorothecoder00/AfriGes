@@ -293,6 +293,27 @@ enum StatutRecompense {
 }
 
 // ============================================================
+// ENUMS — Crédits clients
+// ============================================================
+
+enum StatutCredit {
+  EN_ATTENTE_VALIDATION  // créé, en attente d'approbation superviseur
+  VALIDE                 // approuvé mais pas encore démarré
+  ACTIF                  // en cours de remboursement
+  EN_RETARD              // au moins une échéance impayée dépassée
+  SOLDE                  // intégralement remboursé
+  ANNULE                 // annulé avant démarrage
+  REJETE                 // refusé par le superviseur
+}
+
+enum StatutEcheanceCredit {
+  EN_ATTENTE
+  PAYE
+  PARTIEL
+  EN_RETARD
+}
+
+// ============================================================
 // ENUMS — Finances & comptabilité
 // ============================================================
 
@@ -583,6 +604,11 @@ model User {
   // Contrôle terrain
   visitesControle      VisiteControle[]     @relation("ControleurVisite")
 
+  // Crédits clients
+  creditsCreees                CreditClient[]       @relation("CreditCreateur")
+  creditsValides               CreditClient[]       @relation("CreditValidateur")
+  remboursementsEnregistres    RemboursementCredit[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -731,6 +757,7 @@ model Client {
   pointsFidelite     PointsFidelite?
   ventesDirectes     VenteDirecte[]
   lignesCollecte     LigneCollecte[]
+  creditsClients     CreditClient[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -775,6 +802,116 @@ model ClientPointDeVente {
   @@unique([clientId, pointDeVenteId])
   @@index([clientId])
   @@index([pointDeVenteId])
+}
+
+// ============================================================
+// CRÉDITS CLIENTS
+// ============================================================
+
+model CreditClient {
+  id               Int          @id @default(autoincrement())
+  reference        String       @unique // ex: CRD-20260521-001
+
+  clientId         Int
+  client           Client       @relation(fields: [clientId], references: [id])
+
+  pointDeVenteId   Int?
+  // pas de relation directe ici — PointDeVente n'a pas de backlink crédit (optionnel)
+
+  statut           StatutCredit @default(EN_ATTENTE_VALIDATION)
+
+  // Montants
+  montantTotal     Decimal
+  montantRembourse Decimal      @default(0)
+  soldeRestant     Decimal
+
+  // Échéancier
+  dureeJours       Int          // nombre de jours de remboursement
+  dateDebut        DateTime     // date à partir de laquelle les remboursements commencent
+  dateEcheanceFin  DateTime     // = dateDebut + dureeJours (calculé à la validation)
+  montantJournalier Decimal     // = montantTotal / dureeJours (calculé à la validation)
+
+  // Pénalités
+  tauxPenalite     Decimal      @default(0) // % par jour de retard
+
+  // Métadonnées
+  garantie         String?
+  observations     String?
+
+  // Traçabilité
+  creeParId        Int
+  creePar          User         @relation("CreditCreateur", fields: [creeParId], references: [id])
+  valideParId      Int?
+  validePar        User?        @relation("CreditValidateur", fields: [valideParId], references: [id])
+  dateValidation   DateTime?
+
+  lignes           LigneCreditClient[]
+  echeances        EcheanceCredit[]
+  remboursements   RemboursementCredit[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([clientId])
+  @@index([statut])
+  @@index([pointDeVenteId])
+  @@index([dateDebut])
+}
+
+model LigneCreditClient {
+  id           Int     @id @default(autoincrement())
+  creditId     Int
+  produitId    Int?    // nullable : produit supprimé ou hors catalogue
+
+  // Snapshot au moment de la vente (conservé même si produit modifié)
+  produitNom   String
+  quantite     Int
+  prixUnitaire Decimal
+  remise       Decimal @default(0) // montant de remise (pas %)
+  montantLigne Decimal             // = (prixUnitaire * quantite) - remise
+
+  credit  CreditClient @relation(fields: [creditId], references: [id], onDelete: Cascade)
+  produit Produit?     @relation(fields: [produitId], references: [id])
+
+  @@index([creditId])
+  @@index([produitId])
+}
+
+model EcheanceCredit {
+  id             Int                  @id @default(autoincrement())
+  creditId       Int
+  numeroEcheance Int                  // 1, 2, 3 … dureeJours
+  dateEcheance   DateTime
+  montantDu      Decimal
+  montantPaye    Decimal              @default(0)
+  statut         StatutEcheanceCredit @default(EN_ATTENTE)
+  penalite       Decimal              @default(0) // pénalité accumulée si retard
+
+  credit CreditClient @relation(fields: [creditId], references: [id], onDelete: Cascade)
+
+  @@index([creditId])
+  @@index([statut])
+  @@index([dateEcheance])
+  @@index([creditId, statut])
+}
+
+model RemboursementCredit {
+  id                Int          @id @default(autoincrement())
+  creditId          Int
+  montant           Decimal
+  dateRemboursement DateTime     @default(now())
+  modePaiement      TypePaiement @default(ESPECES)
+  notes             String?
+
+  enregistreParId   Int
+  enregistrePar     User         @relation(fields: [enregistreParId], references: [id])
+
+  credit CreditClient @relation(fields: [creditId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([creditId])
+  @@index([dateRemboursement])
 }
 
 // ============================================================
@@ -891,6 +1028,9 @@ model Produit {
   lignesInventaire     LigneInventaireSite[]
   lignesCommande       LigneCommandeInterne[]
   lignesBonSortie      LigneBonSortie[]
+
+  // Crédits clients
+  lignesCredit         LigneCreditClient[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

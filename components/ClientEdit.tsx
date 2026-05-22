@@ -328,12 +328,8 @@ export default function ClientEdit({ clientId }: { clientId: string }) {
               <div>
                 <label className="block text-xs font-medium text-gray-600 mb-1.5">Limite de crédit (FCFA)</label>
                 <input type="number" min={0} value={form.limiteCredit} onChange={set('limiteCredit')}
-                  disabled={form.typeClient !== 'CREDIT'}
-                  className={INPUT + (form.typeClient !== 'CREDIT' ? ' opacity-40 cursor-not-allowed' : '')}
-                  placeholder="0" />
-                {form.typeClient !== 'CREDIT' && (
-                  <p className="text-xs text-gray-400 mt-1">Disponible uniquement pour les clients Crédit</p>
-                )}
+                  className={INPUT} placeholder="Laisser vide = aucun plafond" />
+                <p className="text-xs text-gray-400 mt-1">Montant maximum de crédit autorisé pour ce client</p>
               </div>
             </div>
           </div>

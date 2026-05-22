@@ -43,8 +43,28 @@ export async function GET(
         pointsDeVente: { select: { pointDeVente: { select: { id: true, nom: true, code: true } } } },
         agentTerrain:  { select: { id: true, nom: true, prenom: true } },
         souscriptionsPacks: {
-          include: { pack: true },
+          include: {
+            pack: true,
+            echeances: { orderBy: { datePrevue: "asc" } },
+          },
           orderBy: { createdAt: "desc" },
+        },
+        ventesDirectes: {
+          where:   { statut: { not: "ANNULEE" } },
+          orderBy: { createdAt: "desc" },
+          take: 30,
+          select: {
+            id: true, reference: true, statut: true,
+            modePaiement: true, montantTotal: true, montantPaye: true,
+            createdAt: true,
+            pointDeVente: { select: { id: true, nom: true, code: true } },
+            lignes: {
+              select: {
+                id: true, quantite: true, prixUnitaire: true, montant: true,
+                produit: { select: { id: true, nom: true } },
+              },
+            },
+          },
         },
       },
     });

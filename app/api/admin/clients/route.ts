@@ -24,7 +24,36 @@ export async function GET(req: Request) {
 
     const pdvIdNumber = pdvId ? Number(pdvId) : null;
 
+    const etatParam    = searchParams.get("etat");    // ACTIF|INACTIF|SUSPENDU|BLOQUE
+    const filtreParam  = searchParams.get("filtre");  // debiteurs|en_retard|bloques|gros_clients|sans_activite|archives
+
+    const now = new Date();
+
+    // ── Filtre avancé ────────────────────────────────────────────────────────
+    const filtreAvance: Prisma.ClientWhereInput = (() => {
+      switch (filtreParam) {
+        case "debiteurs":
+          return { souscriptionsPacks: { some: { montantRestant: { gt: 0 }, statut: { notIn: ["ANNULE", "COMPLETE"] } } } };
+        case "en_retard":
+          return { souscriptionsPacks: { some: { echeances: { some: { statut: "EN_ATTENTE", datePrevue: { lt: now } } } } } };
+        case "bloques":
+          return { etat: "BLOQUE" };
+        case "gros_clients":
+          return { souscriptionsPacks: { some: {} } };
+        case "sans_activite":
+          return { souscriptionsPacks: { none: {} }, ventesDirectes: { none: {} } };
+        case "archives":
+          return { etat: "INACTIF" };
+        default:
+          return {};
+      }
+    })();
+
     const where: Prisma.ClientWhereInput = {
+      // filtre statut (menu déroulant)
+      ...(etatParam && { etat: etatParam as MemberStatus }),
+      // filtre avancé override statut si besoin
+      ...filtreAvance,
       ...(pdvIdNumber && {
         AND: [
           {
@@ -38,29 +67,20 @@ export async function GET(req: Request) {
       ...(search && {
         OR: (() => {
           const conditions: Prisma.ClientWhereInput[] = [
-            { nom:       { contains: search, mode: "insensitive" } },
-            { prenom:    { contains: search, mode: "insensitive" } },
-            { telephone: { contains: search, mode: "insensitive" } },
+            { nom:        { contains: search, mode: "insensitive" } },
+            { prenom:     { contains: search, mode: "insensitive" } },
+            { telephone:  { contains: search, mode: "insensitive" } },
+            { codeClient: { contains: search, mode: "insensitive" } },
+            { quartier:   { contains: search, mode: "insensitive" } },
+            { ville:      { contains: search, mode: "insensitive" } },
+            { numeroCNI:  { contains: search, mode: "insensitive" } },
           ];
-          // Recherche combinée "prénom nom" ou "nom prénom"
           const parts = search.split(/\s+/);
           if (parts.length >= 2) {
             const first = parts[0];
             const rest  = parts.slice(1).join(" ");
-            // prénom → first, nom → rest
-            conditions.push({
-              AND: [
-                { prenom: { contains: first, mode: "insensitive" } },
-                { nom:    { contains: rest,  mode: "insensitive" } },
-              ],
-            });
-            // nom → first, prénom → rest (ordre inversé)
-            conditions.push({
-              AND: [
-                { nom:    { contains: first, mode: "insensitive" } },
-                { prenom: { contains: rest,  mode: "insensitive" } },
-              ],
-            });
+            conditions.push({ AND: [{ prenom: { contains: first, mode: "insensitive" } }, { nom: { contains: rest,  mode: "insensitive" } }] });
+            conditions.push({ AND: [{ nom:    { contains: first, mode: "insensitive" } }, { prenom: { contains: rest,  mode: "insensitive" } }] });
           }
           return conditions;
         })(),
@@ -75,20 +95,25 @@ export async function GET(req: Request) {
       (where.AND as object[]).push({ agentTerrainId: agentTerrainIdNumber });
     }
 
+    // Pour "gros_clients" : trier par nb souscriptions desc, sinon par date
+    const orderBy: Prisma.ClientOrderByWithRelationInput =
+      filtreParam === "gros_clients"
+        ? { souscriptionsPacks: { _count: "desc" } }
+        : { createdAt: "desc" };
+
     const [clients, total] = await Promise.all([
       prisma.client.findMany({
         where,
         skip,
         take: limit,
-        orderBy: { createdAt: "desc" },
-        include: {
-          _count: { select: { souscriptionsPacks: true } },
+        orderBy,
+        select: {
+          id: true, nom: true, prenom: true, telephone: true, adresse: true,
+          etat: true, createdAt: true, codeClient: true, quartier: true, ville: true,
+          niveauRisque: true, typeClient: true, limiteCredit: true, soldeActuel: true,
+          _count: { select: { souscriptionsPacks: true, ventesDirectes: true } },
           pointDeVente: { select: { id: true, nom: true, code: true } },
-          pointsDeVente: {
-            select: {
-              pointDeVente: { select: { id: true, nom: true, code: true } },
-            },
-          },
+          pointsDeVente: { select: { pointDeVente: { select: { id: true, nom: true, code: true } } } },
           agentTerrain: { select: { id: true, nom: true, prenom: true } },
         },
       }),

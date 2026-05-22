@@ -16,27 +16,14 @@ netsh wlan show profile name="NomDuWifi" key=clear affiche toutes les propriét�
 
 -npm i -g @openai/codex permet d'installer le CLI de codex (agent ia d'openai qui permet d'interagir depuis le terminal)
       
--curl -fsSL https://claude.ai/install.cmd -o install.cmd && install.cmd && del install.cmd pour installer claude via le terminal cmd 
+-curl -fsSL https://claude.ai/install.cmd -o install.cmd && install.cmd && del install.cmd pour installer claude via le terminal cmd   
 
- Allons y pas à pas . Maintenant pour le  module "Gestion
-de la clientèle"( on parle de la gestion de l'admin/superadmin depuis
-dahsboard/admin/clients) , voici exactement ce qu'on veut de lui : on doit
-pouvoir gérer l'ensemble des clients (déjà fait) , gérer les ventes au comptant
- (vente directe),les  ventes liées aux packs (du genre le client a eu à payer
-tel montant pour un pack etc etc ) , suivre les créances ( faits déjà sur le
-dashboard/user/agentsTerrains mais pas encore sur dashboard/admin/clients),
-gérer les collectes journalières ( l'admin), superviser les agents de
-recouvrement ( agents de terrain ici) , suivre les remboursements (avec
-pourcentages etc etc) et pouvoir contrôler les opérations terrain en temps réel
- . Le module (dashboard/admin/clients) doit être conçu comme un système :
-ERP+CRM+RECOUVREMENT+CONTROLE FINANCIER.Je ne sais pas où tu vas placer ces
-sous modules mais on les veut aussi dans l'app (peut être dans
-dashboard/admin/clients si tu vois que c'est la meilleire place): gestion des
-clients, gestions fdes credtis clients, gestion des collectes, gestions des
-agents, gestions des remboursements , historique client , rapports et exports
-(déjà fait je pense) .Ok vas-y analyse bien le cahier de chzrges que je viens
-de te donner et proppse la solution (la meilleure approche pour respecter tout
-ça )
+Comportement illogique pour la modale de création de nouvelle vente à crédit
+. Lorsqu'on choisit , le client et que c'est le moment de choisir un priduit à
+livrer , le produit appartient à qiel point de vente ?? Tu vois que la modale
+manque de robustesse non ?? Et ça c'est juste un point qui est visible ; y'a
+plusieurs autres soucis de robustesse
+
 
 
 Faire des tags dans l'application pour permettre de retracer les informations sur les clients
