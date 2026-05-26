@@ -27,6 +27,8 @@ enum MemberStatus {
   INACTIF
   SUSPENDU
   BLOQUE
+  EN_ATTENTE_VALIDATION  // client créé par agent terrain, attend validation RVC
+  REJETE                 // refusé par le responsable crédit (retour agent commercial)
 }         
 
 enum RoleGestionnaire {
@@ -70,6 +72,24 @@ enum NiveauRisque {
   MOYEN
   ELEVE
   CRITIQUE
+}
+
+enum TypeDocumentClient {
+  CNI              // Carte nationale d'identité
+  PASSEPORT
+  CONTRAT          // Contrat signé avec le client
+  PHOTO_IDENTITE
+  ATTESTATION
+  RECU             // Reçu de paiement physique
+  AUTRE
+}
+
+enum TypeTransactionClient {
+  VERSEMENT_PACK
+  REMBOURSEMENT_CREDIT
+  VENTE_DIRECTE
+  COLLECTE_JOURNALIERE
+  AUTRE
 }
 
 // ============================================================
@@ -152,6 +172,10 @@ enum StatutVenteDirecte {
   SORTIE_VALIDEE
   LIVREE
   ANNULEE
+  PAID            // vente comptant validée par l'agent (stock sorti, caisse et RPV notifiés)
+  CREDIT_REQUEST  // demande de vente à crédit soumise au Responsable Crédit
+  CREDIT_APPROUVE // crédit approuvé par le RVC
+  CREDIT_REFUSE   // crédit refusé par le RVC
 }
 
 enum ModePaiementVente {
@@ -618,6 +642,15 @@ model User {
   // Visites terrain
   visitesEffectuees            VisiteClient[]       @relation("VisitesAgent")
 
+  // Documents clients uploadés par cet utilisateur
+  documentsUploades            ClientDocument[]     @relation("DocumentsUploades")
+  // Transactions terrain enregistrées par cet agent
+  transactionsAgent            ClientTransaction[]  @relation("TransactionsAgent")
+  // Scores clients calculés par cet utilisateur
+  scoresCalcules               ClientScoreHistorique[] @relation("ScoresCalcules")
+  // Clients validés ou rejetés par ce RVC
+  clientsValides               Client[]             @relation("ClientValidateur")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -769,6 +802,15 @@ model Client {
   lignesCollecte     LigneCollecte[]
   creditsClients     CreditClient[]
   visites            VisiteClient[]
+  documents          ClientDocument[]
+  transactions       ClientTransaction[]
+  scoreHistorique    ClientScoreHistorique[]
+
+  // ── Validation RVC (tous nullable — données existantes non impactées) ───
+  motifRejet       String?    // raison du rejet par le responsable crédit
+  validationParId  Int?       // User.id du RVC qui a statué
+  validationPar    User?      @relation("ClientValidateur", fields: [validationParId], references: [id])
+  dateValidation   DateTime?  // date de la décision (activation ou rejet)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -837,6 +879,85 @@ model ClientPointDeVente {
   @@unique([clientId, pointDeVenteId])
   @@index([clientId])
   @@index([pointDeVenteId])
+}
+
+// ============================================================
+// DOCUMENTS CLIENTS
+// ============================================================
+
+model ClientDocument {
+  id             Int                @id @default(autoincrement())
+  clientId       Int
+  client         Client             @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  type           TypeDocumentClient @default(AUTRE)
+  nom            String             // nom du fichier
+  url            String             // URL de stockage
+  uploadthingKey String?            // clé uploadthing si applicable
+  taille         Int?               // taille en octets
+  description    String?
+  expireAt       DateTime?          // date d'expiration (ex : CNI)
+
+  uploadePar     Int
+  uploadeUser    User               @relation("DocumentsUploades", fields: [uploadePar], references: [id])
+
+  createdAt      DateTime           @default(now())
+
+  @@index([clientId])
+  @@index([clientId, type])
+}
+
+// ============================================================
+// TRANSACTIONS CLIENTS (historique financier unifié)
+// ============================================================
+
+model ClientTransaction {
+  id            Int                   @id @default(autoincrement())
+  clientId      Int
+  client        Client                @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  type          TypeTransactionClient
+  montant       Decimal
+  sens          String                // DEBIT | CREDIT (du point de vue du client)
+  reference     String?               // référence de l'opération source
+  description   String?
+
+  // Lien polymorphique vers la source (pas de FK Prisma — souplesse maximale)
+  sourceType    String?               // VERSEMENT_PACK | REMBOURSEMENT_CREDIT | VENTE_DIRECTE | COLLECTE
+  sourceId      Int?
+
+  agentId       Int?
+  agent         User?                 @relation("TransactionsAgent", fields: [agentId], references: [id])
+
+  dateOperation DateTime              @default(now())
+  createdAt     DateTime              @default(now())
+
+  @@index([clientId])
+  @@index([clientId, type])
+  @@index([clientId, dateOperation])
+  @@index([sourceType, sourceId])
+}
+
+// ============================================================
+// HISTORIQUE DES SCORES / RISQUE CLIENTS
+// ============================================================
+
+model ClientScoreHistorique {
+  id               Int          @id @default(autoincrement())
+  clientId         Int
+  client           Client       @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  niveauRisque     NiveauRisque
+  scoreSolvabilite Float
+  raison           String?      // REMBOURSEMENT | RETARD | RECALCUL_AUTO | MANUEL | CREATION
+
+  calculePar       Int?
+  calculeUser      User?        @relation("ScoresCalcules", fields: [calculePar], references: [id])
+
+  createdAt        DateTime     @default(now())
+
+  @@index([clientId])
+  @@index([clientId, createdAt])
 }
 
 // ============================================================
@@ -993,6 +1114,11 @@ model LigneCollecte {
   montantCollecte  Decimal              @default(0)
   statut           StatutLigneCollecte  @default(EN_ATTENTE)
   notes            String?
+
+  // Anti-fraude : coordonnées GPS + mode de paiement enregistrés au moment de la collecte
+  latitude         Float?
+  longitude        Float?
+  modePaiement     String?              // ESPECES | MOBILE_MONEY | CHEQUE | VIREMENT
 
   // Lien vers le VersementPack créé lors de la validation (null avant validation)
   versementPackId  Int?                 @unique
@@ -1923,9 +2049,16 @@ model AuditLog {
   action    String
   entite    String
   entiteId  Int?
+  details   Json?    // snapshot avant/après ou données contextuelles
+  ip        String?  // adresse IP de l'auteur
+  userAgent String?  // navigateur / appareil
   createdAt DateTime @default(now())
 
   user User? @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([entite, entiteId])
+  @@index([createdAt])
 }
 
 model Notification {

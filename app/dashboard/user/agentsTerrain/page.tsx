@@ -1,11 +1,13 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
-import {    
-  Users, MapPin, Phone, TrendingUp, Clock, CheckCircle,
-  AlertCircle, Search, ArrowLeft, RefreshCw, UserPlus,
-  Banknote, Calendar, LucideIcon, Layers, Plus, ChevronRight,
-  Loader2, Truck, Package, ShoppingCart, X, Send, BadgeCheck, XCircle,
+import React, { useState, useEffect, useRef, useCallback } from "react";
+import {
+  Users, MapPin, Phone, Clock, CheckCircle,
+  AlertCircle, Search, RefreshCw,
+  Banknote, Calendar, LucideIcon, Layers, Plus,
+  Loader2, Truck, Package, ShoppingCart, X, Send, XCircle,
+  ClipboardList, CreditCard, Navigation, PlayCircle, ChevronDown, ChevronUp,
+  Wallet, TrendingDown, UserPlus,
 } from "lucide-react";
 import Link from "next/link";      
 import SignOutButton from "@/components/SignOutButton";
@@ -18,10 +20,105 @@ import { formatCurrency, formatDate } from "@/lib/format";
 import { getStatusStyle, getStatusLabel } from "@/lib/status";
 import { useT } from "@/contexts/AppSettingsContext";
 import { usePageAccess } from "@/hooks/usePageAccess";
+import { toast } from 'sonner'; 
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type TypePack = "ALIMENTAIRE" | "REVENDEUR" | "FAMILIAL" | "URGENCE" | "EPARGNE_PRODUIT" | "FIDELITE";
+
+// Collecte du Jour
+interface LigneCollecte {
+  id: number;
+  statut: "EN_ATTENTE" | "COLLECTE" | "PARTIEL" | "ECHEC";
+  montantAttendu: string;
+  montantCollecte: string;
+  client: { id: number; nom: string; prenom: string };
+}
+
+interface CollecteSession {
+  id: number;
+  reference: string;
+  statut: "EN_COURS" | "VALIDEE" | "ANNULEE";
+  montantPrevu: string;
+  montantCollecte: string;
+  dateCollecte: string;
+  lignes: LigneCollecte[];
+}
+
+interface SouscriptionPourCollecte {
+  id: number;
+  montantTotal: string;
+  montantVerse: string;
+  montantRestant: string;
+  statut: string;
+  pack: { nom: string; type: TypePack; frequenceVersement: string };
+  echeances: { id: number; montant: string; datePrevue: string; statut: string }[];
+}
+
+interface CreditPourCollecte {
+  id: number;
+  reference: string;
+  montantTotal: string;
+  montantRembourse: string;
+  soldeRestant: string;
+  montantJournalier: string;
+  dateEcheanceFin: string;
+  echeances: { id: number; montantDu: string; dateEcheance: string; statut: string }[];
+}
+
+interface ClientCollecte {
+  id: number;
+  nom: string;
+  prenom: string;
+  telephone: string;
+  adresse: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  etat: string;
+  souscriptionsPacks: SouscriptionPourCollecte[];
+  creditsClients: CreditPourCollecte[];
+}
+
+interface CollecteJourResponse {
+  session: CollecteSession | null;
+  clients: ClientCollecte[];
+  stats: {
+    totalClients: number;
+    totalACollecter: number;
+    totalCollecteJour: number;
+    retardsCritiques: number;
+  };
+}
+
+// Crédits standalone
+interface CreditItem {
+  id: number;
+  reference: string;
+  statut: "ACTIF" | "EN_RETARD";
+  montantTotal: string;
+  montantRembourse: string;
+  soldeRestant: string;
+  montantJournalier: string;
+  dateEcheanceFin: string;
+  client: { id: number; nom: string; prenom: string; telephone: string };
+  echeances: { id: number; montantDu: string; montantPaye: string; dateEcheance: string; statut: string }[];
+  remboursements: { id: number; montant: string; dateRemboursement: string }[];
+}
+
+interface CreditsResponse {
+  credits: CreditItem[];
+  stats: { total: number; totalSolde: number; enRetard: number };
+}
+
+// Cible pour modal encaisser session
+interface EncaisserTarget {
+  type: "PACK" | "CREDIT";
+  souscriptionId?: number;
+  creditId?: number;
+  label: string;
+  clientNom: string;
+  montantAttendu: number;
+}
 
 interface Echeance {
   id: number;
@@ -58,7 +155,15 @@ interface Client {
   prenom: string;
   telephone: string;
   adresse: string | null;
+  quartier: string | null;
+  ville: string | null;
+  activite: string | null;
   etat: string;
+  typeClient: string | null;
+  limiteCredit: string | null;
+  soldeActuel: string | null;
+  niveauRisque: string | null;
+  codeClient: string | null;
   createdAt: string;
   _count?: { souscriptionsPacks: number };
 }
@@ -103,18 +208,19 @@ interface LigneVente {
 }
 interface VenteTerrain {
   id: number; reference: string;
-  statut: "BROUILLON" | "CONFIRMEE" | "SORTIE_VALIDEE" | "LIVREE" | "ANNULEE";
+  statut: "BROUILLON" | "CONFIRMEE" | "SORTIE_VALIDEE" | "LIVREE" | "ANNULEE"
+        | "PAID" | "CREDIT_REQUEST" | "CREDIT_APPROUVE" | "CREDIT_REFUSE";
   montantTotal: string; montantPaye: string;
   modePaiement: string; notes: string | null;
   clientNom: string | null; clientTelephone: string | null;
   client: { id: number; nom: string; prenom: string; telephone: string } | null;
   lignes: LigneVente[];
-  createdAt: string;   
+  createdAt: string;
 }
 interface VentesTerrainResponse {
   data: VenteTerrain[];
   produitsDispo: { id: number; quantite: number; produit: { id: number; nom: string; unite: string | null; prixUnitaire: string } }[];
-  clients: { id: number; nom: string; prenom: string; telephone: string }[];
+  clients: { id: number; nom: string; prenom: string; telephone: string; limiteCredit: string | null; soldeActuel: string | null }[];
   stats: { total: number; montantTotal: number };
   meta: { total: number; page: number; limit: number; totalPages: number };
 }
@@ -289,9 +395,581 @@ function ModalCollecte({
   );
 }
 
+// ─── Modal Encaisser (session collecte) ───────────────────────────────────────
+
+function ModalEncaisserSession({
+  target,
+  collecteId,
+  onClose,
+  onSuccess,
+}: {
+  target: EncaisserTarget;
+  collecteId: number;
+  onClose: () => void;
+  onSuccess: () => void;
+}) {
+  const [montant, setMontant] = useState(String(target.montantAttendu));
+  const [modePaiement, setModePaiement] = useState("ESPECES");
+  const [notes, setNotes] = useState("");
+  const [gpsStatus, setGpsStatus] = useState<"idle" | "loading" | "ok" | "err">("idle");
+  const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
+
+  const { mutate, loading } = useMutation<unknown, object>(
+    `/api/agentTerrain/collecteJour/${collecteId}/encaisser`,
+    "POST",
+    { successMessage: "Encaissement enregistré !" }
+  );
+
+  const captureGPS = useCallback(() => {
+    if (!navigator.geolocation) { setGpsStatus("err"); return; }
+    setGpsStatus("loading");
+    navigator.geolocation.getCurrentPosition(
+      (pos) => { setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude }); setGpsStatus("ok"); },
+      () => setGpsStatus("err"),
+      { timeout: 8000, enableHighAccuracy: true }
+    );
+  }, []);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const payload: Record<string, unknown> = {
+      type: target.type,
+      montant: parseFloat(montant),
+      modePaiement,
+      notes: notes || undefined,
+      latitude: coords?.lat ?? undefined,
+      longitude: coords?.lng ?? undefined,
+    };
+    if (target.type === "PACK") payload.souscriptionId = target.souscriptionId;
+    else payload.creditId = target.creditId;
+
+    const res = await mutate(payload);
+    if (res) { onSuccess(); onClose(); }
+  }
+
+  const montantNum = parseFloat(montant) || 0;
+  const max = target.montantAttendu;
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-xl font-bold text-slate-800">
+            {target.type === "PACK" ? "Encaisser versement pack" : "Encaisser remboursement crédit"}
+          </h2>
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg font-bold text-lg">×</button>
+        </div>
+
+        <div className="p-4 rounded-xl bg-teal-50 border border-teal-200 mb-5 space-y-1">
+          <p className="text-sm font-semibold text-slate-800">{target.clientNom}</p>
+          <p className="text-xs text-slate-500">{target.label}</p>
+          <p className="text-sm text-teal-700 font-medium">
+            Montant attendu : {target.montantAttendu.toLocaleString("fr-FR")} FCFA
+          </p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Montant encaissé *</label>
+            <input
+              type="number" min="1" max={max} required value={montant}
+              onChange={(e) => setMontant(e.target.value)}
+              className={`w-full border rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 ${
+                montantNum > max ? "border-red-400 bg-red-50" : "border-slate-200"
+              }`}
+            />
+            {montantNum > max && (
+              <p className="text-xs text-red-600 mt-1">Montant supérieur au maximum ({max.toLocaleString("fr-FR")} FCFA)</p>
+            )}
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Mode de paiement</label>
+            <select value={modePaiement} onChange={(e) => setModePaiement(e.target.value)}
+              className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500">
+              <option value="ESPECES">Espèces</option>
+              <option value="MOBILE_MONEY">Mobile Money</option>
+              <option value="CHEQUE">Chèque</option>
+              <option value="VIREMENT">Virement</option>
+            </select>
+          </div>
+
+          {/* GPS */}
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Position GPS (anti-fraude)</label>
+            {gpsStatus === "idle" && (
+              <button type="button" onClick={captureGPS}
+                className="flex items-center gap-2 px-3 py-2 border border-slate-200 rounded-xl text-sm text-slate-600 hover:bg-slate-50">
+                <Navigation size={14} /> Capturer ma position
+              </button>
+            )}
+            {gpsStatus === "loading" && (
+              <p className="text-xs text-slate-500 flex items-center gap-2"><Loader2 size={12} className="animate-spin" /> Localisation en cours…</p>
+            )}
+            {gpsStatus === "ok" && coords && (
+              <p className="text-xs text-emerald-600 flex items-center gap-2">
+                <CheckCircle size={12} /> {coords.lat.toFixed(5)}, {coords.lng.toFixed(5)}
+              </p>
+            )}
+            {gpsStatus === "err" && (
+              <p className="text-xs text-amber-600">Position non disponible (continuez sans GPS)</p>
+            )}
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Notes (optionnel)</label>
+            <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2}
+              className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 resize-none"
+              placeholder="Observations…" />
+          </div>
+
+          <div className="flex gap-3 pt-1">
+            <button type="button" onClick={onClose}
+              className="flex-1 py-2.5 border border-slate-200 text-slate-700 rounded-xl hover:bg-slate-50 text-sm font-medium">Annuler</button>
+            <button type="submit"
+              disabled={loading || !montant || montantNum <= 0 || montantNum > max}
+              className="flex-1 py-2.5 bg-teal-600 text-white rounded-xl hover:bg-teal-700 disabled:opacity-50 text-sm font-medium flex items-center justify-center gap-2">
+              {loading ? <><Loader2 size={14} className="animate-spin" /> Enregistrement…</> : "Confirmer encaissement"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ─── Modal Rembourser crédit (standalone) ─────────────────────────────────────
+
+function ModalRembourserCredit({
+  credit,
+  onClose,
+  onSuccess,
+}: {
+  credit: CreditItem;
+  onClose: () => void;
+  onSuccess: () => void;
+}) {
+  const prochaine = credit.echeances[0];
+  const defaultMontant = prochaine ? String(Number(prochaine.montantDu) - Number(prochaine.montantPaye)) : String(Number(credit.montantJournalier));
+  const [montant, setMontant] = useState(defaultMontant);
+  const [notes, setNotes] = useState("");
+  const max = Number(credit.soldeRestant);
+
+  const { mutate, loading } = useMutation<unknown, object>(
+    `/api/agentTerrain/credits/${credit.id}/rembourser`,
+    "POST",
+    { successMessage: "Remboursement enregistré !" }
+  );
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const res = await mutate({ montant: parseFloat(montant), notes: notes || undefined });
+    if (res) { onSuccess(); onClose(); }
+  }
+
+  const montantNum = parseFloat(montant) || 0;
+  const clientNom = `${credit.client.prenom} ${credit.client.nom}`;
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-xl font-bold text-slate-800">Remboursement crédit</h2>
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg font-bold text-lg">×</button>
+        </div>
+
+        <div className="p-4 rounded-xl bg-blue-50 border border-blue-200 mb-5 space-y-1">
+          <p className="text-sm font-semibold text-slate-800">{clientNom}</p>
+          <p className="text-xs font-mono text-slate-500">{credit.reference}</p>
+          <div className="flex justify-between text-sm pt-1 border-t border-blue-100">
+            <span className="text-slate-500">Solde restant</span>
+            <span className="font-bold text-red-600">{formatCurrency(max)}</span>
+          </div>
+          {prochaine && (
+            <div className="flex justify-between text-xs">
+              <span className="text-slate-400">Échéance courante ({formatDate(prochaine.dateEcheance)})</span>
+              <span className={`font-medium ${prochaine.statut === "EN_RETARD" ? "text-red-600" : "text-slate-600"}`}>
+                {formatCurrency(Number(prochaine.montantDu) - Number(prochaine.montantPaye))} FCFA
+                {prochaine.statut === "EN_RETARD" && " ⚠"}
+              </span>
+            </div>
+          )}
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Montant *</label>
+            <input
+              type="number" min="1" max={max} required value={montant}
+              onChange={(e) => setMontant(e.target.value)}
+              className={`w-full border rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                montantNum > max ? "border-red-400 bg-red-50" : "border-slate-200"
+              }`}
+            />
+            <p className="text-xs text-slate-400 mt-1">Max : {formatCurrency(max)}</p>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Notes (optionnel)</label>
+            <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2}
+              className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+              placeholder="Observations…" />
+          </div>
+          <div className="flex gap-3 pt-1">
+            <button type="button" onClick={onClose}
+              className="flex-1 py-2.5 border border-slate-200 text-slate-700 rounded-xl hover:bg-slate-50 text-sm font-medium">Annuler</button>
+            <button type="submit"
+              disabled={loading || montantNum <= 0 || montantNum > max}
+              className="flex-1 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-50 text-sm font-medium flex items-center justify-center gap-2">
+              {loading ? <><Loader2 size={14} className="animate-spin" /> Enregistrement…</> : "Confirmer remboursement"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ─── Modal Ajout Client (enrichi) ─────────────────────────────────────────────
+
+const EMPTY_CLIENT_FORM = {
+  nom: "", prenom: "", telephone: "",
+  sexe: "", dateNaissance: "", telephoneSecondaire: "",
+  adresse: "", quartier: "", ville: "", numeroCNI: "",
+  activite: "", nomCommerce: "",
+  latitude: "", longitude: "",
+};
+
+function ModalAddClientRiche({
+  onClose,
+  onSuccess,
+}: {
+  onClose: () => void;
+  onSuccess: () => void;
+}) {
+  const [form, setForm] = useState(EMPTY_CLIENT_FORM);
+  const [geoLoading, setGeoLoading] = useState(false);
+  const [geoError, setGeoError] = useState("");
+
+  const { mutate, loading } = useMutation<unknown, object>(
+    "/api/agentTerrain/clients", "POST",
+    { successMessage: "Client ajouté !" }
+  );
+
+  const handleGeo = () => {
+    if (!navigator.geolocation) { setGeoError("Non supporté"); return; }
+    setGeoLoading(true); setGeoError("");
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setForm(f => ({ ...f, latitude: String(pos.coords.latitude), longitude: String(pos.coords.longitude) }));
+        setGeoLoading(false);
+      },
+      (err) => { setGeoError(err.code === 1 ? "Permission refusée" : "Position indisponible"); setGeoLoading(false); },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  };
+
+  const set = (k: keyof typeof EMPTY_CLIENT_FORM) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
+    setForm(f => ({ ...f, [k]: e.target.value }));
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const payload = {
+      nom: form.nom, prenom: form.prenom, telephone: form.telephone,
+      sexe: form.sexe || undefined,
+      dateNaissance: form.dateNaissance || undefined,
+      telephoneSecondaire: form.telephoneSecondaire || undefined,
+      adresse: form.adresse || undefined,
+      quartier: form.quartier || undefined,
+      ville: form.ville || undefined,
+      numeroCNI: form.numeroCNI || undefined,
+      activite: form.activite || undefined,
+      nomCommerce: form.nomCommerce || undefined,
+      latitude: form.latitude ? Number(form.latitude) : undefined,
+      longitude: form.longitude ? Number(form.longitude) : undefined,
+    };
+    const res = await mutate(payload);
+    if (res) { onSuccess(); onClose(); }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl flex flex-col max-h-[92vh]">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 bg-teal-100 rounded-xl flex items-center justify-center">
+              <UserPlus size={18} className="text-teal-600" />
+            </div>
+            <h2 className="text-lg font-bold text-slate-800">Nouveau client</h2>
+          </div>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={20} /></button>
+        </div>
+
+        {/* Body scrollable */}
+        <form onSubmit={handleSubmit} className="overflow-y-auto flex-1 px-6 py-5 space-y-6">
+
+          {/* ─ Identité ─ */}
+          <section>
+            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Identité</p>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Nom <span className="text-red-500">*</span></label>
+                <input required value={form.nom} onChange={set("nom")}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-teal-500" placeholder="Nom de famille" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Prénom <span className="text-red-500">*</span></label>
+                <input required value={form.prenom} onChange={set("prenom")}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-teal-500" placeholder="Prénom" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Sexe</label>
+                <select value={form.sexe} onChange={set("sexe")}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-teal-500">
+                  <option value="">-- Sélectionner --</option>
+                  <option value="MASCULIN">Masculin</option>
+                  <option value="FEMININ">Féminin</option>
+                  <option value="AUTRE">Autre</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Date de naissance</label>
+                <input type="date" value={form.dateNaissance} onChange={set("dateNaissance")}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-teal-500" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Tél. principal <span className="text-red-500">*</span></label>
+                <input required type="tel" value={form.telephone} onChange={set("telephone")}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-teal-500" placeholder="07XXXXXXXX" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Tél. secondaire</label>
+                <input type="tel" value={form.telephoneSecondaire} onChange={set("telephoneSecondaire")}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-teal-500" placeholder="Optionnel" />
+              </div>
+              <div className="col-span-2">
+                <label className="block text-xs font-medium text-slate-600 mb-1">N° CNI / Pièce d&apos;identité</label>
+                <input value={form.numeroCNI} onChange={set("numeroCNI")}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-teal-500" placeholder="Numéro de la pièce d'identité" />
+              </div>
+            </div>
+          </section>
+
+          {/* ─ Localisation ─ */}
+          <section>
+            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Localisation</p>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="col-span-2">
+                <label className="block text-xs font-medium text-slate-600 mb-1">Adresse</label>
+                <input value={form.adresse} onChange={set("adresse")}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-teal-500" placeholder="Rue, numéro…" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Quartier</label>
+                <input value={form.quartier} onChange={set("quartier")}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-teal-500" placeholder="Quartier" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Ville</label>
+                <input value={form.ville} onChange={set("ville")}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-teal-500" placeholder="Ville" />
+              </div>
+              <div className="col-span-2">
+                <label className="block text-xs font-medium text-slate-600 mb-1 flex items-center gap-1">
+                  <Navigation size={12} /> Position GPS
+                </label>
+                {form.latitude && form.longitude ? (
+                  <div className="flex items-center gap-2">
+                    <span className="flex-1 px-3 py-2 bg-teal-50 border border-teal-200 rounded-lg text-sm text-teal-700 flex items-center gap-2">
+                      <Navigation size={13} /> {Number(form.latitude).toFixed(5)}, {Number(form.longitude).toFixed(5)}
+                    </span>
+                    <button type="button" onClick={() => setForm(f => ({ ...f, latitude: "", longitude: "" }))}
+                      className="p-2 text-red-400 hover:text-red-600 rounded-lg hover:bg-red-50"><X size={14} /></button>
+                  </div>
+                ) : (
+                  <button type="button" onClick={handleGeo} disabled={geoLoading}
+                    className="w-full flex items-center justify-center gap-2 px-3 py-2.5 border border-dashed border-slate-300 rounded-lg text-sm text-slate-600 hover:bg-slate-50 disabled:opacity-50">
+                    {geoLoading ? <><Loader2 size={14} className="animate-spin" /> Localisation…</> : <><Navigation size={14} /> Obtenir ma position GPS</>}
+                  </button>
+                )}
+                {geoError && <p className="text-xs text-red-500 mt-1">{geoError}</p>}
+              </div>
+            </div>
+          </section>
+
+          {/* ─ Activité & commerce ─ */}
+          <section>
+            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Activité & commerce</p>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Activité / Métier</label>
+                <input value={form.activite} onChange={set("activite")}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-teal-500" placeholder="Commerçant, Agriculteur…" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Nom du commerce</label>
+                <input value={form.nomCommerce} onChange={set("nomCommerce")}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-teal-500" placeholder="Nom de la boutique" />
+              </div>
+            </div>
+          </section>
+
+          <p className="text-xs text-blue-600 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
+            Le plafond de crédit est fixé par l&apos;administrateur après la création du client.
+          </p>
+
+          {/* Footer */}
+          <div className="flex gap-3 pt-1">
+            <button type="button" onClick={onClose}
+              className="flex-1 py-2.5 border border-slate-200 text-slate-700 rounded-xl hover:bg-slate-50 text-sm font-medium">Annuler</button>
+            <button type="submit" disabled={loading}
+              className="flex-1 py-2.5 bg-teal-600 text-white rounded-xl hover:bg-teal-700 disabled:opacity-50 text-sm font-medium flex items-center justify-center gap-2">
+              {loading ? <><Loader2 size={14} className="animate-spin" /> Enregistrement…</> : "Ajouter le client"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ─── Modal Nouveau Crédit (agent terrain) ─────────────────────────────────────
+
+function ModalNouveauCredit({
+  client,
+  onClose,
+  onSuccess,
+}: {
+  client: Client;
+  onClose: () => void;
+  onSuccess: () => void;
+}) {
+  const disponible = Number(client.limiteCredit ?? 0) - Number(client.soldeActuel ?? 0);
+  const [montant, setMontant] = useState("");
+  const [dureeJours, setDureeJours] = useState("30");
+  const [dateDebut, setDateDebut] = useState(new Date().toISOString().slice(0, 10));
+  const [garantie, setGarantie] = useState("");
+  const [observations, setObservations] = useState("");
+
+  const { mutate, loading } = useMutation<unknown, object>(
+    "/api/agentTerrain/credits", "POST",
+    { successMessage: "Demande de crédit soumise ! En attente de validation admin." }
+  );
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const res = await mutate({
+      clientId: client.id,
+      montantTotal: parseFloat(montant),
+      dureeJours: parseInt(dureeJours),
+      dateDebut,
+      garantie: garantie || undefined,
+      observations: observations || undefined,
+    });
+    if (res) { onSuccess(); onClose(); }
+  }
+
+  const montantNum = parseFloat(montant) || 0;
+  const montantJournalier = dureeJours && montantNum > 0
+    ? (montantNum / parseInt(dureeJours)).toFixed(0)
+    : "—";
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-xl font-bold text-slate-800">Demande de crédit</h2>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={20} /></button>
+        </div>
+
+        {/* Info client + plafond */}
+        <div className="p-4 rounded-xl bg-blue-50 border border-blue-200 mb-5 space-y-2">
+          <p className="text-sm font-semibold text-slate-800">{client.prenom} {client.nom}</p>
+          <div className="flex justify-between text-xs text-slate-500">
+            <span>Plafond admin</span>
+            <span className="font-semibold text-slate-700">{formatCurrency(Number(client.limiteCredit))}</span>
+          </div>
+          <div className="flex justify-between text-xs text-slate-500">
+            <span>Solde en cours</span>
+            <span className="font-semibold text-orange-600">{formatCurrency(Number(client.soldeActuel ?? 0))}</span>
+          </div>
+          <div className="flex justify-between text-xs border-t border-blue-100 pt-1">
+            <span className="text-slate-500">Disponible</span>
+            <span className={`font-bold ${disponible > 0 ? "text-emerald-600" : "text-red-600"}`}>
+              {formatCurrency(Math.max(0, disponible))}
+            </span>
+          </div>
+        </div>
+
+        {disponible <= 0 ? (
+          <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700 text-center">
+            Limite de crédit atteinte. Aucun nouveau crédit possible.
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Montant demandé (FCFA) *</label>
+              <input type="number" required min="1" max={disponible} value={montant}
+                onChange={(e) => setMontant(e.target.value)}
+                className={`w-full border rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${montantNum > disponible ? "border-red-400 bg-red-50" : "border-slate-200"}`}
+                placeholder={`Max : ${formatCurrency(disponible)}`} />
+              {montantNum > disponible && (
+                <p className="text-xs text-red-600 mt-1">Dépasse le disponible ({formatCurrency(disponible)})</p>
+              )}
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Durée (jours) *</label>
+                <input type="number" required min="1" value={dureeJours}
+                  onChange={(e) => setDureeJours(e.target.value)}
+                  className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Paiement/jour</label>
+                <div className="w-full border border-slate-100 rounded-xl px-3 py-2.5 text-sm bg-slate-50 text-teal-700 font-semibold">
+                  {montantJournalier !== "—" ? `${Number(montantJournalier).toLocaleString("fr-FR")} FCFA` : "—"}
+                </div>
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Date de début *</label>
+              <input type="date" required value={dateDebut}
+                onChange={(e) => setDateDebut(e.target.value)}
+                className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Garantie (optionnel)</label>
+              <input value={garantie} onChange={(e) => setGarantie(e.target.value)}
+                className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Ex : Téléphone, moto…" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Observations (optionnel)</label>
+              <textarea value={observations} onChange={(e) => setObservations(e.target.value)} rows={2}
+                className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                placeholder="Motif, contexte…" />
+            </div>
+            <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+              La demande sera soumise à validation par l&apos;administrateur avant activation.
+            </p>
+            <div className="flex gap-3 pt-1">
+              <button type="button" onClick={onClose}
+                className="flex-1 py-2.5 border border-slate-200 text-slate-700 rounded-xl hover:bg-slate-50 text-sm font-medium">Annuler</button>
+              <button type="submit" disabled={loading || montantNum <= 0 || montantNum > disponible}
+                className="flex-1 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-50 text-sm font-medium flex items-center justify-center gap-2">
+                {loading ? <><Loader2 size={14} className="animate-spin" /> Envoi…</> : <><Send size={14} /> Soumettre la demande</>}
+              </button>
+            </div>
+          </form>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── Page principale ──────────────────────────────────────────────────────────
 
-type TabKey = "prospects" | "packs" | "livraisons" | "ventes";
+type TabKey = "prospects" | "packs" | "livraisons" | "ventes" | "collecteJour" | "credits";
 
 export default function AgentTerrainPage() {
   const t = useT();
@@ -304,7 +982,14 @@ export default function AgentTerrainPage() {
   const [packTypeFilter, setPackTypeFilter] = useState("");
   const [collectTarget, setCollectTarget] = useState<Souscription | null>(null);
   const [addClientModal, setAddClientModal] = useState(false);
-  const [clientForm, setClientForm]     = useState({ nom: "", prenom: "", telephone: "", adresse: "" });
+  const [nouveauCreditClient, setNouveauCreditClient] = useState<Client | null>(null);
+
+  // ── Collecte du Jour ──
+  const [encaisserTarget, setEncaisserTarget] = useState<EncaisserTarget | null>(null);
+  const [expandedClientId, setExpandedClientId] = useState<number | null>(null);
+
+  // ── Crédits ──
+  const [rembourserCredit, setRembourserCredit] = useState<CreditItem | null>(null);
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(searchQuery), 400);
@@ -325,6 +1010,15 @@ export default function AgentTerrainPage() {
     useApi<PacksResponse>(`/api/agentTerrain/packs?${packParams}`);
   const { data: livraisonsResponse, loading: livraisonsLoading, refetch: refetchLivraisons } =
     useApi<LivraisonsResponse>("/api/agentTerrain/livraisons");
+  const { data: collecteJourData, loading: collecteJourLoading, refetch: refetchCollecteJour } =
+    useApi<CollecteJourResponse>(activeTab === "collecteJour" ? "/api/agentTerrain/collecteJour" : null);
+  const { data: creditsData, loading: creditsLoading, refetch: refetchCredits } =
+    useApi<CreditsResponse>(activeTab === "credits" ? "/api/agentTerrain/credits" : null);
+
+  const { mutate: demarrerSession, loading: demarrantSession } = useMutation<unknown, object>(
+    "/api/agentTerrain/collecteJour", "POST",
+    { successMessage: "Tournée démarrée !" }
+  );
 
   const [confirmingId, setConfirmingId] = useState<number | null>(null);
 
@@ -363,12 +1057,10 @@ export default function AgentTerrainPage() {
   const ventesData      = ventesRes?.data ?? [];
   const produitsDispo   = (ventesRes?.produitsDispo ?? []) as StockDispoItem[];
   const clientsDispo    = ventesRes?.clients ?? [];
-  const ventesEnAttente = ventesData.filter(v => v.statut === "BROUILLON").length;
+  const ventesEnAttente = ventesData.filter(v => v.statut === "BROUILLON" || v.statut === "CREDIT_REQUEST").length;
 
   const { mutate: submitVente, loading: venteSubmitLoading } =
-    useMutation<unknown, object>("/api/agentTerrain/ventes", "POST", {
-      successMessage: "Demande envoyée au RPV pour confirmation !",
-    });
+    useMutation<unknown, object>("/api/agentTerrain/ventes", "POST");
 
   const { mutate: doCancelVente } = useMutation<unknown, object>(
     () => cancelVenteIdRef.current ? `/api/agentTerrain/ventes/${cancelVenteIdRef.current}` : "",
@@ -384,6 +1076,11 @@ export default function AgentTerrainPage() {
 
   const handleSubmitVente = async (e: React.FormEvent) => {
     e.preventDefault();
+    const isCredit = vModePaiement === "CREDIT";
+    if (isCredit && !vClientId) {
+      toast.error("Sélectionnez un client enregistré pour une vente à crédit.");
+      return;
+    }
     const lignesValides = vLignes.filter(l => l.produitId && l.quantite);
     if (!lignesValides.length) return;
     const montantTotal = lignesValides.reduce((s, l) => {
@@ -392,7 +1089,7 @@ export default function AgentTerrainPage() {
     }, 0);
     const res = await submitVente({
       modePaiement: vModePaiement,
-      montantPaye: Number(vMontantPaye) || montantTotal,
+      montantPaye: isCredit ? 0 : (Number(vMontantPaye) || montantTotal),
       clientId: vClientId || undefined,
       clientNom: !vClientId ? vClientNom || undefined : undefined,
       clientTelephone: !vClientId ? vClientTel || undefined : undefined,
@@ -404,6 +1101,11 @@ export default function AgentTerrainPage() {
       })),
     });
     if (res) {
+      if (isCredit) {
+        toast.success("Demande de crédit envoyée au Responsable Crédit !");
+      } else {
+        toast.success("Vente enregistrée — stock mis à jour !");
+      }
       setShowVenteForm(false);
       setVClientId(""); setVClientNom(""); setVClientTel("");
       setVMontantPaye(""); setVNotes("");
@@ -432,38 +1134,31 @@ export default function AgentTerrainPage() {
     return s + Number(l.quantite) * prix;
   }, 0);
 
-  const { mutate: addClient, loading: addingClient } = useMutation(
-    "/api/agentTerrain/clients", "POST", { successMessage: "Client ajouté !" }
-  );
-
   const clients        = clientsResponse?.data ?? [];
   const clientsMeta    = clientsResponse?.meta;
   const souscriptions  = packsResponse?.souscriptions ?? [];
   const packStats      = packsResponse?.stats;
 
-  const refetchAll = () => { refetchClients(); refetchPacks(); };
-
-  // ── Handlers ──
-  const handleAddClient = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const res = await addClient(clientForm);
-    if (res) {
-      setAddClientModal(false);
-      setClientForm({ nom: "", prenom: "", telephone: "", adresse: "" });
-      refetchClients();
-    }
+  const refetchAll = () => {
+    refetchClients(); refetchPacks();
+    if (activeTab === "collecteJour") refetchCollecteJour();
+    if (activeTab === "credits") refetchCredits();
   };
 
   // ── Stat cards ──
   const statCards = [
     { label: "Clients", value: String(clientsMeta?.total ?? 0), subtitle: "Portefeuille", icon: Users, color: "text-blue-500", lightBg: "bg-blue-50" },
     { label: "Souscriptions actives", value: String(packStats?.total ?? 0), subtitle: "À collecter", icon: Layers, color: "text-teal-500", lightBg: "bg-teal-50" },
-    { label: "Montant restant", value: formatCurrency(packStats?.totalMontantRestant ?? 0), subtitle: "Total à collecter", icon: Banknote, color: "text-emerald-500", lightBg: "bg-emerald-50" },
+    { label: "Montant restant", value: formatCurrency(packStats?.totalMontantRestant ?? 0), subtitle: "Total packs à collecter", icon: Banknote, color: "text-emerald-500", lightBg: "bg-emerald-50" },
+    { label: "Crédits actifs", value: String(creditsData?.stats.total ?? "—"), subtitle: formatCurrency(creditsData?.stats.totalSolde ?? 0) + " restant", icon: CreditCard, color: "text-blue-600", lightBg: "bg-blue-50" },
     { label: "Échéances en retard", value: String(packStats?.enRetard ?? 0), subtitle: "Paiements dépassés", icon: AlertCircle, color: "text-red-500", lightBg: "bg-red-50" },
-    { label: "Souscriptions échues", value: String(packStats?.expirees ?? 0), subtitle: "Suspendues automatiquement", icon: XCircle, color: "text-amber-600", lightBg: "bg-amber-50" },
   ];
 
   const allTabs: { key: TabKey; label: string; icon: LucideIcon; badge?: number }[] = [
+    { key: "collecteJour", label: "Collecte du Jour", icon: ClipboardList,
+      badge: collecteJourData?.stats.retardsCritiques ?? 0 },
+    { key: "credits",     label: "Crédits",          icon: CreditCard,
+      badge: creditsData?.stats.enRetard ?? 0 },
     { key: "packs",       label: "Collecte Packs",   icon: Banknote },
     { key: "livraisons",  label: "Livraisons Pack",  icon: Truck,
       badge: livraisonsResponse?.stats.totalPlanifiees ?? 0 },
@@ -582,6 +1277,377 @@ export default function AgentTerrainPage() {
             )}
           </div>
         </div>
+
+        {/* ── TAB : COLLECTE DU JOUR ── */}
+        {activeTab === "collecteJour" && (
+          <div className="space-y-5">
+            {collecteJourLoading && !collecteJourData ? (
+              <div className="bg-white rounded-2xl p-12 text-center border border-slate-200">
+                <Loader2 className="w-8 h-8 text-teal-500 animate-spin mx-auto" />
+              </div>
+            ) : !collecteJourData?.session ? (
+              /* ── Étape 1 : Pas de session ── */
+              <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+                <div className="px-6 py-5 bg-gradient-to-r from-teal-600 to-emerald-600 text-white">
+                  <h3 className="text-lg font-bold mb-1">Aucune tournée démarrée aujourd&apos;hui</h3>
+                  <p className="text-teal-100 text-sm">Démarrez votre session pour commencer les encaissements avec traçabilité GPS.</p>
+                </div>
+                <div className="p-6">
+                  {/* Mini-stats d'aperçu */}
+                  <div className="grid grid-cols-3 gap-4 mb-6">
+                    <div className="text-center p-4 bg-slate-50 rounded-xl">
+                      <p className="text-2xl font-bold text-slate-800">{collecteJourData?.stats.totalClients ?? 0}</p>
+                      <p className="text-xs text-slate-500 mt-1">Clients</p>
+                    </div>
+                    <div className="text-center p-4 bg-teal-50 rounded-xl">
+                      <p className="text-lg font-bold text-teal-700">
+                        {formatCurrency(collecteJourData?.stats.totalACollecter ?? 0)}
+                      </p>
+                      <p className="text-xs text-slate-500 mt-1">À collecter</p>
+                    </div>
+                    <div className="text-center p-4 bg-red-50 rounded-xl">
+                      <p className="text-2xl font-bold text-red-600">{collecteJourData?.stats.retardsCritiques ?? 0}</p>
+                      <p className="text-xs text-slate-500 mt-1">Retards</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={async () => {
+                      const res = await demarrerSession({});
+                      if (res) refetchCollecteJour();
+                    }}
+                    disabled={demarrantSession}
+                    className="w-full py-3.5 bg-teal-600 text-white rounded-xl hover:bg-teal-700 font-semibold text-sm flex items-center justify-center gap-2 shadow-lg shadow-teal-200 disabled:opacity-60"
+                  >
+                    {demarrantSession
+                      ? <><Loader2 size={16} className="animate-spin" /> Démarrage…</>
+                      : <><PlayCircle size={18} /> Démarrer la tournée du jour</>}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              /* ── Étape 2 : Session active ── */
+              <>
+                {/* Barre de progression */}
+                {(() => {
+                  const s = collecteJourData.session!;
+                  const prevu = Number(s.montantPrevu);
+                  const collecte = Number(s.montantCollecte);
+                  const pct = prevu > 0 ? Math.min(100, Math.round((collecte / prevu) * 100)) : 0;
+                  return (
+                    <div className="bg-white rounded-2xl border border-teal-200 p-5">
+                      <div className="flex items-center justify-between mb-3">
+                        <div>
+                          <span className="font-mono text-xs bg-teal-100 text-teal-700 px-2 py-0.5 rounded">{s.reference}</span>
+                          <span className={`ml-2 text-xs font-semibold px-2 py-0.5 rounded-full ${s.statut === "EN_COURS" ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-600"}`}>
+                            {s.statut === "EN_COURS" ? "En cours" : s.statut === "VALIDEE" ? "Validée" : s.statut}
+                          </span>
+                        </div>
+                        <button onClick={refetchCollecteJour} className="p-2 text-slate-400 hover:text-teal-600 rounded-lg hover:bg-slate-50">
+                          <RefreshCw size={14} />
+                        </button>
+                      </div>
+                      <div className="grid grid-cols-3 gap-3 mb-3">
+                        <div className="text-center p-3 bg-slate-50 rounded-xl">
+                          <p className="text-xs text-slate-500 mb-0.5">Prévu</p>
+                          <p className="text-sm font-bold text-slate-700">{formatCurrency(prevu)}</p>
+                        </div>
+                        <div className="text-center p-3 bg-emerald-50 rounded-xl">
+                          <p className="text-xs text-slate-500 mb-0.5">Collecté</p>
+                          <p className="text-sm font-bold text-emerald-700">{formatCurrency(collecte)}</p>
+                        </div>
+                        <div className="text-center p-3 bg-red-50 rounded-xl">
+                          <p className="text-xs text-slate-500 mb-0.5">Restant</p>
+                          <p className="text-sm font-bold text-red-600">{formatCurrency(Math.max(0, prevu - collecte))}</p>
+                        </div>
+                      </div>
+                      <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                        <div className="h-full bg-teal-500 rounded-full transition-all" style={{ width: `${pct}%` }} />
+                      </div>
+                      <p className="text-xs text-slate-400 mt-1 text-right">{pct}% collecté</p>
+                    </div>
+                  );
+                })()}
+
+                {/* Liste des clients */}
+                <div className="space-y-3">
+                  {collecteJourData.clients.length === 0 && (
+                    <div className="bg-white rounded-2xl p-12 text-center border border-slate-200">
+                      <Users className="w-10 h-10 text-slate-300 mx-auto mb-3" />
+                      <p className="text-slate-500">Aucun client à collecter aujourd&apos;hui</p>
+                    </div>
+                  )}
+                  {collecteJourData.clients.map((client) => {
+                    const totalClient = [
+                      ...client.souscriptionsPacks.map(s => Number(s.montantRestant)),
+                      ...client.creditsClients.map(c => Number(c.soldeRestant)),
+                    ].reduce((a, b) => a + b, 0);
+                    const hasRetard =
+                      client.souscriptionsPacks.some(s => s.echeances[0]?.statut === "EN_RETARD") ||
+                      client.creditsClients.some(c => c.echeances[0]?.statut === "EN_RETARD");
+                    const isExpanded = expandedClientId === client.id;
+
+                    return (
+                      <div key={client.id} className={`bg-white rounded-2xl border ${hasRetard ? "border-red-200" : "border-slate-200"} shadow-sm overflow-hidden`}>
+                        {/* Client header */}
+                        <button
+                          className="w-full p-5 flex items-center justify-between hover:bg-slate-50 transition-colors text-left"
+                          onClick={() => setExpandedClientId(isExpanded ? null : client.id)}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-gradient-to-br from-teal-500 to-emerald-500 rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0">
+                              {client.prenom[0]}{client.nom[0]}
+                            </div>
+                            <div>
+                              <p className="font-bold text-slate-800">{client.prenom} {client.nom}</p>
+                              <p className="text-xs text-slate-500 flex items-center gap-1">
+                                <Phone size={11} />{client.telephone}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            {totalClient > 0 ? (
+                              <span className={`text-sm font-bold ${hasRetard ? "text-red-600" : "text-teal-700"}`}>
+                                {formatCurrency(totalClient)}
+                              </span>
+                            ) : (
+                              <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-medium">À jour</span>
+                            )}
+                            {isExpanded ? <ChevronUp size={16} className="text-slate-400" /> : <ChevronDown size={16} className="text-slate-400" />}
+                          </div>
+                        </button>
+
+                        {/* Détail expandé */}
+                        {isExpanded && (
+                          <div className="border-t border-slate-100 px-5 py-4 space-y-3">
+                            {/* Souscriptions packs */}
+                            {client.souscriptionsPacks.map((souscription) => {
+                              const prochaine = souscription.echeances[0];
+                              const retard = prochaine?.statut === "EN_RETARD";
+                              return (
+                                <div key={souscription.id} className={`flex items-center justify-between gap-3 p-3 rounded-xl ${retard ? "bg-red-50" : "bg-slate-50"}`}>
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2 mb-0.5">
+                                      <span className={`text-xs font-semibold px-1.5 py-0.5 rounded-full ${PACK_COLORS[souscription.pack.type].badge}`}>
+                                        {PACK_LABELS[souscription.pack.type]}
+                                      </span>
+                                      <span className="text-xs text-slate-600 truncate">{souscription.pack.nom}</span>
+                                    </div>
+                                    <p className="text-xs text-slate-500">
+                                      Restant : <span className="font-semibold text-slate-700">{formatCurrency(Number(souscription.montantRestant))}</span>
+                                      {prochaine && <span className="ml-1">— Éch. : {formatCurrency(Number(prochaine.montant))} {retard && "⚠"}</span>}
+                                    </p>
+                                  </div>
+                                  <button
+                                    onClick={() => setEncaisserTarget({
+                                      type: "PACK",
+                                      souscriptionId: souscription.id,
+                                      label: `Pack ${souscription.pack.nom}`,
+                                      clientNom: `${client.prenom} ${client.nom}`,
+                                      montantAttendu: prochaine ? Number(prochaine.montant) : Number(souscription.montantRestant),
+                                    })}
+                                    className="shrink-0 px-3 py-1.5 bg-teal-600 text-white rounded-lg hover:bg-teal-700 text-xs font-medium flex items-center gap-1"
+                                  >
+                                    <Banknote size={12} /> Encaisser
+                                  </button>
+                                </div>
+                              );
+                            })}
+
+                            {/* Crédits */}
+                            {client.creditsClients.map((credit) => {
+                              const prochaine = credit.echeances[0];
+                              const retard = prochaine?.statut === "EN_RETARD";
+                              return (
+                                <div key={credit.id} className={`flex items-center justify-between gap-3 p-3 rounded-xl ${retard ? "bg-red-50" : "bg-blue-50"}`}>
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2 mb-0.5">
+                                      <span className="text-xs font-semibold px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700">Crédit</span>
+                                      <span className="font-mono text-xs text-slate-500 truncate">{credit.reference}</span>
+                                    </div>
+                                    <p className="text-xs text-slate-500">
+                                      Solde : <span className="font-semibold text-slate-700">{formatCurrency(Number(credit.soldeRestant))}</span>
+                                      <span className="ml-1">— {formatCurrency(Number(credit.montantJournalier))}/j {retard && "⚠"}</span>
+                                    </p>
+                                  </div>
+                                  <button
+                                    onClick={() => setEncaisserTarget({
+                                      type: "CREDIT",
+                                      creditId: credit.id,
+                                      label: `Crédit ${credit.reference}`,
+                                      clientNom: `${client.prenom} ${client.nom}`,
+                                      montantAttendu: Number(credit.montantJournalier),
+                                    })}
+                                    className="shrink-0 px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-xs font-medium flex items-center gap-1"
+                                  >
+                                    <Wallet size={12} /> Encaisser
+                                  </button>
+                                </div>
+                              );
+                            })}
+
+                            {client.souscriptionsPacks.length === 0 && client.creditsClients.length === 0 && (
+                              <p className="text-xs text-slate-400 text-center py-2">Aucune dette active</p>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Résumé lignes collectées */}
+                {(collecteJourData.session?.lignes?.length ?? 0) > 0 && (
+                  <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+                    <div className="px-5 py-3 bg-emerald-50 border-b border-emerald-100 flex items-center gap-2">
+                      <CheckCircle size={16} className="text-emerald-600" />
+                      <h3 className="font-semibold text-slate-800 text-sm">
+                        Encaissements de la session ({collecteJourData.session!.lignes.length})
+                      </h3>
+                    </div>
+                    <div className="divide-y divide-slate-100">
+                      {collecteJourData.session!.lignes.map((ligne) => (
+                        <div key={ligne.id} className="px-5 py-3 flex items-center justify-between">
+                          <div>
+                            <p className="text-sm font-medium text-slate-800">
+                              {ligne.client.prenom} {ligne.client.nom}
+                            </p>
+                            <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${
+                              ligne.statut === "COLLECTE" ? "bg-emerald-100 text-emerald-700" :
+                              ligne.statut === "PARTIEL"  ? "bg-amber-100 text-amber-700" :
+                              "bg-slate-100 text-slate-600"
+                            }`}>{ligne.statut}</span>
+                          </div>
+                          <p className="text-sm font-bold text-emerald-700">{formatCurrency(Number(ligne.montantCollecte))}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        )}
+
+        {/* ── TAB : CRÉDITS ── */}
+        {activeTab === "credits" && (
+          <div className="space-y-5">
+            {creditsLoading && !creditsData ? (
+              <div className="bg-white rounded-2xl p-12 text-center border border-slate-200">
+                <Loader2 className="w-8 h-8 text-blue-500 animate-spin mx-auto" />
+              </div>
+            ) : (
+              <>
+                {/* Stats */}
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200 flex items-center gap-4">
+                    <div className="w-11 h-11 bg-blue-50 rounded-xl flex items-center justify-center shrink-0">
+                      <CreditCard className="w-5 h-5 text-blue-600" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-slate-500">Crédits actifs</p>
+                      <p className="text-2xl font-bold text-slate-800">{creditsData?.stats.total ?? 0}</p>
+                    </div>
+                  </div>
+                  <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200 flex items-center gap-4">
+                    <div className="w-11 h-11 bg-teal-50 rounded-xl flex items-center justify-center shrink-0">
+                      <TrendingDown className="w-5 h-5 text-teal-600" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-slate-500">Solde total</p>
+                      <p className="text-lg font-bold text-teal-700">{formatCurrency(creditsData?.stats.totalSolde ?? 0)}</p>
+                    </div>
+                  </div>
+                  <div className="bg-white rounded-2xl p-5 shadow-sm border border-red-200 flex items-center gap-4">
+                    <div className="w-11 h-11 bg-red-50 rounded-xl flex items-center justify-center shrink-0">
+                      <AlertCircle className="w-5 h-5 text-red-600" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-slate-500">En retard</p>
+                      <p className="text-2xl font-bold text-red-600">{creditsData?.stats.enRetard ?? 0}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Liste des crédits */}
+                {(creditsData?.credits.length ?? 0) === 0 ? (
+                  <div className="bg-white rounded-2xl p-12 text-center border border-slate-200">
+                    <CreditCard className="w-10 h-10 text-slate-300 mx-auto mb-3" />
+                    <p className="text-slate-500">Aucun crédit actif dans votre portefeuille</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {creditsData!.credits.map((credit) => {
+                      const prochaine = credit.echeances[0];
+                      const retard = credit.statut === "EN_RETARD";
+                      const pctRembourse = Number(credit.montantTotal) > 0
+                        ? Math.min(100, Math.round((Number(credit.montantRembourse) / Number(credit.montantTotal)) * 100))
+                        : 0;
+                      return (
+                        <div key={credit.id} className={`bg-white rounded-2xl border ${retard ? "border-red-300" : "border-slate-200"} p-5 shadow-sm`}>
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-1 flex-wrap">
+                                <span className="font-bold text-slate-800">{credit.client.prenom} {credit.client.nom}</span>
+                                <span className="text-xs text-slate-500 flex items-center gap-1">
+                                  <Phone size={10} />{credit.client.telephone}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2 mb-3">
+                                <span className="font-mono text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded">{credit.reference}</span>
+                                <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${retard ? "bg-red-100 text-red-700" : "bg-emerald-100 text-emerald-700"}`}>
+                                  {retard ? "En retard" : "Actif"}
+                                </span>
+                              </div>
+                              {/* Barre de progression */}
+                              <div className="mb-3">
+                                <div className="flex justify-between text-xs text-slate-500 mb-1">
+                                  <span>{formatCurrency(Number(credit.montantRembourse))} remboursé</span>
+                                  <span>{formatCurrency(Number(credit.soldeRestant))} restant</span>
+                                </div>
+                                <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                                  <div className="h-full bg-blue-500 rounded-full transition-all" style={{ width: `${pctRembourse}%` }} />
+                                </div>
+                                <p className="text-xs text-slate-400 mt-0.5">{pctRembourse}% remboursé</p>
+                              </div>
+                              {/* Prochaine échéance */}
+                              {prochaine ? (
+                                <div className={`flex items-center gap-2 text-xs rounded-lg px-3 py-2 ${retard ? "bg-red-50 text-red-700" : "bg-slate-50 text-slate-600"}`}>
+                                  {retard ? <AlertCircle size={12} className="text-red-500 shrink-0" /> : <Calendar size={12} className="text-slate-400 shrink-0" />}
+                                  <span>
+                                    Éch. du {formatDate(prochaine.dateEcheance)} —{" "}
+                                    <strong>{formatCurrency(Number(prochaine.montantDu) - Number(prochaine.montantPaye))}</strong>
+                                    {retard && <span className="ml-1 font-bold">⚠ EN RETARD</span>}
+                                  </span>
+                                </div>
+                              ) : (
+                                <div className="flex items-center gap-2 text-xs text-emerald-600 bg-emerald-50 rounded-lg px-3 py-2">
+                                  <CheckCircle size={12} className="shrink-0" />
+                                  <span>Échéances à jour</span>
+                                </div>
+                              )}
+                              {/* Derniers remboursements */}
+                              {credit.remboursements.length > 0 && (
+                                <p className="text-xs text-slate-400 mt-2">
+                                  Dernier rembours. : {formatCurrency(Number(credit.remboursements[0].montant))} le {formatDate(credit.remboursements[0].dateRemboursement)}
+                                </p>
+                              )}
+                            </div>
+                            <button
+                              onClick={() => setRembourserCredit(credit)}
+                              className="shrink-0 flex items-center gap-1.5 px-4 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 text-sm font-medium shadow-sm"
+                            >
+                              <Wallet size={15} /> Rembourser
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        )}
 
         {/* ── TAB : COLLECTE PACKS ── */}
         {activeTab === "packs" && (
@@ -834,45 +1900,104 @@ export default function AgentTerrainPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-slate-500">
-                  {t('field_direct_sale_help')}
+                  Enregistrez une vente comptant ou soumettez une demande de vente à crédit.
                 </p>
               </div>
               <button
                 onClick={() => setShowVenteForm(v => !v)}
                 className="flex items-center gap-2 px-4 py-2.5 bg-teal-600 text-white rounded-xl hover:bg-teal-700 text-sm font-medium shadow-lg shadow-teal-200"
               >
-                <Plus size={16} /> {t("field_new_request")}
+                <Plus size={16} /> Nouvelle vente
               </button>
             </div>
 
             {/* Formulaire création vente */}
             {showVenteForm && (
-              <div className="bg-white rounded-2xl border border-teal-200 shadow-sm overflow-hidden">
-                <div className="px-6 py-4 border-b border-teal-200 bg-teal-50 flex items-center justify-between">
+              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                <div className="px-6 py-4 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <ShoppingCart size={18} className="text-teal-600" />
-                    <h3 className="font-bold text-slate-800">{t("field_new_direct_sale_request")}</h3>
+                    <h3 className="font-bold text-slate-800">Nouvelle vente</h3>
                   </div>
-                  <button onClick={() => setShowVenteForm(false)} className="p-1 text-slate-400 hover:text-slate-600 rounded-lg"><X size={16} /></button>
+                  <button onClick={() => { setShowVenteForm(false); setVModePaiement("ESPECES"); }} className="p-1 text-slate-400 hover:text-slate-600 rounded-lg"><X size={16} /></button>
                 </div>
                 <form onSubmit={handleSubmitVente} className="p-5 space-y-4">
-                  <p className="text-xs text-blue-700 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
-                    {t('field_request_flow')}
-                  </p>
+
+                  {/* ── Étape 1 : Choix du mode ── */}
+                  <div>
+                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Étape 1 — Mode de vente</p>
+                    <div className="grid grid-cols-2 gap-3">
+                      <button
+                        type="button"
+                        onClick={() => { setVModePaiement("ESPECES"); setVMontantPaye(""); }}
+                        className={`flex flex-col items-center gap-1.5 py-4 rounded-xl border-2 font-semibold text-sm transition-all ${vModePaiement !== "CREDIT" ? "border-teal-500 bg-teal-50 text-teal-700" : "border-slate-200 bg-white text-slate-500 hover:border-slate-300"}`}
+                      >
+                        <span className="text-2xl">💵</span>
+                        <span>Vente Comptant</span>
+                        <span className="text-xs font-normal opacity-70">Payé immédiatement</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { setVModePaiement("CREDIT"); setVMontantPaye(""); setVClientNom(""); setVClientTel(""); }}
+                        className={`flex flex-col items-center gap-1.5 py-4 rounded-xl border-2 font-semibold text-sm transition-all ${vModePaiement === "CREDIT" ? "border-amber-500 bg-amber-50 text-amber-700" : "border-slate-200 bg-white text-slate-500 hover:border-slate-300"}`}
+                      >
+                        <span className="text-2xl">🏦</span>
+                        <span>Vente à Crédit</span>
+                        <span className="text-xs font-normal opacity-70">Validation RVC requise</span>
+                      </button>
+                    </div>
+                    {vModePaiement === "CREDIT" && (
+                      <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mt-2">
+                        La demande sera envoyée au Responsable Crédit. Le stock ne sera pas débité tant que le crédit n&apos;est pas approuvé.
+                      </p>
+                    )}
+                    {vModePaiement !== "CREDIT" && (
+                      <div className="flex items-center gap-2 mt-2">
+                        <select value={vModePaiement} onChange={e => setVModePaiement(e.target.value)}
+                          className="px-3 py-1.5 border border-slate-200 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-teal-500">
+                          <option value="ESPECES">Espèces</option>
+                          <option value="MOBILE_MONEY">Mobile Money</option>
+                          <option value="VIREMENT">Virement</option>
+                        </select>
+                        <span className="text-xs text-slate-400">Précisez le moyen de paiement</span>
+                      </div>
+                    )}
+                  </div>
+
+                  <hr className="border-slate-100" />
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Étape 2 — Détails de la vente</p>
 
                   {/* Client */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-xs font-medium text-slate-600 mb-1">{t('client_from_pdv')}</label>
+                      <label className="block text-xs font-medium text-slate-600 mb-1">
+                        Client {vModePaiement === "CREDIT" && <span className="text-red-500">* (obligatoire pour un crédit)</span>}
+                      </label>
                       <select value={vClientId} onChange={e => { setVClientId(e.target.value); setVClientNom(""); setVClientTel(""); }}
                         className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-teal-500">
-                        <option value="">— {t('manual_entry')} —</option>
+                        <option value="">— Saisie manuelle —</option>
                         {clientsDispo.map(c => (
                           <option key={c.id} value={c.id}>{c.prenom} {c.nom} ({c.telephone})</option>
                         ))}
                       </select>
                     </div>
-                    {!vClientId && (
+                    {/* Afficher info crédit du client sélectionné en mode CRÉDIT */}
+                    {vModePaiement === "CREDIT" && vClientId && (() => {
+                      const sel = clientsDispo.find(c => String(c.id) === vClientId);
+                      if (!sel) return null;
+                      const limite = Number(sel.limiteCredit ?? 0);
+                      const solde  = Number(sel.soldeActuel  ?? 0);
+                      const dispo  = limite - solde;
+                      return (
+                        <div className={`text-xs px-3 py-2 rounded-lg border ${dispo > 0 ? "bg-green-50 border-green-200 text-green-700" : "bg-red-50 border-red-200 text-red-700"}`}>
+                          {limite === 0
+                            ? "⚠️ Ce client n'a pas de limite de crédit définie."
+                            : `Limite : ${limite.toLocaleString("fr-FR")} FCFA — Utilisé : ${solde.toLocaleString("fr-FR")} — Disponible : ${dispo.toLocaleString("fr-FR")} FCFA`}
+                        </div>
+                      );
+                    })()}
+                    {/* Saisie manuelle uniquement en mode COMPTANT */}
+                    {!vClientId && vModePaiement !== "CREDIT" && (
                       <div className="grid grid-cols-2 gap-2">
                         <input placeholder="Nom client" value={vClientNom} onChange={e => setVClientNom(e.target.value)}
                           className="px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
@@ -896,7 +2021,7 @@ export default function AgentTerrainPage() {
                                 setVLignes(prev => prev.map((x, j) => j === i ? { ...x, produitId: e.target.value, prixUnitaire: p ? String(p.produit.prixUnitaire) : "" } : x));
                               }}
                               className="flex-1 px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-teal-500">
-                              <option value="">{t('choose_product')}…</option>
+                              <option value="">Choisir un produit…</option>
                               {produitsDispo.map(p => (
                                 <option key={p.produit.id} value={p.produit.id}>
                                   {p.produit.nom} (dispo: {p.quantite})
@@ -918,41 +2043,42 @@ export default function AgentTerrainPage() {
                       })}
                       <button type="button" onClick={() => setVLignes(prev => [...prev, { produitId: "", quantite: "", prixUnitaire: "" }])}
                         className="text-xs text-teal-700 hover:underline flex items-center gap-1">
-                        <Plus size={12} /> {t('field_add_product')}
+                        <Plus size={12} /> Ajouter un produit
                       </button>
                     </div>
                   </div>
 
-                  {/* Paiement */}
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-xs font-medium text-slate-600 mb-1">{t('field_payment_mode')}</label>
-                      <select value={vModePaiement} onChange={e => setVModePaiement(e.target.value)}
-                        className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-teal-500">
-                        <option value="ESPECES">Espèces</option>
-                        <option value="MOBILE_MONEY">Mobile Money</option>
-                        <option value="CREDIT">Crédit</option>
-                      </select>
-                    </div>
+                  {/* Montant payé — comptant uniquement */}
+                  {vModePaiement !== "CREDIT" && (
                     <div>
                       <label className="block text-xs font-medium text-slate-600 mb-1">
-                        Montant payé (auto: {vMontantCalcule.toLocaleString("fr-FR")} FCFA)
+                        Montant payé (calculé : <strong>{vMontantCalcule.toLocaleString("fr-FR")} FCFA</strong>)
                       </label>
                       <input type="number" min="0" placeholder={String(vMontantCalcule)}
                         value={vMontantPaye} onChange={e => setVMontantPaye(e.target.value)}
                         className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
                     </div>
-                  </div>
+                  )}
+                  {vModePaiement === "CREDIT" && vMontantCalcule > 0 && (
+                    <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 flex items-center justify-between">
+                      <span className="text-xs text-amber-700">Montant de la demande de crédit</span>
+                      <span className="font-bold text-amber-800 text-base">{vMontantCalcule.toLocaleString("fr-FR")} FCFA</span>
+                    </div>
+                  )}
 
                   <textarea placeholder="Notes (optionnel)" rows={2} value={vNotes} onChange={e => setVNotes(e.target.value)}
                     className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm resize-none focus:outline-none focus:ring-2 focus:ring-teal-500" />
 
                   <div className="flex gap-3 pt-1">
                     <button type="button" onClick={() => setShowVenteForm(false)}
-                      className="flex-1 py-2.5 border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50 text-sm">{t('field_cancel')}</button>
+                      className="flex-1 py-2.5 border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50 text-sm">Annuler</button>
                     <button type="submit" disabled={venteSubmitLoading || vLignes.every(l => !l.produitId)}
-                      className="flex-1 py-2.5 bg-teal-600 text-white rounded-xl hover:bg-teal-700 disabled:opacity-50 text-sm font-semibold flex items-center justify-center gap-2">
-                      {venteSubmitLoading ? <><Loader2 size={14} className="animate-spin" /> {t('sending')}…</> : <><Send size={14} /> {t('send_to_rpv')}</>}
+                      className={`flex-1 py-2.5 text-white rounded-xl disabled:opacity-50 text-sm font-semibold flex items-center justify-center gap-2 ${vModePaiement === "CREDIT" ? "bg-amber-600 hover:bg-amber-700" : "bg-teal-600 hover:bg-teal-700"}`}>
+                      {venteSubmitLoading
+                        ? <><Loader2 size={14} className="animate-spin" /> Enregistrement…</>
+                        : vModePaiement === "CREDIT"
+                          ? <><Send size={14} /> Envoyer au Responsable Crédit</>
+                          : <><Send size={14} /> Valider la vente</>}
                     </button>
                   </div>
                 </form>
@@ -967,7 +2093,7 @@ export default function AgentTerrainPage() {
             ) : ventesData.length === 0 ? (
               <div className="bg-white rounded-2xl border border-slate-200 p-10 text-center">
                 <ShoppingCart className="w-10 h-10 text-slate-300 mx-auto mb-3" />
-                <p className="text-slate-500">{t('field_no_sales')}</p>
+                <p className="text-slate-500">Aucune vente enregistrée pour le moment.</p>
               </div>
             ) : (
               <div className="space-y-3">
@@ -977,18 +2103,26 @@ export default function AgentTerrainPage() {
                     : v.clientNom ?? "Client non précisé";
                   const tel = v.client?.telephone ?? v.clientTelephone;
                   const statutColors: Record<string, string> = {
-                    BROUILLON:      "bg-amber-100 text-amber-700",
-                    CONFIRMEE:      "bg-blue-100 text-blue-700",
-                    SORTIE_VALIDEE: "bg-violet-100 text-violet-700",
-                    LIVREE:         "bg-emerald-100 text-emerald-700",
-                    ANNULEE:        "bg-red-100 text-red-700",
+                    BROUILLON:       "bg-amber-100 text-amber-700",
+                    CONFIRMEE:       "bg-blue-100 text-blue-700",
+                    SORTIE_VALIDEE:  "bg-violet-100 text-violet-700",
+                    LIVREE:          "bg-emerald-100 text-emerald-700",
+                    ANNULEE:         "bg-red-100 text-red-700",
+                    PAID:            "bg-green-100 text-green-700",
+                    CREDIT_REQUEST:  "bg-orange-100 text-orange-700",
+                    CREDIT_APPROUVE: "bg-cyan-100 text-cyan-700",
+                    CREDIT_REFUSE:   "bg-red-100 text-red-800",
                   };
                   const statutLabels: Record<string, string> = {
-                    BROUILLON:      "En attente RPV",
-                    CONFIRMEE:      "Approuvée — préparation stock",
-                    SORTIE_VALIDEE: "Stock sorti — à livrer",
-                    LIVREE:         "Livrée",
-                    ANNULEE:        "Annulée",
+                    BROUILLON:       "En attente RPV",
+                    CONFIRMEE:       "Approuvée — préparation stock",
+                    SORTIE_VALIDEE:  "Stock sorti — à livrer",
+                    LIVREE:          "Livrée",
+                    ANNULEE:         "Annulée",
+                    PAID:            "Payée — stock mis à jour",
+                    CREDIT_REQUEST:  "En attente du Responsable Crédit",
+                    CREDIT_APPROUVE: "Crédit approuvé",
+                    CREDIT_REFUSE:   "Crédit refusé",
                   };
                   return (
                     <div key={v.id} className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
@@ -1057,44 +2191,77 @@ export default function AgentTerrainPage() {
               <table className="w-full">
                 <thead className="bg-slate-50 border-b border-slate-200">
                   <tr>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase">{t('field_client')}</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase">{t('field_phone')}</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase">{t('field_address')}</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase">{t('field_status')}</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase">{t('field_subscriptions')}</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase">{t('field_registration')}</th>
+                    <th className="px-5 py-4 text-left text-xs font-semibold text-slate-600 uppercase">{t('field_client')}</th>
+                    <th className="px-5 py-4 text-left text-xs font-semibold text-slate-600 uppercase">{t('field_phone')}</th>
+                    <th className="px-5 py-4 text-left text-xs font-semibold text-slate-600 uppercase">Localisation</th>
+                    <th className="px-5 py-4 text-left text-xs font-semibold text-slate-600 uppercase">{t('field_status')}</th>
+                    <th className="px-5 py-4 text-left text-xs font-semibold text-slate-600 uppercase">Plafond crédit</th>
+                    <th className="px-5 py-4 text-left text-xs font-semibold text-slate-600 uppercase">{t('field_subscriptions')}</th>
+                    <th className="px-5 py-4 text-left text-xs font-semibold text-slate-600 uppercase">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {clients.map((client) => (
+                  {clients.map((client) => {
+                    const hasCreditLimit = client.limiteCredit !== null && Number(client.limiteCredit) > 0;
+                    const disponible = hasCreditLimit
+                      ? Math.max(0, Number(client.limiteCredit) - Number(client.soldeActuel ?? 0))
+                      : 0;
+                    return (
                     <tr key={client.id} className="hover:bg-slate-50 transition-colors">
-                      <td className="px-6 py-4">
+                      <td className="px-5 py-4">
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-gradient-to-br from-teal-500 to-emerald-500 rounded-full flex items-center justify-center text-white font-semibold text-sm">
+                          <div className="w-10 h-10 bg-gradient-to-br from-teal-500 to-emerald-500 rounded-full flex items-center justify-center text-white font-semibold text-sm shrink-0">
                             {client.prenom?.[0]}{client.nom?.[0]}
                           </div>
-                          <p className="font-semibold text-slate-800">{client.prenom} {client.nom}</p>
+                          <div>
+                            <p className="font-semibold text-slate-800">{client.prenom} {client.nom}</p>
+                            {client.activite && <p className="text-xs text-slate-400">{client.activite}</p>}
+                          </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-sm text-slate-600">
+                      <td className="px-5 py-4 text-sm text-slate-600">
                         <Phone size={13} className="inline mr-1 text-slate-400" />{client.telephone}
                       </td>
-                      <td className="px-6 py-4 text-sm text-slate-600">
-                        <MapPin size={13} className="inline mr-1 text-slate-400" />{client.adresse ?? "—"}
+                      <td className="px-5 py-4 text-sm text-slate-500">
+                        {[client.quartier, client.ville].filter(Boolean).join(", ") || (
+                          <span className="text-slate-300">—</span>
+                        )}
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-5 py-4">
                         <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${getStatusStyle(client.etat)}`}>
                           {getStatusLabel(client.etat)}
                         </span>
-                      </td>  
-                      <td className="px-6 py-4">
+                      </td>
+                      <td className="px-5 py-4">
+                        {hasCreditLimit ? (
+                          <div className="space-y-0.5">
+                            <p className="text-xs font-semibold text-slate-700">{formatCurrency(Number(client.limiteCredit))}</p>
+                            <p className={`text-xs ${disponible > 0 ? "text-emerald-600" : "text-red-500"}`}>
+                              Dispo : {formatCurrency(disponible)}
+                            </p>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-slate-300 italic">Non défini</span>
+                        )}
+                      </td>
+                      <td className="px-5 py-4">
                         <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${(client._count?.souscriptionsPacks ?? 0) > 0 ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-600"}`}>
                           {client._count?.souscriptionsPacks ?? 0} souscription(s)
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-sm text-slate-600">{formatDate(client.createdAt)}</td>
+                      <td className="px-5 py-4">
+                        {hasCreditLimit && disponible > 0 && client.etat === "ACTIF" && (
+                          <button
+                            onClick={() => setNouveauCreditClient(client)}
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-xs font-medium"
+                          >
+                            <CreditCard size={12} /> Crédit
+                          </button>
+                        )}
+                      </td>
                     </tr>
-                  ))}
+                    );
+                  })}
                   {clients.length === 0 && (
                     <tr><td colSpan={6} className="px-6 py-12 text-center text-slate-500">{t("field_no_client_found")}</td></tr>
                   )}
@@ -1117,7 +2284,7 @@ export default function AgentTerrainPage() {
         )}
       </main>
 
-      {/* Modal collecte */}
+      {/* Modal collecte packs (ancien onglet) */}
       {collectTarget && (
         <ModalCollecte
           souscription={collectTarget}
@@ -1126,42 +2293,40 @@ export default function AgentTerrainPage() {
         />
       )}
 
-      {/* Modal ajout client */}
+      {/* Modal encaisser session */}
+      {encaisserTarget && collecteJourData?.session && (
+        <ModalEncaisserSession
+          target={encaisserTarget}
+          collecteId={collecteJourData.session.id}
+          onClose={() => setEncaisserTarget(null)}
+          onSuccess={() => { refetchCollecteJour(); setEncaisserTarget(null); }}
+        />
+      )}
+
+      {/* Modal remboursement crédit standalone */}
+      {rembourserCredit && (
+        <ModalRembourserCredit
+          credit={rembourserCredit}
+          onClose={() => setRembourserCredit(null)}
+          onSuccess={() => { refetchCredits(); setRembourserCredit(null); }}
+        />
+      )}
+
+      {/* Modal ajout client enrichi */}
       {addClientModal && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
-            <div className="flex items-center justify-between mb-5">
-              <h2 className="text-xl font-bold text-slate-800">{t('field_new_client')}</h2>
-              <button onClick={() => setAddClientModal(false)} className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg font-bold text-lg">×</button>
-            </div>
-            <form onSubmit={handleAddClient} className="space-y-4">
-              {(["prenom", "nom", "telephone", "adresse"] as const).map((field) => (
-                <div key={field}>
-                  <label className="block text-sm font-medium text-slate-700 mb-1 capitalize">
-                    {field}{field !== "adresse" && " *"}
-                  </label>
-                  <input
-                    required={field !== "adresse"}
-                    value={clientForm[field]}
-                    onChange={(e) => setClientForm((f) => ({ ...f, [field]: e.target.value }))}
-                    className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
-                    placeholder={field === "telephone" ? "Ex : 07XXXXXXXX" : ""}
-                  />
-                </div>
-              ))}
-              <div className="flex gap-3 pt-1">
-                <button type="button" onClick={() => setAddClientModal(false)}
-                  className="flex-1 py-2.5 border border-slate-200 text-slate-700 rounded-xl hover:bg-slate-50 text-sm font-medium">
-                  {t('field_cancel')}
-                </button>
-                <button type="submit" disabled={addingClient}
-                  className="flex-1 py-2.5 bg-teal-600 text-white rounded-xl hover:bg-teal-700 disabled:opacity-50 text-sm font-medium">
-                  {addingClient ? "Ajout…" : "Ajouter"}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+        <ModalAddClientRiche
+          onClose={() => setAddClientModal(false)}
+          onSuccess={() => { refetchClients(); setAddClientModal(false); }}
+        />
+      )}
+
+      {/* Modal nouveau crédit */}
+      {nouveauCreditClient && (
+        <ModalNouveauCredit
+          client={nouveauCreditClient}
+          onClose={() => setNouveauCreditClient(null)}
+          onSuccess={() => { refetchCredits(); refetchClients(); setNouveauCreditClient(null); }}
+        />
       )}
     </div>
   );

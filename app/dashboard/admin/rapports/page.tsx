@@ -3,11 +3,13 @@
 import React, { useState } from 'react';
 import {
   BarChart2, Download, RefreshCw, TrendingUp, TrendingDown,
-  Users, Calendar, Wallet, AlertTriangle, UserCheck,
+  Users, Calendar, Wallet, AlertTriangle, UserCheck, FileText, FileSpreadsheet,
 } from 'lucide-react';
 import { useApi } from '@/hooks/useApi';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { exportToCsv } from '@/lib/exportCsv';
+import { exportToXls } from '@/lib/exportXls';
+import { printToPdf } from '@/lib/exportPdf';
 import ClienteleTabBar from '@/components/ClienteleTabBar';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -28,7 +30,7 @@ interface CollectesData {
 }
 
 interface CreancesData {
-  global: { nbCreances: number; totalRestant: number; totalPacks: number; totalVerse: number; tauxRecouvrement: number };
+  global:        { nbCreances: number; totalRestant: number; totalPacks: number; totalVerse: number; tauxRecouvrement: number };
   parAnciennete: { label: string; nb: number; montant: number; color: string }[];
   parAgent:      { agentId: number; nom: string; nb: number; montant: number }[];
   parPdv:        { pdvId: number; nom: string; code: string; nb: number; montant: number }[];
@@ -39,9 +41,38 @@ interface AgentsData {
     agentId: number; nom: string; telephone: string | null; actif: boolean;
     nbClients: number; nbSouscriptions: number;
     totalPacks: number; totalVerse: number; totalRestant: number;
-    tauxRecouvrement: number; nbCollectes: number; montantCollecte: number;
-    score: number;
+    tauxRecouvrement: number; nbCollectes: number; montantCollecteSession: number;
+    caTotal: number; // CA réel = versementPack + remboursementCredit + venteDirecte
   }[];
+}
+
+interface ClientsData {
+  data: {
+    id: number; codeClient: string; nom: string; prenom: string;
+    telephone: string; ville: string; quartier: string;
+    etat: string; typeClient: string; niveauRisque: string;
+    agent: string; pdv: string;
+    totalSouscriptions: number; totalCredits: number;
+    totalEngagement: number; totalVerse: number; montantRestant: number;
+    createdAt: string;
+  }[];
+  totaux: {
+    nbClients: number; totalEngagement: number; totalVerse: number;
+    montantRestant: number; nbActifs: number;
+  };
+}
+
+interface RetardsData {
+  data: {
+    reference: string; clientNom: string; clientTel: string;
+    ville: string; agent: string; pdv: string;
+    montantTotal: number; montantRembourse: number; soldeRestant: number;
+    tauxRembourse: number; premiereEcheanceRetard: string;
+    joursRetard: number; gravite: string;
+  }[];
+  total: number; montantTotal: number;
+  nbCritique: number; nbEleve: number; nbMoyen: number; nbFaible: number;
+  moyenneJours: number;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -54,7 +85,28 @@ const ANCIENNETE_COLOR: Record<string, string> = {
   orange:  'bg-orange-500',  red:   'bg-red-500', rose: 'bg-rose-600',
 };
 
-type TabId = 'recouvrement' | 'collectes' | 'creances' | 'agents';
+const GRAVITE_CLS: Record<string, string> = {
+  CRITIQUE: 'bg-red-100 text-red-700',
+  ÉLEVÉ:    'bg-orange-100 text-orange-700',
+  MOYEN:    'bg-amber-100 text-amber-700',
+  FAIBLE:   'bg-green-100 text-green-700',
+};
+
+const fc = (v: number) => v.toLocaleString('fr-FR');
+
+function tableHtml(headers: string[], rows: (string | number)[][]): string {
+  const th  = headers.map((h) => `<th>${h}</th>`).join('');
+  const trs = rows.map((r) => `<tr>${r.map((c) => `<td>${c}</td>`).join('')}</tr>`).join('');
+  return `<table><thead><tr>${th}</tr></thead><tbody>${trs}</tbody></table>`;
+}
+
+function kpisHtml(items: { label: string; value: string }[]): string {
+  return `<div class="kpis">${items.map((i) =>
+    `<div class="kpi"><div class="kpi-label">${i.label}</div><div class="kpi-value">${i.value}</div></div>`
+  ).join('')}</div>`;
+}
+
+type TabId = 'recouvrement' | 'collectes' | 'creances' | 'agents' | 'clients' | 'retards';
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
@@ -68,80 +120,373 @@ export default function RapportsPage() {
     ...(dateFin   && { dateFin }),
   }).toString();
 
-  const recouv  = useApi<RecouvrementData>(`/api/admin/rapports/recouvrement?${dateQuery}`);
-  const collect = useApi<CollectesData>(`/api/admin/rapports/collectes?${dateQuery}`);
+  const recouv   = useApi<RecouvrementData>(`/api/admin/rapports/recouvrement?${dateQuery}`);
+  const collect  = useApi<CollectesData>(`/api/admin/rapports/collectes?${dateQuery}`);
   const creances = useApi<CreancesData>('/api/admin/rapports/creances');
-  const agents  = useApi<AgentsData>(`/api/admin/rapports/agents?${dateQuery}`);
+  const agents   = useApi<AgentsData>(`/api/admin/rapports/agents?${dateQuery}`);
+  const clients  = useApi<ClientsData>(`/api/admin/rapports/clients?${dateQuery}`);
+  const retards  = useApi<RetardsData>('/api/admin/rapports/retards');
 
   const TABS: { id: TabId; label: string; icon: React.ReactNode }[] = [
     { id: 'recouvrement', label: 'Recouvrement',  icon: <TrendingUp className="w-4 h-4" /> },
     { id: 'collectes',    label: 'Collectes',      icon: <Calendar className="w-4 h-4" /> },
     { id: 'creances',     label: 'Créances',       icon: <TrendingDown className="w-4 h-4" /> },
-    { id: 'agents',       label: 'Agents',         icon: <UserCheck className="w-4 h-4" /> },
+    { id: 'agents',       label: 'Perf. agents',   icon: <UserCheck className="w-4 h-4" /> },
+    { id: 'clients',      label: 'Liste clients',  icon: <Users className="w-4 h-4" /> },
+    { id: 'retards',      label: 'Retards',        icon: <AlertTriangle className="w-4 h-4" /> },
   ];
 
-  const isLoading = tab === 'recouvrement' ? recouv.loading
-    : tab === 'collectes' ? collect.loading
-    : tab === 'creances'  ? creances.loading
-    : agents.loading;
+  const currentApi = {
+    recouvrement: recouv, collectes: collect, creances, agents, clients, retards,
+  }[tab];
+  const isLoading = currentApi.loading;
+  const refetchCurrent = () => currentApi.refetch();
 
-  const refetchCurrent = () => {
-    if (tab === 'recouvrement') recouv.refetch();
-    else if (tab === 'collectes') collect.refetch();
-    else if (tab === 'creances')  creances.refetch();
-    else agents.refetch();
+  // ─── Export : Recouvrement (CSV complet, toutes sections) ────────────────
+
+  const exportRecouvrementCsv = () => {
+    const d = recouv.data;
+    if (!d) return;
+    const sep = ';';
+    const BOM = '\uFEFF';
+
+    const line = (...cols: (string | number)[]) =>
+      cols.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(sep);
+
+    const rows: string[] = [
+      line('RAPPORT RECOUVREMENT'),
+      line('Souscriptions', 'Total packs (FCFA)', 'Versé (FCFA)', 'Restant (FCFA)', 'Taux global (%)'),
+      line(d.global.nb, d.global.totalPacks, d.global.totalVerse, d.global.totalRestant, d.global.tauxGlobal),
+      '',
+      line('PAR AGENT'),
+      line('Agent', 'Nb souscriptions', 'Total packs', 'Versé', 'Restant', 'Taux (%)'),
+      ...d.parAgent.map((r) => line(r.nom, r.nb, r.total, r.verse, r.restant, r.taux)),
+      '',
+      line('PAR TYPE DE PACK'),
+      line('Type', 'Nb', 'Total packs', 'Versé', 'Restant', 'Taux (%)'),
+      ...d.parTypePack.map((r) => line(r.type, r.nb, r.total, r.verse, r.restant, r.taux)),
+      '',
+      line('PAR POINT DE VENTE'),
+      line('PDV', 'Code', 'Nb', 'Total packs', 'Versé', 'Restant', 'Taux (%)'),
+      ...d.parPdv.map((r) => line(r.nom, r.code, r.nb, r.total, r.verse, r.restant, r.taux)),
+      '',
+      line('ÉVOLUTION MENSUELLE'),
+      line('Mois', 'Nb versements', 'Montant (FCFA)'),
+      ...d.evolution.map((e) => line(e.label, e.nb, e.montant)),
+    ];
+
+    const csv  = BOM + rows.join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = `rapport-recouvrement-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
-  // ── Exports ──────────────────────────────────────────────────────────────────
-  const exportRecouvrement = () => {
-    const rows = recouv.data?.parAgent ?? [];
-    exportToCsv(rows, [
-      { label: 'Agent',           key: 'nom' },
-      { label: 'Nb souscriptions',key: 'nb' },
-      { label: 'Total packs',     key: 'total',   format: (v) => String(v) },
-      { label: 'Versé',           key: 'verse',   format: (v) => String(v) },
-      { label: 'Restant',         key: 'restant', format: (v) => String(v) },
-      { label: 'Taux (%)',        key: 'taux' },
-    ], `rapport-recouvrement-${new Date().toISOString().slice(0,10)}.csv`);
+  // ─── Export : Collectes (PDF complet) ────────────────────────────────────
+
+  const exportCollectesPdf = () => {
+    const d = collect.data;
+    if (!d) return;
+    const { global: g } = d;
+
+    printToPdf('Rapport Collectes Journalières', [
+      {
+        content: kpisHtml([
+          { label: 'Total collectes',   value: String(g.nbTotal) },
+          { label: 'Montant prévu',     value: `${fc(g.totalPrevu)} FCFA` },
+          { label: 'Montant collecté',  value: `${fc(g.totalCollecte)} FCFA` },
+          { label: 'Taux réalisation',  value: `${g.tauxRealisation}%` },
+        ]),
+      },
+      {
+        heading: 'Répartition par statut',
+        content: tableHtml(
+          ['Statut', 'Nb sessions', 'Montant collecté (FCFA)'],
+          d.parStatut.map((s) => [s.statut, s.nb, fc(s.montant)]),
+        ),
+      },
+      {
+        heading: 'Performance par agent',
+        content: tableHtml(
+          ['Agent', 'Nb collectes', 'Montant collecté (FCFA)'],
+          d.parAgent.map((a) => [a.nom, a.nbCollectes, fc(a.montantCollecte)]),
+        ),
+      },
+      {
+        heading: 'Évolution quotidienne',
+        content: tableHtml(
+          ['Date', 'Nb sessions', 'Montant (FCFA)'],
+          d.parJour.map((j) => [j.date, j.nb, fc(j.montant)]),
+        ),
+      },
+    ]);
   };
 
-  const exportCollectes = () => {
-    const rows = collect.data?.parAgent ?? [];
-    exportToCsv(rows, [
-      { label: 'Agent',       key: 'nom' },
-      { label: 'Collectes',   key: 'nbCollectes' },
-      { label: 'Montant (FCFA)', key: 'montantCollecte', format: (v) => String(v) },
-    ], `rapport-collectes-${new Date().toISOString().slice(0,10)}.csv`);
+  // ─── Export : Créances (PDF) ──────────────────────────────────────────────
+
+  const exportCreancesPdf = () => {
+    const d = creances.data;
+    if (!d) return;
+    const { global: g } = d;
+
+    printToPdf('Rapport Créances', [
+      {
+        content: kpisHtml([
+          { label: 'Créances ouvertes',    value: String(g.nbCreances) },
+          { label: 'Montant dû total',     value: `${fc(g.totalRestant)} FCFA` },
+          { label: 'Total versé',          value: `${fc(g.totalVerse)} FCFA` },
+          { label: 'Taux recouvrement',    value: `${g.tauxRecouvrement}%` },
+        ]),
+      },
+      {
+        heading: 'Répartition par ancienneté du retard',
+        content: tableHtml(
+          ['Tranche', 'Nb créances', 'Montant restant (FCFA)'],
+          d.parAnciennete.map((a) => [a.label, a.nb, fc(a.montant)]),
+        ),
+      },
+      {
+        heading: 'Par agent terrain',
+        content: tableHtml(
+          ['Agent', 'Nb créances', 'Montant restant (FCFA)'],
+          d.parAgent.map((a) => [a.nom, a.nb, fc(a.montant)]),
+        ),
+      },
+      {
+        heading: 'Par point de vente',
+        content: tableHtml(
+          ['PDV', 'Code', 'Nb créances', 'Montant restant (FCFA)'],
+          d.parPdv.map((p) => [p.nom, p.code, p.nb, fc(p.montant)]),
+        ),
+      },
+    ]);
   };
 
-  const exportCreances = () => {
-    const rows = creances.data?.parPdv ?? [];
-    exportToCsv(rows, [
-      { label: 'PDV',             key: 'nom' },
-      { label: 'Code',            key: 'code' },
-      { label: 'Nb créances',     key: 'nb' },
-      { label: 'Montant restant', key: 'montant', format: (v) => String(v) },
-    ], `rapport-creances-${new Date().toISOString().slice(0,10)}.csv`);
+  // ─── Export : Créances (Excel complet) ────────────────────────────────────
+
+  const exportCreancesXls = () => {
+    const d = creances.data;
+    if (!d) return;
+    exportToXls(
+      [
+        {
+          title: 'Résumé global',
+          headers: ['Créances ouvertes', 'Montant dû (FCFA)', 'Total versé (FCFA)', 'Taux recouvrement (%)'],
+          rows: [[d.global.nbCreances, d.global.totalRestant, d.global.totalVerse, d.global.tauxRecouvrement]],
+        },
+        {
+          title: 'Par ancienneté du retard',
+          headers: ['Tranche', 'Nb créances', 'Montant restant (FCFA)'],
+          rows: d.parAnciennete.map((a) => [a.label, a.nb, a.montant]),
+        },
+        {
+          title: 'Par agent terrain',
+          headers: ['Agent', 'Nb créances', 'Montant restant (FCFA)'],
+          rows: d.parAgent.map((a) => [a.nom, a.nb, a.montant]),
+        },
+        {
+          title: 'Par point de vente',
+          headers: ['PDV', 'Code', 'Nb créances', 'Montant restant (FCFA)'],
+          rows: d.parPdv.map((p) => [p.nom, p.code, p.nb, p.montant]),
+        },
+      ],
+      `rapport-creances-${new Date().toISOString().slice(0, 10)}.xls`,
+    );
   };
 
-  const exportAgents = () => {
-    const rows = agents.data?.data ?? [];
-    exportToCsv(rows, [
-      { label: 'Agent',            key: 'nom' },
-      { label: 'Clients',          key: 'nbClients' },
-      { label: 'Souscriptions',    key: 'nbSouscriptions' },
+  // ─── Export : Agents (PDF complet) ───────────────────────────────────────
+
+  const exportAgentsPdf = () => {
+    const d = agents.data;
+    if (!d) return;
+
+    printToPdf('Performance des Agents Terrain', [
+      {
+        content: `<p style="margin-bottom:12px;color:#6b7280">${d.data.length} agents — classement par CA réel (versements + remboursements + ventes)</p>`,
+      },
+      {
+        heading: 'Classement agents par CA',
+        content: tableHtml(
+          ['#', 'Agent', 'Téléphone', 'Clients', 'Souscriptions', 'Total packs (FCFA)',
+           'Versé (FCFA)', 'Restant (FCFA)', 'Taux (%)', 'Sessions collecte',
+           'CA réel (FCFA)'],
+          d.data.map((a, i) => [
+            i + 1, a.nom, a.telephone ?? '—', a.nbClients, a.nbSouscriptions,
+            fc(a.totalPacks), fc(a.totalVerse), fc(a.totalRestant),
+            `${a.tauxRecouvrement}%`, a.nbCollectes, fc(a.caTotal),
+          ]),
+        ),
+      },
+    ]);
+  };
+
+  // ─── Export : Clients (PDF) ───────────────────────────────────────────────
+
+  const exportClientsPdf = () => {
+    const d = clients.data;
+    if (!d) return;
+    const { totaux: t } = d;
+
+    printToPdf('Liste des Clients', [
+      {
+        content: kpisHtml([
+          { label: 'Total clients',   value: String(t.nbClients) },
+          { label: 'Clients actifs',  value: String(t.nbActifs) },
+          { label: 'Engagement total',value: `${fc(t.totalEngagement)} FCFA` },
+          { label: 'Total versé',     value: `${fc(t.totalVerse)} FCFA` },
+          { label: 'Restant dû',      value: `${fc(t.montantRestant)} FCFA` },
+        ]),
+      },
+      {
+        heading: 'Liste détaillée',
+        content: tableHtml(
+          ['Code', 'Prénom', 'Nom', 'Téléphone', 'Ville', 'Statut',
+           'Agent', 'PDV', 'Souscriptions', 'Crédits', 'Restant dû (FCFA)', 'Inscrit le'],
+          d.data.map((c) => [
+            c.codeClient, c.prenom, c.nom, c.telephone, c.ville || '—', c.etat,
+            c.agent, c.pdv, c.totalSouscriptions, c.totalCredits,
+            fc(c.montantRestant), c.createdAt,
+          ]),
+        ),
+      },
+    ]);
+  };
+
+  // ─── Export : Clients (Excel) ─────────────────────────────────────────────
+
+  const exportClientsXls = () => {
+    const d = clients.data;
+    if (!d) return;
+    exportToXls(
+      [
+        {
+          title: 'Résumé',
+          headers: ['Total clients', 'Clients actifs', 'Engagement total (FCFA)', 'Total versé (FCFA)', 'Restant dû (FCFA)'],
+          rows: [[
+            d.totaux.nbClients, d.totaux.nbActifs,
+            d.totaux.totalEngagement, d.totaux.totalVerse, d.totaux.montantRestant,
+          ]],
+        },
+        {
+          title: 'Liste des clients',
+          headers: ['Code', 'Prénom', 'Nom', 'Téléphone', 'Ville', 'Quartier',
+                    'Statut', 'Type', 'Risque', 'Agent', 'PDV',
+                    'Souscriptions', 'Crédits', 'Engagement (FCFA)',
+                    'Versé (FCFA)', 'Restant dû (FCFA)', 'Inscrit le'],
+          rows: d.data.map((c) => [
+            c.codeClient, c.prenom, c.nom, c.telephone,
+            c.ville, c.quartier, c.etat, c.typeClient, c.niveauRisque,
+            c.agent, c.pdv,
+            c.totalSouscriptions, c.totalCredits,
+            c.totalEngagement, c.totalVerse, c.montantRestant, c.createdAt,
+          ]),
+        },
+      ],
+      `rapport-clients-${new Date().toISOString().slice(0, 10)}.xls`,
+    );
+  };
+
+  // ─── Export : Retards (Excel) ─────────────────────────────────────────────
+
+  const exportRetardsXls = () => {
+    const d = retards.data;
+    if (!d) return;
+    exportToXls(
+      [
+        {
+          title: 'Résumé retards',
+          headers: ['Total crédits en retard', 'Montant total dû (FCFA)', 'Critiques', 'Élevés', 'Moyens', 'Faibles', 'Moy. jours retard'],
+          rows: [[d.total, d.montantTotal, d.nbCritique, d.nbEleve, d.nbMoyen, d.nbFaible, d.moyenneJours]],
+        },
+        {
+          title: 'Détail des retards',
+          headers: ['Référence', 'Client', 'Téléphone', 'Ville', 'Agent', 'PDV',
+                    'Montant total (FCFA)', 'Remboursé (FCFA)', 'Solde restant (FCFA)',
+                    'Taux remb. (%)', '1ère échéance retard', 'Jours retard', 'Gravité'],
+          rows: d.data.map((r) => [
+            r.reference, r.clientNom, r.clientTel, r.ville, r.agent, r.pdv,
+            r.montantTotal, r.montantRembourse, r.soldeRestant,
+            `${r.tauxRembourse}%`, r.premiereEcheanceRetard, r.joursRetard, r.gravite,
+          ]),
+        },
+      ],
+      `rapport-retards-${new Date().toISOString().slice(0, 10)}.xls`,
+    );
+  };
+
+  // ─── Boutons export selon l'onglet actif ─────────────────────────────────
+
+  const exportButtons: Record<TabId, React.ReactNode> = {
+    recouvrement: (
+      <button onClick={exportRecouvrementCsv}
+        className="flex items-center gap-2 px-3 py-2 text-sm text-white bg-blue-600 rounded-xl hover:bg-blue-700 shadow-sm">
+        <Download className="w-4 h-4" /> CSV
+      </button>
+    ),
+    collectes: (
+      <button onClick={exportCollectesPdf}
+        className="flex items-center gap-2 px-3 py-2 text-sm text-white bg-rose-600 rounded-xl hover:bg-rose-700 shadow-sm">
+        <FileText className="w-4 h-4" /> PDF
+      </button>
+    ),
+    creances: (
+      <div className="flex gap-2">
+        <button onClick={exportCreancesPdf}
+          className="flex items-center gap-2 px-3 py-2 text-sm text-white bg-rose-600 rounded-xl hover:bg-rose-700 shadow-sm">
+          <FileText className="w-4 h-4" /> PDF
+        </button>
+        <button onClick={exportCreancesXls}
+          className="flex items-center gap-2 px-3 py-2 text-sm text-white bg-emerald-600 rounded-xl hover:bg-emerald-700 shadow-sm">
+          <FileSpreadsheet className="w-4 h-4" /> Excel
+        </button>
+      </div>
+    ),
+    agents: (
+      <button onClick={exportAgentsPdf}
+        className="flex items-center gap-2 px-3 py-2 text-sm text-white bg-rose-600 rounded-xl hover:bg-rose-700 shadow-sm">
+        <FileText className="w-4 h-4" /> PDF
+      </button>
+    ),
+    clients: (
+      <div className="flex gap-2">
+        <button onClick={exportClientsPdf}
+          className="flex items-center gap-2 px-3 py-2 text-sm text-white bg-rose-600 rounded-xl hover:bg-rose-700 shadow-sm">
+          <FileText className="w-4 h-4" /> PDF
+        </button>
+        <button onClick={exportClientsXls}
+          className="flex items-center gap-2 px-3 py-2 text-sm text-white bg-emerald-600 rounded-xl hover:bg-emerald-700 shadow-sm">
+          <FileSpreadsheet className="w-4 h-4" /> Excel
+        </button>
+      </div>
+    ),
+    retards: (
+      <button onClick={exportRetardsXls}
+        className="flex items-center gap-2 px-3 py-2 text-sm text-white bg-emerald-600 rounded-xl hover:bg-emerald-700 shadow-sm">
+        <FileSpreadsheet className="w-4 h-4" /> Excel
+      </button>
+    ),
+  };
+
+  // ─── Export legacy (pour compatibilité si appelé directement) ─────────────
+  const exportAgentsCsv = () => {
+    exportToCsv(agents.data?.data ?? [], [
+      { label: 'Agent',             key: 'nom' },
+      { label: 'Téléphone',         key: 'telephone', format: (v) => String(v ?? '—') },
+      { label: 'Actif',             key: 'actif',     format: (v) => (v ? 'Oui' : 'Non') },
+      { label: 'Clients',           key: 'nbClients' },
+      { label: 'Souscriptions',     key: 'nbSouscriptions' },
+      { label: 'Total packs',       key: 'totalPacks',      format: (v) => String(v) },
+      { label: 'Total versé',       key: 'totalVerse',      format: (v) => String(v) },
+      { label: 'Total restant',     key: 'totalRestant',    format: (v) => String(v) },
       { label: 'Taux recouvrement', key: 'tauxRecouvrement', format: (v) => `${v}%` },
-      { label: 'Collectes',        key: 'nbCollectes' },
-      { label: 'Montant collecté', key: 'montantCollecte', format: (v) => String(v) },
-    ], `rapport-agents-${new Date().toISOString().slice(0,10)}.csv`);
+      { label: 'Sessions collecte', key: 'nbCollectes' },
+      { label: 'CA réel (FCFA)',    key: 'caTotal',          format: (v) => String(v) },
+    ], `rapport-agents-${new Date().toISOString().slice(0, 10)}.csv`);
   };
-
-  const handleExport = () => {
-    if (tab === 'recouvrement') exportRecouvrement();
-    else if (tab === 'collectes') exportCollectes();
-    else if (tab === 'creances')  exportCreances();
-    else exportAgents();
-  };
+  void exportAgentsCsv; // evite le warning unused
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -150,25 +495,23 @@ export default function RapportsPage() {
       <div className="p-6 space-y-6 max-w-screen-xl mx-auto">
 
         {/* En-tête */}
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
             <h2 className="text-2xl font-bold text-gray-900">Rapports & Exports</h2>
             <p className="text-sm text-gray-500 mt-0.5">Analyses détaillées du module clientèle</p>
           </div>
-          <div className="flex gap-2">
-            <button onClick={handleExport}
-              className="flex items-center gap-2 px-4 py-2 text-sm text-white bg-blue-600 rounded-xl hover:bg-blue-700 shadow-sm">
-              <Download className="w-4 h-4" /> Exporter CSV
-            </button>
+          <div className="flex items-center gap-2">
+            {exportButtons[tab]}
             <button onClick={refetchCurrent}
-              className="flex items-center gap-2 px-4 py-2 text-sm text-gray-600 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 shadow-sm">
+              className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 shadow-sm">
               <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
             </button>
           </div>
         </div>
 
-        {/* Filtre dates + onglets */}
+        {/* Onglets + filtres + contenu */}
         <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+
           {/* Onglets */}
           <div className="flex border-b border-gray-200 px-4 pt-4 gap-1 overflow-x-auto">
             {TABS.map((t) => (
@@ -183,9 +526,9 @@ export default function RapportsPage() {
             ))}
           </div>
 
-          {/* Filtres date (sauf créances qui est un snapshot) */}
-          {tab !== 'creances' && (
-            <div className="px-6 py-4 flex items-center gap-4 bg-gray-50 border-b border-gray-100">
+          {/* Filtres date (sauf créances et retards — snapshots) */}
+          {tab !== 'creances' && tab !== 'retards' && (
+            <div className="px-6 py-4 flex items-center gap-4 bg-gray-50 border-b border-gray-100 flex-wrap">
               <span className="text-xs font-medium text-gray-500 flex items-center gap-1">
                 <Calendar className="w-3 h-3" /> Période
               </span>
@@ -197,7 +540,7 @@ export default function RapportsPage() {
               {(dateDebut || dateFin) && (
                 <button onClick={() => { setDateDebut(''); setDateFin(''); }}
                   className="text-xs text-gray-400 hover:text-gray-600 underline">
-                  Tout effacer
+                  Effacer
                 </button>
               )}
             </div>
@@ -210,10 +553,12 @@ export default function RapportsPage() {
               </div>
             ) : (
               <>
-                {tab === 'recouvrement' && recouv.data  && <TabRecouvrement  data={recouv.data} />}
+                {tab === 'recouvrement' && recouv.data  && <TabRecouvrement data={recouv.data} />}
                 {tab === 'collectes'    && collect.data && <TabCollectes    data={collect.data} />}
                 {tab === 'creances'     && creances.data && <TabCreances    data={creances.data} />}
                 {tab === 'agents'       && agents.data  && <TabAgents       data={agents.data} />}
+                {tab === 'clients'      && clients.data && <TabClients      data={clients.data} />}
+                {tab === 'retards'      && retards.data && <TabRetards      data={retards.data} />}
               </>
             )}
           </div>
@@ -230,15 +575,13 @@ function TabRecouvrement({ data }: { data: RecouvrementData }) {
   const maxEvo = Math.max(...data.evolution.map((e) => e.montant), 1);
   return (
     <div className="space-y-6">
-      {/* KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatBox label="Souscriptions"    value={String(g.nb)}                        icon={<Wallet className="w-5 h-5 text-blue-600" />}    bg="bg-blue-50" />
-        <StatBox label="Total packs"      value={formatCurrency(g.totalPacks)}         icon={<BarChart2 className="w-5 h-5 text-violet-600" />} bg="bg-violet-50" />
-        <StatBox label="Versé"            value={formatCurrency(g.totalVerse)}         icon={<TrendingUp className="w-5 h-5 text-emerald-600" />} bg="bg-emerald-50" />
-        <StatBox label="Taux global"      value={`${g.tauxGlobal}%`}                  icon={<TrendingDown className="w-5 h-5 text-orange-600" />} bg="bg-orange-50" />
+        <StatBox label="Souscriptions"  value={String(g.nb)}              icon={<Wallet className="w-5 h-5 text-blue-600" />}    bg="bg-blue-50" />
+        <StatBox label="Total packs"    value={formatCurrency(g.totalPacks)} icon={<BarChart2 className="w-5 h-5 text-violet-600" />} bg="bg-violet-50" />
+        <StatBox label="Versé"          value={formatCurrency(g.totalVerse)} icon={<TrendingUp className="w-5 h-5 text-emerald-600" />} bg="bg-emerald-50" />
+        <StatBox label="Taux global"    value={`${g.tauxGlobal}%`}        icon={<TrendingDown className="w-5 h-5 text-orange-600" />} bg="bg-orange-50" />
       </div>
 
-      {/* Évolution */}
       {data.evolution.length > 0 && (
         <div>
           <p className="text-sm font-semibold text-gray-700 mb-3">Évolution des versements</p>
@@ -247,7 +590,7 @@ function TabRecouvrement({ data }: { data: RecouvrementData }) {
               const h = Math.max(4, Math.round((e.montant / maxEvo) * 100));
               return (
                 <div key={e.label} className="flex-1 flex flex-col items-center gap-1">
-                  <span className="text-[9px] text-gray-400">{e.montant > 0 ? `${Math.round(e.montant/1000)}K` : ''}</span>
+                  <span className="text-[9px] text-gray-400">{e.montant > 0 ? `${Math.round(e.montant / 1000)}K` : ''}</span>
                   <div className="w-full rounded-t bg-blue-500 hover:bg-blue-600" style={{ height: `${h}%` }}
                     title={`${e.label} : ${formatCurrency(e.montant)}`} />
                   <span className="text-[9px] text-gray-400">{e.label}</span>
@@ -258,16 +601,15 @@ function TabRecouvrement({ data }: { data: RecouvrementData }) {
         </div>
       )}
 
-      {/* Par agent */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <RankTable
           title="Par agent" icon={<Users className="w-4 h-4 text-blue-600" />}
           rows={data.parAgent.slice(0, 8)}
           cols={[
-            { label: 'Agent',   render: (r) => r.nom },
-            { label: 'Nb',      render: (r) => String(r.nb),            cls: 'text-right text-gray-600' },
-            { label: 'Versé',   render: (r) => formatCurrency(r.verse), cls: 'text-right text-emerald-600 font-semibold' },
-            { label: 'Taux',    render: (r) => (
+            { label: 'Agent',  render: (r) => r.nom },
+            { label: 'Nb',     render: (r) => String(r.nb), cls: 'text-right text-gray-600' },
+            { label: 'Versé',  render: (r) => formatCurrency(r.verse), cls: 'text-right text-emerald-600 font-semibold' },
+            { label: 'Taux',   render: (r) => (
               <div className="flex items-center gap-2">
                 <div className="w-16 bg-gray-100 rounded-full h-1.5">
                   <div className={`h-1.5 rounded-full ${TAUX_BAR(r.taux)}`} style={{ width: `${r.taux}%` }} />
@@ -277,15 +619,14 @@ function TabRecouvrement({ data }: { data: RecouvrementData }) {
             ) },
           ]}
         />
-
         <RankTable
           title="Par type de pack" icon={<BarChart2 className="w-4 h-4 text-violet-600" />}
           rows={data.parTypePack}
           cols={[
-            { label: 'Type',   render: (r) => r.type },
-            { label: 'Nb',     render: (r) => String(r.nb), cls: 'text-right text-gray-600' },
-            { label: 'Versé',  render: (r) => formatCurrency(r.verse), cls: 'text-right text-emerald-600 font-semibold' },
-            { label: 'Taux',   render: (r) => `${r.taux}%`, cls: 'text-right font-bold' },
+            { label: 'Type',  render: (r) => r.type },
+            { label: 'Nb',    render: (r) => String(r.nb), cls: 'text-right text-gray-600' },
+            { label: 'Versé', render: (r) => formatCurrency(r.verse), cls: 'text-right text-emerald-600 font-semibold' },
+            { label: 'Taux',  render: (r) => `${r.taux}%`, cls: 'text-right font-bold' },
           ]}
         />
       </div>
@@ -301,13 +642,12 @@ function TabCollectes({ data }: { data: CollectesData }) {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatBox label="Total collectes"    value={String(g.nbTotal)}                  icon={<Calendar className="w-5 h-5 text-teal-600" />}    bg="bg-teal-50" />
-        <StatBox label="Montant prévu"      value={formatCurrency(g.totalPrevu)}        icon={<BarChart2 className="w-5 h-5 text-blue-600" />}   bg="bg-blue-50" />
-        <StatBox label="Montant encaissé"   value={formatCurrency(g.totalCollecte)}     icon={<Wallet className="w-5 h-5 text-emerald-600" />}   bg="bg-emerald-50" />
-        <StatBox label="Taux réalisation"   value={`${g.tauxRealisation}%`}             icon={<TrendingUp className="w-5 h-5 text-orange-600" />} bg="bg-orange-50" />
+        <StatBox label="Total collectes"  value={String(g.nbTotal)}           icon={<Calendar className="w-5 h-5 text-teal-600" />}    bg="bg-teal-50" />
+        <StatBox label="Montant prévu"    value={formatCurrency(g.totalPrevu)}  icon={<BarChart2 className="w-5 h-5 text-blue-600" />}   bg="bg-blue-50" />
+        <StatBox label="Montant encaissé" value={formatCurrency(g.totalCollecte)} icon={<Wallet className="w-5 h-5 text-emerald-600" />} bg="bg-emerald-50" />
+        <StatBox label="Taux réalisation" value={`${g.tauxRealisation}%`}      icon={<TrendingUp className="w-5 h-5 text-orange-600" />} bg="bg-orange-50" />
       </div>
 
-      {/* Par statut */}
       <div className="flex flex-wrap gap-3">
         {data.parStatut.map((s) => (
           <div key={s.statut} className="bg-gray-50 rounded-xl px-4 py-3 flex items-center gap-3 border border-gray-200">
@@ -319,7 +659,6 @@ function TabCollectes({ data }: { data: CollectesData }) {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Évolution par jour */}
         {data.parJour.length > 0 && (
           <div>
             <p className="text-sm font-semibold text-gray-700 mb-3">Collectes par jour</p>
@@ -334,18 +673,16 @@ function TabCollectes({ data }: { data: CollectesData }) {
                 );
               })}
             </div>
-            <p className="text-xs text-gray-400 mt-1 text-center">30 derniers jours avec collectes</p>
+            <p className="text-xs text-gray-400 mt-1 text-center">30 derniers jours</p>
           </div>
         )}
-
-        {/* Par agent */}
         <RankTable
           title="Par agent" icon={<Users className="w-4 h-4 text-teal-600" />}
           rows={data.parAgent.slice(0, 8)}
           cols={[
-            { label: 'Agent',      render: (r) => r.nom },
-            { label: 'Collectes',  render: (r) => String(r.nbCollectes), cls: 'text-right text-gray-600' },
-            { label: 'Encaissé',   render: (r) => formatCurrency(r.montantCollecte), cls: 'text-right text-emerald-600 font-semibold' },
+            { label: 'Agent',     render: (r) => r.nom },
+            { label: 'Collectes', render: (r) => String(r.nbCollectes), cls: 'text-right text-gray-600' },
+            { label: 'Encaissé',  render: (r) => formatCurrency(r.montantCollecte), cls: 'text-right text-emerald-600 font-semibold' },
           ]}
         />
       </div>
@@ -361,13 +698,12 @@ function TabCreances({ data }: { data: CreancesData }) {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatBox label="Créances ouvertes"  value={String(g.nbCreances)}              icon={<AlertTriangle className="w-5 h-5 text-orange-600" />} bg="bg-orange-50" />
-        <StatBox label="Montant dû"         value={formatCurrency(g.totalRestant)}     icon={<TrendingDown className="w-5 h-5 text-red-600" />}     bg="bg-red-50" />
-        <StatBox label="Versé total"        value={formatCurrency(g.totalVerse)}       icon={<Wallet className="w-5 h-5 text-emerald-600" />}       bg="bg-emerald-50" />
-        <StatBox label="Taux recouvrement"  value={`${g.tauxRecouvrement}%`}           icon={<TrendingUp className="w-5 h-5 text-blue-600" />}      bg="bg-blue-50" />
+        <StatBox label="Créances ouvertes"  value={String(g.nbCreances)}       icon={<AlertTriangle className="w-5 h-5 text-orange-600" />} bg="bg-orange-50" />
+        <StatBox label="Montant dû"         value={formatCurrency(g.totalRestant)} icon={<TrendingDown className="w-5 h-5 text-red-600" />}     bg="bg-red-50" />
+        <StatBox label="Versé total"        value={formatCurrency(g.totalVerse)}   icon={<Wallet className="w-5 h-5 text-emerald-600" />}       bg="bg-emerald-50" />
+        <StatBox label="Taux recouvrement"  value={`${g.tauxRecouvrement}%`}       icon={<TrendingUp className="w-5 h-5 text-blue-600" />}      bg="bg-blue-50" />
       </div>
 
-      {/* Répartition ancienneté */}
       <div>
         <p className="text-sm font-semibold text-gray-700 mb-3">Répartition par ancienneté du retard</p>
         <div className="space-y-2">
@@ -378,9 +714,8 @@ function TabCreances({ data }: { data: CreancesData }) {
                 <span className="text-xs text-gray-600 w-28 shrink-0">{a.label}</span>
                 <div className="flex-1 bg-gray-100 rounded-full h-5 relative overflow-hidden">
                   <div className={`h-5 rounded-full ${ANCIENNETE_COLOR[a.color]}`} style={{ width: `${pct}%` }} />
-                  <span className="absolute inset-y-0 right-2 flex items-center text-xs font-semibold text-white" style={{ opacity: pct > 15 ? 1 : 0 }}>
-                    {a.nb}
-                  </span>
+                  <span className="absolute inset-y-0 right-2 flex items-center text-xs font-semibold text-white"
+                    style={{ opacity: pct > 15 ? 1 : 0 }}>{a.nb}</span>
                 </div>
                 <span className="text-xs font-semibold text-gray-700 w-28 text-right shrink-0">
                   {formatCurrency(a.montant)}
@@ -418,9 +753,12 @@ function TabCreances({ data }: { data: CreancesData }) {
 // ─── Tab Agents ───────────────────────────────────────────────────────────────
 
 function TabAgents({ data }: { data: AgentsData }) {
+  const maxCa = Math.max(...data.data.map((a) => a.caTotal), 1);
   return (
     <div className="space-y-4">
-      <p className="text-sm text-gray-500">Classement des agents par score de performance (taux recouvrement + activité collectes)</p>
+      <p className="text-sm text-gray-500">
+        {data.data.length} agents — classement par <strong>CA réel</strong> (versements packs + remboursements crédits + ventes directes)
+      </p>
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="bg-gray-50 border-b border-gray-100">
@@ -428,11 +766,13 @@ function TabAgents({ data }: { data: AgentsData }) {
               <th className="text-left px-4 py-3 font-semibold text-gray-600">#</th>
               <th className="text-left px-4 py-3 font-semibold text-gray-600">Agent</th>
               <th className="text-center px-4 py-3 font-semibold text-gray-600">Clients</th>
-              <th className="text-center px-4 py-3 font-semibold text-gray-600">Souscriptions</th>
+              <th className="text-center px-4 py-3 font-semibold text-gray-600">Souscrip.</th>
+              <th className="text-right px-4 py-3 font-semibold text-gray-600">Total packs</th>
               <th className="text-right px-4 py-3 font-semibold text-gray-600">Versé</th>
+              <th className="text-right px-4 py-3 font-semibold text-gray-600">Restant</th>
               <th className="text-center px-4 py-3 font-semibold text-gray-600">Taux</th>
-              <th className="text-center px-4 py-3 font-semibold text-gray-600">Collectes</th>
-              <th className="text-right px-4 py-3 font-semibold text-gray-600">Montant collecté</th>
+              <th className="text-center px-4 py-3 font-semibold text-gray-600">Sessions</th>
+              <th className="text-right px-4 py-3 font-semibold text-blue-700">CA réel ↓</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
@@ -444,12 +784,17 @@ function TabAgents({ data }: { data: AgentsData }) {
                     : i === 1 ? 'bg-gray-200 text-gray-600'
                     : i === 2 ? 'bg-orange-100 text-orange-700'
                     : 'bg-slate-100 text-slate-500'
-                  }`}>{i+1}</span>
+                  }`}>{i + 1}</span>
                 </td>
-                <td className="px-4 py-3 font-medium text-gray-900">{a.nom}</td>
+                <td className="px-4 py-3">
+                  <div className="font-medium text-gray-900">{a.nom}</div>
+                  {a.telephone && <div className="text-xs text-gray-400">{a.telephone}</div>}
+                </td>
                 <td className="px-4 py-3 text-center text-gray-700">{a.nbClients}</td>
                 <td className="px-4 py-3 text-center text-gray-700">{a.nbSouscriptions}</td>
+                <td className="px-4 py-3 text-right text-gray-700">{formatCurrency(a.totalPacks)}</td>
                 <td className="px-4 py-3 text-right font-semibold text-emerald-700">{formatCurrency(a.totalVerse)}</td>
+                <td className="px-4 py-3 text-right text-red-600">{formatCurrency(a.totalRestant)}</td>
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-2 justify-center">
                     <div className="w-16 bg-gray-100 rounded-full h-1.5">
@@ -458,8 +803,160 @@ function TabAgents({ data }: { data: AgentsData }) {
                     <span className="text-xs font-bold">{a.tauxRecouvrement}%</span>
                   </div>
                 </td>
-                <td className="px-4 py-3 text-center text-gray-700">{a.nbCollectes}</td>
-                <td className="px-4 py-3 text-right font-semibold text-blue-700">{formatCurrency(a.montantCollecte)}</td>
+                <td className="px-4 py-3 text-center text-gray-500">{a.nbCollectes}</td>
+                <td className="px-4 py-3">
+                  <div className="flex items-center gap-2 justify-end">
+                    <div className="w-20 bg-blue-50 rounded-full h-2 hidden lg:block">
+                      <div
+                        className="h-2 rounded-full bg-blue-500"
+                        style={{ width: `${Math.round((a.caTotal / maxCa) * 100)}%` }}
+                      />
+                    </div>
+                    <span className="font-bold text-blue-700 whitespace-nowrap">
+                      {formatCurrency(a.caTotal)}
+                    </span>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+// ─── Tab Clients ──────────────────────────────────────────────────────────────
+
+function TabClients({ data }: { data: ClientsData }) {
+  const { totaux: t } = data;
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+        <StatBox label="Total clients"    value={String(t.nbClients)}          icon={<Users className="w-5 h-5 text-blue-600" />}    bg="bg-blue-50" />
+        <StatBox label="Clients actifs"   value={String(t.nbActifs)}           icon={<UserCheck className="w-5 h-5 text-emerald-600" />} bg="bg-emerald-50" />
+        <StatBox label="Engagement total" value={formatCurrency(t.totalEngagement)} icon={<BarChart2 className="w-5 h-5 text-violet-600" />} bg="bg-violet-50" />
+        <StatBox label="Total versé"      value={formatCurrency(t.totalVerse)} icon={<Wallet className="w-5 h-5 text-teal-600" />}    bg="bg-teal-50" />
+        <StatBox label="Restant dû"       value={formatCurrency(t.montantRestant)} icon={<TrendingDown className="w-5 h-5 text-orange-600" />} bg="bg-orange-50" />
+      </div>
+
+      <div className="overflow-x-auto rounded-xl border border-gray-100">
+        <table className="w-full text-sm">
+          <thead className="bg-gray-50 border-b border-gray-100">
+            <tr>
+              <th className="text-left px-4 py-3 font-semibold text-gray-600">Code</th>
+              <th className="text-left px-4 py-3 font-semibold text-gray-600">Client</th>
+              <th className="text-left px-4 py-3 font-semibold text-gray-600">Téléphone</th>
+              <th className="text-left px-4 py-3 font-semibold text-gray-600">Ville</th>
+              <th className="text-left px-4 py-3 font-semibold text-gray-600">Statut</th>
+              <th className="text-left px-4 py-3 font-semibold text-gray-600">Agent</th>
+              <th className="text-left px-4 py-3 font-semibold text-gray-600">PDV</th>
+              <th className="text-center px-4 py-3 font-semibold text-gray-600">Souscrip.</th>
+              <th className="text-right px-4 py-3 font-semibold text-gray-600">Restant dû</th>
+              <th className="text-left px-4 py-3 font-semibold text-gray-600">Inscrit le</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100">
+            {data.data.slice(0, 100).map((c) => (
+              <tr key={c.id} className="hover:bg-gray-50">
+                <td className="px-4 py-2 font-mono text-xs text-gray-500">{c.codeClient}</td>
+                <td className="px-4 py-2 font-medium text-gray-900">{c.prenom} {c.nom}</td>
+                <td className="px-4 py-2 text-gray-600 text-xs">{c.telephone}</td>
+                <td className="px-4 py-2 text-gray-600 text-xs">{c.ville || '—'}</td>
+                <td className="px-4 py-2">
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                    c.etat === 'ACTIF' ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-600'
+                  }`}>{c.etat}</span>
+                </td>
+                <td className="px-4 py-2 text-xs text-gray-600">{c.agent}</td>
+                <td className="px-4 py-2 text-xs text-gray-600">{c.pdv}</td>
+                <td className="px-4 py-2 text-center text-gray-700">{c.totalSouscriptions + c.totalCredits}</td>
+                <td className="px-4 py-2 text-right font-semibold text-orange-700">
+                  {c.montantRestant > 0 ? formatCurrency(c.montantRestant) : '—'}
+                </td>
+                <td className="px-4 py-2 text-xs text-gray-500">{c.createdAt}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {data.data.length > 100 && (
+          <p className="text-xs text-gray-400 text-center py-3">
+            Affichage limité à 100 lignes — utilisez l&apos;export pour la liste complète ({data.data.length} clients)
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Tab Retards ──────────────────────────────────────────────────────────────
+
+function TabRetards({ data }: { data: RetardsData }) {
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatBox label="Crédits en retard"  value={String(data.total)}             icon={<AlertTriangle className="w-5 h-5 text-red-600" />}    bg="bg-red-50" />
+        <StatBox label="Montant dû total"   value={formatCurrency(data.montantTotal)} icon={<Wallet className="w-5 h-5 text-orange-600" />}       bg="bg-orange-50" />
+        <StatBox label="Critiques (>90j)"   value={String(data.nbCritique)}        icon={<TrendingDown className="w-5 h-5 text-rose-600" />}    bg="bg-rose-50" />
+        <StatBox label="Moy. jours retard"  value={`${data.moyenneJours}j`}        icon={<Calendar className="w-5 h-5 text-amber-600" />}       bg="bg-amber-50" />
+      </div>
+
+      {/* Résumé gravité */}
+      <div className="flex flex-wrap gap-3">
+        {[
+          { label: 'Critique', nb: data.nbCritique,  cls: 'bg-red-100 text-red-700 border-red-200' },
+          { label: 'Élevé',    nb: data.nbEleve,     cls: 'bg-orange-100 text-orange-700 border-orange-200' },
+          { label: 'Moyen',    nb: data.nbMoyen,     cls: 'bg-amber-100 text-amber-700 border-amber-200' },
+          { label: 'Faible',   nb: data.nbFaible,    cls: 'bg-green-100 text-green-700 border-green-200' },
+        ].map((g) => (
+          <div key={g.label} className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border text-sm font-medium ${g.cls}`}>
+            {g.label} <span className="text-lg font-bold">{g.nb}</span>
+          </div>
+        ))}
+      </div>
+
+      <div className="overflow-x-auto rounded-xl border border-gray-100">
+        <table className="w-full text-sm">
+          <thead className="bg-gray-50 border-b border-gray-100">
+            <tr>
+              <th className="text-left px-4 py-3 font-semibold text-gray-600">Référence</th>
+              <th className="text-left px-4 py-3 font-semibold text-gray-600">Client</th>
+              <th className="text-left px-4 py-3 font-semibold text-gray-600">Téléphone</th>
+              <th className="text-left px-4 py-3 font-semibold text-gray-600">Agent</th>
+              <th className="text-left px-4 py-3 font-semibold text-gray-600">PDV</th>
+              <th className="text-right px-4 py-3 font-semibold text-gray-600">Montant total</th>
+              <th className="text-right px-4 py-3 font-semibold text-gray-600">Solde restant</th>
+              <th className="text-center px-4 py-3 font-semibold text-gray-600">Taux remb.</th>
+              <th className="text-center px-4 py-3 font-semibold text-gray-600">1re échéance retard</th>
+              <th className="text-center px-4 py-3 font-semibold text-gray-600">Jours</th>
+              <th className="text-center px-4 py-3 font-semibold text-gray-600">Gravité</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100">
+            {data.data.map((r) => (
+              <tr key={r.reference} className="hover:bg-gray-50">
+                <td className="px-4 py-2 font-mono text-xs text-gray-700">{r.reference}</td>
+                <td className="px-4 py-2 font-medium text-gray-900">{r.clientNom}</td>
+                <td className="px-4 py-2 text-xs text-gray-500">{r.clientTel}</td>
+                <td className="px-4 py-2 text-xs text-gray-600">{r.agent}</td>
+                <td className="px-4 py-2 text-xs text-gray-600">{r.pdv}</td>
+                <td className="px-4 py-2 text-right text-gray-700">{formatCurrency(r.montantTotal)}</td>
+                <td className="px-4 py-2 text-right font-semibold text-red-700">{formatCurrency(r.soldeRestant)}</td>
+                <td className="px-4 py-2 text-center">
+                  <div className="flex items-center gap-1.5 justify-center">
+                    <div className="w-12 bg-gray-100 rounded-full h-1.5">
+                      <div className={`h-1.5 rounded-full ${TAUX_BAR(r.tauxRembourse)}`} style={{ width: `${r.tauxRembourse}%` }} />
+                    </div>
+                    <span className="text-xs font-bold">{r.tauxRembourse}%</span>
+                  </div>
+                </td>
+                <td className="px-4 py-2 text-center text-xs text-gray-500">{r.premiereEcheanceRetard}</td>
+                <td className="px-4 py-2 text-center font-bold text-gray-800">{r.joursRetard}j</td>
+                <td className="px-4 py-2 text-center">
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${GRAVITE_CLS[r.gravite] ?? 'bg-gray-100 text-gray-600'}`}>
+                    {r.gravite}
+                  </span>
+                </td>
               </tr>
             ))}
           </tbody>
@@ -471,11 +968,16 @@ function TabAgents({ data }: { data: AgentsData }) {
 
 // ─── Composants réutilisables ─────────────────────────────────────────────────
 
-function StatBox({ label, value, icon, bg }: { label: string; value: string; icon: React.ReactNode; bg: string }) {
+function StatBox({ label, value, icon, bg }: {
+  label: string; value: string; icon: React.ReactNode; bg: string;
+}) {
   return (
     <div className="bg-white border border-gray-200 rounded-xl p-4 flex items-center gap-3 shadow-sm">
       <div className={`${bg} p-2.5 rounded-xl shrink-0`}>{icon}</div>
-      <div><p className="text-xs text-gray-500">{label}</p><p className="font-bold text-gray-900 text-lg">{value}</p></div>
+      <div>
+        <p className="text-xs text-gray-500">{label}</p>
+        <p className="font-bold text-gray-900 text-lg">{value}</p>
+      </div>
     </div>
   );
 }

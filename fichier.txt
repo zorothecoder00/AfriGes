@@ -18,14 +18,43 @@ netsh wlan show profile name="NomDuWifi" key=clear affiche toutes les propriét�
       
 -curl -fsSL https://claude.ai/install.cmd -o install.cmd && install.cmd && del install.cmd pour installer claude via le terminal cmd   
 
-Comportement illogique pour la modale de création de nouvelle vente à crédit
-. Lorsqu'on choisit , le client et que c'est le moment de choisir un priduit à
-livrer , le produit appartient à qiel point de vente ?? Tu vois que la modale
-manque de robustesse non ?? Et ça c'est juste un point qui est visible ; y'a
-plusieurs autres soucis de robustesse
 
+ Voilà. Ce que tu dois remplir obligatoirement pour activer les alertes :
+
+  Pour le SMS (Africa's Talking — recommandé pour l'Afrique de l'Ouest) :
+  1. SMS_ENABLED=true
+  2. AT_API_KEY → clé API depuis https://africastalking.com
+  3. AT_USERNAME → ton nom d'utilisateur AT (souvent le nom de ton app)
+
+  Pour WhatsApp (Twilio — plus simple à démarrer) :
+  1. WA_ENABLED=true
+  2. TWILIO_ACCOUNT_SID + TWILIO_AUTH_TOKEN → depuis https://console.twilio.com
+  3. TWILIO_WA_FROM → le numéro WhatsApp Twilio (sandbox: +14155238886)
+
+  À ne pas oublier :
+  - CRON_SECRET → une chaîne aléatoire pour sécuriser les endpoints cron (ex:
+  génère avec openssl rand -hex 32)
+  - DEFAULT_PHONE_PREFIX → 228 si Togo, 229 si Bénin, 225 si CIV
+
+  Les seuils d'alertes (retard, inactivité, etc.) sont tous optionnels — les
+  valeurs par défaut commentées s'appliquent si tu ne les mets pas.
 
 
 Faire des tags dans l'application pour permettre de retracer les informations sur les clients
 
 Créer un menu RIA (commissions , finances etc etc)
+
+Les exports CSV ne prennent pas en compte toutes les données j'ai l'impression
+
+ Voilà le problème clairement : le formulaire existe mais il est encore calqué
+  sur l'ancienne logique (BROUILLON → RPV). Il faut :
+
+  1. Le type VenteTerrain.statut ne connaît pas les nouveaux statuts (PAID,
+  CREDIT_REQUEST...)
+  2. En mode CRÉDIT : forcer un client enregistré, cacher "montant payé",
+  afficher la limite disponible
+  3. Le bouton submit dit encore "Envoyer au RPV"
+  4. Les labels/couleurs de statut sont incomplets
+  5. L'API GET ne retourne pas limiteCredit/soldeActuel des clients
+
+  Je fais les deux corrections (API + UI) :

@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { Prisma, PrioriteNotification, Role } from "@prisma/client";
+import { Prisma, PrioriteNotification, MemberStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getAgentTerrainSession } from "@/lib/authAgentTerrain";
 import { resolveViewAs } from "@/lib/viewAs";
+import { notifyRoles, auditLog } from "@/lib/notifications";
 
 /**
  * GET /api/agentTerrain/clients
@@ -59,7 +60,13 @@ export async function GET(req: NextRequest) {
         skip,  
         take: limit,
         orderBy: { createdAt: "desc" },
-        include: {
+        select: {
+          id: true, nom: true, prenom: true, telephone: true,
+          adresse: true, quartier: true, ville: true, activite: true, etat: true,
+          typeClient: true, limiteCredit: true, soldeActuel: true,
+          niveauRisque: true, codeClient: true,
+          latitude: true, longitude: true,
+          createdAt: true,
           _count: {
             select: {
               souscriptionsPacks: {
@@ -94,7 +101,13 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-    const { nom, prenom, telephone, adresse } = body;
+    const {
+      nom, prenom, telephone,
+      adresse, sexe, dateNaissance, telephoneSecondaire,
+      quartier, ville, numeroCNI,
+      activite, nomCommerce,
+      latitude, longitude,
+    } = body;
 
     if (!nom || !prenom || !telephone) {
       return NextResponse.json(
@@ -114,35 +127,54 @@ export async function POST(req: Request) {
       select: { pointDeVenteId: true },
     });
     const pdvId = aff?.pointDeVenteId ?? null;
+    const agentId = parseInt(session.user.id);
 
     const client = await prisma.$transaction(async (tx) => {
       const created = await tx.client.create({
-        data: { nom, prenom, telephone, adresse: adresse || null, pointDeVenteId: pdvId },
-      });
-
-      await tx.auditLog.create({
         data: {
-          userId: parseInt(session.user.id),
-          action: "CREATION_CLIENT_PROSPECTION",
-          entite: "Client",
-          entiteId: created.id,
+          nom, prenom, telephone,
+          etat:                 MemberStatus.EN_ATTENTE_VALIDATION,
+          adresse:              adresse              || null,
+          sexe:                 sexe                 || null,
+          dateNaissance:        dateNaissance        ? new Date(dateNaissance) : null,
+          telephoneSecondaire:  telephoneSecondaire  || null,
+          quartier:             quartier             || null,
+          ville:                ville                || null,
+          numeroCNI:            numeroCNI            || null,
+          activite:             activite             || null,
+          nomCommerce:          nomCommerce          || null,
+          latitude:             latitude             ? Number(latitude)  : null,
+          longitude:            longitude            ? Number(longitude) : null,
+          pointDeVenteId:       pdvId,
+          agentTerrainId:       agentId,
         },
       });
 
-      const admins = await tx.user.findMany({
-        where: { role: { in: [Role.ADMIN, Role.SUPER_ADMIN] } },
-        select: { id: true },
-      });
+      await auditLog(tx, parseInt(session.user.id), "CREATION_CLIENT_PROSPECTION", "Client", created.id);
 
-      if (admins.length > 0) {
-        await tx.notification.createMany({
-          data: admins.map((admin) => ({
-            userId: admin.id,
-            titre: "Nouveau client (prospection)",
-            message: `L'agent terrain ${session.user.prenom} ${session.user.nom} a ajoute le client ${prenom} ${nom} (${telephone}).`,
-            priorite: PrioriteNotification.NORMAL,
-          })),
+      // Notifier uniquement les RVC affectés au même PDV que l'agent
+      if (pdvId) {
+        const rvcsDuPdv = await tx.gestionnaireAffectation.findMany({
+          where: {
+            pointDeVenteId: pdvId,
+            actif: true,
+            user: { gestionnaire: { role: "RESPONSABLE_VENTE_CREDIT", actif: true } },
+          },
+          select: { userId: true },
         });
+
+        if (rvcsDuPdv.length > 0) {
+          await tx.notification.createMany({
+            data: rvcsDuPdv.map(({ userId }) => ({
+              userId,
+              titre:    "Nouveau client à valider",
+              message:  `L'agent ${session.user.prenom} ${session.user.nom} a enregistré le client ${prenom} ${nom} (${telephone}). En attente de validation RVC.`,
+              priorite: PrioriteNotification.HAUTE,
+              actionUrl:`/dashboard/user/responsablesVenteCredit`,
+            })),
+            skipDuplicates: true,
+          });
+        }
       }
 
       return created;

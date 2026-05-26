@@ -5,6 +5,9 @@ import { getAdminSession } from '@/lib/authAdmin';
 /**
  * GET /api/admin/rapports/agents
  * ?dateDebut=&dateFin=
+ *
+ * Classement des agents terrain par CA réel (même méthode que le dashboard décisionnel) :
+ *   CA = versementPack + remboursementCredit + venteDirecte (sur la période)
  */
 export async function GET(req: Request) {
   try {
@@ -15,12 +18,19 @@ export async function GET(req: Request) {
     const dateDebut = searchParams.get('dateDebut');
     const dateFin   = searchParams.get('dateFin');
 
-    const dateFilter = (dateDebut || dateFin) ? {
-      dateCollecte: {
-        ...(dateDebut && { gte: new Date(dateDebut) }),
-        ...(dateFin   && { lte: new Date(new Date(dateFin).setHours(23, 59, 59, 999)) }),
-      },
-    } : {};
+    const fin = dateFin ? new Date(new Date(dateFin).setHours(23, 59, 59, 999)) : undefined;
+    const deb = dateDebut ? new Date(dateDebut) : undefined;
+
+    // Filtre générique par plage de dates (le champ varie selon le modèle)
+    function dateRange(field: string) {
+      if (!deb && !fin) return {};
+      return {
+        [field]: {
+          ...(deb && { gte: deb }),
+          ...(fin && { lte: fin }),
+        },
+      };
+    }
 
     const agents = await prisma.gestionnaire.findMany({
       where: { role: 'AGENT_TERRAIN' },
@@ -31,59 +41,125 @@ export async function GET(req: Request) {
 
     const userIds = agents.map((a) => a.memberId);
 
-    const [clientsParAgent, souscriptions, collectes] = await Promise.all([
+    const [
+      clientsParAgent,
+      souscriptions,
+      collectesSessions,
+      versements,
+      remboursements,
+      ventes,
+    ] = await Promise.all([
+      // Nb clients affectés à chaque agent
       prisma.client.groupBy({
         by:    ['agentTerrainId'],
         where: { agentTerrainId: { in: userIds } },
         _count: { id: true },
       }),
 
+      // Souscriptions rattachées aux clients de l'agent (taux recouvrement)
       prisma.souscriptionPack.findMany({
         where: { client: { agentTerrainId: { in: userIds } } },
         select: {
-          montantTotal: true, montantVerse: true, montantRestant: true,
+          montantTotal:   true,
+          montantVerse:   true,
+          montantRestant: true,
           client: { select: { agentTerrainId: true } },
         },
       }),
 
+      // Sessions de collecte journalière validées
       prisma.collecteJournaliere.groupBy({
         by:    ['agentId'],
-        where: { agentId: { in: userIds }, statut: 'VALIDEE', ...dateFilter },
+        where: { agentId: { in: userIds }, statut: 'VALIDEE', ...dateRange('dateCollecte') },
         _count: { id: true },
         _sum:   { montantCollecte: true },
       }),
+
+      // CA source 1 : versements packs encaissés par l'agent
+      prisma.versementPack.groupBy({
+        by:    ['encaisseParId'],
+        where: {
+          encaisseParId: { in: userIds },
+          statut:        'PAYE',
+          ...dateRange('datePaiement'),
+        },
+        _sum: { montant: true },
+      }),
+
+      // CA source 2 : remboursements crédits enregistrés par l'agent
+      prisma.remboursementCredit.groupBy({
+        by:    ['enregistreParId'],
+        where: {
+          enregistreParId: { in: userIds },
+          ...dateRange('dateRemboursement'),
+        },
+        _sum: { montant: true },
+      }),
+
+      // CA source 3 : ventes directes réalisées par l'agent
+      prisma.venteDirecte.groupBy({
+        by:    ['vendeurId'],
+        where: {
+          vendeurId: { in: userIds },
+          statut:    { notIn: ['ANNULEE', 'BROUILLON'] },
+          ...dateRange('createdAt'),
+        },
+        _sum: { montantTotal: true },
+      }),
     ]);
 
+    // ── Construire la map CA par agent ────────────────────────────────────────
+    const caMap = new Map<number, number>();
+    for (const v of versements) {
+      if (v.encaisseParId === null) continue;
+      caMap.set(v.encaisseParId, (caMap.get(v.encaisseParId) ?? 0) + Number(v._sum.montant ?? 0));
+    }
+    for (const r of remboursements) {
+      if (r.enregistreParId === null) continue;
+      caMap.set(r.enregistreParId, (caMap.get(r.enregistreParId) ?? 0) + Number(r._sum.montant ?? 0));
+    }
+    for (const vd of ventes) {
+      if (vd.vendeurId === null) continue;
+      caMap.set(vd.vendeurId, (caMap.get(vd.vendeurId) ?? 0) + Number(vd._sum.montantTotal ?? 0));
+    }
+
+    // ── Construire la réponse ─────────────────────────────────────────────────
     const data = agents.map((agent) => {
-      const uid        = agent.memberId;
+      const uid = agent.memberId;
+
       const nbClients  = clientsParAgent.find((c) => c.agentTerrainId === uid)?._count.id ?? 0;
 
-      const agentSousc = souscriptions.filter((s) => s.client?.agentTerrainId === uid);
-      const totalPacks  = agentSousc.reduce((s, c) => s + Number(c.montantTotal),   0);
-      const totalVerse  = agentSousc.reduce((s, c) => s + Number(c.montantVerse),   0);
-      const totalRestant = agentSousc.reduce((s, c) => s + Number(c.montantRestant), 0);
+      const agentSousc    = souscriptions.filter((s) => s.client?.agentTerrainId === uid);
+      const totalPacks    = agentSousc.reduce((s, c) => s + Number(c.montantTotal),   0);
+      const totalVerse    = agentSousc.reduce((s, c) => s + Number(c.montantVerse),   0);
+      const totalRestant  = agentSousc.reduce((s, c) => s + Number(c.montantRestant), 0);
       const tauxRecouvrement = totalPacks > 0 ? Math.round((totalVerse / totalPacks) * 100) : 0;
 
-      const col = collectes.find((c) => c.agentId === uid);
-      const nbCollectes       = col?._count.id ?? 0;
-      const montantCollecte   = Number(col?._sum.montantCollecte ?? 0);
+      const col           = collectesSessions.find((c) => c.agentId === uid);
+      const nbCollectes   = col?._count.id ?? 0;
+      const montantCollecteSession = Number(col?._sum.montantCollecte ?? 0);
+
+      // CA réel = toutes sources financières confondues
+      const caTotal = caMap.get(uid) ?? 0;
 
       return {
-        agentId:  uid,
-        nom:      `${agent.member.prenom} ${agent.member.nom}`,
+        agentId:   uid,
+        nom:       `${agent.member.prenom} ${agent.member.nom}`,
         telephone: agent.member.telephone,
-        actif:    agent.actif,
+        actif:     agent.actif,
         nbClients,
-        nbSouscriptions: agentSousc.length,
+        nbSouscriptions:      agentSousc.length,
         totalPacks,
         totalVerse,
         totalRestant,
         tauxRecouvrement,
         nbCollectes,
-        montantCollecte,
-        score: tauxRecouvrement * 0.5 + (nbCollectes > 0 ? Math.min(50, nbCollectes * 2) : 0),
+        montantCollecteSession,
+        caTotal,          // CA réel (même méthode que le dashboard)
       };
-    }).sort((a, b) => b.score - a.score);
+    })
+    // Classement par CA réel décroissant (comme le dashboard)
+    .sort((a, b) => b.caTotal - a.caTotal);
 
     return NextResponse.json({ data });
   } catch (error) {

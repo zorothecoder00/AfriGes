@@ -1,6 +1,210 @@
 import { prisma } from "@/lib/prisma";
 import { MemberStatus } from "@prisma/client";
 
+// ─── Dashboard Décisionnel (Module 8) ────────────────────────────────────────
+
+export async function getDashboardDecisionnel() {
+  const now = new Date();
+
+  // Bornes "aujourd'hui"
+  const todayStart = new Date(now);
+  todayStart.setHours(0, 0, 0, 0);
+  const todayEnd = new Date(now);
+  todayEnd.setHours(23, 59, 59, 999);
+
+  // Bornes "30 derniers jours" pour classement agents
+  const since30 = new Date(now);
+  since30.setDate(since30.getDate() - 30);
+
+  // ── 8.1 KPIs créances ───────────────────────────────────────────────────
+
+  const [
+    clientsDebiteurs,
+    creancesAgg,
+    retardsCritiques,
+    versementsJourAgg,
+    remboursementsJourAgg,
+    creditsAgg,
+    pertesAgg,
+    creancesARisque,
+    cashAttenduAgg,
+  ] = await Promise.all([
+    // Clients avec au moins un crédit actif (solde > 0)
+    prisma.client.count({
+      where: {
+        creditsClients: {
+          some: { statut: { in: ["ACTIF", "EN_RETARD"] }, soldeRestant: { gt: 0 } },
+        },
+      },
+    }),
+
+    // Créances totales = somme des soldes restants actifs/en retard
+    prisma.creditClient.aggregate({
+      where: { statut: { in: ["ACTIF", "EN_RETARD"] } },
+      _sum: { soldeRestant: true },
+    }),
+
+    // Retards critiques = nombre de crédits EN_RETARD
+    prisma.creditClient.count({ where: { statut: "EN_RETARD" } }),
+
+    // Collecte du jour — versements packs
+    prisma.versementPack.aggregate({
+      where: { datePaiement: { gte: todayStart, lte: todayEnd } },
+      _sum: { montant: true },
+    }),
+
+    // Collecte du jour — remboursements crédits
+    prisma.remboursementCredit.aggregate({
+      where: { dateRemboursement: { gte: todayStart, lte: todayEnd } },
+      _sum: { montant: true },
+    }),
+
+    // Taux remboursement global
+    prisma.creditClient.aggregate({
+      where: { statut: { in: ["ACTIF", "EN_RETARD", "SOLDE"] } },
+      _sum: { montantTotal: true, montantRembourse: true },
+    }),
+
+    // Pertes potentielles = soldes des crédits EN_RETARD avec clients à risque élevé/critique
+    prisma.creditClient.aggregate({
+      where: {
+        statut: "EN_RETARD",
+        client: { niveauRisque: { in: ["ELEVE", "CRITIQUE"] } },
+      },
+      _sum: { soldeRestant: true },
+    }),
+
+    // Créances à risque = nombre de crédits actifs/retard avec client ELEVE/CRITIQUE
+    prisma.creditClient.count({
+      where: {
+        statut: { in: ["ACTIF", "EN_RETARD"] },
+        client: { niveauRisque: { in: ["ELEVE", "CRITIQUE"] } },
+      },
+    }),
+
+    // Cash attendu aujourd'hui = échéances dues aujourd'hui non payées
+    prisma.echeanceCredit.aggregate({
+      where: {
+        statut: { in: ["EN_ATTENTE", "EN_RETARD"] },
+        dateEcheance: { gte: todayStart, lte: todayEnd },
+      },
+      _sum: { montantDu: true },
+    }),
+  ]);
+
+  const montantCollecteJour =
+    Number(versementsJourAgg._sum.montant ?? 0) +
+    Number(remboursementsJourAgg._sum.montant ?? 0);
+
+  const totalMontant = Number(creditsAgg._sum.montantTotal ?? 0);
+  const totalRembourse = Number(creditsAgg._sum.montantRembourse ?? 0);
+  const tauxRemboursement = totalMontant > 0
+    ? Math.round((totalRembourse / totalMontant) * 100)
+    : 0;
+
+  // ── Classement des agents (30 derniers jours) ────────────────────────────
+  // Toutes les sources : versements packs + remboursements crédits + ventes directes
+
+  // IDs des agents terrain actifs
+  const agentTerrainRecords = await prisma.gestionnaire.findMany({
+    where: { role: "AGENT_TERRAIN", actif: true },
+    select: { memberId: true },
+  });
+  const agentTerrainIds = agentTerrainRecords.map((g) => g.memberId);
+
+  const [versementsParAgent, remboursementsParAgent, ventesParAgent] =
+    agentTerrainIds.length > 0
+      ? await Promise.all([
+          // Versements packs encaissés par l'agent
+          prisma.versementPack.groupBy({
+            by: ["encaisseParId"],
+            where: {
+              encaisseParId: { in: agentTerrainIds },
+              datePaiement: { gte: since30 },
+              statut: "PAYE",
+            },
+            _sum: { montant: true },
+          }),
+          // Remboursements crédits enregistrés par l'agent
+          prisma.remboursementCredit.groupBy({
+            by: ["enregistreParId"],
+            where: {
+              enregistreParId: { in: agentTerrainIds },
+              dateRemboursement: { gte: since30 },
+            },
+            _sum: { montant: true },
+          }),
+          // Ventes directes réalisées par l'agent
+          prisma.venteDirecte.groupBy({
+            by: ["vendeurId"],
+            where: {
+              vendeurId: { in: agentTerrainIds },
+              createdAt: { gte: since30 },
+              statut: { notIn: ["ANNULEE", "BROUILLON"] },
+            },
+            _sum: { montantTotal: true },
+          }),
+        ])
+      : [[], [], []];
+
+  // Fusionner par agentId
+  const totauxParAgent = new Map<number, number>();
+  for (const v of versementsParAgent) {
+    if (v.encaisseParId === null) continue;
+    const id = v.encaisseParId;
+    totauxParAgent.set(id, (totauxParAgent.get(id) ?? 0) + Number(v._sum.montant ?? 0));
+  }
+  for (const r of remboursementsParAgent) {
+    if (r.enregistreParId === null) continue;
+    const id = r.enregistreParId;
+    totauxParAgent.set(id, (totauxParAgent.get(id) ?? 0) + Number(r._sum.montant ?? 0));
+  }
+  for (const v of ventesParAgent) {
+    if (v.vendeurId === null) continue;
+    const id = v.vendeurId;
+    totauxParAgent.set(id, (totauxParAgent.get(id) ?? 0) + Number(v._sum.montantTotal ?? 0));
+  }
+
+  // Trier et prendre les 5 premiers
+  const top5 = [...totauxParAgent.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5);
+
+  const top5Ids = top5.map(([id]) => id);
+  const agentUsers = top5Ids.length > 0
+    ? await prisma.user.findMany({
+        where: { id: { in: top5Ids } },
+        select: { id: true, nom: true, prenom: true },
+      })
+    : [];
+  const userMap = Object.fromEntries(agentUsers.map((u) => [u.id, u]));
+
+  const agentsPerformants = top5.map(([agentId, montantCollecte], idx) => ({
+    rank: idx + 1,
+    agentId,
+    nom: userMap[agentId]
+      ? `${userMap[agentId].prenom ?? ""} ${userMap[agentId].nom ?? ""}`.trim()
+      : `Agent #${agentId}`,
+    montantCollecte,
+  }));
+
+  return {
+    // 8.1
+    clientsDebiteurs,
+    creancesTotales: Number(creancesAgg._sum.soldeRestant ?? 0),
+    retardsCritiques,
+    montantCollecteJour,
+    tauxRemboursement,
+    agentsPerformants,
+    // 8.2
+    encoursGlobal: Number(creancesAgg._sum.soldeRestant ?? 0),
+    cashAttendu: Number(cashAttenduAgg._sum.montantDu ?? 0),
+    cashCollecte: montantCollecteJour,
+    pertesPoentielles: Number(pertesAgg._sum.soldeRestant ?? 0),
+    creancesARisque,
+  };
+}
+
 // ─── Helper ──────────────────────────────────────────────────────────────────
 
 function pctChange(curr: number, prev: number): string {

@@ -16,6 +16,7 @@ const gestionnaireDashboardMap: Record<string, string> = {
   AGENT_TERRAIN: "/dashboard/user/agentsTerrain",
   AUDITEUR_INTERNE: "/dashboard/user/auditeursInterne",
   ACTIONNAIRE: "/dashboard/user/actionnaires",
+  RESPONSABLE_VENTE_CREDIT: "/dashboard/user/responsablesVenteCredit",
 }
 
 export async function proxy(request: NextRequest) {
@@ -60,6 +61,7 @@ export async function proxy(request: NextRequest) {
     "/api/comptable",
     "/api/auditeur",
     "/api/actionnaire",
+    "/api/rvc",
   ];
   if (
     request.method !== "GET" &&
@@ -135,5 +137,6 @@ export const config = {
     "/api/comptable/:path*",
     "/api/auditeur/:path*",
     "/api/actionnaire/:path*",
+    "/api/rvc/:path*",
   ],
 };

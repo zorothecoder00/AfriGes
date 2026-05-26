@@ -1,16 +1,17 @@
 "use client";
 
-import React, { useState, useCallback, useEffect, startTransition } from 'react';
+import React, { useState, useEffect, startTransition } from 'react';
 import {
-  Plus, Search, RefreshCw, Filter, Calendar, CheckCircle,
-  Clock, XCircle, Eye, ChevronDown, ChevronUp, Phone,
-  MapPin, AlertTriangle, Wallet, Users, TrendingUp, X,
+  RefreshCw, Filter, Calendar, CheckCircle,
+  Clock, XCircle, Eye, Phone,
+  MapPin, Wallet, TrendingUp, X,
   Save, Check,
 } from 'lucide-react';
 import { useApi, useMutation } from '@/hooks/useApi';
 import { formatDate, formatCurrency } from '@/lib/format';
-import { toast } from 'sonner';
+import { toast } from 'sonner'; 
 import ClienteleTabBar from '@/components/ClienteleTabBar';
+import { useT } from '@/contexts/AppSettingsContext';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -59,23 +60,31 @@ interface AgentOption {
   member: { id: number; nom: string; prenom: string };
 }
 
-interface ClientCreance {
-  id: number; nom: string; prenom: string; telephone: string; codeClient: string | null;
-  agentTerrainId: number | null;
-  souscriptionsPacks: {
-    id: number; montantTotal: string; montantRestant: string; statut: string;
-    pack: { nom: string; type: string };
-    echeances: { montant: string; datePrevue: string; statut: string }[];
-  }[];
-}
-
 // ─── Constantes ───────────────────────────────────────────────────────────────
 
-const STATUT_BADGE: Record<string, { cls: string; icon: React.ReactNode; label: string }> = {
-  EN_COURS: { cls: 'bg-amber-100 text-amber-700', icon: <Clock className="w-3 h-3" />, label: 'En cours' },
-  VALIDEE:  { cls: 'bg-emerald-100 text-emerald-700', icon: <CheckCircle className="w-3 h-3" />, label: 'Validée' },
-  ANNULEE:  { cls: 'bg-red-100 text-red-700', icon: <XCircle className="w-3 h-3" />, label: 'Annulée' },
-};
+function getStatutBadge(
+  t: ReturnType<typeof useT>
+): Record<string, { cls: string; icon: React.ReactNode; label: string }> {
+  return {
+    EN_COURS: {
+      cls: 'bg-amber-100 text-amber-700',
+      icon: <Clock className="w-3 h-3" />,
+      label: t('collecte_en_cours')
+    },
+
+    VALIDEE: {
+      cls: 'bg-emerald-100 text-emerald-700',
+      icon: <CheckCircle className="w-3 h-3" />,
+      label: t('collecte_validee')
+    },
+
+    ANNULEE: {
+      cls: 'bg-red-100 text-red-700',
+      icon: <XCircle className="w-3 h-3" />,
+      label: t('collecte_annulee')
+    },
+  };
+}
 
 const LIGNE_STATUT_BADGE: Record<string, string> = {
   EN_ATTENTE: 'bg-gray-100 text-gray-600',
@@ -87,6 +96,8 @@ const LIGNE_STATUT_BADGE: Record<string, string> = {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function CollectesPage() {
+  const t = useT();
+  const STATUT_BADGE = getStatutBadge(t);
   const [page,      setPage]      = useState(1);
   const [statut,    setStatut]    = useState('');
   const [agentId,   setAgentId]   = useState('');
@@ -94,8 +105,6 @@ export default function CollectesPage() {
   const [dateFin,   setDateFin]   = useState('');
   const [expanded,  setExpanded]  = useState<number | null>(null);
 
-  // Modals
-  const [showCreate,   setShowCreate]   = useState(false);
   const [detailId,     setDetailId]     = useState<number | null>(null);
   const [saisieId,     setSaisieId]     = useState<number | null>(null);
 
@@ -130,33 +139,23 @@ export default function CollectesPage() {
       {/* En-tête */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Collectes journalières</h2>
-          <p className="text-sm text-gray-500 mt-0.5">
-            Gestion des tournées de recouvrement terrain
-          </p>
+          <h2 className="text-2xl font-bold text-gray-900">{t('collecte_title')}</h2>
+          <p className="text-sm text-gray-500 mt-0.5">{t('collecte_subtitle')}</p>
         </div>
-        <div className="flex gap-2">
-          <button
-            onClick={() => setShowCreate(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700"
-          >
-            <Plus className="w-4 h-4" /> Nouvelle collecte
-          </button>
-          <button
-            onClick={refetch}
-            className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50"
-          >
-            <RefreshCw className="w-4 h-4" />
-          </button>
-        </div>
+        <button
+          onClick={refetch}
+          className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50"
+        >
+          <RefreshCw className="w-4 h-4" />
+        </button>
       </div>
 
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard label="Sessions en cours"  value={String(enCours)}          icon={<Clock className="w-5 h-5 text-amber-600" />}   bg="bg-amber-50" />
-        <StatCard label="Validées"            value={String(validees)}         icon={<CheckCircle className="w-5 h-5 text-emerald-600" />} bg="bg-emerald-50" />
-        <StatCard label="Montant collecté"    value={formatCurrency(totalCollecte)} icon={<Wallet className="w-5 h-5 text-blue-600" />}    bg="bg-blue-50" />
-        <StatCard label="Total sessions"      value={String(res?.meta.total ?? 0)} icon={<TrendingUp className="w-5 h-5 text-purple-600" />} bg="bg-purple-50" />
+        <StatCard label={t('collecte_en_cours')}    value={String(enCours)}          icon={<Clock className="w-5 h-5 text-amber-600" />}   bg="bg-amber-50" />
+        <StatCard label={t('collecte_validee')}     value={String(validees)}         icon={<CheckCircle className="w-5 h-5 text-emerald-600" />} bg="bg-emerald-50" />
+        <StatCard label={t('collecte_montant_col')} value={formatCurrency(totalCollecte)} icon={<Wallet className="w-5 h-5 text-blue-600" />}    bg="bg-blue-50" />
+        <StatCard label={t('collecte_total')}       value={String(res?.meta.total ?? 0)} icon={<TrendingUp className="w-5 h-5 text-purple-600" />} bg="bg-purple-50" />
       </div>
 
       {/* Filtres */}
@@ -166,10 +165,10 @@ export default function CollectesPage() {
           onChange={(e) => { setStatut(e.target.value); setPage(1); }}
           className="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:outline-none"
         >
-          <option value="">Tous statuts</option>
-          <option value="EN_COURS">En cours</option>
-          <option value="VALIDEE">Validées</option>
-          <option value="ANNULEE">Annulées</option>
+          <option value="">{t('collecte_all_statuts')}</option>
+          <option value="EN_COURS">{t('collecte_en_cours')}</option>
+          <option value="VALIDEE">{t('collecte_validee')}</option>
+          <option value="ANNULEE">{t('collecte_annulee')}</option>
         </select>
 
         <select
@@ -177,7 +176,7 @@ export default function CollectesPage() {
           onChange={(e) => { setAgentId(e.target.value); setPage(1); }}
           className="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:outline-none"
         >
-          <option value="">Tous les agents</option>
+          <option value="">{t('collecte_all_agents')}</option>
           {agents?.data.map((a) => (
             <option key={a.id} value={a.id}>
               {a.member.prenom} {a.member.nom}
@@ -209,32 +208,26 @@ export default function CollectesPage() {
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
         {loading ? (
           <div className="flex items-center justify-center py-16 text-gray-400">
-            <RefreshCw className="w-5 h-5 animate-spin mr-2" /> Chargement…
+            <RefreshCw className="w-5 h-5 animate-spin mr-2" /> {t('collecte_loading')}
           </div>
         ) : !res?.data.length ? (
           <div className="flex flex-col items-center justify-center py-16 text-gray-400">
             <Calendar className="w-10 h-10 mb-2" />
-            <p className="text-sm">Aucune collecte trouvée</p>
-            <button
-              onClick={() => setShowCreate(true)}
-              className="mt-3 px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700"
-            >
-              Créer la première collecte
-            </button>
+            <p className="text-sm">{t('collecte_none_found')}</p>
           </div>
         ) : (
           <table className="w-full text-sm">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
-                <th className="text-left px-4 py-3 font-semibold text-gray-600">Référence</th>
-                <th className="text-left px-4 py-3 font-semibold text-gray-600">Date</th>
-                <th className="text-left px-4 py-3 font-semibold text-gray-600">Agent</th>
-                <th className="text-left px-4 py-3 font-semibold text-gray-600">PDV</th>
-                <th className="text-right px-4 py-3 font-semibold text-gray-600">Prévu</th>
-                <th className="text-right px-4 py-3 font-semibold text-gray-600">Collecté</th>
-                <th className="text-center px-4 py-3 font-semibold text-gray-600">Lignes</th>
-                <th className="text-left px-4 py-3 font-semibold text-gray-600">Statut</th>
-                <th className="text-center px-4 py-3 font-semibold text-gray-600">Actions</th>
+                <th className="text-left px-4 py-3 font-semibold text-gray-600">{t('label_reference')}</th>
+                <th className="text-left px-4 py-3 font-semibold text-gray-600">{t('collecte_col_date')}</th>
+                <th className="text-left px-4 py-3 font-semibold text-gray-600">{t('collecte_col_agent')}</th>
+                <th className="text-left px-4 py-3 font-semibold text-gray-600">{t('collecte_col_pdv')}</th>
+                <th className="text-right px-4 py-3 font-semibold text-gray-600">{t('collecte_col_prevu')}</th>
+                <th className="text-right px-4 py-3 font-semibold text-gray-600">{t('collecte_col_collecte')}</th>
+                <th className="text-center px-4 py-3 font-semibold text-gray-600">{t('collecte_lignes')}</th>
+                <th className="text-left px-4 py-3 font-semibold text-gray-600">{t('col_status')}</th>
+                <th className="text-center px-4 py-3 font-semibold text-gray-600">{t('col_actions')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
@@ -320,23 +313,16 @@ export default function CollectesPage() {
           <div className="flex gap-2">
             <button disabled={page === 1} onClick={() => setPage((p) => p - 1)}
               className="px-3 py-1.5 border border-gray-200 rounded-lg disabled:opacity-40 hover:bg-gray-50">
-              Précédent
+              {t('btn_prev')}
             </button>
             <button disabled={page === res.meta.totalPages} onClick={() => setPage((p) => p + 1)}
               className="px-3 py-1.5 border border-gray-200 rounded-lg disabled:opacity-40 hover:bg-gray-50">
-              Suivant
+              {t('btn_next')}
             </button>
           </div>
         </div>
       )}
 
-      {/* Modals */}
-      {showCreate && (
-        <CreateCollecteModal
-          onClose={() => setShowCreate(false)}
-          onSuccess={() => { setShowCreate(false); refetch(); }}
-        />
-      )}
       {detailId && (
         <CollecteDetailModal
           id={detailId}
@@ -352,257 +338,6 @@ export default function CollectesPage() {
         />
       )}
       </div>{/* end p-6 */}
-    </div>
-  );
-}
-
-// ─── Modal : Créer une collecte ───────────────────────────────────────────────
-
-function CreateCollecteModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
-  const [agentId,       setAgentIdState]  = useState('');
-  const [dateCollecte,  setDateCollecte]  = useState(new Date().toISOString().slice(0, 10));
-  const [notes,         setNotes]         = useState('');
-  const [lignes,        setLignes]        = useState<{
-    clientId: number; clientNom: string; souscriptionId: number; packNom: string;
-    montantAttendu: number; montantRestant: number;
-  }[]>([]);
-  const [clientSearch,  setClientSearch]  = useState('');
-  const [clientResults, setClientResults] = useState<ClientCreance[]>([]);
-  const [loadingSearch, setLoadingSearch] = useState(false);
-
-  const { data: agents } = useApi<{ data: AgentOption[] }>(
-    '/api/admin/gestionnaires?role=AGENT_TERRAIN&limit=100'
-  );
-
-  const { mutate: createCollecte, loading } = useMutation('/api/admin/collectes', 'POST');
-
-  // Rechercher les clients avec créances actives
-  const searchClients = useCallback(async () => {
-    if (!clientSearch.trim()) return;
-    setLoadingSearch(true);
-    try {
-      const params = new URLSearchParams({
-        search: clientSearch, limit: '10',
-        ...(agentId && { agentTerrainId: agentId }),
-      });
-      const res = await fetch(`/api/admin/clients?${params}`);
-      const json = await res.json();
-      // Filtrer clients avec des souscriptions actives
-      const withCreances: ClientCreance[] = (json.data ?? []).filter(
-        (c: ClientCreance) => (c.souscriptionsPacks?.length ?? 0) > 0
-      );
-      setClientResults(withCreances);
-    } finally {
-      setLoadingSearch(false);
-    }
-  }, [clientSearch, agentId]);
-
-  const addLigne = (client: ClientCreance, sous: ClientCreance['souscriptionsPacks'][0]) => {
-    if (lignes.find((l) => l.souscriptionId === sous.id)) return;
-    const prochaine = sous.echeances?.[0];
-    setLignes((prev) => [
-      ...prev,
-      {
-        clientId:       client.id,
-        clientNom:      `${client.prenom} ${client.nom}`,
-        souscriptionId: sous.id,
-        packNom:        sous.pack.nom,
-        montantAttendu: prochaine ? Number(prochaine.montant) : Number(sous.montantRestant),
-        montantRestant: Number(sous.montantRestant),
-      },
-    ]);
-    setClientResults([]);
-    setClientSearch('');
-  };
-
-  const removeLigne = (souscriptionId: number) =>
-    setLignes((prev) => prev.filter((l) => l.souscriptionId !== souscriptionId));
-
-  const handleSubmit = async () => {
-    if (!agentId || !dateCollecte || lignes.length === 0) {
-      toast.error('Agent, date et au moins une ligne sont requis');
-      return;
-    }
-    const result = await createCollecte({
-      agentId: Number(agentId),
-      dateCollecte,
-      notes,
-      lignes: lignes.map((l) => ({
-        clientId:       l.clientId,
-        souscriptionId: l.souscriptionId,
-        montantAttendu: l.montantAttendu,
-      })),
-    });
-    if (result) {
-      toast.success('Collecte créée avec succès');
-      onSuccess();
-    }
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col">
-        {/* Header */}
-        <div className="flex items-center justify-between p-5 border-b border-gray-200">
-          <h2 className="text-lg font-bold text-gray-900">Nouvelle collecte journalière</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
-        <div className="overflow-y-auto p-5 space-y-5 flex-1">
-          {/* Agent + Date */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Agent terrain *</label>
-              <select
-                value={agentId}
-                onChange={(e) => setAgentIdState(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">Sélectionner un agent</option>
-                {agents?.data.map((a) => (
-                  <option key={a.id} value={a.id}>
-                    {a.member.prenom} {a.member.nom}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Date de collecte *</label>
-              <input
-                type="date"
-                value={dateCollecte}
-                onChange={(e) => setDateCollecte(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-          </div>
-
-          {/* Recherche client */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Ajouter un client à collecter</label>
-            <div className="flex gap-2">
-              <input
-                value={clientSearch}
-                onChange={(e) => setClientSearch(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && searchClients()}
-                placeholder="Nom, téléphone, code client…"
-                className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-              <button
-                onClick={searchClients}
-                disabled={loadingSearch}
-                className="px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 text-sm"
-              >
-                {loadingSearch ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
-              </button>
-            </div>
-
-            {/* Résultats recherche */}
-            {clientResults.length > 0 && (
-              <div className="mt-2 border border-gray-200 rounded-lg divide-y divide-gray-100 max-h-48 overflow-y-auto">
-                {clientResults.map((client) =>
-                  client.souscriptionsPacks?.map((sous) => (
-                    <button
-                      key={sous.id}
-                      onClick={() => addLigne(client, sous)}
-                      className="w-full text-left px-3 py-2.5 hover:bg-blue-50 transition-colors"
-                    >
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <span className="font-medium text-gray-800 text-sm">
-                            {client.prenom} {client.nom}
-                          </span>
-                          <span className="ml-2 text-xs text-gray-500">{client.telephone}</span>
-                        </div>
-                        <span className="text-xs text-red-600 font-semibold">
-                          {formatCurrency(Number(sous.montantRestant))} dû
-                        </span>
-                      </div>
-                      <div className="text-xs text-gray-500 mt-0.5">
-                        Pack : {sous.pack.nom} · {sous.statut}
-                      </div>
-                    </button>
-                  ))
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Lignes ajoutées */}
-          {lignes.length > 0 && (
-            <div>
-              <p className="text-sm font-semibold text-gray-700 mb-2">
-                Clients à collecter ({lignes.length})
-              </p>
-              <div className="border border-gray-200 rounded-lg divide-y divide-gray-100">
-                {lignes.map((l) => (
-                  <div key={l.souscriptionId} className="flex items-center gap-3 px-3 py-2.5">
-                    <div className="flex-1">
-                      <div className="text-sm font-medium text-gray-800">{l.clientNom}</div>
-                      <div className="text-xs text-gray-500">{l.packNom} · Restant : {formatCurrency(l.montantRestant)}</div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="number"
-                        value={l.montantAttendu}
-                        onChange={(e) => setLignes((prev) =>
-                          prev.map((x) => x.souscriptionId === l.souscriptionId
-                            ? { ...x, montantAttendu: Number(e.target.value) }
-                            : x
-                          )
-                        )}
-                        className="w-28 px-2 py-1 border border-gray-200 rounded text-sm text-right focus:outline-none focus:ring-1 focus:ring-blue-500"
-                      />
-                      <span className="text-xs text-gray-500">FCFA</span>
-                      <button
-                        onClick={() => removeLigne(l.souscriptionId)}
-                        className="text-red-400 hover:text-red-600"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-                <div className="flex items-center justify-between px-3 py-2 bg-gray-50">
-                  <span className="text-sm font-semibold text-gray-700">Total prévu</span>
-                  <span className="text-sm font-bold text-blue-700">
-                    {formatCurrency(lignes.reduce((s, l) => s + l.montantAttendu, 0))}
-                  </span>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Notes */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
-            <textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              rows={2}
-              placeholder="Instructions, zone couverte…"
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-        </div>
-
-        {/* Footer */}
-        <div className="flex items-center justify-end gap-3 p-5 border-t border-gray-200">
-          <button onClick={onClose} className="px-4 py-2 text-sm text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50">
-            Annuler
-          </button>
-          <button
-            onClick={handleSubmit}
-            disabled={loading || lignes.length === 0}
-            className="px-4 py-2 text-sm text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
-          >
-            {loading && <RefreshCw className="w-4 h-4 animate-spin" />}
-            Créer la collecte
-          </button>
-        </div>
-      </div>
     </div>
   );
 }

@@ -5,7 +5,7 @@ import {
   TrendingUp, Users, UserCheck, Package, Layers,
   ShoppingCart, MoreVertical, Download, Plus, ChevronDown, MessageSquare, Store, Shield,
   Activity, AlertTriangle, CheckCircle, XCircle, Wallet, BarChart2, Truck, RefreshCw,
-  Calendar, CreditCard,
+  Calendar, CreditCard, TrendingDown, DollarSign, Clock, Award, Percent,
 } from 'lucide-react';      
 import Link from "next/link";     
 import { useSession } from 'next-auth/react';
@@ -69,6 +69,32 @@ interface DashboardResponse {
       versements: { pct: string; positif: boolean };
       packs:      { pct: string; positif: boolean };
     };
+  };
+}
+
+interface AgentPerformant {
+  rank: number;
+  agentId: number;
+  nom: string;
+  montantCollecte: number;
+}
+
+interface DecisionalResponse {
+  success: boolean;
+  data: {
+    // 8.1
+    clientsDebiteurs: number;
+    creancesTotales: number;
+    retardsCritiques: number;
+    montantCollecteJour: number;
+    tauxRemboursement: number;
+    agentsPerformants: AgentPerformant[];
+    // 8.2
+    encoursGlobal: number;
+    cashAttendu: number;
+    cashCollecte: number;
+    pertesPoentielles: number;
+    creancesARisque: number;
   };
 }
 
@@ -152,6 +178,11 @@ export default function AfriGesDashboard() {
     '/api/admin/activity'
   );
   const act = activityResponse?.data;
+
+  const { data: decisionalResponse, refetch: refetchDecisional } = useApi<DecisionalResponse>(
+    '/api/admin/dashboard/decisional'
+  );
+  const dec = decisionalResponse?.data;
 
   const handleExport = () => {
     const points = d?.evolutionVersements ?? [];
@@ -378,7 +409,7 @@ export default function AfriGesDashboard() {
                     </div>
                   </div>
                   <button
-                    onClick={() => { refetch(); refetchActivity(); }}
+                    onClick={() => { refetch(); refetchActivity(); refetchDecisional(); }}
                     className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-lg transition-colors"
                     title={t('refresh')}
                   >
@@ -737,6 +768,275 @@ export default function AfriGesDashboard() {
               </div>
             </div>
           </div>
+          {/* ── Dashboard Décisionnel (Module 8) ──────────────────────────── */}
+          <div className="space-y-5">
+
+            {/* En-tête section */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-1 h-8 bg-gradient-to-b from-orange-500 to-red-500 rounded-full" />
+                <div>
+                  <h3 className="text-lg font-bold text-slate-800">Dashboard Décisionnel</h3>
+                  <p className="text-xs text-slate-400">Créances · Collecte · Performance agents</p>
+                </div>
+              </div>
+              <button
+                onClick={refetchDecisional}
+                className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-lg transition-colors"
+                title="Actualiser"
+              >
+                <RefreshCw size={14} />
+              </button>
+            </div>
+
+            {/* 8.1 — KPIs créances & collecte */}
+            <div className="grid grid-cols-4 gap-4">
+              {[
+                {
+                  label: "Clients débiteurs",
+                  value: dec?.clientsDebiteurs ?? '—',
+                  icon: Users,
+                  color: 'text-orange-600',
+                  bg: 'bg-orange-50',
+                  border: 'border-orange-100',
+                  sub: 'avec crédit actif',
+                },
+                {
+                  label: "Créances totales",
+                  value: dec ? formatCurrency(dec.creancesTotales) : '—',
+                  icon: CreditCard,
+                  color: 'text-red-600',
+                  bg: 'bg-red-50',
+                  border: 'border-red-100',
+                  sub: 'encours actif + retard',
+                },
+                {
+                  label: "Retards critiques",
+                  value: dec?.retardsCritiques ?? '—',
+                  icon: AlertTriangle,
+                  color: 'text-amber-600',
+                  bg: 'bg-amber-50',
+                  border: 'border-amber-100',
+                  sub: 'crédits EN_RETARD',
+                },
+                {
+                  label: "Collecté aujourd'hui",
+                  value: dec ? formatCurrency(dec.montantCollecteJour) : '—',
+                  icon: Wallet,
+                  color: 'text-emerald-600',
+                  bg: 'bg-emerald-50',
+                  border: 'border-emerald-100',
+                  sub: 'packs + crédits',
+                },
+              ].map((kpi) => {
+                const Icon = kpi.icon;
+                return (
+                  <div key={kpi.label} className={`bg-white rounded-2xl p-5 shadow-sm border ${kpi.border}`}>
+                    <div className="flex items-start justify-between mb-3">
+                      <div className={`${kpi.bg} p-2.5 rounded-xl`}>
+                        <Icon size={18} className={kpi.color} />
+                      </div>
+                    </div>
+                    <p className="text-2xl font-bold text-slate-800 mb-0.5">{kpi.value}</p>
+                    <p className="text-xs font-semibold text-slate-600">{kpi.label}</p>
+                    <p className="text-[10px] text-slate-400 mt-0.5">{kpi.sub}</p>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* 8.1 — Taux + Classement agents */}
+            <div className="grid grid-cols-3 gap-5">
+
+              {/* Taux de remboursement */}
+              <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60">
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="bg-indigo-50 p-2 rounded-lg">
+                    <Percent size={16} className="text-indigo-600" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-slate-800">Taux de remboursement</h4>
+                    <p className="text-xs text-slate-400">Global tous crédits actifs/soldés</p>
+                  </div>
+                </div>
+                <div className="flex items-end gap-2 mb-3">
+                  <span className="text-4xl font-bold text-slate-800">
+                    {dec?.tauxRemboursement ?? '—'}
+                  </span>
+                  {dec && <span className="text-xl font-semibold text-slate-400 mb-1">%</span>}
+                </div>
+                {dec && (
+                  <div className="w-full bg-slate-100 rounded-full h-2.5">
+                    <div
+                      className={`h-2.5 rounded-full transition-all ${
+                        dec.tauxRemboursement >= 80 ? 'bg-emerald-500' :
+                        dec.tauxRemboursement >= 50 ? 'bg-amber-500' : 'bg-red-500'
+                      }`}
+                      style={{ width: `${Math.min(dec.tauxRemboursement, 100)}%` }}
+                    />
+                  </div>
+                )}
+                <p className="text-[10px] text-slate-400 mt-2">
+                  {dec?.tauxRemboursement !== undefined && (
+                    dec.tauxRemboursement >= 80 ? 'Excellent — objectif atteint' :
+                    dec.tauxRemboursement >= 50 ? 'Moyen — suivi recommandé' : 'Faible — action requise'
+                  )}
+                </p>
+              </div>
+
+              {/* Classement agents */}
+              <div className="col-span-2 bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60">
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="bg-amber-50 p-2 rounded-lg">
+                    <Award size={16} className="text-amber-600" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-slate-800">Classement agents terrain</h4>
+                    <p className="text-xs text-slate-400">Collecte des 30 derniers jours</p>
+                  </div>
+                </div>
+                {!dec || dec.agentsPerformants.length === 0 ? (
+                  <p className="text-sm text-slate-400 text-center py-4">Aucune donnée de collecte</p>
+                ) : (
+                  <div className="space-y-2.5">
+                    {dec.agentsPerformants.map((agent) => {
+                      const max = dec.agentsPerformants[0].montantCollecte;
+                      const pct = max > 0 ? (agent.montantCollecte / max) * 100 : 0;
+                      return (
+                        <div key={agent.agentId} className="flex items-center gap-3">
+                          <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${
+                            agent.rank === 1 ? 'bg-amber-100 text-amber-700' :
+                            agent.rank === 2 ? 'bg-slate-200 text-slate-600' :
+                            agent.rank === 3 ? 'bg-orange-100 text-orange-700' :
+                            'bg-slate-100 text-slate-500'
+                          }`}>
+                            {agent.rank}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-xs font-semibold text-slate-700 truncate">{agent.nom}</span>
+                              <span className="text-xs font-bold text-slate-800 ml-2 flex-shrink-0">
+                                {formatCurrency(agent.montantCollecte)}
+                              </span>
+                            </div>
+                            <div className="w-full bg-slate-100 rounded-full h-1.5">
+                              <div
+                                className={`h-1.5 rounded-full ${
+                                  agent.rank === 1 ? 'bg-amber-500' :
+                                  agent.rank === 2 ? 'bg-slate-400' :
+                                  agent.rank === 3 ? 'bg-orange-400' : 'bg-slate-300'
+                                }`}
+                                style={{ width: `${pct}%` }}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* 8.2 — Dashboard Financier */}
+            <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60">
+              <div className="flex items-center gap-2 mb-5">
+                <div className="bg-blue-50 p-2 rounded-lg">
+                  <DollarSign size={16} className="text-blue-600" />
+                </div>
+                <div>
+                  <h4 className="text-sm font-bold text-slate-800">Dashboard Financier</h4>
+                  <p className="text-xs text-slate-400">Encours · Cash · Risques</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-5 gap-4">
+                {[
+                  {
+                    label: "Encours global",
+                    value: dec ? formatCurrency(dec.encoursGlobal) : '—',
+                    icon: CreditCard,
+                    color: 'text-blue-600',
+                    bg: 'bg-blue-50',
+                    desc: 'Solde restant total',
+                  },
+                  {
+                    label: "Cash attendu",
+                    value: dec ? formatCurrency(dec.cashAttendu) : '—',
+                    icon: Clock,
+                    color: 'text-indigo-600',
+                    bg: 'bg-indigo-50',
+                    desc: 'Échéances du jour',
+                  },
+                  {
+                    label: "Cash collecté",
+                    value: dec ? formatCurrency(dec.cashCollecte) : '—',
+                    icon: CheckCircle,
+                    color: 'text-emerald-600',
+                    bg: 'bg-emerald-50',
+                    desc: "Encaissé aujourd'hui",
+                  },
+                  {
+                    label: "Pertes potentielles",
+                    value: dec ? formatCurrency(dec.pertesPoentielles) : '—',
+                    icon: TrendingDown,
+                    color: 'text-red-600',
+                    bg: 'bg-red-50',
+                    desc: 'EN_RETARD + risque élevé',
+                  },
+                  {
+                    label: "Créances à risque",
+                    value: dec?.creancesARisque ?? '—',
+                    icon: AlertTriangle,
+                    color: 'text-amber-600',
+                    bg: 'bg-amber-50',
+                    desc: 'Clients ELEVE/CRITIQUE',
+                  },
+                ].map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <div key={item.label} className="p-4 bg-slate-50 rounded-xl">
+                      <div className={`${item.bg} p-2 rounded-lg w-fit mb-3`}>
+                        <Icon size={15} className={item.color} />
+                      </div>
+                      <p className="text-xl font-bold text-slate-800">{item.value}</p>
+                      <p className="text-xs font-semibold text-slate-600 mt-0.5">{item.label}</p>
+                      <p className="text-[10px] text-slate-400 mt-0.5">{item.desc}</p>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Barre de progression cash attendu vs collecté */}
+              {dec && dec.cashAttendu > 0 && (
+                <div className="mt-4 p-4 bg-slate-50 rounded-xl">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-semibold text-slate-600">
+                      Taux de collecte du jour
+                    </span>
+                    <span className="text-xs font-bold text-slate-800">
+                      {Math.min(Math.round((dec.cashCollecte / dec.cashAttendu) * 100), 100)}%
+                    </span>
+                  </div>
+                  <div className="w-full bg-slate-200 rounded-full h-2">
+                    <div
+                      className="h-2 rounded-full bg-gradient-to-r from-emerald-500 to-emerald-400 transition-all"
+                      style={{ width: `${Math.min((dec.cashCollecte / dec.cashAttendu) * 100, 100)}%` }}
+                    />
+                  </div>
+                  <div className="flex justify-between mt-1.5">
+                    <span className="text-[10px] text-slate-400">
+                      Collecté : {formatCurrency(dec.cashCollecte)}
+                    </span>
+                    <span className="text-[10px] text-slate-400">
+                      Attendu : {formatCurrency(dec.cashAttendu)}
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
+
+          </div>
+
         </main>
       </div>
 

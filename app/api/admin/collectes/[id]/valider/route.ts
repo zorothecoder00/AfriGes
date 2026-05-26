@@ -25,6 +25,7 @@ export async function POST(_req: Request, { params }: Ctx) {
         lignes: {
           include: {
             souscription: { include: { pack: true } },
+            versementPack: { select: { id: true } },
           },
         },
         agent: { select: { id: true, nom: true, prenom: true } },
@@ -57,6 +58,10 @@ export async function POST(_req: Request, { params }: Ctx) {
 
     await prisma.$transaction(async (tx) => {
       for (const ligne of lignesAValider) {
+        // Si l'agent terrain a déjà encaissé via /collecteJour/[id]/encaisser,
+        // le versementPack est déjà créé → ne pas créer de doublon.
+        if (ligne.versementPack) continue;
+
         const montant     = Number(ligne.montantCollecte);
         const souscription = ligne.souscription;
 
