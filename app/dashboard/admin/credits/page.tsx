@@ -11,6 +11,7 @@ import Link from 'next/link';
 import { useApi } from '@/hooks/useApi';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { toast } from 'sonner';
+import { useT } from '@/contexts/AppSettingsContext';
 import ClienteleTabBar from '@/components/ClienteleTabBar';
 
 // ─── Types ────────────────────────────────────────────────────────────────────

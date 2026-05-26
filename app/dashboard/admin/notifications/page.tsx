@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useApi, useMutation } from '@/hooks/useApi';
+import { useT } from '@/contexts/AppSettingsContext';
 import { formatDateTime } from '@/lib/format';
 import ClienteleTabBar from '@/components/ClienteleTabBar';
 import {
@@ -71,6 +72,7 @@ function timeDiff(ts: string) {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function NotificationsClientelePage() {
+  const t = useT();
   const [page,    setPage]    = useState(1);
   const [filtre,  setFiltre]  = useState<'toutes' | 'non_lues' | 'urgentes'>('toutes');
 
@@ -111,7 +113,7 @@ export default function NotificationsClientelePage() {
           <div>
             <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
               <Bell className="w-6 h-6 text-blue-600" />
-              Centre de notifications
+              {t('notif_clientele_title')}
               {(res?.meta.nbNonLues ?? 0) > 0 && (
                 <span className="ml-1 px-2 py-0.5 bg-red-500 text-white text-xs rounded-full font-bold">
                   {res!.meta.nbNonLues}
@@ -119,13 +121,13 @@ export default function NotificationsClientelePage() {
               )}
             </h2>
             <p className="text-sm text-gray-500 mt-0.5">
-              Alertes et événements du module clientèle
+              {t('notif_clientele_subtitle')}
             </p>
           </div>
           <div className="flex gap-2">
             <button onClick={handleMarkAll} disabled={marking || (res?.meta.nbNonLues ?? 0) === 0}
               className="flex items-center gap-2 px-4 py-2 text-sm bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 disabled:opacity-40">
-              <CheckCheck className="w-4 h-4" /> Tout marquer lu
+              <CheckCheck className="w-4 h-4" /> {t('notif_mark_all_read')}
             </button>
             <button onClick={refetch}
               className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 bg-white border border-gray-200 rounded-xl hover:bg-gray-50">
@@ -137,9 +139,9 @@ export default function NotificationsClientelePage() {
         {/* Filtres */}
         <div className="flex gap-2">
           {([
-            { key: 'toutes',    label: 'Toutes' },
-            { key: 'non_lues',  label: 'Non lues' },
-            { key: 'urgentes',  label: 'Urgentes' },
+            { key: 'toutes',    label: t('notif_all') },
+            { key: 'non_lues',  label: t('notif_unread') },
+            { key: 'urgentes',  label: t('notif_urgent') },
           ] as const).map(({ key, label }) => (
             <button key={key}
               onClick={() => { setFiltre(key); setPage(1); }}
@@ -157,12 +159,12 @@ export default function NotificationsClientelePage() {
         <div className="space-y-2">
           {loading && !res ? (
             <div className="flex items-center justify-center py-16 text-gray-400">
-              <RefreshCw className="w-5 h-5 animate-spin mr-2" /> Chargement…
+              <RefreshCw className="w-5 h-5 animate-spin mr-2" /> {t('notif_loading')}
             </div>
           ) : displayed.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-gray-400">
               <Bell className="w-10 h-10 mb-3" />
-              <p className="text-sm">Aucune notification</p>
+              <p className="text-sm">{t('notif_none_found')}</p>
             </div>
           ) : (
             displayed.map((n) => (
@@ -201,13 +203,13 @@ export default function NotificationsClientelePage() {
                         {n.actionUrl && (
                           <Link href={n.actionUrl}
                             className="px-2.5 py-1 text-xs bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100">
-                            Voir
+                            {t('notif_action')}
                           </Link>
                         )}
                         {!n.lue && (
                           <button onClick={() => handleMarkOne(n.id)}
                             className="px-2.5 py-1 text-xs bg-emerald-50 text-emerald-600 rounded-lg hover:bg-emerald-100">
-                            Lu
+                            {t('notif_lu_btn')}
                           </button>
                         )}
                       </div>
@@ -226,11 +228,11 @@ export default function NotificationsClientelePage() {
             <div className="flex gap-2">
               <button disabled={page === 1} onClick={() => setPage((p) => p - 1)}
                 className="px-3 py-1.5 border border-gray-200 rounded-lg disabled:opacity-40 hover:bg-gray-50">
-                Précédent
+                {t('btn_prev')}
               </button>
               <button disabled={page === res.meta.totalPages} onClick={() => setPage((p) => p + 1)}
                 className="px-3 py-1.5 border border-gray-200 rounded-lg disabled:opacity-40 hover:bg-gray-50">
-                Suivant
+                {t('btn_next')}
               </button>
             </div>
           </div>

@@ -6,6 +6,7 @@ import {
   Users, Calendar, Wallet, AlertTriangle, UserCheck, FileText, FileSpreadsheet,
 } from 'lucide-react';
 import { useApi } from '@/hooks/useApi';
+import { useT } from '@/contexts/AppSettingsContext';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { exportToCsv } from '@/lib/exportCsv';
 import { exportToXls } from '@/lib/exportXls';
@@ -111,6 +112,7 @@ type TabId = 'recouvrement' | 'collectes' | 'creances' | 'agents' | 'clients' | 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function RapportsPage() {
+  const t = useT();
   const [tab,       setTab]       = useState<TabId>('recouvrement');
   const [dateDebut, setDateDebut] = useState('');
   const [dateFin,   setDateFin]   = useState('');
@@ -128,12 +130,12 @@ export default function RapportsPage() {
   const retards  = useApi<RetardsData>('/api/admin/rapports/retards');
 
   const TABS: { id: TabId; label: string; icon: React.ReactNode }[] = [
-    { id: 'recouvrement', label: 'Recouvrement',  icon: <TrendingUp className="w-4 h-4" /> },
-    { id: 'collectes',    label: 'Collectes',      icon: <Calendar className="w-4 h-4" /> },
-    { id: 'creances',     label: 'Créances',       icon: <TrendingDown className="w-4 h-4" /> },
-    { id: 'agents',       label: 'Perf. agents',   icon: <UserCheck className="w-4 h-4" /> },
-    { id: 'clients',      label: 'Liste clients',  icon: <Users className="w-4 h-4" /> },
-    { id: 'retards',      label: 'Retards',        icon: <AlertTriangle className="w-4 h-4" /> },
+    { id: 'recouvrement', label: t('rapports_tab_recouvrement'), icon: <TrendingUp className="w-4 h-4" /> },
+    { id: 'collectes',    label: t('rapports_tab_collectes'),    icon: <Calendar className="w-4 h-4" /> },
+    { id: 'creances',     label: t('rapports_tab_creances'),     icon: <TrendingDown className="w-4 h-4" /> },
+    { id: 'agents',       label: t('rapports_tab_agents'),       icon: <UserCheck className="w-4 h-4" /> },
+    { id: 'clients',      label: t('rapports_tab_clients'),      icon: <Users className="w-4 h-4" /> },
+    { id: 'retards',      label: t('rapports_tab_retards'),      icon: <AlertTriangle className="w-4 h-4" /> },
   ];
 
   const currentApi = {
@@ -497,8 +499,8 @@ export default function RapportsPage() {
         {/* En-tête */}
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
-            <h2 className="text-2xl font-bold text-gray-900">Rapports & Exports</h2>
-            <p className="text-sm text-gray-500 mt-0.5">Analyses détaillées du module clientèle</p>
+            <h2 className="text-2xl font-bold text-gray-900">{t('rapports_title')}</h2>
+            <p className="text-sm text-gray-500 mt-0.5">{t('rapports_subtitle_detail')}</p>
           </div>
           <div className="flex items-center gap-2">
             {exportButtons[tab]}
@@ -530,7 +532,7 @@ export default function RapportsPage() {
           {tab !== 'creances' && tab !== 'retards' && (
             <div className="px-6 py-4 flex items-center gap-4 bg-gray-50 border-b border-gray-100 flex-wrap">
               <span className="text-xs font-medium text-gray-500 flex items-center gap-1">
-                <Calendar className="w-3 h-3" /> Période
+                <Calendar className="w-3 h-3" /> {t('rapports_period_label')}
               </span>
               <input type="date" value={dateDebut} onChange={(e) => setDateDebut(e.target.value)}
                 className="px-3 py-1.5 border border-gray-200 rounded-lg text-sm bg-white" />
@@ -540,7 +542,7 @@ export default function RapportsPage() {
               {(dateDebut || dateFin) && (
                 <button onClick={() => { setDateDebut(''); setDateFin(''); }}
                   className="text-xs text-gray-400 hover:text-gray-600 underline">
-                  Effacer
+                  {t('btn_clear')}
                 </button>
               )}
             </div>
@@ -549,7 +551,7 @@ export default function RapportsPage() {
           <div className="p-6">
             {isLoading ? (
               <div className="flex items-center justify-center py-16 text-gray-400">
-                <RefreshCw className="w-5 h-5 animate-spin mr-2" /> Chargement…
+                <RefreshCw className="w-5 h-5 animate-spin mr-2" /> {t('rapports_loading')}
               </div>
             ) : (
               <>
@@ -571,20 +573,21 @@ export default function RapportsPage() {
 // ─── Tab Recouvrement ─────────────────────────────────────────────────────────
 
 function TabRecouvrement({ data }: { data: RecouvrementData }) {
+  const t = useT();
   const g = data.global;
   const maxEvo = Math.max(...data.evolution.map((e) => e.montant), 1);
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatBox label="Souscriptions"  value={String(g.nb)}              icon={<Wallet className="w-5 h-5 text-blue-600" />}    bg="bg-blue-50" />
-        <StatBox label="Total packs"    value={formatCurrency(g.totalPacks)} icon={<BarChart2 className="w-5 h-5 text-violet-600" />} bg="bg-violet-50" />
-        <StatBox label="Versé"          value={formatCurrency(g.totalVerse)} icon={<TrendingUp className="w-5 h-5 text-emerald-600" />} bg="bg-emerald-50" />
-        <StatBox label="Taux global"    value={`${g.tauxGlobal}%`}        icon={<TrendingDown className="w-5 h-5 text-orange-600" />} bg="bg-orange-50" />
+        <StatBox label={t('rapports_souscriptions')} value={String(g.nb)}              icon={<Wallet className="w-5 h-5 text-blue-600" />}    bg="bg-blue-50" />
+        <StatBox label={t('rapports_total_packs')}   value={formatCurrency(g.totalPacks)} icon={<BarChart2 className="w-5 h-5 text-violet-600" />} bg="bg-violet-50" />
+        <StatBox label={t('rapports_verse')}         value={formatCurrency(g.totalVerse)} icon={<TrendingUp className="w-5 h-5 text-emerald-600" />} bg="bg-emerald-50" />
+        <StatBox label={t('rapports_taux_global')}   value={`${g.tauxGlobal}%`}        icon={<TrendingDown className="w-5 h-5 text-orange-600" />} bg="bg-orange-50" />
       </div>
 
       {data.evolution.length > 0 && (
         <div>
-          <p className="text-sm font-semibold text-gray-700 mb-3">Évolution des versements</p>
+          <p className="text-sm font-semibold text-gray-700 mb-3">{t('rapports_evo_versements')}</p>
           <div className="flex items-end gap-2 h-28 bg-gray-50 rounded-xl p-4">
             {data.evolution.map((e) => {
               const h = Math.max(4, Math.round((e.montant / maxEvo) * 100));
@@ -603,13 +606,13 @@ function TabRecouvrement({ data }: { data: RecouvrementData }) {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <RankTable
-          title="Par agent" icon={<Users className="w-4 h-4 text-blue-600" />}
+          title={t('rapports_par_agent')} icon={<Users className="w-4 h-4 text-blue-600" />}
           rows={data.parAgent.slice(0, 8)}
           cols={[
-            { label: 'Agent',  render: (r) => r.nom },
-            { label: 'Nb',     render: (r) => String(r.nb), cls: 'text-right text-gray-600' },
-            { label: 'Versé',  render: (r) => formatCurrency(r.verse), cls: 'text-right text-emerald-600 font-semibold' },
-            { label: 'Taux',   render: (r) => (
+            { label: t('rapports_col_agent'), render: (r) => r.nom },
+            { label: t('rapports_col_nb'),    render: (r) => String(r.nb), cls: 'text-right text-gray-600' },
+            { label: t('rapports_col_verse'), render: (r) => formatCurrency(r.verse), cls: 'text-right text-emerald-600 font-semibold' },
+            { label: t('rapports_col_taux'),  render: (r) => (
               <div className="flex items-center gap-2">
                 <div className="w-16 bg-gray-100 rounded-full h-1.5">
                   <div className={`h-1.5 rounded-full ${TAUX_BAR(r.taux)}`} style={{ width: `${r.taux}%` }} />
@@ -620,13 +623,13 @@ function TabRecouvrement({ data }: { data: RecouvrementData }) {
           ]}
         />
         <RankTable
-          title="Par type de pack" icon={<BarChart2 className="w-4 h-4 text-violet-600" />}
+          title={t('rapports_par_type')} icon={<BarChart2 className="w-4 h-4 text-violet-600" />}
           rows={data.parTypePack}
           cols={[
-            { label: 'Type',  render: (r) => r.type },
-            { label: 'Nb',    render: (r) => String(r.nb), cls: 'text-right text-gray-600' },
-            { label: 'Versé', render: (r) => formatCurrency(r.verse), cls: 'text-right text-emerald-600 font-semibold' },
-            { label: 'Taux',  render: (r) => `${r.taux}%`, cls: 'text-right font-bold' },
+            { label: t('rapports_col_type'),  render: (r) => r.type },
+            { label: t('rapports_col_nb'),    render: (r) => String(r.nb), cls: 'text-right text-gray-600' },
+            { label: t('rapports_col_verse'), render: (r) => formatCurrency(r.verse), cls: 'text-right text-emerald-600 font-semibold' },
+            { label: t('rapports_col_taux'),  render: (r) => `${r.taux}%`, cls: 'text-right font-bold' },
           ]}
         />
       </div>
@@ -637,15 +640,16 @@ function TabRecouvrement({ data }: { data: RecouvrementData }) {
 // ─── Tab Collectes ────────────────────────────────────────────────────────────
 
 function TabCollectes({ data }: { data: CollectesData }) {
+  const t = useT();
   const g = data.global;
   const maxJour = Math.max(...data.parJour.map((j) => j.montant), 1);
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatBox label="Total collectes"  value={String(g.nbTotal)}           icon={<Calendar className="w-5 h-5 text-teal-600" />}    bg="bg-teal-50" />
-        <StatBox label="Montant prévu"    value={formatCurrency(g.totalPrevu)}  icon={<BarChart2 className="w-5 h-5 text-blue-600" />}   bg="bg-blue-50" />
-        <StatBox label="Montant encaissé" value={formatCurrency(g.totalCollecte)} icon={<Wallet className="w-5 h-5 text-emerald-600" />} bg="bg-emerald-50" />
-        <StatBox label="Taux réalisation" value={`${g.tauxRealisation}%`}      icon={<TrendingUp className="w-5 h-5 text-orange-600" />} bg="bg-orange-50" />
+        <StatBox label={t('rapports_total_collectes')}  value={String(g.nbTotal)}           icon={<Calendar className="w-5 h-5 text-teal-600" />}    bg="bg-teal-50" />
+        <StatBox label={t('rapports_montant_prevu')}    value={formatCurrency(g.totalPrevu)}  icon={<BarChart2 className="w-5 h-5 text-blue-600" />}   bg="bg-blue-50" />
+        <StatBox label={t('rapports_montant_encaisse')} value={formatCurrency(g.totalCollecte)} icon={<Wallet className="w-5 h-5 text-emerald-600" />} bg="bg-emerald-50" />
+        <StatBox label={t('rapports_taux_realisation')} value={`${g.tauxRealisation}%`}      icon={<TrendingUp className="w-5 h-5 text-orange-600" />} bg="bg-orange-50" />
       </div>
 
       <div className="flex flex-wrap gap-3">
@@ -661,7 +665,7 @@ function TabCollectes({ data }: { data: CollectesData }) {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {data.parJour.length > 0 && (
           <div>
-            <p className="text-sm font-semibold text-gray-700 mb-3">Collectes par jour</p>
+            <p className="text-sm font-semibold text-gray-700 mb-3">{t('rapports_collectes_par_jour')}</p>
             <div className="flex items-end gap-1 h-28 bg-gray-50 rounded-xl p-3 overflow-x-auto">
               {data.parJour.slice(-30).map((j) => {
                 const h = Math.max(4, Math.round((j.montant / maxJour) * 100));
@@ -673,16 +677,16 @@ function TabCollectes({ data }: { data: CollectesData }) {
                 );
               })}
             </div>
-            <p className="text-xs text-gray-400 mt-1 text-center">30 derniers jours</p>
+            <p className="text-xs text-gray-400 mt-1 text-center">{t('rapports_30j')}</p>
           </div>
         )}
         <RankTable
-          title="Par agent" icon={<Users className="w-4 h-4 text-teal-600" />}
+          title={t('rapports_par_agent')} icon={<Users className="w-4 h-4 text-teal-600" />}
           rows={data.parAgent.slice(0, 8)}
           cols={[
-            { label: 'Agent',     render: (r) => r.nom },
-            { label: 'Collectes', render: (r) => String(r.nbCollectes), cls: 'text-right text-gray-600' },
-            { label: 'Encaissé',  render: (r) => formatCurrency(r.montantCollecte), cls: 'text-right text-emerald-600 font-semibold' },
+            { label: t('rapports_col_agent'),    render: (r) => r.nom },
+            { label: t('rapports_col_collectes'), render: (r) => String(r.nbCollectes), cls: 'text-right text-gray-600' },
+            { label: t('rapports_col_encaisse'),  render: (r) => formatCurrency(r.montantCollecte), cls: 'text-right text-emerald-600 font-semibold' },
           ]}
         />
       </div>
@@ -693,19 +697,20 @@ function TabCollectes({ data }: { data: CollectesData }) {
 // ─── Tab Créances ─────────────────────────────────────────────────────────────
 
 function TabCreances({ data }: { data: CreancesData }) {
+  const t = useT();
   const g = data.global;
   const maxAnc = Math.max(...data.parAnciennete.map((a) => a.montant), 1);
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatBox label="Créances ouvertes"  value={String(g.nbCreances)}       icon={<AlertTriangle className="w-5 h-5 text-orange-600" />} bg="bg-orange-50" />
-        <StatBox label="Montant dû"         value={formatCurrency(g.totalRestant)} icon={<TrendingDown className="w-5 h-5 text-red-600" />}     bg="bg-red-50" />
-        <StatBox label="Versé total"        value={formatCurrency(g.totalVerse)}   icon={<Wallet className="w-5 h-5 text-emerald-600" />}       bg="bg-emerald-50" />
-        <StatBox label="Taux recouvrement"  value={`${g.tauxRecouvrement}%`}       icon={<TrendingUp className="w-5 h-5 text-blue-600" />}      bg="bg-blue-50" />
+        <StatBox label={t('rapports_creances_ouvertes')} value={String(g.nbCreances)}       icon={<AlertTriangle className="w-5 h-5 text-orange-600" />} bg="bg-orange-50" />
+        <StatBox label={t('rapports_montant_du')}        value={formatCurrency(g.totalRestant)} icon={<TrendingDown className="w-5 h-5 text-red-600" />}     bg="bg-red-50" />
+        <StatBox label={t('rapports_verse_total')}       value={formatCurrency(g.totalVerse)}   icon={<Wallet className="w-5 h-5 text-emerald-600" />}       bg="bg-emerald-50" />
+        <StatBox label={t('rapports_taux_recouvrement')} value={`${g.tauxRecouvrement}%`}       icon={<TrendingUp className="w-5 h-5 text-blue-600" />}      bg="bg-blue-50" />
       </div>
 
       <div>
-        <p className="text-sm font-semibold text-gray-700 mb-3">Répartition par ancienneté du retard</p>
+        <p className="text-sm font-semibold text-gray-700 mb-3">{t('rapports_par_anciennete')}</p>
         <div className="space-y-2">
           {data.parAnciennete.map((a) => {
             const pct = maxAnc > 0 ? Math.round((a.montant / maxAnc) * 100) : 0;
@@ -728,21 +733,21 @@ function TabCreances({ data }: { data: CreancesData }) {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <RankTable
-          title="Par agent terrain" icon={<Users className="w-4 h-4 text-orange-600" />}
+          title={t('rapports_par_agent_terrain')} icon={<Users className="w-4 h-4 text-orange-600" />}
           rows={data.parAgent.slice(0, 8)}
           cols={[
-            { label: 'Agent',    render: (r) => r.nom },
-            { label: 'Créances', render: (r) => String(r.nb), cls: 'text-right text-gray-600' },
-            { label: 'Montant',  render: (r) => formatCurrency(r.montant), cls: 'text-right text-red-600 font-semibold' },
+            { label: t('rapports_col_agent'),    render: (r) => r.nom },
+            { label: t('rapports_col_creances'), render: (r) => String(r.nb), cls: 'text-right text-gray-600' },
+            { label: t('rapports_col_montant'),  render: (r) => formatCurrency(r.montant), cls: 'text-right text-red-600 font-semibold' },
           ]}
         />
         <RankTable
-          title="Par point de vente" icon={<BarChart2 className="w-4 h-4 text-blue-600" />}
+          title={t('rapports_par_point_vente')} icon={<BarChart2 className="w-4 h-4 text-blue-600" />}
           rows={data.parPdv.slice(0, 8)}
           cols={[
-            { label: 'PDV',      render: (r) => `${r.nom} (${r.code})` },
-            { label: 'Créances', render: (r) => String(r.nb), cls: 'text-right text-gray-600' },
-            { label: 'Montant',  render: (r) => formatCurrency(r.montant), cls: 'text-right text-red-600 font-semibold' },
+            { label: t('rapports_col_pdv'),      render: (r) => `${r.nom} (${r.code})` },
+            { label: t('rapports_col_creances'), render: (r) => String(r.nb), cls: 'text-right text-gray-600' },
+            { label: t('rapports_col_montant'),  render: (r) => formatCurrency(r.montant), cls: 'text-right text-red-600 font-semibold' },
           ]}
         />
       </div>
@@ -753,26 +758,27 @@ function TabCreances({ data }: { data: CreancesData }) {
 // ─── Tab Agents ───────────────────────────────────────────────────────────────
 
 function TabAgents({ data }: { data: AgentsData }) {
+  const t = useT();
   const maxCa = Math.max(...data.data.map((a) => a.caTotal), 1);
   return (
     <div className="space-y-4">
       <p className="text-sm text-gray-500">
-        {data.data.length} agents — classement par <strong>CA réel</strong> (versements packs + remboursements crédits + ventes directes)
+        {data.data.length} {t('rapports_agents_classement')}
       </p>
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="bg-gray-50 border-b border-gray-100">
             <tr>
               <th className="text-left px-4 py-3 font-semibold text-gray-600">#</th>
-              <th className="text-left px-4 py-3 font-semibold text-gray-600">Agent</th>
-              <th className="text-center px-4 py-3 font-semibold text-gray-600">Clients</th>
-              <th className="text-center px-4 py-3 font-semibold text-gray-600">Souscrip.</th>
-              <th className="text-right px-4 py-3 font-semibold text-gray-600">Total packs</th>
-              <th className="text-right px-4 py-3 font-semibold text-gray-600">Versé</th>
-              <th className="text-right px-4 py-3 font-semibold text-gray-600">Restant</th>
-              <th className="text-center px-4 py-3 font-semibold text-gray-600">Taux</th>
-              <th className="text-center px-4 py-3 font-semibold text-gray-600">Sessions</th>
-              <th className="text-right px-4 py-3 font-semibold text-blue-700">CA réel ↓</th>
+              <th className="text-left px-4 py-3 font-semibold text-gray-600">{t('rapports_col_agent')}</th>
+              <th className="text-center px-4 py-3 font-semibold text-gray-600">{t('rapports_col_clients')}</th>
+              <th className="text-center px-4 py-3 font-semibold text-gray-600">{t('rapports_col_souscrip')}</th>
+              <th className="text-right px-4 py-3 font-semibold text-gray-600">{t('rapports_col_total_packs')}</th>
+              <th className="text-right px-4 py-3 font-semibold text-gray-600">{t('rapports_col_verse')}</th>
+              <th className="text-right px-4 py-3 font-semibold text-gray-600">{t('rapports_col_restant')}</th>
+              <th className="text-center px-4 py-3 font-semibold text-gray-600">{t('rapports_col_taux')}</th>
+              <th className="text-center px-4 py-3 font-semibold text-gray-600">{t('rapports_col_sessions')}</th>
+              <th className="text-right px-4 py-3 font-semibold text-blue-700">{t('rapports_col_ca_reel')}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
@@ -829,31 +835,32 @@ function TabAgents({ data }: { data: AgentsData }) {
 // ─── Tab Clients ──────────────────────────────────────────────────────────────
 
 function TabClients({ data }: { data: ClientsData }) {
-  const { totaux: t } = data;
+  const t = useT();
+  const { totaux } = data;
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-        <StatBox label="Total clients"    value={String(t.nbClients)}          icon={<Users className="w-5 h-5 text-blue-600" />}    bg="bg-blue-50" />
-        <StatBox label="Clients actifs"   value={String(t.nbActifs)}           icon={<UserCheck className="w-5 h-5 text-emerald-600" />} bg="bg-emerald-50" />
-        <StatBox label="Engagement total" value={formatCurrency(t.totalEngagement)} icon={<BarChart2 className="w-5 h-5 text-violet-600" />} bg="bg-violet-50" />
-        <StatBox label="Total versé"      value={formatCurrency(t.totalVerse)} icon={<Wallet className="w-5 h-5 text-teal-600" />}    bg="bg-teal-50" />
-        <StatBox label="Restant dû"       value={formatCurrency(t.montantRestant)} icon={<TrendingDown className="w-5 h-5 text-orange-600" />} bg="bg-orange-50" />
+        <StatBox label={t('rapports_total_clients')}    value={String(totaux.nbClients)}          icon={<Users className="w-5 h-5 text-blue-600" />}    bg="bg-blue-50" />
+        <StatBox label={t('rapports_clients_actifs')}   value={String(totaux.nbActifs)}           icon={<UserCheck className="w-5 h-5 text-emerald-600" />} bg="bg-emerald-50" />
+        <StatBox label={t('rapports_engagement_total')} value={formatCurrency(totaux.totalEngagement)} icon={<BarChart2 className="w-5 h-5 text-violet-600" />} bg="bg-violet-50" />
+        <StatBox label={t('rapports_total_verse')}      value={formatCurrency(totaux.totalVerse)} icon={<Wallet className="w-5 h-5 text-teal-600" />}    bg="bg-teal-50" />
+        <StatBox label={t('rapports_restant_du')}       value={formatCurrency(totaux.montantRestant)} icon={<TrendingDown className="w-5 h-5 text-orange-600" />} bg="bg-orange-50" />
       </div>
 
       <div className="overflow-x-auto rounded-xl border border-gray-100">
         <table className="w-full text-sm">
           <thead className="bg-gray-50 border-b border-gray-100">
             <tr>
-              <th className="text-left px-4 py-3 font-semibold text-gray-600">Code</th>
-              <th className="text-left px-4 py-3 font-semibold text-gray-600">Client</th>
-              <th className="text-left px-4 py-3 font-semibold text-gray-600">Téléphone</th>
-              <th className="text-left px-4 py-3 font-semibold text-gray-600">Ville</th>
-              <th className="text-left px-4 py-3 font-semibold text-gray-600">Statut</th>
-              <th className="text-left px-4 py-3 font-semibold text-gray-600">Agent</th>
-              <th className="text-left px-4 py-3 font-semibold text-gray-600">PDV</th>
-              <th className="text-center px-4 py-3 font-semibold text-gray-600">Souscrip.</th>
-              <th className="text-right px-4 py-3 font-semibold text-gray-600">Restant dû</th>
-              <th className="text-left px-4 py-3 font-semibold text-gray-600">Inscrit le</th>
+              <th className="text-left px-4 py-3 font-semibold text-gray-600">{t('rapports_col_code')}</th>
+              <th className="text-left px-4 py-3 font-semibold text-gray-600">{t('rapports_col_clients')}</th>
+              <th className="text-left px-4 py-3 font-semibold text-gray-600">{t('rapports_col_telephone')}</th>
+              <th className="text-left px-4 py-3 font-semibold text-gray-600">{t('rapports_col_ville')}</th>
+              <th className="text-left px-4 py-3 font-semibold text-gray-600">{t('rapports_col_statut')}</th>
+              <th className="text-left px-4 py-3 font-semibold text-gray-600">{t('rapports_col_agent')}</th>
+              <th className="text-left px-4 py-3 font-semibold text-gray-600">{t('rapports_col_pdv')}</th>
+              <th className="text-center px-4 py-3 font-semibold text-gray-600">{t('rapports_col_souscrip')}</th>
+              <th className="text-right px-4 py-3 font-semibold text-gray-600">{t('rapports_col_restant_du')}</th>
+              <th className="text-left px-4 py-3 font-semibold text-gray-600">{t('rapports_col_inscrit_le')}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
@@ -892,13 +899,14 @@ function TabClients({ data }: { data: ClientsData }) {
 // ─── Tab Retards ──────────────────────────────────────────────────────────────
 
 function TabRetards({ data }: { data: RetardsData }) {
+  const t = useT();
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatBox label="Crédits en retard"  value={String(data.total)}             icon={<AlertTriangle className="w-5 h-5 text-red-600" />}    bg="bg-red-50" />
-        <StatBox label="Montant dû total"   value={formatCurrency(data.montantTotal)} icon={<Wallet className="w-5 h-5 text-orange-600" />}       bg="bg-orange-50" />
-        <StatBox label="Critiques (>90j)"   value={String(data.nbCritique)}        icon={<TrendingDown className="w-5 h-5 text-rose-600" />}    bg="bg-rose-50" />
-        <StatBox label="Moy. jours retard"  value={`${data.moyenneJours}j`}        icon={<Calendar className="w-5 h-5 text-amber-600" />}       bg="bg-amber-50" />
+        <StatBox label={t('rapports_credits_retard')}   value={String(data.total)}             icon={<AlertTriangle className="w-5 h-5 text-red-600" />}    bg="bg-red-50" />
+        <StatBox label={t('rapports_montant_du_total')} value={formatCurrency(data.montantTotal)} icon={<Wallet className="w-5 h-5 text-orange-600" />}       bg="bg-orange-50" />
+        <StatBox label={t('rapports_critiques')}        value={String(data.nbCritique)}        icon={<TrendingDown className="w-5 h-5 text-rose-600" />}    bg="bg-rose-50" />
+        <StatBox label={t('rapports_moy_jours_retard')} value={`${data.moyenneJours}j`}        icon={<Calendar className="w-5 h-5 text-amber-600" />}       bg="bg-amber-50" />
       </div>
 
       {/* Résumé gravité */}
@@ -919,17 +927,17 @@ function TabRetards({ data }: { data: RetardsData }) {
         <table className="w-full text-sm">
           <thead className="bg-gray-50 border-b border-gray-100">
             <tr>
-              <th className="text-left px-4 py-3 font-semibold text-gray-600">Référence</th>
-              <th className="text-left px-4 py-3 font-semibold text-gray-600">Client</th>
-              <th className="text-left px-4 py-3 font-semibold text-gray-600">Téléphone</th>
-              <th className="text-left px-4 py-3 font-semibold text-gray-600">Agent</th>
-              <th className="text-left px-4 py-3 font-semibold text-gray-600">PDV</th>
-              <th className="text-right px-4 py-3 font-semibold text-gray-600">Montant total</th>
-              <th className="text-right px-4 py-3 font-semibold text-gray-600">Solde restant</th>
-              <th className="text-center px-4 py-3 font-semibold text-gray-600">Taux remb.</th>
-              <th className="text-center px-4 py-3 font-semibold text-gray-600">1re échéance retard</th>
-              <th className="text-center px-4 py-3 font-semibold text-gray-600">Jours</th>
-              <th className="text-center px-4 py-3 font-semibold text-gray-600">Gravité</th>
+              <th className="text-left px-4 py-3 font-semibold text-gray-600">{t('rapports_col_reference')}</th>
+              <th className="text-left px-4 py-3 font-semibold text-gray-600">{t('rapports_col_clients')}</th>
+              <th className="text-left px-4 py-3 font-semibold text-gray-600">{t('rapports_col_telephone')}</th>
+              <th className="text-left px-4 py-3 font-semibold text-gray-600">{t('rapports_col_agent')}</th>
+              <th className="text-left px-4 py-3 font-semibold text-gray-600">{t('rapports_col_pdv')}</th>
+              <th className="text-right px-4 py-3 font-semibold text-gray-600">{t('rapports_col_montant')}</th>
+              <th className="text-right px-4 py-3 font-semibold text-gray-600">{t('rapports_col_solde')}</th>
+              <th className="text-center px-4 py-3 font-semibold text-gray-600">{t('rapports_col_taux_remb')}</th>
+              <th className="text-center px-4 py-3 font-semibold text-gray-600">{t('rapports_col_echeance')}</th>
+              <th className="text-center px-4 py-3 font-semibold text-gray-600">{t('rapports_col_jours')}</th>
+              <th className="text-center px-4 py-3 font-semibold text-gray-600">{t('rapports_col_gravite')}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
@@ -989,11 +997,12 @@ function RankTable<T extends Record<string, any>>({ title, icon, rows, cols }: {
   rows:  T[];
   cols:  { label: string; render: (r: T) => React.ReactNode; cls?: string }[];
 }) {
+  const t = useT();
   return (
     <div>
       <p className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">{icon}{title}</p>
       {rows.length === 0 ? (
-        <p className="text-sm text-gray-400 italic">Aucune donnée</p>
+        <p className="text-sm text-gray-400 italic">{t('rapports_no_data')}</p>
       ) : (
         <div className="overflow-x-auto rounded-xl border border-gray-100">
           <table className="w-full text-sm">

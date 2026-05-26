@@ -3,6 +3,7 @@
 import React, { useState, useCallback } from 'react';
 import { Shield, Search, RefreshCw, Download, Filter, User, Calendar } from 'lucide-react';
 import { useApi } from '@/hooks/useApi';
+import { useT } from '@/contexts/AppSettingsContext';
 import { formatDateTime } from '@/lib/format';
 import { exportToCsv } from '@/lib/exportCsv';
 import ClienteleTabBar from '@/components/ClienteleTabBar';
@@ -58,6 +59,7 @@ function actionColor(action: string) {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function AuditPage() {
+  const t = useT();
   const [page,        setPage]        = useState(1);
   const [entite,      setEntite]      = useState('');
   const [action,      setAction]      = useState('');
@@ -104,15 +106,15 @@ export default function AuditPage() {
         {/* En-tête */}
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-2xl font-bold text-gray-900">Contrôle & Audit</h2>
+            <h2 className="text-2xl font-bold text-gray-900">{t('audit_title')}</h2>
             <p className="text-sm text-gray-500 mt-0.5">
-              Traçabilité complète des opérations du module clientèle
+              {t('audit_subtitle')}
             </p>
           </div>
           <div className="flex gap-2">
             <button onClick={handleExport} disabled={!logs.length}
               className="flex items-center gap-2 px-4 py-2 text-sm text-gray-600 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 shadow-sm disabled:opacity-40">
-              <Download className="w-4 h-4" /> Exporter CSV
+              <Download className="w-4 h-4" /> {t('audit_export_csv')}
             </button>
             <button onClick={refetch}
               className="flex items-center gap-2 px-4 py-2 text-sm text-gray-600 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 shadow-sm">
@@ -139,11 +141,11 @@ export default function AuditPage() {
         <div className="bg-white rounded-xl border border-gray-200 p-4 flex flex-wrap gap-3 items-end">
           <div>
             <label className="block text-xs text-gray-500 mb-1 flex items-center gap-1">
-              <Filter className="w-3 h-3" /> Entité
+              <Filter className="w-3 h-3" /> {t('audit_filter_entite')}
             </label>
             <select value={entite} onChange={(e) => { setEntite(e.target.value); setPage(1); }}
               className="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-              <option value="">Toutes</option>
+              <option value="">{t('audit_all_entities')}</option>
               {res?.entitesDisponibles.map((e) => (
                 <option key={e} value={e}>{e}</option>
               ))}
@@ -152,7 +154,7 @@ export default function AuditPage() {
 
           <div>
             <label className="block text-xs text-gray-500 mb-1 flex items-center gap-1">
-              <Shield className="w-3 h-3" /> Action
+              <Shield className="w-3 h-3" /> {t('audit_filter_action')}
             </label>
             <div className="flex gap-1">
               <input value={actionInput} onChange={(e) => setActionInput(e.target.value)}
@@ -168,14 +170,14 @@ export default function AuditPage() {
 
           <div>
             <label className="block text-xs text-gray-500 mb-1 flex items-center gap-1">
-              <Calendar className="w-3 h-3" /> Du
+              <Calendar className="w-3 h-3" /> {t('audit_filter_from')}
             </label>
             <input type="date" value={dateDebut} onChange={(e) => { setDateDebut(e.target.value); setPage(1); }}
               className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
           </div>
 
           <div>
-            <label className="block text-xs text-gray-500 mb-1">Au</label>
+            <label className="block text-xs text-gray-500 mb-1">{t('audit_filter_to')}</label>
             <input type="date" value={dateFin} onChange={(e) => { setDateFin(e.target.value); setPage(1); }}
               className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
           </div>
@@ -183,7 +185,7 @@ export default function AuditPage() {
           {(entite || action || dateDebut || dateFin) && (
             <button onClick={() => { setEntite(''); setAction(''); setActionInput(''); setDateDebut(''); setDateFin(''); setPage(1); }}
               className="px-3 py-2 text-sm text-gray-500 hover:text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50 self-end">
-              Réinitialiser
+              {t('audit_reset')}
             </button>
           )}
 
@@ -196,23 +198,23 @@ export default function AuditPage() {
         <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
           {loading ? (
             <div className="flex items-center justify-center py-16 text-gray-400">
-              <RefreshCw className="w-5 h-5 animate-spin mr-2" /> Chargement…
+              <RefreshCw className="w-5 h-5 animate-spin mr-2" /> {t('audit_loading')}
             </div>
           ) : logs.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-gray-400">
               <Shield className="w-10 h-10 mb-2" />
-              <p className="text-sm">Aucune entrée d&apos;audit</p>
+              <p className="text-sm">{t('audit_none')}</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="bg-gray-50 border-b border-gray-200">
                   <tr>
-                    <th className="text-left px-5 py-3 font-semibold text-gray-600">Date & heure</th>
-                    <th className="text-left px-4 py-3 font-semibold text-gray-600">Action</th>
-                    <th className="text-left px-4 py-3 font-semibold text-gray-600">Entité</th>
+                    <th className="text-left px-5 py-3 font-semibold text-gray-600">{t('audit_col_date')}</th>
+                    <th className="text-left px-4 py-3 font-semibold text-gray-600">{t('audit_col_action')}</th>
+                    <th className="text-left px-4 py-3 font-semibold text-gray-600">{t('audit_col_entite')}</th>
                     <th className="text-left px-4 py-3 font-semibold text-gray-600">ID</th>
-                    <th className="text-left px-4 py-3 font-semibold text-gray-600">Utilisateur</th>
+                    <th className="text-left px-4 py-3 font-semibold text-gray-600">{t('audit_col_user')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
@@ -242,7 +244,7 @@ export default function AuditPage() {
                             <span className="text-gray-700">{log.user.nom}</span>
                           </div>
                         ) : (
-                          <span className="text-xs text-gray-400 italic">Système</span>
+                          <span className="text-xs text-gray-400 italic">{t('audit_system')}</span>
                         )}
                       </td>
                     </tr>
@@ -260,11 +262,11 @@ export default function AuditPage() {
             <div className="flex gap-2">
               <button disabled={page === 1} onClick={() => setPage((p) => p - 1)}
                 className="px-3 py-1.5 border border-gray-200 rounded-lg disabled:opacity-40 hover:bg-gray-50">
-                Précédent
+                {t('btn_prev')}
               </button>
               <button disabled={page === res.meta.totalPages} onClick={() => setPage((p) => p + 1)}
                 className="px-3 py-1.5 border border-gray-200 rounded-lg disabled:opacity-40 hover:bg-gray-50">
-                Suivant
+                {t('btn_next')}
               </button>
             </div>
           </div>

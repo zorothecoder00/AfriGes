@@ -345,6 +345,7 @@ export default function CollectesPage() {
 // ─── Modal : Saisie terrain ───────────────────────────────────────────────────
 
 function SaisieCollecteModal({ id, onClose, onSaved }: { id: number; onClose: () => void; onSaved: () => void }) {
+  const t = useT();
   const { data: res, loading } = useApi<{ data: CollecteDetail }>(`/api/admin/collectes/${id}`);
   const { mutate: patch, loading: saving } = useMutation(`/api/admin/collectes/${id}`, 'PATCH');
   const { mutate: valider, loading: validating } = useMutation(`/api/admin/collectes/${id}/valider`, 'POST');
@@ -389,7 +390,7 @@ function SaisieCollecteModal({ id, onClose, onSaved }: { id: number; onClose: ()
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl max-h-[90vh] flex flex-col">
         <div className="flex items-center justify-between p-5 border-b border-gray-200">
           <div>
-            <h2 className="text-lg font-bold text-gray-900">Saisie terrain</h2>
+            <h2 className="text-lg font-bold text-gray-900">{t('collecte_saisie_title')}</h2>
             {collecte && (
               <p className="text-sm text-gray-500 mt-0.5">
                 {collecte.reference} · {formatDate(collecte.dateCollecte)} · {collecte.agent.prenom} {collecte.agent.nom}
@@ -402,18 +403,18 @@ function SaisieCollecteModal({ id, onClose, onSaved }: { id: number; onClose: ()
         <div className="overflow-y-auto flex-1">
           {loading ? (
             <div className="flex items-center justify-center py-16 text-gray-400">
-              <RefreshCw className="w-5 h-5 animate-spin mr-2" /> Chargement…
+              <RefreshCw className="w-5 h-5 animate-spin mr-2" /> {t('collecte_loading')}
             </div>
           ) : (
             <table className="w-full text-sm">
               <thead className="bg-gray-50 border-b border-gray-200 sticky top-0">
                 <tr>
-                  <th className="text-left px-4 py-3 font-semibold text-gray-600">Client</th>
-                  <th className="text-left px-4 py-3 font-semibold text-gray-600">Pack / Restant dû</th>
-                  <th className="text-right px-4 py-3 font-semibold text-gray-600">Attendu</th>
-                  <th className="text-right px-4 py-3 font-semibold text-gray-600">Collecté</th>
-                  <th className="text-left px-4 py-3 font-semibold text-gray-600">Résultat</th>
-                  <th className="text-left px-4 py-3 font-semibold text-gray-600">Notes</th>
+                  <th className="text-left px-4 py-3 font-semibold text-gray-600">{t('label_client')}</th>
+                  <th className="text-left px-4 py-3 font-semibold text-gray-600">{t('collecte_pack_restant')}</th>
+                  <th className="text-right px-4 py-3 font-semibold text-gray-600">{t('collecte_attendu')}</th>
+                  <th className="text-right px-4 py-3 font-semibold text-gray-600">{t('collecte_col_collecte')}</th>
+                  <th className="text-left px-4 py-3 font-semibold text-gray-600">{t('collecte_resultat')}</th>
+                  <th className="text-left px-4 py-3 font-semibold text-gray-600">{t('label_notes')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -466,10 +467,10 @@ function SaisieCollecteModal({ id, onClose, onSaved }: { id: number; onClose: ()
                           onChange={(e) => updateLigne(ligne.id, 'statut', e.target.value)}
                           className={`text-xs px-2 py-1.5 rounded-lg border border-gray-200 font-medium focus:outline-none ${LIGNE_STATUT_BADGE[saisie.statut] ?? ''}`}
                         >
-                          <option value="EN_ATTENTE">En attente</option>
-                          <option value="COLLECTE">Collecté</option>
-                          <option value="PARTIEL">Partiel</option>
-                          <option value="ECHEC">Échec</option>
+                          <option value="EN_ATTENTE">{t('collecte_en_attente')}</option>
+                          <option value="COLLECTE">{t('collecte_collecte')}</option>
+                          <option value="PARTIEL">{t('collecte_partiel')}</option>
+                          <option value="ECHEC">{t('collecte_echec')}</option>
                         </select>
                       </td>
                       <td className="px-4 py-3">
@@ -477,7 +478,7 @@ function SaisieCollecteModal({ id, onClose, onSaved }: { id: number; onClose: ()
                           type="text"
                           value={saisie.notes}
                           onChange={(e) => updateLigne(ligne.id, 'notes', e.target.value)}
-                          placeholder="Absent, refus…"
+                          placeholder={t('collecte_notes_ph')}
                           className="w-full px-2 py-1.5 border border-gray-200 rounded text-xs focus:outline-none"
                         />
                       </td>
@@ -488,7 +489,7 @@ function SaisieCollecteModal({ id, onClose, onSaved }: { id: number; onClose: ()
               {/* Total */}
               <tfoot className="bg-gray-50 border-t border-gray-200">
                 <tr>
-                  <td colSpan={3} className="px-4 py-3 text-sm font-semibold text-gray-700">Total</td>
+                  <td colSpan={3} className="px-4 py-3 text-sm font-semibold text-gray-700">{t('label_total')}</td>
                   <td className="px-4 py-3 text-right font-bold text-emerald-700">
                     {formatCurrency(lignes.reduce((s, l) => s + l.montantCollecte, 0))}
                   </td>
@@ -501,7 +502,7 @@ function SaisieCollecteModal({ id, onClose, onSaved }: { id: number; onClose: ()
 
         <div className="flex items-center justify-between gap-3 p-5 border-t border-gray-200">
           <button onClick={onClose} className="px-4 py-2 text-sm text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50">
-            Fermer
+            {t('btn_close')}
           </button>
           <div className="flex gap-2">
             <button
@@ -510,7 +511,7 @@ function SaisieCollecteModal({ id, onClose, onSaved }: { id: number; onClose: ()
               className="flex items-center gap-2 px-4 py-2 text-sm text-white bg-gray-700 rounded-lg hover:bg-gray-800 disabled:opacity-50"
             >
               {saving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-              Sauvegarder
+              {t('btn_save')}
             </button>
             <button
               onClick={handleValider}
@@ -518,7 +519,7 @@ function SaisieCollecteModal({ id, onClose, onSaved }: { id: number; onClose: ()
               className="flex items-center gap-2 px-4 py-2 text-sm text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 disabled:opacity-50"
             >
               {validating ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-              Valider et générer versements
+              {t('collecte_valider_et_generer')}
             </button>
           </div>
         </div>
@@ -532,6 +533,7 @@ function SaisieCollecteModal({ id, onClose, onSaved }: { id: number; onClose: ()
 function CollecteDetailModal({
   id, onClose, onValidated,
 }: { id: number; onClose: () => void; onValidated: () => void }) {
+  const t = useT();
   const { data: res, loading } = useApi<{ data: CollecteDetail }>(`/api/admin/collectes/${id}`);
   const { mutate: valider, loading: validating } = useMutation(`/api/admin/collectes/${id}/valider`, 'POST');
 
@@ -549,7 +551,7 @@ function CollecteDetailModal({
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col">
         <div className="flex items-center justify-between p-5 border-b border-gray-200">
           <div>
-            <h2 className="text-lg font-bold text-gray-900">Détail collecte</h2>
+            <h2 className="text-lg font-bold text-gray-900">{t('collecte_detail_title')}</h2>
             {collecte && (
               <p className="text-sm text-gray-500 mt-0.5">
                 {collecte.reference} · {formatDate(collecte.dateCollecte)}
@@ -562,26 +564,26 @@ function CollecteDetailModal({
         <div className="overflow-y-auto flex-1 p-5 space-y-4">
           {loading ? (
             <div className="flex items-center justify-center py-12 text-gray-400">
-              <RefreshCw className="w-5 h-5 animate-spin mr-2" /> Chargement…
+              <RefreshCw className="w-5 h-5 animate-spin mr-2" /> {t('collecte_loading')}
             </div>
           ) : collecte ? (
             <>
               {/* Résumé */}
               <div className="grid grid-cols-3 gap-4">
                 <div className="bg-gray-50 rounded-lg p-3">
-                  <p className="text-xs text-gray-500">Agent</p>
+                  <p className="text-xs text-gray-500">{t('label_agent')}</p>
                   <p className="text-sm font-semibold text-gray-800 mt-0.5">
                     {collecte.agent.prenom} {collecte.agent.nom}
                   </p>
                 </div>
                 <div className="bg-gray-50 rounded-lg p-3">
-                  <p className="text-xs text-gray-500">Prévu</p>
+                  <p className="text-xs text-gray-500">{t('collecte_col_prevu')}</p>
                   <p className="text-sm font-semibold text-gray-800 mt-0.5">
                     {formatCurrency(Number(collecte.montantPrevu))}
                   </p>
                 </div>
                 <div className="bg-emerald-50 rounded-lg p-3">
-                  <p className="text-xs text-emerald-600">Collecté</p>
+                  <p className="text-xs text-emerald-600">{t('collecte_col_collecte')}</p>
                   <p className="text-sm font-bold text-emerald-700 mt-0.5">
                     {formatCurrency(Number(collecte.montantCollecte))}
                   </p>
@@ -606,15 +608,15 @@ function CollecteDetailModal({
                     <div className="flex items-center justify-between text-xs text-gray-600">
                       <span>{l.souscription.pack.nom}</span>
                       <span>
-                        Attendu : <strong>{formatCurrency(Number(l.montantAttendu))}</strong>
+                        {t('collecte_attendu')} : <strong>{formatCurrency(Number(l.montantAttendu))}</strong>
                         {' · '}
-                        Collecté : <strong className="text-emerald-600">{formatCurrency(Number(l.montantCollecte))}</strong>
+                        {t('collecte_col_collecte')} : <strong className="text-emerald-600">{formatCurrency(Number(l.montantCollecte))}</strong>
                       </span>
                     </div>
                     {l.versementPack && (
                       <div className="mt-1.5 text-xs text-emerald-600 flex items-center gap-1">
                         <CheckCircle className="w-3 h-3" />
-                        Versement généré : {l.versementPack.reference}
+                        {t('collecte_versement_genere')} : {l.versementPack.reference}
                       </div>
                     )}
                     {l.notes && (
@@ -629,7 +631,7 @@ function CollecteDetailModal({
 
         <div className="flex items-center justify-between p-5 border-t border-gray-200">
           <button onClick={onClose} className="px-4 py-2 text-sm text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50">
-            Fermer
+            {t('btn_close')}
           </button>
           {canValidate && (
             <button
@@ -638,7 +640,7 @@ function CollecteDetailModal({
               className="flex items-center gap-2 px-4 py-2 text-sm text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 disabled:opacity-50"
             >
               {validating ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-              Valider la collecte
+              {t('collecte_valider')}
             </button>
           )}
         </div>

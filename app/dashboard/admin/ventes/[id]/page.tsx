@@ -1,6 +1,7 @@
 "use client";
 
 import { use, useState } from "react";
+import { useT } from "@/contexts/AppSettingsContext";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -78,6 +79,7 @@ function getInitials(nom: string, prenom: string) {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function VenteDetailPage({ params }: PageProps) {
+  const t = useT();
   const { id } = use(params);
   const router = useRouter();
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -110,13 +112,13 @@ export default function VenteDetailPage({ params }: PageProps) {
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
         <div className="text-center">
           <ShoppingCart size={48} className="mx-auto text-slate-300 mb-4" />
-          <p className="text-slate-600 font-medium">{error ?? "Vente introuvable"}</p>
+          <p className="text-slate-600 font-medium">{error ?? t('vente_not_found')}</p>
           <Link
             href="/dashboard/admin/ventes"
             className="mt-4 inline-flex items-center gap-2 text-emerald-600 hover:text-emerald-700 font-medium"
           >
             <ArrowLeft size={16} />
-            Retour aux ventes
+            {t('vente_back')}
           </Link>
         </div>
       </div>
@@ -153,11 +155,11 @@ export default function VenteDetailPage({ params }: PageProps) {
             </Link>
             <div>
               <nav className="flex items-center gap-1.5 text-xs text-slate-500 mb-0.5">
-                <Link href="/dashboard/admin/ventes" className="hover:text-emerald-600">Ventes</Link>
+                <Link href="/dashboard/admin/ventes" className="hover:text-emerald-600">{t('vente_breadcrumb')}</Link>
                 <ChevronRight size={12} />
                 <span className="text-slate-800 font-medium">Vente #{v.id}</span>
               </nav>
-              <h1 className="text-xl font-bold text-slate-900">Détail de la vente</h1>
+              <h1 className="text-xl font-bold text-slate-900">{t('vente_detail_title')}</h1>
             </div>
           </div>
 
@@ -168,23 +170,23 @@ export default function VenteDetailPage({ params }: PageProps) {
               className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-red-600 border border-red-200 rounded-xl hover:bg-red-50 transition-colors"
             >
               <Trash2 size={15} />
-              Annuler la vente
+              {t('vente_cancel_btn')}
             </button>
           ) : (
             <div className="flex items-center gap-2">
-              <span className="text-sm text-red-600 font-medium">Confirmer l&apos;annulation ?</span>
+              <span className="text-sm text-red-600 font-medium">{t('vente_confirm_cancel')}</span>
               <button
                 onClick={handleDelete}
                 disabled={deleting}
                 className="px-4 py-2 text-sm font-semibold bg-red-600 text-white rounded-xl hover:bg-red-700 disabled:opacity-50 transition-colors"
               >
-                {deleting ? "Annulation…" : "Oui, annuler"}
+                {deleting ? t('vente_cancel_doing') : t('vente_cancel_yes')}
               </button>
               <button
                 onClick={() => setConfirmDelete(false)}
                 className="px-4 py-2 text-sm font-medium text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors"
               >
-                Non
+                {t('vente_non')}
               </button>
             </div>
           )}
@@ -208,19 +210,19 @@ export default function VenteDetailPage({ params }: PageProps) {
 
           <div className="grid grid-cols-2 sm:grid-cols-4 divide-x divide-y sm:divide-y-0 divide-slate-100">
             <div className="px-6 py-5">
-              <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Produit</p>
+              <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">{t('vente_col_produit')}</p>
               <p className="font-semibold text-slate-800">{v.produit.nom}</p>
             </div>
             <div className="px-6 py-5">
-              <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Quantité</p>
+              <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">{t('vente_col_quantite')}</p>
               <p className="font-semibold text-slate-800">{v.quantite} unité{v.quantite > 1 ? "s" : ""}</p>
             </div>
             <div className="px-6 py-5">
-              <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Prix unitaire</p>
+              <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">{t('vente_col_prix_unitaire')}</p>
               <p className="font-semibold text-slate-800">{formatCurrency(v.prixUnitaire)}</p>
             </div>
             <div className="px-6 py-5">
-              <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Montant total</p>
+              <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">{t('vente_col_montant_total')}</p>
               <p className="text-xl font-bold text-emerald-600">{formatCurrency(montantTotal)}</p>
             </div>
           </div>
@@ -232,7 +234,7 @@ export default function VenteDetailPage({ params }: PageProps) {
           <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 overflow-hidden">
             <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-2">
               <User size={16} className="text-slate-400" />
-              <h2 className="text-sm font-semibold text-slate-700">Client</h2>
+              <h2 className="text-sm font-semibold text-slate-700">{t('vente_col_client')}</h2>
             </div>
             <div className="px-6 py-5">
               {person ? (
@@ -254,14 +256,14 @@ export default function VenteDetailPage({ params }: PageProps) {
                         }
                         className="mt-2 inline-flex items-center gap-1 text-xs text-emerald-600 hover:text-emerald-700 font-medium"
                       >
-                        Voir le profil
+                        {t('vente_voir_profil')}
                         <ChevronRight size={12} />
                       </Link>
                     )}
                   </div>
                 </div>
               ) : (
-                <p className="text-sm text-slate-500 italic">Client introuvable</p>
+                <p className="text-sm text-slate-500 italic">{t('vente_client_not_found')}</p>
               )}
             </div>
           </div>
@@ -270,7 +272,7 @@ export default function VenteDetailPage({ params }: PageProps) {
           <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 overflow-hidden">
             <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-2">
               <Package size={16} className="text-slate-400" />
-              <h2 className="text-sm font-semibold text-slate-700">Produit</h2>
+              <h2 className="text-sm font-semibold text-slate-700">{t('vente_col_produit')}</h2>
             </div>
             <div className="px-6 py-5 space-y-3">
               <div className="flex items-start justify-between">
@@ -284,17 +286,17 @@ export default function VenteDetailPage({ params }: PageProps) {
                   href={`/dashboard/admin/stock/${v.produit.id}`}
                   className="ml-3 inline-flex items-center gap-1 text-xs text-emerald-600 hover:text-emerald-700 font-medium flex-shrink-0"
                 >
-                  Voir le stock
+                  {t('vente_voir_stock')}
                   <ChevronRight size={12} />
                 </Link>
               </div>
               <div className="grid grid-cols-2 gap-3 pt-2">
                 <div className="bg-slate-50 rounded-xl px-4 py-3">
-                  <p className="text-xs text-slate-500 mb-0.5">Prix catalogue</p>
+                  <p className="text-xs text-slate-500 mb-0.5">{t('vente_prix_catalogue')}</p>
                   <p className="font-semibold text-slate-800">{formatCurrency(v.produit.prixUnitaire)}</p>
                 </div>
                 <div className="bg-slate-50 rounded-xl px-4 py-3">
-                  <p className="text-xs text-slate-500 mb-0.5">Stock actuel</p>
+                  <p className="text-xs text-slate-500 mb-0.5">{t('vente_stock_actuel')}</p>
                   <p className={`font-semibold ${v.produit.stock === 0 ? "text-red-600" : "text-slate-800"}`}>
                     {v.produit.stock} unité{v.produit.stock > 1 ? "s" : ""}
                   </p>
@@ -315,7 +317,7 @@ export default function VenteDetailPage({ params }: PageProps) {
               href={`/dashboard/admin/creditsAlimentaires/${credit.id}`}
               className="text-xs text-emerald-600 hover:text-emerald-700 font-medium flex items-center gap-1"
             >
-              Voir le crédit
+              {t('vente_voir_credit')}
               <ChevronRight size={12} />
             </Link>
           </div>
@@ -332,7 +334,7 @@ export default function VenteDetailPage({ params }: PageProps) {
             {/* Barre de consommation */}
             <div>
               <div className="flex items-center justify-between mb-2">
-                <span className="text-xs text-slate-500">Consommation du crédit</span>
+                <span className="text-xs text-slate-500">{t('vente_consommation')}</span>
                 <span className="text-xs font-semibold text-slate-700">{usagePct}%</span>
               </div>
               <div className="h-2.5 bg-slate-100 rounded-full overflow-hidden">
@@ -352,7 +354,7 @@ export default function VenteDetailPage({ params }: PageProps) {
                   <Wallet size={15} className="text-blue-600" />
                 </div>
                 <div>
-                  <p className="text-xs text-blue-600 mb-0.5">Plafond</p>
+                  <p className="text-xs text-blue-600 mb-0.5">{t('vente_plafond')}</p>
                   <p className="font-bold text-blue-800">{formatCurrency(credit.plafond)}</p>
                 </div>
               </div>
@@ -361,7 +363,7 @@ export default function VenteDetailPage({ params }: PageProps) {
                   <TrendingDown size={15} className="text-orange-600" />
                 </div>
                 <div>
-                  <p className="text-xs text-orange-600 mb-0.5">Utilisé</p>
+                  <p className="text-xs text-orange-600 mb-0.5">{t('vente_utilise')}</p>
                   <p className="font-bold text-orange-800">{formatCurrency(credit.montantUtilise)}</p>
                 </div>
               </div>
@@ -370,7 +372,7 @@ export default function VenteDetailPage({ params }: PageProps) {
                   <DollarSign size={15} className="text-emerald-600" />
                 </div>
                 <div>
-                  <p className="text-xs text-emerald-600 mb-0.5">Restant</p>
+                  <p className="text-xs text-emerald-600 mb-0.5">{t('vente_restant')}</p>
                   <p className="font-bold text-emerald-800">{formatCurrency(credit.montantRestant)}</p>
                 </div>
               </div>
@@ -381,7 +383,7 @@ export default function VenteDetailPage({ params }: PageProps) {
               <div className="flex items-center gap-3 text-sm text-slate-600">
                 <Calendar size={14} className="text-slate-400 flex-shrink-0" />
                 <span>
-                  Attribué le{" "}
+                  {t('vente_attribue_le')}{" "}
                   <span className="font-medium text-slate-800">{formatDate(credit.dateAttribution)}</span>
                 </span>
               </div>
@@ -389,7 +391,7 @@ export default function VenteDetailPage({ params }: PageProps) {
                 <div className="flex items-center gap-3 text-sm text-slate-600">
                   <Calendar size={14} className="text-slate-400 flex-shrink-0" />
                   <span>
-                    Expire le{" "}
+                    {t('vente_expire_le')}{" "}
                     <span className="font-medium text-slate-800">{formatDate(credit.dateExpiration)}</span>
                   </span>
                 </div>
@@ -402,21 +404,21 @@ export default function VenteDetailPage({ params }: PageProps) {
         <div className="bg-amber-50 border border-amber-200 rounded-2xl px-6 py-5">
           <h3 className="text-sm font-semibold text-amber-800 mb-3 flex items-center gap-2">
             <AlertTriangle size={15} />
-            Impact de cette vente sur le crédit
+            {t('vente_impact_title')}
           </h3>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
             <div>
-              <p className="text-amber-600 text-xs mb-0.5">Montant débité</p>
+              <p className="text-amber-600 text-xs mb-0.5">{t('vente_montant_debite')}</p>
               <p className="font-bold text-amber-900">{formatCurrency(montantTotal)}</p>
             </div>
             <div>
-              <p className="text-amber-600 text-xs mb-0.5">Avant vente</p>
+              <p className="text-amber-600 text-xs mb-0.5">{t('vente_avant_vente')}</p>
               <p className="font-bold text-amber-900">
                 {formatCurrency(restant + montantTotal)}
               </p>
             </div>
             <div>
-              <p className="text-amber-600 text-xs mb-0.5">Après vente</p>
+              <p className="text-amber-600 text-xs mb-0.5">{t('vente_apres_vente')}</p>
               <p className="font-bold text-amber-900">{formatCurrency(restant)}</p>
             </div>
             <div>

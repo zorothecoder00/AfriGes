@@ -9,6 +9,7 @@ import Link from 'next/link';
 import { useApi, useMutation } from '@/hooks/useApi';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { toast } from 'sonner';
+import { useT } from '@/contexts/AppSettingsContext';
 import ClienteleTabBar from '@/components/ClienteleTabBar';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -55,6 +56,7 @@ const URGENCE_COLOR = (j: number) =>
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function AlertesImpayesPage() {
+  const t = useT();
   const [jours,        setJours]        = useState(30);
   const [searchInput,  setSearchInput]  = useState('');
   const [search,       setSearch]       = useState('');
@@ -117,15 +119,15 @@ export default function AlertesImpayesPage() {
         {/* En-tête */}
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-2xl font-bold text-gray-900">Alertes impayés</h2>
+            <h2 className="text-2xl font-bold text-gray-900">{t('alertes_title')}</h2>
             <p className="text-sm text-gray-500 mt-0.5">
-              Clients avec échéances dépassées · relances agents de terrain
+              {t('alertes_subtitle')}
             </p>
           </div>
           <button onClick={refetch}
             className="flex items-center gap-2 px-4 py-2 text-sm text-gray-600 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 shadow-sm">
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-            Actualiser
+            {t('refresh')}
           </button>
         </div>
 
@@ -136,7 +138,7 @@ export default function AlertesImpayesPage() {
               <AlertTriangle className="w-6 h-6 text-red-600" />
             </div>
             <div>
-              <p className="text-xs text-red-600 font-medium">Créances en retard (&gt; {jours}j)</p>
+              <p className="text-xs text-red-600 font-medium">{t('alertes_stat_creances')} (&gt; {jours}j)</p>
               <p className="text-3xl font-bold text-red-700">{res?.stats.total ?? 0}</p>
             </div>
           </div>
@@ -145,7 +147,7 @@ export default function AlertesImpayesPage() {
               <Bell className="w-6 h-6 text-orange-600" />
             </div>
             <div>
-              <p className="text-xs text-orange-600 font-medium">Montant total impayé</p>
+              <p className="text-xs text-orange-600 font-medium">{t('alertes_stat_montant')}</p>
               <p className="text-2xl font-bold text-orange-700">{formatCurrency(res?.stats.montant ?? 0)}</p>
             </div>
           </div>
@@ -175,7 +177,7 @@ export default function AlertesImpayesPage() {
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-              placeholder="Nom, téléphone, code client…"
+              placeholder={t('alertes_search_ph')}
               className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-400"
             />
             <button onClick={handleSearch}
@@ -189,14 +191,14 @@ export default function AlertesImpayesPage() {
         {selected.size > 0 && (
           <div className="bg-white border border-orange-200 rounded-xl p-4 flex flex-wrap items-center gap-3">
             <span className="text-sm font-medium text-orange-700">
-              {selected.size} sélectionné(s)
+              {selected.size} {t('alertes_selected')}
             </span>
             {showNotifBox ? (
               <div className="flex-1 flex items-center gap-2">
                 <input
                   value={notifMessage}
                   onChange={(e) => setNotifMessage(e.target.value)}
-                  placeholder="Message de relance (optionnel)…"
+                  placeholder={t('alertes_notif_ph')}
                   className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
                 />
                 <button
@@ -205,7 +207,7 @@ export default function AlertesImpayesPage() {
                   className="px-4 py-2 bg-orange-600 text-white rounded-lg text-sm font-medium hover:bg-orange-700 disabled:opacity-50 flex items-center gap-2"
                 >
                   <Bell className="w-4 h-4" />
-                  {notifying ? 'Envoi…' : 'Envoyer'}
+                  {notifying ? t('btn_sending') : t('btn_send')}
                 </button>
                 <button onClick={() => setShowNotifBox(false)} className="p-2 text-gray-400 hover:text-gray-600">
                   <X className="w-4 h-4" />
@@ -215,11 +217,11 @@ export default function AlertesImpayesPage() {
               <>
                 <button onClick={() => setShowNotifBox(true)}
                   className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-lg text-sm font-medium hover:bg-orange-700">
-                  <Bell className="w-4 h-4" /> Notifier les agents
+                  <Bell className="w-4 h-4" /> {t('alertes_notif_agents')}
                 </button>
                 <button onClick={() => setSelected(new Set())}
                   className="text-sm text-gray-500 hover:text-gray-700">
-                  Tout désélectionner
+                  {t('alertes_deselect_all')}
                 </button>
               </>
             )}
@@ -230,13 +232,13 @@ export default function AlertesImpayesPage() {
         <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
           {loading ? (
             <div className="flex items-center justify-center py-16 text-gray-400">
-              <RefreshCw className="w-5 h-5 animate-spin mr-2" /> Chargement…
+              <RefreshCw className="w-5 h-5 animate-spin mr-2" /> {t('collecte_loading')}
             </div>
           ) : creances.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-gray-400">
               <CheckCircle className="w-10 h-10 mb-2 text-emerald-400" />
-              <p className="text-sm font-medium text-emerald-600">Aucun impayé sur ce seuil</p>
-              <p className="text-xs mt-1">Excellent taux de recouvrement !</p>
+              <p className="text-sm font-medium text-emerald-600">{t('alertes_none')}</p>
+              <p className="text-xs mt-1">{t('alertes_none_sub')}</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -250,13 +252,13 @@ export default function AlertesImpayesPage() {
                         className="w-4 h-4 text-red-600 rounded cursor-pointer"
                       />
                     </th>
-                    <th className="text-left px-4 py-3 font-semibold text-gray-600">Client</th>
-                    <th className="text-left px-4 py-3 font-semibold text-gray-600">Pack</th>
-                    <th className="text-right px-4 py-3 font-semibold text-gray-600">Montant dû</th>
-                    <th className="text-center px-4 py-3 font-semibold text-gray-600">Retard</th>
-                    <th className="text-left px-4 py-3 font-semibold text-gray-600">Agent affecté</th>
-                    <th className="text-left px-4 py-3 font-semibold text-gray-600">+ ancienne éch.</th>
-                    <th className="text-center px-4 py-3 font-semibold text-gray-600">Actions</th>
+                    <th className="text-left px-4 py-3 font-semibold text-gray-600">{t('label_client')}</th>
+                    <th className="text-left px-4 py-3 font-semibold text-gray-600">{t('alertes_col_pack')}</th>
+                    <th className="text-right px-4 py-3 font-semibold text-gray-600">{t('alertes_col_montant_du')}</th>
+                    <th className="text-center px-4 py-3 font-semibold text-gray-600">{t('alertes_col_retard')}</th>
+                    <th className="text-left px-4 py-3 font-semibold text-gray-600">{t('alertes_col_agent_affecte')}</th>
+                    <th className="text-left px-4 py-3 font-semibold text-gray-600">{t('alertes_col_echeance_anc')}</th>
+                    <th className="text-center px-4 py-3 font-semibold text-gray-600">{t('label_actions')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
@@ -318,7 +320,7 @@ export default function AlertesImpayesPage() {
                             </span>
                           </div>
                         ) : (
-                          <span className="text-xs text-gray-400">Non affecté</span>
+                          <span className="text-xs text-gray-400">{t('alertes_non_affecte')}</span>
                         )}
                       </td>
 
@@ -362,15 +364,15 @@ export default function AlertesImpayesPage() {
         {/* Pagination */}
         {res && res.meta.totalPages > 1 && (
           <div className="flex items-center justify-between text-sm text-gray-600">
-            <span>Page {res.meta.page} / {res.meta.totalPages} — {res.meta.total} créances</span>
+            <span>Page {res.meta.page} / {res.meta.totalPages} — {res.meta.total} {t('rapports_col_creances').toLowerCase()}</span>
             <div className="flex gap-2">
               <button disabled={page === 1} onClick={() => setPage((p) => p - 1)}
                 className="px-3 py-1.5 border border-gray-200 rounded-lg disabled:opacity-40 hover:bg-gray-50">
-                Précédent
+                {t('btn_prev')}
               </button>
               <button disabled={page === res.meta.totalPages} onClick={() => setPage((p) => p + 1)}
                 className="px-3 py-1.5 border border-gray-200 rounded-lg disabled:opacity-40 hover:bg-gray-50">
-                Suivant
+                {t('btn_next')}
               </button>
             </div>
           </div>
