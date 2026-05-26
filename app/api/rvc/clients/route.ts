@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { MemberStatus, Prisma } from "@prisma/client";
+import { MemberStatus, Prisma, StatutCredit } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getRVCSession } from "@/lib/authRVC";
 
@@ -95,6 +95,12 @@ export async function GET(req: Request) {
       validationPar: {
         select: { nom: true, prenom: true },
       },
+      scoreSolvabilite: true,
+      soldeActuel: true,
+      creditsClients: {
+        where: { statut: StatutCredit.EN_RETARD },
+        select: { id: true },
+      },
       _count: {
         select: {
           creditsClients: true,
@@ -108,8 +114,13 @@ export async function GET(req: Request) {
       prisma.client.count({ where }),
     ]);
 
+    const data = clients.map(({ creditsClients, ...c }) => ({
+      ...c,
+      nbCreditsEnRetard: creditsClients.length,
+    }));
+
     return NextResponse.json({
-      data: clients,
+      data,
       pdvId,
       meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
     });

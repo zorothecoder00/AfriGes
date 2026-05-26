@@ -42,6 +42,12 @@ export async function GET(req: NextRequest) {
     // VenteDirecte → pointDeVenteId direct
     const venteDirPdvFilter = pdvId !== null ? Prisma.sql`AND v."pointDeVenteId" = ${pdvId}` : Prisma.empty;
 
+    // RemboursementCredit → Client.pointDeVenteId
+    const creditPdvJoin   = pdvId !== null ? Prisma.sql`JOIN "CreditClient" cc ON cc.id = rc."creditId" JOIN "Client" c2 ON c2.id = cc."clientId"` : Prisma.empty;
+    const creditPdvFilter = pdvId !== null ? Prisma.sql`AND c2."pointDeVenteId" = ${pdvId}` : Prisma.empty;
+    // CreditClient créances → Client.pointDeVenteId
+    const creanceCreditPdvFilter = pdvId !== null ? Prisma.sql`AND cli."pointDeVenteId" = ${pdvId}` : Prisma.empty;
+
     const [
       stockValeur,
       creancesPacks,
@@ -51,6 +57,8 @@ export async function GET(req: NextRequest) {
       opcDecTotal,
       opcDecParCat,
       ventesDirectesTotaux,
+      creancesCredits,
+      rembCreditsAnnee,
       souscriptionsStats,
     ] = await Promise.all([
 
@@ -126,7 +134,27 @@ export async function GET(req: NextRequest) {
         ${venteDirPdvFilter}
       `,
 
-      // 9. Stats souscriptions pour ratios (snapshot actuel)
+      // 9. Créances crédits (CreditClient ACTIF/EN_RETARD — soldeRestant) — snapshot actuel
+      prisma.$queryRaw<{ total: string; cnt: string }[]>`
+        SELECT COALESCE(SUM(cr."soldeRestant"), 0)::text AS total,
+               COUNT(*)::text AS cnt
+        FROM "CreditClient" cr
+        JOIN "Client" cli ON cli.id = cr."clientId"
+        WHERE cr.statut IN ('ACTIF', 'EN_RETARD') AND cr."soldeRestant" > 0
+        ${creanceCreditPdvFilter}
+      `,
+
+      // 10. Remboursements crédits reçus sur l'année filtrés par PDV client
+      prisma.$queryRaw<{ total: string; cnt: string }[]>`
+        SELECT COALESCE(SUM(rc.montant), 0)::text AS total,
+               COUNT(*)::text AS cnt
+        FROM "RemboursementCredit" rc
+        ${creditPdvJoin}
+        WHERE rc."dateRemboursement" >= ${yearStart} AND rc."dateRemboursement" <= ${yearEnd}
+        ${creditPdvFilter}
+      `,
+
+      // 11. Stats souscriptions pour ratios (snapshot actuel)
       prisma.$queryRaw<{
         total_montant: string;
         total_verse:   string;
@@ -144,10 +172,12 @@ export async function GET(req: NextRequest) {
 
     // ── ACTIF ─────────────────────────────────────────────────────────────────
 
-    const actifStock       = Number(stockValeur[0]?.valeur ?? 0);
-    const actifCreances    = Number(creancesPacks[0]?.total ?? 0);
-    const actifCreancesCnt = Number(creancesPacks[0]?.cnt ?? 0);
-    const totalActif       = actifStock + actifCreances;
+    const actifStock          = Number(stockValeur[0]?.valeur ?? 0);
+    const actifCreances       = Number(creancesPacks[0]?.total ?? 0);
+    const actifCreancesCnt    = Number(creancesPacks[0]?.cnt ?? 0);
+    const actifCreancesCredits    = Number(creancesCredits[0]?.total ?? 0);
+    const actifCreancesCreditsCnt = Number(creancesCredits[0]?.cnt ?? 0);
+    const totalActif          = actifStock + actifCreances + actifCreancesCredits;
 
     // ── PASSIF ────────────────────────────────────────────────────────────────
 
@@ -158,10 +188,12 @@ export async function GET(req: NextRequest) {
 
     // ── CPC PRODUITS ──────────────────────────────────────────────────────────
 
-    const prodVersements       = Number(produitsVersements[0]?.total ?? 0);
-    const prodEncaissements    = Number(opcEncTotal[0]?.total ?? 0);
-    const prodVentesDirectes   = Number(ventesDirectesTotaux[0]?.total ?? 0);
-    const totalProduits        = prodVersements + prodEncaissements + prodVentesDirectes;
+    const prodVersements         = Number(produitsVersements[0]?.total ?? 0);
+    const prodEncaissements      = Number(opcEncTotal[0]?.total ?? 0);
+    const prodVentesDirectes     = Number(ventesDirectesTotaux[0]?.total ?? 0);
+    const prodRembCredits        = Number(rembCreditsAnnee[0]?.total ?? 0);
+    const prodRembCreditsCnt     = Number(rembCreditsAnnee[0]?.cnt ?? 0);
+    const totalProduits          = prodVersements + prodEncaissements + prodVentesDirectes + prodRembCredits;
 
     // ── CPC CHARGES ───────────────────────────────────────────────────────────
 
@@ -195,8 +227,9 @@ export async function GET(req: NextRequest) {
         annee,
         bilan: {
           actif: {
-            stock:         { valeur: actifStock, nombreProduits: Number(stockValeur[0]?.nb ?? 0) },
-            creancesPacks: { valeur: actifCreances, count: actifCreancesCnt },
+            stock:           { valeur: actifStock, nombreProduits: Number(stockValeur[0]?.nb ?? 0) },
+            creancesPacks:   { valeur: actifCreances,        count: actifCreancesCnt },
+            creancesCredits: { valeur: actifCreancesCredits, count: actifCreancesCreditsCnt },
             total: totalActif,
           },
           passif: {
@@ -207,10 +240,11 @@ export async function GET(req: NextRequest) {
         },
         compteResultat: {
           produits: {
-            versementsCollectes: prodVersements,
-            encaissementsCaisse: prodEncaissements,
-            ventesDirectes:      prodVentesDirectes,
-            total:               totalProduits,
+            versementsCollectes:  prodVersements,
+            encaissementsCaisse:  prodEncaissements,
+            ventesDirectes:       prodVentesDirectes,
+            remboursementsCredits: { montant: prodRembCredits, count: prodRembCreditsCnt },
+            total:                totalProduits,
           },
           charges: {
             approvisionnements: chAppro,

@@ -167,6 +167,8 @@ export default function CreditsPage() {
   const [creditSubmitting, setCreditSubmitting] = useState(false);
   const [creditError,     setCreditError]     = useState('');
 
+  const [convertLoading,  setConvertLoading]  = useState(false);
+
   const { data: pdvResponse } = useApi<{ data: PDVOption[] }>('/api/admin/pdv?limit=200&actif=true');
   const pdvOptions = pdvResponse?.data ?? [];
 
@@ -338,6 +340,27 @@ export default function CreditsPage() {
       }
     } catch { toast.error('Erreur réseau'); }
     finally { setActionLoading(false); }
+  };
+
+  // ── Conversion crédit rejeté → vente comptant ────────────────────────────
+  const convertirEnVente = async (id: number) => {
+    setConvertLoading(true);
+    try {
+      const r = await fetch(`/api/admin/credits/${id}/convertir-en-vente`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ modePaiement: 'ESPECES' }),
+      });
+      const j = await r.json();
+      if (r.ok) {
+        toast.success(`Vente créée : ${j.data.vente.reference}`);
+        setDetailCredit(null);
+        refetch();
+      } else {
+        toast.error(j.message ?? 'Erreur lors de la conversion');
+      }
+    } catch { toast.error('Erreur réseau'); }
+    finally { setConvertLoading(false); }
   };
 
   // ── Remboursement ─────────────────────────────────────────────────────────
@@ -693,6 +716,14 @@ export default function CreditsPage() {
                         <Ban className="w-3.5 h-3.5" /> Annuler
                       </button>
                     </>
+                  )}
+                  {detailCredit.statut === 'REJETE' && (
+                    <button onClick={() => convertirEnVente(detailCredit.id)}
+                      disabled={convertLoading}
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-medium hover:bg-blue-700 disabled:opacity-50">
+                      <Banknote className="w-3.5 h-3.5" />
+                      {convertLoading ? 'Conversion…' : 'Convertir en vente comptant'}
+                    </button>
                   )}
                 </div>
 

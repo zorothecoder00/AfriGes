@@ -3,7 +3,7 @@ import { Prisma, PrioriteNotification } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCaissierSession, getCaissierPdvId, souscriptionPdvWhere } from "@/lib/authCaissier";
 import { getRPVSession } from "@/lib/authRPV";
-import { notifyRoles, auditLog } from "@/lib/notifications";
+import { notifyRoles, notifyAdmins, auditLog } from "@/lib/notifications";
 
 /**
  * GET /api/caissier/cloture
@@ -334,6 +334,16 @@ export async function POST(req: Request) {
           actionUrl: "/dashboard/admin/ventes",
         }
       );
+
+      // Alerte automatique si écart significatif (> 1 000 FCFA)
+      if (ecart !== null && Math.abs(ecart) > 1000) {
+        await notifyAdmins(tx, {
+          titre:    "Ecart de caisse detecte",
+          message:  `Cloture du ${dateStr} par ${caissierNom} — ecart de ${ecart > 0 ? "+" : ""}${ecart.toLocaleString("fr-FR")} FCFA (theorique : ${soldeTheorique.toLocaleString("fr-FR")} FCFA / reel : ${soldeReel !== null ? soldeReel.toLocaleString("fr-FR") : "non saisi"} FCFA). Verification requise.`,
+          priorite: PrioriteNotification.HAUTE,
+          actionUrl: "/dashboard/admin/ventes",
+        });
+      }
 
       return created;
     });

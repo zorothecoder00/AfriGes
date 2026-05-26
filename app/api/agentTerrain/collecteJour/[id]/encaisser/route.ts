@@ -243,6 +243,12 @@ export async function POST(req: Request, { params }: Ctx) {
           },
         });
 
+        // 3b. Décrémenter la dette du client
+        await tx.client.update({
+          where: { id: credit.clientId },
+          data: { soldeActuel: { decrement: montantNum } },
+        });
+
         // 4. Mettre à jour montantCollecte de la session
         await tx.collecteJournaliere.update({
           where: { id: collecteId },

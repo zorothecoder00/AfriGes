@@ -54,6 +54,7 @@ function parseJournalSource(entryId: string): { sourceType: string; sourceId: nu
   if (entryId.startsWith("OPC-ENC-"))   return { sourceType: "OPERATION_CAISSE",  sourceId: Number(entryId.replace("OPC-ENC-", "")) };
   if (entryId.startsWith("OPC-DEC-"))   return { sourceType: "OPERATION_CAISSE",  sourceId: Number(entryId.replace("OPC-DEC-", "")) };
   if (entryId.startsWith("VD-"))        return { sourceType: "VENTE_DIRECTE",      sourceId: Number(entryId.replace("VD-", "")) };
+  if (entryId.startsWith("REMB-CREDIT-")) return { sourceType: "REMBOURSEMENT_CREDIT", sourceId: Number(entryId.replace("REMB-CREDIT-", "")) };
   return null;
 }
 
@@ -347,6 +348,8 @@ const CAT_META: Record<string, { label: string; color: string; bg: string; icon:
   CAISSE_ENCAISSEMENT:  { label: "Encaissement caisse",    color: "text-cyan-600",    bg: "bg-cyan-100",    icon: Wallet },
   // VenteDirecte
   VENTE_DIRECTE:        { label: "Vente directe",          color: "text-indigo-600",  bg: "bg-indigo-100",  icon: ShoppingBag },
+  // RemboursementCredit
+  REMBOURSEMENT_CREDIT: { label: "Remb. crédit client",    color: "text-green-600",   bg: "bg-green-100",   icon: BadgeCheck },
   // OperationCaisse décaissements
   SALAIRE:              { label: "Salaire",                color: "text-red-600",     bg: "bg-red-100",     icon: Users },
   AVANCE:               { label: "Avance",                 color: "text-rose-600",    bg: "bg-rose-100",    icon: ArrowDownRight },

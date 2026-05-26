@@ -47,6 +47,10 @@ export async function GET(req: NextRequest) {
 
     // ── Agrégats en parallèle ─────────────────────────────────────────────────
 
+    // RemboursementCredit → Client.pointDeVenteId
+    const creditPdvJoin   = pdvId !== null ? Prisma.sql`JOIN "CreditClient" cc ON cc.id = rc."creditId" JOIN "Client" c2 ON c2.id = cc."clientId"` : Prisma.empty;
+    const creditPdvFilter = pdvId !== null ? Prisma.sql`AND c2."pointDeVenteId" = ${pdvId}` : Prisma.empty;
+
     const [
       versementsParType,
       approTotaux,
@@ -56,6 +60,7 @@ export async function GET(req: NextRequest) {
       ventesDirectesTotaux,
       souscriptionsActives,
       packsCount,
+      rembCreditsTotaux,
     ] = await Promise.all([
 
       // 1. Encaissements packs (VersementPack groupé par type) filtrés par PDV client
@@ -126,6 +131,16 @@ export async function GET(req: NextRequest) {
 
       // 8. Nombre de packs
       prisma.pack.count(),
+
+      // 9. Remboursements crédits (encaissements) filtrés par PDV client
+      prisma.$queryRaw<{ total: string; cnt: string }[]>`
+        SELECT COALESCE(SUM(rc.montant), 0)::text AS total,
+               COUNT(*)::text AS cnt
+        FROM "RemboursementCredit" rc
+        ${creditPdvJoin}
+        WHERE rc."dateRemboursement" >= ${since}
+        ${creditPdvFilter}
+      `,
     ]);
 
     // ── Map versements pack ───────────────────────────────────────────────────
@@ -146,11 +161,13 @@ export async function GET(req: NextRequest) {
 
     // ── OperationCaisse encaissements ─────────────────────────────────────────
 
-    const caissEnc      = Number(opcEncTotaux[0]?.total ?? 0);
-    const caissEncCount = Number(opcEncTotaux[0]?.cnt ?? 0);
-    const ventesDir      = Number(ventesDirectesTotaux[0]?.total ?? 0);
-    const ventesDirCount = Number(ventesDirectesTotaux[0]?.cnt ?? 0);
-    const totalEncaissements = totalVersements + caissEnc + ventesDir;
+    const caissEnc        = Number(opcEncTotaux[0]?.total ?? 0);
+    const caissEncCount   = Number(opcEncTotaux[0]?.cnt ?? 0);
+    const ventesDir       = Number(ventesDirectesTotaux[0]?.total ?? 0);
+    const ventesDirCount  = Number(ventesDirectesTotaux[0]?.cnt ?? 0);
+    const rembCredits     = Number(rembCreditsTotaux[0]?.total ?? 0);
+    const rembCreditsCount = Number(rembCreditsTotaux[0]?.cnt ?? 0);
+    const totalEncaissements = totalVersements + caissEnc + ventesDir + rembCredits;
 
     // ── OperationCaisse décaissements ─────────────────────────────────────────
 
@@ -179,7 +196,9 @@ export async function GET(req: NextRequest) {
     const pdvVersFilter      = pdvId !== null ? { souscription: { client: { pointDeVenteId: pdvId } } } : {};
     const pdvVenteDirFilter  = pdvId !== null ? { pointDeVenteId: pdvId } : {};
 
-    const [versementsJour, approJour, opcEncJour, opcDecJour, ventesDirJour] = await Promise.all([
+    const pdvCreditFilter2 = pdvId !== null ? { credit: { client: { pointDeVenteId: pdvId } } } : {};
+
+    const [versementsJour, approJour, opcEncJour, opcDecJour, ventesDirJour, rembCreditsJour] = await Promise.all([
       prisma.versementPack.findMany({
         where: { datePaiement: { gte: since }, ...pdvVersFilter },
         select: { datePaiement: true, montant: true },
@@ -200,6 +219,10 @@ export async function GET(req: NextRequest) {
         where: { statut: { notIn: ["BROUILLON", "ANNULEE"] }, createdAt: { gte: since }, ...pdvVenteDirFilter },
         select: { createdAt: true, montantPaye: true },
       }),
+      prisma.remboursementCredit.findMany({
+        where: { dateRemboursement: { gte: since }, ...pdvCreditFilter2 },
+        select: { dateRemboursement: true, montant: true },
+      }),
     ]);
 
     const encaisMap: Record<string, number> = {};
@@ -212,6 +235,10 @@ export async function GET(req: NextRequest) {
     for (const vd of ventesDirJour) {
       const k = vd.createdAt.toISOString().split("T")[0];
       encaisMap[k] = (encaisMap[k] ?? 0) + Number(vd.montantPaye);
+    }
+    for (const rc of rembCreditsJour) {
+      const k = rc.dateRemboursement.toISOString().split("T")[0];
+      encaisMap[k] = (encaisMap[k] ?? 0) + Number(rc.montant);
     }
     for (const op of opcEncJour) {
       const k = op.createdAt.toISOString().split("T")[0];
@@ -244,8 +271,9 @@ export async function GET(req: NextRequest) {
           versements_peri:       versPeri,
           remboursements:        remb,
           autres:                autresPacks,
-          caisse_encaissements:  { montant: caissEnc,   count: caissEncCount },
-          ventes_directes:       { montant: ventesDir,   count: ventesDirCount },
+          caisse_encaissements:  { montant: caissEnc,     count: caissEncCount },
+          ventes_directes:       { montant: ventesDir,    count: ventesDirCount },
+          remboursements_credits: { montant: rembCredits, count: rembCreditsCount },
           total: totalEncaissements,
         },
         decaissements: {

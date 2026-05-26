@@ -35,7 +35,9 @@ type JournalCategory =
   // OperationCaisse encaissements
   | "CAISSE_ENCAISSEMENT"
   // VenteDirecte
-  | "VENTE_DIRECTE";
+  | "VENTE_DIRECTE"
+  // RemboursementCredit
+  | "REMBOURSEMENT_CREDIT";
 
 interface JournalEntry {
   id:        string;
@@ -57,6 +59,8 @@ const CAISSE_CATS = new Set<string>(["SALAIRE", "AVANCE", "FOURNISSEUR", "CAISSE
 const PACK_CATS   = new Set<string>(["COTISATION_INITIALE", "VERSEMENT_PERIODIQUE", "REMBOURSEMENT", "VERSEMENT_PACK"]);
 // Catégories qui proviennent exclusivement de VenteDirecte
 const VENTE_DIR_CATS = new Set<string>(["VENTE_DIRECTE"]);
+// Catégories qui proviennent exclusivement des RemboursementCredit
+const CREDIT_CATS    = new Set<string>(["REMBOURSEMENT_CREDIT"]);
 
 function typeToCategorie(type: string): JournalCategory {
   switch (type) {
@@ -120,6 +124,8 @@ export async function GET(req: NextRequest) {
     const pdvVersFilter      = pdvId !== null ? { souscription: { client: { pointDeVenteId: pdvId } } } : {};
     // VenteDirecte → pointDeVenteId direct
     const pdvVenteDirFilter  = pdvId !== null ? { pointDeVenteId: pdvId } : {};
+    // RemboursementCredit → CreditClient → Client.pointDeVenteId
+    const pdvCreditFilter    = pdvId !== null ? { credit: { client: { pointDeVenteId: pdvId } } } : {};
 
     const includeEnc = typeFilter === "TOUS" || typeFilter === "ENCAISSEMENT";
     const includeDec = typeFilter === "TOUS" || typeFilter === "DECAISSEMENT";
@@ -142,7 +148,9 @@ export async function GET(req: NextRequest) {
     const queryAppro      = (sourceIsAll || sourceIsAchats) && (catFilter === "" || catFilter === "APPROVISIONNEMENT");
     const queryPack       = (sourceIsAll || sourceIsVentes) && (catFilter === "" || queryPackOnly);
     const queryCaisse     = (sourceIsAll || sourceIsCaisse) && (catFilter === "" || queryCaisseOnly || source !== "");
-    const queryVenteDir   = (sourceIsAll || sourceIsVentes) && (catFilter === "" || queryVenteDirOnly);
+    const queryVenteDir    = (sourceIsAll || sourceIsVentes) && (catFilter === "" || queryVenteDirOnly);
+    const queryCreditOnly  = catFilter !== "" && CREDIT_CATS.has(catFilter);
+    const queryCredit      = sourceIsAll && (catFilter === "" || queryCreditOnly);
 
     // VersementPack types à récupérer
     const versPackTypes: string[] =
@@ -162,7 +170,7 @@ export async function GET(req: NextRequest) {
       catFilter === "CAISSE_AUTRE" ? ["AUTRE"] :
       ["SALAIRE", "AVANCE", "FOURNISSEUR", "AUTRE"];
 
-    const [versements, appros, opsEnc, opsDec, ventesDir] = await Promise.all([
+    const [versements, appros, opsEnc, opsDec, ventesDir, rembCredits] = await Promise.all([
 
       // 1. VersementPack → ENCAISSEMENT filtrés par PDV client
       includeEnc && queryPack
@@ -270,6 +278,31 @@ export async function GET(req: NextRequest) {
             orderBy: { createdAt: "desc" },
           })
         : Promise.resolve([]),
+
+      // 6. RemboursementCredit → ENCAISSEMENT filtrés par PDV client
+      includeEnc && queryCredit
+        ? prisma.remboursementCredit.findMany({
+            where: {
+              dateRemboursement: { gte: dateDebut, lte: dateFin },
+              ...pdvCreditFilter,
+            },
+            select: {
+              id: true,
+              montant: true,
+              modePaiement: true,
+              notes: true,
+              dateRemboursement: true,
+              credit: {
+                select: {
+                  reference: true,
+                  client: { select: { nom: true, prenom: true } },
+                },
+              },
+              enregistrePar: { select: { nom: true, prenom: true } },
+            },
+            orderBy: { dateRemboursement: "desc" },
+          })
+        : Promise.resolve([]),
     ]);
 
     // ── Transformation en écritures uniformes ────────────────────────────────
@@ -333,6 +366,22 @@ export async function GET(req: NextRequest) {
         libelle:   `${cat === "SALAIRE" ? "Salaire" : cat === "AVANCE" ? "Avance" : cat === "FOURNISSEUR" ? "Fournisseur" : "Décaissement"} — ${op.motif} — ${op.operateurNom}`,
         montant:   Number(op.montant),
         reference: op.reference,
+      });
+    }
+
+    // RemboursementCredit Encaissements
+    for (const rc of rembCredits) {
+      const client = rc.credit.client;
+      const clientLabel = client ? `${client.prenom} ${client.nom}` : "Client inconnu";
+      entries.push({
+        id:        `REMB-CREDIT-${rc.id}`,
+        sourceId:  rc.id,
+        date:      rc.dateRemboursement,
+        type:      "ENCAISSEMENT",
+        categorie: "REMBOURSEMENT_CREDIT",
+        libelle:   `Remboursement crédit — ${rc.credit.reference} — ${clientLabel}${rc.modePaiement ? ` (${rc.modePaiement})` : ""}`,
+        montant:   Number(rc.montant),
+        reference: `REMB-${rc.credit.reference}-${String(rc.id).padStart(5, "0")}`,
       });
     }
 

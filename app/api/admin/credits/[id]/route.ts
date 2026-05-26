@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { StatutCredit } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { getAdminSession } from "@/lib/authAdmin";
+import { getRVCSession } from "@/lib/authRVC";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -13,7 +13,7 @@ type Ctx = { params: Promise<{ id: string }> };
  */
 export async function GET(_req: Request, { params }: Ctx) {
   try {
-    const session = await getAdminSession();
+    const session = await getRVCSession();
     if (!session) return NextResponse.json({ message: "Accès refusé" }, { status: 403 });
 
     const { id } = await params;
@@ -62,7 +62,7 @@ export async function GET(_req: Request, { params }: Ctx) {
  */
 export async function PATCH(req: Request, { params }: Ctx) {
   try {
-    const session = await getAdminSession();
+    const session = await getRVCSession();
     if (!session) return NextResponse.json({ message: "Accès refusé" }, { status: 403 });
 
     const { id } = await params;

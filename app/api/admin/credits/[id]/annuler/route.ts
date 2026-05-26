@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
-import { PrioriteNotification, Role, StatutCredit } from "@prisma/client";
+import {
+  PrioriteNotification, Role, StatutCredit,
+  TypeMouvement, TypeEntreeStock,
+} from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { getAdminSession } from "@/lib/authAdmin";
+import { getRVCSession } from "@/lib/authRVC";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -19,7 +22,7 @@ type Ctx = { params: Promise<{ id: string }> };
  */
 export async function POST(req: Request, { params }: Ctx) {
   try {
-    const session = await getAdminSession();
+    const session = await getRVCSession();
     if (!session) return NextResponse.json({ message: "Accès refusé" }, { status: 403 });
 
     const { id } = await params;
@@ -37,7 +40,12 @@ export async function POST(req: Request, { params }: Ctx) {
     const result = await prisma.$transaction(async (tx) => {
       const credit = await tx.creditClient.findUnique({
         where: { id: creditId },
-        include: { client: { select: { id: true, nom: true, prenom: true } } },
+        include: {
+          client: { select: { id: true, nom: true, prenom: true } },
+          lignes: {
+            select: { id: true, produitId: true, produitNom: true, quantite: true, prixUnitaire: true },
+          },
+        },
       });
       if (!credit) throw new Error("CREDIT_INTROUVABLE");
 
@@ -63,10 +71,35 @@ export async function POST(req: Request, { params }: Ctx) {
           where: { id: credit.clientId },
           data: { soldeActuel: { decrement: Number(credit.soldeRestant) } },
         });
+
+        // ── Restauration du stock (lignes avec produitId + PDV connu) ──────
+        if (credit.pointDeVenteId) {
+          const lignesAvecProduit = credit.lignes.filter((l) => l.produitId !== null);
+          for (const ligne of lignesAvecProduit) {
+            await tx.stockSite.updateMany({
+              where: { produitId: ligne.produitId!, pointDeVenteId: credit.pointDeVenteId! },
+              data:  { quantite: { increment: ligne.quantite } },
+            });
+
+            const dateStr = new Date().toISOString().replace(/[-:T.Z]/g, "").slice(0, 14);
+            await tx.mouvementStock.create({
+              data: {
+                produitId:      ligne.produitId!,
+                pointDeVenteId: credit.pointDeVenteId!,
+                type:           TypeMouvement.ENTREE,
+                typeEntree:     TypeEntreeStock.RETOUR_CLIENT,
+                quantite:       ligne.quantite,
+                prixUnitaire:   ligne.prixUnitaire,
+                motif:          `Annulation crédit — ${credit.reference}`,
+                reference:      `MVT-ANN-${creditId}-P${ligne.produitId}-${dateStr}`,
+                operateurId:    Number(session.user.id),
+              },
+            });
+          }
+        }
       }
 
-      // ── Marquer toutes les échéances non payées comme annulées ───────────
-      // (on utilise EN_ATTENTE → on les supprime proprement ; les PAYE restent pour l'historique)
+      // ── Supprimer les échéances non payées ────────────────────────────────
       await tx.echeanceCredit.deleteMany({
         where: { creditId, statut: { in: ["EN_ATTENTE", "PARTIEL"] } },
       });
@@ -83,24 +116,34 @@ export async function POST(req: Request, { params }: Ctx) {
 
       await tx.auditLog.create({
         data: {
-          action: action === "REJETE" ? "REJET_CREDIT" : "ANNULATION_CREDIT",
-          entite: "CreditClient",
+          action:   action === "REJETE" ? "REJET_CREDIT" : "ANNULATION_CREDIT",
+          entite:   "CreditClient",
           entiteId: creditId,
-          userId: Number(session.user.id),
+          userId:   Number(session.user.id),
         },
       });
+
+      // ── Notifications : admins + créateur du crédit ───────────────────────
+      const destinataires = new Map<number, true>();
 
       const admins = await tx.user.findMany({
         where: { role: { in: [Role.ADMIN, Role.SUPER_ADMIN] } },
         select: { id: true },
       });
-      if (admins.length > 0) {
+      admins.forEach((u) => destinataires.set(u.id, true));
+
+      // Notifier le créateur (peut ne pas être admin)
+      if (credit.creeParId) destinataires.set(credit.creeParId, true);
+
+      if (destinataires.size > 0) {
+        const titre   = action === "REJETE" ? "Crédit rejeté" : "Crédit annulé";
+        const message = `Le crédit ${credit.reference} de ${credit.client.prenom} ${credit.client.nom} a été ${action === "REJETE" ? "rejeté" : "annulé"}${motif ? ` : ${motif}` : ""}.`;
         await tx.notification.createMany({
-          data: admins.map((u) => ({
-            userId: u.id,
-            titre: action === "REJETE" ? "Crédit rejeté" : "Crédit annulé",
-            message: `Le crédit ${credit.reference} de ${credit.client.prenom} ${credit.client.nom} a été ${action === "REJETE" ? "rejeté" : "annulé"}${motif ? ` : ${motif}` : ""}.`,
-            priorite: PrioriteNotification.HAUTE,
+          data: [...destinataires.keys()].map((userId) => ({
+            userId,
+            titre,
+            message,
+            priorite:  PrioriteNotification.HAUTE,
             actionUrl: `/dashboard/admin/credits/${creditId}`,
           })),
         });

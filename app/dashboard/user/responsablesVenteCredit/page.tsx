@@ -4,7 +4,7 @@ import React, { useState, useCallback } from "react";
 import {
   Users, Search, RefreshCw, CheckCircle, XCircle, Clock,
   AlertCircle, User, Phone, MapPin, Briefcase,
-  Loader2, Eye, Shield,
+  Loader2, Eye, Shield, TrendingUp, Wallet, Edit3,
 } from "lucide-react";
 import SignOutButton from "@/components/SignOutButton";
 import NotificationBell from "@/components/NotificationBell";
@@ -39,6 +39,9 @@ interface ClientRVC {
   latitude: number | null;
   longitude: number | null;
   createdAt: string;
+  scoreSolvabilite: number | null;
+  soldeActuel: string | null;
+  nbCreditsEnRetard: number;
   agentTerrain: { nom: string; prenom: string; telephone: string } | null;
   pointDeVente: { nom: string; code: string } | null;
   validationPar: { nom: string; prenom: string } | null;
@@ -85,6 +88,22 @@ function risqueBadge(niveau: string | null) {
   );
 }
 
+// ─── Jauge score solvabilité ──────────────────────────────────────────────────
+
+function ScoreJauge({ score }: { score: number | null }) {
+  const val = score ?? 0;
+  const color = val >= 60 ? "bg-green-500" : val >= 30 ? "bg-orange-400" : "bg-red-500";
+  const textColor = val >= 60 ? "text-green-700" : val >= 30 ? "text-orange-700" : "text-red-700";
+  return (
+    <div className="flex items-center gap-2">
+      <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
+        <div className={`h-full rounded-full transition-all ${color}`} style={{ width: `${Math.min(100, val)}%` }} />
+      </div>
+      <span className={`text-xs font-bold ${textColor}`}>{val.toFixed(0)}/100</span>
+    </div>
+  );
+}
+
 // ─── Composant Detail Client ──────────────────────────────────────────────────
 
 interface DetailPanelProps {
@@ -94,14 +113,21 @@ interface DetailPanelProps {
 }
 
 function DetailPanel({ client, onClose, onValidated }: DetailPanelProps) {
-  const [showActiverForm, setShowActiverForm]   = useState(false);
-  const [showRejeterForm, setShowRejeterForm]   = useState(false);
-  const [limiteCredit, setLimiteCredit]         = useState("");
-  const [motifRejet, setMotifRejet]             = useState("");
+  const [showActiverForm, setShowActiverForm]     = useState(false);
+  const [showRejeterForm, setShowRejeterForm]     = useState(false);
+  const [showPlafondForm, setShowPlafondForm]     = useState(false);
+  const [limiteCredit, setLimiteCredit]           = useState("");
+  const [nouvelleLimite, setNouvelleLimite]       = useState(client.limiteCredit ? String(Number(client.limiteCredit)) : "");
+  const [motifRejet, setMotifRejet]               = useState("");
 
   const { mutate: valider, loading } = useMutation<{ data: ClientRVC }, { action: string; limiteCredit?: number; motifRejet?: string }>(
     `/api/rvc/clients/${client.id}/valider`,
     "POST"
+  );
+
+  const { mutate: modifierPlafond, loading: plafondLoading } = useMutation<{ data: ClientRVC }, { limiteCredit: number }>(
+    `/api/rvc/clients/${client.id}/limite-credit`,
+    "PATCH"
   );
 
   const handleActiver = useCallback(async () => {
@@ -117,6 +143,13 @@ function DetailPanel({ client, onClose, onValidated }: DetailPanelProps) {
     const result = await valider({ action: "REJETER", motifRejet: motifRejet.trim() });
     if (result) { onValidated(); onClose(); }
   }, [valider, motifRejet, onValidated, onClose]);
+
+  const handleModifierPlafond = useCallback(async () => {
+    const val = Number(nouvelleLimite);
+    if (isNaN(val) || val < 0) return;
+    const result = await modifierPlafond({ limiteCredit: val });
+    if (result) { onValidated(); setShowPlafondForm(false); }
+  }, [modifierPlafond, nouvelleLimite, onValidated]);
 
   const isPending = client.etat === "EN_ATTENTE_VALIDATION";
 
@@ -193,15 +226,116 @@ function DetailPanel({ client, onClose, onValidated }: DetailPanelProps) {
             </div>
           </section>
 
+          {/* Solvabilité */}
+          <section>
+            <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3 flex items-center gap-2">
+              <TrendingUp size={14} className="text-blue-500" />
+              Solvabilité
+            </h3>
+            <div className="space-y-3">
+              <div>
+                <p className="text-xs text-gray-400 font-medium mb-1">Score de solvabilité</p>
+                <ScoreJauge score={client.scoreSolvabilite} />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <p className="text-xs text-gray-400 font-medium flex items-center gap-1">
+                    <Wallet size={11} />
+                    Dettes en cours
+                  </p>
+                  <p className="text-sm font-semibold text-gray-800 mt-0.5">
+                    {client.soldeActuel && Number(client.soldeActuel) > 0
+                      ? `${Number(client.soldeActuel).toLocaleString("fr-FR")} FCFA`
+                      : <span className="text-green-600">Aucune dette</span>}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-400 font-medium">Crédits en retard</p>
+                  {client.nbCreditsEnRetard > 0 ? (
+                    <span className="inline-flex items-center gap-1 mt-0.5 px-2 py-0.5 rounded-full bg-red-100 text-red-700 text-xs font-bold">
+                      <AlertCircle size={11} />
+                      {client.nbCreditsEnRetard} en retard
+                    </span>
+                  ) : (
+                    <p className="text-sm font-semibold text-green-600 mt-0.5">Aucun</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          </section>
+
           {/* Engagements existants */}
           {(client._count.creditsClients > 0 || client._count.souscriptionsPacks > 0) && (
             <section>
               <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Historique</h3>
               <div className="grid grid-cols-2 gap-3">
-                <InfoRow label="Crédits" value={String(client._count.creditsClients)} />
+                <InfoRow label="Crédits (total)" value={String(client._count.creditsClients)} />
                 <InfoRow label="Souscriptions packs" value={String(client._count.souscriptionsPacks)} />
-                {client.limiteCredit && <InfoRow label="Limite crédit" value={`${Number(client.limiteCredit).toLocaleString("fr-FR")} FCFA`} />}
+                {client.limiteCredit && <InfoRow label="Plafond crédit actuel" value={`${Number(client.limiteCredit).toLocaleString("fr-FR")} FCFA`} />}
               </div>
+            </section>
+          )}
+
+          {/* Modifier le plafond crédit — clients ACTIF */}
+          {client.etat === "ACTIF" && (
+            <section className="border-t border-gray-100 pt-5">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                  <Shield size={16} className="text-blue-600" />
+                  Plafond crédit
+                </h3>
+                {!showPlafondForm && (
+                  <button
+                    onClick={() => setShowPlafondForm(true)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors"
+                  >
+                    <Edit3 size={13} />
+                    Modifier
+                  </button>
+                )}
+              </div>
+              {!showPlafondForm ? (
+                <p className="text-sm text-gray-600">
+                  Plafond actuel :{" "}
+                  <span className="font-semibold text-gray-900">
+                    {client.limiteCredit
+                      ? `${Number(client.limiteCredit).toLocaleString("fr-FR")} FCFA`
+                      : "Non défini"}
+                  </span>
+                </p>
+              ) : (
+                <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 space-y-3">
+                  <div>
+                    <label className="text-xs text-gray-600 font-medium block mb-1">
+                      Nouveau plafond crédit (FCFA)
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={nouvelleLimite}
+                      onChange={(e) => setNouvelleLimite(e.target.value)}
+                      placeholder="Ex : 750000"
+                      className="w-full px-3 py-2 border border-blue-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handleModifierPlafond}
+                      disabled={plafondLoading || !nouvelleLimite}
+                      className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                    >
+                      {plafondLoading ? <Loader2 size={15} className="animate-spin" /> : <CheckCircle size={15} />}
+                      Enregistrer
+                    </button>
+                    <button
+                      onClick={() => setShowPlafondForm(false)}
+                      className="px-4 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition-colors"
+                    >
+                      Annuler
+                    </button>
+                  </div>
+                </div>
+              )}
             </section>
           )}
 

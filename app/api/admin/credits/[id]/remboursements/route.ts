@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { PrioriteNotification, Role, StatutCredit, StatutEcheanceCredit, TypePaiement } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { getAdminSession } from "@/lib/authAdmin";
+import { getRVCSession } from "@/lib/authRVC";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -22,7 +22,7 @@ type Ctx = { params: Promise<{ id: string }> };
  */
 export async function POST(req: Request, { params }: Ctx) {
   try {
-    const session = await getAdminSession();
+    const session = await getRVCSession();
     if (!session) return NextResponse.json({ message: "Accès refusé" }, { status: 403 });
 
     const { id } = await params;

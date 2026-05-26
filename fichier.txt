@@ -38,23 +38,34 @@ netsh wlan show profile name="NomDuWifi" key=clear affiche toutes les propriét�
 
   Les seuils d'alertes (retard, inactivité, etc.) sont tous optionnels — les
   valeurs par défaut commentées s'appliquent si tu ne les mets pas.
-
+  
 
 Faire des tags dans l'application pour permettre de retracer les informations sur les clients
 
-Créer un menu RIA (commissions , finances etc etc)
+Créer un menu RIA (commissions , finances etc etc)  
 
-Les exports CSV ne prennent pas en compte toutes les données j'ai l'impression
+ Plan de modifications (2 fichiers) :
 
- Voilà le problème clairement : le formulaire existe mais il est encore calqué
-  sur l'ancienne logique (BROUILLON → RPV). Il faut :
+  1. app/api/rvc/clients/route.ts
 
-  1. Le type VenteTerrain.statut ne connaît pas les nouveaux statuts (PAID,
-  CREDIT_REQUEST...)
-  2. En mode CRÉDIT : forcer un client enregistré, cacher "montant payé",
-  afficher la limite disponible
-  3. Le bouton submit dit encore "Envoyer au RPV"
-  4. Les labels/couleurs de statut sont incomplets
-  5. L'API GET ne retourne pas limiteCredit/soldeActuel des clients
+  Ajouter au select :
+  - scoreSolvabilite
+  - soldeActuel
+  - creditsClients: { where: { statut: "EN_RETARD" }, select: { id: true } } →
+  transformé en nbCreditsEnRetard dans la réponse
 
-  Je fais les deux corrections (API + UI) :
+  2. app/dashboard/user/responsablesVenteCredit/page.tsx
+
+  - Ajouter scoreSolvabilite, soldeActuel, nbCreditsEnRetard au type ClientRVC
+  - Dans DetailPanel : nouvelle section "Solvabilité" visible pour TOUS les
+  statuts (pas seulement EN_ATTENTE), avec :
+    - Score (jauge colorée : vert ≥ 60, orange 30-59, rouge < 30)
+    - Solde actuel / dettes
+    - Badge rouge "X crédit(s) en retard" si nbCreditsEnRetard > 0
+  - Bouton "Modifier le plafond crédit" pour les clients ACTIF → appelle PATCH
+  /api/rvc/clients/[id]/limite-credit
+
+  3. Nouveau fichier : app/api/rvc/clients/[id]/limite-credit/route.ts
+
+  PATCH — accepte { limiteCredit: number }, protégé par getRVCSession(), met à
+  jour uniquement limiteCredit du client
