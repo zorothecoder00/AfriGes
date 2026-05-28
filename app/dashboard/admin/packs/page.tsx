@@ -124,6 +124,10 @@ interface Produit {
   prixAchat?: string | null;
   stock: number;
   totalStock?: number;
+  quantiteReservee?: number;
+  quantiteEnTransit?: number;
+  quantiteEndommagee?: number;
+  stockTheorique?: number;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -2263,22 +2267,32 @@ function ModalPlanifierLivraison({
 
   const { data: stockData } = useApi<{ data: Produit[] }>(stockUrl);
 
-  // En mode pdvId, l'API retourne des StockSite (quantite + produit{})
+  // En mode pdvId, l'API retourne des StockSite (quantite + quantiteReservee + … + produit{})
   // En mode aggregate, elle retourne des Produit (totalStock + id/nom/prixUnitaire)
-  const produits: Produit[] = (stockData?.data ?? []).map((item: Produit & { quantite?: number; produit?: Produit }) => {
+  const produits: Produit[] = (stockData?.data ?? []).map((item: Produit & { quantite?: number; quantiteReservee?: number; quantiteEnTransit?: number; quantiteEndommagee?: number; stockTheorique?: number; produit?: Produit }) => {
     if (item.produit) {
       // Format StockSite → aplatir vers Produit
+      const qte     = (item as unknown as { quantite: number }).quantite ?? 0;
+      const reserve = item.quantiteReservee ?? 0;
       return {
         id: item.produit.id,
         nom: item.produit.nom,
         prixUnitaire: item.produit.prixUnitaire,
         prixAchat: item.produit.prixAchat,
-        stock: (item as unknown as { quantite: number }).quantite ?? 0,
-        totalStock: (item as unknown as { quantite: number }).quantite ?? 0,
+        stock:              qte,
+        totalStock:         qte,
+        quantiteReservee:   reserve,
+        quantiteEnTransit:  item.quantiteEnTransit  ?? 0,
+        quantiteEndommagee: item.quantiteEndommagee ?? 0,
+        stockTheorique:     item.stockTheorique     ?? qte,
       };
     }
     return item;
-  }).filter((p) => (p.totalStock ?? p.stock ?? 0) > 0);
+  // Le filtre utilise le stock réellement disponible (hors réservations)
+  }).filter((p) => {
+    const dispo = (p.totalStock ?? p.stock ?? 0) - (p.quantiteReservee ?? 0);
+    return dispo > 0;
+  });
 
   const { mutate: planifier, loading: saving } = useMutation(
     `/api/admin/packs/souscriptions/${souscription.id}/livrer`,
@@ -2437,7 +2451,7 @@ function ModalPlanifierLivraison({
             </div>
             {/* En-têtes colonnes */}
             <div className="flex gap-2 px-1 mb-1">
-              <span className="flex-1 text-xs text-slate-400 font-medium">Produit (stock dispo)</span>
+              <span className="flex-1 text-xs text-slate-400 font-medium">Produit (dispo réel)</span>
               <span className="w-20 text-xs text-slate-400 font-medium text-center">Qté</span>
               <span className="w-28 text-xs text-emerald-700 font-semibold text-center">Prix de vente</span>
               {lignes.length > 1 && <span className="w-8" />}
@@ -2457,13 +2471,23 @@ function ModalPlanifierLivraison({
                         <select value={l.produitId} onChange={(e) => updateLigne(i, "produitId", e.target.value)}
                           className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white">
                           <option value="">— Choisir un produit —</option>
-                          {produits.map((p) => (
-                            <option key={p.id} value={p.id}>{p.nom} (dispo : {p.totalStock ?? p.stock ?? 0})</option>
-                          ))}
+                          {produits.map((p) => {
+                            const dispoReel = (p.totalStock ?? p.stock ?? 0) - (p.quantiteReservee ?? 0);
+                            const reserve   = p.quantiteReservee ?? 0;
+                            const transit   = p.quantiteEnTransit ?? 0;
+                            const endommage = p.quantiteEndommagee ?? 0;
+                            const parts: string[] = [`dispo : ${dispoReel}`];
+                            if (reserve   > 0) parts.push(`rés. : ${reserve}`);
+                            if (transit   > 0) parts.push(`transit : ${transit}`);
+                            if (endommage > 0) parts.push(`endom. : ${endommage}`);
+                            return (
+                              <option key={p.id} value={p.id}>{p.nom} ({parts.join(' · ')})</option>
+                            );
+                          })}
                         </select>
                       </div>
                       <div className="w-20">
-                        <input type="number" min="1" max={prod ? (prod.totalStock ?? prod.stock ?? undefined) : undefined}
+                        <input type="number" min="1" max={prod ? Math.max(0, (prod.totalStock ?? prod.stock ?? 0) - (prod.quantiteReservee ?? 0)) : undefined}
                           value={l.quantite} onChange={(e) => updateLigne(i, "quantite", e.target.value)}
                           placeholder="Qté" className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm text-center focus:outline-none focus:ring-2 focus:ring-emerald-500" />
                       </div>

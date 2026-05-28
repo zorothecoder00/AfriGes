@@ -142,6 +142,15 @@ export async function POST(req: Request) {
         },
       });
 
+      // Mettre les quantités commandées en transit (4.3)
+      for (const ligne of r.lignes) {
+        await tx.stockSite.upsert({
+          where: { produitId_pointDeVenteId: { produitId: ligne.produitId, pointDeVenteId: r.pointDeVenteId } },
+          update: { quantiteEnTransit: { increment: ligne.quantiteAttendue } },
+          create: { produitId: ligne.produitId, pointDeVenteId: r.pointDeVenteId, quantiteEnTransit: ligne.quantiteAttendue },
+        });
+      }
+
       await auditLog(tx, parseInt(session.user.id), "RECEPTION_CREEE", "ReceptionApprovisionnement", r.id);
 
       await notifyRoles(tx, ["MAGAZINIER"], {

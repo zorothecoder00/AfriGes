@@ -111,15 +111,16 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "L'origine et la destination doivent être différents" }, { status: 400 });
     }
 
-    // Vérifier stocks suffisants à l'origine
+    // Vérifier stocks réellement disponibles à l'origine (hors réservations)
     for (const l of lignes as Array<{ produitId: number; quantite: number }>) {
       const stock = await prisma.stockSite.findUnique({
         where: { produitId_pointDeVenteId: { produitId: Number(l.produitId), pointDeVenteId: Number(origineId) } },
         include: { produit: { select: { nom: true } } },
       });
-      if (!stock || stock.quantite < Number(l.quantite)) {
+      const qteDispo = (stock?.quantite ?? 0) - (stock?.quantiteReservee ?? 0);
+      if (!stock || qteDispo < Number(l.quantite)) {
         return NextResponse.json(
-          { error: `Stock insuffisant pour "${stock?.produit.nom ?? l.produitId}". Dispo: ${stock?.quantite ?? 0}, demandé: ${l.quantite}` },
+          { error: `Stock insuffisant pour "${stock?.produit.nom ?? l.produitId}". Disponible réel : ${qteDispo < 0 ? 0 : qteDispo}, demandé : ${l.quantite}` },
           { status: 400 }
         );
       }
@@ -155,11 +156,17 @@ export async function POST(req: Request) {
         },
       });
 
-      // Décrémenter stock origine
+      // Décrémenter stock origine + marquer en transit à la destination
       for (const l of t.lignes) {
         await tx.stockSite.update({
           where: { produitId_pointDeVenteId: { produitId: l.produitId, pointDeVenteId: Number(origineId) } },
           data: { quantite: { decrement: l.quantite } },
+        });
+        // Les produits sont maintenant en route → transit destination (4.3)
+        await tx.stockSite.upsert({
+          where: { produitId_pointDeVenteId: { produitId: l.produitId, pointDeVenteId: Number(destinationId) } },
+          update: { quantiteEnTransit: { increment: l.quantite } },
+          create: { produitId: l.produitId, pointDeVenteId: Number(destinationId), quantiteEnTransit: l.quantite },
         });
         await tx.mouvementStock.create({
           data: {

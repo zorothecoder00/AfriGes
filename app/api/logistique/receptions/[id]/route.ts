@@ -92,6 +92,13 @@ export async function PATCH(req: Request, { params }: Ctx) {
         return NextResponse.json({ error: "Cette réception ne peut plus être annulée" }, { status: 400 });
       }
       const updated = await prisma.$transaction(async (tx) => {
+        // Libérer le transit (4.3) — les marchandises ne viendront pas
+        for (const ligne of reception.lignes) {
+          await tx.stockSite.updateMany({
+            where: { produitId: ligne.produitId, pointDeVenteId: reception.pointDeVenteId },
+            data:  { quantiteEnTransit: { decrement: ligne.quantiteAttendue } },
+          });
+        }
         const r = await tx.receptionApprovisionnement.update({
           where: { id: Number(id) },
           data: { statut: "ANNULE", notesQualite: body.motif || null },
@@ -150,7 +157,11 @@ export async function PATCH(req: Request, { params }: Ctx) {
             where: {
               produitId_pointDeVenteId: { produitId: ligne.produitId, pointDeVenteId: reception.pointDeVenteId },
             },
-            update: { quantite: { increment: qte } },
+            // Sortir du transit (4.3) et ajouter au disponible (4.1)
+            update: {
+              quantite:          { increment: qte },
+              quantiteEnTransit: { decrement: ligne.quantiteAttendue },
+            },
             create: { produitId: ligne.produitId, pointDeVenteId: reception.pointDeVenteId, quantite: qte },
           });
 

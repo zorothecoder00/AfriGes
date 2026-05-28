@@ -166,9 +166,11 @@ export async function POST(req: Request) {
         where: { produitId_pointDeVenteId: { produitId: Number(l.produitId), pointDeVenteId: pdvId } },
         include: { produit: { select: { nom: true, prixUnitaire: true } } },
       });
-      if (!stock || stock.quantite < Number(l.quantite)) {
+      // Disponible réel = quantite - quantiteReservee (le stock réservé pour d'autres crédits n'est pas vendable)
+      const qteDispoReelle = (stock?.quantite ?? 0) - (stock?.quantiteReservee ?? 0);
+      if (!stock || qteDispoReelle < Number(l.quantite)) {
         return NextResponse.json(
-          { error: `Stock insuffisant pour "${stock?.produit.nom ?? `produit #${l.produitId}`}". Disponible : ${stock?.quantite ?? 0}` },
+          { error: `Stock insuffisant pour "${stock?.produit.nom ?? `produit #${l.produitId}`}". Disponible : ${qteDispoReelle < 0 ? 0 : qteDispoReelle}` },
           { status: 400 }
         );
       }
@@ -247,7 +249,14 @@ export async function POST(req: Request) {
           actionUrl: `/dashboard/user/responsablesPointDeVente`,
         });
       } else {
-        // ── CRÉDIT : notifie RVC du PDV + RPV ────────────────────────────────
+        // ── CRÉDIT : réserver le stock (quantiteReservee) sans décrémenter quantite ─
+        for (const ligne of v.lignes) {
+          await tx.stockSite.update({
+            where: { produitId_pointDeVenteId: { produitId: ligne.produitId, pointDeVenteId: pdvId } },
+            data:  { quantiteReservee: { increment: ligne.quantite } },
+          });
+        }
+
         await auditLog(tx, userId, "VENTE_CREDIT_DEMANDEE", "VenteDirecte", v.id);
 
         // RVC affectés au même PDV uniquement

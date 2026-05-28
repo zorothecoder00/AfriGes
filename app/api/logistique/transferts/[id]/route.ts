@@ -88,7 +88,8 @@ export async function PATCH(req: Request, { params }: Ctx) {
         for (const l of transfert.lignes) {
           await tx.stockSite.upsert({
             where: { produitId_pointDeVenteId: { produitId: l.produitId, pointDeVenteId: transfert.destinationId } },
-            update: { quantite: { increment: l.quantite } },
+            // Transit → disponible : incrémenter quantite ET décrémenter quantiteEnTransit (4.3 → 4.1)
+            update: { quantite: { increment: l.quantite }, quantiteEnTransit: { decrement: l.quantite } },
             create: { produitId: l.produitId, pointDeVenteId: transfert.destinationId, quantite: l.quantite },
           });
           await tx.mouvementStock.create({
@@ -137,11 +138,16 @@ export async function PATCH(req: Request, { params }: Ctx) {
       }
 
       const result = await prisma.$transaction(async (tx) => {
-        // Restituer le stock à l'origine (si déjà sorti)
+        // Restituer le stock à l'origine + libérer le transit à la destination
         for (const l of transfert.lignes) {
           await tx.stockSite.update({
             where: { produitId_pointDeVenteId: { produitId: l.produitId, pointDeVenteId: transfert.origineId } },
             data: { quantite: { increment: l.quantite } },
+          });
+          // Les produits ne viendront plus → libérer le transit destination (4.3)
+          await tx.stockSite.updateMany({
+            where: { produitId: l.produitId, pointDeVenteId: transfert.destinationId },
+            data:  { quantiteEnTransit: { decrement: l.quantite } },
           });
           await tx.mouvementStock.create({
             data: {

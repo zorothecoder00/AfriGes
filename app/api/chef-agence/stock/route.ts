@@ -44,9 +44,12 @@ export async function GET(req: NextRequest) {
       prisma.stockSite.findMany({
         where: stockFilter,
         select: {
-          pointDeVenteId: true,
-          quantite:       true,
-          alerteStock:    true,
+          pointDeVenteId:     true,
+          quantite:           true,
+          quantiteReservee:   true,
+          quantiteEnTransit:  true,
+          quantiteEndommagee: true,
+          alerteStock:        true,
           produit: {
             select: {
               id:           true,
@@ -108,7 +111,8 @@ export async function GET(req: NextRequest) {
       produits: Array<{
         id: number; nom: string; reference: string | null; categorie: string | null;
         unite: string | null; prixUnitaire: number;
-        quantite: number; seuilAlerte: number; statut: "RUPTURE" | "ALERTE" | "OK";
+        quantite: number; quantiteReservee: number; quantiteEnTransit: number; quantiteEndommagee: number;
+        stockTheorique: number; seuilAlerte: number; statut: "RUPTURE" | "ALERTE" | "OK";
         valeur: number;
       }>;
     }> = {};
@@ -134,7 +138,12 @@ export async function GET(req: NextRequest) {
         id: s.produit.id, nom: s.produit.nom, reference: s.produit.reference,
         categorie: s.produit.categorie, unite: s.produit.unite,
         prixUnitaire: Number(s.produit.prixUnitaire),
-        quantite: s.quantite, seuilAlerte: seuil, statut, valeur,
+        quantite: s.quantite,
+        quantiteReservee:   s.quantiteReservee,
+        quantiteEnTransit:  s.quantiteEnTransit,
+        quantiteEndommagee: s.quantiteEndommagee,
+        stockTheorique: s.quantite + s.quantiteReservee + s.quantiteEnTransit - s.quantiteEndommagee,
+        seuilAlerte: seuil, statut, valeur,
       });
     }
 

@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
-import { Prisma, PrioriteNotification } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getRPVSession } from "@/lib/authRPV";
-import { notifyRoles, auditLog } from "@/lib/notifications";
 
 /**
  * GET /api/rpv/produits
@@ -46,14 +45,26 @@ export async function GET(req: Request) {
     const allProduits = await prisma.produit.findMany({
       where,
       orderBy: { updatedAt: "desc" },
-      include: { stocks: { where: { pointDeVenteId: pdv.id }, select: { quantite: true } } },
+      include: {
+        stocks: {
+          where: { pointDeVenteId: pdv.id },
+          select: { quantite: true, quantiteReservee: true, quantiteEnTransit: true, quantiteEndommagee: true },
+        },
+      },
     });
 
-    // totalStock = stock de CE PDV uniquement
-    const produitsAvecStock = allProduits.map((p) => ({
-      ...p,
-      totalStock: p.stocks[0]?.quantite ?? 0,
-    }));
+    // totalStock = stock disponible de CE PDV uniquement
+    const produitsAvecStock = allProduits.map((p) => {
+      const s = p.stocks[0];
+      return {
+        ...p,
+        totalStock:         s?.quantite          ?? 0,
+        quantiteReservee:   s?.quantiteReservee   ?? 0,
+        quantiteEnTransit:  s?.quantiteEnTransit  ?? 0,
+        quantiteEndommagee: s?.quantiteEndommagee ?? 0,
+        stockTheorique:     (s?.quantite ?? 0) + (s?.quantiteReservee ?? 0) + (s?.quantiteEnTransit ?? 0) - (s?.quantiteEndommagee ?? 0),
+      };
+    });
 
     // Filtres de statut en mémoire
     let filtered = produitsAvecStock;
@@ -86,74 +97,10 @@ export async function GET(req: Request) {
   }
 }
 
-/**
- * POST /api/rpv/produits
- * Crée un nouveau produit. Si stock initial > 0, crée un StockSite + mouvement ENTREE.
- * Body : { nom, prixUnitaire, description?, stock?, alerteStock? }
- */
-export async function POST(req: Request) {
-  try {
-    const session = await getRPVSession();
-    if (!session) return NextResponse.json({ message: "Accès refusé" }, { status: 403 });
-
-    const { nom, prixUnitaire, description, alerteStock } = await req.json();
-
-    if (!nom || !prixUnitaire) {
-      return NextResponse.json({ message: "nom et prixUnitaire sont requis" }, { status: 400 });
-    }
-    if (Number(prixUnitaire) <= 0) {
-      return NextResponse.json({ message: "Le prix unitaire doit être positif" }, { status: 400 });
-    }
-
-    // Récupérer le PDV du RPV (cohérent avec GET qui utilise rpvId)
-    const pdv = await prisma.pointDeVente.findUnique({
-      where: { rpvId: parseInt(session.user.id) },
-      select: { id: true },
-    });
-    if (!pdv) return NextResponse.json({ message: "Aucun PDV associé" }, { status: 400 });
-
-    const produit = await prisma.$transaction(async (tx) => {
-      const created = await tx.produit.create({
-        data: {
-          nom,
-          prixUnitaire: new Prisma.Decimal(Number(prixUnitaire)),
-          description:  description ?? null,
-          alerteStock:  Number(alerteStock ?? 0),
-        },
-      });
-
-      // Créer un StockSite à 0 pour ce PDV afin que le produit soit visible
-      // dans le stock. Le stock est alimenté uniquement via "Approvisionner".
-      await tx.stockSite.create({
-        data: {
-          produitId:      created.id,
-          pointDeVenteId: pdv.id,
-          quantite:       0,
-        },
-      });
-
-      await auditLog(tx, parseInt(session.user.id), "CREATION_PRODUIT_RPV", "Produit", created.id);
-
-      await notifyRoles(
-        tx,
-        ["MAGAZINIER", "AGENT_LOGISTIQUE_APPROVISIONNEMENT"],
-        {
-          titre:    `Nouveau produit : ${nom}`,
-          message:  `${session.user.name ?? "RPV"} a créé le produit "${nom}" (prix : ${Number(prixUnitaire).toLocaleString("fr-FR")} FCFA). Stock à 0 — à approvisionner.`,
-          priorite: PrioriteNotification.BASSE,
-          actionUrl: `/dashboard/admin/stock`,
-        }
-      );
-
-      return created;
-    });
-
-    return NextResponse.json(
-      { success: true, message: "Produit créé avec succès", data: { ...produit, prixUnitaire: Number(produit.prixUnitaire) } },
-      { status: 201 }
-    );
-  } catch (error) {
-    console.error("POST /api/rpv/produits error:", error);
-    return NextResponse.json({ success: false, message: "Erreur serveur" }, { status: 500 });
-  }
+/** POST /api/rpv/produits — Interdit : réservé à Admin / Logistique */
+export async function POST() {
+  return NextResponse.json(
+    { message: "La création de produits est réservée à l'Admin et au Responsable Approvisionnement" },
+    { status: 403 }
+  );
 }

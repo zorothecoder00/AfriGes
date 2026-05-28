@@ -58,6 +58,7 @@ export async function POST(req: Request, { params }: Ctx) {
         client:      { select: { id: true, nom: true, prenom: true, soldeActuel: true, limiteCredit: true } },
         vendeur:     { select: { id: true, nom: true, prenom: true } },
         pointDeVente:{ select: { id: true, nom: true, rpvId: true } },
+        lignes:      { select: { produitId: true, quantite: true } },
       },
     });
 
@@ -86,6 +87,40 @@ export async function POST(req: Request, { params }: Ctx) {
         where: { id: venteId },
         data:  { statut: newStatut },
       });
+
+      // Mise à jour stock réservé → consommé ou libéré selon la décision
+      for (const ligne of vente.lignes) {
+        const pdvId = vente.pointDeVenteId;
+        if (action === "APPROUVER") {
+          // Libère la réservation ET décrémente le disponible (les produits quittent physiquement le stock)
+          await tx.stockSite.update({
+            where: { produitId_pointDeVenteId: { produitId: ligne.produitId, pointDeVenteId: pdvId } },
+            data: {
+              quantite:         { decrement: ligne.quantite },
+              quantiteReservee: { decrement: ligne.quantite },
+            },
+          });
+          await tx.mouvementStock.create({
+            data: {
+              produitId:      ligne.produitId,
+              pointDeVenteId: pdvId,
+              type:           "SORTIE",
+              typeSortie:     "VENTE_DIRECTE",
+              quantite:       ligne.quantite,
+              motif:          `Vente à crédit approuvée ${vente.reference}`,
+              reference:      `${vente.reference}-P${ligne.produitId}-APPRO`,
+              operateurId:    rvcId,
+              venteDirecteId: venteId,
+            },
+          });
+        } else {
+          // Refus : libère simplement la réservation, les produits restent disponibles
+          await tx.stockSite.update({
+            where: { produitId_pointDeVenteId: { produitId: ligne.produitId, pointDeVenteId: pdvId } },
+            data: { quantiteReservee: { decrement: ligne.quantite } },
+          });
+        }
+      }
 
       if (action === "APPROUVER" && vente.client) {
         // Incrémenter le solde actuel du client (montant engagé à crédit)

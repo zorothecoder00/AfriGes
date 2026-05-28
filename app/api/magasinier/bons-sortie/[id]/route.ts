@@ -134,6 +134,69 @@ export async function PATCH(req: Request, { params }: Ctx) {
       return NextResponse.json({ data: updated });
     }
 
+    // Cas PERTE / CASSE BROUILLON → VALIDE : déplacer du disponible vers endommagé (4.4)
+    if (statut === "VALIDE" && bon.statut === "BROUILLON" &&
+        (bon.typeSortie === "PERTE" || bon.typeSortie === "CASSE")) {
+      // Vérifier les stocks avant transaction
+      for (const l of bon.lignes) {
+        const stock = await prisma.stockSite.findUnique({
+          where: { produitId_pointDeVenteId: { produitId: l.produitId, pointDeVenteId: bon.pointDeVenteId } },
+          include: { produit: { select: { nom: true } } },
+        });
+        if (!stock || stock.quantite < l.quantite) {
+          return NextResponse.json(
+            { error: `Stock insuffisant pour "${stock?.produit.nom ?? l.produitId}". Dispo : ${stock?.quantite ?? 0}, demandé : ${l.quantite}` },
+            { status: 400 }
+          );
+        }
+      }
+
+      const updated = await prisma.$transaction(async (tx) => {
+        for (const l of bon.lignes) {
+          // Décrémenter le disponible (4.1) et incrémenter l'endommagé (4.4)
+          await tx.stockSite.update({
+            where: { produitId_pointDeVenteId: { produitId: l.produitId, pointDeVenteId: bon.pointDeVenteId } },
+            data: {
+              quantite:          { decrement: l.quantite },
+              quantiteEndommagee:{ increment: l.quantite },
+            },
+          });
+          await tx.mouvementStock.create({
+            data: {
+              produitId:      l.produitId,
+              pointDeVenteId: bon.pointDeVenteId,
+              type:           "SORTIE",
+              typeSortie:     bon.typeSortie as "PERTE" | "CASSE",
+              quantite:       l.quantite,
+              motif:          `${bon.typeSortie} constatée — ${bon.reference}`,
+              reference:      `${bon.reference}-P${l.produitId}`,
+              operateurId:    parseInt(session.user.id),
+              bonSortieId:    bon.id,
+            },
+          });
+        }
+
+        const result = await tx.bonSortie.update({
+          where: { id: bonId },
+          data: { statut: "VALIDE", valideParId: parseInt(session.user.id), notes: notes ?? bon.notes },
+          include: { lignes: { include: { produit: { select: { id: true, nom: true } } } }, creePar: { select: { nom: true, prenom: true } } },
+        });
+
+        await auditLog(tx, parseInt(session.user.id), "BON_SORTIE_VALIDE", "BonSortie", bon.id);
+
+        await notifyRoles(tx, ["AGENT_LOGISTIQUE_APPROVISIONNEMENT", "RESPONSABLE_POINT_DE_VENTE"], {
+          titre:    `${bon.typeSortie} enregistrée (${bon.reference})`,
+          message:  `${session.user.prenom} ${session.user.nom} a validé un bon de ${bon.typeSortie.toLowerCase()} (${bon.reference}) sur "${bon.pointDeVente.nom}". ${bon.lignes.length} produit(s) mis en stock endommagé.`,
+          priorite: PrioriteNotification.HAUTE,
+          actionUrl:`/dashboard/magasinier/bons-sortie/${bon.id}`,
+        });
+
+        return result;
+      });
+
+      return NextResponse.json({ data: updated });
+    }
+
     // Mise à jour standard
     const updated = await prisma.bonSortie.update({
       where: { id: bonId },

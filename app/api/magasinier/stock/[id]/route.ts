@@ -51,14 +51,18 @@ export async function GET(_req: Request, { params }: Ctx) {
 
     if (!produit) return NextResponse.json({ error: "Produit introuvable" }, { status: 404 });
 
-    const stockSite = produit.stocks[0];
-    const stockQte  = stockSite?.quantite ?? 0;
+    const stockSite      = produit.stocks[0];
+    const stockQte       = stockSite?.quantite ?? 0;
+    const stockTheorique = stockSite
+      ? stockSite.quantite + stockSite.quantiteReservee + stockSite.quantiteEnTransit - stockSite.quantiteEndommagee
+      : 0;
 
     return NextResponse.json({
       data: {
         ...produit,
         stockSite,
         stockQte,
+        stockTheorique,
         valeurStock: stockQte * Number(produit.prixUnitaire),
       },
     });

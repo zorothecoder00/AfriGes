@@ -98,15 +98,19 @@ export async function GET(req: NextRequest) {
     // Retourner les données aplaties pour compat avec les pages existantes
     // id = produit.id (important pour les appels API d'ajustement)
     const data = stocks.map(s => ({
-      id:           s.produit.id,
-      nom:          s.produit.nom,
-      description:  s.produit.description,
-      prixUnitaire: s.produit.prixUnitaire,
-      stock:        s.quantite,   // alias compat
-      quantite:     s.quantite,
-      alerteStock:  s.alerteStock ?? s.produit.alerteStock,
-      pointDeVente: s.pointDeVente,
-      stockSiteId:  s.id,
+      id:                 s.produit.id,
+      nom:                s.produit.nom,
+      description:        s.produit.description,
+      prixUnitaire:       s.produit.prixUnitaire,
+      stock:              s.quantite,   // alias compat
+      quantite:           s.quantite,
+      quantiteReservee:   s.quantiteReservee,
+      quantiteEnTransit:  s.quantiteEnTransit,
+      quantiteEndommagee: s.quantiteEndommagee,
+      stockTheorique:     s.quantite + s.quantiteReservee + s.quantiteEnTransit - s.quantiteEndommagee,
+      alerteStock:        s.alerteStock ?? s.produit.alerteStock,
+      pointDeVente:       s.pointDeVente,
+      stockSiteId:        s.id,
     }));
 
     return NextResponse.json({

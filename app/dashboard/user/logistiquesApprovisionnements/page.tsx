@@ -28,6 +28,11 @@ interface Produit {
   description: string | null;
   prixUnitaire: string;
   stock: number;
+  quantite?: number;
+  quantiteReservee?: number;
+  quantiteEnTransit?: number;
+  quantiteEndommagee?: number;
+  stockTheorique?: number;
   alerteStock: number;
   updatedAt: string;
 }
@@ -653,9 +658,15 @@ export default function LogistiqueApprovisionnementPage() {
                               {p.description && <p className="text-xs text-slate-500 mt-0.5 truncate max-w-[200px]">{p.description}</p>}
                             </td>
                             <td className="px-6 py-4">
-                              <span className={`text-xl font-bold ${s === "RUPTURE" ? "text-red-600" : "text-slate-800"}`}>
-                                {p.stock}
+                              <span className={`text-xl font-bold ${s === "RUPTURE" ? "text-red-600" : "text-emerald-700"}`}>
+                                {p.quantite ?? p.stock}
                               </span>
+                              <div className="mt-0.5 space-y-0.5">
+                                {(p.quantiteReservee ?? 0) > 0 && <p className="text-xs text-amber-600">+{p.quantiteReservee} rés.</p>}
+                                {(p.quantiteEnTransit ?? 0) > 0 && <p className="text-xs text-sky-600">+{p.quantiteEnTransit} transit</p>}
+                                {(p.quantiteEndommagee ?? 0) > 0 && <p className="text-xs text-red-500">{p.quantiteEndommagee} endom.</p>}
+                                {p.stockTheorique !== undefined && <p className="text-xs text-slate-400">Théo. : {p.stockTheorique}</p>}
+                              </div>
                             </td>
                             <td className="px-6 py-4 text-sm text-slate-600">{p.alerteStock}</td>
                             <td className="px-6 py-4">

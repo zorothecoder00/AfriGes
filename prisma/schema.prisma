@@ -1202,7 +1202,11 @@ model StockSite {
   id             Int          @id @default(autoincrement())
   produitId      Int
   pointDeVenteId Int
-  quantite       Int          @default(0)
+  quantite           Int      @default(0)  // 4.1 disponible — physiquement vendable
+  quantiteReservee   Int      @default(0)  // 4.2 réservé — engagé (ventes crédit en attente d'approbation)
+  quantiteEnTransit  Int      @default(0)  // 4.3 en transit — commandé, non encore réceptionné
+  quantiteEndommagee Int      @default(0)  // 4.4 endommagé — non vendable (perte/casse mis de côté)
+  // 4.5 stockTheorique = quantite + quantiteReservee + quantiteEnTransit - quantiteEndommagee (calculé)
   alerteStock    Int?         // seuil d'alerte spécifique au site (override global)
 
   produit      Produit      @relation(fields: [produitId], references: [id])

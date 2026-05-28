@@ -29,6 +29,7 @@ interface LigneVente {
 }
 interface StockItem {
   produitId: number; quantite: number;
+  quantiteReservee: number; quantiteEnTransit: number; quantiteEndommagee: number; stockTheorique: number;
   produit: { id: number; nom: string; reference?: string; prixUnitaire: string; prixAchat?: string | null; unite?: string };
 }
 interface VenteDirecte {
@@ -68,7 +69,7 @@ interface EligibilitePackResponse {
   souscriptions: { id: number; pack: { nom: string; type: string }; statut: string; montantTotal: number; montantVerse: number; montantRestant: number; montantDejaLivre: number }[];
   client: ClientOption;
 }
-interface ProduitOption { id: number; nom: string; prixUnitaire: string; prixAchat?: string | null; stock: number; totalStock?: number; }
+interface ProduitOption { id: number; nom: string; prixUnitaire: string; prixAchat?: string | null; stock: number; totalStock?: number; quantiteReservee?: number; quantiteEnTransit?: number; quantiteEndommagee?: number; stockTheorique?: number; }
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
 
@@ -235,18 +236,27 @@ export default function VentesPage() {
       : `/api/admin/stock?aggregate=true&limit=200`
     : null;
   const { data: produitsResponse } = useApi<{ data: ProduitOption[] }>(packStockUrl);
-  // En mode pdvId → réponse StockSite (quantite + produit{}). En mode aggregate → Produit (totalStock).
-  const produits = (produitsResponse?.data ?? []).map((item: ProduitOption & { quantite?: number; produit?: ProduitOption }) => {
+  // En mode pdvId → réponse StockSite (quantite + quantiteReservee + … + produit{}). En mode aggregate → Produit (totalStock).
+  const produits = (produitsResponse?.data ?? []).map((item: ProduitOption & { quantite?: number; quantiteReservee?: number; quantiteEnTransit?: number; quantiteEndommagee?: number; stockTheorique?: number; produit?: ProduitOption }) => {
     if (item.produit) {
+      const qte     = (item as unknown as { quantite: number }).quantite ?? 0;
+      const reserve = item.quantiteReservee ?? 0;
       return {
         id: item.produit.id, nom: item.produit.nom,
         prixUnitaire: item.produit.prixUnitaire, prixAchat: item.produit.prixAchat,
-        stock: (item as unknown as { quantite: number }).quantite ?? 0,
-        totalStock: (item as unknown as { quantite: number }).quantite ?? 0,
+        stock:              qte,
+        totalStock:         qte,
+        quantiteReservee:   reserve,
+        quantiteEnTransit:  item.quantiteEnTransit  ?? 0,
+        quantiteEndommagee: item.quantiteEndommagee ?? 0,
+        stockTheorique:     item.stockTheorique     ?? qte,
       };
     }
     return item;
-  }).filter((p: ProduitOption) => (p.totalStock ?? p.stock ?? 0) > 0);
+  }).filter((p: ProduitOption) => {
+    const dispo = (p.totalStock ?? p.stock ?? 0) - (p.quantiteReservee ?? 0);
+    return dispo > 0;
+  });
 
   // ── Mutations ──────────────────────────────────────────────────────────────
   const { mutate: createVente, loading: creatingVente, error: createVenteError } =
@@ -308,13 +318,15 @@ export default function VentesPage() {
     if (!produitSelectId) return;
     const stock = stockPdv.find(s => s.produitId === Number(produitSelectId));
     if (!stock || lignes.find(l => l.produitId === Number(produitSelectId))) return;
+    // stockDispo = quantite réellement disponible (hors réservations)
+    const dispoReel = Math.max(0, stock.quantite - (stock.quantiteReservee ?? 0));
     setLignes(ls => [...ls, {
       produitId:    stock.produitId,
       nom:          stock.produit.nom,
       quantite:     1,
       prixUnitaire: Number(stock.produit.prixUnitaire),
       prixAchat:    stock.produit.prixAchat != null ? Number(stock.produit.prixAchat) : null,
-      stockDispo:   stock.quantite,
+      stockDispo:   dispoReel,
     }]);
     setProduitSelectId('');
   };
@@ -410,7 +422,7 @@ export default function VentesPage() {
     const produit = produits.find(p => p.id === parseInt(formPack.produitId));
     if (!produit) return;
     const qte = parseInt(formPack.quantite);
-    const stockDispo = produit.totalStock ?? produit.stock ?? 0;
+    const stockDispo = Math.max(0, (produit.totalStock ?? produit.stock ?? 0) - (produit.quantiteReservee ?? 0));
     if (qte > stockDispo) return;
     const prixVente = parseFloat(formPack.prixUnitaire) || parseFloat(String(produit.prixUnitaire));
     // Met à jour la ref pour l'URL de la mutation
@@ -678,11 +690,18 @@ export default function VentesPage() {
                       <option value="">Choisir un produit…</option>
                       {stockPdv
                         .filter(s => !lignes.find(l => l.produitId === s.produitId))
-                        .map(s => (
-                          <option key={s.produitId} value={s.produitId}>
-                            {s.produit.nom} — conseillé : {formatCurrency(s.produit.prixUnitaire)} · stock : {s.quantite}
-                          </option>
-                        ))}
+                        .map(s => {
+                          const dispoReel = Math.max(0, s.quantite - (s.quantiteReservee ?? 0));
+                          const parts: string[] = [`dispo : ${dispoReel}`];
+                          if ((s.quantiteReservee ?? 0)   > 0) parts.push(`rés. : ${s.quantiteReservee}`);
+                          if ((s.quantiteEnTransit ?? 0)  > 0) parts.push(`transit : ${s.quantiteEnTransit}`);
+                          if ((s.quantiteEndommagee ?? 0) > 0) parts.push(`endom. : ${s.quantiteEndommagee}`);
+                          return (
+                            <option key={s.produitId} value={s.produitId}>
+                              {s.produit.nom} — {formatCurrency(s.produit.prixUnitaire)} · {parts.join(' · ')}
+                            </option>
+                          );
+                        })}
                     </select>
                     <button type="button" onClick={addLigne} disabled={!produitSelectId}
                       className="px-4 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 disabled:opacity-50 transition-colors">
@@ -730,7 +749,7 @@ export default function VentesPage() {
                             </div>
                             {/* Marge + stock dispo */}
                             <div className="flex items-center gap-3 mt-1.5">
-                              <span className="text-xs text-slate-400">Stock dispo : {l.stockDispo}</span>
+                              <span className="text-xs text-slate-400">Dispo réel : {l.stockDispo}</span>
                               {margeTotale != null && (
                                 <span className={`text-xs font-semibold ${margeTotale >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
                                   Marge : {margeTotale >= 0 ? '+' : ''}{formatCurrency(margeTotale)}
@@ -1066,9 +1085,16 @@ export default function VentesPage() {
                       }}
                       className="w-full px-4 py-2.5 border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
                       <option value="">Sélectionner un produit</option>
-                      {produits.map(p => (
-                        <option key={p.id} value={p.id}>{p.nom} (Stock : {p.totalStock ?? p.stock ?? 0})</option>
-                      ))}
+                      {produits.map(p => {
+                        const dispoReel = Math.max(0, (p.totalStock ?? p.stock ?? 0) - (p.quantiteReservee ?? 0));
+                        const parts: string[] = [`dispo : ${dispoReel}`];
+                        if ((p.quantiteReservee   ?? 0) > 0) parts.push(`rés. : ${p.quantiteReservee}`);
+                        if ((p.quantiteEnTransit  ?? 0) > 0) parts.push(`transit : ${p.quantiteEnTransit}`);
+                        if ((p.quantiteEndommagee ?? 0) > 0) parts.push(`endom. : ${p.quantiteEndommagee}`);
+                        return (
+                          <option key={p.id} value={p.id}>{p.nom} ({parts.join(' · ')})</option>
+                        );
+                      })}
                     </select>
                   </div>
 

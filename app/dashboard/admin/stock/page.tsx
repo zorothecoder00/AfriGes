@@ -28,7 +28,9 @@ interface ApproHistorique {
 
 // Mode par-PDV (StockSite)
 interface StockItem {
-  id: number; produitId: number; pointDeVenteId: number; quantite: number; alerteStock: number | null;
+  id: number; produitId: number; pointDeVenteId: number;
+  quantite: number; quantiteReservee: number; quantiteEnTransit: number; quantiteEndommagee: number;
+  stockTheorique: number; alerteStock: number | null;
   produit: { id: number; nom: string; reference?: string; categorie?: string; unite?: string; prixUnitaire: string; prixAchat?: string | null; alerteStock: number };
   pointDeVente: { id: number; nom: string; code: string; type: string };
   appros: ApproHistorique[];
@@ -38,8 +40,12 @@ interface StockItem {
 interface GrandStockItem {
   id: number; nom: string; reference?: string; categorie?: string; unite?: string;
   prixUnitaire: string; prixAchat?: string | null; alerteStock: number;
-  totalStock: number;
-  stocks: { quantite: number; alerteStock: number | null; pointDeVente: { id: number; nom: string; code: string; type: string } }[];
+  totalStock: number; totalReserve: number; totalTransit: number; totalEndommage: number; stockTheorique: number;
+  stocks: {
+    quantite: number; quantiteReservee: number; quantiteEnTransit: number; quantiteEndommagee: number;
+    stockTheorique: number; alerteStock: number | null;
+    pointDeVente: { id: number; nom: string; code: string; type: string };
+  }[];
 }
 
 interface StockResponse {
@@ -812,7 +818,13 @@ export default function GestionStockPage() {
                               </div>
                             </td>
                             <td className="px-5 py-2">
-                              <span className="text-base font-bold text-slate-800">{s2.quantite}</span>
+                              <div className="space-y-0.5">
+                                <p className="text-base font-bold text-emerald-700">{s2.quantite} <span className="text-xs font-normal text-slate-400">dispo</span></p>
+                                {s2.quantiteReservee > 0 && <p className="text-xs text-amber-600 font-medium">{s2.quantiteReservee} réservé</p>}
+                                {s2.quantiteEnTransit > 0 && <p className="text-xs text-sky-600 font-medium">{s2.quantiteEnTransit} en transit</p>}
+                                {s2.quantiteEndommagee > 0 && <p className="text-xs text-red-500 font-medium">{s2.quantiteEndommagee} endommagé</p>}
+                                <p className="text-xs text-slate-500">Théorique : {s2.stockTheorique}</p>
+                              </div>
                             </td>
                             <td colSpan={4} />
                           </tr>
@@ -897,8 +909,14 @@ export default function GestionStockPage() {
                             </div>
                           </td>
                           <td className="px-5 py-4">
-                            <p className="text-2xl font-bold text-slate-800">{item.quantite}</p>
+                            <p className="text-2xl font-bold text-emerald-700">{item.quantite}</p>
                             {item.produit.unite && <p className="text-xs text-slate-400">{item.produit.unite}</p>}
+                            <div className="mt-1 space-y-0.5">
+                              {item.quantiteReservee > 0 && <p className="text-xs text-amber-600 font-medium">+{item.quantiteReservee} réservé</p>}
+                              {item.quantiteEnTransit > 0 && <p className="text-xs text-sky-600 font-medium">+{item.quantiteEnTransit} en transit</p>}
+                              {item.quantiteEndommagee > 0 && <p className="text-xs text-red-500 font-medium">{item.quantiteEndommagee} endommagé</p>}
+                              <p className="text-xs text-slate-400">Théo. : {item.stockTheorique ?? item.quantite}</p>
+                            </div>
                           </td>
                           <td className="px-5 py-4">
                             <div className="w-28 space-y-1">

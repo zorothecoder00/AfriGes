@@ -97,12 +97,12 @@ export async function POST(req: Request) {
 
         const stockSite = await tx.stockSite.findUnique({
           where: { produitId_pointDeVenteId: { produitId: Number(ligne.produitId), pointDeVenteId: Number(origineId) } },
-          select: { quantite: true },
+          select: { quantite: true, quantiteReservee: true },
         });
-        const disponible = stockSite?.quantite ?? 0;
+        const disponible = (stockSite?.quantite ?? 0) - (stockSite?.quantiteReservee ?? 0);
         if (Number(ligne.quantite) > disponible) {
           throw new Error(
-            `Stock insuffisant pour "${produit.nom}" sur ${origine.nom} : ${disponible} disponible(s), ${ligne.quantite} demandé(s)`
+            `Stock insuffisant pour "${produit.nom}" sur ${origine.nom} : ${disponible < 0 ? 0 : disponible} disponible(s) réel(s), ${ligne.quantite} demandé(s)`
           );
         }
         if (Number(ligne.quantite) <= 0) {
@@ -156,6 +156,12 @@ export async function POST(req: Request) {
             operateurId:     adminId,
             transfertStockId: newTransfert.id,
           },
+        });
+        // Marquer en transit à la destination (4.3)
+        await tx.stockSite.upsert({
+          where: { produitId_pointDeVenteId: { produitId: Number(ligne.produitId), pointDeVenteId: Number(destinationId) } },
+          update: { quantiteEnTransit: { increment: Number(ligne.quantite) } },
+          create: { produitId: Number(ligne.produitId), pointDeVenteId: Number(destinationId), quantiteEnTransit: Number(ligne.quantite) },
         });
       }
 

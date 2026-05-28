@@ -29,6 +29,11 @@ interface Produit {
   description: string | null;
   prixUnitaire: string;
   stock: number;
+  quantite?: number;
+  quantiteReservee?: number;
+  quantiteEnTransit?: number;
+  quantiteEndommagee?: number;
+  stockTheorique?: number;
   alerteStock: number;
   createdAt: string;
   updatedAt: string;
@@ -48,6 +53,13 @@ interface MouvementStock {
 interface ProduitDetail extends Produit {
   mouvements: Omit<MouvementStock, 'produit'>[];
   stockQte?: number;
+  stockTheorique?: number;
+  stockSite?: {
+    quantite: number;
+    quantiteReservee: number;
+    quantiteEnTransit: number;
+    quantiteEndommagee: number;
+  };
 }
 
 interface StockResponse {
@@ -888,9 +900,15 @@ export default function MagasinierPage() {
                           </div>
                         </td>
                         <td className="px-6 py-4">
-                          <p className={`text-lg font-bold ${statut === 'RUPTURE' ? 'text-red-600' : statut === 'STOCK_FAIBLE' ? 'text-amber-600' : 'text-slate-800'}`}>
-                            {produit.stock}
+                          <p className={`text-lg font-bold ${statut === 'RUPTURE' ? 'text-red-600' : statut === 'STOCK_FAIBLE' ? 'text-amber-600' : 'text-emerald-700'}`}>
+                            {produit.quantite ?? produit.stock}
                           </p>
+                          <div className="mt-0.5 space-y-0.5">
+                            {(produit.quantiteReservee ?? 0) > 0 && <p className="text-xs text-amber-600">+{produit.quantiteReservee} rés.</p>}
+                            {(produit.quantiteEnTransit ?? 0) > 0 && <p className="text-xs text-sky-600">+{produit.quantiteEnTransit} transit</p>}
+                            {(produit.quantiteEndommagee ?? 0) > 0 && <p className="text-xs text-red-500">{produit.quantiteEndommagee} endom.</p>}
+                            {produit.stockTheorique !== undefined && <p className="text-xs text-slate-400">Théo. : {produit.stockTheorique}</p>}
+                          </div>
                         </td>
                         <td className="px-6 py-4">
                           <p className="text-sm text-slate-600">{produit.alerteStock}</p>
@@ -2376,19 +2394,42 @@ export default function MagasinierPage() {
             ) : detailProduit ? (
               <div className="overflow-y-auto max-h-[70vh]">
                 {/* Resume produit */}
-                <div className="px-6 py-4 border-b border-slate-200 grid grid-cols-3 gap-4">
-                  <div>
-                    <p className="text-xs text-slate-500">Stock actuel</p>
-                    <p className="text-2xl font-bold text-slate-800">{detailProduit.stockQte ?? detailProduit.stock ?? 0}</p>
+                <div className="px-6 py-4 border-b border-slate-200 space-y-3">
+                  <div className="grid grid-cols-3 gap-4">
+                    <div>
+                      <p className="text-xs text-slate-500">Disponible</p>
+                      <p className="text-2xl font-bold text-emerald-700">{detailProduit.stockQte ?? detailProduit.stock ?? 0}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-slate-500">Seuil alerte</p>
+                      <p className="text-2xl font-bold text-slate-800">{detailProduit.alerteStock}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-slate-500">Prix unitaire</p>
+                      <p className="text-2xl font-bold text-slate-800">{formatCurrency(detailProduit.prixUnitaire)}</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-xs text-slate-500">Seuil alerte</p>
-                    <p className="text-2xl font-bold text-slate-800">{detailProduit.alerteStock}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-slate-500">Prix unitaire</p>
-                    <p className="text-2xl font-bold text-slate-800">{formatCurrency(detailProduit.prixUnitaire)}</p>
-                  </div>
+                  {/* Détail des 4 types de stock */}
+                  {detailProduit.stockSite && (
+                    <div className="grid grid-cols-4 gap-2">
+                      <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-center">
+                        <p className="text-xs text-amber-600 font-medium">Réservé</p>
+                        <p className="text-lg font-bold text-amber-700">{detailProduit.stockSite.quantiteReservee}</p>
+                      </div>
+                      <div className="bg-sky-50 border border-sky-200 rounded-lg px-3 py-2 text-center">
+                        <p className="text-xs text-sky-600 font-medium">En transit</p>
+                        <p className="text-lg font-bold text-sky-700">{detailProduit.stockSite.quantiteEnTransit}</p>
+                      </div>
+                      <div className="bg-red-50 border border-red-200 rounded-lg px-3 py-2 text-center">
+                        <p className="text-xs text-red-500 font-medium">Endommagé</p>
+                        <p className="text-lg font-bold text-red-600">{detailProduit.stockSite.quantiteEndommagee}</p>
+                      </div>
+                      <div className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-center">
+                        <p className="text-xs text-slate-500 font-medium">Théorique</p>
+                        <p className="text-lg font-bold text-slate-700">{detailProduit.stockTheorique ?? (detailProduit.stockQte ?? 0)}</p>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Mouvements */}

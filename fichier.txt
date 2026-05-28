@@ -43,3 +43,15 @@ netsh wlan show profile name="NomDuWifi" key=clear affiche toutes les propriét�
 Faire des tags dans l'application pour permettre de retracer les informations sur les clients
 
 Créer un menu RIA (commissions , finances etc etc)  
+
+ 6 fichiers à modifier :
+  1. schema.prisma — 3 champs sur StockSite
+  2. agentTerrain/ventes — réserver stock sur CREDIT_REQUEST
+  3. rvc/ventes/[id]/traiter — libérer/consommer réservation sur
+  APPROUVER/REFUSER
+  4. logistique/receptions POST — mettre en transit à la création
+  5. logistique/receptions/[id] PATCH — sortir du transit à la
+  validation/annulation
+  6. magasinier/bons-sortie/[id] PATCH — alimenter endommagé sur PERTE/CASSE
+  validé
+

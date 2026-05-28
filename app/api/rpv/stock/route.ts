@@ -56,9 +56,14 @@ export async function GET(req: NextRequest) {
     const enRuptureCount = allStocks.filter(s => s.quantite === 0).length;
     const valeurTotale   = stocks.reduce((acc, s) => acc + s.quantite * Number(s.produit.prixUnitaire), 0);
 
+    const dataWithTheorique = stocks.map(s => ({
+      ...s,
+      stockTheorique: s.quantite + s.quantiteReservee + s.quantiteEnTransit - s.quantiteEndommagee,
+    }));
+
     return NextResponse.json({
       pdv,
-      data:  stocks,
+      data:  dataWithTheorique,
       stats: { totalReferences: total, enRuptureCount, valeurTotale },
       meta:  { total, page, limit, totalPages: Math.ceil(total / limit) },
     });

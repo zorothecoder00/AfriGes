@@ -93,8 +93,11 @@ export async function GET(req: Request) {
           include: {
             stocks: {
               select: {
-                quantite: true,
-                alerteStock: true,
+                quantite:           true,
+                quantiteReservee:   true,
+                quantiteEnTransit:  true,
+                quantiteEndommagee: true,
+                alerteStock:        true,
                 pointDeVente: { select: { id: true, nom: true, code: true, type: true } },
               },
             },
@@ -112,8 +115,15 @@ export async function GET(req: Request) {
         prixUnitaire: p.prixUnitaire,
         prixAchat: p.prixAchat,
         alerteStock: p.alerteStock,
-        totalStock: p.stocks.reduce((acc, s) => acc + s.quantite, 0),
-        stocks: p.stocks,
+        totalStock:      p.stocks.reduce((acc, s) => acc + s.quantite, 0),
+        totalReserve:    p.stocks.reduce((acc, s) => acc + s.quantiteReservee, 0),
+        totalTransit:    p.stocks.reduce((acc, s) => acc + s.quantiteEnTransit, 0),
+        totalEndommage:  p.stocks.reduce((acc, s) => acc + s.quantiteEndommagee, 0),
+        stockTheorique:  p.stocks.reduce((acc, s) => acc + s.quantite + s.quantiteReservee + s.quantiteEnTransit - s.quantiteEndommagee, 0),
+        stocks: p.stocks.map(s => ({
+          ...s,
+          stockTheorique: s.quantite + s.quantiteReservee + s.quantiteEnTransit - s.quantiteEndommagee,
+        })),
       }));
 
       return NextResponse.json({
@@ -205,6 +215,7 @@ export async function GET(req: Request) {
 
     const stocksWithAppros = stocks.map(s => ({
       ...s,
+      stockTheorique: s.quantite + s.quantiteReservee + s.quantiteEnTransit - s.quantiteEndommagee,
       appros: approsMap.get(`${s.produitId}_${s.pointDeVenteId}`) ?? [],
     }));
 

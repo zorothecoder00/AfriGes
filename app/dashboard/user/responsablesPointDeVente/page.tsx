@@ -33,7 +33,10 @@ type StatutLiv   = "BROUILLON" | "EN_COURS" | "RECU" | "VALIDE" | "ANNULE";
 
 interface Produit {
   id: number; nom: string; description: string | null;
-  prixUnitaire: number; prixAchat?: number | null; stock: number; alerteStock: number;
+  prixUnitaire: number; prixAchat?: number | null;
+  stock: number; totalStock?: number;
+  quantiteReservee?: number; quantiteEnTransit?: number; quantiteEndommagee?: number; stockTheorique?: number;
+  alerteStock: number;
   createdAt: string; updatedAt: string;
 }
 interface ProduitsResponse {
@@ -611,7 +614,7 @@ export default function ResponsablePDVPage() {
   const clients  = clientsRes?.data ?? [];
 
   const allProduits    = produits;
-  const produitsActifs = produits.filter((p) => p.stock > 0);
+  const produitsActifs = produits.filter((p) => (p.totalStock ?? p.stock ?? 0) > 0);
   const ventesRPV      = ventesRPVRes?.data ?? [];
   const caissePDV      = caissePDVRes?.data ?? null;
   const caissePDVHistorique = caissePDVRes?.historique ?? [];
@@ -1102,7 +1105,14 @@ export default function ResponsablePDVPage() {
                 <select required value={mvtProdId} onChange={(e) => setMvtProdId(e.target.value)}
                   className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50">
                   <option value="">— Sélectionner —</option>
-                  {produits.map((p) => <option key={p.id} value={p.id}>{p.nom} · Stock: {p.stock}</option>)}
+                  {produits.map((p) => {
+                    const dispo = (p.totalStock ?? p.stock ?? 0) - (p.quantiteReservee ?? 0);
+                    const parts: string[] = [`dispo : ${dispo}`];
+                    if ((p.quantiteReservee ?? 0)   > 0) parts.push(`rés. : ${p.quantiteReservee}`);
+                    if ((p.quantiteEnTransit ?? 0)  > 0) parts.push(`transit : ${p.quantiteEnTransit}`);
+                    if ((p.quantiteEndommagee ?? 0) > 0) parts.push(`endom. : ${p.quantiteEndommagee}`);
+                    return <option key={p.id} value={p.id}>{p.nom} · {parts.join(' · ')}</option>;
+                  })}
                 </select>
               </div>
               <div>
@@ -1349,7 +1359,8 @@ export default function ResponsablePDVPage() {
 
       {/* ── Modal Planifier livraison pack ── */}
       {planifTarget && (() => {
-        const produitsStock = produits.filter((p) => p.stock > 0);
+        // Filtre sur le stock réellement disponible (hors réservations)
+        const produitsStock = produits.filter((p) => ((p.totalStock ?? p.stock ?? 0) - (p.quantiteReservee ?? 0)) > 0);
         const totalLivraison = planifLignes.reduce((sum, l) => {
           const prix = Number(l.prixUnitaire) || produits.find((x) => x.id === Number(l.produitId))?.prixUnitaire || 0;
           return sum + prix * Number(l.quantite || 0);
@@ -1472,12 +1483,17 @@ export default function ResponsablePDVPage() {
                               }}
                               className="flex-1 px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white">
                               <option value="">— Choisir un produit —</option>
-                              {produitsStock.map((p) => (
-                                <option key={p.id} value={p.id}>{p.nom} (dispo : {p.stock})</option>
-                              ))}
+                              {produitsStock.map((p) => {
+                                const dispoReel = Math.max(0, (p.totalStock ?? p.stock ?? 0) - (p.quantiteReservee ?? 0));
+                                const parts: string[] = [`dispo : ${dispoReel}`];
+                                if ((p.quantiteReservee ?? 0)   > 0) parts.push(`rés. : ${p.quantiteReservee}`);
+                                if ((p.quantiteEnTransit ?? 0)  > 0) parts.push(`transit : ${p.quantiteEnTransit}`);
+                                if ((p.quantiteEndommagee ?? 0) > 0) parts.push(`endom. : ${p.quantiteEndommagee}`);
+                                return <option key={p.id} value={p.id}>{p.nom} ({parts.join(' · ')})</option>;
+                              })}
                             </select>
                             <input type="number" min="1"
-                              max={produitSelec?.stock ?? undefined}
+                              max={produitSelec ? Math.max(0, (produitSelec.totalStock ?? produitSelec.stock ?? 0) - (produitSelec.quantiteReservee ?? 0)) : undefined}
                               value={ligne.quantite}
                               onChange={(e) => setPlanifLignes((ls) => ls.map((l, i) => i === idx ? { ...l, quantite: e.target.value } : l))}
                               className="w-20 px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white text-center"
@@ -2177,7 +2193,15 @@ export default function ResponsablePDVPage() {
                                 <p className="font-semibold text-slate-800">{p.nom}</p>
                                 {p.description && <p className="text-xs text-slate-400 mt-0.5 truncate max-w-[200px]">{p.description}</p>}
                               </td>
-                              <td className="px-5 py-3.5 font-bold text-slate-800 text-lg">{p.stock}</td>
+                              <td className="px-5 py-3.5">
+                                <p className={`font-bold text-lg ${s === "RUPTURE" ? "text-red-600" : "text-emerald-700"}`}>{p.totalStock ?? p.stock}</p>
+                                <div className="mt-0.5 space-y-0.5">
+                                  {(p.quantiteReservee ?? 0) > 0 && <p className="text-xs text-amber-600">+{p.quantiteReservee} rés.</p>}
+                                  {(p.quantiteEnTransit ?? 0) > 0 && <p className="text-xs text-sky-600">+{p.quantiteEnTransit} transit</p>}
+                                  {(p.quantiteEndommagee ?? 0) > 0 && <p className="text-xs text-red-500">{p.quantiteEndommagee} endom.</p>}
+                                  {p.stockTheorique !== undefined && <p className="text-xs text-slate-400">Théo. : {p.stockTheorique}</p>}
+                                </div>
+                              </td>
                               <td className="px-5 py-3.5">
                                 <div className="w-24">
                                   <div className="flex justify-between text-[10px] text-slate-400 mb-1"><span>0</span><span>Seuil:{p.alerteStock}</span></div>
@@ -2187,7 +2211,7 @@ export default function ResponsablePDVPage() {
                                 </div>
                               </td>
                               <td className="px-5 py-3.5 text-sm font-semibold text-slate-700">{formatCurrency(p.prixUnitaire)}</td>
-                              <td className="px-5 py-3.5 font-bold text-slate-800">{formatCurrency(p.stock * p.prixUnitaire)}</td>
+                              <td className="px-5 py-3.5 font-bold text-slate-800">{formatCurrency((p.totalStock ?? p.stock) * p.prixUnitaire)}</td>
                               <td className="px-5 py-3.5">
                                 <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${st.bg} ${st.text}`}>
                                   <span className={`w-1.5 h-1.5 rounded-full ${st.dot}`} />{st.label}
