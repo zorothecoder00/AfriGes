@@ -94,7 +94,7 @@ interface AnomalieStock {
   id: number;
   reference: string;
   produitId: number;
-  type: 'MANQUANT' | 'SURPLUS' | 'DEFECTUEUX';
+  type: 'MANQUANT' | 'SURPLUS' | 'DEFECTUEUX' | 'PERTE' | 'CASSE' | 'VOL';
   quantite: number;
   description: string;
   statut: 'EN_ATTENTE' | 'EN_COURS' | 'TRAITEE' | 'TRANSMISE';
@@ -208,7 +208,7 @@ export default function MagasinierPage() {
 
   // Anomalie form state
   const [anomalieProduitId, setAnomalieProduitId] = useState('');
-  const [anomalieType, setAnomalieType] = useState<'MANQUANT' | 'SURPLUS' | 'DEFECTUEUX'>('MANQUANT');
+  const [anomalieType, setAnomalieType] = useState<'MANQUANT' | 'SURPLUS' | 'DEFECTUEUX' | 'PERTE' | 'CASSE' | 'VOL'>('MANQUANT');
   const [anomalieQuantite, setAnomalieQuantite] = useState('');
   const [anomalieDescription, setAnomalieDescription] = useState('');
   const [anomalieFilterStatut, setAnomalieFilterStatut] = useState('');
@@ -287,7 +287,7 @@ export default function MagasinierPage() {
 
   // Demandes d'ajustement soumises par ce magasinier
   const { data: demandesResp, refetch: refetchDemandes } = useApi<{
-    data: { id: number; ancienneQuantite: number; nouvelleQuantite: number; justification: string; statut: 'EN_ATTENTE' | 'APPROUVE' | 'REJETE'; commentaireValidation: string | null; createdAt: string; produit: { nom: string }; pointDeVente: { nom: string }; validateur: { nom: string; prenom: string } | null }[];
+    data: { id: number; ancienneQuantite: number; nouvelleQuantite: number; justification: string; statut: 'EN_ATTENTE' | 'PRE_VALIDEE' | 'APPROUVE' | 'REJETE'; commentaireValidation: string | null; createdAt: string; produit: { nom: string }; pointDeVente: { nom: string }; validateur: { nom: string; prenom: string } | null }[];
     meta: { total: number };
   }>(activeTab === 'reception' ? '/api/magasinier/demandes-ajustement?limit=10' : null);
 
@@ -1993,14 +1993,16 @@ export default function MagasinierPage() {
                 <div className="space-y-3">
                   {demandesResp.data.map((d) => {
                     const ecart = d.nouvelleQuantite - d.ancienneQuantite;
-                    const statutConfig = {
-                      EN_ATTENTE: { bg: 'bg-amber-100', text: 'text-amber-700', label: 'En attente', icon: Clock },
-                      APPROUVE:   { bg: 'bg-emerald-100', text: 'text-emerald-700', label: 'Approuvé', icon: CheckCircle },
-                      REJETE:     { bg: 'bg-red-100', text: 'text-red-700', label: 'Rejeté', icon: XCircle },
-                    }[d.statut];
+                    const statutConfig = ({
+                      EN_ATTENTE:  { bg: 'bg-amber-100',  text: 'text-amber-700',  label: 'En attente Resp.Appro', icon: Clock },
+                      PRE_VALIDEE: { bg: 'bg-purple-100', text: 'text-purple-700', label: 'En attente Admin',      icon: Clock },
+                      APPROUVE:    { bg: 'bg-emerald-100',text: 'text-emerald-700',label: 'Approuvé — stock mis à jour', icon: CheckCircle },
+                      REJETE:      { bg: 'bg-red-100',    text: 'text-red-700',    label: 'Rejeté',                icon: XCircle },
+                    } as Record<string, { bg: string; text: string; label: string; icon: typeof Clock }>)[d.statut]
+                      ?? { bg: 'bg-slate-100', text: 'text-slate-600', label: d.statut, icon: Clock };
                     const IconS = statutConfig.icon;
                     return (
-                      <div key={d.id} className={`p-4 rounded-xl border ${d.statut === 'EN_ATTENTE' ? 'border-amber-200 bg-amber-50/40' : d.statut === 'APPROUVE' ? 'border-emerald-200 bg-emerald-50/40' : 'border-red-200 bg-red-50/40'}`}>
+                      <div key={d.id} className={`p-4 rounded-xl border ${d.statut === 'EN_ATTENTE' ? 'border-amber-200 bg-amber-50/40' : d.statut === 'PRE_VALIDEE' ? 'border-purple-200 bg-purple-50/40' : d.statut === 'APPROUVE' ? 'border-emerald-200 bg-emerald-50/40' : 'border-red-200 bg-red-50/40'}`}>
                         <div className="flex items-start justify-between gap-3">
                           <div className="flex-1 min-w-0">
                             <p className="font-semibold text-slate-800 text-sm truncate">{d.produit.nom}</p>
@@ -2219,7 +2221,7 @@ export default function MagasinierPage() {
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-xl font-bold text-slate-800">Anomalies Stock</h3>
-                <p className="text-sm text-slate-500">Signalez et suivez les manquants, surplus et produits défectueux</p>
+                <p className="text-sm text-slate-500">Déclarez les pertes, casses, vols, manquants et surplus — validés par le Resp. Appro puis l&apos;Admin</p>
               </div>
               <button onClick={() => setShowAnomalieForm(!showAnomalieForm)} className="px-5 py-3 bg-orange-600 text-white rounded-xl hover:bg-orange-700 transition-colors font-semibold flex items-center gap-2">
                 <Plus size={18} />
@@ -2245,9 +2247,12 @@ export default function MagasinierPage() {
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-2">Type d&apos;anomalie</label>
                     <select value={anomalieType} onChange={e => setAnomalieType(e.target.value as typeof anomalieType)} className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 bg-slate-50">
+                      <option value="PERTE">Perte (produit perdu)</option>
+                      <option value="CASSE">Casse (produit cassé)</option>
+                      <option value="VOL">Vol (produit volé)</option>
+                      <option value="DEFECTUEUX">Défectueux (produit endommagé)</option>
                       <option value="MANQUANT">Manquant (produit introuvable)</option>
                       <option value="SURPLUS">Surplus (produit en excédent)</option>
-                      <option value="DEFECTUEUX">Défectueux (produit endommagé)</option>
                     </select>
                   </div>
                   <div>
@@ -2293,30 +2298,44 @@ export default function MagasinierPage() {
             ) : (
               <div className="space-y-3">
                 {anomaliesResponse!.data.map(anomalie => {
-                  const typeColors: Record<string, string> = { MANQUANT: 'bg-red-100 text-red-700', SURPLUS: 'bg-blue-100 text-blue-700', DEFECTUEUX: 'bg-amber-100 text-amber-700' };
+                  const typeColors: Record<string, string> = {
+                    PERTE: 'bg-red-100 text-red-700', CASSE: 'bg-orange-100 text-orange-700', VOL: 'bg-rose-100 text-rose-700',
+                    DEFECTUEUX: 'bg-amber-100 text-amber-700', MANQUANT: 'bg-slate-100 text-slate-700', SURPLUS: 'bg-blue-100 text-blue-700',
+                  };
+                  const typeLabels: Record<string, string> = {
+                    PERTE: 'Perte', CASSE: 'Casse', VOL: 'Vol', DEFECTUEUX: 'Défectueux', MANQUANT: 'Manquant', SURPLUS: 'Surplus',
+                  };
                   const statutColors: Record<string, string> = { EN_ATTENTE: 'bg-slate-100 text-slate-600', EN_COURS: 'bg-blue-100 text-blue-700', TRAITEE: 'bg-emerald-100 text-emerald-700', TRANSMISE: 'bg-purple-100 text-purple-700' };
                   return (
                     <div key={anomalie.id} className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60">
                       <div className="flex items-start justify-between">
                         <div>
                           <div className="flex items-center gap-2 mb-1">
-                            <span className={`text-xs font-bold px-2 py-1 rounded-full ${typeColors[anomalie.type]}`}>{anomalie.type}</span>
-                            <span className={`text-xs font-semibold px-2 py-1 rounded-full ${statutColors[anomalie.statut]}`}>{anomalie.statut.replace('_', ' ')}</span>
+                            <span className={`text-xs font-bold px-2 py-1 rounded-full ${typeColors[anomalie.type] ?? 'bg-slate-100 text-slate-700'}`}>{typeLabels[anomalie.type] ?? anomalie.type}</span>
+                            <span className={`text-xs font-semibold px-2 py-1 rounded-full ${statutColors[anomalie.statut]}`}>{anomalie.statut === 'EN_ATTENTE' ? 'En attente (Resp. Appro)' : anomalie.statut === 'EN_COURS' ? 'Rejeté — à corriger' : anomalie.statut === 'TRANSMISE' ? 'Transmis (Admin)' : 'Traité'}</span>
                             <span className="text-xs font-mono text-slate-400">{anomalie.reference}</span>
                           </div>
                           <p className="font-semibold text-slate-800">{anomalie.produit.nom}</p>
                           <p className="text-sm text-slate-600 mt-1">{anomalie.description}</p>
                           <p className="text-xs text-slate-400 mt-1">Quantité : {anomalie.quantite} — Signalé le {new Date(anomalie.createdAt).toLocaleDateString('fr-FR')} par {anomalie.magasinier.prenom} {anomalie.magasinier.nom}</p>
+                          {anomalie.commentaire && (
+                            <p className={`text-xs mt-1.5 px-2 py-1 rounded-lg ${anomalie.statut === 'EN_COURS' ? 'bg-red-50 text-red-600' : 'bg-slate-50 text-slate-500'}`}>
+                              {anomalie.commentaire}
+                            </p>
+                          )}
                         </div>
-                        <div className="flex flex-col gap-2 ml-4">
+                        <div className="flex flex-col gap-2 ml-4 items-end">
                           {anomalie.statut === 'EN_ATTENTE' && (
-                            <button onClick={() => handleUpdateAnomalieStatut(anomalie.id, 'EN_COURS')} className="text-xs px-3 py-1.5 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors font-medium flex items-center gap-1 whitespace-nowrap"><Clock size={12} /> Prendre en charge</button>
+                            <span className="text-xs px-3 py-1.5 bg-slate-50 text-slate-500 rounded-lg border border-slate-200 flex items-center gap-1 whitespace-nowrap"><Clock size={12} /> En attente Resp. Appro</span>
                           )}
                           {anomalie.statut === 'EN_COURS' && (
-                            <>
-                              <button onClick={() => handleUpdateAnomalieStatut(anomalie.id, 'TRANSMISE')} className="text-xs px-3 py-1.5 bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition-colors font-medium flex items-center gap-1 whitespace-nowrap"><Send size={12} /> Transmettre</button>
-                              <button onClick={() => handleUpdateAnomalieStatut(anomalie.id, 'TRAITEE')} className="text-xs px-3 py-1.5 bg-emerald-100 text-emerald-700 rounded-lg hover:bg-emerald-200 transition-colors font-medium flex items-center gap-1 whitespace-nowrap"><CheckSquare size={12} /> Marquer traitée</button>
-                            </>
+                            <button onClick={() => handleUpdateAnomalieStatut(anomalie.id, 'EN_ATTENTE')} className="text-xs px-3 py-1.5 bg-orange-100 text-orange-700 rounded-lg hover:bg-orange-200 transition-colors font-medium flex items-center gap-1 whitespace-nowrap"><Send size={12} /> Re-soumettre</button>
+                          )}
+                          {anomalie.statut === 'TRANSMISE' && (
+                            <span className="text-xs px-3 py-1.5 bg-purple-50 text-purple-600 rounded-lg border border-purple-200 flex items-center gap-1 whitespace-nowrap"><Clock size={12} /> En attente Admin</span>
+                          )}
+                          {anomalie.statut === 'TRAITEE' && (
+                            <span className="text-xs px-3 py-1.5 bg-emerald-50 text-emerald-600 rounded-lg border border-emerald-200 flex items-center gap-1 whitespace-nowrap"><CheckSquare size={12} /> Traité — stock mis à jour</span>
                           )}
                         </div>
                       </div>

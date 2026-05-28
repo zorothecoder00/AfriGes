@@ -5,7 +5,7 @@ import {
   Plus, Search, Download, Package, TrendingUp, AlertTriangle, Archive,
   Eye, Edit, Trash2, RefreshCw, X, ArrowLeft, Store, Building2, Layers, ChevronDown, ChevronRight,
   ArrowRightLeft, Trash, PackagePlus, Calendar, History,
-  ShieldAlert, TrendingDown, Flame, Boxes,
+  ShieldAlert, TrendingDown, Flame, Boxes, CheckCircle, XCircle,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useApi, useMutation } from '@/hooks/useApi';
@@ -262,6 +262,56 @@ export default function GestionStockPage() {
     deleteIdRef.current = deleteId;
     const result = await deleteProduit({});
     if (result) { setDeleteId(null); refetch(); }
+  };
+
+  // ── Anomalies — approbation niveau 2 ────────────────────────────────────────
+  interface AnomalieAdmin {
+    id: number; reference: string; type: string; quantite: number;
+    description: string; statut: string; commentaire: string | null; createdAt: string;
+    produit: { id: number; nom: string; prixAchat?: string | null; prixUnitaire: string };
+    pointDeVente: { id: number; nom: string; code: string } | null;
+    magasinier: { id: number; nom: string; prenom: string };
+    traiteur: { id: number; nom: string; prenom: string } | null;
+  }
+  interface AnomaliesAdminResponse {
+    data: AnomalieAdmin[];
+    stats: { pendingCount: number };
+    meta: { total: number; page: number; limit: number; totalPages: number };
+  }
+
+  const [anomaliesAdminPage, setAnomaliesAdminPage]           = useState(1);
+  const [anomaliesAdminFilter, setAnomaliesAdminFilter]       = useState("TRANSMISE");
+  const [anomalieAdminModal, setAnomalieAdminModal]           = useState<{ id: number; action: "APPROUVER" | "REJETER"; nomProduit: string; quantite: number } | null>(null);
+  const [anomalieAdminMotif, setAnomalieAdminMotif]           = useState("");
+  const anomalieAdminIdRef                                    = useRef<number | null>(null);
+
+  const anomaliesAdminQP = new URLSearchParams({ page: String(anomaliesAdminPage), limit: "15" });
+  if (anomaliesAdminFilter) anomaliesAdminQP.set("statut", anomaliesAdminFilter);
+
+  const { data: anomaliesAdminRes, refetch: refetchAnomaliesAdmin } =
+    useApi<AnomaliesAdminResponse>(`/api/admin/anomalies?${anomaliesAdminQP}`);
+  const anomaliesAdminPending = anomaliesAdminRes?.stats?.pendingCount ?? 0;
+
+  const { mutate: doAdminAnomalie, loading: adminAnomalieLoading } =
+    useMutation<unknown, { action: string; motif?: string }>(
+      () => anomalieAdminIdRef.current ? `/api/admin/anomalies/${anomalieAdminIdRef.current}` : "",
+      "PATCH",
+      { successMessage: "Décision enregistrée — stock mis à jour" }
+    );
+
+  const confirmAdminAnomalie = async () => {
+    if (!anomalieAdminModal) return;
+    anomalieAdminIdRef.current = anomalieAdminModal.id;
+    const result = await doAdminAnomalie({
+      action: anomalieAdminModal.action,
+      ...(anomalieAdminMotif.trim() && { motif: anomalieAdminMotif.trim() }),
+    });
+    if (result) {
+      setAnomalieAdminModal(null);
+      setAnomalieAdminMotif("");
+      refetchAnomaliesAdmin();
+      refetch(); // rafraîchir le stock
+    }
   };
 
   const toggleExpand = (id: number) => {
@@ -1138,6 +1188,117 @@ export default function GestionStockPage() {
           </div>
         )}
 
+        {/* ── Validation Anomalies (niveau 2) ── */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <ShieldAlert className="text-orange-600" size={22} />
+              <div>
+                <h2 className="text-xl font-bold text-slate-800">Anomalies Stock — Approbation Admin</h2>
+                <p className="text-sm text-slate-500">Approuvez ou rejetez les déclarations validées par le Resp. Approvisionnement</p>
+              </div>
+              {anomaliesAdminPending > 0 && (
+                <span className="px-3 py-1 bg-red-100 text-red-700 rounded-xl text-sm font-semibold border border-red-200">
+                  {anomaliesAdminPending} à approuver
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Filtres */}
+          <div className="flex gap-2 flex-wrap">
+            {(["TRANSMISE", "TRAITEE", "EN_ATTENTE", ""] as const).map(s => (
+              <button
+                key={s}
+                onClick={() => { setAnomaliesAdminFilter(s); setAnomaliesAdminPage(1); }}
+                className={`px-4 py-2 rounded-xl text-sm font-medium border transition-colors ${
+                  anomaliesAdminFilter === s
+                    ? "bg-blue-600 text-white border-blue-600"
+                    : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
+                }`}
+              >
+                {s === "" ? "Toutes" : s === "TRANSMISE" ? "À approuver" : s === "TRAITEE" ? "Traitées" : "En attente Resp."}
+              </button>
+            ))}
+          </div>
+
+          {(anomaliesAdminRes?.data.length ?? 0) === 0 ? (
+            <div className="bg-white rounded-2xl p-10 text-center border border-slate-200">
+              <ShieldAlert size={36} className="text-slate-300 mx-auto mb-2" />
+              <p className="text-slate-500">Aucune anomalie dans ce filtre</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {anomaliesAdminRes!.data.map(anomalie => {
+                const typeLabels: Record<string, string> = {
+                  PERTE: "Perte", CASSE: "Casse", VOL: "Vol",
+                  DEFECTUEUX: "Défectueux", MANQUANT: "Manquant", SURPLUS: "Surplus",
+                };
+                const typeColors: Record<string, string> = {
+                  PERTE: "bg-red-100 text-red-700", CASSE: "bg-orange-100 text-orange-700",
+                  VOL: "bg-rose-100 text-rose-700", DEFECTUEUX: "bg-amber-100 text-amber-700",
+                  MANQUANT: "bg-slate-100 text-slate-700", SURPLUS: "bg-blue-100 text-blue-700",
+                };
+                const prixAchat = Number(anomalie.produit.prixAchat ?? anomalie.produit.prixUnitaire);
+                const impactFinancier = prixAchat * anomalie.quantite;
+                return (
+                  <div key={anomalie.id} className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                          <span className={`text-xs font-bold px-2 py-1 rounded-full ${typeColors[anomalie.type] ?? "bg-slate-100 text-slate-700"}`}>
+                            {typeLabels[anomalie.type] ?? anomalie.type}
+                          </span>
+                          <span className={`text-xs font-semibold px-2 py-1 rounded-full ${anomalie.statut === "TRANSMISE" ? "bg-purple-100 text-purple-700" : anomalie.statut === "TRAITEE" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}>
+                            {anomalie.statut}
+                          </span>
+                          <span className="text-xs font-mono text-slate-400">{anomalie.reference}</span>
+                        </div>
+                        <p className="font-semibold text-slate-800">{anomalie.produit.nom}</p>
+                        <p className="text-sm text-slate-600 mt-0.5">{anomalie.description}</p>
+                        <div className="flex items-center gap-4 mt-1.5 text-xs text-slate-500">
+                          <span>{anomalie.quantite} unité(s)</span>
+                          <span className="font-semibold text-red-600">Impact financier : {impactFinancier.toLocaleString("fr-FR")} FCFA</span>
+                          <span>PDV : {anomalie.pointDeVente?.nom ?? "—"}</span>
+                          <span>Déclaré par {anomalie.magasinier.prenom} {anomalie.magasinier.nom}</span>
+                          {anomalie.traiteur && <span>Resp. Appro : {anomalie.traiteur.prenom} {anomalie.traiteur.nom}</span>}
+                        </div>
+                        {anomalie.commentaire && (
+                          <p className="text-xs mt-1.5 px-2 py-1 rounded-lg bg-slate-50 text-slate-500 italic">{anomalie.commentaire}</p>
+                        )}
+                      </div>
+                      {anomalie.statut === "TRANSMISE" && (
+                        <div className="flex flex-col gap-2 shrink-0">
+                          <button
+                            onClick={() => setAnomalieAdminModal({ id: anomalie.id, action: "APPROUVER", nomProduit: anomalie.produit.nom, quantite: anomalie.quantite })}
+                            className="text-xs px-3 py-1.5 bg-emerald-100 text-emerald-700 rounded-lg hover:bg-emerald-200 transition-colors font-medium flex items-center gap-1.5 whitespace-nowrap"
+                          >
+                            <CheckCircle size={13} /> Approuver
+                          </button>
+                          <button
+                            onClick={() => setAnomalieAdminModal({ id: anomalie.id, action: "REJETER", nomProduit: anomalie.produit.nom, quantite: anomalie.quantite })}
+                            className="text-xs px-3 py-1.5 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors font-medium flex items-center gap-1.5 whitespace-nowrap"
+                          >
+                            <XCircle size={13} /> Rejeter
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {(anomaliesAdminRes?.meta.totalPages ?? 0) > 1 && (
+            <div className="flex justify-center gap-2">
+              <button onClick={() => setAnomaliesAdminPage(p => Math.max(1, p - 1))} disabled={anomaliesAdminPage === 1} className="px-4 py-2 border border-slate-200 rounded-xl text-sm disabled:opacity-40">Précédent</button>
+              <span className="px-4 py-2 text-sm text-slate-600">{anomaliesAdminPage} / {anomaliesAdminRes!.meta.totalPages}</span>
+              <button onClick={() => setAnomaliesAdminPage(p => p + 1)} disabled={anomaliesAdminPage >= (anomaliesAdminRes?.meta.totalPages ?? 1)} className="px-4 py-2 border border-slate-200 rounded-xl text-sm disabled:opacity-40">Suivant</button>
+            </div>
+          )}
+        </div>
+
         {/* Alertes */}
         <div className="grid grid-cols-2 gap-5">
           <div className="bg-gradient-to-br from-red-500 to-red-600 rounded-2xl p-6 text-white shadow-lg shadow-red-200">
@@ -1163,6 +1324,71 @@ export default function GestionStockPage() {
         </div>
 
       </div>
+
+      {/* ── Modal approbation anomalie ── */}
+      {anomalieAdminModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+            <div className="p-6 border-b border-slate-200 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${anomalieAdminModal.action === "APPROUVER" ? "bg-emerald-50" : "bg-red-50"}`}>
+                  {anomalieAdminModal.action === "APPROUVER"
+                    ? <CheckCircle className="text-emerald-600" size={20} />
+                    : <XCircle className="text-red-600" size={20} />
+                  }
+                </div>
+                <div>
+                  <h2 className="text-base font-bold text-slate-800">
+                    {anomalieAdminModal.action === "APPROUVER" ? "Approuver la déclaration" : "Rejeter la déclaration"}
+                  </h2>
+                  <p className="text-xs text-slate-500">
+                    {anomalieAdminModal.action === "APPROUVER"
+                      ? `Stock sera décrémenté de ${anomalieAdminModal.quantite} unité(s) de "${anomalieAdminModal.nomProduit}"`
+                      : "Renvoyée au Resp. Approvisionnement"}
+                  </p>
+                </div>
+              </div>
+              <button onClick={() => setAnomalieAdminModal(null)} className="p-2 hover:bg-slate-100 rounded-lg">
+                <X size={18} className="text-slate-500" />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="text-sm font-medium text-slate-700 block mb-1.5">Commentaire</label>
+                <textarea
+                  rows={3}
+                  value={anomalieAdminMotif}
+                  onChange={e => setAnomalieAdminMotif(e.target.value)}
+                  placeholder={anomalieAdminModal.action === "APPROUVER" ? "Commentaire optionnel..." : "Raison du rejet..."}
+                  className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50 text-sm resize-none"
+                />
+              </div>
+              <div className="flex gap-3 pt-1">
+                <button
+                  onClick={() => setAnomalieAdminModal(null)}
+                  className="flex-1 py-2.5 border border-slate-200 text-slate-700 rounded-xl hover:bg-slate-50 font-medium text-sm"
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={confirmAdminAnomalie}
+                  disabled={adminAnomalieLoading}
+                  className={`flex-1 py-2.5 text-white rounded-xl font-semibold text-sm flex items-center justify-center gap-2 disabled:opacity-50 ${
+                    anomalieAdminModal.action === "APPROUVER" ? "bg-emerald-600 hover:bg-emerald-700" : "bg-red-600 hover:bg-red-700"
+                  }`}
+                >
+                  {adminAnomalieLoading
+                    ? <div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                    : anomalieAdminModal.action === "APPROUVER"
+                      ? <><CheckCircle size={15} /> Approuver — décrémenter stock</>
+                      : <><XCircle size={15} /> Rejeter</>
+                  }
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

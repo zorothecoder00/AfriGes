@@ -140,8 +140,15 @@ export async function PATCH(req: Request, { params }: Ctx) {
     }
 
     // ─ VALIDER (mise en stock — étape 3) ─────────────────────
-    // Nécessite que l'admin ait préalablement approuvé (DEMARRER → EN_COURS)
+    // Réservé à l'agent logistique approvisionnement (+ admin)
     if (action === "VALIDER") {
+      const gRole = session?.user.gestionnaireRole;
+      if (!isAdmin(session) && gRole !== "AGENT_LOGISTIQUE_APPROVISIONNEMENT") {
+        return NextResponse.json(
+          { error: "Seul l'agent d'approvisionnement peut valider une réception" },
+          { status: 403 }
+        );
+      }
       if (reception.statut !== "EN_COURS") {
         return NextResponse.json({
           error: reception.statut === "BROUILLON"

@@ -16,7 +16,7 @@ interface Demande {
   ancienneQuantite: number;
   nouvelleQuantite: number;
   justification: string;
-  statut: "EN_ATTENTE" | "APPROUVE" | "REJETE";
+  statut: "EN_ATTENTE" | "PRE_VALIDEE" | "APPROUVE" | "REJETE";
   source: string;
   commentaireValidation: string | null;
   createdAt: string;
@@ -33,15 +33,16 @@ interface DemandesResponse {
 }
 
 const STATUT_STYLES = {
-  EN_ATTENTE: { bg: "bg-amber-100",   text: "text-amber-700",   border: "border-amber-200",   icon: Clock,        label: "En attente" },
-  APPROUVE:   { bg: "bg-emerald-100", text: "text-emerald-700", border: "border-emerald-200", icon: CheckCircle,  label: "Approuvé" },
-  REJETE:     { bg: "bg-red-100",     text: "text-red-700",     border: "border-red-200",     icon: XCircle,      label: "Rejeté" },
+  EN_ATTENTE:  { bg: "bg-amber-100",   text: "text-amber-700",   border: "border-amber-200",   icon: Clock,        label: "En attente Resp.Appro" },
+  PRE_VALIDEE: { bg: "bg-purple-100",  text: "text-purple-700",  border: "border-purple-200",  icon: CheckCircle,  label: "Pré-validée — à approuver" },
+  APPROUVE:    { bg: "bg-emerald-100", text: "text-emerald-700", border: "border-emerald-200", icon: CheckCircle,  label: "Approuvé" },
+  REJETE:      { bg: "bg-red-100",     text: "text-red-700",     border: "border-red-200",     icon: XCircle,      label: "Rejeté" },
 };
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function AjustementsStockPage() {
-  const [filterStatut, setFilterStatut] = useState("");
+  const [filterStatut, setFilterStatut] = useState("PRE_VALIDEE");
   const [page, setPage]                 = useState(1);
 
   // Modal rejet
@@ -95,8 +96,8 @@ export default function AjustementsStockPage() {
           <ArrowLeft size={20} className="text-slate-600" />
         </Link>
         <div className="flex-1">
-          <h1 className="text-2xl font-bold text-slate-800">Demandes d&apos;ajustement de stock</h1>
-          <p className="text-sm text-slate-500">Validez ou rejetez les demandes soumises par les magasiniers</p>
+          <h1 className="text-2xl font-bold text-slate-800">Ajustements d&apos;inventaire</h1>
+          <p className="text-sm text-slate-500">Approbation niveau 3 — pré-validées par le Resp. Approvisionnement</p>
         </div>
         {totalEnAttente > 0 && (
           <span className="flex items-center gap-2 bg-amber-100 text-amber-700 px-4 py-2 rounded-xl font-semibold text-sm border border-amber-200">
@@ -108,7 +109,7 @@ export default function AjustementsStockPage() {
 
       {/* Filtre statut */}
       <div className="flex gap-2 flex-wrap">
-        {["", "EN_ATTENTE", "APPROUVE", "REJETE"].map((s) => (
+        {["PRE_VALIDEE", "", "EN_ATTENTE", "APPROUVE", "REJETE"].map((s) => (
           <button
             key={s}
             onClick={() => { setFilterStatut(s); setPage(1); }}
@@ -118,7 +119,7 @@ export default function AjustementsStockPage() {
                 : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
             }`}
           >
-            {s === "" ? "Toutes" : s === "EN_ATTENTE" ? "En attente" : s === "APPROUVE" ? "Approuvées" : "Rejetées"}
+            {s === "" ? "Toutes" : s === "PRE_VALIDEE" ? "À approuver" : s === "EN_ATTENTE" ? "En attente Resp." : s === "APPROUVE" ? "Approuvées" : "Rejetées"}
           </button>
         ))}
       </div>
@@ -243,12 +244,12 @@ export default function AjustementsStockPage() {
 
                       {/* Actions */}
                       <td className="px-5 py-4">
-                        {d.statut === "EN_ATTENTE" ? (
+                        {d.statut === "PRE_VALIDEE" ? (
                           <div className="flex items-center gap-2 justify-center">
                             <button
                               onClick={() => handleApprouver(d.id)}
                               disabled={actioning}
-                              title="Approuver"
+                              title="Approuver — applique le stock"
                               className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-semibold hover:bg-emerald-700 disabled:opacity-50 transition-colors"
                             >
                               <CheckCircle size={13} />
@@ -263,6 +264,8 @@ export default function AjustementsStockPage() {
                               Rejeter
                             </button>
                           </div>
+                        ) : d.statut === "EN_ATTENTE" ? (
+                          <span className="text-xs text-amber-600 text-center block">En attente Resp.</span>
                         ) : (
                           <span className="text-xs text-slate-400 text-center block">—</span>
                         )}

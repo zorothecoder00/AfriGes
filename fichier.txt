@@ -38,20 +38,23 @@ netsh wlan show profile name="NomDuWifi" key=clear affiche toutes les propriét�
 
   Les seuils d'alertes (retard, inactivité, etc.) sont tous optionnels — les
   valeurs par défaut commentées s'appliquent si tu ne les mets pas.
-  
+     
 
 Faire des tags dans l'application pour permettre de retracer les informations sur les clients
 
 Créer un menu RIA (commissions , finances etc etc)  
 
- 6 fichiers à modifier :
-  1. schema.prisma — 3 champs sur StockSite
-  2. agentTerrain/ventes — réserver stock sur CREDIT_REQUEST
-  3. rvc/ventes/[id]/traiter — libérer/consommer réservation sur
-  APPROUVER/REFUSER
-  4. logistique/receptions POST — mettre en transit à la création
-  5. logistique/receptions/[id] PATCH — sortir du transit à la
-  validation/annulation
-  6. magasinier/bons-sortie/[id] PATCH — alimenter endommagé sur PERTE/CASSE
-  validé
+  Plan d'implémentation ÉTAPE 7
+
+  1. Schema : ajouter PRE_VALIDEE à StatutDemandeAjustement
+  2. Magasinier API : notifier Resp.Appro au lieu de l'Admin
+  3. Nouveau : GET + PATCH /api/logistique/ajustements/[id] pour Resp.Appro
+  4. Admin API : changer la vérification EN_ATTENTE → PRE_VALIDEE
+  5. UI Logistique : section pré-validation dans l'onglet Anomalies (ou nouveau
+  sous-onglet)
+  6. UI Admin : afficher PRE_VALIDEE et filtres mis à jour
+  7. UI Magasinier : afficher le statut PRE_VALIDEE
+
+  C'est parti :
+
 

@@ -1084,7 +1084,7 @@ export default function AgentTerrainPage() {
     const lignesValides = vLignes.filter(l => l.produitId && l.quantite);
     if (!lignesValides.length) return;
     const montantTotal = lignesValides.reduce((s, l) => {
-      const prix = Number(l.prixUnitaire) || Number(produitsDispo.find(p => p.produit.id === Number(l.produitId))?.produit.prixUnitaire || 0);
+      const prix = Number(produitsDispo.find(p => p.produit.id === Number(l.produitId))?.produit.prixUnitaire ?? 0);
       return s + Number(l.quantite) * prix;
     }, 0);
     const res = await submitVente({
@@ -1097,7 +1097,7 @@ export default function AgentTerrainPage() {
       lignes: lignesValides.map(l => ({
         produitId: Number(l.produitId),
         quantite:  Number(l.quantite),
-        prixUnitaire: Number(l.prixUnitaire) || undefined,
+        // prixUnitaire volontairement omis — prix imposé par le catalogue côté serveur
       })),
     });
     if (res) {
@@ -1130,7 +1130,7 @@ export default function AgentTerrainPage() {
 
   const vMontantCalcule = vLignes.reduce((s, l) => {
     if (!l.produitId || !l.quantite) return s;
-    const prix = Number(l.prixUnitaire) || Number(produitsDispo.find(p => p.produit.id === Number(l.produitId))?.produit.prixUnitaire || 0);
+    const prix = Number(produitsDispo.find(p => p.produit.id === Number(l.produitId))?.produit.prixUnitaire ?? 0);
     return s + Number(l.quantite) * prix;
   }, 0);
 
@@ -1911,6 +1911,38 @@ export default function AgentTerrainPage() {
               </button>
             </div>
 
+            {/* ── Catalogue des produits disponibles (ÉTAPE 3) ── */}
+            {produitsDispo.length > 0 && (
+              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                <div className="px-5 py-3.5 border-b border-slate-100 flex items-center gap-2">
+                  <Package size={16} className="text-teal-600" />
+                  <h3 className="font-semibold text-slate-800 text-sm">Catalogue — produits disponibles</h3>
+                  <span className="text-xs text-slate-400 ml-auto">Consultation uniquement · Prix fixes</span>
+                </div>
+                <div className="p-4 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                  {produitsDispo.map(item => {
+                    const dispo  = item.quantite;
+                    const isLow  = dispo > 0 && dispo <= 5;
+                    return (
+                      <div
+                        key={item.produit.id}
+                        className={`rounded-xl border p-3 transition-colors ${dispo === 0 ? "border-red-100 bg-red-50/30" : "border-slate-100 hover:border-teal-200 hover:bg-teal-50/20"}`}
+                      >
+                        <p className="font-semibold text-slate-800 text-sm truncate">{item.produit.nom}</p>
+                        {item.produit.unite && <p className="text-xs text-slate-400">{item.produit.unite}</p>}
+                        <p className="text-base font-bold text-teal-700 mt-1.5">{formatCurrency(item.produit.prixUnitaire)}</p>
+                        <span className={`inline-block mt-1 text-xs font-medium px-1.5 py-0.5 rounded-full ${
+                          dispo === 0 ? "bg-red-100 text-red-700" : isLow ? "bg-amber-100 text-amber-700" : "bg-emerald-100 text-emerald-700"
+                        }`}>
+                          {dispo === 0 ? "Rupture" : `${dispo} dispo`}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             {/* Formulaire création vente */}
             {showVenteForm && (
               <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
@@ -2031,9 +2063,11 @@ export default function AgentTerrainPage() {
                             <input type="number" min="1" max={produitSel?.quantite} placeholder="Qté"
                               value={l.quantite} onChange={e => setVLignes(prev => prev.map((x, j) => j === i ? { ...x, quantite: e.target.value } : x))}
                               className="w-20 px-2 py-2.5 border border-slate-200 rounded-xl text-sm text-center focus:outline-none focus:ring-2 focus:ring-teal-500" />
-                            <input type="number" min="0" placeholder="Prix unit."
-                              value={l.prixUnitaire} onChange={e => setVLignes(prev => prev.map((x, j) => j === i ? { ...x, prixUnitaire: e.target.value } : x))}
-                              className="w-28 px-2 py-2.5 border border-slate-200 rounded-xl text-sm text-center focus:outline-none focus:ring-2 focus:ring-teal-500" />
+                            {produitSel && (
+                              <span className="w-28 text-center text-xs font-semibold text-teal-700 bg-teal-50 border border-teal-200 rounded-xl px-2 py-2.5">
+                                {formatCurrency(produitSel.produit.prixUnitaire)}
+                              </span>
+                            )}
                             {vLignes.length > 1 && (
                               <button type="button" onClick={() => setVLignes(prev => prev.filter((_, j) => j !== i))}
                                 className="p-2 text-red-500 hover:bg-red-50 rounded-lg"><X size={14} /></button>

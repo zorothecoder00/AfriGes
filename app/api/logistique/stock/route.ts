@@ -1,17 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getLogistiqueSession } from "@/lib/authLogistique";
-import { getMagasinierSession } from "@/lib/authMagasinier";
 import { getAuthSession } from "@/lib/auth";
 import { resolveViewAs } from "@/lib/viewAs";
 
 async function getSession() {
-  const logistique = await getLogistiqueSession();
-  if (logistique) return logistique;
-  const magasinier = await getMagasinierSession();
-  if (magasinier) return magasinier;
+  // Voir stock → tous les rôles authentifiés (gestionnaires + admins)
   const s = await getAuthSession();
-  if (s && (s.user.role === "ADMIN" || s.user.role === "SUPER_ADMIN")) return s;
+  if (!s) return null;
+  if (s.user.role === "ADMIN" || s.user.role === "SUPER_ADMIN") return s;
+  if (s.user.gestionnaireRole) return s; // tout gestionnaire affecté
   return null;
 }
 

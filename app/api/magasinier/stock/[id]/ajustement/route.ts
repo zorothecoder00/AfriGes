@@ -3,7 +3,7 @@ import { PrioriteNotification } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getMagasinierSession } from "@/lib/authMagasinier";
 import { randomUUID } from "crypto";
-import { notifyRoles, notifyAdmins, auditLog } from "@/lib/notifications";
+import { notifyRoles, auditLog } from "@/lib/notifications";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -118,11 +118,12 @@ export async function POST(req: Request, { params }: Ctx) {
           },
         });
 
-        await notifyAdmins(tx, {
-          titre:    `Demande d'ajustement stock — ${produitNom}`,
-          message:  `${session.user.prenom} ${session.user.nom} (magasinier) demande un ajustement de stock pour "${produitNom}" : ${qteActuelle} → ${qteNouvelle} (${qty > 0 ? "+" : ""}${qty}). Justification : ${motif.trim()}`,
+        // Notifier Resp.Appro pour pré-validation (niveau 2) — l'Admin sera notifié après
+        await notifyRoles(tx, ["AGENT_LOGISTIQUE_APPROVISIONNEMENT"], {
+          titre:    `Demande d'ajustement inventaire — ${produitNom}`,
+          message:  `${session.user.prenom} ${session.user.nom} (magasinier) demande un ajustement de stock pour "${produitNom}" : ${qteActuelle} → ${qteNouvelle} (${qty > 0 ? "+" : ""}${qty}). Justification : ${motif.trim()}. Pré-validez avant transmission à l'admin.`,
           priorite: "HAUTE",
-          actionUrl: "/dashboard/admin/stock/ajustements",
+          actionUrl: "/dashboard/user/logistiquesApprovisionnements",
         });
 
         await auditLog(tx, parseInt(session.user.id), "DEMANDE_AJUSTEMENT_STOCK_CREEE", "DemandeAjustementStock", d.id);

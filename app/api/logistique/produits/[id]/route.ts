@@ -7,7 +7,17 @@ import { auditLog, notifyRoles } from "@/lib/notifications";
 
 type Ctx = { params: Promise<{ id: string }> };
 
-async function getSession() {
+/** Voir fiche produit → tous les gestionnaires authentifiés */
+async function getReadSession() {
+  const s = await getAuthSession();
+  if (!s) return null;
+  if (s.user.role === "ADMIN" || s.user.role === "SUPER_ADMIN") return s;
+  if (s.user.gestionnaireRole) return s;
+  return null;
+}
+
+/** Modifier produit (prix, actif…) → Admin + Approvisionnement */
+async function getWriteSession() {
   const logistique = await getLogistiqueSession();
   if (logistique) return logistique;
   const s = await getAuthSession();
@@ -21,7 +31,7 @@ async function getSession() {
  */
 export async function GET(_req: Request, { params }: Ctx) {
   try {
-    const session = await getSession();
+    const session = await getReadSession();
     if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
     const { id } = await params;
 
@@ -60,7 +70,7 @@ export async function GET(_req: Request, { params }: Ctx) {
  */
 export async function PATCH(req: Request, { params }: Ctx) {
   try {
-    const session = await getSession();
+    const session = await getWriteSession();
     if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
     const { id } = await params;
 

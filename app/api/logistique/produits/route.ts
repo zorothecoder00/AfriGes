@@ -3,10 +3,20 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getLogistiqueSession } from "@/lib/authLogistique";
 import { getAuthSession } from "@/lib/auth";
-import { auditLog, notifyRoles } from "@/lib/notifications";
+import { auditLog, notifyRoles, notifyAdmins } from "@/lib/notifications";
 import { PrioriteNotification } from "@prisma/client";
 
-async function getSession() {
+/** Voir produits → tous les gestionnaires authentifiés */
+async function getReadSession() {
+  const s = await getAuthSession();
+  if (!s) return null;
+  if (s.user.role === "ADMIN" || s.user.role === "SUPER_ADMIN") return s;
+  if (s.user.gestionnaireRole) return s;
+  return null;
+}
+
+/** Créer/modifier produit (prix) → Admin + Approvisionnement */
+async function getWriteSession() {
   const logistique = await getLogistiqueSession();
   if (logistique) return logistique;
   const s = await getAuthSession();
@@ -21,7 +31,7 @@ async function getSession() {
  */
 export async function GET(req: Request) {
   try {
-    const session = await getSession();
+    const session = await getReadSession();
     if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
 
     const { searchParams } = new URL(req.url);
@@ -82,7 +92,7 @@ export async function GET(req: Request) {
  */
 export async function POST(req: Request) {
   try {
-    const session = await getSession();
+    const session = await getWriteSession();
     if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
 
     const body = await req.json();
@@ -123,6 +133,17 @@ export async function POST(req: Request) {
         titre:    `Nouveau produit : ${p.nom}`,
         message:  `${session.user.prenom} ${session.user.nom} a créé le produit "${p.nom}" (réf: ${p.reference ?? "—"}) au prix de ${Number(p.prixUnitaire).toLocaleString("fr-FR")} FCFA.`,
         priorite: PrioriteNotification.NORMAL,
+        actionUrl:`/dashboard/admin/stock`,
+      });
+
+      // Validation niveau 2 — stratégie de prix (admin)
+      const achat  = p.prixAchat ? Number(p.prixAchat) : null;
+      const vente  = Number(p.prixUnitaire);
+      const marge  = achat !== null ? `Marge : ${(vente - achat).toLocaleString("fr-FR")} FCFA (${Math.round(((vente - achat) / achat) * 100)}%)` : "Prix d'achat non renseigné";
+      await notifyAdmins(tx, {
+        titre:    `Nouveau produit à valider : ${p.nom}`,
+        message:  `${session.user.prenom} ${session.user.nom} a créé le produit "${p.nom}". Prix vente : ${vente.toLocaleString("fr-FR")} FCFA — ${marge}. Veuillez vérifier la stratégie de prix.`,
+        priorite: PrioriteNotification.HAUTE,
         actionUrl:`/dashboard/admin/stock`,
       });
 

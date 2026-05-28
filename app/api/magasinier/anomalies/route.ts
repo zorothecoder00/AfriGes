@@ -99,7 +99,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "produitId, type, quantite, description sont obligatoires" }, { status: 400 });
     }
 
-    const typesValides: TypeAnomalie[] = ["MANQUANT", "SURPLUS", "DEFECTUEUX"];
+    const typesValides: TypeAnomalie[] = ["MANQUANT", "SURPLUS", "DEFECTUEUX", "PERTE", "CASSE", "VOL"];
     if (!typesValides.includes(type as TypeAnomalie)) {
       return NextResponse.json({ error: `Type invalide. Valeurs : ${typesValides.join(", ")}` }, { status: 400 });
     }
@@ -140,13 +140,25 @@ export async function POST(req: Request) {
         MANQUANT:  "Manquant",
         SURPLUS:   "Surplus",
         DEFECTUEUX:"Défectueux",
+        PERTE:     "Perte",
+        CASSE:     "Casse",
+        VOL:       "Vol",
       };
 
-      await notifyRoles(tx, ["AGENT_LOGISTIQUE_APPROVISIONNEMENT", "RESPONSABLE_POINT_DE_VENTE"], {
-        titre:    `Anomalie stock : ${typeLabel[type]} — ${produit.nom}`,
-        message:  `${session.user.prenom} ${session.user.nom} a signalé une anomalie (${typeLabel[type]}) sur "${produit.nom}" (PDV : ${pdv?.nom}). Qté : ${quantite}. ${description}`,
+      // Notifier Responsable Approvisionnement (validation niveau 1)
+      await notifyRoles(tx, ["AGENT_LOGISTIQUE_APPROVISIONNEMENT"], {
+        titre:    `Déclaration de ${typeLabel[type]} à valider — ${produit.nom}`,
+        message:  `${session.user.prenom} ${session.user.nom} déclare une ${typeLabel[type].toLowerCase()} de ${quantite} unité(s) de "${produit.nom}" (PDV : ${pdv?.nom}). Motif : ${description}. Validez ou rejetez pour transmettre à l'admin.`,
         priorite: PrioriteNotification.HAUTE,
-        actionUrl:`/dashboard/magasinier/anomalies/${a.id}`,
+        actionUrl:`/dashboard/user/logistiquesApprovisionnements`,
+      });
+
+      // Notifier le RPV pour information
+      await notifyRoles(tx, ["RESPONSABLE_POINT_DE_VENTE"], {
+        titre:    `Anomalie stock signalée : ${typeLabel[type]} — ${produit.nom}`,
+        message:  `${session.user.prenom} ${session.user.nom} a signalé une ${typeLabel[type].toLowerCase()} (${quantite} unité(s)) sur "${produit.nom}" (PDV : ${pdv?.nom}).`,
+        priorite: PrioriteNotification.NORMAL,
+        actionUrl:`/dashboard/user/responsablesPointDeVente`,
       });
 
       return a;

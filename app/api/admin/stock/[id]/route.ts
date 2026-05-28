@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { Prisma, TypeMouvement } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getAuthSession } from "@/lib/auth";
+import { auditLog } from "@/lib/notifications";
 import { randomUUID } from "crypto";
 
 /**
@@ -134,12 +135,14 @@ export async function PUT(
             where: { produitId: numericId, quantite: { gt: 0 } },
             orderBy: { quantite: "desc" },
           });
-          const totalStock = sites.reduce((s, ss) => s + ss.quantite, 0);
-          if (Math.abs(qty) > totalStock) throw new Error("Le stock ne peut pas etre negatif");
+          const totalDispo = sites.reduce((s, ss) => s + ss.quantite - ss.quantiteReservee, 0);
+          if (Math.abs(qty) > totalDispo) throw new Error("Le stock disponible (hors réservations) est insuffisant");
           let remaining = Math.abs(qty);
           for (const site of sites) {
             if (remaining <= 0) break;
-            const dec = Math.min(site.quantite, remaining);
+            const dispo = site.quantite - site.quantiteReservee;
+            if (dispo <= 0) continue;
+            const dec = Math.min(dispo, remaining);
             await tx.stockSite.update({ where: { id: site.id }, data: { quantite: { decrement: dec } } });
             remaining -= dec;
           }
@@ -153,6 +156,7 @@ export async function PUT(
             quantite:       Math.abs(qty),
             motif:          motifAjustement || "Ajustement manuel",
             reference:      `ADJ-${randomUUID()}`,
+            operateurId:    parseInt(session.user.id),
           },
         });
       }
@@ -167,7 +171,7 @@ export async function PUT(
   } catch (error: unknown) {
     console.error("PUT /admin/stock/[id] error:", error);
 
-    if (error instanceof Error && error.message === "Le stock ne peut pas etre negatif") {
+    if (error instanceof Error && error.message === "Le stock disponible (hors réservations) est insuffisant") {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
    
@@ -198,14 +202,23 @@ export async function DELETE(
       return NextResponse.json({ error: "ID invalide" }, { status: 400 });
     }
 
-    // Supprimer les mouvements, stocks par site puis le produit
+    // Interdiction 11.2 : aucune suppression d'historique — soft delete uniquement
+    const stockActif = await prisma.stockSite.findFirst({
+      where: { produitId: numericId, quantite: { gt: 0 } },
+    });
+    if (stockActif) {
+      return NextResponse.json(
+        { error: "Impossible de désactiver un produit avec du stock. Ajustez le stock à 0 d'abord." },
+        { status: 400 }
+      );
+    }
+
     await prisma.$transaction(async (tx) => {
-      await tx.mouvementStock.deleteMany({ where: { produitId: numericId } });
-      await tx.stockSite.deleteMany({ where: { produitId: numericId } });
-      await tx.produit.delete({ where: { id: numericId } });
+      await tx.produit.update({ where: { id: numericId }, data: { actif: false } });
+      await auditLog(tx, parseInt(session.user.id), "PRODUIT_DESACTIVE", "Produit", numericId);
     });
 
-    return NextResponse.json({ message: "Produit supprime" });
+    return NextResponse.json({ message: "Produit désactivé" });
   } catch (error) {
     console.error("DELETE /admin/stock/[id] error:", error);
     return NextResponse.json(

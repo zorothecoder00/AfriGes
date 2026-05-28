@@ -177,7 +177,8 @@ export async function POST(req: Request) {
           { status: 400 }
         );
       }
-      const prix = Number(l.prixUnitaire ?? stock.produit.prixUnitaire);
+      // Prix toujours depuis le catalogue — aucun droit de modification pour l'agent terrain
+      const prix = Number(stock.produit.prixUnitaire);
       const montantLigne = Number(l.quantite) * prix;
       montantTotal += montantLigne;
       lignesData.push({ produitId: Number(l.produitId), quantite: Number(l.quantite), prixUnitaire: prix, montant: montantLigne, nom: stock.produit.nom });

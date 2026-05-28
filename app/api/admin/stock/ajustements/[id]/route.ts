@@ -54,8 +54,14 @@ export async function PATCH(req: Request, { params }: Ctx) {
       });
 
       if (!demande) throw new Error("Demande introuvable");
-      if (demande.statut !== "EN_ATTENTE") {
-        throw new Error(`Cette demande a déjà été ${demande.statut === "APPROUVE" ? "approuvée" : "rejetée"}`);
+      // L'admin ne traite que les demandes pré-validées par le Resp.Appro
+      if (demande.statut !== "PRE_VALIDEE") {
+        const msgs: Record<string, string> = {
+          EN_ATTENTE: "en attente de pré-validation par le Resp. Approvisionnement",
+          APPROUVE:   "déjà approuvée",
+          REJETE:     "déjà rejetée",
+        };
+        throw new Error(`Impossible de traiter cette demande : ${msgs[demande.statut] ?? `statut "${demande.statut}"`}`);
       }
 
       // Mise à jour du statut de la demande

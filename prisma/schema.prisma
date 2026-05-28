@@ -119,6 +119,7 @@ enum TypeSortieStock {
   AJUSTEMENT_NEGATIF
   PERTE
   CASSE
+  VOL
   DON
 }
 
@@ -129,9 +130,10 @@ enum TypeMouvement {
 }
 
 enum StatutDemandeAjustement {
-  EN_ATTENTE
-  APPROUVE
-  REJETE
+  EN_ATTENTE   // soumis par magasinier, en attente Resp.Appro
+  PRE_VALIDEE  // validé par Resp.Appro, en attente Admin
+  APPROUVE     // approuvé par Admin, stock appliqué
+  REJETE       // rejeté (par Resp.Appro ou Admin)
 }
 
 enum StatutTransfertStock {
@@ -443,6 +445,9 @@ enum TypeAnomalie {
   MANQUANT
   SURPLUS
   DEFECTUEUX
+  PERTE
+  CASSE
+  VOL
 }
 
 enum StatutAnomalie {
