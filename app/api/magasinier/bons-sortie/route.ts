@@ -117,9 +117,10 @@ export async function POST(req: Request) {
         where: { produitId_pointDeVenteId: { produitId: Number(l.produitId), pointDeVenteId: Number(pointDeVenteId) } },
         include: { produit: { select: { nom: true } } },
       });
-      if (!stock || stock.quantite < Number(l.quantite)) {
+      const qteDispo = (stock?.quantite ?? 0) - (stock?.quantiteReservee ?? 0);
+      if (!stock || qteDispo < Number(l.quantite)) {
         return NextResponse.json(
-          { error: `Stock insuffisant pour "${stock?.produit.nom ?? l.produitId}". Dispo : ${stock?.quantite ?? 0}, demandé : ${l.quantite}` },
+          { error: `Stock insuffisant pour "${stock?.produit.nom ?? l.produitId}". Disponible : ${qteDispo}, demandé : ${l.quantite}` },
           { status: 400 }
         );
       }

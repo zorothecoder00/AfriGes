@@ -73,7 +73,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
           ...(effectivePdvId != null ? { pointDeVenteId: effectivePdvId } : {}),
         },
       });
-      const dispo = stockSite?.quantite ?? 0;
+      const dispo = (stockSite?.quantite ?? 0) - (stockSite?.quantiteReservee ?? 0);
       if (dispo < ligne.quantite) {
         const produit = await prisma.produit.findUnique({ where: { id: ligne.produitId }, select: { nom: true } });
         return NextResponse.json(

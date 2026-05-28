@@ -58,6 +58,7 @@ export async function GET(req: NextRequest) {
               categorie:    true,
               unite:        true,
               prixUnitaire: true,
+              prixAchat:    true,
               alerteStock:  true,
             },
           },
@@ -110,7 +111,7 @@ export async function GET(req: NextRequest) {
       valeur: number; ruptures: number; faibles: number;
       produits: Array<{
         id: number; nom: string; reference: string | null; categorie: string | null;
-        unite: string | null; prixUnitaire: number;
+        unite: string | null; prixUnitaire: number; prixAchat: number | null;
         quantite: number; quantiteReservee: number; quantiteEnTransit: number; quantiteEndommagee: number;
         stockTheorique: number; seuilAlerte: number; statut: "RUPTURE" | "ALERTE" | "OK";
         valeur: number;
@@ -125,7 +126,7 @@ export async function GET(req: NextRequest) {
       const pdv = parPdv[s.pointDeVenteId];
       if (!pdv) continue;
       const seuil  = s.alerteStock ?? s.produit.alerteStock;
-      const valeur = s.quantite * Number(s.produit.prixUnitaire);
+      const valeur = s.quantite * Number(s.produit.prixAchat ?? s.produit.prixUnitaire);
       const statut = s.quantite === 0
         ? "RUPTURE" as const
         : seuil > 0 && s.quantite <= seuil
@@ -138,6 +139,7 @@ export async function GET(req: NextRequest) {
         id: s.produit.id, nom: s.produit.nom, reference: s.produit.reference,
         categorie: s.produit.categorie, unite: s.produit.unite,
         prixUnitaire: Number(s.produit.prixUnitaire),
+        prixAchat:    s.produit.prixAchat !== null ? Number(s.produit.prixAchat) : null,
         quantite: s.quantite,
         quantiteReservee:   s.quantiteReservee,
         quantiteEnTransit:  s.quantiteEnTransit,

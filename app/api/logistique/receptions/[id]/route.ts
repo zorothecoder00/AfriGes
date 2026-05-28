@@ -3,13 +3,25 @@ import { PrioriteNotification } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getLogistiqueSession } from "@/lib/authLogistique";
 import { getMagasinierSession } from "@/lib/authMagasinier";
+import { getAuthSession } from "@/lib/auth";
 import { randomUUID } from "crypto";
-import { notifyRoles, auditLog } from "@/lib/notifications";
+import { notifyRoles, notifyAdmins, auditLog } from "@/lib/notifications";
 
 type Ctx = { params: Promise<{ id: string }> };
 
+/** Session logistique, magasinier OU admin */
 async function getSession() {
-  return (await getLogistiqueSession()) ?? (await getMagasinierSession());
+  const logistique = await getLogistiqueSession();
+  if (logistique) return logistique;
+  const magasinier = await getMagasinierSession();
+  if (magasinier) return magasinier;
+  const admin = await getAuthSession();
+  if (admin && (admin.user.role === "ADMIN" || admin.user.role === "SUPER_ADMIN")) return admin;
+  return null;
+}
+
+function isAdmin(session: Awaited<ReturnType<typeof getSession>>) {
+  return session?.user.role === "ADMIN" || session?.user.role === "SUPER_ADMIN";
 }
 
 /**
@@ -51,9 +63,9 @@ export async function GET(_req: Request, { params }: Ctx) {
  * Mettre à jour et/ou valider une réception.
  *
  * Actions possibles via body.action :
- * - "DEMARRER"  → statut BROUILLON → EN_COURS
+ * - "DEMARRER"  → ADMIN SEULEMENT — valide la commande (prix/fournisseur vérifiés) : BROUILLON → EN_COURS
  * - "VALIDER"   → statut EN_COURS → VALIDE + mise en stock (StockSite + MouvementStock)
- * - "REJETER"   → statut → ANNULE
+ * - "REJETER"   → statut → ANNULE + libération transit
  * - (sans action) → mise à jour des lignes (quantiteRecue, etatQualite, notes) et notesQualite
  */
 export async function PATCH(req: Request, { params }: Ctx) {
@@ -70,18 +82,36 @@ export async function PATCH(req: Request, { params }: Ctx) {
       include: {
         lignes: { include: { produit: { select: { id: true, nom: true } } } },
         pointDeVente: { select: { nom: true } },
+        receptionnePar: { select: { id: true, nom: true, prenom: true } },
       },
     });
     if (!reception) return NextResponse.json({ error: "Réception introuvable" }, { status: 404 });
 
-    // ─ DEMARRER ──────────────────────────────────────────────
+    // ─ DEMARRER (admin seulement — étape 2 : validation admin) ───────────
     if (action === "DEMARRER") {
-      if (reception.statut !== "BROUILLON") {
-        return NextResponse.json({ error: "Seule une réception BROUILLON peut être démarrée" }, { status: 400 });
+      if (!isAdmin(session)) {
+        return NextResponse.json(
+          { error: "Seul un administrateur peut approuver une commande d'approvisionnement" },
+          { status: 403 }
+        );
       }
-      const updated = await prisma.receptionApprovisionnement.update({
-        where: { id: Number(id) },
-        data: { statut: "EN_COURS" },
+      if (reception.statut !== "BROUILLON") {
+        return NextResponse.json({ error: "Seule une réception BROUILLON peut être approuvée" }, { status: 400 });
+      }
+      const updated = await prisma.$transaction(async (tx) => {
+        const r = await tx.receptionApprovisionnement.update({
+          where: { id: Number(id) },
+          data: { statut: "EN_COURS", valideParId: parseInt(session.user.id) },
+        });
+        await auditLog(tx, parseInt(session.user.id), "RECEPTION_APPROUVEE_ADMIN", "ReceptionApprovisionnement", r.id);
+        // Notifier le responsable appro que sa commande est approuvée
+        await notifyRoles(tx, ["AGENT_LOGISTIQUE_APPROVISIONNEMENT", "MAGAZINIER"], {
+          titre:    `Commande approuvée : ${reception.reference}`,
+          message:  `L'administrateur ${session.user.prenom} ${session.user.nom} a approuvé la commande "${reception.reference}" pour "${reception.pointDeVente.nom}". Vous pouvez procéder à la réception physique.`,
+          priorite: PrioriteNotification.HAUTE,
+          actionUrl:`/dashboard/logistique/receptions/${id}`,
+        });
+        return r;
       });
       return NextResponse.json({ data: updated });
     }
@@ -109,10 +139,15 @@ export async function PATCH(req: Request, { params }: Ctx) {
       return NextResponse.json({ data: updated });
     }
 
-    // ─ VALIDER (mise en stock) ─────────────────────────────
+    // ─ VALIDER (mise en stock — étape 3) ─────────────────────
+    // Nécessite que l'admin ait préalablement approuvé (DEMARRER → EN_COURS)
     if (action === "VALIDER") {
-      if (reception.statut !== "EN_COURS" && reception.statut !== "BROUILLON") {
-        return NextResponse.json({ error: "Seule une réception EN_COURS ou BROUILLON peut être validée" }, { status: 400 });
+      if (reception.statut !== "EN_COURS") {
+        return NextResponse.json({
+          error: reception.statut === "BROUILLON"
+            ? "Cette réception doit d'abord être approuvée par un administrateur avant de procéder à la réception physique"
+            : "Seule une réception EN_COURS peut être validée",
+        }, { status: 400 });
       }
 
       // lignesRecues: [{ ligneId, quantiteRecue, etatQualite }]
@@ -193,11 +228,19 @@ export async function PATCH(req: Request, { params }: Ctx) {
 
         await auditLog(tx, parseInt(session.user.id), "RECEPTION_VALIDEE", "ReceptionApprovisionnement", r.id);
 
-        await notifyRoles(tx, ["RESPONSABLE_POINT_DE_VENTE", "AGENT_LOGISTIQUE_APPROVISIONNEMENT"], {
+        await notifyRoles(tx, ["RESPONSABLE_POINT_DE_VENTE", "AGENT_LOGISTIQUE_APPROVISIONNEMENT", "MAGAZINIER"], {
           titre:    `Réception validée : ${reception.reference}`,
-          message:  `${session.user.prenom} ${session.user.nom} a validé la réception "${reception.reference}" pour "${reception.pointDeVente.nom}". Stock mis à jour.`,
+          message:  `${session.user.prenom} ${session.user.nom} a validé la réception "${reception.reference}" pour "${reception.pointDeVente.nom}". Stock mis à jour (${lignesRecues.length} produit(s)).`,
           priorite: PrioriteNotification.NORMAL,
           actionUrl:`/dashboard/logistique/receptions/${id}`,
+        });
+
+        // Notifier l'admin que les marchandises sont bien entrées en stock
+        await notifyAdmins(tx, {
+          titre:    `Stock reçu : ${reception.reference}`,
+          message:  `La réception "${reception.reference}" que vous avez approuvée a été finalisée par ${session.user.prenom} ${session.user.nom}. ${lignesRecues.length} produit(s) entrés en stock sur "${reception.pointDeVente.nom}".`,
+          priorite: PrioriteNotification.NORMAL,
+          actionUrl:`/dashboard/admin/approvisionnements`,
         });
 
         return r;

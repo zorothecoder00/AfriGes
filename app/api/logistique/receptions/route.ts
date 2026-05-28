@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getLogistiqueSession } from "@/lib/authLogistique";
 import { getMagasinierSession } from "@/lib/authMagasinier";
 import { randomUUID } from "crypto";
-import { notifyRoles, auditLog } from "@/lib/notifications";
+import { notifyRoles, notifyAdmins, auditLog } from "@/lib/notifications";
 
 async function getSession() {
   return (await getLogistiqueSession()) ?? (await getMagasinierSession());
@@ -153,9 +153,17 @@ export async function POST(req: Request) {
 
       await auditLog(tx, parseInt(session.user.id), "RECEPTION_CREEE", "ReceptionApprovisionnement", r.id);
 
+      // Notifier l'admin pour approbation (étape 2 du processus d'entrée stock)
+      await notifyAdmins(tx, {
+        titre:    `Commande à approuver : ${ref}`,
+        message:  `${session.user.prenom} ${session.user.nom} a soumis une commande d'achat ${type} de ${lignes.length} produit(s) pour "${r.pointDeVente.nom}". Veuillez vérifier les prix et le fournisseur avant d'approuver.`,
+        priorite: PrioriteNotification.HAUTE,
+        actionUrl:`/dashboard/admin/approvisionnements/${r.id}`,
+      });
+
       await notifyRoles(tx, ["MAGAZINIER"], {
         titre:    `Réception planifiée : ${ref}`,
-        message:  `${session.user.prenom} ${session.user.nom} a planifié une réception ${type} de ${lignes.length} produit(s) pour "${r.pointDeVente.nom}".`,
+        message:  `${session.user.prenom} ${session.user.nom} a planifié une réception ${type} de ${lignes.length} produit(s) pour "${r.pointDeVente.nom}". En attente d'approbation admin.`,
         priorite: PrioriteNotification.NORMAL,
         actionUrl:`/dashboard/logistique/receptions/${r.id}`,
       });

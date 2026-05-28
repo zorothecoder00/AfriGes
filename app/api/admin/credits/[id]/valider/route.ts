@@ -127,7 +127,15 @@ export async function POST(_req: Request, { params }: Ctx) {
       if (credit.pointDeVenteId) {
         const lignesAvecProduit = credit.lignes.filter((l) => l.produitId !== null);
         for (const ligne of lignesAvecProduit) {
-          // Décrémente le StockSite (createOrUpdate pour tolérance)
+          // Vérifier le stock disponible (quantite - quantiteReservee) avant de décrémenter
+          const stock = await tx.stockSite.findUnique({
+            where: { produitId_pointDeVenteId: { produitId: ligne.produitId!, pointDeVenteId: credit.pointDeVenteId } },
+          });
+          const qteDispo = (stock?.quantite ?? 0) - (stock?.quantiteReservee ?? 0);
+          if (qteDispo < ligne.quantite) {
+            throw new Error(`STOCK_INSUFFISANT:${ligne.produitNom}:${qteDispo}`);
+          }
+
           await tx.stockSite.updateMany({
             where: { produitId: ligne.produitId!, pointDeVenteId: credit.pointDeVenteId },
             data:  { quantite: { decrement: ligne.quantite } },
@@ -209,6 +217,13 @@ export async function POST(_req: Request, { params }: Ctx) {
       if (map[error.message]) {
         const [msg, status] = map[error.message];
         return NextResponse.json({ message: msg }, { status });
+      }
+      if (error.message.startsWith("STOCK_INSUFFISANT:")) {
+        const [, produitNom, qteDispo] = error.message.split(":");
+        return NextResponse.json(
+          { message: `Stock insuffisant pour "${produitNom}". Disponible : ${qteDispo}, validation impossible.` },
+          { status: 422 }
+        );
       }
     }
     return NextResponse.json({ message: "Erreur lors de la validation du crédit" }, { status: 500 });

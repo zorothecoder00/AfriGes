@@ -78,11 +78,12 @@ export async function POST(_req: Request, { params }: Ctx) {
         throw new Error(`Ce transfert est déjà ${transfert.statut.toLowerCase()}`);
       }
 
-      // Incrémenter le stock destination + créer mouvements ENTREE
+      // Incrémenter le stock destination + libérer le transit + créer mouvements ENTREE
       for (const ligne of transfert.lignes) {
         await tx.stockSite.upsert({
           where: { produitId_pointDeVenteId: { produitId: ligne.produitId, pointDeVenteId: transfert.destinationId } },
-          update: { quantite: { increment: ligne.quantite } },
+          // Transit → disponible : incrémenter quantite ET décrémenter quantiteEnTransit
+          update: { quantite: { increment: ligne.quantite }, quantiteEnTransit: { decrement: ligne.quantite } },
           create: { produitId: ligne.produitId, pointDeVenteId: transfert.destinationId, quantite: ligne.quantite },
         });
 

@@ -2211,7 +2211,9 @@ export default function ResponsablePDVPage() {
                                 </div>
                               </td>
                               <td className="px-5 py-3.5 text-sm font-semibold text-slate-700">{formatCurrency(p.prixUnitaire)}</td>
-                              <td className="px-5 py-3.5 font-bold text-slate-800">{formatCurrency((p.totalStock ?? p.stock) * p.prixUnitaire)}</td>
+                              <td className="px-5 py-3.5 font-bold text-slate-800">
+                                {formatCurrency((p.totalStock ?? p.stock) * (p.prixAchat ?? p.prixUnitaire))}
+                              </td>
                               <td className="px-5 py-3.5">
                                 <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${st.bg} ${st.text}`}>
                                   <span className={`w-1.5 h-1.5 rounded-full ${st.dot}`} />{st.label}
@@ -3506,7 +3508,7 @@ export default function ResponsablePDVPage() {
                       String(p.stock),
                       String(p.alerteStock),
                       p.stock === 0 ? "Rupture" : p.stock <= p.alerteStock ? "Stock faible" : "En stock",
-                      String(p.stock * p.prixUnitaire),
+                      String(p.stock * (p.prixAchat ?? p.prixUnitaire)),
                     ]),
                   ];
                   exportCsv(rows, `stock-pdv-${new Date().toISOString().slice(0,10)}.csv`);

@@ -45,7 +45,7 @@ export async function GET(_req: Request, { params }: Ctx) {
     if (!produit) return NextResponse.json({ error: "Produit introuvable" }, { status: 404 });
 
     const stockTotal = produit.stocks.reduce((acc, s) => acc + s.quantite, 0);
-    const valeurTotale = stockTotal * Number(produit.prixUnitaire);
+    const valeurTotale = stockTotal * Number(produit.prixAchat ?? produit.prixUnitaire);
 
     return NextResponse.json({ data: { ...produit, stockTotal, valeurTotale } });
   } catch (error) {

@@ -54,16 +54,34 @@ export async function GET(req: Request) {
     const [allStocks, uniqueProduits] = await Promise.all([
       prisma.stockSite.findMany({
         where: statsWhere,
-        select: { quantite: true, alerteStock: true, produit: { select: { prixUnitaire: true, prixAchat: true, alerteStock: true } } },
+        select: {
+          quantite: true, quantiteEndommagee: true, alerteStock: true,
+          produit: { select: { prixUnitaire: true, prixAchat: true, alerteStock: true } },
+        },
       }),
       prisma.stockSite.groupBy({ by: ["produitId"], where: statsWhere }),
     ]);
-   
-    const enRuptureCount = allStocks.filter(s => s.quantite === 0).length;
-    const faibleCount    = allStocks.filter(s => {
+
+    const SURSTOCK_MULTIPLE = 5; // surstock si quantite > seuil × 5
+    const PERTE_SEUIL_PCT   = 10; // perte élevée si endommagee / (quantite + endommagee) > 10 %
+
+    const enRuptureCount  = allStocks.filter(s => s.quantite === 0).length;
+    const faibleCount     = allStocks.filter(s => {
       const seuil = s.alerteStock ?? s.produit.alerteStock;
       return s.quantite > 0 && s.quantite <= seuil;
     }).length;
+    const surstockCount   = allStocks.filter(s => {
+      const seuil = s.alerteStock ?? s.produit.alerteStock;
+      return seuil > 0 && s.quantite > seuil * SURSTOCK_MULTIPLE;
+    }).length;
+    const perteEleveeCount = allStocks.filter(s => {
+      const total = s.quantite + s.quantiteEndommagee;
+      return total > 0 && (s.quantiteEndommagee / total) * 100 >= PERTE_SEUIL_PCT;
+    }).length;
+
+    const totalEndommage = allStocks.reduce((acc, s) => acc + s.quantiteEndommagee, 0);
+    const totalStockBrut = allStocks.reduce((acc, s) => acc + s.quantite + s.quantiteEndommagee, 0);
+    const pctEndommage   = totalStockBrut > 0 ? Math.round((totalEndommage / totalStockBrut) * 100 * 10) / 10 : 0;
 
     const valeurTotale  = allStocks.reduce((acc, s) => {
       const coutUnitaire = Number(s.produit.prixAchat ?? s.produit.prixUnitaire);
@@ -106,30 +124,36 @@ export async function GET(req: Request) {
         prisma.produit.count({ where: prodWhere }),
       ]);
 
-      const data = produits.map(p => ({
-        id: p.id,
-        nom: p.nom,
-        reference: p.reference,
-        categorie: p.categorie,
-        unite: p.unite,
-        prixUnitaire: p.prixUnitaire,
-        prixAchat: p.prixAchat,
-        alerteStock: p.alerteStock,
-        totalStock:      p.stocks.reduce((acc, s) => acc + s.quantite, 0),
-        totalReserve:    p.stocks.reduce((acc, s) => acc + s.quantiteReservee, 0),
-        totalTransit:    p.stocks.reduce((acc, s) => acc + s.quantiteEnTransit, 0),
-        totalEndommage:  p.stocks.reduce((acc, s) => acc + s.quantiteEndommagee, 0),
-        stockTheorique:  p.stocks.reduce((acc, s) => acc + s.quantite + s.quantiteReservee + s.quantiteEnTransit - s.quantiteEndommagee, 0),
-        stocks: p.stocks.map(s => ({
-          ...s,
-          stockTheorique: s.quantite + s.quantiteReservee + s.quantiteEnTransit - s.quantiteEndommagee,
-        })),
-      }));
+      const data = produits.map(p => {
+        const coutUnit   = Number(p.prixAchat ?? p.prixUnitaire);
+        const totalStock = p.stocks.reduce((acc, s) => acc + s.quantite, 0);
+        return {
+          id: p.id,
+          nom: p.nom,
+          reference: p.reference,
+          categorie: p.categorie,
+          unite: p.unite,
+          prixUnitaire: p.prixUnitaire,
+          prixAchat: p.prixAchat,
+          alerteStock: p.alerteStock,
+          totalStock,
+          totalReserve:    p.stocks.reduce((acc, s) => acc + s.quantiteReservee, 0),
+          totalTransit:    p.stocks.reduce((acc, s) => acc + s.quantiteEnTransit, 0),
+          totalEndommage:  p.stocks.reduce((acc, s) => acc + s.quantiteEndommagee, 0),
+          stockTheorique:  p.stocks.reduce((acc, s) => acc + s.quantite + s.quantiteReservee + s.quantiteEnTransit - s.quantiteEndommagee, 0),
+          valeurStock:     totalStock * coutUnit,
+          stocks: p.stocks.map(s => ({
+            ...s,
+            valeurStock:    s.quantite * coutUnit,
+            stockTheorique: s.quantite + s.quantiteReservee + s.quantiteEnTransit - s.quantiteEndommagee,
+          })),
+        };
+      });
 
       return NextResponse.json({
         data,
         pdvs,
-        stats: { totalProduits, enRuptureCount, faibleCount, valeurTotale },
+        stats: { totalProduits, enRuptureCount, faibleCount, surstockCount, perteEleveeCount, totalEndommage, pctEndommage, valeurTotale },
         meta:  { total: totalProds, page, limit, totalPages: Math.ceil(totalProds / limit) },
       });
     }
@@ -215,6 +239,7 @@ export async function GET(req: Request) {
 
     const stocksWithAppros = stocks.map(s => ({
       ...s,
+      valeurStock:    s.quantite * Number(s.produit.prixAchat ?? s.produit.prixUnitaire),
       stockTheorique: s.quantite + s.quantiteReservee + s.quantiteEnTransit - s.quantiteEndommagee,
       appros: approsMap.get(`${s.produitId}_${s.pointDeVenteId}`) ?? [],
     }));
@@ -222,7 +247,7 @@ export async function GET(req: Request) {
     return NextResponse.json({
       data:  stocksWithAppros,
       pdvs,
-      stats: { totalProduits, enRuptureCount, faibleCount, valeurTotale },
+      stats: { totalProduits, enRuptureCount, faibleCount, surstockCount, perteEleveeCount, totalEndommage, pctEndommage, valeurTotale },
       meta:  { total, page, limit, totalPages: Math.ceil(total / limit) },
     });
   } catch (error) {
@@ -305,6 +330,14 @@ export async function PATCH(req: Request) {
         where: { produitId_pointDeVenteId: { produitId: Number(produitId), pointDeVenteId: Number(pointDeVenteId) } },
       });
       const ancienneQte = ancienStock?.quantite ?? 0;
+      const qteReservee = ancienStock?.quantiteReservee ?? 0;
+
+      if (Number(quantite) < qteReservee) {
+        throw new Error(
+          `Ajustement impossible : la nouvelle quantité (${quantite}) serait inférieure aux quantités réservées (${qteReservee})`
+        );
+      }
+
       const diff = Number(quantite) - ancienneQte;
 
       const stock = await tx.stockSite.upsert({

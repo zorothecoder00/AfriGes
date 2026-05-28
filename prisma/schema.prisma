@@ -128,6 +128,12 @@ enum TypeMouvement {
   AJUSTEMENT
 }
 
+enum StatutDemandeAjustement {
+  EN_ATTENTE
+  APPROUVE
+  REJETE
+}
+
 enum StatutTransfertStock {
   EN_COURS
   EXPEDIE
@@ -620,6 +626,8 @@ model User {
   mouvementsStock      MouvementStock[]     @relation("MouvementsStock")
   bonsSortieCreePar    BonSortie[]          @relation("BonsSortieCreePar")
   bonsSortieValidePar  BonSortie[]          @relation("BonsSortieValidePar")
+  demandesAjustement    DemandeAjustementStock[] @relation("DemandesAjustement")
+  validationsAjustement DemandeAjustementStock[] @relation("ValidationsAjustement")
 
   // Caisse
   sessionsCaisseOuvertes CaissePDV[]          @relation("CaissesPDVRPV")
@@ -719,6 +727,7 @@ model PointDeVente {
   visitesControle       VisiteControle[]
   livraisonsPacks       ReceptionProduitPack[]
   collectes             CollecteJournaliere[]
+  demandesAjustement    DemandeAjustementStock[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1193,6 +1202,9 @@ model Produit {
   // Crédits clients
   lignesCredit         LigneCreditClient[]
 
+  // Ajustements stock
+  demandesAjustement   DemandeAjustementStock[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -1499,6 +1511,34 @@ model AnomalieStock {
 
   @@index([produitId])
   @@index([statut])
+}
+
+// Demande d'ajustement de stock — doit être approuvée par un admin avant application
+model DemandeAjustementStock {
+  id               Int                      @id @default(autoincrement())
+  produitId        Int
+  pointDeVenteId   Int
+  ancienneQuantite Int
+  nouvelleQuantite Int
+  justification    String
+  statut           StatutDemandeAjustement  @default(EN_ATTENTE)
+  source           String                   @default("ADMIN") // "ADMIN" | "MAGAZINIER"
+
+  demandeurId           Int
+  validateurId          Int?
+  commentaireValidation String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  produit      Produit      @relation(fields: [produitId], references: [id])
+  pointDeVente PointDeVente @relation(fields: [pointDeVenteId], references: [id])
+  demandeur    User         @relation("DemandesAjustement",    fields: [demandeurId],  references: [id])
+  validateur   User?        @relation("ValidationsAjustement", fields: [validateurId], references: [id])
+
+  @@index([statut])
+  @@index([produitId])
+  @@index([pointDeVenteId])
 }
 
 // ============================================================

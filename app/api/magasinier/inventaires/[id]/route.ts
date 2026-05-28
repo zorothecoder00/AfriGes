@@ -30,7 +30,7 @@ export async function GET(_req: Request, { params }: Ctx) {
         validePar:    { select: { id: true, nom: true, prenom: true } },
         lignes: {
           include: {
-            produit: { select: { id: true, nom: true, reference: true, unite: true, prixUnitaire: true } },
+            produit: { select: { id: true, nom: true, reference: true, unite: true, prixUnitaire: true, prixAchat: true } },
           },
         },
       },
@@ -41,7 +41,7 @@ export async function GET(_req: Request, { params }: Ctx) {
     // Stats de l'inventaire
     const nbLignes  = inv.lignes.length;
     const nbEcarts  = inv.lignes.filter(l => l.ecart !== 0).length;
-    const valeurEcart = inv.lignes.reduce((acc, l) => acc + l.ecart * Number(l.produit.prixUnitaire), 0);
+    const valeurEcart = inv.lignes.reduce((acc, l) => acc + l.ecart * Number(l.produit.prixAchat ?? l.produit.prixUnitaire), 0);
 
     return NextResponse.json({ data: { ...inv, stats: { nbLignes, nbEcarts, valeurEcart } } });
   } catch (error) {

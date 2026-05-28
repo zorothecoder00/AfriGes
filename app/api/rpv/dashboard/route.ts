@@ -122,7 +122,7 @@ export async function GET(req: NextRequest) {
       prisma.stockSite.findMany({
         where: { pointDeVenteId: pdv.id },
         include: {
-          produit: { select: { id: true, nom: true, alerteStock: true, prixUnitaire: true } },
+          produit: { select: { id: true, nom: true, alerteStock: true, prixUnitaire: true, prixAchat: true } },
         },
       }),
 
@@ -209,7 +209,7 @@ export async function GET(req: NextRequest) {
     // ── Stats stock — uniquement ce PDV ────────────────────────────────────
     const enRupture   = stocksSite.filter(s => s.quantite === 0).length;
     const stockFaible = stocksSite.filter(s => s.quantite > 0 && s.quantite <= s.produit.alerteStock).length;
-    const valeurStock = stocksSite.reduce((acc, s) => acc + Number(s.produit.prixUnitaire) * s.quantite, 0);
+    const valeurStock = stocksSite.reduce((acc, s) => acc + Number(s.produit.prixAchat ?? s.produit.prixUnitaire) * s.quantite, 0);
     const alertesProduits = stocksSite
       .filter(s => s.quantite <= s.produit.alerteStock)
       .sort((a, b) => a.quantite - b.quantite)

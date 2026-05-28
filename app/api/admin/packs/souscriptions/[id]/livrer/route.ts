@@ -158,11 +158,11 @@ export async function POST(req: Request, { params }: Ctx) {
         );
       }
 
-      // ── 3. Valider le stock disponible sur le PDV cible ───────────────────
+      // ── 3. Valider le stock disponible sur le PDV cible (quantite - quantiteReservee) ──
       for (const ligne of lignes as { produitId: number; quantite: number; prixUnitaire: number }[]) {
         const stockSite = await prisma.stockSite.findFirst({
           where: { produitId: ligne.produitId, pointDeVenteId },
-          select: { quantite: true },
+          select: { quantite: true, quantiteReservee: true },
         });
         const produit = await prisma.produit.findUnique({
           where: { id: ligne.produitId },
@@ -171,7 +171,7 @@ export async function POST(req: Request, { params }: Ctx) {
         if (!produit) {
           return NextResponse.json({ error: `Produit #${ligne.produitId} introuvable` }, { status: 404 });
         }
-        const dispo = stockSite?.quantite ?? 0;
+        const dispo = (stockSite?.quantite ?? 0) - (stockSite?.quantiteReservee ?? 0);
         if (ligne.quantite > dispo) {
           return NextResponse.json(
             { error: `Stock insuffisant pour "${produit.nom}" sur le PDV "${pdv.nom}" : ${dispo} disponible(s), ${ligne.quantite} demandé(s)` },
@@ -274,19 +274,19 @@ export async function POST(req: Request, { params }: Ctx) {
         );
       }
 
-      // Valider le stock avant toute écriture
+      // Valider le stock avant toute écriture (quantite - quantiteReservee)
       for (const ligne of lignes as { produitId: number; quantite: number; prixUnitaire: number }[]) {
         const produit = await prisma.produit.findUnique({
           where: { id: ligne.produitId },
-          select: { nom: true, stocks: { select: { quantite: true } } },
+          select: { nom: true, stocks: { select: { quantite: true, quantiteReservee: true } } },
         });
         if (!produit) {
           return NextResponse.json({ error: `Produit #${ligne.produitId} introuvable` }, { status: 404 });
         }
-        const totalStock = produit.stocks.reduce((s, ss) => s + ss.quantite, 0);
-        if (ligne.quantite > totalStock) {
+        const totalDispo = produit.stocks.reduce((s, ss) => s + (ss.quantite - ss.quantiteReservee), 0);
+        if (ligne.quantite > totalDispo) {
           return NextResponse.json(
-            { error: `Stock insuffisant pour "${produit.nom}" : ${totalStock} disponible(s), ${ligne.quantite} demandé(s)` },
+            { error: `Stock insuffisant pour "${produit.nom}" : ${totalDispo} disponible(s), ${ligne.quantite} demandé(s)` },
             { status: 400 }
           );
         }
@@ -315,13 +315,15 @@ export async function POST(req: Request, { params }: Ctx) {
 
         for (const ligne of lignes as { produitId: number; quantite: number; prixUnitaire: number }[]) {
           const sites = await tx.stockSite.findMany({
-            where: { produitId: ligne.produitId, quantite: { gt: 0 } },
+            where: { produitId: ligne.produitId },
             orderBy: { quantite: "desc" },
           });
           let remaining = ligne.quantite;
           for (const site of sites) {
             if (remaining <= 0) break;
-            const dec = Math.min(site.quantite, remaining);
+            const dispo = site.quantite - site.quantiteReservee;
+            if (dispo <= 0) continue;
+            const dec = Math.min(dispo, remaining);
             await tx.stockSite.update({ where: { id: site.id }, data: { quantite: { decrement: dec } } });
             remaining -= dec;
           }

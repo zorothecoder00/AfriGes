@@ -63,7 +63,7 @@ export async function GET(_req: Request, { params }: Ctx) {
         stockSite,
         stockQte,
         stockTheorique,
-        valeurStock: stockQte * Number(produit.prixUnitaire),
+        valeurStock: stockQte * Number(produit.prixAchat ?? produit.prixUnitaire),
       },
     });
   } catch (error) {

@@ -45,19 +45,26 @@ export async function GET(req: NextRequest) {
         take: limit,
         orderBy: { produit: { nom: "asc" } },
         include: {
-          produit: { select: { id: true, nom: true, reference: true, categorie: true, unite: true, prixUnitaire: true, alerteStock: true } },
+          produit: { select: { id: true, nom: true, reference: true, categorie: true, unite: true, prixUnitaire: true, prixAchat: true, alerteStock: true } },
         },
       }),
       prisma.stockSite.count({ where }),
     ]);
 
-    // Stats du PDV
-    const allStocks = await prisma.stockSite.findMany({ where: { pointDeVenteId: pdv.id } });
-    const enRuptureCount = allStocks.filter(s => s.quantite === 0).length;
-    const valeurTotale   = stocks.reduce((acc, s) => acc + s.quantite * Number(s.produit.prixUnitaire), 0);
+    // Stats du PDV (sur toutes les références, pas uniquement la page courante)
+    const allStocksStats = await prisma.stockSite.findMany({
+      where: { pointDeVenteId: pdv.id },
+      select: { quantite: true, produit: { select: { prixUnitaire: true, prixAchat: true } } },
+    });
+    const enRuptureCount = allStocksStats.filter(s => s.quantite === 0).length;
+    const valeurTotale   = allStocksStats.reduce((acc, s) => {
+      const coutUnit = Number(s.produit.prixAchat ?? s.produit.prixUnitaire);
+      return acc + s.quantite * coutUnit;
+    }, 0);
 
     const dataWithTheorique = stocks.map(s => ({
       ...s,
+      valeurStock:    s.quantite * Number(s.produit.prixAchat ?? s.produit.prixUnitaire),
       stockTheorique: s.quantite + s.quantiteReservee + s.quantiteEnTransit - s.quantiteEndommagee,
     }));
 

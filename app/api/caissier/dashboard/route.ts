@@ -110,6 +110,7 @@ export async function GET(req: NextRequest) {
           nom: true,
           alerteStock: true,
           prixUnitaire: true,
+          prixAchat:    true,
           stocks: {
             where: pdvId ? { pointDeVenteId: pdvId } : {},
             select: { quantite: true },
@@ -184,7 +185,7 @@ export async function GET(req: NextRequest) {
     }));
     const stockFaible = produitsAvecStock.filter((p) => p.totalStock > 0 && p.totalStock <= p.alerteStock).length;
     const enRupture   = produitsAvecStock.filter((p) => p.totalStock === 0).length;
-    const valeurStock = produitsAvecStock.reduce((s, p) => s + Number(p.prixUnitaire) * p.totalStock, 0);
+    const valeurStock = produitsAvecStock.reduce((s, p) => s + Number(p.prixAchat ?? p.prixUnitaire) * p.totalStock, 0);
 
     // ── Alertes ────────────────────────────────────────────────────────────
     const alertes: { type: "danger" | "warning" | "info"; message: string }[] = [];

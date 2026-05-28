@@ -82,11 +82,12 @@ export async function GET(req: NextRequest) {
     });
     const montantTotal = statsAll.reduce((acc, v) => acc + Number(v.montantTotal), 0);
 
-    // Produits disponibles au PDV pour le formulaire
-    const produitsDispo = await prisma.stockSite.findMany({
+    // Produits avec stock réellement disponible (quantite - quantiteReservee > 0)
+    const allStocks = await prisma.stockSite.findMany({
       where: { pointDeVenteId: pdv.id, quantite: { gt: 0 } },
       include: { produit: { select: { id: true, nom: true, reference: true, unite: true, prixUnitaire: true } } },
     });
+    const produitsDispo = allStocks.filter(s => (s.quantite - s.quantiteReservee) > 0);
 
     // Clients du PDV
     const clients = await prisma.client.findMany({
@@ -137,9 +138,10 @@ export async function POST(req: Request) {
         where: { produitId_pointDeVenteId: { produitId: Number(l.produitId), pointDeVenteId: pdv.id } },
         include: { produit: { select: { nom: true, prixUnitaire: true } } },
       });
-      if (!stock || stock.quantite < Number(l.quantite)) {
+      const qteDispo = (stock?.quantite ?? 0) - (stock?.quantiteReservee ?? 0);
+      if (!stock || qteDispo < Number(l.quantite)) {
         return NextResponse.json(
-          { error: `Stock insuffisant pour "${stock?.produit.nom ?? l.produitId}". Dispo : ${stock?.quantite ?? 0}` },
+          { error: `Stock insuffisant pour "${stock?.produit.nom ?? l.produitId}". Disponible : ${qteDispo}, demandé : ${l.quantite}` },
           { status: 400 }
         );
       }

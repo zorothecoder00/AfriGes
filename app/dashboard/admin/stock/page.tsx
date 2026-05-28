@@ -5,6 +5,7 @@ import {
   Plus, Search, Download, Package, TrendingUp, AlertTriangle, Archive,
   Eye, Edit, Trash2, RefreshCw, X, ArrowLeft, Store, Building2, Layers, ChevronDown, ChevronRight,
   ArrowRightLeft, Trash, PackagePlus, Calendar, History,
+  ShieldAlert, TrendingDown, Flame, Boxes,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useApi, useMutation } from '@/hooks/useApi';
@@ -41,6 +42,7 @@ interface GrandStockItem {
   id: number; nom: string; reference?: string; categorie?: string; unite?: string;
   prixUnitaire: string; prixAchat?: string | null; alerteStock: number;
   totalStock: number; totalReserve: number; totalTransit: number; totalEndommage: number; stockTheorique: number;
+  valeurStock?: number;
   stocks: {
     quantite: number; quantiteReservee: number; quantiteEnTransit: number; quantiteEndommagee: number;
     stockTheorique: number; alerteStock: number | null;
@@ -51,7 +53,16 @@ interface GrandStockItem {
 interface StockResponse {
   data: StockItem[] | GrandStockItem[];
   pdvs: PDVOption[];
-  stats: { totalProduits: number; enRuptureCount: number; faibleCount: number; valeurTotale: number };
+  stats: {
+    totalProduits: number;
+    enRuptureCount: number;
+    faibleCount: number;
+    surstockCount: number;
+    perteEleveeCount: number;
+    totalEndommage: number;
+    pctEndommage: number;
+    valeurTotale: number;
+  };
   meta: { total: number; page: number; limit: number; totalPages: number };
 }
 
@@ -292,7 +303,7 @@ export default function GestionStockPage() {
         stockItems.map(s => ({
           produit: s.produit.nom, ref: s.produit.reference ?? '', pdv: s.pointDeVente.nom,
           code: s.pointDeVente.code, quantite: s.quantite, prix: s.produit.prixUnitaire,
-          valeur: s.quantite * Number(s.produit.prixUnitaire),
+          valeur: s.quantite * Number(s.produit.prixAchat ?? s.produit.prixUnitaire),
         })),
         [
           { label: 'Produit', key: 'produit' },
@@ -386,25 +397,85 @@ export default function GestionStockPage() {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-4 gap-5">
+        <div className="grid grid-cols-5 gap-4">
           {[
-            { label: t('stock_valeur'), value: formatCurrency(stats?.valeurTotale ?? 0), icon: TrendingUp, color: 'bg-emerald-500', lightBg: 'bg-emerald-50' },
-            { label: t('stock_total_produits'), value: String(stats?.totalProduits ?? 0), icon: Package, color: 'bg-blue-500', lightBg: 'bg-blue-50' },
-            { label: t('stock_faible'), value: String(stats?.faibleCount ?? 0), icon: AlertTriangle, color: 'bg-amber-500', lightBg: 'bg-amber-50' },
-            { label: 'Ruptures', value: String(stats?.enRuptureCount ?? 0), icon: Archive, color: 'bg-red-500', lightBg: 'bg-red-50' },
+            { label: t('stock_valeur'), value: formatCurrency(stats?.valeurTotale ?? 0), icon: TrendingUp, color: 'bg-emerald-500', lightBg: 'bg-emerald-50', sub: null },
+            { label: t('stock_total_produits'), value: String(stats?.totalProduits ?? 0), icon: Package, color: 'bg-blue-500', lightBg: 'bg-blue-50', sub: null },
+            { label: t('stock_faible'), value: String(stats?.faibleCount ?? 0), icon: AlertTriangle, color: 'bg-amber-500', lightBg: 'bg-amber-50', sub: 'Seuil d\'alerte atteint' },
+            { label: 'Ruptures', value: String(stats?.enRuptureCount ?? 0), icon: Archive, color: 'bg-red-500', lightBg: 'bg-red-50', sub: 'Stock à 0' },
+            {
+              label: 'Stock endommagé',
+              value: String(stats?.totalEndommage ?? 0) + ' unités',
+              icon: ShieldAlert,
+              color: 'bg-rose-500',
+              lightBg: 'bg-rose-50',
+              sub: stats?.pctEndommage ? `${stats.pctEndommage}% du stock brut` : null,
+            },
           ].map((stat, i) => {
             const Icon = stat.icon;
             return (
-              <div key={i} className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/60 hover:shadow-md transition-all group">
-                <div className={`${stat.lightBg} p-3 rounded-xl inline-block mb-4 group-hover:scale-110 transition-transform`}>
-                  <Icon className={`${stat.color.replace('bg-', 'text-')} w-6 h-6`} />
+              <div key={i} className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60 hover:shadow-md transition-all group">
+                <div className={`${stat.lightBg} p-3 rounded-xl inline-block mb-3 group-hover:scale-110 transition-transform`}>
+                  <Icon className={`${stat.color.replace('bg-', 'text-')} w-5 h-5`} />
                 </div>
-                <h3 className="text-slate-600 text-sm font-medium mb-1">{stat.label}</h3>
-                <p className="text-3xl font-bold text-slate-800">{stat.value}</p>
+                <h3 className="text-slate-600 text-xs font-medium mb-1">{stat.label}</h3>
+                <p className="text-2xl font-bold text-slate-800">{stat.value}</p>
+                {stat.sub && <p className="text-xs text-slate-400 mt-1">{stat.sub}</p>}
               </div>
             );
           })}
         </div>
+
+        {/* Vue alertes */}
+        {((stats?.enRuptureCount ?? 0) > 0 || (stats?.faibleCount ?? 0) > 0 || (stats?.surstockCount ?? 0) > 0 || (stats?.perteEleveeCount ?? 0) > 0) && (
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 p-6">
+            <h3 className="font-semibold text-slate-800 mb-4 flex items-center gap-2">
+              <Flame size={16} className="text-red-500" />
+              Vue alertes
+            </h3>
+            <div className="grid grid-cols-4 gap-4">
+              {/* Ruptures */}
+              <div className={`p-4 rounded-xl border ${(stats?.enRuptureCount ?? 0) > 0 ? 'bg-red-50 border-red-200' : 'bg-slate-50 border-slate-200 opacity-40'}`}>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-semibold text-red-700 uppercase tracking-wide">Rupture de stock</span>
+                  <Archive size={14} className="text-red-500" />
+                </div>
+                <p className="text-3xl font-bold text-red-700">{stats?.enRuptureCount ?? 0}</p>
+                <p className="text-xs text-red-500 mt-1">produit(s) à 0</p>
+              </div>
+
+              {/* Rupture imminente */}
+              <div className={`p-4 rounded-xl border ${(stats?.faibleCount ?? 0) > 0 ? 'bg-amber-50 border-amber-200' : 'bg-slate-50 border-slate-200 opacity-40'}`}>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-semibold text-amber-700 uppercase tracking-wide">Rupture imminente</span>
+                  <AlertTriangle size={14} className="text-amber-500" />
+                </div>
+                <p className="text-3xl font-bold text-amber-700">{stats?.faibleCount ?? 0}</p>
+                <p className="text-xs text-amber-500 mt-1">stock ≤ seuil d&apos;alerte</p>
+              </div>
+
+              {/* Surstock */}
+              <div className={`p-4 rounded-xl border ${(stats?.surstockCount ?? 0) > 0 ? 'bg-sky-50 border-sky-200' : 'bg-slate-50 border-slate-200 opacity-40'}`}>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-semibold text-sky-700 uppercase tracking-wide">Surstock</span>
+                  <Boxes size={14} className="text-sky-500" />
+                </div>
+                <p className="text-3xl font-bold text-sky-700">{stats?.surstockCount ?? 0}</p>
+                <p className="text-xs text-sky-500 mt-1">stock &gt; 5× le seuil</p>
+              </div>
+
+              {/* Perte élevée */}
+              <div className={`p-4 rounded-xl border ${(stats?.perteEleveeCount ?? 0) > 0 ? 'bg-rose-50 border-rose-200' : 'bg-slate-50 border-slate-200 opacity-40'}`}>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-semibold text-rose-700 uppercase tracking-wide">Perte élevée</span>
+                  <TrendingDown size={14} className="text-rose-500" />
+                </div>
+                <p className="text-3xl font-bold text-rose-700">{stats?.perteEleveeCount ?? 0}</p>
+                <p className="text-xs text-rose-500 mt-1">≥ 10% du stock endommagé</p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Filters */}
         <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/60">
@@ -724,7 +795,8 @@ export default function GestionStockPage() {
                     const prixAchat = p.prixAchat ? Number(p.prixAchat) : null;
                     const margeUnit = prixAchat !== null ? prixVente - prixAchat : null;
                     const margePct  = prixAchat !== null && prixAchat > 0 ? (margeUnit! / prixAchat) * 100 : null;
-                    const valeur = p.totalStock * prixVente;
+                    // Section 5 : valorisation = quantité × prix d'achat (fallback prix vente)
+                    const valeur = p.valeurStock ?? (p.totalStock * (prixAchat ?? prixVente));
                     const expanded = expandedRows.has(p.id);
                     return (
                       <React.Fragment key={p.id}>
@@ -938,7 +1010,9 @@ export default function GestionStockPage() {
                                 : <span className="text-xs text-slate-300 italic">—</span>}
                           </td>
                           <td className="px-5 py-4">
-                            <span className="text-base font-bold text-slate-800">{formatCurrency(item.quantite * Number(item.produit.prixUnitaire))}</span>
+                            <span className="text-base font-bold text-slate-800">
+                              {formatCurrency(item.quantite * (prixAchat ?? Number(item.produit.prixUnitaire)))}
+                            </span>
                           </td>
                           {/* Appros récents */}
                           <td className="px-5 py-4">

@@ -78,7 +78,7 @@ export async function GET(req: Request) {
     // Statistiques globales
     const enRupture    = produitsAvecStock.filter((p) => p.totalStock === 0).length;
     const stockFaible  = produitsAvecStock.filter((p) => p.totalStock > 0 && p.totalStock <= p.alerteStock).length;
-    const valeurTotale = produitsAvecStock.reduce((s, p) => s + Number(p.prixUnitaire) * p.totalStock, 0);
+    const valeurTotale = produitsAvecStock.reduce((s, p) => s + Number(p.prixAchat ?? p.prixUnitaire) * p.totalStock, 0);
 
     return NextResponse.json({
       success: true,

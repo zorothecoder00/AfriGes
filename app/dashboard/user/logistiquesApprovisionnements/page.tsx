@@ -27,6 +27,8 @@ interface Produit {
   nom: string;
   description: string | null;
   prixUnitaire: string;
+  prixAchat?: string | null;
+  valeurStock?: number;
   stock: number;
   quantite?: number;
   quantiteReservee?: number;
@@ -639,7 +641,7 @@ export default function LogistiqueApprovisionnementPage() {
                   <table className="w-full">
                     <thead className="bg-slate-50 border-b border-slate-200">
                       <tr>
-                        {["Produit", "Stock actuel", "Seuil alerte", "Niveau", "Statut", "Dernière MAJ", "Actions"].map(h => (
+                        {["Produit", "Stock actuel", "Seuil alerte", "Niveau", "Valeur stock", "Statut", "Dernière MAJ", "Actions"].map(h => (
                           <th key={h} className="px-6 py-3.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">{h}</th>
                         ))}
                       </tr>
@@ -684,6 +686,14 @@ export default function LogistiqueApprovisionnementPage() {
                                   />
                                 </div>
                               </div>
+                            </td>
+                            <td className="px-6 py-4">
+                              <p className="font-bold text-slate-800 text-sm">
+                                {formatCurrency(p.valeurStock ?? ((p.quantite ?? p.stock) * Number(p.prixAchat ?? p.prixUnitaire)))}
+                              </p>
+                              {p.prixAchat && (
+                                <p className="text-xs text-slate-400 mt-0.5">{formatCurrency(Number(p.prixAchat))}/u.</p>
+                              )}
                             </td>
                             <td className="px-6 py-4">
                               <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${st.bg} ${st.text}`}>

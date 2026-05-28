@@ -86,6 +86,15 @@ export async function POST(req: Request, { params }: Ctx) {
 
       // ── Décrémentation du stock pour chaque ligne ─────────────────────────
       for (const ligne of credit.lignes) {
+        // Vérifier le stock disponible (quantite - quantiteReservee) avant de décrémenter
+        const stock = await tx.stockSite.findUnique({
+          where: { produitId_pointDeVenteId: { produitId: ligne.produitId!, pointDeVenteId: credit.pointDeVenteId! } },
+        });
+        const qteDispo = (stock?.quantite ?? 0) - (stock?.quantiteReservee ?? 0);
+        if (qteDispo < ligne.quantite) {
+          throw new Error(`STOCK_INSUFFISANT:${ligne.produitNom ?? ligne.produitId}:${qteDispo}`);
+        }
+
         await tx.stockSite.updateMany({
           where: { produitId: ligne.produitId!, pointDeVenteId: credit.pointDeVenteId! },
           data:  { quantite: { decrement: ligne.quantite } },
@@ -148,6 +157,13 @@ export async function POST(req: Request, { params }: Ctx) {
         PDV_MANQUANT:         ["Ce crédit n'est associé à aucun point de vente — conversion impossible", 422],
         AUCUNE_LIGNE_PRODUIT: ["Aucune ligne de produit valide pour créer la vente", 422],
       };
+      if (error.message.startsWith("STOCK_INSUFFISANT:")) {
+        const [, produitNom, qteDispo] = error.message.split(":");
+        return NextResponse.json(
+          { message: `Stock insuffisant pour "${produitNom}". Disponible : ${qteDispo} — conversion impossible.` },
+          { status: 422 }
+        );
+      }
       if (map[error.message]) {
         const [msg, status] = map[error.message];
         return NextResponse.json({ message: msg }, { status });

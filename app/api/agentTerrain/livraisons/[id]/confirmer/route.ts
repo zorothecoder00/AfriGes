@@ -68,14 +68,14 @@ export async function POST(_req: Request, { params }: Ctx) {
       for (const ligne of rec.lignes) {
         const stockSite = await tx.stockSite.findUnique({
           where: { produitId_pointDeVenteId: { produitId: ligne.produitId, pointDeVenteId: agentPdvId } },
-          select: { quantite: true },
+          select: { quantite: true, quantiteReservee: true },
         });
         const produit = await tx.produit.findUnique({
           where: { id: ligne.produitId },
           select: { nom: true },
         });
         if (!produit) throw new Error(`Produit #${ligne.produitId} introuvable`);
-        const stockDispo = stockSite?.quantite ?? 0;
+        const stockDispo = (stockSite?.quantite ?? 0) - (stockSite?.quantiteReservee ?? 0);
         if (ligne.quantite > stockDispo) {
           throw new Error(
             `Stock insuffisant pour "${produit.nom}" sur ce PDV : ${stockDispo} disponible(s), ${ligne.quantite} demandé(s)`

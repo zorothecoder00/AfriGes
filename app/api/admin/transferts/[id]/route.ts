@@ -84,12 +84,17 @@ export async function PATCH(req: Request, { params }: Ctx) {
       }
 
       if (action === "ANNULE") {
-        // Restore source stock for each line
+        // Restore source stock + libérer le transit destination
         for (const ligne of transfert.lignes) {
           await tx.stockSite.upsert({
             where: { produitId_pointDeVenteId: { produitId: ligne.produitId, pointDeVenteId: transfert.origineId } },
             update: { quantite: { increment: ligne.quantite } },
             create: { produitId: ligne.produitId, pointDeVenteId: transfert.origineId, quantite: ligne.quantite },
+          });
+          // Libérer le transit à la destination (les produits ne viendront plus)
+          await tx.stockSite.updateMany({
+            where: { produitId: ligne.produitId, pointDeVenteId: transfert.destinationId },
+            data:  { quantiteEnTransit: { decrement: ligne.quantite } },
           });
           await tx.mouvementStock.create({
             data: {
@@ -147,7 +152,8 @@ export async function PATCH(req: Request, { params }: Ctx) {
       for (const ligne of transfert.lignes) {
         await tx.stockSite.upsert({
           where: { produitId_pointDeVenteId: { produitId: ligne.produitId, pointDeVenteId: transfert.destinationId } },
-          update: { quantite: { increment: ligne.quantite } },
+          // Transit → disponible : incrémenter quantite ET décrémenter quantiteEnTransit
+          update: { quantite: { increment: ligne.quantite }, quantiteEnTransit: { decrement: ligne.quantite } },
           create: { produitId: ligne.produitId, pointDeVenteId: transfert.destinationId, quantite: ligne.quantite },
         });
         await tx.mouvementStock.create({

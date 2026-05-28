@@ -69,7 +69,7 @@ export async function GET(req: NextRequest) {
         where: pdvIds ? { pointDeVenteId: { in: pdvIds } } : {},
         select: {
           pointDeVenteId: true, quantite: true, alerteStock: true,
-          produit: { select: { prixUnitaire: true, alerteStock: true } },
+          produit: { select: { prixUnitaire: true, prixAchat: true, alerteStock: true } },
         },
       }),
 
@@ -120,7 +120,7 @@ export async function GET(req: NextRequest) {
     for (const s of stocks) {
       if (!stockMap[s.pointDeVenteId]) stockMap[s.pointDeVenteId] = { valeur: 0, ruptures: 0, faibles: 0, total: 0 };
       stockMap[s.pointDeVenteId].total++;
-      stockMap[s.pointDeVenteId].valeur += s.quantite * Number(s.produit.prixUnitaire);
+      stockMap[s.pointDeVenteId].valeur += s.quantite * Number(s.produit.prixAchat ?? s.produit.prixUnitaire);
       const seuil = s.alerteStock ?? s.produit.alerteStock;
       if (s.quantite === 0) stockMap[s.pointDeVenteId].ruptures++;
       else if (seuil > 0 && s.quantite <= seuil) stockMap[s.pointDeVenteId].faibles++;

@@ -69,13 +69,16 @@ export async function GET(req: NextRequest) {
       .filter(v => v.statut === "CONFIRMEE")
       .reduce((acc, v) => acc + Number(v.montantTotal), 0);
 
-    // Produits disponibles (stock du PDV de l'agent)
-    const produitsDispo = affectation
+    // Produits avec stock réellement disponible (quantite - quantiteReservee > 0)
+    const allStocks = affectation
       ? await prisma.stockSite.findMany({
           where: { pointDeVenteId: affectation.pointDeVente.id, quantite: { gt: 0 } },
           include: { produit: { select: { id: true, nom: true, reference: true, unite: true, prixUnitaire: true } } },
         })
       : [];
+    const produitsDispo = allStocks
+      .map(s => ({ ...s, quantite: s.quantite - s.quantiteReservee }))
+      .filter(s => s.quantite > 0);
 
     // Clients disponibles
     const clients = await prisma.client.findMany({

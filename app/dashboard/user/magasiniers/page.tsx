@@ -1,12 +1,13 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
-import {  
+import {
   Package, Archive, AlertTriangle, TrendingUp, Search, ArrowLeft,
   RefreshCw, Eye, ClipboardList, ArrowUpCircle, ArrowDownCircle,
   BarChart3, Boxes, LucideIcon, CheckCircle, X, Plus, ArrowRightLeft,
   ChevronDown, ChevronUp, Truck, FileText, Printer, ShieldAlert,
-  Trash2, Gift, MinusCircle, Send, Clock, CheckSquare, XCircle, PackageCheck, ShoppingBag
+  Trash2, Gift, MinusCircle, Send, Clock, CheckSquare, XCircle, PackageCheck, ShoppingBag,
+  AlertCircle, FileCheck, TrendingDown,
 } from 'lucide-react';
 import Link from 'next/link';  
 import SignOutButton from '@/components/SignOutButton';
@@ -28,6 +29,8 @@ interface Produit {
   nom: string;
   description: string | null;
   prixUnitaire: string;
+  prixAchat?: string | null;
+  valeurStock?: number;
   stock: number;
   quantite?: number;
   quantiteReservee?: number;
@@ -68,6 +71,10 @@ interface StockResponse {
     totalProduits: number;
     enRupture: number;
     stockFaible: number;
+    surstockCount: number;
+    perteEleveeCount: number;
+    totalEndommage: number;
+    pctEndommage: number;
     valeurTotale: number | string;
   };
   meta: { total: number; page: number; limit: number; totalPages: number };
@@ -153,17 +160,18 @@ const typeStyles: Record<string, { bg: string; text: string; icon: typeof ArrowU
 // SUB-COMPONENTS
 // ============================================================================
 
-const StatCard = ({ label, value, icon: Icon, color, lightBg }: {
-  label: string; value: string; icon: LucideIcon; color: string; lightBg: string;
+const StatCard = ({ label, value, icon: Icon, color, lightBg, sub }: {
+  label: string; value: string; icon: LucideIcon; color: string; lightBg: string; sub?: string | null;
 }) => (
-  <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/60 hover:shadow-md transition-all group">
-    <div className="flex items-start justify-between mb-4">
-      <div className={`${lightBg} p-3 rounded-xl group-hover:scale-110 transition-transform`}>
-        <Icon className={`${color} w-6 h-6`} />
+  <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-200/60 hover:shadow-md transition-all group">
+    <div className="flex items-start justify-between mb-3">
+      <div className={`${lightBg} p-2.5 rounded-xl group-hover:scale-110 transition-transform`}>
+        <Icon className={`${color} w-5 h-5`} />
       </div>
     </div>
-    <h3 className="text-slate-600 text-sm font-medium mb-1">{label}</h3>
-    <p className="text-3xl font-bold text-slate-800">{value}</p>
+    <h3 className="text-slate-600 text-xs font-medium mb-1">{label}</h3>
+    <p className="text-2xl font-bold text-slate-800">{value}</p>
+    {sub && <p className="text-xs text-slate-400 mt-1">{sub}</p>}
   </div>
 );
 
@@ -265,17 +273,23 @@ export default function MagasinierPage() {
     detailProduitId ? `/api/magasinier/stock/${detailProduitId}` : null
   );
 
-  const { mutate: submitAjustement, loading: ajustementLoading } = useMutation<unknown, { type: string; quantite: number; motif: string }>(
+  const { mutate: submitAjustement, loading: ajustementLoading } = useMutation<{ enAttente?: boolean }, { type: string; quantite: number; motif: string }>(
     `/api/magasinier/stock/${ajustementProduitId}/ajustement`,
     'POST',
-    { successMessage: 'Operation effectuee avec succes' }
+    { successMessage: 'Opération effectuée avec succès' }
   );
 
-  const { mutate: submitReception, loading: receptionLoading } = useMutation<unknown, { type: string; quantite: number; motif: string }>(
+  const { mutate: submitReception, loading: receptionLoading } = useMutation<{ enAttente?: boolean }, { type: string; quantite: number; motif: string }>(
     `/api/magasinier/stock/${recProduitId}/ajustement`,
     'POST',
-    { successMessage: 'Operation effectuee avec succes' }
+    { successMessage: 'Opération effectuée avec succès' }
   );
+
+  // Demandes d'ajustement soumises par ce magasinier
+  const { data: demandesResp, refetch: refetchDemandes } = useApi<{
+    data: { id: number; ancienneQuantite: number; nouvelleQuantite: number; justification: string; statut: 'EN_ATTENTE' | 'APPROUVE' | 'REJETE'; commentaireValidation: string | null; createdAt: string; produit: { nom: string }; pointDeVente: { nom: string }; validateur: { nom: string; prenom: string } | null }[];
+    meta: { total: number };
+  }>(activeTab === 'reception' ? '/api/magasinier/demandes-ajustement?limit=10' : null);
 
   // Anomalies
   const anomaliesParams = new URLSearchParams({ page: String(anomaliesPage), limit: '15' });
@@ -593,7 +607,8 @@ export default function MagasinierPage() {
       setShowAjustementModal(false);
       setAjustementQuantite('');
       setAjustementMotif('');
-      refetchStock();
+      if (!result.enAttente) refetchStock(); // ENTREE : stock modifié immédiatement
+      else refetchDemandes(); // AJUSTEMENT : demande soumise, stock inchangé
     }
   };
 
@@ -604,7 +619,8 @@ export default function MagasinierPage() {
     if (result) {
       setRecQuantite('');
       setRecMotif('');
-      refetchStock();
+      if (!result.enAttente) refetchStock();
+      else { setRecProduitId(''); refetchDemandes(); }
       if (activeTab === 'journal') refetchJournal();
     }
   };
@@ -680,15 +696,16 @@ export default function MagasinierPage() {
   };
 
   const handlePrintInventaire = () => {
-    const rows = filteredProduits.map(p =>
-      `<tr><td>${p.nom}</td><td style="text-align:center">${p.stock}</td><td style="text-align:center">${p.alerteStock}</td><td style="text-align:right">${Number(p.prixUnitaire).toLocaleString('fr-FR')} FCFA</td><td style="text-align:right">${(p.stock * Number(p.prixUnitaire)).toLocaleString('fr-FR')} FCFA</td></tr>`
-    ).join('');
+    const rows = filteredProduits.map(p => {
+      const coutUnit = Number(p.prixAchat ?? p.prixUnitaire);
+      return `<tr><td>${p.nom}</td><td style="text-align:center">${p.stock}</td><td style="text-align:center">${p.alerteStock}</td><td style="text-align:right">${coutUnit.toLocaleString('fr-FR')} FCFA</td><td style="text-align:right">${(p.stock * coutUnit).toLocaleString('fr-FR')} FCFA</td></tr>`;
+    }).join('');
     const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Rapport Inventaire</title>
     <style>body{font-family:sans-serif;padding:20px;color:#111}h1{font-size:18px;margin-bottom:4px}.meta{color:#555;font-size:13px;margin-bottom:16px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #ddd;padding:8px;font-size:13px}th{background:#f3f4f6;font-weight:600}</style>
     </head><body>
     <h1>Rapport d'Inventaire</h1>
     <div class="meta">Date : ${new Date().toLocaleDateString('fr-FR')} — ${filteredProduits.length} produit(s)</div>
-    <table><thead><tr><th>Produit</th><th>Stock</th><th>Seuil alerte</th><th>Prix unit.</th><th>Valeur</th></tr></thead>
+    <table><thead><tr><th>Produit</th><th>Stock</th><th>Seuil alerte</th><th>Prix achat</th><th>Valeur stock</th></tr></thead>
     <tbody>${rows}</tbody></table>
     </body></html>`;
     const w = window.open('', '_blank');
@@ -702,7 +719,7 @@ export default function MagasinierPage() {
     { key: 'livraisons'  as const, label: 'Récep. & Livr.', icon: Truck, badge: nbLivraisonsEnCours + transfertsEntrantsMag.length + livClientsPending.length + ventesTerrainALivrer.length + livraisonsPacksPlanifiees.length },
     { key: 'sorties'     as const, label: 'Sorties',     icon: Send },
     { key: 'anomalies'   as const, label: 'Anomalies',   icon: ShieldAlert },
-    { key: 'alertes'     as const, label: 'Alertes',     icon: AlertTriangle, badge: (stats?.enRupture ?? 0) + (stats?.stockFaible ?? 0) },
+    { key: 'alertes'     as const, label: 'Alertes',     icon: AlertTriangle, badge: (stats?.enRupture ?? 0) + (stats?.stockFaible ?? 0) + (stats?.surstockCount ?? 0) + (stats?.perteEleveeCount ?? 0) },
   ];
   const tabs = allTabs.filter((t) => isAllowed(t.key));
 
@@ -726,10 +743,12 @@ export default function MagasinierPage() {
   }
 
   const statCards = [
-    { label: 'Valeur Totale Stock', value: formatCurrency(stats?.valeurTotale ?? 0), icon: TrendingUp, color: 'text-emerald-500', lightBg: 'bg-emerald-50' },
-    { label: 'Produits en Stock', value: String(stats?.totalProduits ?? 0), icon: Package, color: 'text-blue-500', lightBg: 'bg-blue-50' },
-    { label: 'Stock Faible', value: String(stats?.stockFaible ?? 0), icon: AlertTriangle, color: 'text-amber-500', lightBg: 'bg-amber-50' },
-    { label: 'Ruptures', value: String(stats?.enRupture ?? 0), icon: Archive, color: 'text-red-500', lightBg: 'bg-red-50' },
+    { label: 'Valeur Totale Stock', value: formatCurrency(stats?.valeurTotale ?? 0), icon: TrendingUp, color: 'text-emerald-500', lightBg: 'bg-emerald-50', sub: null },
+    { label: 'Produits en Stock', value: String(stats?.totalProduits ?? 0), icon: Package, color: 'text-blue-500', lightBg: 'bg-blue-50', sub: null },
+    { label: 'Stock Faible', value: String(stats?.stockFaible ?? 0), icon: AlertTriangle, color: 'text-amber-500', lightBg: 'bg-amber-50', sub: 'Rupture imminente' },
+    { label: 'Ruptures', value: String(stats?.enRupture ?? 0), icon: Archive, color: 'text-red-500', lightBg: 'bg-red-50', sub: 'Stock à 0' },
+    { label: 'Surstock', value: String(stats?.surstockCount ?? 0), icon: Boxes, color: 'text-sky-500', lightBg: 'bg-sky-50', sub: '> 5× le seuil' },
+    { label: 'Stock endommagé', value: String(stats?.totalEndommage ?? 0) + ' u.', icon: ShieldAlert, color: 'text-rose-500', lightBg: 'bg-rose-50', sub: stats?.pctEndommage ? `${stats.pctEndommage}% du brut` : null },
   ];
 
   const detailProduit = detailResponse?.data;
@@ -778,7 +797,7 @@ export default function MagasinierPage() {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
           {statCards.map((stat, i) => <StatCard key={i} {...stat} />)}
         </div>
 
@@ -880,7 +899,8 @@ export default function MagasinierPage() {
                     const style = statutStyles[statut];
                     const progressColor = getProgressColor(produit.stock, produit.alerteStock);
                     const progressPct = getProgressPct(produit.stock, produit.alerteStock);
-                    const valeurStock = produit.stock * Number(produit.prixUnitaire);
+                    // Section 5 : valorisation = quantité × prix d'achat (fallback prix vente)
+                    const valeurStock = produit.valeurStock ?? (produit.stock * Number(produit.prixAchat ?? produit.prixUnitaire));
 
                     return (
                       <tr key={produit.id} className={`hover:bg-slate-50 transition-colors ${statut === 'RUPTURE' ? 'bg-red-50/30' : ''}`}>
@@ -1872,18 +1892,35 @@ export default function MagasinierPage() {
                 </div>
               </div>
 
+              {/* Avertissement ajustement */}
+              {recType === 'AJUSTEMENT' && (
+                <div className="mt-4 p-4 bg-amber-50 rounded-xl border border-amber-200 flex items-start gap-3">
+                  <AlertCircle size={18} className="text-amber-600 shrink-0 mt-0.5" />
+                  <p className="text-sm text-amber-800">
+                    <span className="font-semibold">Approbation requise</span> — Les ajustements de stock doivent être validés par un administrateur avant d&apos;être appliqués. Votre demande sera transmise et vous serez notifié.
+                  </p>
+                </div>
+              )}
+
               {/* Apercu */}
               {recProduitId && recQuantite && (
-                <div className="mt-6 p-4 bg-slate-50 rounded-xl border border-slate-200">
+                <div className="mt-4 p-4 bg-slate-50 rounded-xl border border-slate-200">
                   <p className="text-sm text-slate-600">
-                    <span className="font-semibold">Apercu :</span>{' '}
-                    {recType === 'ENTREE' ? 'Reception de' : 'Ajustement de'}{' '}
-                    <span className="font-bold">{recQuantite}</span> unites sur{' '}
+                    <span className="font-semibold">Aperçu :</span>{' '}
+                    {recType === 'ENTREE' ? 'Réception de' : 'Demande d\'ajustement de'}{' '}
+                    <span className="font-bold">{recQuantite}</span> unité(s) sur{' '}
                     <span className="font-bold">{produits.find(p => p.id === Number(recProduitId))?.nom}</span>
-                    {' → '}Stock actuel: {produits.find(p => p.id === Number(recProduitId))?.stock}
-                    {' → '}Nouveau stock: <span className="font-bold">
-                      {(produits.find(p => p.id === Number(recProduitId))?.stock ?? 0) + Number(recQuantite)}
-                    </span>
+                    {' — '}Stock actuel : <span className="font-bold">{produits.find(p => p.id === Number(recProduitId))?.stock}</span>
+                    {recType === 'ENTREE' && (
+                      <> → Nouveau stock : <span className="font-bold text-emerald-700">
+                        {(produits.find(p => p.id === Number(recProduitId))?.stock ?? 0) + Math.abs(Number(recQuantite))}
+                      </span></>
+                    )}
+                    {recType === 'AJUSTEMENT' && (
+                      <> → Nouveau stock demandé : <span className="font-bold text-amber-700">
+                        {(produits.find(p => p.id === Number(recProduitId))?.stock ?? 0) + Number(recQuantite)}
+                      </span> (en attente)</>
+                    )}
                   </p>
                 </div>
               )}
@@ -1892,14 +1929,16 @@ export default function MagasinierPage() {
                 <button
                   onClick={handleReception}
                   disabled={!recProduitId || !recQuantite || !recMotif || receptionLoading}
-                  className="px-6 py-3 bg-orange-600 text-white rounded-xl hover:bg-orange-700 transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                  className={`px-6 py-3 text-white rounded-xl transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 ${recType === 'AJUSTEMENT' ? 'bg-amber-600 hover:bg-amber-700' : 'bg-orange-600 hover:bg-orange-700'}`}
                 >
                   {receptionLoading ? (
                     <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                  ) : recType === 'AJUSTEMENT' ? (
+                    <Send size={18} />
                   ) : (
                     <Plus size={18} />
                   )}
-                  {recType === 'ENTREE' ? 'Receptionner' : 'Ajuster'}
+                  {recType === 'ENTREE' ? 'Réceptionner' : 'Soumettre la demande'}
                 </button>
               </div>
             </div>
@@ -1935,6 +1974,62 @@ export default function MagasinierPage() {
                 </div>
               </div>
             )}
+
+            {/* ── Mes demandes d'ajustement ──────────────────────────────── */}
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 p-6">
+              <div className="flex items-center gap-2 mb-5">
+                <FileCheck size={20} className="text-amber-600" />
+                <h3 className="font-bold text-slate-800">Mes demandes d&apos;ajustement</h3>
+                {(demandesResp?.meta?.total ?? 0) > 0 && (
+                  <span className="ml-auto text-xs font-semibold bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">
+                    {demandesResp?.meta?.total} au total
+                  </span>
+                )}
+              </div>
+
+              {!demandesResp?.data || demandesResp.data.length === 0 ? (
+                <p className="text-sm text-slate-400 text-center py-6">Aucune demande d&apos;ajustement soumise</p>
+              ) : (
+                <div className="space-y-3">
+                  {demandesResp.data.map((d) => {
+                    const ecart = d.nouvelleQuantite - d.ancienneQuantite;
+                    const statutConfig = {
+                      EN_ATTENTE: { bg: 'bg-amber-100', text: 'text-amber-700', label: 'En attente', icon: Clock },
+                      APPROUVE:   { bg: 'bg-emerald-100', text: 'text-emerald-700', label: 'Approuvé', icon: CheckCircle },
+                      REJETE:     { bg: 'bg-red-100', text: 'text-red-700', label: 'Rejeté', icon: XCircle },
+                    }[d.statut];
+                    const IconS = statutConfig.icon;
+                    return (
+                      <div key={d.id} className={`p-4 rounded-xl border ${d.statut === 'EN_ATTENTE' ? 'border-amber-200 bg-amber-50/40' : d.statut === 'APPROUVE' ? 'border-emerald-200 bg-emerald-50/40' : 'border-red-200 bg-red-50/40'}`}>
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex-1 min-w-0">
+                            <p className="font-semibold text-slate-800 text-sm truncate">{d.produit.nom}</p>
+                            <p className="text-xs text-slate-500 mt-0.5">{d.pointDeVente.nom} — {formatDate(d.createdAt)}</p>
+                            <p className="text-xs text-slate-600 mt-1 truncate">{d.justification}</p>
+                            {d.commentaireValidation && (
+                              <p className="text-xs text-red-600 mt-0.5">↳ {d.commentaireValidation}</p>
+                            )}
+                          </div>
+                          <div className="flex flex-col items-end gap-1.5 shrink-0">
+                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs font-semibold ${statutConfig.bg} ${statutConfig.text}`}>
+                              <IconS size={11} />
+                              {statutConfig.label}
+                            </span>
+                            <span className={`font-mono text-xs font-bold ${ecart > 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                              {d.ancienneQuantite} → {d.nouvelleQuantite} ({ecart > 0 ? '+' : ''}{ecart})
+                            </span>
+                            {d.validateur && (
+                              <span className="text-xs text-slate-400">par {d.validateur.prenom} {d.validateur.nom}</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
           </div>
         )}
 
@@ -2368,6 +2463,89 @@ export default function MagasinierPage() {
                 )}
               </div>
             </div>
+
+            {/* Surstock */}
+            {produits.filter(p => p.alerteStock > 0 && p.stock > p.alerteStock * 5).length > 0 && (
+              <div>
+                <div className="flex items-center gap-2 mb-4">
+                  <Boxes className="text-sky-600" size={22} />
+                  <h3 className="text-xl font-bold text-slate-800">Surstock</h3>
+                  <span className="bg-sky-100 text-sky-700 text-xs font-bold px-2.5 py-1 rounded-full">
+                    {produits.filter(p => p.alerteStock > 0 && p.stock > p.alerteStock * 5).length}
+                  </span>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {produits.filter(p => p.alerteStock > 0 && p.stock > p.alerteStock * 5).map(produit => (
+                    <div key={produit.id} className="bg-white rounded-xl p-5 shadow-sm border border-sky-200 hover:shadow-md transition-all">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-sky-100 rounded-lg flex items-center justify-center">
+                            <Boxes size={20} className="text-sky-600" />
+                          </div>
+                          <div>
+                            <p className="font-semibold text-slate-800">{produit.nom}</p>
+                            <p className="text-xs text-slate-500">Stock : {produit.stock} / Seuil : {produit.alerteStock}</p>
+                          </div>
+                        </div>
+                        <span className="bg-sky-100 text-sky-700 border border-sky-200 text-xs font-semibold px-3 py-1.5 rounded-full">
+                          ×{Math.round(produit.stock / produit.alerteStock)}
+                        </span>
+                      </div>
+                      <p className="text-xs text-sky-600 mt-2">
+                        Excédent estimé : {produit.stock - produit.alerteStock * 2} unités au-delà du double du seuil
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Perte élevée (stock endommagé ≥ 10% du brut) */}
+            {produits.filter(p => {
+              const brut = p.stock + (p.quantiteEndommagee ?? 0);
+              return brut > 0 && ((p.quantiteEndommagee ?? 0) / brut) * 100 >= 10;
+            }).length > 0 && (
+              <div>
+                <div className="flex items-center gap-2 mb-4">
+                  <ShieldAlert className="text-rose-600" size={22} />
+                  <h3 className="text-xl font-bold text-slate-800">Perte élevée</h3>
+                  <span className="bg-rose-100 text-rose-700 text-xs font-bold px-2.5 py-1 rounded-full">
+                    {produits.filter(p => { const b = p.stock + (p.quantiteEndommagee ?? 0); return b > 0 && ((p.quantiteEndommagee ?? 0) / b) * 100 >= 10; }).length}
+                  </span>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {produits.filter(p => {
+                    const brut = p.stock + (p.quantiteEndommagee ?? 0);
+                    return brut > 0 && ((p.quantiteEndommagee ?? 0) / brut) * 100 >= 10;
+                  }).map(produit => {
+                    const brut = produit.stock + (produit.quantiteEndommagee ?? 0);
+                    const pct  = brut > 0 ? Math.round(((produit.quantiteEndommagee ?? 0) / brut) * 100) : 0;
+                    return (
+                      <div key={produit.id} className="bg-white rounded-xl p-5 shadow-sm border border-rose-200 hover:shadow-md transition-all">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-rose-100 rounded-lg flex items-center justify-center">
+                              <ShieldAlert size={20} className="text-rose-600" />
+                            </div>
+                            <div>
+                              <p className="font-semibold text-slate-800">{produit.nom}</p>
+                              <p className="text-xs text-slate-500">Endommagé : {produit.quantiteEndommagee ?? 0} unités</p>
+                            </div>
+                          </div>
+                          <span className="bg-rose-100 text-rose-700 border border-rose-200 text-xs font-semibold px-3 py-1.5 rounded-full">
+                            {pct}% perdu
+                          </span>
+                        </div>
+                        <div className="h-2 bg-slate-100 rounded-full overflow-hidden mt-3">
+                          <div className="h-full bg-rose-500 rounded-full" style={{ width: `${pct}%` }} />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
           </div>
         )}
       </main>
@@ -2522,12 +2700,26 @@ export default function MagasinierPage() {
                 />
               </div>
 
+              {ajustementType === 'AJUSTEMENT' && (
+                <div className="p-3 bg-amber-50 rounded-xl border border-amber-200 flex items-start gap-2 text-sm text-amber-800">
+                  <AlertCircle size={15} className="shrink-0 mt-0.5" />
+                  <span>Cette demande sera soumise à l&apos;admin pour approbation avant d&apos;être appliquée.</span>
+                </div>
+              )}
+
               {ajustementQuantite && (
                 <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-sm text-slate-600">
-                  Stock actuel: <span className="font-bold">{produits.find(p => p.id === ajustementProduitId)?.stock}</span>
-                  {' → '}Nouveau: <span className="font-bold">
-                    {(produits.find(p => p.id === ajustementProduitId)?.stock ?? 0) + (ajustementType === 'ENTREE' ? Math.abs(Number(ajustementQuantite)) : Number(ajustementQuantite))}
-                  </span>
+                  Stock actuel : <span className="font-bold">{produits.find(p => p.id === ajustementProduitId)?.stock}</span>
+                  {' → '}
+                  {ajustementType === 'ENTREE' ? (
+                    <>Nouveau : <span className="font-bold text-emerald-700">
+                      {(produits.find(p => p.id === ajustementProduitId)?.stock ?? 0) + Math.abs(Number(ajustementQuantite))}
+                    </span></>
+                  ) : (
+                    <>Demandé : <span className="font-bold text-amber-700">
+                      {(produits.find(p => p.id === ajustementProduitId)?.stock ?? 0) + Number(ajustementQuantite)}
+                    </span> (en attente)</>
+                  )}
                 </div>
               )}
 
@@ -2538,10 +2730,12 @@ export default function MagasinierPage() {
                 <button
                   onClick={handleAjustement}
                   disabled={!ajustementQuantite || !ajustementMotif || ajustementLoading}
-                  className="flex-1 py-3 bg-orange-600 text-white rounded-xl hover:bg-orange-700 font-semibold disabled:opacity-50 flex items-center justify-center gap-2"
+                  className={`flex-1 py-3 text-white rounded-xl font-semibold disabled:opacity-50 flex items-center justify-center gap-2 ${ajustementType === 'AJUSTEMENT' ? 'bg-amber-600 hover:bg-amber-700' : 'bg-orange-600 hover:bg-orange-700'}`}
                 >
                   {ajustementLoading ? (
-                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  ) : ajustementType === 'AJUSTEMENT' ? (
+                    <><Send size={15} />Soumettre la demande</>
                   ) : (
                     'Confirmer'
                   )}

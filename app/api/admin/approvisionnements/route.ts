@@ -6,11 +6,13 @@ import { notifyAdmins, notify, auditLog } from "@/lib/notifications";
 import { randomUUID } from "crypto";
 
 /**
- * GET /api/admin/approvisionnements   
- * Liste paginée des réceptions d'approvisionnement (créées par l'admin)
+ * GET /api/admin/approvisionnements
+ * Liste paginée de toutes les réceptions d'approvisionnement (logistique + admin).
+ * Query: statut, pdvId, page, limit
+ * Inclut un compteur `pendingApproval` (statut BROUILLON = en attente d'approbation admin).
  */
 export async function GET(req: Request) {
-  try {     
+  try {
     const session = await getAuthSession();
     if (!session || !["ADMIN", "SUPER_ADMIN"].includes(session.user.role ?? "")) {
       return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
@@ -28,15 +30,20 @@ export async function GET(req: Request) {
       ...(pdvId  && { pointDeVenteId: Number(pdvId) }),
     };
 
-    const [receptions, total] = await Promise.all([
+    const [receptions, total, pendingApproval, totalValide] = await Promise.all([
       prisma.receptionApprovisionnement.findMany({
         where,
         include: {
           pointDeVente:    { select: { id: true, nom: true, code: true, type: true } },
           receptionnePar:  { select: { id: true, nom: true, prenom: true } },
           validePar:       { select: { id: true, nom: true, prenom: true } },
+          fournisseur:     { select: { id: true, nom: true } },
           lignes: {
-            include: { produit: { select: { id: true, nom: true, unite: true } } },
+            include: {
+              produit: {
+                select: { id: true, nom: true, unite: true, prixUnitaire: true, prixAchat: true },
+              },
+            },
           },
         },
         orderBy: { createdAt: "desc" },
@@ -44,10 +51,15 @@ export async function GET(req: Request) {
         take: limit,
       }),
       prisma.receptionApprovisionnement.count({ where }),
+      // Commandes logistique en attente d'approbation admin (sans filtre statut)
+      prisma.receptionApprovisionnement.count({ where: { statut: "BROUILLON" } }),
+      // Total validées (sans filtre statut)
+      prisma.receptionApprovisionnement.count({ where: { statut: "VALIDE" } }),
     ]);
 
     return NextResponse.json({
       data: receptions,
+      stats: { pendingApproval, totalValide },
       meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
     });
   } catch (error) {

@@ -42,31 +42,33 @@ export async function POST(_req: Request, { params }: Ctx) {
       const souscription = rec.souscription;
       const souscriptionId = souscription.id;
 
-      // ── Vérification stock ──────────────────────────────────────────────────
+      // ── Vérification stock (quantite - quantiteReservee) ───────────────────
       for (const ligne of rec.lignes) {
         const produit = await tx.produit.findUnique({
           where: { id: ligne.produitId },
-          select: { nom: true, stocks: { select: { quantite: true } } },
+          select: { nom: true, stocks: { select: { quantite: true, quantiteReservee: true } } },
         });
         if (!produit) throw new Error(`Produit #${ligne.produitId} introuvable`);
-        const totalStock = produit.stocks.reduce((s, ss) => s + ss.quantite, 0);
-        if (ligne.quantite > totalStock) {
+        const totalDispo = produit.stocks.reduce((s, ss) => s + (ss.quantite - ss.quantiteReservee), 0);
+        if (ligne.quantite > totalDispo) {
           throw new Error(
-            `Stock insuffisant pour "${produit.nom}" : ${totalStock} disponible(s), ${ligne.quantite} demandé(s)`
+            `Stock insuffisant pour "${produit.nom}" : ${totalDispo} disponible(s), ${ligne.quantite} demandé(s)`
           );
         }
       }
 
-      // ── Décrémentation stock (greedy par site) + mouvements ─────────────────
+      // ── Décrémentation stock (greedy par site, respecte quantiteReservee) ───
       for (const ligne of rec.lignes) {
         const sites = await tx.stockSite.findMany({
-          where: { produitId: ligne.produitId, quantite: { gt: 0 } },
+          where: { produitId: ligne.produitId },
           orderBy: { quantite: "desc" },
         });
         let remaining = ligne.quantite;
         for (const site of sites) {
           if (remaining <= 0) break;
-          const dec = Math.min(site.quantite, remaining);
+          const dispo = site.quantite - site.quantiteReservee;
+          if (dispo <= 0) continue;
+          const dec = Math.min(dispo, remaining);
           await tx.stockSite.update({ where: { id: site.id }, data: { quantite: { decrement: dec } } });
           remaining -= dec;
         }

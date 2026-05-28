@@ -52,7 +52,7 @@ export async function GET() {
       // Tous les produits pour audit stock (avec stock par site)
       prisma.produit.findMany({
         orderBy: { nom: "asc" },
-        select: { id: true, nom: true, alerteStock: true, prixUnitaire: true, actif: true, stocks: { select: { quantite: true } } },
+        select: { id: true, nom: true, alerteStock: true, prixUnitaire: true, prixAchat: true, actif: true, stocks: { select: { quantite: true } } },
       }),
 
       // Versements packs des 30 derniers jours
@@ -154,7 +154,7 @@ export async function GET() {
     }));
     const enRupture    = produitsAvecStock.filter((p) => p.totalStock === 0).length;
     const stockFaible  = produitsAvecStock.filter((p) => p.totalStock > 0 && p.alerteStock > 0 && p.totalStock <= p.alerteStock).length;
-    const valeurTotale = produitsAvecStock.reduce((sum, p) => sum + Number(p.prixUnitaire) * p.totalStock, 0);
+    const valeurTotale = produitsAvecStock.reduce((sum, p) => sum + Number(p.prixAchat ?? p.prixUnitaire) * p.totalStock, 0);
 
     // ── Versements ────────────────────────────────────────────────────────────
 

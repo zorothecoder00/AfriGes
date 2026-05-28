@@ -59,9 +59,10 @@ export async function PATCH(_req: Request, { params }: Ctx) {
         where: { produitId_pointDeVenteId: { produitId: l.produitId, pointDeVenteId: pdvId } },
         include: { produit: { select: { nom: true } } },
       });
-      if (!stock || stock.quantite < l.quantite) {
+      const qteDispo = (stock?.quantite ?? 0) - (stock?.quantiteReservee ?? 0);
+      if (!stock || qteDispo < l.quantite) {
         return NextResponse.json(
-          { error: `Stock insuffisant pour "${stock?.produit.nom ?? l.produitId}". Dispo : ${stock?.quantite ?? 0}, requis : ${l.quantite}` },
+          { error: `Stock insuffisant pour "${stock?.produit.nom ?? l.produitId}". Disponible : ${qteDispo}, requis : ${l.quantite}` },
           { status: 400 }
         );
       }

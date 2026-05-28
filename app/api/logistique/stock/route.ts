@@ -65,7 +65,7 @@ export async function GET(req: NextRequest) {
         take: limit,
         orderBy: [{ pointDeVente: { nom: "asc" } }, { produit: { nom: "asc" } }],
         include: {
-          produit:      { select: { id: true, nom: true, reference: true, description: true, categorie: true, unite: true, prixUnitaire: true, alerteStock: true } },
+          produit:      { select: { id: true, nom: true, reference: true, description: true, categorie: true, unite: true, prixUnitaire: true, prixAchat: true, alerteStock: true } },
           pointDeVente: { select: { id: true, nom: true, code: true, type: true } },
         },
       }),
@@ -78,15 +78,33 @@ export async function GET(req: NextRequest) {
       : { produit: { actif: true } };
     const allStocks = await prisma.stockSite.findMany({
       where: statsWhere,
-      select: { quantite: true, alerteStock: true, produit: { select: { prixUnitaire: true, alerteStock: true } } },
+      select: { quantite: true, quantiteEndommagee: true, alerteStock: true, produit: { select: { prixUnitaire: true, prixAchat: true, alerteStock: true } } },
     });
-    const enRuptureCount = allStocks.filter(s => s.quantite === 0).length;
-    const faibleCount    = allStocks.filter(s => {
+
+    const SURSTOCK_MULTIPLE = 5;
+    const PERTE_SEUIL_PCT   = 10;
+
+    const enRuptureCount   = allStocks.filter(s => s.quantite === 0).length;
+    const faibleCount      = allStocks.filter(s => {
       const seuil = s.alerteStock ?? s.produit.alerteStock;
       return s.quantite > 0 && s.quantite <= seuil;
     }).length;
-    const valeurTotale   = allStocks.reduce((acc, s) => acc + s.quantite * Number(s.produit.prixUnitaire), 0);
-    const totalProduits  = allStocks.length;
+    const surstockCount    = allStocks.filter(s => {
+      const seuil = s.alerteStock ?? s.produit.alerteStock;
+      return seuil > 0 && s.quantite > seuil * SURSTOCK_MULTIPLE;
+    }).length;
+    const perteEleveeCount = allStocks.filter(s => {
+      const total = s.quantite + s.quantiteEndommagee;
+      return total > 0 && (s.quantiteEndommagee / total) * 100 >= PERTE_SEUIL_PCT;
+    }).length;
+    const totalEndommage   = allStocks.reduce((acc, s) => acc + s.quantiteEndommagee, 0);
+    const totalStockBrut   = allStocks.reduce((acc, s) => acc + s.quantite + s.quantiteEndommagee, 0);
+    const pctEndommage     = totalStockBrut > 0 ? Math.round((totalEndommage / totalStockBrut) * 100 * 10) / 10 : 0;
+    const valeurTotale     = allStocks.reduce((acc, s) => {
+      const coutUnit = Number(s.produit.prixAchat ?? s.produit.prixUnitaire);
+      return acc + s.quantite * coutUnit;
+    }, 0);
+    const totalProduits    = allStocks.length;
 
     // Liste des PDV pour filtre (admin uniquement — non-admin voit déjà leur PDV)
     const pdvs = await prisma.pointDeVente.findMany({
@@ -102,6 +120,8 @@ export async function GET(req: NextRequest) {
       nom:                s.produit.nom,
       description:        s.produit.description,
       prixUnitaire:       s.produit.prixUnitaire,
+      prixAchat:          s.produit.prixAchat,
+      valeurStock:        s.quantite * Number(s.produit.prixAchat ?? s.produit.prixUnitaire),
       stock:              s.quantite,   // alias compat
       quantite:           s.quantite,
       quantiteReservee:   s.quantiteReservee,
@@ -117,7 +137,7 @@ export async function GET(req: NextRequest) {
       data,
       pdvs,
       userPdvId:   effectivePdvId,
-      stats: { totalProduits, totalSites: totalProduits, enRupture: enRuptureCount, enRuptureCount, faibleCount, stockFaible: faibleCount, valeurTotale },
+      stats: { totalProduits, totalSites: totalProduits, enRupture: enRuptureCount, enRuptureCount, faibleCount, stockFaible: faibleCount, surstockCount, perteEleveeCount, totalEndommage, pctEndommage, valeurTotale },
       meta:  { total, page, limit, totalPages: Math.ceil(total / limit) },
     });
   } catch (error) {
