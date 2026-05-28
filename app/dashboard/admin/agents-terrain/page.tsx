@@ -13,6 +13,13 @@ import ClienteleTabBar from '@/components/ClienteleTabBar';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
+interface CollecteDetail {
+  terrain:        number; // CollecteJournaliere validées
+  versements:     number; // VersementPack directs par l'agent
+  remboursements: number; // RemboursementCredit enregistrés par l'agent
+  ventes:         number; // VenteDirecte réalisées par l'agent
+}
+
 interface AgentStats {
   nbClients:            number;
   nbCreancesActives:    number;
@@ -23,6 +30,7 @@ interface AgentStats {
   totalVerse:           number;
   totalPacks:           number;
   derniereActivite:     string | null;
+  collecteDetail:       CollecteDetail;
 }
 
 interface Agent {
@@ -259,10 +267,37 @@ export default function AgentsTerrainPage() {
                           )}
                         </td>
 
-                        {/* Collecté ce mois */}
+                        {/* Collecté ce mois — tooltip détail des 4 sources */}
                         <td className="px-4 py-3 text-right">
-                          <p className="font-semibold text-emerald-700">{formatCurrency(agent.stats.montantCollecteCeMois)}</p>
-                          <p className="text-xs text-gray-400">{agent.stats.nbCollectesCeMois} collecte(s)</p>
+                          <div className="group relative inline-block w-full">
+                            <p className="font-semibold text-emerald-700 cursor-help underline decoration-dotted decoration-emerald-400">
+                              {formatCurrency(agent.stats.montantCollecteCeMois)}
+                            </p>
+
+                            {/* Tooltip détail */}
+                            <div className="absolute right-0 top-full mt-1 z-20 hidden group-hover:block w-64 bg-white border border-gray-200 rounded-xl shadow-xl p-3 text-left">
+                              <p className="text-xs font-semibold text-gray-700 mb-2">Détail — ce mois</p>
+                              <div className="space-y-1.5">
+                                {[
+                                  { label: 'Collectes terrain',       value: agent.stats.collecteDetail.terrain,        color: 'text-blue-600' },
+                                  { label: 'Versements packs directs', value: agent.stats.collecteDetail.versements,     color: 'text-violet-600' },
+                                  { label: 'Remboursements crédits',  value: agent.stats.collecteDetail.remboursements, color: 'text-orange-600' },
+                                  { label: 'Ventes directes',         value: agent.stats.collecteDetail.ventes,         color: 'text-emerald-600' },
+                                ].map((row) => (
+                                  <div key={row.label} className="flex items-center justify-between gap-2">
+                                    <span className="text-xs text-gray-500 truncate">{row.label}</span>
+                                    <span className={`text-xs font-semibold shrink-0 ${row.value > 0 ? row.color : 'text-gray-300'}`}>
+                                      {formatCurrency(row.value)}
+                                    </span>
+                                  </div>
+                                ))}
+                                <div className="border-t border-gray-100 pt-1.5 flex items-center justify-between">
+                                  <span className="text-xs font-semibold text-gray-700">Total</span>
+                                  <span className="text-xs font-bold text-emerald-700">{formatCurrency(agent.stats.montantCollecteCeMois)}</span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
                         </td>
 
                         {/* Taux recouvrement */}

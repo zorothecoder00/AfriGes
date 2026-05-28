@@ -6,7 +6,7 @@ import Link from 'next/link';
 import {
   ArrowLeft, Users, MapPin, TrendingUp, Phone, Eye, Map,
   Navigation, RefreshCw, Calendar, CheckCircle, XCircle, Clock,
-  Loader2, AlertTriangle,
+  Loader2, AlertTriangle, Wallet, ShoppingCart, CreditCard, HandCoins,
 } from 'lucide-react';
 import { useApi } from '@/hooks/useApi';
 import { formatCurrency, formatDate } from '@/lib/format';
@@ -24,6 +24,30 @@ const AgentMap = dynamic(() => import('@/components/AgentMap'), {
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
+type CollecteType = 'COLLECTE_TERRAIN' | 'VERSEMENT_PACK' | 'REMBOURSEMENT_CREDIT' | 'VENTE_DIRECTE';
+
+interface LigneCollecteDetail {
+  id:        string;
+  type:      CollecteType;
+  typeLabel: string;
+  date:      string;
+  reference: string | null;
+  montant:   number;
+  client: {
+    id:         number | null;
+    nom:        string;
+    prenom:     string;
+    telephone:  string | null;
+    codeClient: string | null;
+  } | null;
+}
+
+interface CollectesResponse {
+  data:   LigneCollecteDetail[];
+  totaux: { terrain: number; versements: number; remboursements: number; ventes: number; total: number };
+  total:  number;
+}
+
 interface AgentDetail {
   id: number; memberId: number; actif: boolean; zone: string | null;
   member: {
@@ -38,6 +62,13 @@ interface AgentDetail {
     derniereActivite: string | null;
   };
 }
+
+const TYPE_COLLECTE: Record<CollecteType, { label: string; color: string; bg: string; icon: React.ReactNode }> = {
+  COLLECTE_TERRAIN:      { label: 'Collecte terrain',       color: 'text-blue-700',    bg: 'bg-blue-50',    icon: <HandCoins className="w-3.5 h-3.5" /> },
+  VERSEMENT_PACK:        { label: 'Versement pack direct',  color: 'text-violet-700',  bg: 'bg-violet-50',  icon: <Wallet className="w-3.5 h-3.5" /> },
+  REMBOURSEMENT_CREDIT:  { label: 'Remboursement crédit',   color: 'text-orange-700',  bg: 'bg-orange-50',  icon: <CreditCard className="w-3.5 h-3.5" /> },
+  VENTE_DIRECTE:         { label: 'Vente directe',          color: 'text-emerald-700', bg: 'bg-emerald-50', icon: <ShoppingCart className="w-3.5 h-3.5" /> },
+};
 
 const STATUT_VISITE: Record<string, { label: string; color: string }> = {
   REALISEE:  { label: 'Réalisée',  color: 'bg-emerald-100 text-emerald-700' },
@@ -54,6 +85,10 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
   const [dateDebut, setDateDebut]   = useState('');
   const [dateFin, setDateFin]       = useState('');
 
+  // Filtre mois pour l'historique (format YYYY-MM, défaut = mois courant)
+  const moisCourant = new Date().toISOString().slice(0, 7);
+  const [moisCollecte, setMoisCollecte] = useState(moisCourant);
+
   // ── Données ────────────────────────────────────────────────────────────
   const { data: agentRes, loading: agentLoading } =
     useApi<{ data: AgentDetail[] }>(`/api/admin/agents-terrain?memberId=${id}`);
@@ -69,6 +104,11 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
   const { data: visitesRes, loading: visitesLoading, refetch: refetchVisites } =
     useApi<{ data: MapVisite[] }>(`/api/admin/agents-terrain/${id}/visites?${visitesParams}`);
   const visites = visitesRes?.data ?? [];
+
+  const { data: collectesRes, loading: collectesLoading, refetch: refetchCollectes } =
+    useApi<CollectesResponse>(`/api/admin/agents-terrain/${id}/collectes?mois=${moisCollecte}&limit=100`);
+  const lignesCollectes = collectesRes?.data ?? [];
+  const totauxCollectes = collectesRes?.totaux;
 
   // ── Données carte ──────────────────────────────────────────────────────
   const clientsAvecGps  = useMemo(() => clients.filter((c) => c.latitude != null && c.longitude != null), [clients]);
@@ -305,6 +345,130 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
           </div>
 
         </div>
+
+        {/* ── Historique détaillé des encaissements ── */}
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
+          {/* En-tête avec filtre mois */}
+          <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between flex-wrap gap-3">
+            <h3 className="font-semibold text-gray-800 text-sm flex items-center gap-2">
+              <Wallet className="w-4 h-4 text-emerald-500" />
+              Historique des encaissements
+              {collectesRes && (
+                <span className="text-xs text-gray-400 font-normal">
+                  ({collectesRes.total} opération(s))
+                </span>
+              )}
+            </h3>
+            <div className="flex items-center gap-2">
+              <input
+                type="month"
+                value={moisCollecte}
+                onChange={(e) => setMoisCollecte(e.target.value)}
+                className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              />
+              <button onClick={() => refetchCollectes()}
+                className="p-1.5 hover:bg-gray-100 rounded-lg" title="Actualiser">
+                <RefreshCw className="w-3.5 h-3.5 text-gray-500" />
+              </button>
+            </div>
+          </div>
+
+          {/* Totaux par source */}
+          {totauxCollectes && (
+            <div className="px-5 py-3 border-b border-gray-100 grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {[
+                { value: totauxCollectes.terrain,        ...TYPE_COLLECTE.COLLECTE_TERRAIN },
+                { value: totauxCollectes.versements,     ...TYPE_COLLECTE.VERSEMENT_PACK },
+                { value: totauxCollectes.remboursements, ...TYPE_COLLECTE.REMBOURSEMENT_CREDIT },
+                { value: totauxCollectes.ventes,         ...TYPE_COLLECTE.VENTE_DIRECTE },
+              ].map((src) => (
+                <div key={src.label} className={`${src.bg} rounded-lg px-3 py-2 flex items-center gap-2`}>
+                  <span className={src.color}>{src.icon}</span>
+                  <div>
+                    <p className={`text-sm font-bold ${src.color}`}>{formatCurrency(src.value)}</p>
+                    <p className="text-xs text-gray-500">{src.label}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Liste des opérations */}
+          <div className="divide-y divide-gray-50 max-h-96 overflow-y-auto">
+            {collectesLoading ? (
+              <div className="flex items-center justify-center py-10">
+                <Loader2 className="w-5 h-5 animate-spin text-gray-400" />
+              </div>
+            ) : lignesCollectes.length === 0 ? (
+              <p className="text-center text-gray-400 text-sm py-10">Aucun encaissement sur cette période</p>
+            ) : lignesCollectes.map((ligne) => {
+              const cfg = TYPE_COLLECTE[ligne.type];
+              return (
+                <div key={ligne.id} className="px-5 py-3 flex items-center justify-between gap-3 hover:bg-gray-50">
+                  {/* Badge type */}
+                  <div className="shrink-0">
+                    <span className={`inline-flex items-center gap-1.5 text-xs font-medium px-2 py-1 rounded-full ${cfg.bg} ${cfg.color}`}>
+                      {cfg.icon}
+                      {cfg.label}
+                    </span>
+                  </div>
+
+                  {/* Client */}
+                  <div className="flex-1 min-w-0">
+                    {ligne.client ? (
+                      <>
+                        <p className="text-sm font-medium text-gray-900 truncate">
+                          {ligne.client.prenom} {ligne.client.nom}
+                        </p>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          {ligne.client.codeClient && (
+                            <span className="text-xs text-gray-400 font-mono">{ligne.client.codeClient}</span>
+                          )}
+                          {ligne.client.telephone && (
+                            <span className="text-xs text-gray-400">{ligne.client.telephone}</span>
+                          )}
+                        </div>
+                      </>
+                    ) : (
+                      <p className="text-sm text-gray-400 italic">Client non renseigné</p>
+                    )}
+                    {ligne.reference && (
+                      <p className="text-xs text-gray-300 font-mono mt-0.5">{ligne.reference}</p>
+                    )}
+                  </div>
+
+                  {/* Date + montant */}
+                  <div className="text-right shrink-0">
+                    <p className="text-sm font-bold text-gray-900">{formatCurrency(ligne.montant)}</p>
+                    <p className="text-xs text-gray-400 flex items-center justify-end gap-1 mt-0.5">
+                      <Calendar className="w-2.5 h-2.5" />
+                      {new Date(ligne.date).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })}
+                    </p>
+                  </div>
+
+                  {/* Lien client */}
+                  {ligne.client?.id && (
+                    <Link
+                      href={`/dashboard/admin/clients/${ligne.client.id}`}
+                      className="p-1.5 text-gray-300 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors shrink-0"
+                    >
+                      <Eye className="w-3.5 h-3.5" />
+                    </Link>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Total général */}
+          {totauxCollectes && totauxCollectes.total > 0 && (
+            <div className="px-5 py-3 border-t border-gray-100 flex items-center justify-between bg-gray-50 rounded-b-xl">
+              <span className="text-sm font-semibold text-gray-700">Total encaissé ce mois</span>
+              <span className="text-base font-bold text-emerald-700">{formatCurrency(totauxCollectes.total)}</span>
+            </div>
+          )}
+        </div>
+
       </div>
     </div>
   );

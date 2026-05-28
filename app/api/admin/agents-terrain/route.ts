@@ -58,8 +58,17 @@ export async function GET(req: Request) {
       clientsParAgent,
       creancesOuvertes,
       toutesCreances,
-      collectesMois,
+      // Sessions de collecte terrain validées ce mois (pour nbCollectesCeMois + montant CollecteJournaliere)
+      // Note : les VersementPack générés lors de la validation ont encaisseParId = admin (pas l'agent),
+      // donc CollecteJournaliere et VersementPack ne se chevauchent PAS.
+      collectesSessionsMois,
       derniereActivite,
+      // Versements packs encaissés directement par l'agent (hors collectes terrain)
+      versementsParAgentMois,
+      // Remboursements crédits enregistrés par l'agent
+      remboursementsParAgentMois,
+      // Ventes directes réalisées par l'agent
+      ventesParAgentMois,
     ] = await Promise.all([
       // Nb clients affectés
       prisma.client.groupBy({
@@ -80,7 +89,7 @@ export async function GET(req: Request) {
         select: { montantTotal: true, montantVerse: true, client: { select: { agentTerrainId: true } } },
       }),
 
-      // Collectes validées ce mois
+      // Sessions de collecte terrain validées ce mois
       prisma.collecteJournaliere.groupBy({
         by: ['agentId'],
         where: { agentId: { in: userIds }, statut: 'VALIDEE', dateCollecte: { gte: startOfMonth } },
@@ -88,11 +97,43 @@ export async function GET(req: Request) {
         _count: { id: true },
       }),
 
-      // Dernière activité (collecte la + récente, tous statuts)
+      // Dernière activité terrain (collecte la plus récente, tous statuts)
       prisma.collecteJournaliere.groupBy({
         by: ['agentId'],
         where: { agentId: { in: userIds } },
         _max: { dateCollecte: true },
+      }),
+
+      // Versements packs encaissés directement par l'agent ce mois (encaisseParId = agent)
+      prisma.versementPack.groupBy({
+        by: ['encaisseParId'],
+        where: {
+          encaisseParId: { in: userIds },
+          datePaiement:  { gte: startOfMonth },
+          statut:        'PAYE',
+        },
+        _sum: { montant: true },
+      }),
+
+      // Remboursements crédits enregistrés par l'agent ce mois
+      prisma.remboursementCredit.groupBy({
+        by: ['enregistreParId'],
+        where: {
+          enregistreParId: { in: userIds },
+          dateRemboursement: { gte: startOfMonth },
+        },
+        _sum: { montant: true },
+      }),
+
+      // Ventes directes réalisées par l'agent ce mois
+      prisma.venteDirecte.groupBy({
+        by: ['vendeurId'],
+        where: {
+          vendeurId: { in: userIds },
+          createdAt: { gte: startOfMonth },
+          statut:    { notIn: ['ANNULEE', 'BROUILLON'] },
+        },
+        _sum: { montantTotal: true },
       }),
     ]);
 
@@ -111,9 +152,15 @@ export async function GET(req: Request) {
       const totalVerse            = agentToutesCreances.reduce((s, c) => s + Number(c.montantVerse), 0);
       const tauxRecouvrement      = totalPacks > 0 ? Math.round((totalVerse / totalPacks) * 100) : 0;
 
-      const collecteMois          = collectesMois.find((c) => c.agentId === uid);
-      const montantCollecteCeMois = Number(collecteMois?._sum.montantCollecte ?? 0);
-      const nbCollectesCeMois     = collecteMois?._count.id ?? 0;
+      const collecteSession        = collectesSessionsMois.find((c) => c.agentId === uid);
+      const nbCollectesCeMois      = collecteSession?._count.id ?? 0;
+
+      // Montant total encaissé ce mois = 4 sources combinées (sans double comptage)
+      const montantCollecteTerrain = Number(collecteSession?._sum.montantCollecte ?? 0);
+      const montantVersementsDirec = Number(versementsParAgentMois.find((v) => v.encaisseParId === uid)?._sum.montant ?? 0);
+      const montantRembCredit      = Number(remboursementsParAgentMois.find((r) => r.enregistreParId === uid)?._sum.montant ?? 0);
+      const montantVentes          = Number(ventesParAgentMois.find((v) => v.vendeurId === uid)?._sum.montantTotal ?? 0);
+      const montantCollecteCeMois  = montantCollecteTerrain + montantVersementsDirec + montantRembCredit + montantVentes;
 
       const derniereActiviteDate  = derniereActivite.find((d) => d.agentId === uid)?._max.dateCollecte ?? null;
 
@@ -133,6 +180,13 @@ export async function GET(req: Request) {
           totalVerse,
           totalPacks,
           derniereActivite: derniereActiviteDate,
+          // Détail des 4 sources de collecte ce mois
+          collecteDetail: {
+            terrain:      montantCollecteTerrain,
+            versements:   montantVersementsDirec,
+            remboursements: montantRembCredit,
+            ventes:       montantVentes,
+          },
         },
       };
     });
@@ -143,7 +197,12 @@ export async function GET(req: Request) {
         total:  agentsDb.length,
         actifs: agentsDb.filter((a) => a.actif).length,
         totalClientsAffectes: clientsParAgent.reduce((s, c) => s + c._count.id, 0),
-        totalCollecteCeMois:  collectesMois.reduce((s, c) => s + Number(c._sum.montantCollecte ?? 0), 0),
+        totalCollecteCeMois: (
+          collectesSessionsMois.reduce((s, c) => s + Number(c._sum.montantCollecte ?? 0), 0) +
+          versementsParAgentMois.reduce((s, v) => s + Number(v._sum.montant ?? 0), 0) +
+          remboursementsParAgentMois.reduce((s, r) => s + Number(r._sum.montant ?? 0), 0) +
+          ventesParAgentMois.reduce((s, v) => s + Number(v._sum.montantTotal ?? 0), 0)
+        ),
       },
     });
   } catch (error) {

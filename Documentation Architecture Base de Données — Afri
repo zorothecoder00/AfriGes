@@ -1,0 +1,583 @@
+ Documentation Architecture Base de Données — AfriGes
+
+  Vue d'ensemble
+
+  AfriGes est une plateforme de gestion commerciale multi-sites (points de
+  vente, dépôts) qui couvre l'ensemble du cycle de vie d'une entreprise de
+  distribution : gestion des utilisateurs et rôles → clients → stock → ventes →
+  caisse → crédits → packs épargne → comptabilité → gouvernance actionnariale.
+
+  La base repose sur PostgreSQL avec Prisma ORM. Elle est organisée en 10
+  domaines métier distincts mais interconnectés.
+
+  ---
+  Domaine 1 — Utilisateurs & Authentification
+
+  User
+
+  Le modèle central de toute la plateforme. Chaque personne (admin,
+  gestionnaire, client enregistré comme utilisateur) est un User.
+
+  ┌────────────────────┬────────────────────────────────────────────────────┐
+  │     Champ clé      │                        Rôle                        │
+  ├────────────────────┼────────────────────────────────────────────────────┤
+  │ role (Role)        │ Niveau d'accès système : SUPER_ADMIN, ADMIN, USER  │
+  ├────────────────────┼────────────────────────────────────────────────────┤
+  │ etat               │ Cycle de vie : ACTIF, INACTIF, SUSPENDU, BLOQUÉ,   │
+  │ (MemberStatus)     │ EN_ATTENTE_VALIDATION, REJETÉ                      │
+  ├────────────────────┼────────────────────────────────────────────────────┤
+  │ tokenVersion       │ Sécurité : incrémenté à chaque déconnexion forcée  │
+  │                    │ pour invalider les JWT                             │
+  ├────────────────────┼────────────────────────────────────────────────────┤
+  │ mustChangePassword │ Force le changement de mot de passe à la prochaine │
+  │                    │  connexion                                         │
+  └────────────────────┴────────────────────────────────────────────────────┘
+
+  Liens sortants importants : Un User peut être lié à un Gestionnaire (son
+  profil opérationnel), un Wallet (sa bourse électronique), des Notification[],
+  des AuditLog[].
+
+  Gestionnaire
+
+  Profil opérationnel associé à un User. Un utilisateur n'a qu'un seul profil
+  gestionnaire (@unique sur memberId).
+
+  ┌─────────────────────┬───────────────────────────────────────────────────┐
+  │      Champ clé      │                       Rôle                        │
+  ├─────────────────────┼───────────────────────────────────────────────────┤
+  │ role                │ Rôle métier : RPV, CAISSIER, MAGAZINIER,          │
+  │ (RoleGestionnaire)  │ COMPTABLE, AGENT_TERRAIN, CONTROLEUR_TERRAIN,     │
+  │                     │ etc. — 18 rôles distincts                         │
+  ├─────────────────────┼───────────────────────────────────────────────────┤
+  │ zone                │ Zone géographique de couverture                   │
+  ├─────────────────────┼───────────────────────────────────────────────────┤
+  │ actionnaireProfile  │ Si le gestionnaire est aussi actionnaire, son     │
+  │                     │ profil actions est ici                            │
+  └─────────────────────┴───────────────────────────────────────────────────┘
+
+  Relation clé : User (1) → Gestionnaire (1) — chaque gestionnaire pointe vers
+  exactement un User.
+
+  GestionnaireAffectation
+
+  Table de jonction qui affecte un User à un Point de Vente pour une période
+  donnée.
+
+  User ──────────────── GestionnaireAffectation ──────── PointDeVente
+  (caissier, magasinier,    [dateDebut, dateFin, actif]   (PDV ou dépôt)
+   agent, etc.)
+
+  Un user peut être ré-affecté au même PDV après une période d'absence.
+  L'unicité de l'affectation active est gérée applicativement (actif = true).
+
+  ---
+  Domaine 2 — Points de Vente & Dépôts
+
+  PointDeVente
+
+  Représente un point de vente classique ou un dépôt central (TypePointDeVente:
+  POINT_DE_VENTE | DEPOT_CENTRAL). C'est le pivot géographique de toutes les
+  opérations.
+
+  ┌──────────────┬───────────────────────────────────────────────────────────┐
+  │  Champ clé   │                           Rôle                            │
+  ├──────────────┼───────────────────────────────────────────────────────────┤
+  │ code         │ Identifiant unique (ex: "PDV-001")                        │
+  ├──────────────┼───────────────────────────────────────────────────────────┤
+  │ rpvId        │ Le Responsable du Point de Vente (User, relation 1-1      │
+  │              │ unique)                                                   │
+  ├──────────────┼───────────────────────────────────────────────────────────┤
+  │ chefAgenceId │ Chef d'agence qui supervise ce PDV (un chef peut          │
+  │              │ superviser N PDVs)                                        │
+  ├──────────────┼───────────────────────────────────────────────────────────┤
+  │ actif        │ Permet de désactiver un PDV sans le supprimer             │
+  └──────────────┴───────────────────────────────────────────────────────────┘
+
+  Relations sortantes : Chaque PDV agrège toutes les opérations qui s'y
+  déroulent : stocks[], sessionsCaisse[], ventesDirectes[], mouvementsStock[],
+  inventaires[], collectes[], etc.
+
+  ---
+  Domaine 3 — Clients
+
+  Client
+
+  Le modèle client est riche et couvre le cycle complet : prospection terrain →
+  validation → suivi commercial → crédit.
+
+  ┌──────────────────────────┬──────────────────────────────────────────────┐
+  │        Champ clé         │                     Rôle                     │
+  ├──────────────────────────┼──────────────────────────────────────────────┤
+  │ codeClient               │ Code auto-généré (ex: CLI-00042)             │
+  ├──────────────────────────┼──────────────────────────────────────────────┤
+  │ typeClient               │ COMPTANT ou CREDIT                           │
+  ├──────────────────────────┼──────────────────────────────────────────────┤
+  │ etat (MemberStatus)      │ Cycle : EN_ATTENTE_VALIDATION (créé par      │
+  │                          │ agent) → ACTIF (validé par RVC)              │
+  ├──────────────────────────┼──────────────────────────────────────────────┤
+  │ limiteCredit /           │ Plafond et encours crédit                    │
+  │ soldeActuel              │                                              │
+  ├──────────────────────────┼──────────────────────────────────────────────┤
+  │ niveauRisque /           │ Scoring calculé automatiquement (0–100)      │
+  │ scoreSolvabilite         │                                              │
+  ├──────────────────────────┼──────────────────────────────────────────────┤
+  │ latitude/longitude       │ Géolocalisation du commerce client           │
+  ├──────────────────────────┼──────────────────────────────────────────────┤
+  │ pointDeVenteId           │ PDV de rattachement principal                │
+  ├──────────────────────────┼──────────────────────────────────────────────┤
+  │ agentTerrainId           │ Agent terrain actuellement responsable       │
+  ├──────────────────────────┼──────────────────────────────────────────────┤
+  │ validationParId          │ RVC (Responsable Vente Crédit) qui a validé  │
+  │                          │ ou rejeté                                    │
+  └──────────────────────────┴──────────────────────────────────────────────┘
+
+  Cycle de validation :
+  Agent terrain crée client (EN_ATTENTE_VALIDATION)
+          ↓
+  RVC statue → ACTIF ou REJETÉ (avec motifRejet)
+
+  ClientAgentAffectation
+
+  Historique des affectations client ↔ agent terrain. Permet de calculer le CA
+  par agent sur la période exacte où il était responsable, et évite le
+  double-comptage lors des réaffectations.
+
+  ClientPointDeVente
+
+  Table N-M : un client peut être rattaché à plusieurs PDVs (multicanalité).
+
+  VisiteClient
+
+  Enregistrement GPS d'une visite d'un agent terrain chez un client (date,
+  coordonnées, notes).
+
+  ClientDocument
+
+  Stockage des pièces justificatives du client : CNI, passeport, contrat, photo,
+   reçu — avec URL de stockage, date d'expiration, et traçabilité (qui a
+  uploadé).
+
+  ClientTransaction
+
+  Historique financier unifié du client. Agrège toutes les transactions :
+  versements pack, remboursements crédit, ventes directes, collectes. Utilise un
+   lien polymorphique (sourceType + sourceId) pour pointer vers la source sans
+  contrainte de FK.
+
+  ClientScoreHistorique
+
+  Chaque recalcul du score de solvabilité crée une ligne ici → permet de voir
+  l'évolution du risque dans le temps.
+
+  ---
+  Domaine 4 — Crédits Clients
+
+  CreditClient
+
+  Un crédit accordé à un client pour l'achat de produits.
+
+  ┌───────────────────────────┬─────────────────────────────────────────────┐
+  │         Champ clé         │                    Rôle                     │
+  ├───────────────────────────┼─────────────────────────────────────────────┤
+  │ reference                 │ Référence unique (ex: CRD-20260521-001)     │
+  ├───────────────────────────┼─────────────────────────────────────────────┤
+  │                           │ Workflow complet : EN_ATTENTE_VALIDATION →  │
+  │ statut                    │ VALIDE → ACTIF → EN_RETARD / SOLDE / ANNULE │
+  │                           │  / REJETE                                   │
+  ├───────────────────────────┼─────────────────────────────────────────────┤
+  │ montantTotal /            │                                             │
+  │ montantRembourse /        │ Suivi financier en temps réel               │
+  │ soldeRestant              │                                             │
+  ├───────────────────────────┼─────────────────────────────────────────────┤
+  │ dureeJours /              │ Calculé à la validation                     │
+  │ montantJournalier         │                                             │
+  ├───────────────────────────┼─────────────────────────────────────────────┤
+  │ tauxPenalite              │ % par jour de retard                        │
+  ├───────────────────────────┼─────────────────────────────────────────────┤
+  │ creeParId / valideParId   │ Traçabilité : qui a créé, qui a validé      │
+  └───────────────────────────┴─────────────────────────────────────────────┘
+
+  LigneCreditClient
+
+  Détail des produits inclus dans le crédit. Conserve un snapshot des prix au
+  moment de la vente (même si le produit est modifié ensuite).
+
+  EcheanceCredit
+
+  Échéancier journalier automatiquement généré : une ligne par jour de
+  remboursement avec montantDu, montantPaye, penalite, statut.
+
+  RemboursementCredit
+
+  Chaque paiement effectué par le client est enregistré ici avec le mode de
+  paiement et l'agent qui l'a encaissé.
+
+  Flux :
+  CreditClient (1) ──→ LigneCreditClient[] (produits)
+               (1) ──→ EcheanceCredit[] (échéancier)
+               (1) ──→ RemboursementCredit[] (paiements reçus)
+
+  ---
+  Domaine 5 — Produits & Stock
+
+  Produit
+
+  Catalogue produits : référence, catégorie, unité, prix de vente, prix d'achat,
+   seuil d'alerte global.
+
+  StockSite
+
+  Stock localisé : quantité d'un produit dans un PDV/dépôt précis. Clé composite
+   unique (produitId, pointDeVenteId).
+
+  Produit (N) ─── StockSite ─── (N) PointDeVente
+
+  Il n'y a pas de stock "global" — tout est localisé par site.
+
+  MouvementStock
+
+  Journal de tout mouvement de stock (entrée, sortie, ajustement). Chaque ligne
+  est tracée avec :
+  - typeEntree ou typeSortie (réception fournisseur, vente, transfert, perte,
+  casse, don…)
+  - Référence aux documents sources : receptionApproId, transfertStockId,
+  venteDirecteId, souscriptionId, bonSortieId
+
+  Fournisseur
+
+  Référentiel des fournisseurs externes.
+
+  ReceptionApprovisionnement + LigneReceptionAppro
+
+  Document de réception de marchandises depuis un fournisseur externe
+  (FOURNISSEUR) ou un autre dépôt (INTERNE). Workflow : BROUILLON → EN_COURS →
+  RECU → VALIDE. Inclut un contrôle qualité obligatoire avant mise en stock.
+
+  TransfertStock + LigneTransfertStock
+
+  Mouvement de stock entre deux PDVs ou dépôts. Nécessite une validation.
+  Statuts : EN_COURS → EXPEDIE → RECU.
+
+  InventaireSite + LigneInventaireSite
+
+  Comptage physique périodique. Chaque ligne compare quantiteSysteme (ce que la
+  BD dit) vs quantiteConstatee (ce qui est réellement là), et calcule l'ecart.
+
+  CommandeInterne + LigneCommandeInterne
+
+  Demande de réapprovisionnement émise par un PDV vers le dépôt central.
+
+  BonSortie + LigneBonSortie
+
+  Document formel pour les sorties exceptionnelles : pertes, casses, dons,
+  consommation interne. Document imprimable et auditable.
+
+  AnomalieStock
+
+  Signalement d'un écart constaté (MANQUANT, SURPLUS, DEFECTUEUX) par un
+  magasinier, suivi jusqu'à sa résolution.
+
+  ---
+  Domaine 6 — Caisse & Ventes
+
+  SessionCaisse — Grande caisse (Caissier)
+
+  Session de travail d'un caissier sur un PDV. Ouverte le matin, fermée le soir
+  avec clôture. Contient toutes les opérations et transferts de la journée.
+
+  CaissePDV — Petite caisse (RPV)
+
+  Caisse opérationnelle du Responsable Point de Vente. Liée automatiquement à la
+   grande caisse du caissier (sessionCaisseId).
+
+  SessionCaisse (grande caisse caissier)
+        │
+        └──── CaissePDV (petite caisse RPV)
+
+  OperationCaisse / OperationCaissePDV
+
+  Chaque encaissement ou décaissement dans la caisse correspondante : type
+  (ENCAISSEMENT/DECAISSEMENT), mode de paiement, catégorie, montant, motif.
+
+  TransfertCaisse
+
+  Mouvement d'argent entre caisses (ex: RPV verse à caissier en fin de journée).
+
+  ClotureCaisse
+
+  Récapitulatif de fin de session : total ventes, montant total, panier moyen,
+  nb clients, solde théorique vs réel, écart. Unique par session + PDV.
+
+  VenteDirecte + LigneVenteDirecte
+
+  Vente comptant ou à crédit. Peut être liée à un client enregistré ou un client
+   "walk-in" (nom + téléphone). Connectée soit à la petite caisse (RPV) soit à
+  la grande caisse (caissier).
+
+  Statuts : BROUILLON → CONFIRMEE → PAID (comptant) ou CREDIT_REQUEST →
+  CREDIT_APPROUVE/REFUSE (crédit)
+
+  ---
+  Domaine 7 — Packs & Collectes Terrain
+
+  Pack
+
+  Produit d'épargne proposé aux clients : alimentaire, revendeur, familial,
+  urgence, épargne-produit, fidélité. Définit la fréquence de versement, le
+  montant, la durée.
+
+  SouscriptionPack
+
+  Engagement d'un client (ou user) à un pack. Suit l'avancement : montantVerse,
+  montantRestant, numeroCycle.
+
+  VersementPack
+
+  Chaque paiement effectué sur une souscription (cotisation initiale, versement
+  périodique, remboursement, bonus).
+
+  EcheancePack
+
+  Calendrier prévisionnel des versements à effectuer.
+
+  ReceptionProduitPack + LigneReceptionPack
+
+  Livraison physique des produits au client lorsque sa souscription est
+  complète. Déclenche une sortie de stock au PDV concerné.
+
+  CollecteJournaliere + LigneCollecte
+
+  Session de tournée terrain d'un agent : il visite plusieurs clients et
+  collecte leurs versements. Chaque ligne est liée à une SouscriptionPack.
+
+  Anti-fraude : Les coordonnées GPS et le mode de paiement sont enregistrés au
+  moment de la collecte.
+
+  Workflow :
+  Agent ouvre CollecteJournaliere (EN_COURS)
+      ↓ collecte chez clients → LigneCollecte[]
+  Admin valide (VALIDEE) → génération automatique des VersementPack
+
+  ---
+  Domaine 8 — Programme de Fidélité
+
+  PointsFidelite
+
+  Solde de points d'un client ou user (unique par personne).
+
+  MouvementPoints
+
+  Historique des gains (achat, collecte), utilisations (rachat récompense),
+  expirations et ajustements.
+
+  RecompenseFidelite
+
+  Catalogue des récompenses disponibles : réduction, produit gratuit, cashback.
+  Associée optionnellement à un produit du catalogue.
+
+  UtilisationRecompense
+
+  Enregistrement d'une récompense utilisée par un client : points consommés,
+  date d'utilisation, statut (DISPONIBLE / UTILISEE / EXPIREE).
+
+  ---
+  Domaine 9 — Finance & Comptabilité
+
+  Wallet
+
+  Bourse électronique multi-compartiments d'un User : soldeGeneral,
+  soldeTontine, soldeCredit.
+
+  WalletTransaction
+
+  Historique de chaque mouvement sur un wallet.
+
+  Facture + Paiement
+
+  Facturation interne. Une facture peut avoir plusieurs paiements (paiement
+  partiel possible).
+
+  Comptabilité SYSCOHADA
+
+  ┌──────────────────────────┬──────────────────────────────────────────────┐
+  │          Modèle          │                     Rôle                     │
+  ├──────────────────────────┼──────────────────────────────────────────────┤
+  │ CompteComptable          │ Plan comptable hiérarchique                  │
+  │                          │ (auto-référentiel via compteParentId)        │
+  ├──────────────────────────┼──────────────────────────────────────────────┤
+  │ EcritureComptable +      │ Écritures double-entrée (débit/crédit) dans  │
+  │ LigneEcriture            │ les journaux (CAISSE, BANQUE, VENTES,        │
+  │                          │ ACHATS, OD, PAIE)                            │
+  ├──────────────────────────┼──────────────────────────────────────────────┤
+  │ JournalValidation        │ Validation d'une écriture par un comptable   │
+  │                          │ autorisé                                     │
+  ├──────────────────────────┼──────────────────────────────────────────────┤
+  │ RapprochementBancaire    │ Comparaison mensuelle solde bancaire réel vs │
+  │                          │  solde comptable, calcul de l'écart          │
+  ├──────────────────────────┼──────────────────────────────────────────────┤
+  │ DeclarationTVA           │ Déclaration mensuelle : TVA collectée − TVA  │
+  │                          │ déductible = TVA due                         │
+  ├──────────────────────────┼──────────────────────────────────────────────┤
+  │ ClotureComptable         │ Fermeture comptable mensuelle (unique par    │
+  │                          │ année + mois)                                │
+  └──────────────────────────┴──────────────────────────────────────────────┘
+
+  ---
+  Domaine 10 — Contrôle Terrain
+
+  VisiteControle
+
+  Mission de contrôle planifiée par un CONTROLEUR_TERRAIN sur un PDV. Objectif
+  défini en amont.
+
+  RapportControle
+
+  Rapport rédigé à l'issue de la visite, avec recommandations et liste de
+  destinataires (ex: "ADMIN,CHEF_AGENCE").
+
+  AlerteRapport
+
+  Alertes attachées à un rapport : INFO, ATTENTION ou CRITIQUE. Permet
+  d'escalader les anomalies graves automatiquement.
+
+  ---
+  Domaine 11 — Actionnaires & Gouvernance
+
+  ActionnaireProfile
+
+  Profil d'actionnaire d'un gestionnaire : nombre d'actions, type (ordinaire,
+  privilégiée, fondateur), prix unitaire.
+
+  MouvementAction
+
+  Historique des transactions sur les actions : achat, cession, transfert.
+
+  Dividende
+
+  Déclaration de dividendes périodiques : montant total, montant par part, date
+  de versement.
+
+  Assemblee
+
+  Assemblée générale (AGO, AGE, Conseil de Surveillance, Conseil
+  d'Administration) avec ordre du jour et lieu.
+
+  AssembleeParticipant
+
+  Participation d'un gestionnaire à une assemblée. Statut : INVITE → CONFIRME /
+  ABSENT / PRESENT.
+
+  ResolutionAssemblee + VoteAssemblee
+
+  Chaque résolution soumise au vote est enregistrée. Chaque vote (POUR / CONTRE
+  / ABSTENTION) est tracé individuellement.
+
+  ProcurationAssemblee
+
+  Un actionnaire absent peut mandater un autre pour voter en son nom.
+
+  ---
+  Domaine 12 — Système & Transversal
+
+  ┌──────────────────────┬───────────────────────────────────────────────────┐
+  │        Modèle        │                       Rôle                        │
+  ├──────────────────────┼───────────────────────────────────────────────────┤
+  │ Notification         │ Notifications push internes (priorité             │
+  │                      │ URGENT/HAUTE/NORMAL/BASSE, lien vers action)      │
+  ├──────────────────────┼───────────────────────────────────────────────────┤
+  │ AuditLog             │ Journal complet de toutes les actions (qui, quoi, │
+  │                      │  quand, depuis quelle IP)                         │
+  ├──────────────────────┼───────────────────────────────────────────────────┤
+  │ Message              │ Messagerie interne utilisateur à utilisateur,     │
+  │                      │ avec support de fils de discussion (parentId)     │
+  ├──────────────────────┼───────────────────────────────────────────────────┤
+  │ PieceJustificative   │ Stockage centralisé de documents justificatifs    │
+  │                      │ via lien polymorphique (sourceType + sourceId)    │
+  ├──────────────────────┼───────────────────────────────────────────────────┤
+  │ UserPermission       │ Permissions granulaires par utilisateur, par      │
+  │                      │ module (surcharge les droits du rôle)             │
+  ├──────────────────────┼───────────────────────────────────────────────────┤
+  │ RolePageAccess       │ Configuration de l'accès aux pages par rôle       │
+  │                      │ gestionnaire (modifiable par Super Admin)         │
+  ├──────────────────────┼───────────────────────────────────────────────────┤
+  │ SystemModule         │ Activation/désactivation de modules entiers de la │
+  │                      │  plateforme                                       │
+  ├──────────────────────┼───────────────────────────────────────────────────┤
+  │ SystemSetting        │ Paramètres globaux clé-valeur                     │
+  ├──────────────────────┼───────────────────────────────────────────────────┤
+  │ SecurityLog          │ Journal de sécurité : connexions, échecs,         │
+  │                      │ déconnexions forcées                              │
+  ├──────────────────────┼───────────────────────────────────────────────────┤
+  │ DocumentBibliotheque │ Bibliothèque documentaire publique : bilans, PV,  │
+  │                      │ statuts, rapports annuels                         │
+  ├──────────────────────┼───────────────────────────────────────────────────┤
+  │ Parametre            │ Paramètres simples clé-valeur (héritage, usage    │
+  │                      │ ciblé)                                            │
+  └──────────────────────┴───────────────────────────────────────────────────┘
+
+  ---
+  Schéma des flux principaux
+
+  AGENT TERRAIN
+      │ crée Client (EN_ATTENTE) ──→ RVC valide ──→ Client (ACTIF)
+      │ fait CollecteJournaliere ──→ Admin valide ──→ VersementPack
+      │ enregistre VisiteClient (GPS)
+      │ crée VenteDirecte (CREDIT_REQUEST) ──→ RVC approuve ──→ CreditClient
+      │
+  CAISSIER
+      │ ouvre SessionCaisse ──→ OperationCaisse[] ──→ ClotureCaisse
+      │
+  RPV
+      │ ouvre CaissePDV ──→ OperationCaissePDV[]
+      │ fait VenteDirecte ──→ LigneVenteDirecte[] → MouvementStock (sortie)
+      │
+  MAGASINIER
+      │ réceptionne ReceptionApprovisionnement → MouvementStock (entrée)
+      │ fait InventaireSite ──→ AnomalieStock si écart
+      │
+  COMPTABLE
+      │ saisit EcritureComptable ──→ LigneEcriture[]
+      │ fait RapprochementBancaire / DeclarationTVA
+      │ clôture ClotureComptable (fin de mois)
+      │
+  ACTIONNAIRE/GESTIONNAIRE
+      │ participe Assemblee ──→ VoteAssemblee
+      │ reçoit Dividende
+
+  ---
+  Résumé chiffré
+
+  ┌───────────────────────┬─────────────────────────────────────────────────┐
+  │       Catégorie       │                Nombre de modèles                │
+  ├───────────────────────┼─────────────────────────────────────────────────┤
+  │ Auth & Utilisateurs   │ 3 (User, Gestionnaire, GestionnaireAffectation) │
+  ├───────────────────────┼─────────────────────────────────────────────────┤
+  │ Points de vente       │ 1 (PointDeVente)                                │
+  ├───────────────────────┼─────────────────────────────────────────────────┤
+  │ Clients               │ 7 (Client + 6 sous-modèles)                     │
+  ├───────────────────────┼─────────────────────────────────────────────────┤
+  │ Crédits               │ 4 (CreditClient + 3 sous-modèles)               │
+  ├───────────────────────┼─────────────────────────────────────────────────┤
+  │ Produits & Stock      │ 11 (Produit, StockSite, MouvementStock + 8      │
+  │                       │ opérations)                                     │
+  ├───────────────────────┼─────────────────────────────────────────────────┤
+  │ Caisse & Ventes       │ 7 (SessionCaisse, CaissePDV, VenteDirecte + 4   │
+  │                       │ opérations)                                     │
+  ├───────────────────────┼─────────────────────────────────────────────────┤
+  │ Packs & Collectes     │ 8 (Pack, SouscriptionPack + 6 sous-modèles)     │
+  ├───────────────────────┼─────────────────────────────────────────────────┤
+  │ Fidélité              │ 4 (PointsFidelite + 3 sous-modèles)             │
+  ├───────────────────────┼─────────────────────────────────────────────────┤
+  │ Finance &             │ 8 (Wallet + 7 modèles comptables)               │
+  │ Comptabilité          │                                                 │
+  ├───────────────────────┼─────────────────────────────────────────────────┤
+  │ Contrôle terrain      │ 3 (VisiteControle, RapportControle,             │
+  │                       │ AlerteRapport)                                  │
+  ├───────────────────────┼─────────────────────────────────────────────────┤
+  │ Actionnaires &        │ 7 (ActionnaireProfile + 6 modèles)              │
+  │ Gouvernance           │                                                 │
+  ├───────────────────────┼─────────────────────────────────────────────────┤
+  │ Système & Transversal │ 10                                              │
+  ├───────────────────────┼─────────────────────────────────────────────────┤
+  │ Total                 │ ~73 modèles                                     │
+  └───────────────────────┴─────────────────────────────────────────────────┘

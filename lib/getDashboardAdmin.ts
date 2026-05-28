@@ -112,10 +112,12 @@ export async function getDashboardDecisionnel() {
   });
   const agentTerrainIds = agentTerrainRecords.map((g) => g.memberId);
 
-  const [versementsParAgent, remboursementsParAgent, ventesParAgent] =
+  const [versementsParAgent, remboursementsParAgent, ventesParAgent, collectesParAgent] =
     agentTerrainIds.length > 0
       ? await Promise.all([
-          // Versements packs encaissés par l'agent
+          // Versements packs encaissés directement par l'agent (encaisseParId = agent)
+          // Note : les VersementPack issus de validation de collecte ont encaisseParId = admin
+          // → pas de double comptage avec collectesParAgent
           prisma.versementPack.groupBy({
             by: ["encaisseParId"],
             where: {
@@ -144,10 +146,20 @@ export async function getDashboardDecisionnel() {
             },
             _sum: { montantTotal: true },
           }),
+          // Collectes terrain validées (montant physiquement collecté par l'agent)
+          prisma.collecteJournaliere.groupBy({
+            by: ["agentId"],
+            where: {
+              agentId: { in: agentTerrainIds },
+              statut: "VALIDEE",
+              dateCollecte: { gte: since30 },
+            },
+            _sum: { montantCollecte: true },
+          }),
         ])
-      : [[], [], []];
+      : [[], [], [], []];
 
-  // Fusionner par agentId
+  // Fusionner les 4 sources par agentId
   const totauxParAgent = new Map<number, number>();
   for (const v of versementsParAgent) {
     if (v.encaisseParId === null) continue;
@@ -163,6 +175,10 @@ export async function getDashboardDecisionnel() {
     if (v.vendeurId === null) continue;
     const id = v.vendeurId;
     totauxParAgent.set(id, (totauxParAgent.get(id) ?? 0) + Number(v._sum.montantTotal ?? 0));
+  }
+  for (const c of collectesParAgent) {
+    const id = c.agentId;
+    totauxParAgent.set(id, (totauxParAgent.get(id) ?? 0) + Number(c._sum.montantCollecte ?? 0));
   }
 
   // Trier et prendre les 5 premiers

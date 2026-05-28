@@ -151,6 +151,37 @@ export async function POST(_req: Request, { params }: Ctx) {
         }
       }
 
+      // ── Auto-affectation des clients non encore assignés ──────────────────
+      // Règle : si agentTerrainId est null → on affecte l'agent de cette collecte.
+      //         si agentTerrainId est déjà renseigné → on ne touche pas (l'admin gère les réaffectations).
+      const clientIdsValides = [...new Set(lignesAValider.map((l) => l.clientId))];
+      if (clientIdsValides.length > 0) {
+        const clientsSansAgent = await tx.client.findMany({
+          where: { id: { in: clientIdsValides }, agentTerrainId: null },
+          select: { id: true },
+        });
+
+        if (clientsSansAgent.length > 0) {
+          const idsSansAgent = clientsSansAgent.map((c) => c.id);
+
+          // 1. Mettre à jour le champ direct
+          await tx.client.updateMany({
+            where: { id: { in: idsSansAgent } },
+            data:  { agentTerrainId: collecte.agentId },
+          });
+
+          // 2. Créer les entrées d'historique d'affectation
+          await tx.clientAgentAffectation.createMany({
+            data: idsSansAgent.map((cid) => ({
+              clientId: cid,
+              agentId:  collecte.agentId,
+              actif:    true,
+            })),
+            skipDuplicates: true,
+          });
+        }
+      }
+
       // Recalculer le montant total collecté
       const totalCollecte = lignesAValider.reduce(
         (sum, l) => sum + Number(l.montantCollecte),

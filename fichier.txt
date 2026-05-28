@@ -43,29 +43,3 @@ netsh wlan show profile name="NomDuWifi" key=clear affiche toutes les propriét�
 Faire des tags dans l'application pour permettre de retracer les informations sur les clients
 
 Créer un menu RIA (commissions , finances etc etc)  
-
- Plan de modifications (2 fichiers) :
-
-  1. app/api/rvc/clients/route.ts
-
-  Ajouter au select :
-  - scoreSolvabilite
-  - soldeActuel
-  - creditsClients: { where: { statut: "EN_RETARD" }, select: { id: true } } →
-  transformé en nbCreditsEnRetard dans la réponse
-
-  2. app/dashboard/user/responsablesVenteCredit/page.tsx
-
-  - Ajouter scoreSolvabilite, soldeActuel, nbCreditsEnRetard au type ClientRVC
-  - Dans DetailPanel : nouvelle section "Solvabilité" visible pour TOUS les
-  statuts (pas seulement EN_ATTENTE), avec :
-    - Score (jauge colorée : vert ≥ 60, orange 30-59, rouge < 30)
-    - Solde actuel / dettes
-    - Badge rouge "X crédit(s) en retard" si nbCreditsEnRetard > 0
-  - Bouton "Modifier le plafond crédit" pour les clients ACTIF → appelle PATCH
-  /api/rvc/clients/[id]/limite-credit
-
-  3. Nouveau fichier : app/api/rvc/clients/[id]/limite-credit/route.ts
-
-  PATCH — accepte { limiteCredit: number }, protégé par getRVCSession(), met à
-  jour uniquement limiteCredit du client
