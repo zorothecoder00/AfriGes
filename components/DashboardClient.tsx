@@ -175,12 +175,16 @@ export default function AfriGesDashboard() {
   const d = response?.data;
 
   const { data: activityResponse, refetch: refetchActivity } = useApi<ActivityResponse>(
-    '/api/admin/activity'
+    '/api/admin/activity',
+    undefined,
+    { refreshInterval: 30_000 } // rafraîchissement auto toutes les 30 secondes
   );
   const act = activityResponse?.data;
 
   const { data: decisionalResponse, refetch: refetchDecisional } = useApi<DecisionalResponse>(
-    '/api/admin/dashboard/decisional'
+    '/api/admin/dashboard/decisional',
+    undefined,
+    { refreshInterval: 60_000 } // rafraîchissement auto toutes les 60 secondes
   );
   const dec = decisionalResponse?.data;
 

@@ -117,7 +117,9 @@ export default function CollectesPage() {
   }).toString();
 
   const { data: res, loading, refetch } = useApi<CollectesResponse>(
-    `/api/admin/collectes?${query}`
+    `/api/admin/collectes?${query}`,
+    undefined,
+    { refreshInterval: 30_000 } // rafraîchissement auto toutes les 30 secondes
   );
 
   const { data: agents } = useApi<{ data: AgentOption[] }>(

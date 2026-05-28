@@ -74,7 +74,7 @@ export default function AgentMap({ clients, visites, mode }: AgentMapProps) {
   // Tracé de la tournée (polyline reliant les visites dans l'ordre chronologique)
   const tourneePath: [number, number][] = visitesAvecGps.map((v) => [v.latitude!, v.longitude!]);
 
-  const center: [number, number] = allPositions.length > 0 ? allPositions[0] : [5.345, -4.024]; // Abidjan par défaut
+  const center: [number, number] = allPositions.length > 0 ? allPositions[0] : [6.137, 1.212]; // Lomé par défaut
 
   return (
     <MapContainer

@@ -21,7 +21,11 @@ function injectViewAs(url: string | null, viewAsUserId: number | undefined): str
   return `${url}${separator}viewAs=${viewAsUserId}`;
 }
 
-export function useApi<T>(url: string | null, options?: RequestInit): UseApiResult<T> {
+export function useApi<T>(
+  url: string | null,
+  options?: RequestInit,
+  { refreshInterval }: { refreshInterval?: number } = {}
+): UseApiResult<T> {
   const { viewAs } = useViewAs();
   const [data, setData] = useState<T | null>(null);
   const [loading, setLoading] = useState(true);
@@ -61,6 +65,13 @@ export function useApi<T>(url: string | null, options?: RequestInit): UseApiResu
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  // Auto-refresh par polling si refreshInterval est fourni
+  useEffect(() => {
+    if (!refreshInterval || refreshInterval <= 0) return;
+    const id = setInterval(fetchData, refreshInterval);
+    return () => clearInterval(id);
+  }, [fetchData, refreshInterval]);
 
   return { data, loading, error, refetch: fetchData };
 }
