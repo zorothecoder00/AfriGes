@@ -37,9 +37,10 @@ export async function GET(req: Request) {
     // Filtre opérations via session du caissier
     const sessionFilter = isAdmin ? {} : { session: { caissierId: userId } };
 
-    // Versements packs collectés aujourd'hui — scoped au PDV
+    // Versements packs confirmés aujourd'hui — scoped au PDV (EN_ATTENTE exclus)
     const versementsJour = await prisma.versementPack.findMany({
       where: {
+        statut:       "PAYE",
         datePaiement: { gte: startOfDay, lte: endOfDay },
         souscription: souscriptionFilter,
       },
@@ -244,9 +245,10 @@ export async function POST(req: Request) {
     const souscriptionFilter = pdvId ? souscriptionPdvWhere(pdvId) : {};
     const sessionFilter = isAdmin ? {} : { session: { caissierId: userId } };
 
-    // Stats VersementPack du jour — scoped au PDV
+    // Stats VersementPack confirmés du jour — scoped au PDV (EN_ATTENTE exclus)
     const versementsJour = await prisma.versementPack.findMany({
       where: {
+        statut:       "PAYE",
         datePaiement: { gte: startOfDay, lte: endOfDay },
         souscription: souscriptionFilter,
       },

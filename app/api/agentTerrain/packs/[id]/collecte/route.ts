@@ -65,97 +65,36 @@ export async function POST(req: Request, { params }: Ctx) {
       : "Membre";
 
     const result = await prisma.$transaction(async (tx) => {
-      const nouveauMontantVerse = Number(souscription.montantVerse) + montantNum;
-      const nouveauMontantRestant = Number(souscription.montantTotal) - nouveauMontantVerse;
-      const estSolde = nouveauMontantRestant <= 0;
-
-      // 1. Créer le versement
+      // Enregistrement EN_ATTENTE — l'effet financier sur la souscription sera
+      // appliqué par le caissier lors de la confirmation individuelle.
       const versement = await tx.versementPack.create({
         data: {
           souscriptionId,
           type: "VERSEMENT_PERIODIQUE",
           montant: montantNum,
-          statut: "PAYE",
+          statut: "EN_ATTENTE",
           datePaiement: new Date(),
           encaisseParId: parseInt(session.user.id),
           encaisseParNom: agentNom,
           notes: notes || `Collecte terrain — ${agentNom}`,
+          ...(echeanceId ? { reference: `ECH-${echeanceId}` } : {}),
         },
       });
 
-      // 2. Mettre à jour la souscription
-      const nouveauCycle =
-        estSolde && souscription.pack.type === "FAMILIAL"
-          ? souscription.numeroCycle + 1
-          : souscription.numeroCycle;
-
-      await tx.souscriptionPack.update({
-        where: { id: souscriptionId },
-        data: {
-          montantVerse: nouveauMontantVerse,
-          montantRestant: estSolde ? 0 : nouveauMontantRestant,
-          statut: estSolde ? "COMPLETE" : "ACTIF",
-          dateCloture: estSolde ? new Date() : null,
-          numeroCycle: nouveauCycle,
-        },
-      });
-
-      // 3. Marquer les échéances comme payées
-      if (echeanceId) {
-        // Échéance explicitement désignée
-        await tx.echeancePack.update({
-          where: { id: parseInt(echeanceId) },
-          data: { statut: "PAYE", datePaiement: new Date() },
-        });
-      } else if (estSolde) {
-        // Souscription entièrement soldée → toutes les échéances restantes sont soldées
-        await tx.echeancePack.updateMany({
-          where: { souscriptionId, statut: { in: ["EN_ATTENTE", "EN_RETARD"] } },
-          data: { statut: "PAYE", datePaiement: new Date() },
-        });
-      } else {
-        // Paiement partiel → marquer toutes les échéances couvertes par le montant versé
-        const nonPayees = await tx.echeancePack.findMany({
-          where: { souscriptionId, statut: { in: ["EN_ATTENTE", "EN_RETARD"] } },
-          orderBy: { numero: "asc" },
-        });
-        const idsAPayer: number[] = [];
-        let budget = montantNum;
-        for (const ec of nonPayees) {
-          if (budget >= Number(ec.montant) - 0.01) { // tolérance arrondi
-            idsAPayer.push(ec.id);
-            budget -= Number(ec.montant);
-          } else {
-            break;
-          }
-        }
-        if (idsAPayer.length === 0 && nonPayees.length > 0) {
-          idsAPayer.push(nonPayees[0].id);
-        }
-        if (idsAPayer.length > 0) {
-          await tx.echeancePack.updateMany({
-            where: { id: { in: idsAPayer } },
-            data: { statut: "PAYE", datePaiement: new Date() },
-          });
-        }
-      }
-
-      // 4. Audit log
       await tx.auditLog.create({
         data: {
           userId: parseInt(session.user.id),
-          action: "COLLECTE_PACK_TERRAIN",
-          entite: "SouscriptionPack",
-          entiteId: souscriptionId,
+          action: "COLLECTE_PACK_TERRAIN_EN_ATTENTE",
+          entite: "VersementPack",
+          entiteId: versement.id,
         },
       });
 
-      // 5. Notifier les admins
       await notifyAdmins(tx, {
-        titre: `Collecte terrain — ${souscription.pack.nom}`,
-        message: `${agentNom} a collecté ${montantNum.toLocaleString("fr-FR")} FCFA chez ${clientNom} (souscription #${souscriptionId} — ${souscription.pack.nom}).${estSolde ? " Souscription soldée !" : ""}`,
-        priorite: estSolde ? "HAUTE" : "NORMAL",
-        actionUrl: "/dashboard/admin/packs",
+        titre: `Collecte terrain à confirmer — ${souscription.pack.nom}`,
+        message: `${agentNom} a collecté ${montantNum.toLocaleString("fr-FR")} FCFA chez ${clientNom} (souscription #${souscriptionId}). En attente de confirmation caissier.`,
+        priorite: "NORMAL",
+        actionUrl: "/dashboard/user/caissiers",
       });
 
       return versement;

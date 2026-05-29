@@ -61,11 +61,15 @@ export async function GET(req: NextRequest) {
       souscriptionsEnAttente,
       echeancesEnRetard,
       derniereCloture,
+      nbVersementsEnAttente,
+      nbRemboursementsEnAttente,
+      nbVentesEnAttente,
     ] = await Promise.all([
 
-      // Versements encaissés aujourd'hui — scoped au PDV
+      // Versements confirmés aujourd'hui — scoped au PDV (EN_ATTENTE exclus)
       prisma.versementPack.findMany({
         where: {
+          statut:       "PAYE",
           datePaiement: { gte: startOfDay, lte: endOfDay },
           ...(pdvId ? { souscription: souscriptionFilter } : {}),
         },
@@ -156,6 +160,30 @@ export async function GET(req: NextRequest) {
             : { session: { caissierId: effectiveUserId } },
         orderBy: { date: "desc" },
       }),
+
+      // Versements EN_ATTENTE à confirmer — scoped au PDV
+      prisma.versementPack.count({
+        where: {
+          statut:      "EN_ATTENTE",
+          ...(pdvId ? { souscription: souscriptionFilter } : {}),
+        },
+      }),
+
+      // Remboursements EN_ATTENTE_CAISSIER à confirmer — scoped au PDV
+      prisma.remboursementCredit.count({
+        where: {
+          statut: "EN_ATTENTE_CAISSIER",
+          ...(pdvId ? { credit: { client: { pointDeVenteId: pdvId } } } : {}),
+        },
+      }),
+
+      // Ventes terrain PAID à confirmer — scoped au PDV
+      prisma.venteDirecte.count({
+        where: {
+          statut: "PAID",
+          ...(pdvId ? { pointDeVenteId: pdvId } : {}),
+        },
+      }),
     ]);
 
     // ── Stats versements du jour ───────────────────────────────────────────
@@ -203,6 +231,9 @@ export async function GET(req: NextRequest) {
       alertes.push({ type: "warning", message: `${stockFaible} produit(s) avec stock faible` });
     if (souscriptionsEnAttente > 0)
       alertes.push({ type: "info",    message: `${souscriptionsEnAttente} souscription(s) en attente d'acompte` });
+    const nbTotalEnAttente = nbVersementsEnAttente + nbRemboursementsEnAttente + nbVentesEnAttente;
+    if (nbTotalEnAttente > 0)
+      alertes.push({ type: "warning", message: `${nbTotalEnAttente} opération(s) terrain en attente de confirmation caissier` });
 
     // ── Derniers encaissements du jour (packs + ventes directes) — top 5 ──
     const derniersPacks = versementsAujourdhui.map((v) => {
@@ -310,6 +341,12 @@ export async function GET(req: NextRequest) {
           produitsAlerte: produitsAvecStock
             .filter((p) => p.totalStock <= p.alerteStock)
             .map((p) => ({ id: p.id, nom: p.nom, stock: p.totalStock, alerteStock: p.alerteStock })),
+        },
+        aConfirmer: {
+          versements:     nbVersementsEnAttente,
+          remboursements: nbRemboursementsEnAttente,
+          ventes:         nbVentesEnAttente,
+          total:          nbTotalEnAttente,
         },
         souscriptionsActives,
         souscriptionsEnAttente,

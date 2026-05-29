@@ -1072,6 +1072,10 @@ model RemboursementCredit {
   dateRemboursement DateTime     @default(now())
   modePaiement      TypePaiement @default(ESPECES)
   notes             String?
+  // EN_ATTENTE_CAISSIER = enregistré par agent/admin, en attente confirmation caissier
+  // CONFIRME           = caissier a encaissé physiquement (effet financier appliqué)
+  // REJETE             = caissier a rejeté (erreur de saisie, fraude, etc.)
+  statut            String       @default("EN_ATTENTE_CAISSIER")
 
   enregistreParId   Int
   enregistrePar     User         @relation(fields: [enregistreParId], references: [id])
@@ -1081,6 +1085,7 @@ model RemboursementCredit {
   createdAt DateTime @default(now())
 
   @@index([creditId])
+  @@index([statut])
   @@index([dateRemboursement])
 }
 

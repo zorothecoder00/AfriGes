@@ -44,17 +44,23 @@ Faire des tags dans l'application pour permettre de retracer les informations su
 
 Créer un menu RIA (commissions , finances etc etc)  
 
-  Plan d'implémentation ÉTAPE 7
+  
+Permettre à un client de pouvoir être de type crédit et de type comptant (pas juste 1 seul)                           DEJA FAIT
 
-  1. Schema : ajouter PRE_VALIDEE à StatutDemandeAjustement
-  2. Magasinier API : notifier Resp.Appro au lieu de l'Admin
-  3. Nouveau : GET + PATCH /api/logistique/ajustements/[id] pour Resp.Appro
-  4. Admin API : changer la vérification EN_ATTENTE → PRE_VALIDEE
-  5. UI Logistique : section pré-validation dans l'onglet Anomalies (ou nouveau
-  sous-onglet)
-  6. UI Admin : afficher PRE_VALIDEE et filtres mis à jour
-  7. UI Magasinier : afficher le statut PRE_VALIDEE
-
-  C'est parti :
+Le caissier (dashboard/user/caissier ) doit pouvoir confirmer chaque opération ( c'est à dire chaque versement collecté par n agent , chaque remboursement de crédit , chaque vente directe par l'agent , magasinier admin ... ) ( et non juste une aggrégation). Pour le moment on dirait que le caissier ne confirme que le total qui est rentré dans la journéé                                                                                                      DEJA FAIT
 
 
+Au niveau de la création du pack on doit avoir déjà les spécifications de la demande des lignes de produits que le client veut
+
+
+BQuerry pour extraire les données et faire des analyses  
+
+Le responsable de crédit puisse éditer une demande de crédit ( c'est à dire la liste des produits et la quantité de produit voulu)
+
+la validation de crédit ne vient jamais sur le dashboard/user/responsablesCredit quand l'agent fait la demande
+                              DEJA FAIT
+
+
+Lorsqu'on créé un client on doit pouvoir affecter un tag RIA(client ordinaire de base lorsqu'on ne fait rien)
+
+Pouvoir créer des tags RIA et faire des recherches par tag( clients surtout ) sur l'app

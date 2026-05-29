@@ -51,65 +51,23 @@ export async function POST(req: Request, { params }: Ctx) {
     }
 
     const result = await prisma.$transaction(async (tx) => {
-      const nouveauSolde = Number(credit.soldeRestant) - montantNum;
-      const estSolde = nouveauSolde <= 0.01;
-
-      // 1. Créer le remboursement
+      // 1. Créer le remboursement EN_ATTENTE_CAISSIER — effet financier appliqué par le caissier
       const remboursement = await tx.remboursementCredit.create({
         data: {
           creditId,
           montant: montantNum,
-          modePaiement: "ESPECES",
+          modePaiement: modePaiement as "ESPECES" | "MOBILE_MONEY" | "VIREMENT" | "CHEQUE",
+          statut: "EN_ATTENTE_CAISSIER",
           enregistreParId: agentId,
           notes: notes ?? `Remboursement terrain — ${agentNom}`,
         },
       });
 
-      // 2. Mettre à jour les échéances
-      const echeances = await tx.echeanceCredit.findMany({
-        where: { creditId, statut: { in: ["EN_ATTENTE", "EN_RETARD"] } },
-        orderBy: { dateEcheance: "asc" },
-      });
-      let budget = montantNum;
-      for (const ec of echeances) {
-        if (budget <= 0) break;
-        const du = Number(ec.montantDu) - Number(ec.montantPaye);
-        if (budget >= du - 0.01) {
-          await tx.echeanceCredit.update({
-            where: { id: ec.id },
-            data: { statut: "PAYE", montantPaye: Number(ec.montantDu) },
-          });
-          budget -= du;
-        } else {
-          await tx.echeanceCredit.update({
-            where: { id: ec.id },
-            data: { statut: "PARTIEL", montantPaye: { increment: budget } },
-          });
-          budget = 0;
-        }
-      }
-
-      // 3. Mettre à jour le crédit
-      await tx.creditClient.update({
-        where: { id: creditId },
-        data: {
-          montantRembourse: { increment: montantNum },
-          soldeRestant: estSolde ? 0 : nouveauSolde,
-          statut: estSolde ? "SOLDE" : credit.statut,
-        },
-      });
-
-      // 3b. Décrémenter la dette du client
-      await tx.client.update({
-        where: { id: credit.clientId },
-        data: { soldeActuel: { decrement: montantNum } },
-      });
-
-      // 4. Audit + notification
+      // 2. Audit + notification
       await tx.auditLog.create({
         data: {
           userId: agentId,
-          action: "REMBOURSEMENT_CREDIT_TERRAIN",
+          action: "REMBOURSEMENT_CREDIT_TERRAIN_EN_ATTENTE",
           entite: "RemboursementCredit",
           entiteId: remboursement.id,
         },
@@ -119,10 +77,10 @@ export async function POST(req: Request, { params }: Ctx) {
         ? `${credit.client.prenom} ${credit.client.nom}`
         : "—";
       await notifyAdmins(tx, {
-        titre: `Remboursement crédit — ${credit.reference}`,
-        message: `${agentNom} a encaissé ${montantNum.toLocaleString("fr-FR")} FCFA de ${clientNom} (${credit.reference}). Solde restant : ${estSolde ? 0 : nouveauSolde.toLocaleString("fr-FR")} FCFA.`,
-        priorite: estSolde ? "HAUTE" : "NORMAL",
-        actionUrl: "/dashboard/admin/credits",
+        titre: `Remboursement crédit à confirmer — ${credit.reference}`,
+        message: `${agentNom} a collecté ${montantNum.toLocaleString("fr-FR")} FCFA de ${clientNom} (${credit.reference}). En attente de confirmation caissier.`,
+        priorite: "NORMAL",
+        actionUrl: "/dashboard/user/caissiers",
       });
 
       return remboursement;

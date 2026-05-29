@@ -103,6 +103,7 @@ interface DashboardData {
     total: number; faible: number; rupture: number; valeur: number;
     produitsAlerte: { id: number; nom: string; stock: number; alerteStock: number }[];
   };
+  aConfirmer: { versements: number; remboursements: number; ventes: number; total: number };
   souscriptionsActives: number;
   souscriptionsEnAttente: number;
   echeancesEnRetard: EcheanceRetard[];
@@ -216,6 +217,24 @@ interface EcheanceItem {
   id: number; numero: number; montant: string; datePrevue: string; statut: string;
 }
 
+interface VersementEnAttente {
+  id: number; typeOperation: "VERSEMENT_PACK"; montant: number; date: string;
+  collectePar: string; notes: string | null; pack: string; client: string; souscriptionId: number;
+}
+interface RemboursementEnAttente {
+  id: number; typeOperation: "REMBOURSEMENT_CREDIT"; montant: number; date: string;
+  collectePar: string; notes: string | null; creditReference: string; soldeRestant: number; client: string; creditId: number;
+}
+interface VenteEnAttente {
+  id: number; typeOperation: "VENTE_DIRECTE"; reference: string; montant: number; date: string;
+  vendeurNom: string; vendeurId: number | null; client: string; notes: string | null;
+  lignes: { produit: string; quantite: number; montant: number }[];
+}
+interface AConfirmerResponse {
+  data: { versements: VersementEnAttente[]; remboursements: RemboursementEnAttente[]; ventes: VenteEnAttente[] };
+  meta: { totalVersements: number; totalRemboursements: number; totalVentes: number; total: number; page: number; limit: number };
+}
+
 interface SouscriptionItem {
   id: number;
 
@@ -290,7 +309,7 @@ interface RecuOperationData {
 // HELPERS
 // ============================================================================
 
-type TabKey = "synthese" | "session" | "encaissement_caisse" | "decaissement" | "transferts" | "packs" | "historique" | "recus" | "cloture";
+type TabKey = "synthese" | "session" | "encaissement_caisse" | "decaissement" | "transferts" | "packs" | "historique" | "recus" | "cloture" | "a_confirmer";
 
 function alertIcon(type: "danger" | "warning" | "info") {
   if (type === "danger")  return <XCircle      className="w-4 h-4 text-red-500 shrink-0"    />;
@@ -839,6 +858,7 @@ export default function CaissierPage() {
   }>("/api/caissier/transferts?limit=50");
 
   const { data: ventesDirRes, refetch: refetchVentesDir } = useApi<VentesDirectesResponse>(`/api/caissier/ventes?${ventesDirParams}`);
+  const { data: aConfirmerRes, refetch: refetchAConfirmer } = useApi<AConfirmerResponse>("/api/caissier/a-confirmer?limit=50");
 
   // ── Mutations ────────────────────────────────────────────────────────────
   const { mutate: collecterVersement, loading: collectant, error: erreurVersement } =
@@ -883,6 +903,12 @@ export default function CaissierPage() {
       "POST",
       { successMessage: "Transfert enregistré ✓" }
     );
+
+  // ── Confirmation terrain ─────────────────────────────────────────────────
+  const [confirmTarget, setConfirmTarget] = useState<{ type: "versement" | "remboursement" | "vente"; id: number; label: string; montant: number } | null>(null);
+  const [confirmAction, setConfirmAction] = useState<"CONFIRMER" | "REJETER">("CONFIRMER");
+  const [confirmNotes,  setConfirmNotes]  = useState("");
+  const [confirmLoading, setConfirmLoading] = useState(false);
 
   const { mutate: modifierDateVersement, loading: modifiantDate } =
     useMutation<{ success: boolean }, { datePaiement: string; montant?: number; notes?: string | null }>(
@@ -1194,22 +1220,26 @@ export default function CaissierPage() {
     refetchOperations();
     refetchTransferts();
     refetchVentesDir();
+    refetchAConfirmer();
   };
 
   // ============================================================================
   // RENDER
   // ============================================================================
 
-  const allTabs: { key: TabKey; label: string; icon: React.ElementType }[] = [
-    { key: "synthese",            label: "Synthèse",        icon: BarChart3       },
-    { key: "session",             label: "Session",         icon: Power           },
-    { key: "encaissement_caisse", label: "Encaissements",   icon: ArrowUpCircle   },
-    { key: "decaissement",        label: "Décaissements",   icon: ArrowDownCircle },
-    { key: "transferts",          label: "Transferts",      icon: ArrowLeftRight  },
-    { key: "packs",               label: "Packs",           icon: Banknote        },
-    { key: "historique",          label: "Historique",      icon: Clock           },
-    { key: "recus",               label: "Reçus",           icon: Receipt         },
-    { key: "cloture",             label: "Clôture",         icon: Lock            },
+  const nbAConfirmer = dashboard?.aConfirmer?.total ?? 0;
+
+  const allTabs: { key: TabKey; label: string; icon: React.ElementType; badge?: number }[] = [
+    { key: "synthese",            label: "Synthèse",        icon: BarChart3                      },
+    { key: "a_confirmer",         label: "À confirmer",     icon: CheckCircle, badge: nbAConfirmer },
+    { key: "session",             label: "Session",         icon: Power                          },
+    { key: "encaissement_caisse", label: "Encaissements",   icon: ArrowUpCircle                  },
+    { key: "decaissement",        label: "Décaissements",   icon: ArrowDownCircle                },
+    { key: "transferts",          label: "Transferts",      icon: ArrowLeftRight                 },
+    { key: "packs",               label: "Packs",           icon: Banknote                       },
+    { key: "historique",          label: "Historique",      icon: Clock                          },
+    { key: "recus",               label: "Reçus",           icon: Receipt                        },
+    { key: "cloture",             label: "Clôture",         icon: Lock                           },
   ];
   const tabs = allTabs.filter((t) => isAllowed(t.key));
 
@@ -1536,11 +1566,11 @@ export default function CaissierPage() {
 
         {/* ── Tabs ── */}
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 p-1.5 flex gap-1 overflow-x-auto">
-          {tabs.map(({ key, label, icon: Icon }) => (
+          {tabs.map(({ key, label, icon: Icon, badge }) => (
             <button
               key={key}
               onClick={() => setActiveTab(key)}
-              className={`flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-sm font-semibold transition-all whitespace-nowrap ${
+              className={`relative flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-sm font-semibold transition-all whitespace-nowrap ${
                 activeTab === key
                   ? "bg-emerald-600 text-white shadow-lg shadow-emerald-200"
                   : "text-slate-600 hover:bg-slate-100"
@@ -1548,6 +1578,13 @@ export default function CaissierPage() {
             >
               <Icon size={16} />
               {label}
+              {badge != null && badge > 0 && (
+                <span className={`ml-1 min-w-[18px] h-[18px] flex items-center justify-center rounded-full text-[11px] font-bold px-1 ${
+                  activeTab === key ? "bg-white text-emerald-700" : "bg-amber-500 text-white"
+                }`}>
+                  {badge}
+                </span>
+              )}
             </button>
           ))}
         </div>
@@ -3413,6 +3450,300 @@ export default function CaissierPage() {
                     </div>
                   )}
                 </>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ============================================================
+            TAB : À CONFIRMER
+        ============================================================ */}
+        {activeTab === "a_confirmer" && (
+          <div className="space-y-6">
+            {/* Modal confirmation / rejet */}
+            {confirmTarget && (
+              <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+                <div className="bg-white rounded-2xl w-full max-w-md shadow-xl">
+                  <div className="flex items-center justify-between p-6 border-b border-slate-100">
+                    <div className="flex items-center gap-3">
+                      <div className={`${confirmAction === "CONFIRMER" ? "bg-emerald-50" : "bg-red-50"} p-3 rounded-xl`}>
+                        {confirmAction === "CONFIRMER"
+                          ? <CheckCircle className="text-emerald-600 w-6 h-6" />
+                          : <XCircle className="text-red-500 w-6 h-6" />}
+                      </div>
+                      <div>
+                        <h2 className="text-lg font-bold text-slate-800">
+                          {confirmAction === "CONFIRMER" ? "Confirmer l'opération" : "Rejeter l'opération"}
+                        </h2>
+                        <p className="text-sm text-slate-500">{confirmTarget.label}</p>
+                      </div>
+                    </div>
+                    <button onClick={() => { setConfirmTarget(null); setConfirmNotes(""); }} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg">
+                      <X size={20} />
+                    </button>
+                  </div>
+                  <div className="p-6 space-y-4">
+                    <div className="bg-slate-50 rounded-xl p-4 border border-slate-200 text-center">
+                      <p className="text-xs text-slate-500 mb-1">Montant</p>
+                      <p className="text-2xl font-bold text-slate-800">{formatCurrency(confirmTarget.montant)}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                        {confirmAction === "REJETER" ? "Motif du rejet (obligatoire)" : "Notes (optionnel)"}
+                      </label>
+                      <textarea
+                        value={confirmNotes}
+                        onChange={(e) => setConfirmNotes(e.target.value)}
+                        rows={3}
+                        placeholder={confirmAction === "REJETER" ? "Ex: Montant incorrect, client non identifié..." : ""}
+                        className="w-full px-4 py-3 border border-slate-200 rounded-xl text-sm resize-none focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      />
+                    </div>
+                    <div className="flex gap-3 pt-2">
+                      <button
+                        onClick={() => { setConfirmTarget(null); setConfirmNotes(""); }}
+                        className="flex-1 py-2.5 border border-slate-200 rounded-xl text-slate-600 text-sm font-medium hover:bg-slate-50 transition-colors"
+                      >
+                        Annuler
+                      </button>
+                      <button
+                        disabled={confirmLoading || (confirmAction === "REJETER" && !confirmNotes.trim())}
+                        onClick={async () => {
+                          if (!confirmTarget) return;
+                          setConfirmLoading(true);
+                          try {
+                            const url = confirmTarget.type === "versement"
+                              ? `/api/caissier/versements/${confirmTarget.id}/confirmer`
+                              : confirmTarget.type === "remboursement"
+                              ? `/api/caissier/remboursements/${confirmTarget.id}/confirmer`
+                              : `/api/caissier/ventes/${confirmTarget.id}/confirmer`;
+                            const res = await fetch(url, {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ action: confirmAction, notes: confirmNotes || undefined }),
+                            });
+                            if (res.ok) {
+                              setConfirmTarget(null);
+                              setConfirmNotes("");
+                              refetchAConfirmer();
+                              refetchDashboard();
+                              refetchVersements();
+                            }
+                          } finally {
+                            setConfirmLoading(false);
+                          }
+                        }}
+                        className={`flex-1 py-2.5 rounded-xl text-white text-sm font-semibold transition-all disabled:opacity-50 ${
+                          confirmAction === "CONFIRMER"
+                            ? "bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700"
+                            : "bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700"
+                        }`}
+                      >
+                        {confirmLoading ? "..." : confirmAction === "CONFIRMER" ? "Confirmer" : "Rejeter"}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Versements EN_ATTENTE */}
+            <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/60">
+              <div className="flex items-center justify-between mb-5">
+                <h3 className="font-bold text-slate-800 flex items-center gap-2 text-lg">
+                  <Banknote size={22} className="text-emerald-500" />
+                  Versements packs à confirmer
+                  {(aConfirmerRes?.meta.totalVersements ?? 0) > 0 && (
+                    <span className="bg-amber-100 text-amber-700 text-xs font-bold px-2 py-0.5 rounded-full">
+                      {aConfirmerRes!.meta.totalVersements}
+                    </span>
+                  )}
+                </h3>
+                <button onClick={refetchAConfirmer} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg">
+                  <RefreshCw size={16} />
+                </button>
+              </div>
+              {(aConfirmerRes?.data.versements ?? []).length === 0 ? (
+                <div className="text-center py-10 text-slate-400">
+                  <CheckCircle size={36} className="mx-auto mb-2 text-emerald-300" />
+                  <p className="text-sm">Aucun versement en attente</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-slate-100">
+                        <th className="text-left py-3 text-slate-500 font-semibold text-xs uppercase">Client</th>
+                        <th className="text-left py-3 text-slate-500 font-semibold text-xs uppercase">Pack</th>
+                        <th className="text-left py-3 text-slate-500 font-semibold text-xs uppercase">Collecté par</th>
+                        <th className="text-left py-3 text-slate-500 font-semibold text-xs uppercase">Date</th>
+                        <th className="text-right py-3 text-slate-500 font-semibold text-xs uppercase">Montant</th>
+                        <th className="text-center py-3 text-slate-500 font-semibold text-xs uppercase">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {aConfirmerRes!.data.versements.map((v) => (
+                        <tr key={v.id} className="border-b border-slate-50 hover:bg-slate-50/50">
+                          <td className="py-3 font-medium text-slate-800">{v.client}</td>
+                          <td className="py-3 text-slate-600">{v.pack}</td>
+                          <td className="py-3 text-slate-500 text-xs">{v.collectePar}</td>
+                          <td className="py-3 text-slate-500 text-xs">{formatDateTime(v.date)}</td>
+                          <td className="py-3 text-right font-bold text-slate-800">{formatCurrency(v.montant)}</td>
+                          <td className="py-3">
+                            <div className="flex justify-center gap-2">
+                              <button
+                                onClick={() => { setConfirmAction("CONFIRMER"); setConfirmNotes(""); setConfirmTarget({ type: "versement", id: v.id, label: `${v.client} — ${v.pack}`, montant: v.montant }); }}
+                                className="flex items-center gap-1 px-3 py-1.5 bg-emerald-50 text-emerald-700 rounded-lg text-xs font-semibold hover:bg-emerald-100 transition-colors"
+                              >
+                                <CheckCircle size={13} /> Confirmer
+                              </button>
+                              <button
+                                onClick={() => { setConfirmAction("REJETER"); setConfirmNotes(""); setConfirmTarget({ type: "versement", id: v.id, label: `${v.client} — ${v.pack}`, montant: v.montant }); }}
+                                className="flex items-center gap-1 px-3 py-1.5 bg-red-50 text-red-600 rounded-lg text-xs font-semibold hover:bg-red-100 transition-colors"
+                              >
+                                <XCircle size={13} /> Rejeter
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            {/* Ventes terrain PAID */}
+            <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/60">
+              <div className="flex items-center justify-between mb-5">
+                <h3 className="font-bold text-slate-800 flex items-center gap-2 text-lg">
+                  <ShoppingBag size={22} className="text-violet-500" />
+                  Ventes terrain à confirmer
+                  {(aConfirmerRes?.meta.totalVentes ?? 0) > 0 && (
+                    <span className="bg-amber-100 text-amber-700 text-xs font-bold px-2 py-0.5 rounded-full">
+                      {aConfirmerRes!.meta.totalVentes}
+                    </span>
+                  )}
+                </h3>
+              </div>
+              {(aConfirmerRes?.data.ventes ?? []).length === 0 ? (
+                <div className="text-center py-10 text-slate-400">
+                  <CheckCircle size={36} className="mx-auto mb-2 text-emerald-300" />
+                  <p className="text-sm">Aucune vente terrain en attente</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-slate-100">
+                        <th className="text-left py-3 text-slate-500 font-semibold text-xs uppercase">Référence</th>
+                        <th className="text-left py-3 text-slate-500 font-semibold text-xs uppercase">Client</th>
+                        <th className="text-left py-3 text-slate-500 font-semibold text-xs uppercase">Vendeur</th>
+                        <th className="text-left py-3 text-slate-500 font-semibold text-xs uppercase">Articles</th>
+                        <th className="text-left py-3 text-slate-500 font-semibold text-xs uppercase">Date</th>
+                        <th className="text-right py-3 text-slate-500 font-semibold text-xs uppercase">Montant</th>
+                        <th className="text-center py-3 text-slate-500 font-semibold text-xs uppercase">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {aConfirmerRes!.data.ventes.map((v) => (
+                        <tr key={v.id} className="border-b border-slate-50 hover:bg-slate-50/50">
+                          <td className="py-3 font-mono text-xs text-slate-600">{v.reference}</td>
+                          <td className="py-3 font-medium text-slate-800">{v.client}</td>
+                          <td className="py-3 text-slate-500 text-xs">{v.vendeurNom}</td>
+                          <td className="py-3 text-slate-500 text-xs">
+                            {v.lignes.map((l, i) => (
+                              <span key={i} className="inline-block mr-1">{l.produit} ×{l.quantite}</span>
+                            ))}
+                          </td>
+                          <td className="py-3 text-slate-500 text-xs">{formatDateTime(v.date)}</td>
+                          <td className="py-3 text-right font-bold text-slate-800">{formatCurrency(v.montant)}</td>
+                          <td className="py-3">
+                            <div className="flex justify-center gap-2">
+                              <button
+                                onClick={() => { setConfirmAction("CONFIRMER"); setConfirmNotes(""); setConfirmTarget({ type: "vente", id: v.id, label: `${v.client} — ${v.reference}`, montant: v.montant }); }}
+                                className="flex items-center gap-1 px-3 py-1.5 bg-emerald-50 text-emerald-700 rounded-lg text-xs font-semibold hover:bg-emerald-100 transition-colors"
+                              >
+                                <CheckCircle size={13} /> Confirmer
+                              </button>
+                              <button
+                                onClick={() => { setConfirmAction("REJETER"); setConfirmNotes(""); setConfirmTarget({ type: "vente", id: v.id, label: `${v.client} — ${v.reference}`, montant: v.montant }); }}
+                                className="flex items-center gap-1 px-3 py-1.5 bg-red-50 text-red-600 rounded-lg text-xs font-semibold hover:bg-red-100 transition-colors"
+                              >
+                                <XCircle size={13} /> Rejeter
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            {/* Remboursements EN_ATTENTE_CAISSIER */}
+            <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/60">
+              <div className="flex items-center justify-between mb-5">
+                <h3 className="font-bold text-slate-800 flex items-center gap-2 text-lg">
+                  <CreditCard size={22} className="text-sky-500" />
+                  Remboursements crédits à confirmer
+                  {(aConfirmerRes?.meta.totalRemboursements ?? 0) > 0 && (
+                    <span className="bg-amber-100 text-amber-700 text-xs font-bold px-2 py-0.5 rounded-full">
+                      {aConfirmerRes!.meta.totalRemboursements}
+                    </span>
+                  )}
+                </h3>
+              </div>
+              {(aConfirmerRes?.data.remboursements ?? []).length === 0 ? (
+                <div className="text-center py-10 text-slate-400">
+                  <CheckCircle size={36} className="mx-auto mb-2 text-emerald-300" />
+                  <p className="text-sm">Aucun remboursement en attente</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-slate-100">
+                        <th className="text-left py-3 text-slate-500 font-semibold text-xs uppercase">Client</th>
+                        <th className="text-left py-3 text-slate-500 font-semibold text-xs uppercase">Crédit</th>
+                        <th className="text-left py-3 text-slate-500 font-semibold text-xs uppercase">Collecté par</th>
+                        <th className="text-left py-3 text-slate-500 font-semibold text-xs uppercase">Date</th>
+                        <th className="text-right py-3 text-slate-500 font-semibold text-xs uppercase">Montant</th>
+                        <th className="text-right py-3 text-slate-500 font-semibold text-xs uppercase">Solde restant</th>
+                        <th className="text-center py-3 text-slate-500 font-semibold text-xs uppercase">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {aConfirmerRes!.data.remboursements.map((r) => (
+                        <tr key={r.id} className="border-b border-slate-50 hover:bg-slate-50/50">
+                          <td className="py-3 font-medium text-slate-800">{r.client}</td>
+                          <td className="py-3 text-slate-600 text-xs font-mono">{r.creditReference}</td>
+                          <td className="py-3 text-slate-500 text-xs">{r.collectePar}</td>
+                          <td className="py-3 text-slate-500 text-xs">{formatDateTime(r.date)}</td>
+                          <td className="py-3 text-right font-bold text-slate-800">{formatCurrency(r.montant)}</td>
+                          <td className="py-3 text-right text-slate-500 text-xs">{formatCurrency(r.soldeRestant)}</td>
+                          <td className="py-3">
+                            <div className="flex justify-center gap-2">
+                              <button
+                                onClick={() => { setConfirmAction("CONFIRMER"); setConfirmNotes(""); setConfirmTarget({ type: "remboursement", id: r.id, label: `${r.client} — ${r.creditReference}`, montant: r.montant }); }}
+                                className="flex items-center gap-1 px-3 py-1.5 bg-emerald-50 text-emerald-700 rounded-lg text-xs font-semibold hover:bg-emerald-100 transition-colors"
+                              >
+                                <CheckCircle size={13} /> Confirmer
+                              </button>
+                              <button
+                                onClick={() => { setConfirmAction("REJETER"); setConfirmNotes(""); setConfirmTarget({ type: "remboursement", id: r.id, label: `${r.client} — ${r.creditReference}`, montant: r.montant }); }}
+                                className="flex items-center gap-1 px-3 py-1.5 bg-red-50 text-red-600 rounded-lg text-xs font-semibold hover:bg-red-100 transition-colors"
+                              >
+                                <XCircle size={13} /> Rejeter
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               )}
             </div>
           </div>

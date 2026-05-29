@@ -67,11 +67,8 @@ export async function POST(req: Request, { params }: Ctx) {
 
       const result = await prisma.$transaction(async (tx) => {
         const sid = souscription.id;
-        const nouveauMontantVerse = Number(souscription.montantVerse) + montantNum;
-        const nouveauMontantRestant = Number(souscription.montantTotal) - nouveauMontantVerse;
-        const estSolde = nouveauMontantRestant <= 0.01;
 
-        // Prochaine échéance
+        // Prochaine échéance (pour calculer montantAttendu sur la ligne)
         const prochaineEcheance = await tx.echeancePack.findFirst({
           where: { souscriptionId: sid, statut: { in: ["EN_ATTENTE", "EN_RETARD"] } },
           orderBy: { numero: "asc" },
@@ -80,13 +77,13 @@ export async function POST(req: Request, { params }: Ctx) {
         const montantAttendu = prochaineEcheance ? Number(prochaineEcheance.montant) : montantNum;
         const statutLigne = montantNum >= montantAttendu - 0.01 ? "COLLECTE" : "PARTIEL";
 
-        // 1. Créer VersementPack
+        // 1. Créer VersementPack EN_ATTENTE — effet financier appliqué par le caissier
         const versement = await tx.versementPack.create({
           data: {
             souscriptionId: sid,
             type: "VERSEMENT_PERIODIQUE",
             montant: montantNum,
-            statut: "PAYE",
+            statut: "EN_ATTENTE",
             datePaiement: new Date(),
             encaisseParId: agentId,
             encaisseParNom: agentNom,
@@ -111,44 +108,17 @@ export async function POST(req: Request, { params }: Ctx) {
           },
         });
 
-        // 3. Mettre à jour la souscription
-        await tx.souscriptionPack.update({
-          where: { id: sid },
-          data: {
-            montantVerse: nouveauMontantVerse,
-            montantRestant: estSolde ? 0 : nouveauMontantRestant,
-            statut: estSolde ? "COMPLETE" : "ACTIF",
-            dateCloture: estSolde ? new Date() : null,
-          },
-        });
-
-        // 4. Mettre à jour les échéances
-        if (prochaineEcheance) {
-          if (montantNum >= Number(prochaineEcheance.montant) - 0.01) {
-            await tx.echeancePack.update({
-              where: { id: prochaineEcheance.id },
-              data: { statut: "PAYE", datePaiement: new Date() },
-            });
-          }
-        }
-        if (estSolde) {
-          await tx.echeancePack.updateMany({
-            where: { souscriptionId: sid, statut: { in: ["EN_ATTENTE", "EN_RETARD"] } },
-            data: { statut: "PAYE", datePaiement: new Date() },
-          });
-        }
-
-        // 5. Mettre à jour montantCollecte de la session
+        // 3. Mettre à jour montantCollecte de la session (suivi terrain uniquement)
         await tx.collecteJournaliere.update({
           where: { id: collecteId },
           data: { montantCollecte: { increment: montantNum } },
         });
 
-        // 6. Audit
+        // 4. Audit
         await tx.auditLog.create({
           data: {
             userId: agentId,
-            action: "ENCAISSEMENT_PACK_SESSION",
+            action: "COLLECTE_PACK_SESSION_EN_ATTENTE",
             entite: "LigneCollecte",
             entiteId: ligne.id,
           },
@@ -158,10 +128,10 @@ export async function POST(req: Request, { params }: Ctx) {
           ? `${souscription.client.prenom} ${souscription.client.nom}`
           : "—";
         await notifyAdmins(tx, {
-          titre: `Collecte session — ${souscription.pack.nom}`,
-          message: `${agentNom} a collecté ${montantNum.toLocaleString("fr-FR")} FCFA chez ${clientNom} (session ${collecte.reference}).${estSolde ? " Souscription soldée !" : ""}`,
-          priorite: estSolde ? "HAUTE" : "NORMAL",
-          actionUrl: "/dashboard/admin/collectes",
+          titre: `Collecte session à confirmer — ${souscription.pack.nom}`,
+          message: `${agentNom} a collecté ${montantNum.toLocaleString("fr-FR")} FCFA chez ${clientNom} (session ${collecte.reference}). En attente de confirmation caissier.`,
+          priorite: "NORMAL",
+          actionUrl: "/dashboard/user/caissiers",
         });
 
         return { ligne, versement };
@@ -195,71 +165,29 @@ export async function POST(req: Request, { params }: Ctx) {
       }
 
       const result = await prisma.$transaction(async (tx) => {
-        const nouveauSolde = Number(credit.soldeRestant) - montantNum;
-        const estSolde = nouveauSolde <= 0.01;
-
-        // 1. Créer remboursement
+        // 1. Créer remboursement EN_ATTENTE_CAISSIER — effet financier appliqué par le caissier
         const remboursement = await tx.remboursementCredit.create({
           data: {
             creditId: credit.id,
             montant: montantNum,
             modePaiement: "ESPECES",
+            statut: "EN_ATTENTE_CAISSIER",
             enregistreParId: agentId,
             notes: notes ?? `Session collecte ${collecte.reference} — ${agentNom}`,
           },
         });
 
-        // 2. Mettre à jour les échéances
-        const echeances = await tx.echeanceCredit.findMany({
-          where: { creditId: credit.id, statut: { in: ["EN_ATTENTE", "EN_RETARD"] } },
-          orderBy: { dateEcheance: "asc" },
-        });
-        let budget = montantNum;
-        for (const ec of echeances) {
-          if (budget <= 0) break;
-          const du = Number(ec.montantDu) - Number(ec.montantPaye);
-          if (budget >= du - 0.01) {
-            await tx.echeanceCredit.update({
-              where: { id: ec.id },
-              data: { statut: "PAYE", montantPaye: Number(ec.montantDu) },
-            });
-            budget -= du;
-          } else {
-            await tx.echeanceCredit.update({
-              where: { id: ec.id },
-              data: { statut: "PARTIEL", montantPaye: { increment: budget } },
-            });
-            budget = 0;
-          }
-        }
-
-        // 3. Mettre à jour le crédit
-        await tx.creditClient.update({
-          where: { id: credit.id },
-          data: {
-            montantRembourse: { increment: montantNum },
-            soldeRestant: estSolde ? 0 : nouveauSolde,
-            statut: estSolde ? "SOLDE" : credit.statut,
-          },
-        });
-
-        // 3b. Décrémenter la dette du client
-        await tx.client.update({
-          where: { id: credit.clientId },
-          data: { soldeActuel: { decrement: montantNum } },
-        });
-
-        // 4. Mettre à jour montantCollecte de la session
+        // 2. Mettre à jour montantCollecte de la session (suivi terrain uniquement)
         await tx.collecteJournaliere.update({
           where: { id: collecteId },
           data: { montantCollecte: { increment: montantNum } },
         });
 
-        // 5. Audit + notif
+        // 3. Audit + notif
         await tx.auditLog.create({
           data: {
             userId: agentId,
-            action: "REMBOURSEMENT_CREDIT_SESSION",
+            action: "REMBOURSEMENT_CREDIT_SESSION_EN_ATTENTE",
             entite: "RemboursementCredit",
             entiteId: remboursement.id,
           },
@@ -269,10 +197,10 @@ export async function POST(req: Request, { params }: Ctx) {
           ? `${credit.client.prenom} ${credit.client.nom}`
           : "—";
         await notifyAdmins(tx, {
-          titre: `Remboursement crédit session — ${credit.reference}`,
-          message: `${agentNom} a encaissé ${montantNum.toLocaleString("fr-FR")} FCFA de ${clientNom} (${credit.reference}, session ${collecte.reference}).${estSolde ? " Crédit soldé !" : ""}`,
-          priorite: estSolde ? "HAUTE" : "NORMAL",
-          actionUrl: "/dashboard/admin/credits",
+          titre: `Remboursement crédit à confirmer — ${credit.reference}`,
+          message: `${agentNom} a collecté ${montantNum.toLocaleString("fr-FR")} FCFA de ${clientNom} (${credit.reference}, session ${collecte.reference}). En attente de confirmation caissier.`,
+          priorite: "NORMAL",
+          actionUrl: "/dashboard/user/caissiers",
         });
 
         return remboursement;
