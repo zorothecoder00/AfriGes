@@ -29,6 +29,31 @@ async function genNumero(): Promise<string> {
   return `${prefix}${String(lastN + 1).padStart(5, "0")}`;
 }
 
+/**
+ * Crée une FactureVente avec retry automatique sur conflit de numéro (race condition).
+ * Tente jusqu'à 5 fois en regénérant un nouveau numéro à chaque conflit.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function createFactureWithRetry(data: any, include: any) {
+  const { Prisma: PrismaNamespace } = await import("@prisma/client");
+  for (let i = 0; i < 5; i++) {
+    const numero = await genNumero();
+    try {
+      return await prisma.factureVente.create({ data: { ...data, numero }, include });
+    } catch (e) {
+      if (
+        e instanceof PrismaNamespace.PrismaClientKnownRequestError &&
+        e.code === "P2002" &&
+        (e.meta as { target?: string[] })?.target?.includes("numero")
+      ) {
+        continue; // regénère un nouveau numéro et réessaie
+      }
+      throw e;
+    }
+  }
+  throw new Error("Impossible de générer un numéro de facture unique après plusieurs tentatives");
+}
+
 // ─── Types internes ────────────────────────────────────────────────────────────
 
 type FactureRow = {
@@ -206,12 +231,9 @@ export async function POST(req: NextRequest) {
         : vente.clientNom ?? "Client";
 
       const factureType = vente.modePaiement === "CREDIT" ? "CREDIT" : "COMPTANT";
-      const numero = await genNumero();
       const montantTTC = Number(vente.montantTotal);
 
-      const created = await prisma.factureVente.create({
-        data: {
-          numero,
+      const created = await createFactureWithRetry({
           type:           factureType,
           statut:         "EMISE",
           venteDirecteId: body.venteDirecteId,
@@ -241,8 +263,8 @@ export async function POST(req: NextRequest) {
             })),
           },
         },
-        include: INCLUDE_FULL,
-      });
+        INCLUDE_FULL,
+      );
 
       return NextResponse.json(
         { data: buildResponse(created as unknown as FactureRow, getParam) },
@@ -276,12 +298,9 @@ export async function POST(req: NextRequest) {
         });
       }
 
-      const numero = await genNumero();
       const montantTTC = Number(credit.montantTotal);
 
-      const created = await prisma.factureVente.create({
-        data: {
-          numero,
+      const created = await createFactureWithRetry({
           type:           "CREDIT",
           statut:         "EMISE",
           creditClientId: body.creditClientId,
@@ -312,8 +331,8 @@ export async function POST(req: NextRequest) {
             })),
           },
         },
-        include: INCLUDE_FULL,
-      });
+        INCLUDE_FULL,
+      );
 
       return NextResponse.json(
         { data: buildResponse(created as unknown as FactureRow, getParam) },
@@ -355,11 +374,8 @@ export async function POST(req: NextRequest) {
       );
       // Versements déjà effectués sur la souscription = montant payé à date
       const montantPaye = Number(reception.souscription.montantVerse);
-      const numero = await genNumero();
 
-      const created = await prisma.factureVente.create({
-        data: {
-          numero,
+      const created = await createFactureWithRetry({
           type:            "CREDIT",   // paiement échelonné via versements pack
           statut:          "EMISE",
           receptionPackId: body.receptionPackId,
@@ -389,8 +405,8 @@ export async function POST(req: NextRequest) {
             })),
           },
         },
-        include: INCLUDE_FULL,
-      });
+        INCLUDE_FULL,
+      );
 
       return NextResponse.json(
         { data: buildResponse(created as unknown as FactureRow, getParam) },
@@ -411,11 +427,8 @@ export async function POST(req: NextRequest) {
       });
 
       const montantTTC = body.lignes.reduce((s, l) => s + l.quantite * l.prixUnitaire, 0);
-      const numero = await genNumero();
 
-      const created = await prisma.factureVente.create({
-        data: {
-          numero,
+      const created = await createFactureWithRetry({
           type:           "PRO_FORMA",
           statut:         "EMISE",
           pointDeVenteId: aff?.pointDeVente.id ?? undefined,
@@ -442,8 +455,8 @@ export async function POST(req: NextRequest) {
             })),
           },
         },
-        include: INCLUDE_FULL,
-      });
+        INCLUDE_FULL,
+      );
 
       return NextResponse.json(
         { data: buildResponse(created as unknown as FactureRow, getParam) },

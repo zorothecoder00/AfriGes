@@ -393,8 +393,28 @@ export default function VentesPage() {
   };
 
   const goToStep3 = () => {
-    if (lignes.length === 0) return;
-    setMontantPaye(String(montantTotal));
+    let effectiveLignes = lignes;
+    // Si un produit est sélectionné dans le dropdown mais pas encore ajouté, l'ajouter automatiquement
+    if (produitSelectId) {
+      const stock = stockPdv.find(s => s.produitId === Number(produitSelectId));
+      if (stock && !lignes.find(l => l.produitId === Number(produitSelectId))) {
+        const dispoReel = Math.max(0, stock.quantite - (stock.quantiteReservee ?? 0));
+        const newLigne: LigneVente = {
+          produitId:    stock.produitId,
+          nom:          stock.produit.nom,
+          quantite:     1,
+          prixUnitaire: Number(stock.produit.prixUnitaire),
+          prixAchat:    stock.produit.prixAchat != null ? Number(stock.produit.prixAchat) : null,
+          stockDispo:   dispoReel,
+        };
+        effectiveLignes = [...lignes, newLigne];
+        setLignes(effectiveLignes);
+        setProduitSelectId('');
+      }
+    }
+    if (effectiveLignes.length === 0) return;
+    const total = effectiveLignes.reduce((s, l) => s + l.quantite * l.prixUnitaire, 0);
+    setMontantPaye(String(total));
     setVenteStep(3);
   };
 
@@ -828,7 +848,7 @@ export default function VentesPage() {
                       className="flex-1 py-2.5 border border-slate-200 text-slate-700 rounded-xl hover:bg-slate-50 font-medium text-sm transition-colors">
                       Retour
                     </button>
-                    <button type="button" onClick={goToStep3} disabled={lignes.length === 0}
+                    <button type="button" onClick={goToStep3} disabled={lignes.length === 0 && !produitSelectId}
                       className="flex-1 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 disabled:opacity-60 font-medium text-sm flex items-center justify-center gap-2 transition-colors">
                       Suivant <ChevronRight size={16} />
                     </button>

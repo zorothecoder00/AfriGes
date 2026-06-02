@@ -122,6 +122,72 @@ générer automatiquement des vignettes pour les produits( étiquettes )
   Ordre suggéré : A → B → C → D → E (chaque bloc est indépendant et testable)
 
 
+Au niveau de dashboard/admin/ventes , la création de la facture pro format est logique selon toi ?? Le nom du client et le produit choisit sont juste du string ( pas de valeur réelle)
+
+Et aussi pour les nouvelles ventes sur dashboard/admin/ventes, pour le modale de nouvelle vente , lorsqu'on choisit le produit à livrer , le bouton suivant est bloqué 
+
+C:\Users\EMMANUEL\Desktop\Nouveau dossier (3)\AfriGes\.next\dev\server\chunks\[
+root-of-the-server]__974c24a1._.js: Invalid source map. Only conformant source
+maps can be used to find the original code. Cause: Error: sourceMapURL could no
+t be parsed
+C:\Users\EMMANUEL\Desktop\Nouveau dossier (3)\AfriGes\node_modules\@prisma\clie
+nt\runtime\client.js: Invalid source map. Only conformant source maps can be us
+ed to find the original code. Cause: Error: sourceMapURL could not be parsed
+C:\Users\EMMANUEL\Desktop\Nouveau dossier (3)\AfriGes\node_modules\next\dist\co
+mpiled\next-server\app-route-turbo.runtime.dev.js: Invalid source map. Only con
+formant source maps can be used to find the original code. Cause: Error: source
+MapURL could not be parsed
+C:\Users\EMMANUEL\Desktop\Nouveau dossier (3)\AfriGes\.next\dev\server\chunks\n
+ode_modules_next_a2134509._.js: Invalid source map. Only conformant source maps
+ can be used to find the original code. Cause: Error: sourceMapURL could not be
+ parsed
+C:\Users\EMMANUEL\Desktop\Nouveau dossier (3)\AfriGes\node_modules\next\dist\se
+rver\base-server.js: Invalid source map. Only conformant source maps can be use
+d to find the original code. Cause: Error: sourceMapURL could not be parsed
+C:\Users\EMMANUEL\Desktop\Nouveau dossier (3)\AfriGes\node_modules\next\dist\se
+rver\next-server.js: Invalid source map. Only conformant source maps can be use
+d to find the original code. Cause: Error: sourceMapURL could not be parsed
+C:\Users\EMMANUEL\Desktop\Nouveau dossier (3)\AfriGes\node_modules\next\dist\se
+rver\dev\next-dev-server.js: Invalid source map. Only conformant source maps ca
+n be used to find the original code. Cause: Error: sourceMapURL could not be pa
+rsed
+C:\Users\EMMANUEL\Desktop\Nouveau dossier (3)\AfriGes\node_modules\next\dist\tr
+ace\trace.js: Invalid source map. Only conformant source maps can be used to fi
+nd the original code. Cause: Error: sourceMapURL could not be parsed
+C:\Users\EMMANUEL\Desktop\Nouveau dossier (3)\AfriGes\node_modules\next\dist\se
+rver\lib\router-server.js: Invalid source map. Only conformant source maps can
+be used to find the original code. Cause: Error: sourceMapURL could not be pars
+ed
+C:\Users\EMMANUEL\Desktop\Nouveau dossier (3)\AfriGes\node_modules\next\dist\se
+rver\lib\start-server.js: Invalid source map. Only conformant source maps can b
+e used to find the original code. Cause: Error: sourceMapURL could not be parse
+d
+POST /api/factures: Error [PrismaClientKnownRequestError]:
+Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$prisma$2e$ts__$
+5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].factureVente.create()` invo
+cation in
+C:\Users\EMMANUEL\Desktop\Nouveau dossier (3)\AfriGes\.next\dev\server\chunks\[
+root-of-the-server]__974c24a1._.js:798:170
+
+  795 const factureType = vente.modePaiement === "CREDIT" ? "CREDIT" : "COMPTAN
+T";
+  796 const numero = await genNumero();
+  797 const montantTTC = Number(vente.montantTotal);
+→ 798 const created = await __TURBOPACK__imported__module__$5b$project$5d2f$lib
+$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].factureV
+ente.create(
+Unique constraint failed on the fields: (`numero`)
+    at <unknown> (C:\Users\EMMANUEL\Desktop\Nouveau dossier (3)\AfriGes\.next\d
+ev\server\chunks\[root-of-the-server]__974c24a1._.js:798:170)
+    at async POST (C:\Users\EMMANUEL\Desktop\Nouveau dossier (3)\AfriGes\.next\
+dev\server\chunks\[root-of-the-server]__974c24a1._.js:798:29) {
+  code: 'P2002',
+  meta: [Object],
+  clientVersion: '7.3.0'
+}
+ POST /api/factures 500 in 484ms (compile: 25ms, render: 460ms)
+  lorsqu'on clique sur générer une facture toujours dans dashboard/admin/ventes
+
 
 
 
