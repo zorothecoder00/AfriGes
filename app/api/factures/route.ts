@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 import { getAdminSession } from "@/lib/authAdmin";
 import { getCaissierSession } from "@/lib/authCaissier";
 import { getRPVSession } from "@/lib/authRPV";
@@ -35,19 +36,16 @@ async function genNumero(): Promise<string> {
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function createFactureWithRetry(data: any, include: any) {
-  const { Prisma: PrismaNamespace } = await import("@prisma/client");
   for (let i = 0; i < 5; i++) {
     const numero = await genNumero();
     try {
       return await prisma.factureVente.create({ data: { ...data, numero }, include });
     } catch (e) {
-      if (
-        e instanceof PrismaNamespace.PrismaClientKnownRequestError &&
+      const isNumeroConflict =
+        e instanceof Prisma.PrismaClientKnownRequestError &&
         e.code === "P2002" &&
-        (e.meta as { target?: string[] })?.target?.includes("numero")
-      ) {
-        continue; // regénère un nouveau numéro et réessaie
-      }
+        (e.meta as { target?: string[] })?.target?.includes("numero");
+      if (isNumeroConflict) continue;
       throw e;
     }
   }
