@@ -2,12 +2,12 @@
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
-  Users, MapPin, Phone, Clock, CheckCircle,
-  AlertCircle, Search, RefreshCw,  
+  Users, Phone, Clock, CheckCircle,
+  AlertCircle, Search, RefreshCw,
   Banknote, Calendar, LucideIcon, Layers, Plus,
   Loader2, Truck, Package, ShoppingCart, X, Send, XCircle,
   ClipboardList, CreditCard, Navigation, PlayCircle, ChevronDown, ChevronUp,
-  Wallet, TrendingDown, UserPlus,
+  Wallet, TrendingDown, UserPlus, Receipt, FileText,
 } from "lucide-react";
 import Link from "next/link";      
 import SignOutButton from "@/components/SignOutButton";
@@ -16,6 +16,7 @@ import MessagesLink from "@/components/MessagesLink";
 import UserPdvBadge from "@/components/UserPdvBadge";
 import DashboardBackButton from "@/components/DashboardBackButton";
 import { useApi, useMutation } from "@/hooks/useApi";
+import FactureModal from "@/components/FactureModal";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { getStatusStyle, getStatusLabel } from "@/lib/status";
 import { useT } from "@/contexts/AppSettingsContext";
@@ -1377,7 +1378,7 @@ function ModalNouvelleSouscription({
                           <input type="checkbox" className="w-4 h-4 accent-teal-600"
                             checked={checked}
                             onChange={e => {
-                              setCheckedIds(s => { const n = new Set(s); e.target.checked ? n.add(item.produit.id) : n.delete(item.produit.id); return n; });
+                              setCheckedIds(s => { const n = new Set(s); if (e.target.checked) n.add(item.produit.id); else n.delete(item.produit.id); return n; });
                               if (e.target.checked && !quantities[item.produit.id]) setQuantities(q => ({ ...q, [item.produit.id]: "1" }));
                             }} />
                           <span className="flex-1 text-sm text-slate-800 font-medium">{item.produit.nom}</span>
@@ -1455,7 +1456,10 @@ export default function AgentTerrainPage() {
 
   const [searchQuery, setSearchQuery]   = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [activeTab, setActiveTab]       = useState<TabKey>("packs");
+  const [activeTab, setActiveTab]           = useState<TabKey>("packs");
+  const [factureVenteId, setFactureVenteId] = useState<number | null>(null);
+  const [factureCreditId, setFactureCreditId] = useState<number | null>(null);
+  const [showProForma, setShowProForma]     = useState(false);
   const [clientPage, setClientPage]     = useState(1);
   const [packTypeFilter, setPackTypeFilter] = useState("");
   const [collectTarget, setCollectTarget] = useState<Souscription | null>(null);
@@ -1649,12 +1653,12 @@ export default function AgentTerrainPage() {
   const allTabs: { key: TabKey; label: string; icon: LucideIcon; badge?: number }[] = [
     { key: "collecteJour", label: "Collecte du Jour", icon: ClipboardList,
       badge: collecteJourData?.stats.retardsCritiques ?? 0 },
-    { key: "credits",     label: "Crédits",          icon: CreditCard,
+    { key: "credits",     label: "Crédits",           icon: CreditCard,
       badge: creditsData?.stats.enRetard ?? 0 },
     { key: "packs",       label: "Collecte Packs",   icon: Banknote },
     { key: "livraisons",  label: "Livraisons Pack",  icon: Truck,
       badge: livraisonsResponse?.stats.totalPlanifiees ?? 0 },
-    { key: "ventes",      label: "Ventes Terrain",   icon: ShoppingCart,
+    { key: "ventes",      label: "Ventes comptant et à crédit", icon: ShoppingCart,
       badge: ventesEnAttente },
     { key: "prospects",        label: "Clients",           icon: Users },
     { key: "portefeuilleCredit", label: "Portefeuille Crédit", icon: Wallet,
@@ -1703,6 +1707,10 @@ export default function AgentTerrainPage() {
           </div>
         </div>
       </nav>
+
+      {factureVenteId  && <FactureModal venteDirecteId={factureVenteId}   onClose={() => setFactureVenteId(null)} />}
+      {factureCreditId && <FactureModal creditClientId={factureCreditId} onClose={() => setFactureCreditId(null)} />}
+      {showProForma    && <FactureModal proFormaMode onClose={() => setShowProForma(false)} />}
 
       <main className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
 
@@ -2149,12 +2157,20 @@ export default function AgentTerrainPage() {
                                 </p>
                               )}
                             </div>
-                            <button
-                              onClick={() => setRembourserCredit(credit)}
-                              className="shrink-0 flex items-center gap-1.5 px-4 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 text-sm font-medium shadow-sm"
-                            >
-                              <Wallet size={15} /> Rembourser
-                            </button>
+                            <div className="flex flex-col gap-2 shrink-0">
+                              <button
+                                onClick={() => setRembourserCredit(credit)}
+                                className="flex items-center gap-1.5 px-4 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 text-sm font-medium shadow-sm"
+                              >
+                                <Wallet size={15} /> Rembourser
+                              </button>
+                              <button
+                                onClick={() => setFactureCreditId(credit.id)}
+                                className="flex items-center gap-1.5 px-4 py-2 bg-white border border-indigo-200 text-indigo-700 rounded-xl hover:bg-indigo-50 text-sm font-medium"
+                              >
+                                <Receipt size={14} /> Facture
+                              </button>
+                            </div>
                           </div>
                         </div>
                       );
@@ -2449,12 +2465,20 @@ export default function AgentTerrainPage() {
                   Enregistrez une vente comptant ou soumettez une demande de vente à crédit.
                 </p>
               </div>
-              <button
-                onClick={() => setShowVenteForm(v => !v)}
-                className="flex items-center gap-2 px-4 py-2.5 bg-teal-600 text-white rounded-xl hover:bg-teal-700 text-sm font-medium shadow-lg shadow-teal-200"
-              >
-                <Plus size={16} /> Nouvelle vente
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setShowProForma(true)}
+                  className="flex items-center gap-2 px-4 py-2.5 bg-amber-50 border border-amber-200 text-amber-700 rounded-xl hover:bg-amber-100 text-sm font-medium"
+                >
+                  <FileText size={15} /> Pro-forma
+                </button>
+                <button
+                  onClick={() => setShowVenteForm(v => !v)}
+                  className="flex items-center gap-2 px-4 py-2.5 bg-teal-600 text-white rounded-xl hover:bg-teal-700 text-sm font-medium shadow-lg shadow-teal-200"
+                >
+                  <Plus size={16} /> Nouvelle vente
+                </button>
+              </div>
             </div>
 
             {/* ── Catalogue des produits disponibles (ÉTAPE 3) ── */}
@@ -2775,6 +2799,15 @@ export default function AgentTerrainPage() {
                           <span className="flex items-center gap-1.5 px-3 py-2 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-xl text-xs font-medium shrink-0">
                             <CheckCircle size={14} /> {t('field_delivered')}
                           </span>
+                        )}
+                        {["CONFIRMEE", "SORTIE_VALIDEE", "LIVREE", "PAID"].includes(v.statut) && (
+                          <button
+                            onClick={() => setFactureVenteId(v.id)}
+                            className="flex items-center gap-1.5 px-3 py-2 bg-slate-50 text-slate-600 border border-slate-200 rounded-xl hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200 text-xs font-medium shrink-0 transition-colors"
+                            title="Générer la facture"
+                          >
+                            <Receipt size={14} /> Facture
+                          </button>
                         )}
                       </div>
                     </div>

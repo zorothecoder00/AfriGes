@@ -8,14 +8,15 @@ import {
   ArrowUpCircle, ArrowDownCircle, ArrowRightLeft, Banknote,
   Lock, Hash, Filter, Pencil, Trash2, CalendarDays, Boxes,
   MapPin, FileText, PlayCircle, Info, Download, Printer,
-  UserPlus, Star, Activity, ShoppingBag, Wrench, UserCircle, CreditCard,
-} from "lucide-react";  
+  UserPlus, Star, Activity, ShoppingBag, Wrench, UserCircle, CreditCard, Receipt,
+} from "lucide-react";
 import Link from "next/link";
 import SignOutButton from "@/components/SignOutButton";
 import NotificationBell from "@/components/NotificationBell";
 import MessagesLink from "@/components/MessagesLink";
 import UserPdvBadge from "@/components/UserPdvBadge";
 import DashboardBackButton from "@/components/DashboardBackButton";
+import FactureModal from "@/components/FactureModal";
 import { useApi, useMutation } from "@/hooks/useApi";
 import { formatCurrency, formatDate, formatDateTime } from "@/lib/format";
 import { useT } from "@/contexts/AppSettingsContext";
@@ -321,6 +322,9 @@ export default function ResponsablePDVPage() {
 
   const [activeTab,   setActiveTab]   = useState<TabKey>("synthese");
   const [stockSub,    setStockSub]    = useState<StockSub>("inventaire");
+  const [factureVenteId,     setFactureVenteId]     = useState<number | null>(null);
+  const [factureReceptionId, setFactureReceptionId] = useState<number | null>(null);
+  const [showProForma,       setShowProForma]       = useState(false);
   const [equipeSub,   setEquipeSub]   = useState<"membres" | "performances" | "presences">("membres");
 
   // Filtres
@@ -907,6 +911,17 @@ export default function ResponsablePDVPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50/30 to-purple-50/20 font-['DM_Sans',sans-serif]">
+
+      {/* ── Modals Facture ── */}
+      {factureVenteId !== null && (
+        <FactureModal venteDirecteId={factureVenteId} onClose={() => setFactureVenteId(null)} />
+      )}
+      {factureReceptionId !== null && (
+        <FactureModal receptionPackId={factureReceptionId} onClose={() => setFactureReceptionId(null)} />
+      )}
+      {showProForma && (
+        <FactureModal proFormaMode onClose={() => setShowProForma(false)} />
+      )}
 
       {/* ── Modal Annuler Vente ── */}
       {modalAnnulVente && selectedVente && (
@@ -2620,6 +2635,9 @@ export default function ResponsablePDVPage() {
                               {r.statut === "PLANIFIEE" && (
                                 <button onClick={() => openAnnulPack(r)} title="Annuler" className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg"><XCircle size={14} /></button>
                               )}
+                              {r.statut === "LIVREE" && (
+                                <button onClick={() => setFactureReceptionId(r.id)} title="Générer facture" className="p-1.5 text-indigo-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg"><Receipt size={14} /></button>
+                              )}
                             </div>
                           </td>
                         </tr>
@@ -2944,6 +2962,18 @@ export default function ResponsablePDVPage() {
         {activeTab === "ventes-terrain" && (
           <div className="space-y-5">
 
+            {/* Header avec Pro-forma */}
+            <div className="flex items-center justify-between">
+              <h2 className="text-base font-bold text-slate-700">Ventes terrain</h2>
+              <button
+                onClick={() => setShowProForma(true)}
+                className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium bg-white border border-slate-200 rounded-xl shadow-sm hover:bg-slate-50 transition-colors text-slate-700"
+              >
+                <FileText size={15} />
+                Pro-forma
+              </button>
+            </div>
+
             {/* Demandes en attente */}
             <div className="bg-white rounded-2xl shadow-sm border border-amber-200 overflow-hidden">
               <div className="px-6 py-4 border-b border-amber-200 bg-amber-50 flex items-center gap-2">
@@ -3031,6 +3061,13 @@ export default function ResponsablePDVPage() {
                           <span className="text-xs text-slate-500 ml-2">— Agent {v.vendeur.prenom} {v.vendeur.nom}</span>
                         </div>
                         <span className="text-xs font-bold text-blue-700">{Number(v.montantTotal).toLocaleString("fr-FR")} FCFA</span>
+                        <button
+                          onClick={() => setFactureVenteId(v.id)}
+                          className="p-1.5 rounded-lg bg-indigo-50 text-indigo-600 hover:bg-indigo-100 transition-colors"
+                          title="Générer facture"
+                        >
+                          <Receipt size={14} />
+                        </button>
                       </div>
                     );
                   })}

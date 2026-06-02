@@ -403,6 +403,17 @@ enum StatutFacture {
   ANNULEE
 }
 
+enum TypeFactureVente {
+  COMPTANT    // vente au comptant
+  CREDIT      // vente à crédit
+  PRO_FORMA   // devis / pro-forma avant vente
+}
+
+enum StatutFactureVente {
+  EMISE
+  ANNULEE
+}
+
 enum TypeCompte {
   ACTIF
   PASSIF
@@ -660,6 +671,7 @@ model User {
   // Crédits clients
   creditsCreees                CreditClient[]       @relation("CreditCreateur")
   creditsValides               CreditClient[]       @relation("CreditValidateur")
+  facturesVenteEmises          FactureVente[]       @relation("FacturesVenteEmises")
   remboursementsEnregistres    RemboursementCredit[]
   lignesSouscriptionTraitees   LigneSouscriptionProduit[] @relation("LignesTraitees")
 
@@ -745,6 +757,7 @@ model PointDeVente {
   collectes                  CollecteJournaliere[]
   demandesAjustement         DemandeAjustementStock[]
   lignesSouscriptionProduits LigneSouscriptionProduit[]
+  facturesVente              FactureVente[]               @relation("FacturesVentePDV")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -831,6 +844,7 @@ model Client {
   documents          ClientDocument[]
   transactions       ClientTransaction[]
   scoreHistorique    ClientScoreHistorique[]
+  facturesVente      FactureVente[]           @relation("FacturesVenteClient")
 
   // ── Validation RVC (tous nullable — données existantes non impactées) ───
   motifRejet       String?    // raison du rejet par le responsable crédit
@@ -1034,6 +1048,7 @@ model CreditClient {
   echeances        EcheanceCredit[]
   remboursements   RemboursementCredit[]
   livraisons       VenteDirecte[]
+  facturesVente    FactureVente[]  @relation("CreditClientFactures")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1736,6 +1751,7 @@ model VenteDirecte {
   caissePDV     CaissePDV?     @relation(fields: [caissePDVId], references: [id])
   sessionCaisse SessionCaisse? @relation(fields: [sessionCaisseId], references: [id])
   lignes        LigneVenteDirecte[]
+  factureVente  FactureVente?        @relation("VenteDirecteFacture")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1989,7 +2005,8 @@ model ReceptionProduitPack {
   pointDeVenteId Int?
   pointDeVente   PointDeVente? @relation(fields: [pointDeVenteId], references: [id])
 
-  lignes LigneReceptionPack[]
+  lignes        LigneReceptionPack[]
+  facturesVente FactureVente[]       @relation("ReceptionPackFactures")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2558,4 +2575,80 @@ model SystemModule {
   actif       Boolean  @default(true)
   updatedAt   DateTime @updatedAt
   updatedBy   Int?
+}
+
+// ============================================================
+// FACTURES DE VENTE
+// Générées depuis VenteDirecte (comptant/crédit) ou en standalone (pro-forma)
+// ============================================================
+
+model FactureVente {
+  id     Int                @id @default(autoincrement())
+  numero String             @unique // ex: FAC-2026-00001
+  type   TypeFactureVente
+  statut StatutFactureVente @default(EMISE)
+
+  // Source (optionnel — absent pour pro-forma standalone)
+  venteDirecteId  Int?       @unique
+  creditClientId  Int?
+  receptionPackId Int?
+
+  // PDV (snapshot + relation)
+  pointDeVenteId Int?
+  pdvNom         String?
+  pdvAdresse     String?
+  pdvTelephone   String?
+
+  // Client (snapshot pour archivage pérenne)
+  clientId        Int?
+  clientNom       String
+  clientTelephone String?
+  clientAdresse   String?
+
+  // Émetteur (snapshot nom)
+  emiseParId  Int
+  emiseParNom String
+
+  // Montants
+  montantHT    Decimal
+  montantTVA   Decimal @default(0)
+  montantTTC   Decimal
+  montantPaye  Decimal @default(0)
+  modePaiement String?
+
+  dateEmission DateTime  @default(now())
+  dateEcheance DateTime?
+  notes        String?
+
+  // Relations
+  venteDirecte  VenteDirecte?         @relation("VenteDirecteFacture",  fields: [venteDirecteId],  references: [id])
+  creditClient  CreditClient?         @relation("CreditClientFactures", fields: [creditClientId],  references: [id])
+  receptionPack ReceptionProduitPack? @relation("ReceptionPackFactures", fields: [receptionPackId], references: [id])
+  client        Client?               @relation("FacturesVenteClient",   fields: [clientId],        references: [id])
+  pointDeVente  PointDeVente?         @relation("FacturesVentePDV",      fields: [pointDeVenteId],  references: [id])
+  emisePar      User                  @relation("FacturesVenteEmises",   fields: [emiseParId],      references: [id])
+  lignes        LigneFactureVente[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([emiseParId])
+  @@index([clientId])
+  @@index([pointDeVenteId])
+  @@index([creditClientId])
+  @@index([receptionPackId])
+  @@index([type])
+  @@index([statut])
+}
+
+model LigneFactureVente {
+  id           Int     @id @default(autoincrement())
+  factureId    Int
+  designation  String
+  unite        String?
+  quantite     Int
+  prixUnitaire Decimal
+  montant      Decimal
+
+  facture FactureVente @relation(fields: [factureId], references: [id], onDelete: Cascade)
 }

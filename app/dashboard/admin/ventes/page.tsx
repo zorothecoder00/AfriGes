@@ -7,6 +7,7 @@ import {
   Layers, Truck, ArrowLeft, Package, Store, Trash2, CreditCard, Receipt,
 } from 'lucide-react';
 import Link from 'next/link';
+import FactureModal from '@/components/FactureModal';
 import { useApi, useMutation } from '@/hooks/useApi';
 import { formatCurrency, formatDateTime } from '@/lib/format';
 import { exportToCsv } from '@/lib/exportCsv';
@@ -175,6 +176,9 @@ export default function VentesPage() {
   const [packPreFilledDone, setPackPreFilledDone]   = useState(false);
   const packPreFilledRef                            = useRef(false);
   const [cancellingId, setCancellingId]             = useState<number | null>(null);
+  const [factureVenteId, setFactureVenteId]         = useState<number | null>(null);
+  const [factureReceptionId, setFactureReceptionId] = useState<number | null>(null);
+  const [showProForma, setShowProForma]             = useState(false);
   const [packConfirmedLignes, setPackConfirmedLignes] = useState<PackLigneConfirmee[]>([]);
 
   useEffect(() => {
@@ -543,6 +547,10 @@ export default function VentesPage() {
                   className="px-5 py-3 bg-white border border-slate-200 rounded-xl text-slate-700 hover:bg-slate-50 transition-all shadow-sm flex items-center gap-2 font-medium">
                   <Download size={18} /> {t('btn_export')}
                 </button>
+                <button onClick={() => setShowProForma(true)}
+                  className="px-4 py-3 bg-amber-50 border border-amber-200 text-amber-700 rounded-xl hover:bg-amber-100 transition-all flex items-center gap-2 font-medium">
+                  <Receipt size={18} /> Pro-forma
+                </button>
                 <button onClick={() => setVenteModalOpen(true)}
                   className="px-6 py-3 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-200 flex items-center gap-2 font-medium">
                   <Plus size={20} /> {t('ventes_new_btn')}
@@ -572,6 +580,10 @@ export default function VentesPage() {
             <Layers size={16} /> Livraisons packs
           </button>
         </div>
+
+        {factureVenteId     && <FactureModal venteDirecteId={factureVenteId}       onClose={() => setFactureVenteId(null)} />}
+        {factureReceptionId && <FactureModal receptionPackId={factureReceptionId} onClose={() => setFactureReceptionId(null)} />}
+        {showProForma       && <FactureModal proFormaMode onClose={() => setShowProForma(false)} />}
 
         {/* ══════════════════════════════════════════════════════════════════
             MODAL — Nouvelle vente directe (3 étapes)
@@ -1311,7 +1323,7 @@ export default function VentesPage() {
                   <table className="w-full">
                     <thead className="bg-slate-50 border-b border-slate-200">
                       <tr>
-                        {['Référence', 'Client', 'PDV', 'Produits', 'Montant', 'Mode', 'Statut', 'Date'].map(h => (
+                        {['Référence', 'Client', 'PDV', 'Produits', 'Montant', 'Mode', 'Statut', 'Date', ''].map(h => (
                           <th key={h} className="px-5 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">{h}</th>
                         ))}
                       </tr>
@@ -1371,6 +1383,17 @@ export default function VentesPage() {
                                 <Calendar size={11} className="text-slate-400" />
                                 {formatDateTime(v.createdAt)}
                               </div>
+                            </td>
+                            <td className="px-5 py-4">
+                              {v.statut === 'CONFIRMEE' && (
+                                <button
+                                  onClick={() => setFactureVenteId(v.id)}
+                                  className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
+                                  title="Générer la facture"
+                                >
+                                  <Receipt size={15} />
+                                </button>
+                              )}
                             </td>
                           </tr>
                         );
@@ -1543,9 +1566,17 @@ export default function VentesPage() {
                                   </button>
                                 </div>
                               ) : (
-                                <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-full text-xs font-semibold">
-                                  <CheckCircle size={10} /> Livrée
-                                </span>
+                                <div className="flex flex-col gap-1.5 items-start">
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-full text-xs font-semibold">
+                                    <CheckCircle size={10} /> Livrée
+                                  </span>
+                                  <button
+                                    onClick={() => setFactureReceptionId(r.id)}
+                                    className="inline-flex items-center gap-1 px-2 py-1 bg-indigo-50 border border-indigo-200 text-indigo-700 rounded-lg text-xs font-medium hover:bg-indigo-100 transition-colors"
+                                  >
+                                    <Receipt size={11} /> Facture
+                                  </button>
+                                </div>
                               )}
                             </td>
                           </tr>

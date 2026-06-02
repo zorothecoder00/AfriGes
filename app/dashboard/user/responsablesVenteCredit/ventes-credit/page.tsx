@@ -4,7 +4,7 @@ import React, { useState, useCallback } from "react";
 import {
   ShoppingBag, RefreshCw, CheckCircle, XCircle, Clock,
   AlertCircle, Loader2, Package, Eye, Truck, PackageCheck,
-  CreditCard,
+  CreditCard, Receipt, FileText,
 } from "lucide-react";
 import Link from "next/link";
 import SignOutButton from "@/components/SignOutButton";
@@ -12,6 +12,7 @@ import NotificationBell from "@/components/NotificationBell";
 import MessagesLink from "@/components/MessagesLink";
 import DashboardBackButton from "@/components/DashboardBackButton";
 import { useApi } from "@/hooks/useApi";
+import FactureModal from "@/components/FactureModal";
 import { formatCurrency, formatDate } from "@/lib/format";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
@@ -93,9 +94,10 @@ function clientNom(v: VenteCredit) {
 // ─── Page principale ────────────────────────────────────────────────────────────
 
 export default function RVCVentesCreditPage() {
-  const [onglet,     setOnglet]     = useState<StatutVente>("CREDIT_REQUEST");
-  const [page,       setPage]       = useState(1);
-  const [refreshKey, setRefreshKey] = useState(0);
+  const [onglet,      setOnglet]      = useState<StatutVente>("CREDIT_REQUEST");
+  const [page,        setPage]        = useState(1);
+  const [refreshKey,  setRefreshKey]  = useState(0);
+  const [showProForma, setShowProForma] = useState(false);
 
   const url = `/api/rvc/ventes?statut=${onglet}&page=${page}&limit=20&_k=${refreshKey}`;
   const { data, loading, error } = useApi<ApiResponse>(url);
@@ -114,6 +116,10 @@ export default function RVCVentesCreditPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {showProForma && (
+        <FactureModal proFormaMode onClose={() => setShowProForma(false)} />
+      )}
+
       {/* Navbar */}
       <nav className="bg-white border-b border-gray-200 sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -159,12 +165,21 @@ export default function RVCVentesCreditPage() {
           <p className="text-sm text-gray-500">
             {meta ? `${meta.total} vente${meta.total > 1 ? "s" : ""}` : ""}
           </p>
-          <button
-            onClick={handleRefresh}
-            className="p-2 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors text-gray-500"
-          >
-            <RefreshCw size={15} className={loading ? "animate-spin" : ""} />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowProForma(true)}
+              className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium bg-white border border-gray-200 rounded-xl shadow-sm hover:bg-gray-50 transition-colors text-gray-700"
+            >
+              <FileText size={14} />
+              Pro-forma
+            </button>
+            <button
+              onClick={handleRefresh}
+              className="p-2 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors text-gray-500"
+            >
+              <RefreshCw size={15} className={loading ? "animate-spin" : ""} />
+            </button>
+          </div>
         </div>
 
         {/* Loading */}
@@ -226,6 +241,9 @@ export default function RVCVentesCreditPage() {
 
 function VenteCreditCard({ vente, onRefresh }: { vente: VenteCredit; onRefresh: () => void }) {
   const [open, setOpen] = useState(false);
+  const [showFacture, setShowFacture] = useState(false);
+
+  const canFacture = ["CREDIT_APPROUVE", "CREDIT_EN_LIVRAISON", "CREDIT_LIVRE"].includes(vente.statut);
 
   const nbHorsCat = vente.lignes.filter((l) => l.horscatalogue).length;
   const creditDispo = vente.creditClient
@@ -233,6 +251,10 @@ function VenteCreditCard({ vente, onRefresh }: { vente: VenteCredit; onRefresh: 
     : null;
 
   return (
+    <>
+      {showFacture && (
+        <FactureModal venteDirecteId={vente.id} onClose={() => setShowFacture(false)} />
+      )}
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
       {/* Header */}
       <div className="p-5">
@@ -310,11 +332,21 @@ function VenteCreditCard({ vente, onRefresh }: { vente: VenteCredit; onRefresh: 
             <Eye size={14} />
             {vente.statut === "CREDIT_REQUEST" ? "Examiner & modifier" : "Voir le détail"}
           </Link>
+          {canFacture && (
+            <button
+              onClick={() => setShowFacture(true)}
+              className="flex items-center gap-1.5 px-3 py-2 border border-indigo-200 text-indigo-700 rounded-xl text-sm font-semibold hover:bg-indigo-50 transition-colors"
+            >
+              <Receipt size={14} />
+              Facture
+            </button>
+          )}
           {vente.notes && (
             <p className="text-xs text-gray-500 italic truncate">Note : {vente.notes}</p>
           )}
         </div>
       </div>
     </div>
+    </>
   );
 }
