@@ -64,25 +64,6 @@ choisir les taux de marge des produits(admin)
 générer automatiquement des vignettes pour les produits( étiquettes )
 
 
-   Ce que je propose de corriger
-
-  A) Corriger l'API pour les factures pack :
-  - type = "CREDIT" au lieu de "COMPTANT"
-  - montantPaye = souscription.montantVerse (somme réelle des versements déjà
-  payés)
-  - dateEcheance = souscription.dateFin
-
-  B) Pour le caissier : ajouter une section "Livraisons de packs livrées" dans
-  son onglet Packs, avec bouton Facture. Ça a du sens puisque c'est lui qui
-  encaisse les versements — il peut aussi donner la facture.
-
-  C) Pour le RPV : même chose dans son onglet ventes-terrain.
-
-  ---
-  Veux-tu que je fasse les corrections A+B+C, ou juste A (le plus critique) et
-  laisser la génération de factures pack uniquement à l'admin pour l'instant ?
-
-
 
 
 

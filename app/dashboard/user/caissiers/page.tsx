@@ -1255,9 +1255,9 @@ export default function CaissierPage() {
     { key: "encaissement_caisse", label: "Encaissements",   icon: ArrowUpCircle                  },
     { key: "decaissement",        label: "Décaissements",   icon: ArrowDownCircle                },
     { key: "transferts",          label: "Transferts",      icon: ArrowLeftRight                 },
-    { key: "packs",               label: "Packs",           icon: Banknote                       },
+    { key: "packs",               label: "Packs & Factures de livraison", icon: Banknote          },
     { key: "historique",          label: "Historique",      icon: Clock                          },
-    { key: "recus",               label: "Reçus",           icon: Receipt                        },
+    { key: "recus",               label: "Reçus de transactions", icon: Receipt               },
     { key: "cloture",             label: "Clôture",         icon: Lock                           },
   ];
   const tabs = allTabs.filter((t) => isAllowed(t.key));

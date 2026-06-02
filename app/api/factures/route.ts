@@ -454,6 +454,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Paramètres invalides" }, { status: 400 });
   } catch (error) {
     console.error("POST /api/factures:", error);
-    return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
+    const msg = error instanceof Error ? error.message : String(error);
+    return NextResponse.json({ error: `Erreur serveur: ${msg}` }, { status: 500 });
   }
 }
