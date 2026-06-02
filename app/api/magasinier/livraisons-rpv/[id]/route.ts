@@ -58,10 +58,13 @@ export async function PATCH(req: Request, { params }: Ctx) {
           data:  { quantiteRecue: lr.quantiteRecue },
         });
 
-        // Incrémenter le StockSite du PDV réceptionnaire
+        // Incrémenter le stock réel et sortir du transit
         await tx.stockSite.upsert({
           where: { produitId_pointDeVenteId: { produitId: ligne.produitId, pointDeVenteId: reception.pointDeVenteId } },
-          update: { quantite: { increment: lr.quantiteRecue } },
+          update: {
+            quantite:          { increment: lr.quantiteRecue },
+            quantiteEnTransit: { decrement: ligne.quantiteAttendue },
+          },
           create: { produitId: ligne.produitId, pointDeVenteId: reception.pointDeVenteId, quantite: lr.quantiteRecue },
         });
 

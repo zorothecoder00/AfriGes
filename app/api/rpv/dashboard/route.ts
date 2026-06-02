@@ -61,7 +61,7 @@ export async function GET(req: NextRequest) {
           id: true, montantTotal: true, modePaiement: true, createdAt: true,
           vendeur: { select: { nom: true, prenom: true } },
           client:  { select: { nom: true, prenom: true } },
-          lignes:  { select: { produit: { select: { nom: true } } }, take: 1 },
+          lignes:  { select: { produitNom: true, produit: { select: { nom: true } } }, take: 1 },
         },
         orderBy: { createdAt: "desc" },
         take: 10,
@@ -228,7 +228,7 @@ export async function GET(req: NextRequest) {
     // ── Recentes : mix VenteDirecte + VersementPack du jour ────────────────
     const recentesVD = ventesDirectesJour.slice(0, 5).map(v => ({
       id:         v.id,
-      produitNom: v.lignes[0]?.produit.nom ?? "—",
+      produitNom: v.lignes[0]?.produit?.nom ?? v.lignes[0]?.produitNom ?? "—",
       quantite:   1,
       montant:    Number(v.montantTotal),
       clientNom:  v.client ? `${v.client.prenom} ${v.client.nom}` : "—",
@@ -251,8 +251,9 @@ export async function GET(req: NextRequest) {
     // ── Top produits 30j (VenteDirecte + ReceptionProduitPack fusionnés) ────
     const [ventesRaw, recPacksRaw] = topProduitsRaw;
     const prodMap = new Map<number, { nom: string; quantite: number; nbVentes: number }>();
-    const addLignes = (lignes: { produitId: number; quantite: number; produit: { nom: string } }[]) => {
+    const addLignes = (lignes: { produitId: number | null; quantite: number; produit: { nom: string } | null }[]) => {
       for (const l of lignes) {
+        if (!l.produitId || !l.produit) continue;
         const existing = prodMap.get(l.produitId);
         if (existing) { existing.quantite += l.quantite; existing.nbVentes += 1; }
         else           prodMap.set(l.produitId, { nom: l.produit.nom, quantite: l.quantite, nbVentes: 1 });

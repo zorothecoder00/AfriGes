@@ -121,7 +121,7 @@ export async function GET(req: NextRequest) {
                          : v.clientNom ?? "—",
           notes:       v.notes,
           lignes:      v.lignes.map((l) => ({
-            produit:  l.produit.nom,
+            produit:  l.produitNom ?? l.produit?.nom ?? "—",
             quantite: l.quantite,
             montant:  Number(l.montant),
           })),

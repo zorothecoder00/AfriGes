@@ -66,6 +66,7 @@ export async function POST(_req: Request, { params }: Ctx) {
 
       // ── Vérification stock PDV ──────────────────────────────────────────────
       for (const ligne of rec.lignes) {
+        if (!ligne.produitId) continue;
         const stockSite = await tx.stockSite.findUnique({
           where: { produitId_pointDeVenteId: { produitId: ligne.produitId, pointDeVenteId: agentPdvId } },
           select: { quantite: true, quantiteReservee: true },
@@ -85,6 +86,7 @@ export async function POST(_req: Request, { params }: Ctx) {
 
       // ── Décrémentation stock du PDV + mouvements ────────────────────────────
       for (const ligne of rec.lignes) {
+        if (!ligne.produitId) continue;
         await tx.stockSite.update({
           where: { produitId_pointDeVenteId: { produitId: ligne.produitId, pointDeVenteId: agentPdvId } },
           data: { quantite: { decrement: ligne.quantite } },

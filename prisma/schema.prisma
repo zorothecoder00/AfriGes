@@ -180,10 +180,12 @@ enum StatutVenteDirecte {
   SORTIE_VALIDEE
   LIVREE
   ANNULEE
-  PAID            // vente comptant validée par l'agent (stock sorti, caisse et RPV notifiés)
-  CREDIT_REQUEST  // demande de vente à crédit soumise au Responsable Crédit
-  CREDIT_APPROUVE // crédit approuvé par le RVC
-  CREDIT_REFUSE   // crédit refusé par le RVC
+  PAID              // vente comptant validée par l'agent (stock sorti, caisse et RPV notifiés)
+  CREDIT_REQUEST    // demande de vente à crédit soumise au Responsable Crédit
+  CREDIT_APPROUVE   // crédit approuvé par le RVC
+  CREDIT_REFUSE     // crédit refusé par le RVC
+  CREDIT_EN_LIVRAISON // agent parti livrer (après approbation RVC)
+  CREDIT_LIVRE      // magasinier a confirmé la sortie de stock
 }
 
 enum ModePaiementVente {
@@ -309,6 +311,14 @@ enum StatutReceptionPack {
   EN_ROUTE
   LIVREE
   ANNULEE
+}
+
+enum StatutLigneSouscription {
+  EN_ATTENTE    // saisi par l'agent, non encore traité
+  CONFIRME      // produit confirmé → alimente les prévisions d'appro
+  INDISPONIBLE  // admin : ce produit n'est pas dans ce pack
+  SUBSTITUE     // remplacé par un autre produit
+  ANNULE
 }
 
 enum TypeMouvementPoints {
@@ -651,6 +661,7 @@ model User {
   creditsCreees                CreditClient[]       @relation("CreditCreateur")
   creditsValides               CreditClient[]       @relation("CreditValidateur")
   remboursementsEnregistres    RemboursementCredit[]
+  lignesSouscriptionTraitees   LigneSouscriptionProduit[] @relation("LignesTraitees")
 
   // Visites terrain
   visitesEffectuees            VisiteClient[]       @relation("VisitesAgent")
@@ -730,9 +741,10 @@ model PointDeVente {
   receptionsCommeOrigine ReceptionApprovisionnement[] @relation("ReceptionsEnTantQuOrigine")
   commandesInternes     CommandeInterne[]
   visitesControle       VisiteControle[]
-  livraisonsPacks       ReceptionProduitPack[]
-  collectes             CollecteJournaliere[]
-  demandesAjustement    DemandeAjustementStock[]
+  livraisonsPacks            ReceptionProduitPack[]
+  collectes                  CollecteJournaliere[]
+  demandesAjustement         DemandeAjustementStock[]
+  lignesSouscriptionProduits LigneSouscriptionProduit[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1015,9 +1027,13 @@ model CreditClient {
   validePar        User?        @relation("CreditValidateur", fields: [valideParId], references: [id])
   dateValidation   DateTime?
 
+  // Consommation crédit via livraisons
+  montantConsomme  Decimal      @default(0) // somme des VenteDirecte au statut CREDIT_LIVRE liées
+
   lignes           LigneCreditClient[]
   echeances        EcheanceCredit[]
   remboursements   RemboursementCredit[]
+  livraisons       VenteDirecte[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1214,6 +1230,10 @@ model Produit {
 
   // Ajustements stock
   demandesAjustement   DemandeAjustementStock[]
+
+  // Lignes souscription produits
+  lignesSouscriptionDemande   LigneSouscriptionProduit[] @relation("LigneProduitDemande")
+  lignesSouscriptionSubstitut LigneSouscriptionProduit[] @relation("LigneProduitSubstitut")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1702,6 +1722,10 @@ model VenteDirecte {
   clientNom       String?       // pour les clients non enregistrés
   clientTelephone String?
 
+  // Lien crédit (optionnel — renseigné si modePaiement = CREDIT)
+  creditClientId  Int?
+  creditClient    CreditClient? @relation(fields: [creditClientId], references: [id])
+
   // Caisse associée (petite ou grande)
   caissePDVId     Int?          // petite caisse RPV
   sessionCaisseId Int?          // grande caisse caissier
@@ -1719,18 +1743,20 @@ model VenteDirecte {
   @@index([statut])
   @@index([pointDeVenteId])
   @@index([vendeurId])
+  @@index([creditClientId])
 }
 
 model LigneVenteDirecte {
   id           Int     @id @default(autoincrement())
   venteId      Int
-  produitId    Int
+  produitId    Int?    // nullable si produit hors catalogue
+  produitNom   String? // nom libre saisi par l'agent si hors catalogue
   quantite     Int
   prixUnitaire Decimal
   montant      Decimal
 
   vente   VenteDirecte @relation(fields: [venteId], references: [id], onDelete: Cascade)
-  produit Produit      @relation(fields: [produitId], references: [id])
+  produit Produit?     @relation(fields: [produitId], references: [id])
 }
 
 // ============================================================
@@ -1906,6 +1932,7 @@ model SouscriptionPack {
   echeances      EcheancePack[]
   receptions     ReceptionProduitPack[]
   lignesCollecte LigneCollecte[]
+  lignesProduits LigneSouscriptionProduit[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1978,6 +2005,52 @@ model LigneReceptionPack {
   produit      Produit              @relation(fields: [produitId], references: [id])
   quantite     Int
   prixUnitaire Decimal
+}
+
+// ============================================================
+// LIGNES PRODUITS SOUSCRIPTION
+// ============================================================
+
+model LigneSouscriptionProduit {
+  id             Int              @id @default(autoincrement())
+  souscriptionId Int
+  souscription   SouscriptionPack @relation(fields: [souscriptionId], references: [id], onDelete: Cascade)
+
+  // Produit lié (null si nouveau produit non encore créé dans le catalogue)
+  produitId      Int?
+  produit        Produit?         @relation("LigneProduitDemande", fields: [produitId], references: [id])
+
+  // Saisie libre — toujours renseignée pour traçabilité
+  produitNomSaisi  String
+  categorieSaisie  String?
+  uniteSaisie      String?
+
+  quantite         Int
+  quantiteParCycle Int?     // pour packs récurrents : qté à chaque cycle
+  prixEstime       Decimal? // estimation agent terrain
+
+  statut            StatutLigneSouscription @default(EN_ATTENTE)
+  estNouveauProduit Boolean                @default(false)
+
+  // PDV cible — dénormalisé depuis client.pointDeVenteId pour les agrégations logistique
+  // (évite une double jointure souscription → client → pdv à chaque requête prévision)
+  pointDeVenteId Int?
+  pointDeVente   PointDeVente? @relation(fields: [pointDeVenteId], references: [id])
+
+  // Traitement admin
+  notes              String?
+  produitSubstitutId Int?
+  produitSubstitut   Produit? @relation("LigneProduitSubstitut", fields: [produitSubstitutId], references: [id])
+  traiteParId        Int?
+  traitePar          User?    @relation("LignesTraitees", fields: [traiteParId], references: [id])
+  dateTraitement     DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([souscriptionId])
+  @@index([statut])
+  @@index([pointDeVenteId, statut]) // index composite pour les agrégations prévisions
 }
 
 // ============================================================

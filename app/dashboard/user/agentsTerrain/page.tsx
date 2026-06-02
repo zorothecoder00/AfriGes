@@ -217,12 +217,66 @@ interface VenteTerrain {
   lignes: LigneVente[];
   createdAt: string;
 }
+interface CreditActifClient {
+  id: number;
+  reference: string;
+  statut: string;
+  montantTotal: string;
+  montantConsomme: string;
+}
+
+interface ClientDispo {
+  id: number;
+  nom: string;
+  prenom: string;
+  telephone: string;
+  limiteCredit: string | null;
+  soldeActuel: string | null;
+  creditsClients: CreditActifClient[];
+}
+
 interface VentesTerrainResponse {
   data: VenteTerrain[];
   produitsDispo: { id: number; quantite: number; produit: { id: number; nom: string; unite: string | null; prixUnitaire: string } }[];
-  clients: { id: number; nom: string; prenom: string; telephone: string; limiteCredit: string | null; soldeActuel: string | null }[];
+  clients: ClientDispo[];
   stats: { total: number; montantTotal: number };
   meta: { total: number; page: number; limit: number; totalPages: number };
+}
+
+// Portefeuille crédit
+interface CreditClientActif {
+  id: number;
+  reference: string;
+  statut: string;
+  montantTotal: number;
+  montantConsomme: number;
+  soldeDisponible: number;
+  dateEcheanceFin: string | null;
+}
+
+interface ClientCreditProfil {
+  id: number;
+  nom: string;
+  prenom: string;
+  telephone: string;
+  etat: string;
+  niveauRisque: string | null;
+  limiteCredit: number | null;
+  soldeActuel: number;
+  creditDisponible: number;
+  creditsActifs: CreditClientActif[];
+}
+
+interface PortefeuilleCreditResponse {
+  clients: ClientCreditProfil[];
+  stats: {
+    totalClients: number;
+    avecCredit: number;
+    totalPlafond: number;
+    totalEngage: number;
+    totalDisponible: number;
+    alertes: number;
+  };
 }
 interface StockDispoItem {
   id: number; quantite: number;
@@ -967,9 +1021,433 @@ function ModalNouveauCredit({
   );
 }
 
+// ─── Types pour le modal souscription ─────────────────────────────────────────
+
+interface PackTemplate {
+  id: number;
+  nom: string;
+  type: TypePack;
+  dureeJours: number | null;
+  frequenceVersement: string | null;
+  acomptePercent: string | null;
+  montantVersement: string | null;
+  description: string | null;
+}
+
+interface PackTemplatesResponse {
+  packs: PackTemplate[];
+}
+
+// ─── Modal Nouvelle Souscription ──────────────────────────────────────────────
+
+function ModalNouvelleSouscription({
+  clients,
+  onClose,
+  onSuccess,
+}: {
+  clients: Client[];
+  onClose: () => void;
+  onSuccess: (souscriptionId: number) => void;
+}) {
+  const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [clientSearch, setClientSearch] = useState("");
+  const [selectedClient, setSelectedClient] = useState<Client | null>(null);
+  const [selectedPack, setSelectedPack] = useState<PackTemplate | null>(null);
+  const [montantTotal, setMontantTotal] = useState("");
+  const [acompte, setAcompte] = useState("");
+  const [formuleRevendeur, setFormuleRevendeur] = useState("FORMULE_1");
+  const [frequenceVersement, setFrequenceVersement] = useState("");
+  const [notes, setNotes] = useState("");
+
+  // Étape 3 — produits demandés
+  const [createdSouscId, setCreatedSouscId] = useState<number | null>(null);
+  const [checkedIds, setCheckedIds] = useState<Set<number>>(new Set());
+  const [quantities, setQuantities] = useState<Record<number, string>>({});
+  const [newProds, setNewProds] = useState<{ nom: string; quantite: string }[]>([]);
+  const [savingLignes, setSavingLignes] = useState(false);
+
+  const { data: templatesResponse, loading: templatesLoading } =
+    useApi<PackTemplatesResponse>("/api/agentTerrain/packs/templates");
+  const templates = templatesResponse?.packs ?? [];
+
+  // Produits disponibles — chargés uniquement à l'étape 3
+  const { data: ventesModalData } = useApi<VentesTerrainResponse>(
+    step === 3 ? "/api/agentTerrain/ventes" : null
+  );
+  const produitsDispoModal = (ventesModalData?.produitsDispo ?? []) as StockDispoItem[];
+
+  const { mutate, loading } = useMutation<{ id: number }, object>(
+    "/api/agentTerrain/souscriptions", "POST",
+    { successMessage: "Souscription créée — en attente de validation admin." }
+  );
+
+  const filteredClients = clients.filter((c) => {
+    const q = clientSearch.toLowerCase();
+    return !q ||
+      c.nom.toLowerCase().includes(q) ||
+      c.prenom.toLowerCase().includes(q) ||
+      c.telephone.includes(q);
+  });
+
+  const handleSelectClient = (c: Client) => {
+    setSelectedClient(c);
+    setStep(2);
+  };
+
+  const handleSelectPack = (p: PackTemplate) => {
+    setSelectedPack(p);
+    setMontantTotal("");
+    setAcompte("");
+    setFrequenceVersement(p.frequenceVersement ?? "");
+  };
+
+  const minAcompte = selectedPack && selectedPack.acomptePercent && montantTotal
+    ? Math.ceil(parseFloat(montantTotal) * Number(selectedPack.acomptePercent) / 100)
+    : 0;
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedClient || !selectedPack) return;
+    const res = await mutate({
+      packId: selectedPack.id,
+      clientId: selectedClient.id,
+      montantTotal: parseFloat(montantTotal),
+      acompteInitial: acompte ? parseFloat(acompte) : undefined,
+      formuleRevendeur: selectedPack.type === "REVENDEUR" ? formuleRevendeur : undefined,
+      frequenceVersement: frequenceVersement || undefined,
+      notes: notes || undefined,
+    });
+    if (res && res.id) {
+      setCreatedSouscId(res.id);
+      setStep(3);
+    }
+  };
+
+  const submitLignes = async () => {
+    if (!createdSouscId) { onSuccess(0); onClose(); return; }
+    const lignes: Array<{ produitId?: number; produitNomSaisi: string; quantite: number }> = [];
+    for (const id of checkedIds) {
+      const item = produitsDispoModal.find(p => p.produit.id === id);
+      if (!item) continue;
+      const qte = parseInt(quantities[id] || "1");
+      if (qte > 0) lignes.push({ produitId: id, produitNomSaisi: item.produit.nom, quantite: qte });
+    }
+    for (const p of newProds) {
+      if (p.nom.trim() && parseInt(p.quantite) > 0)
+        lignes.push({ produitNomSaisi: p.nom.trim(), quantite: parseInt(p.quantite) });
+    }
+    if (lignes.length > 0) {
+      setSavingLignes(true);
+      try {
+        await fetch(`/api/agentTerrain/souscriptions/${createdSouscId}/lignes`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ lignes }),
+        });
+      } finally {
+        setSavingLignes(false);
+      }
+    }
+    onSuccess(createdSouscId);
+    onClose();
+  };
+
+  const STEPS = [{ n: 1, label: "Client" }, { n: 2, label: "Pack" }, { n: 3, label: "Produits" }];
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg flex flex-col max-h-[92vh]">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 bg-teal-100 rounded-xl flex items-center justify-center">
+              <Plus size={18} className="text-teal-600" />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-slate-800">Nouvelle souscription</h2>
+              <p className="text-xs text-slate-500">
+                {step === 1 ? "Étape 1 — Choisir le client"
+                  : step === 2 ? `Étape 2 — Pack pour ${selectedClient?.prenom} ${selectedClient?.nom}`
+                  : "Étape 3 — Produits souhaités par le client"}
+              </p>
+            </div>
+          </div>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={20} /></button>
+        </div>
+
+        {/* Step indicator */}
+        <div className="flex items-center gap-1 px-6 pt-4 shrink-0">
+          {STEPS.map(({ n, label }, i) => (
+            <React.Fragment key={n}>
+              <div className={`flex items-center gap-1.5 ${step >= n ? "text-teal-600" : "text-slate-400"}`}>
+                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${step > n ? "bg-teal-600 text-white" : step === n ? "bg-teal-600 text-white" : "bg-slate-200 text-slate-500"}`}>
+                  {step > n ? <CheckCircle size={12} /> : n}
+                </div>
+                <span className="text-xs font-medium">{label}</span>
+              </div>
+              {i < STEPS.length - 1 && <div className="flex-1 h-px bg-slate-200 mx-1" />}
+            </React.Fragment>
+          ))}
+        </div>
+
+        <div className="overflow-y-auto flex-1 px-6 py-5">
+          {/* ── Étape 1 : sélection client ── */}
+          {step === 1 && (
+            <div className="space-y-3">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                <input
+                  type="text" placeholder="Rechercher par nom ou téléphone…"
+                  value={clientSearch} onChange={(e) => setClientSearch(e.target.value)}
+                  className="w-full pl-9 pr-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 bg-slate-50"
+                />
+              </div>
+              {filteredClients.length === 0 ? (
+                <p className="text-center text-slate-400 text-sm py-8">Aucun client trouvé</p>
+              ) : (
+                <div className="space-y-2 max-h-64 overflow-y-auto">
+                  {filteredClients.map((c) => (
+                    <button
+                      key={c.id} type="button"
+                      onClick={() => handleSelectClient(c)}
+                      className="w-full text-left px-4 py-3 rounded-xl border border-slate-200 hover:border-teal-400 hover:bg-teal-50 transition-colors"
+                    >
+                      <p className="font-semibold text-slate-800 text-sm">{c.prenom} {c.nom}</p>
+                      <p className="text-xs text-slate-500 flex items-center gap-1 mt-0.5">
+                        <Phone size={11} />{c.telephone}
+                        {c.quartier && <><span className="mx-1">·</span>{c.quartier}</>}
+                      </p>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ── Étape 2 : pack + montant ── */}
+          {step === 2 && (
+            <form onSubmit={handleSubmit} className="space-y-5">
+              {/* Sélection pack */}
+              <div>
+                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Choisir un pack</p>
+                {templatesLoading ? (
+                  <div className="flex justify-center py-6"><Loader2 className="w-6 h-6 text-teal-500 animate-spin" /></div>
+                ) : (
+                  <div className="grid grid-cols-1 gap-2 max-h-48 overflow-y-auto">
+                    {templates.map((p) => {
+                      const colors = PACK_COLORS[p.type];
+                      return (
+                        <button
+                          key={p.id} type="button"
+                          onClick={() => handleSelectPack(p)}
+                          className={`text-left px-4 py-3 rounded-xl border-2 transition-all ${
+                            selectedPack?.id === p.id
+                              ? "border-teal-500 bg-teal-50"
+                              : "border-slate-200 hover:border-teal-300"
+                          }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${colors.badge}`}>
+                              {PACK_LABELS[p.type]}
+                            </span>
+                            <span className="font-semibold text-slate-800 text-sm">{p.nom}</span>
+                          </div>
+                          {p.description && (
+                            <p className="text-xs text-slate-500 mt-0.5 truncate">{p.description}</p>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {selectedPack && (
+                <>
+                  {/* REVENDEUR : choix formule */}
+                  {selectedPack.type === "REVENDEUR" && (
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600 mb-1">Formule</label>
+                      <select value={formuleRevendeur} onChange={(e) => setFormuleRevendeur(e.target.value)}
+                        className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500">
+                        <option value="FORMULE_1">Formule 1 — Tontine hebdomadaire</option>
+                        <option value="FORMULE_2">Formule 2 — Remboursement quotidien 16j</option>
+                      </select>
+                    </div>
+                  )}
+
+                  {/* FAMILIAL : fréquence */}
+                  {selectedPack.type === "FAMILIAL" && (
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600 mb-1">Fréquence de versement</label>
+                      <select value={frequenceVersement} onChange={(e) => setFrequenceVersement(e.target.value)}
+                        className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500">
+                        <option value="HEBDOMADAIRE">Hebdomadaire</option>
+                        <option value="BIMENSUEL">Bimensuel</option>
+                        <option value="MENSUEL">Mensuel</option>
+                        <option value="QUOTIDIEN">Quotidien</option>
+                      </select>
+                    </div>
+                  )}
+
+                  {/* Montant total */}
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">Montant total (FCFA) <span className="text-red-500">*</span></label>
+                    <input
+                      type="number" required min="1" value={montantTotal}
+                      onChange={(e) => setMontantTotal(e.target.value)}
+                      className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+                      placeholder="Ex : 25000"
+                    />
+                  </div>
+
+                  {/* Acompte */}
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">
+                      Acompte initial (FCFA)
+                      {minAcompte > 0 && <span className="ml-1 text-amber-600">min : {minAcompte.toLocaleString("fr-FR")}</span>}
+                    </label>
+                    <input
+                      type="number" min={minAcompte || 0} max={montantTotal ? parseFloat(montantTotal) : undefined}
+                      value={acompte} onChange={(e) => setAcompte(e.target.value)}
+                      className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+                      placeholder="0"
+                    />
+                  </div>
+
+                  {/* Notes */}
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">Observations (optionnel)</label>
+                    <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2}
+                      className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm resize-none focus:outline-none focus:ring-2 focus:ring-teal-500"
+                      placeholder="Informations utiles pour l'admin…" />
+                  </div>
+
+                  <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                    La souscription sera créée <strong>EN ATTENTE</strong> et devra être validée par l&apos;administrateur.
+                  </p>
+                </>
+              )}
+
+              <div className="flex gap-3 pt-1">
+                <button type="button" onClick={() => setStep(1)}
+                  className="flex-1 py-2.5 border border-slate-200 text-slate-700 rounded-xl hover:bg-slate-50 text-sm font-medium">
+                  Retour
+                </button>
+                <button
+                  type="submit"
+                  disabled={loading || !selectedPack || !montantTotal || parseFloat(montantTotal) <= 0}
+                  className="flex-1 py-2.5 bg-teal-600 text-white rounded-xl hover:bg-teal-700 disabled:opacity-50 text-sm font-medium flex items-center justify-center gap-2">
+                  {loading ? <><Loader2 size={14} className="animate-spin" /> Enregistrement…</> : <><Package size={14} /> Créer &amp; choisir les produits</>}
+                </button>
+              </div>
+            </form>
+          )}
+
+          {/* ── Étape 3 : produits demandés ── */}
+          {step === 3 && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between bg-teal-50 border border-teal-200 rounded-xl px-4 py-3">
+                <div className="flex items-center gap-2">
+                  <CheckCircle className="text-teal-500 w-4 h-4 shrink-0" />
+                  <p className="text-sm font-semibold text-slate-800">Souscription créée !</p>
+                </div>
+                <span className="text-xs text-slate-500">{selectedClient?.prenom} {selectedClient?.nom}</span>
+              </div>
+
+              <div>
+                <p className="text-sm font-medium text-slate-700 mb-1">
+                  Produits souhaités par le client
+                  <span className="text-slate-400 font-normal ml-1">(optionnel — cochez et saisissez les quantités)</span>
+                </p>
+
+                {!ventesModalData ? (
+                  <div className="flex items-center justify-center py-6">
+                    <Loader2 className="w-6 h-6 text-teal-500 animate-spin" />
+                  </div>
+                ) : produitsDispoModal.length === 0 ? (
+                  <p className="text-sm text-slate-400 text-center py-3">Aucun produit catalogue disponible</p>
+                ) : (
+                  <div className="max-h-52 overflow-y-auto border border-slate-200 rounded-xl divide-y divide-slate-100">
+                    {produitsDispoModal.map(item => {
+                      const checked = checkedIds.has(item.produit.id);
+                      return (
+                        <label key={item.produit.id}
+                          className={`flex items-center gap-3 px-4 py-2.5 cursor-pointer transition-colors ${checked ? "bg-teal-50" : "hover:bg-slate-50"}`}>
+                          <input type="checkbox" className="w-4 h-4 accent-teal-600"
+                            checked={checked}
+                            onChange={e => {
+                              setCheckedIds(s => { const n = new Set(s); e.target.checked ? n.add(item.produit.id) : n.delete(item.produit.id); return n; });
+                              if (e.target.checked && !quantities[item.produit.id]) setQuantities(q => ({ ...q, [item.produit.id]: "1" }));
+                            }} />
+                          <span className="flex-1 text-sm text-slate-800 font-medium">{item.produit.nom}</span>
+                          {item.produit.unite && <span className="text-xs text-slate-400">{item.produit.unite}</span>}
+                          {item.quantite > 0 && <span className="text-xs text-slate-400">stock : {item.quantite}</span>}
+                          {checked && (
+                            <input type="number" min="1"
+                              value={quantities[item.produit.id] ?? "1"}
+                              onChange={e => setQuantities(q => ({ ...q, [item.produit.id]: e.target.value }))}
+                              onClick={e => e.preventDefault()}
+                              className="w-16 border border-teal-300 rounded-lg px-2 py-1 text-sm text-center focus:outline-none focus:ring-1 focus:ring-teal-400 bg-white"
+                            />
+                          )}
+                        </label>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Produits hors catalogue */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium text-slate-700">Produits hors catalogue</span>
+                  <button type="button"
+                    onClick={() => setNewProds(p => [...p, { nom: "", quantite: "1" }])}
+                    className="text-xs text-amber-600 hover:text-amber-800 font-medium flex items-center gap-1">
+                    <Plus size={12} /> Ajouter
+                  </button>
+                </div>
+                {newProds.map((p, i) => (
+                  <div key={i} className="flex items-center gap-2 mb-2">
+                    <input type="text" placeholder="Nom du produit" value={p.nom}
+                      onChange={e => setNewProds(arr => arr.map((x, j) => j === i ? { ...x, nom: e.target.value } : x))}
+                      className="flex-1 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" />
+                    <input type="number" min="1" value={p.quantite}
+                      onChange={e => setNewProds(arr => arr.map((x, j) => j === i ? { ...x, quantite: e.target.value } : x))}
+                      className="w-20 border border-slate-200 rounded-xl px-2 py-2 text-sm text-center focus:outline-none focus:ring-2 focus:ring-amber-400" />
+                    <button type="button" onClick={() => setNewProds(arr => arr.filter((_, j) => j !== i))}
+                      className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
+                      <XCircle size={16} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex gap-3 pt-1">
+                <button type="button" onClick={() => { onSuccess(createdSouscId!); onClose(); }} disabled={savingLignes}
+                  className="flex-1 py-2.5 border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50 text-sm font-medium transition-colors">
+                  Passer
+                </button>
+                <button type="button" onClick={submitLignes} disabled={savingLignes}
+                  className="flex-1 py-2.5 bg-teal-600 text-white rounded-xl hover:bg-teal-700 disabled:opacity-50 text-sm font-medium transition-colors">
+                  {savingLignes ? "Enregistrement…"
+                    : `Enregistrer${checkedIds.size + newProds.filter(p => p.nom.trim()).length > 0
+                        ? ` (${checkedIds.size + newProds.filter(p => p.nom.trim()).length})`
+                        : " & terminer"}`}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Page principale ──────────────────────────────────────────────────────────
 
-type TabKey = "prospects" | "packs" | "livraisons" | "ventes" | "collecteJour" | "credits";
+type TabKey = "prospects" | "packs" | "livraisons" | "ventes" | "collecteJour" | "credits" | "portefeuilleCredit";
 
 export default function AgentTerrainPage() {
   const t = useT();
@@ -983,6 +1461,8 @@ export default function AgentTerrainPage() {
   const [collectTarget, setCollectTarget] = useState<Souscription | null>(null);
   const [addClientModal, setAddClientModal] = useState(false);
   const [nouveauCreditClient, setNouveauCreditClient] = useState<Client | null>(null);
+  const [nouvelleSouscriptionModal, setNouvelleSouscriptionModal] = useState(false);
+  const [createdSouscriptionId, setCreatedSouscriptionId] = useState<number | null>(null);
 
   // ── Collecte du Jour ──
   const [encaisserTarget, setEncaisserTarget] = useState<EncaisserTarget | null>(null);
@@ -1037,9 +1517,19 @@ export default function AgentTerrainPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [confirmingId]);
 
+  // ── Portefeuille crédit ──
+  const [portCreditFiltre, setPortCreditFiltre] = useState<"tous" | "avecCredit" | "disponible" | "limite_atteinte">("avecCredit");
+  const [portCreditSearch, setPortCreditSearch] = useState("");
+  const [portCreditOpen,   setPortCreditOpen]   = useState<number | null>(null);
+
+  const portCreditUrl = `/api/agentTerrain/portefeuille-credit?filtre=${portCreditFiltre}${portCreditSearch ? `&search=${encodeURIComponent(portCreditSearch)}` : ""}`;
+  const { data: portCreditData, loading: portCreditLoading, refetch: refetchPortCredit } =
+    useApi<PortefeuilleCreditResponse>(activeTab === "portefeuilleCredit" ? portCreditUrl : null);
+
   // ── Ventes terrain ──
-  const [showVenteForm, setShowVenteForm] = useState(false);
-  const [vClientId, setVClientId]         = useState("");
+  const [showVenteForm, setShowVenteForm]     = useState(false);
+  const [vClientId, setVClientId]             = useState("");
+  const [vCreditClientId, setVCreditClientId] = useState("");
   const [vClientNom, setVClientNom]       = useState("");
   const [vClientTel, setVClientTel]       = useState("");
   const [vModePaiement, setVModePaiement] = useState("ESPECES");
@@ -1091,6 +1581,7 @@ export default function AgentTerrainPage() {
       modePaiement: vModePaiement,
       montantPaye: isCredit ? 0 : (Number(vMontantPaye) || montantTotal),
       clientId: vClientId || undefined,
+      creditClientId: (isCredit && vCreditClientId) ? Number(vCreditClientId) : undefined,
       clientNom: !vClientId ? vClientNom || undefined : undefined,
       clientTelephone: !vClientId ? vClientTel || undefined : undefined,
       notes: vNotes || undefined,
@@ -1107,7 +1598,7 @@ export default function AgentTerrainPage() {
         toast.success("Vente enregistrée — stock mis à jour !");
       }
       setShowVenteForm(false);
-      setVClientId(""); setVClientNom(""); setVClientTel("");
+      setVClientId(""); setVCreditClientId(""); setVClientNom(""); setVClientTel("");
       setVMontantPaye(""); setVNotes("");
       setVLignes([{ produitId: "", quantite: "", prixUnitaire: "" }]);
       refetchVentes();
@@ -1141,8 +1632,9 @@ export default function AgentTerrainPage() {
 
   const refetchAll = () => {
     refetchClients(); refetchPacks();
-    if (activeTab === "collecteJour") refetchCollecteJour();
-    if (activeTab === "credits") refetchCredits();
+    if (activeTab === "collecteJour")      refetchCollecteJour();
+    if (activeTab === "credits")           refetchCredits();
+    if (activeTab === "portefeuilleCredit") refetchPortCredit();
   };
 
   // ── Stat cards ──
@@ -1164,7 +1656,9 @@ export default function AgentTerrainPage() {
       badge: livraisonsResponse?.stats.totalPlanifiees ?? 0 },
     { key: "ventes",      label: "Ventes Terrain",   icon: ShoppingCart,
       badge: ventesEnAttente },
-    { key: "prospects",   label: "Clients",          icon: Users },
+    { key: "prospects",        label: "Clients",           icon: Users },
+    { key: "portefeuilleCredit", label: "Portefeuille Crédit", icon: Wallet,
+      badge: portCreditData?.stats.alertes ?? 0 },
   ];
   const tabs = allTabs.filter((t) => isAllowed(t.key));
 
@@ -1218,9 +1712,17 @@ export default function AgentTerrainPage() {
             <h2 className="text-3xl font-bold text-slate-800 mb-1">{t("field_dash_title")}</h2>
             <p className="text-slate-500 text-sm">{t('field_dash_subtitle')}</p>
           </div>
-          <button onClick={refetchAll} className="px-5 py-3 bg-white border border-slate-200 rounded-xl text-slate-700 hover:bg-slate-50 transition-all shadow-sm flex items-center gap-2 font-medium">
-            <RefreshCw size={18} /> {t('refresh')}
-          </button>
+          <div className="flex items-center gap-2">
+            <Link
+              href="/dashboard/user/agentsTerrain/ventes-credit"
+              className="px-4 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-semibold hover:bg-blue-700 transition-colors flex items-center gap-2 shadow-sm"
+            >
+              <CreditCard size={16} /> Mes ventes à crédit
+            </Link>
+            <button onClick={refetchAll} className="px-5 py-3 bg-white border border-slate-200 rounded-xl text-slate-700 hover:bg-slate-50 transition-all shadow-sm flex items-center gap-2 font-medium">
+              <RefreshCw size={18} /> {t('refresh')}
+            </button>
+          </div>
         </div>
 
         {/* Stats */}
@@ -1259,15 +1761,22 @@ export default function AgentTerrainPage() {
               />
             </div>
             {activeTab === "packs" && (
-              <select value={packTypeFilter} onChange={(e) => setPackTypeFilter(e.target.value)}
-                className="px-3 py-2.5 border border-slate-200 rounded-xl text-sm text-slate-700 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-teal-500">
-                <option value="">{t("field_all_types")}</option>
-                <option value="ALIMENTAIRE">Alimentaire</option>
-                <option value="REVENDEUR">Revendeur</option>
-                <option value="FAMILIAL">Familial</option>
-                <option value="URGENCE">Urgence</option>
-                <option value="EPARGNE_PRODUIT">Épargne-Produit</option>
-              </select>
+              <>
+                <select value={packTypeFilter} onChange={(e) => setPackTypeFilter(e.target.value)}
+                  className="px-3 py-2.5 border border-slate-200 rounded-xl text-sm text-slate-700 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-teal-500">
+                  <option value="">{t("field_all_types")}</option>
+                  <option value="ALIMENTAIRE">Alimentaire</option>
+                  <option value="REVENDEUR">Revendeur</option>
+                  <option value="FAMILIAL">Familial</option>
+                  <option value="URGENCE">Urgence</option>
+                  <option value="EPARGNE_PRODUIT">Épargne-Produit</option>
+                </select>
+                <button
+                  onClick={() => setNouvelleSouscriptionModal(true)}
+                  className="px-4 py-2.5 bg-teal-600 text-white rounded-xl hover:bg-teal-700 shadow-lg shadow-teal-200 flex items-center gap-2 text-sm font-medium shrink-0">
+                  <Plus size={16} /> Nouvelle souscription
+                </button>
+              </>
             )}
             {activeTab === "prospects" && (
               <button onClick={() => setAddClientModal(true)}
@@ -1437,18 +1946,26 @@ export default function AgentTerrainPage() {
                                       {prochaine && <span className="ml-1">— Éch. : {formatCurrency(Number(prochaine.montant))} {retard && "⚠"}</span>}
                                     </p>
                                   </div>
-                                  <button
-                                    onClick={() => setEncaisserTarget({
-                                      type: "PACK",
-                                      souscriptionId: souscription.id,
-                                      label: `Pack ${souscription.pack.nom}`,
-                                      clientNom: `${client.prenom} ${client.nom}`,
-                                      montantAttendu: prochaine ? Number(prochaine.montant) : Number(souscription.montantRestant),
-                                    })}
-                                    className="shrink-0 px-3 py-1.5 bg-teal-600 text-white rounded-lg hover:bg-teal-700 text-xs font-medium flex items-center gap-1"
-                                  >
-                                    <Banknote size={12} /> Encaisser
-                                  </button>
+                                  <div className="flex items-center gap-2 shrink-0">
+                                    <Link
+                                      href={`/dashboard/user/agentsTerrain/souscriptions/${souscription.id}/lignes`}
+                                      className="px-3 py-1.5 bg-emerald-100 text-emerald-700 rounded-lg hover:bg-emerald-200 text-xs font-medium flex items-center gap-1 transition-colors"
+                                    >
+                                      <ClipboardList size={12} /> Produits
+                                    </Link>
+                                    <button
+                                      onClick={() => setEncaisserTarget({
+                                        type: "PACK",
+                                        souscriptionId: souscription.id,
+                                        label: `Pack ${souscription.pack.nom}`,
+                                        clientNom: `${client.prenom} ${client.nom}`,
+                                        montantAttendu: prochaine ? Number(prochaine.montant) : Number(souscription.montantRestant),
+                                      })}
+                                      className="px-3 py-1.5 bg-teal-600 text-white rounded-lg hover:bg-teal-700 text-xs font-medium flex items-center gap-1"
+                                    >
+                                      <Banknote size={12} /> Encaisser
+                                    </button>
+                                  </div>
                                 </div>
                               );
                             })}
@@ -1652,6 +2169,28 @@ export default function AgentTerrainPage() {
         {/* ── TAB : COLLECTE PACKS ── */}
         {activeTab === "packs" && (
           <div className="space-y-3">
+            {/* Bannière souscription créée */}
+            {createdSouscriptionId && (
+              <div className="bg-teal-50 border border-teal-300 rounded-2xl px-5 py-4 flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <CheckCircle size={20} className="text-teal-600 shrink-0" />
+                  <div>
+                    <p className="text-sm font-semibold text-teal-800">Souscription créée — en attente de validation admin</p>
+                    <p className="text-xs text-teal-600 mt-0.5">Consultez ou complétez les demandes de produits.</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <Link
+                    href={`/dashboard/user/agentsTerrain/souscriptions/${createdSouscriptionId}/lignes`}
+                    className="px-3 py-2 bg-teal-600 text-white rounded-xl text-xs font-medium hover:bg-teal-700 flex items-center gap-1">
+                    <ClipboardList size={13} /> Voir les produits
+                  </Link>
+                  <button onClick={() => setCreatedSouscriptionId(null)}
+                    className="p-1.5 text-teal-500 hover:text-teal-700"><X size={16} /></button>
+                </div>
+              </div>
+            )}
+
             {packsLoading && (
               <div className="bg-white rounded-2xl p-12 text-center border border-slate-200">
                 <Loader2 className="w-8 h-8 text-teal-500 animate-spin mx-auto" />
@@ -1731,12 +2270,19 @@ export default function AgentTerrainPage() {
                       )}
                     </div>
 
-                    {/* Bouton collecter */}
-                    <button
-                      onClick={() => setCollectTarget(s)}
-                      className="shrink-0 flex items-center gap-1.5 px-4 py-2.5 bg-teal-600 text-white rounded-xl hover:bg-teal-700 text-sm font-medium transition-colors shadow-sm">
-                      <Banknote size={15} /> {t('field_collect')}
-                    </button>
+                    {/* Actions */}
+                    <div className="shrink-0 flex flex-col gap-2">
+                      <button
+                        onClick={() => setCollectTarget(s)}
+                        className="flex items-center gap-1.5 px-4 py-2.5 bg-teal-600 text-white rounded-xl hover:bg-teal-700 text-sm font-medium transition-colors shadow-sm">
+                        <Banknote size={15} /> {t('field_collect')}
+                      </button>
+                      <Link
+                        href={`/dashboard/user/agentsTerrain/souscriptions/${s.id}/lignes`}
+                        className="flex items-center gap-1.5 px-4 py-2 border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50 text-xs font-medium transition-colors text-center justify-center">
+                        <ClipboardList size={13} /> Demandes produits
+                      </Link>
+                    </div>
                   </div>
                 </div>
               );
@@ -2021,10 +2567,31 @@ export default function AgentTerrainPage() {
                       const solde  = Number(sel.soldeActuel  ?? 0);
                       const dispo  = limite - solde;
                       return (
-                        <div className={`text-xs px-3 py-2 rounded-lg border ${dispo > 0 ? "bg-green-50 border-green-200 text-green-700" : "bg-red-50 border-red-200 text-red-700"}`}>
-                          {limite === 0
-                            ? "⚠️ Ce client n'a pas de limite de crédit définie."
-                            : `Limite : ${limite.toLocaleString("fr-FR")} FCFA — Utilisé : ${solde.toLocaleString("fr-FR")} — Disponible : ${dispo.toLocaleString("fr-FR")} FCFA`}
+                        <div className="space-y-2">
+                          <div className={`text-xs px-3 py-2 rounded-lg border ${dispo > 0 ? "bg-green-50 border-green-200 text-green-700" : "bg-red-50 border-red-200 text-red-700"}`}>
+                            {limite === 0
+                              ? "⚠️ Ce client n'a pas de limite de crédit définie."
+                              : `Limite : ${limite.toLocaleString("fr-FR")} FCFA — Utilisé : ${solde.toLocaleString("fr-FR")} — Disponible : ${dispo.toLocaleString("fr-FR")} FCFA`}
+                          </div>
+                          {sel.creditsClients.length > 0 && (
+                            <div>
+                              <label className="block text-xs font-medium text-slate-600 mb-1">
+                                Ligne de crédit à utiliser <span className="text-slate-400">(optionnel)</span>
+                              </label>
+                              <select value={vCreditClientId} onChange={e => setVCreditClientId(e.target.value)}
+                                className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-400">
+                                <option value="">— Aucune ligne spécifique —</option>
+                                {sel.creditsClients.map(cc => {
+                                  const dispo2 = Number(cc.montantTotal) - Number(cc.montantConsomme);
+                                  return (
+                                    <option key={cc.id} value={cc.id}>
+                                      {cc.reference} · dispo {dispo2.toLocaleString("fr-FR")} FCFA [{cc.statut}]
+                                    </option>
+                                  );
+                                })}
+                              </select>
+                            </div>
+                          )}
                         </div>
                       );
                     })()}
@@ -2316,6 +2883,194 @@ export default function AgentTerrainPage() {
             )}
           </div>
         )}
+
+        {/* ── TAB : PORTEFEUILLE CRÉDIT ── */}
+        {activeTab === "portefeuilleCredit" && (
+          <div className="space-y-5">
+
+            {/* En-tête */}
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-slate-500">
+                Consultez le profil crédit de vos clients et lancez une vente à crédit directement.
+              </p>
+              <button
+                onClick={() => { setActiveTab("ventes"); setShowVenteForm(true); setVModePaiement("CREDIT"); }}
+                className="flex items-center gap-2 px-4 py-2.5 bg-amber-600 text-white rounded-xl hover:bg-amber-700 text-sm font-medium shadow-lg shadow-amber-200"
+              >
+                <Plus size={16} /> Nouvelle vente à crédit
+              </button>
+            </div>
+
+            {/* Stats */}
+            {portCreditData && (
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+                {[
+                  { label: "Clients avec crédit", value: String(portCreditData.stats.avecCredit), color: "text-blue-600", bg: "bg-blue-50" },
+                  { label: "Plafond total", value: formatCurrency(portCreditData.stats.totalPlafond), color: "text-slate-700", bg: "bg-slate-50" },
+                  { label: "Engagé", value: formatCurrency(portCreditData.stats.totalEngage), color: "text-amber-600", bg: "bg-amber-50" },
+                  { label: "Disponible", value: formatCurrency(portCreditData.stats.totalDisponible), color: "text-emerald-600", bg: "bg-emerald-50" },
+                  { label: "Alertes (plafond atteint)", value: String(portCreditData.stats.alertes), color: "text-red-600", bg: "bg-red-50" },
+                  { label: "Total clients", value: String(portCreditData.stats.totalClients), color: "text-teal-600", bg: "bg-teal-50" },
+                ].map(s => (
+                  <div key={s.label} className={`${s.bg} rounded-xl px-4 py-3 border border-slate-100`}>
+                    <p className="text-xs text-slate-500 mb-1">{s.label}</p>
+                    <p className={`text-lg font-bold ${s.color}`}>{s.value}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Filtres */}
+            <div className="flex flex-col sm:flex-row gap-3">
+              <div className="relative flex-1">
+                <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  placeholder="Rechercher un client…"
+                  value={portCreditSearch}
+                  onChange={e => setPortCreditSearch(e.target.value)}
+                  className="w-full pl-9 pr-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+                />
+              </div>
+              <div className="flex gap-1 bg-slate-100 p-1 rounded-xl">
+                {(["tous", "avecCredit", "disponible", "limite_atteinte"] as const).map(f => (
+                  <button key={f} onClick={() => setPortCreditFiltre(f)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${portCreditFiltre === f ? "bg-white shadow text-slate-800" : "text-slate-500 hover:text-slate-700"}`}>
+                    {{ tous: "Tous", avecCredit: "Avec crédit", disponible: "Dispo", limite_atteinte: "Limite atteinte" }[f]}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Liste clients */}
+            {portCreditLoading && !portCreditData ? (
+              <div className="flex justify-center py-12">
+                <Loader2 className="animate-spin text-teal-500" size={24} />
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {(portCreditData?.clients ?? []).length === 0 && (
+                  <div className="bg-white rounded-2xl border border-slate-200 px-6 py-12 text-center text-slate-400 text-sm">
+                    Aucun client trouvé pour ce filtre.
+                  </div>
+                )}
+                {(portCreditData?.clients ?? []).map(client => {
+                  const isOpen   = portCreditOpen === client.id;
+                  const atteinte = client.limiteCredit !== null && client.creditDisponible === 0 && client.soldeActuel > 0;
+                  return (
+                    <div key={client.id} className={`bg-white rounded-2xl border shadow-sm transition-all ${atteinte ? "border-red-300" : "border-slate-200"}`}>
+                      {/* Header carte */}
+                      <button
+                        className="w-full flex items-center gap-4 px-5 py-4 text-left"
+                        onClick={() => setPortCreditOpen(isOpen ? null : client.id)}
+                      >
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold text-sm shrink-0 ${atteinte ? "bg-red-500" : "bg-gradient-to-br from-teal-500 to-emerald-500"}`}>
+                          {client.prenom?.[0]}{client.nom?.[0]}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold text-slate-800">{client.prenom} {client.nom}</p>
+                          <p className="text-xs text-slate-400">{client.telephone}</p>
+                        </div>
+                        {/* Jauges crédit inline */}
+                        {client.limiteCredit !== null ? (
+                          <div className="hidden sm:flex items-center gap-6 text-xs">
+                            <div className="text-center">
+                              <p className="text-slate-400">Plafond</p>
+                              <p className="font-semibold text-slate-700">{formatCurrency(client.limiteCredit)}</p>
+                            </div>
+                            <div className="text-center">
+                              <p className="text-slate-400">Engagé</p>
+                              <p className={`font-semibold ${client.soldeActuel > 0 ? "text-amber-600" : "text-slate-400"}`}>{formatCurrency(client.soldeActuel)}</p>
+                            </div>
+                            <div className="text-center">
+                              <p className="text-slate-400">Disponible</p>
+                              <p className={`font-semibold ${client.creditDisponible > 0 ? "text-emerald-600" : "text-red-500"}`}>{formatCurrency(client.creditDisponible)}</p>
+                            </div>
+                          </div>
+                        ) : (
+                          <span className="hidden sm:inline text-xs text-slate-300 italic">Pas de limite</span>
+                        )}
+                        {atteinte && (
+                          <span className="shrink-0 px-2 py-1 rounded-full bg-red-100 text-red-700 text-xs font-semibold">Plafond atteint</span>
+                        )}
+                        {isOpen ? <ChevronUp size={16} className="text-slate-400 shrink-0" /> : <ChevronDown size={16} className="text-slate-400 shrink-0" />}
+                      </button>
+
+                      {/* Détail déplié */}
+                      {isOpen && (
+                        <div className="border-t border-slate-100 px-5 py-4 space-y-4">
+                          {/* Jauges mobile */}
+                          <div className="sm:hidden grid grid-cols-3 gap-3 text-center text-xs">
+                            <div><p className="text-slate-400">Plafond</p><p className="font-bold text-slate-700">{client.limiteCredit !== null ? formatCurrency(client.limiteCredit) : "—"}</p></div>
+                            <div><p className="text-slate-400">Engagé</p><p className={`font-bold ${client.soldeActuel > 0 ? "text-amber-600" : "text-slate-400"}`}>{formatCurrency(client.soldeActuel)}</p></div>
+                            <div><p className="text-slate-400">Disponible</p><p className={`font-bold ${client.creditDisponible > 0 ? "text-emerald-600" : "text-red-500"}`}>{formatCurrency(client.creditDisponible)}</p></div>
+                          </div>
+
+                          {/* Barre de progression */}
+                          {client.limiteCredit !== null && client.limiteCredit > 0 && (
+                            <div>
+                              <div className="flex justify-between text-xs text-slate-400 mb-1">
+                                <span>Utilisation</span>
+                                <span>{Math.round((client.soldeActuel / client.limiteCredit) * 100)}%</span>
+                              </div>
+                              <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                                <div
+                                  className={`h-full rounded-full transition-all ${atteinte ? "bg-red-500" : client.soldeActuel / client.limiteCredit > 0.8 ? "bg-amber-500" : "bg-emerald-500"}`}
+                                  style={{ width: `${Math.min(100, Math.round((client.soldeActuel / client.limiteCredit) * 100))}%` }}
+                                />
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Lignes de crédit actives */}
+                          {client.creditsActifs.length > 0 ? (
+                            <div>
+                              <p className="text-xs font-semibold text-slate-600 mb-2">Lignes de crédit actives</p>
+                              <div className="space-y-2">
+                                {client.creditsActifs.map(cc => (
+                                  <div key={cc.id} className="flex items-center justify-between bg-slate-50 rounded-xl px-4 py-3 text-xs">
+                                    <div>
+                                      <p className="font-semibold text-slate-700">{cc.reference}</p>
+                                      {cc.dateEcheanceFin && (
+                                        <p className="text-slate-400">Échéance : {formatDate(cc.dateEcheanceFin)}</p>
+                                      )}
+                                    </div>
+                                    <div className="text-right">
+                                      <p className="text-slate-500">Total : <strong>{formatCurrency(cc.montantTotal)}</strong></p>
+                                      <p className={`${cc.soldeDisponible > 0 ? "text-emerald-600" : "text-red-500"} font-semibold`}>
+                                        Dispo : {formatCurrency(cc.soldeDisponible)}
+                                      </p>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          ) : (
+                            <p className="text-xs text-slate-400 italic">Aucune ligne de crédit formelle active.</p>
+                          )}
+
+                          {/* Action */}
+                          {client.creditDisponible > 0 && (
+                            <button
+                              onClick={() => {
+                                setActiveTab("ventes");
+                                setShowVenteForm(true);
+                                setVModePaiement("CREDIT");
+                                setVClientId(String(client.id));
+                              }}
+                              className="flex items-center gap-2 px-4 py-2 bg-amber-600 text-white rounded-xl hover:bg-amber-700 text-xs font-semibold"
+                            >
+                              <ShoppingCart size={13} /> Créer une vente à crédit pour ce client
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
       </main>
 
       {/* Modal collecte packs (ancien onglet) */}
@@ -2351,6 +3106,19 @@ export default function AgentTerrainPage() {
         <ModalAddClientRiche
           onClose={() => setAddClientModal(false)}
           onSuccess={() => { refetchClients(); setAddClientModal(false); }}
+        />
+      )}
+
+      {/* Modal nouvelle souscription */}
+      {nouvelleSouscriptionModal && (
+        <ModalNouvelleSouscription
+          clients={clients}
+          onClose={() => setNouvelleSouscriptionModal(false)}
+          onSuccess={(id) => {
+            setNouvelleSouscriptionModal(false);
+            setCreatedSouscriptionId(id);
+            refetchPacks();
+          }}
         />
       )}
 

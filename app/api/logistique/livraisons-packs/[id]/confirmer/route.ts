@@ -59,6 +59,7 @@ export async function POST(_req: Request, { params }: Ctx) {
 
       // ── Décrémentation stock (greedy par site, respecte quantiteReservee) ───
       for (const ligne of rec.lignes) {
+        if (!ligne.produitId) continue;
         const sites = await tx.stockSite.findMany({
           where: { produitId: ligne.produitId },
           orderBy: { quantite: "desc" },

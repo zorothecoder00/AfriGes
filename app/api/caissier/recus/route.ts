@@ -74,8 +74,8 @@ export async function GET(req: Request) {
             telephone: vente.client?.telephone ?? vente.clientTelephone ?? undefined,
           },
           lignes: vente.lignes.map((l) => ({
-            produitNom:  l.produit.nom,
-            unite:       l.produit.unite ?? "",
+            produitNom:  l.produitNom ?? l.produit?.nom ?? "—",
+            unite:       l.produit?.unite ?? "",
             quantite:    l.quantite,
             prixUnitaire: Number(l.prixUnitaire),
             montant:     Number(l.montant),

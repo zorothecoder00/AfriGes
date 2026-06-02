@@ -90,6 +90,7 @@ export async function POST(req: Request, { params }: Ctx) {
 
       // Mise à jour stock réservé → consommé ou libéré selon la décision
       for (const ligne of vente.lignes) {
+        if (!ligne.produitId) continue; // hors catalogue : pas de stock
         const pdvId = vente.pointDeVenteId;
         if (action === "APPROUVER") {
           // Libère la réservation ET décrémente le disponible (les produits quittent physiquement le stock)

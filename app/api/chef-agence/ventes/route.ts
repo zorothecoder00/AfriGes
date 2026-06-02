@@ -69,7 +69,7 @@ export async function GET(req: NextRequest) {
           client:      { select: { id: true, nom: true, prenom: true } },
           vendeur:     { select: { id: true, nom: true, prenom: true } },
           pointDeVente: { select: { id: true, nom: true, code: true } },
-          lignes: { select: { quantite: true, montant: true, produit: { select: { nom: true } } } },
+          lignes: { select: { produitNom: true, quantite: true, montant: true, produit: { select: { nom: true } } } },
         },
       }) : Promise.resolve([]),
 
@@ -139,7 +139,7 @@ export async function GET(req: NextRequest) {
       pdvNom:     v.pointDeVente?.nom ?? "—",
       pdvId:      v.pointDeVente?.id ?? null,
       modePaiement: v.modePaiement,
-      lignes:     v.lignes.map((l) => ({ produitNom: l.produit.nom, quantite: l.quantite, montant: Number(l.montant) })),
+      lignes:     v.lignes.map((l) => ({ produitNom: l.produitNom ?? l.produit?.nom ?? "—", quantite: l.quantite, montant: Number(l.montant) })),
       packNom:    null,
     }));
 

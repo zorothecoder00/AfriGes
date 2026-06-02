@@ -194,6 +194,7 @@ export async function POST(req: Request) {
 
       // Décrémenter StockSite + MouvementStock
       for (const ligne of v.lignes) {
+        if (!ligne.produitId) continue;
         await tx.stockSite.update({
           where: { produitId_pointDeVenteId: { produitId: ligne.produitId, pointDeVenteId: pdvId } },
           data: { quantite: { decrement: ligne.quantite } },

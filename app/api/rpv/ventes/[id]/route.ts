@@ -72,6 +72,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
       // Re-créditer le stock pour les ventes CONFIRMEE uniquement
       if (vente.statut === "CONFIRMEE") {
         for (const ligne of vente.lignes) {
+          if (!ligne.produitId) continue;
           await tx.stockSite.upsert({
             where: { produitId_pointDeVenteId: { produitId: ligne.produitId, pointDeVenteId: pdv.id } },
             update: { quantite: { increment: ligne.quantite } },

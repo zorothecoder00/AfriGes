@@ -332,6 +332,7 @@ export default function AfriGesDashboard() {
                 <Link href="/dashboard/admin/pdv"              className="w-full flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-50 rounded-xl transition-all"><Store size={20} /><span>{t('nav_pdv')}</span></Link>
                 <Link href="/dashboard/admin/approvisionnements" className="w-full flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-50 rounded-xl transition-all"><Truck size={20} /><span>Approvisionnements</span></Link>
                 <Link href="/dashboard/admin/stock/ajustements" className="w-full flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-50 rounded-xl transition-all"><ClipboardCheck size={20} /><span>Ajustements stock</span></Link>
+                <Link href="/dashboard/gestionnaire/logistique" className="w-full flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-50 rounded-xl transition-all"><BarChart2 size={20} /><span>Dashboard logistique</span></Link>
               </nav>
             </div>
             {/* Visible pour ADMIN et SUPER_ADMIN */}

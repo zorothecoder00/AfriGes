@@ -783,6 +783,13 @@ export default function MagasinierPage() {
             <p className="text-slate-500" suppressHydrationWarning>{t("store_subtitle")}</p>
           </div>
           <div className="flex gap-2">
+            <Link
+              href="/dashboard/user/magasiniers/ventes-credit"
+              className="px-4 py-2.5 bg-orange-500 text-white rounded-xl text-sm font-semibold hover:bg-orange-600 transition-colors flex items-center gap-2 shadow-sm"
+            >
+              <Truck size={16} />
+              Livraisons Crédit
+            </Link>
             {activeTab === 'inventaire' && (
               <button onClick={handlePrintInventaire} className="px-4 py-3 bg-white border border-slate-200 rounded-xl text-slate-700 hover:bg-slate-50 transition-all shadow-sm flex items-center gap-2 font-medium text-sm">
                 <Printer size={16} />

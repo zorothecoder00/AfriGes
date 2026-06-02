@@ -76,6 +76,7 @@ export async function POST(req: Request, { params }: Ctx) {
         // Remettre le stock (la vente PAID avait décrémenté le stock)
         if (vente.pointDeVenteId) {
           for (const ligne of vente.lignes) {
+            if (!ligne.produitId) continue;
             await tx.stockSite.update({
               where: { produitId_pointDeVenteId: { produitId: ligne.produitId, pointDeVenteId: vente.pointDeVenteId! } },
               data:  { quantite: { increment: ligne.quantite } },

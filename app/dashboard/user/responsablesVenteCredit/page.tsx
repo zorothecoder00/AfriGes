@@ -5,8 +5,9 @@ import {
   Users, Search, RefreshCw, CheckCircle, XCircle, Clock,
   AlertCircle, User, Phone, MapPin, Briefcase,
   Loader2, Eye, Shield, TrendingUp, Wallet, Edit3,
-  ShoppingBag, Package,
+  ShoppingBag,
 } from "lucide-react";
+import Link from "next/link";
 import SignOutButton from "@/components/SignOutButton";
 import NotificationBell from "@/components/NotificationBell";
 import MessagesLink from "@/components/MessagesLink";
@@ -54,21 +55,6 @@ interface ApiResponse {
   meta: { total: number; page: number; limit: number; totalPages: number };
 }
 
-interface DemandeCredit {
-  id: number;
-  reference: string;
-  createdAt: string;
-  montantTotal: number;
-  notes: string | null;
-  vendeur: { id: number; nom: string } | null;
-  client: { id: number | null; nom: string; telephone: string | null; limiteCredit: number; soldeActuel: number; creditDispo: number };
-  pointDeVente: string;
-  lignes: { produit: string; unite: string; quantite: number; prixUnitaire: number; montant: number }[];
-}
-interface DemandesResponse {
-  data: DemandeCredit[];
-  meta: { total: number; page: number; limit: number; totalPages: number };
-}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -541,38 +527,24 @@ function ClientCard({ client, onClick }: { client: ClientRVC; onClick: () => voi
 
 // ─── Page principale ──────────────────────────────────────────────────────────
 
-type OngletEtat = "EN_ATTENTE_VALIDATION" | "ACTIF" | "REJETE" | "DEMANDES_CREDIT";
+type OngletEtat = "EN_ATTENTE_VALIDATION" | "ACTIF" | "REJETE";
 
 const ONGLETS: { id: OngletEtat; label: string; icon: React.ReactNode }[] = [
-  { id: "DEMANDES_CREDIT",        label: "Demandes crédit", icon: <ShoppingBag size={16} /> },
   { id: "EN_ATTENTE_VALIDATION",  label: "Clients en attente", icon: <Clock size={16} /> },
-  { id: "ACTIF",                  label: "Clients actifs",  icon: <CheckCircle size={16} /> },
-  { id: "REJETE",                 label: "Clients rejetés", icon: <XCircle size={16} /> },
+  { id: "ACTIF",                  label: "Clients actifs",     icon: <CheckCircle size={16} /> },
+  { id: "REJETE",                 label: "Clients rejetés",    icon: <XCircle size={16} /> },
 ];
 
 export default function RVCPage() {
-  const [onglet,       setOnglet]       = useState<OngletEtat>("DEMANDES_CREDIT");
+  const [onglet,       setOnglet]       = useState<OngletEtat>("EN_ATTENTE_VALIDATION");
   const [search,       setSearch]       = useState("");
   const [searchInput,  setSearchInput]  = useState("");
   const [page,         setPage]         = useState(1);
   const [selected,     setSelected]     = useState<ClientRVC | null>(null);
   const [refreshKey,   setRefreshKey]   = useState(0);
 
-  // ── Traitement demande crédit ────────────────────────────────────────────
-  const [traitModal,   setTraitModal]   = useState<DemandeCredit | null>(null);
-  const [traitAction,  setTraitAction]  = useState<"APPROUVER" | "REFUSER">("APPROUVER");
-  const [traitMotif,   setTraitMotif]   = useState("");
-  const [traitLoading, setTraitLoading] = useState(false);
-
-  const clientsUrl = onglet !== "DEMANDES_CREDIT"
-    ? `/api/rvc/clients?etat=${onglet}&page=${page}&limit=20${search ? `&search=${encodeURIComponent(search)}` : ""}&_k=${refreshKey}`
-    : null;
-  const { data, loading, error } = useApi<ApiResponse>(clientsUrl ?? "");
-
-  const demandesUrl = onglet === "DEMANDES_CREDIT"
-    ? `/api/rvc/ventes?page=${page}&limit=20&_k=${refreshKey}`
-    : null;
-  const { data: demandesData, loading: demandesLoading, error: demandesError } = useApi<DemandesResponse>(demandesUrl ?? "");
+  const clientsUrl = `/api/rvc/clients?etat=${onglet}&page=${page}&limit=20${search ? `&search=${encodeURIComponent(search)}` : ""}&_k=${refreshKey}`;
+  const { data, loading, error } = useApi<ApiResponse>(clientsUrl);
 
   const clients   = data?.data ?? [];
   const meta      = data?.meta;
@@ -619,7 +591,27 @@ export default function RVCPage() {
       </nav>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-        {/* Onglets */}
+
+        {/* Bannière Ventes à Crédit */}
+        <Link
+          href="/dashboard/user/responsablesVenteCredit/ventes-credit"
+          className="flex items-center justify-between w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-2xl px-6 py-4 hover:from-blue-700 hover:to-indigo-700 transition-all shadow-md group"
+        >
+          <div className="flex items-center gap-4">
+            <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center shrink-0">
+              <ShoppingBag size={20} />
+            </div>
+            <div>
+              <p className="font-bold text-base">Ventes à Crédit</p>
+              <p className="text-blue-100 text-sm">Examiner, modifier, approuver ou refuser les demandes des agents</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 text-sm font-semibold bg-white/20 px-4 py-2 rounded-xl group-hover:bg-white/30 transition-colors shrink-0">
+            Ouvrir <span className="ml-1">→</span>
+          </div>
+        </Link>
+
+        {/* Onglets clients */}
         <div className="flex items-center gap-1 bg-white rounded-xl border border-gray-200 p-1 w-fit">
           {ONGLETS.map((o) => (
             <button
@@ -665,97 +657,8 @@ export default function RVCPage() {
           </button>
         </div>
 
-        {/* ─── DEMANDES CRÉDIT ─── */}
-        {onglet === "DEMANDES_CREDIT" && (
-          <>
-            {demandesLoading && <div className="flex justify-center py-16"><Loader2 size={28} className="animate-spin text-blue-500" /></div>}
-            {demandesError && !demandesLoading && (
-              <div className="flex items-center gap-2 p-4 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">
-                <AlertCircle size={16} />{demandesError}
-              </div>
-            )}
-            {!demandesLoading && !demandesError && (demandesData?.data ?? []).length === 0 && (
-              <div className="flex flex-col items-center justify-center py-20 text-gray-400">
-                <ShoppingBag size={48} className="mb-3 opacity-40" />
-                <p className="text-base font-medium">Aucune demande de crédit en attente</p>
-              </div>
-            )}
-            {!demandesLoading && !demandesError && (demandesData?.data ?? []).length > 0 && (
-              <div className="space-y-4">
-                <p className="text-sm text-gray-500">{demandesData!.meta.total} demande{demandesData!.meta.total > 1 ? "s" : ""} en attente</p>
-                {demandesData!.data.map((d) => (
-                  <div key={d.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-3">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <p className="font-semibold text-gray-900">{d.reference}</p>
-                        <p className="text-xs text-gray-500">{formatDateTime(d.createdAt)} · {d.pointDeVente}</p>
-                      </div>
-                      <p className="text-lg font-bold text-gray-900">{formatCurrency(d.montantTotal)}</p>
-                    </div>
-                    <div className="grid grid-cols-2 gap-3 text-sm">
-                      <div>
-                        <p className="text-xs text-gray-400 mb-0.5">Client</p>
-                        <p className="font-medium text-gray-800">{d.client.nom}</p>
-                        {d.client.telephone && <p className="text-xs text-gray-500">{d.client.telephone}</p>}
-                      </div>
-                      <div>
-                        <p className="text-xs text-gray-400 mb-0.5">Agent</p>
-                        <p className="font-medium text-gray-800">{d.vendeur?.nom ?? "—"}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-gray-400 mb-0.5">Crédit disponible</p>
-                        <p className={`font-semibold ${d.client.creditDispo >= d.montantTotal ? "text-green-600" : "text-red-600"}`}>
-                          {formatCurrency(d.client.creditDispo)}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-gray-400 mb-0.5">Limite / Solde</p>
-                        <p className="text-xs text-gray-600">{formatCurrency(d.client.limiteCredit)} / {formatCurrency(d.client.soldeActuel)}</p>
-                      </div>
-                    </div>
-                    <div className="border-t border-gray-50 pt-3">
-                      <p className="text-xs text-gray-400 mb-1.5 flex items-center gap-1"><Package size={12} /> Articles</p>
-                      <div className="space-y-1">
-                        {d.lignes.map((l, i) => (
-                          <div key={i} className="flex justify-between text-xs text-gray-700">
-                            <span>{l.produit} × {l.quantite}{l.unite ? ` ${l.unite}` : ""}</span>
-                            <span className="font-medium">{formatCurrency(l.montant)}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                    {d.notes && <p className="text-xs text-gray-500 italic">Note : {d.notes}</p>}
-                    <div className="flex gap-2 pt-1">
-                      <button
-                        onClick={() => { setTraitAction("APPROUVER"); setTraitMotif(""); setTraitModal(d); }}
-                        className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-green-600 text-white rounded-xl text-sm font-semibold hover:bg-green-700 transition-colors"
-                      >
-                        <CheckCircle size={15} /> Approuver
-                      </button>
-                      <button
-                        onClick={() => { setTraitAction("REFUSER"); setTraitMotif(""); setTraitModal(d); }}
-                        className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-red-500 text-white rounded-xl text-sm font-semibold hover:bg-red-600 transition-colors"
-                      >
-                        <XCircle size={15} /> Refuser
-                      </button>
-                    </div>
-                  </div>
-                ))}
-                {demandesData!.meta.totalPages > 1 && (
-                  <div className="flex items-center justify-center gap-2 pt-2">
-                    <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page <= 1} className="px-3 py-1.5 border border-gray-200 rounded-lg text-sm disabled:opacity-40 hover:bg-gray-50">Précédent</button>
-                    <span className="text-sm text-gray-600 px-2">Page {demandesData!.meta.page} / {demandesData!.meta.totalPages}</span>
-                    <button onClick={() => setPage((p) => Math.min(demandesData!.meta.totalPages, p + 1))} disabled={page >= demandesData!.meta.totalPages} className="px-3 py-1.5 border border-gray-200 rounded-lg text-sm disabled:opacity-40 hover:bg-gray-50">Suivant</button>
-                  </div>
-                )}
-              </div>
-            )}
-          </>
-        )}
-
         {/* ─── CLIENTS ─── */}
-        {onglet !== "DEMANDES_CREDIT" && (
-          <>
+        <>
         {/* Compteur */}
         {data?.meta && (
           <p className="text-sm text-gray-500">
@@ -810,79 +713,8 @@ export default function RVCPage() {
             )}
           </>
         )}
-          </>
-        )}
+        </>
       </div>
-
-      {/* Modal traitement demande crédit */}
-      {traitModal && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl w-full max-w-md shadow-xl">
-            <div className="flex items-center justify-between p-6 border-b border-gray-100">
-              <div className="flex items-center gap-3">
-                <div className={`p-3 rounded-xl ${traitAction === "APPROUVER" ? "bg-green-50" : "bg-red-50"}`}>
-                  {traitAction === "APPROUVER"
-                    ? <CheckCircle className="text-green-600 w-6 h-6" />
-                    : <XCircle className="text-red-500 w-6 h-6" />}
-                </div>
-                <div>
-                  <h2 className="text-lg font-bold text-gray-900">
-                    {traitAction === "APPROUVER" ? "Approuver la demande" : "Refuser la demande"}
-                  </h2>
-                  <p className="text-sm text-gray-500">{traitModal.reference} · {formatCurrency(traitModal.montantTotal)}</p>
-                </div>
-              </div>
-              <button onClick={() => { setTraitModal(null); setTraitMotif(""); }} className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg">
-                <XCircle size={20} />
-              </button>
-            </div>
-            <div className="p-6 space-y-4">
-              <div className="bg-gray-50 rounded-xl p-4 border border-gray-200 space-y-1 text-sm">
-                <div className="flex justify-between"><span className="text-gray-500">Client</span><span className="font-medium">{traitModal.client.nom}</span></div>
-                <div className="flex justify-between"><span className="text-gray-500">Agent</span><span className="font-medium">{traitModal.vendeur?.nom ?? "—"}</span></div>
-                <div className="flex justify-between"><span className="text-gray-500">Crédit disponible</span><span className={`font-semibold ${traitModal.client.creditDispo >= traitModal.montantTotal ? "text-green-600" : "text-red-600"}`}>{formatCurrency(traitModal.client.creditDispo)}</span></div>
-              </div>
-              {traitAction === "REFUSER" && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Motif du refus <span className="text-red-500">*</span></label>
-                  <textarea
-                    value={traitMotif}
-                    onChange={(e) => setTraitMotif(e.target.value)}
-                    rows={3}
-                    placeholder="Crédit insuffisant, client non éligible..."
-                    className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-              )}
-              <div className="flex gap-3 pt-1">
-                <button onClick={() => { setTraitModal(null); setTraitMotif(""); }} className="flex-1 py-2.5 border border-gray-200 rounded-xl text-gray-600 text-sm font-medium hover:bg-gray-50">Annuler</button>
-                <button
-                  disabled={traitLoading || (traitAction === "REFUSER" && !traitMotif.trim())}
-                  onClick={async () => {
-                    if (!traitModal) return;
-                    setTraitLoading(true);
-                    try {
-                      const res = await fetch(`/api/rvc/ventes/${traitModal.id}/traiter`, {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ action: traitAction, motif: traitMotif || undefined }),
-                      });
-                      if (res.ok) { setTraitModal(null); setTraitMotif(""); handleRefresh(); }
-                    } finally {
-                      setTraitLoading(false);
-                    }
-                  }}
-                  className={`flex-1 py-2.5 rounded-xl text-white text-sm font-semibold disabled:opacity-50 transition-colors ${
-                    traitAction === "APPROUVER" ? "bg-green-600 hover:bg-green-700" : "bg-red-500 hover:bg-red-600"
-                  }`}
-                >
-                  {traitLoading ? "..." : traitAction === "APPROUVER" ? "Approuver" : "Refuser"}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Modal détail client */}
       {selected && (

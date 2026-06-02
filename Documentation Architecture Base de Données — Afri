@@ -1,7 +1,7 @@
  Documentation Architecture Base de Données — AfriGes
 
-  Vue d'ensemble
-
+  Vue d'ensemble  
+  
   AfriGes est une plateforme de gestion commerciale multi-sites (points de
   vente, dépôts) qui couvre l'ensemble du cycle de vie d'une entreprise de
   distribution : gestion des utilisateurs et rôles → clients → stock → ventes →
@@ -514,8 +514,8 @@
   │ Parametre            │ Paramètres simples clé-valeur (héritage, usage    │
   │                      │ ciblé)                                            │
   └──────────────────────┴───────────────────────────────────────────────────┘
-
-  ---
+  
+  ---   
   Schéma des flux principaux
 
   AGENT TERRAIN

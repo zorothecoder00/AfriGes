@@ -330,7 +330,7 @@ export async function GET() {
             datePrevisionnelle: r.datePrevisionnelle.toISOString(),
             dateLivraison: r.dateLivraison?.toISOString() ?? null,
             notes: r.notes,
-            produits: r.lignes.map((l) => `${l.produit.nom} ×${l.quantite}`).join(", "),
+            produits: r.lignes.map((l) => `${l.produit?.nom ?? "—"} ×${l.quantite}`).join(", "),
           };
         }),
       },

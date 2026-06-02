@@ -42,6 +42,8 @@ interface Produit {
 
 interface StockResponse {
   data: Produit[];
+  pdvs?: PDVOption[];
+  userPdvId?: number | null;
   stats: { totalProduits: number; enRupture: number; stockFaible: number; valeurTotale: number };
   meta:  { total: number; page: number; limit: number; totalPages: number };
 }
@@ -71,6 +73,31 @@ interface ReceptionsResponse {
   produits?: ProduitOption[];
   stats: { totalReceptions30j: number; totalQuantiteRecue30j: number };
   meta:  { total: number; page: number; limit: number; totalPages: number };
+}
+
+interface LignePendingReception {
+  id: number;
+  produitId: number;
+  quantiteAttendue: number;
+  quantiteRecue: number | null;
+  produit: { id: number; nom: string; unite: string | null };
+}
+
+interface PendingReceptionAppro {
+  id: number;
+  reference: string;
+  type: "FOURNISSEUR" | "INTERNE";
+  statut: string;
+  origineNom: string | null;
+  notes: string | null;
+  datePrevisionnelle: string;
+  pointDeVente: { id: number; nom: string; code: string };
+  lignes: LignePendingReception[];
+}
+
+interface PendingReceptionsResponse {
+  data: PendingReceptionAppro[];
+  meta: { total: number; page: number; limit: number; totalPages: number };
 }
 
 interface PDVOption {
@@ -323,6 +350,38 @@ export default function LogistiqueApprovisionnementPage() {
   const { data: receptionsRes, refetch: refetchReceptions } =
     useApi<ReceptionsResponse>(`/api/logistique/receptions?${livrParams}`);
 
+  // ── Commandes en transit (EN_COURS INTERNE) à confirmer ──────────────────
+  const { data: pendingReceptionsRes, refetch: refetchPending } =
+    useApi<PendingReceptionsResponse>("/api/logistique/receptions?statut=EN_COURS&type=INTERNE&limit=50");
+  const pendingReceptions = pendingReceptionsRes?.data ?? [];
+
+  const [confirmingReceptionId, setConfirmingReceptionId] = useState<number | null>(null);
+  const confirmingReceptionIdRef = useRef<number | null>(null);
+  const { mutate: doValiderReception, loading: validatingReception } =
+    useMutation<unknown, object>(
+      () => confirmingReceptionIdRef.current ? `/api/logistique/receptions/${confirmingReceptionIdRef.current}` : "",
+      "PATCH",
+      { successMessage: "Réception confirmée — stock mis à jour !" }
+    );
+
+  const handleConfirmerReception = async (rec: PendingReceptionAppro) => {
+    confirmingReceptionIdRef.current = rec.id;
+    setConfirmingReceptionId(rec.id);
+    const lignesRecues = rec.lignes.map(l => ({
+      ligneId:       l.id,
+      quantiteRecue: l.quantiteRecue ?? l.quantiteAttendue,
+      etatQualite:   "BON",
+    }));
+    const result = await doValiderReception({ action: "VALIDER", lignesRecues });
+    if (result) {
+      refetchPending();
+      refetchStock();
+      refetchJournal();
+    }
+    setConfirmingReceptionId(null);
+    confirmingReceptionIdRef.current = null;
+  };
+
   // ── Affectations ──────────────────────────────────────────────────────────
   const [affPage, setAffPage]           = useState(1);
   const [affSearch, setAffSearch]       = useState("");
@@ -338,7 +397,11 @@ export default function LogistiqueApprovisionnementPage() {
   const { data: affectationsRes, refetch: refetchAffectations } =
     useApi<AffectationsResponse>(`/api/logistique/affectations?${affParams}`);
 
-  const pdvs = affectationsRes?.pdvs ?? [];
+  // Tous les PDVs actifs (vient du stock API qui les retourne toujours)
+  const allPdvs   = stockRes?.pdvs ?? affectationsRes?.pdvs ?? [];
+  const userPdvId = stockRes?.userPdvId ?? null;
+  // Pour le modal affectation : destination = tout PDV sauf le sien
+  const pdvs = allPdvs.filter(p => p.id !== userPdvId);
 
   // ── Journal ───────────────────────────────────────────────────────────────
   const [journalPage, setJournalPage]   = useState(1);
@@ -363,8 +426,8 @@ export default function LogistiqueApprovisionnementPage() {
   const [recForm, setRecForm] = useState({ quantite: "", referenceExterne: "", motif: "" });
 
   const { mutate: createReception, loading: recLoading } =
-    useMutation<unknown, object>("/api/logistique/receptions", "POST", {
-      successMessage: "Réception enregistrée avec succès",
+    useMutation<unknown, object>("/api/logistique/mouvements", "POST", {
+      successMessage: "Réception enregistrée — stock mis à jour",
     });
 
   const openReceptionModal = (p: Produit) => {
@@ -480,7 +543,7 @@ export default function LogistiqueApprovisionnementPage() {
 
   const openCommandeModal = () => {
     const d = new Date(); d.setDate(d.getDate() + 7);
-    setCmdForm({ type: "FOURNISSEUR", pointDeVenteId: "", fournisseurNom: "", datePrevisionnelle: d.toISOString().slice(0, 10), notes: "" });
+    setCmdForm({ type: "FOURNISSEUR", pointDeVenteId: userPdvId ? String(userPdvId) : "", fournisseurNom: "", datePrevisionnelle: d.toISOString().slice(0, 10), notes: "" });
     setCmdLignes([{ produitId: "", quantiteAttendue: "", prixUnitaire: "" }]);
     setCommandeModal(true);
   };
@@ -829,6 +892,53 @@ export default function LogistiqueApprovisionnementPage() {
                 />
               </div>
             </div>
+
+            {/* Commandes en transit à confirmer */}
+            {pendingReceptions.length > 0 && (
+              <div className="bg-white rounded-2xl shadow-sm border border-blue-200 overflow-hidden">
+                <div className="px-6 py-4 border-b border-blue-100 bg-blue-50 flex items-center gap-2">
+                  <Truck size={18} className="text-blue-600" />
+                  <h3 className="font-bold text-blue-800">Commandes en transit à confirmer</h3>
+                  <span className="bg-blue-600 text-white text-xs font-bold px-2 py-0.5 rounded-full">
+                    {pendingReceptions.length}
+                  </span>
+                </div>
+                <div className="divide-y divide-slate-100">
+                  {pendingReceptions.map(rec => (
+                    <div key={rec.id} className="px-6 py-4 flex items-start justify-between gap-4">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="font-semibold text-slate-800 text-sm">{rec.reference}</span>
+                          <span className="text-xs text-slate-500 font-mono">{rec.pointDeVente.nom}</span>
+                          {rec.origineNom && (
+                            <span className="text-xs text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">{rec.origineNom}</span>
+                          )}
+                        </div>
+                        <div className="flex flex-wrap gap-2 mt-1">
+                          {rec.lignes.map(l => (
+                            <span key={l.id} className="text-xs bg-slate-100 text-slate-700 px-2 py-1 rounded-lg">
+                              {l.produit.nom} · <b>{l.quantiteAttendue}</b>{l.produit.unite ? ` ${l.produit.unite}` : ""}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => handleConfirmerReception(rec)}
+                        disabled={confirmingReceptionId === rec.id || validatingReception}
+                        className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-medium transition-colors disabled:opacity-50 whitespace-nowrap"
+                      >
+                        {confirmingReceptionId === rec.id ? (
+                          <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                          <CheckSquare size={15} />
+                        )}
+                        Confirmer réception
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Table */}
             <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 overflow-hidden">
@@ -2332,7 +2442,7 @@ export default function LogistiqueApprovisionnementPage() {
       {/* MODAL – NOUVELLE COMMANDE FOURNISSEUR                               */}
       {/* ════════════════════════════════════════════════════════════════════ */}
       {commandeModal && (() => {
-        const allPdvs: PDVOption[] = pdvs;
+        const cmdPdvs: PDVOption[] = allPdvs;
         const allProduits: ProduitOption[] = receptionsRes?.produits ?? produits.map(p => ({ id: p.id, nom: p.nom, reference: null, unite: null, prixUnitaire: p.prixUnitaire }));
         return (
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
@@ -2381,7 +2491,7 @@ export default function LogistiqueApprovisionnementPage() {
                       className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50 text-sm"
                     >
                       <option value="">— Sélectionnez —</option>
-                      {allPdvs.map(p => (
+                      {cmdPdvs.map(p => (
                         <option key={p.id} value={p.id}>{p.nom} ({p.code})</option>
                       ))}
                     </select>

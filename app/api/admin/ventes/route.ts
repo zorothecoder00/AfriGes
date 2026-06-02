@@ -167,6 +167,7 @@ export async function POST(req: Request) {
       });
 
       for (const ligne of v.lignes) {
+        if (!ligne.produitId) continue;
         await tx.stockSite.update({
           where: { produitId_pointDeVenteId: { produitId: ligne.produitId, pointDeVenteId: Number(pointDeVenteId) } },
           data: { quantite: { decrement: ligne.quantite } },

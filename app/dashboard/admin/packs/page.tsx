@@ -5,7 +5,7 @@ import {
   Plus, Search, ArrowLeft, Package, Layers, Users, CheckCircle,
   Clock, AlertTriangle, XCircle, ChevronRight, ChevronDown, ChevronUp,
   Truck, CreditCard, RefreshCw, Edit2, ToggleLeft, ToggleRight, Trash2, Eye,
-  Calendar, Phone, User, TrendingUp,
+  Calendar, Phone, User, TrendingUp, ClipboardList, BarChart3,
 } from "lucide-react";    
 import Link from "next/link";
 import { useApi, useMutation } from "@/hooks/useApi";
@@ -115,6 +115,8 @@ interface ClientOption {
   nom: string;
   prenom: string;
   telephone: string;
+  pointDeVenteId?: number | null;
+  pointDeVente?: { id: number; nom: string } | null;
 }
 
 interface Produit {
@@ -194,9 +196,21 @@ export default function PacksAdminPage() {
           <Link href="/dashboard/admin" className="p-2 hover:bg-white rounded-lg transition-colors">
             <ArrowLeft className="w-5 h-5 text-slate-600" />
           </Link>
-          <div>
+          <div className="flex-1">
             <h1 className="text-4xl font-bold text-slate-800 mb-1">{t('packs_title')}</h1>
             <p className="text-slate-500">Gérez les souscriptions, versements et livraisons par pack</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Link href="/dashboard/admin/souscriptions/lignes"
+              className="flex items-center gap-2 px-4 py-2.5 bg-white border border-amber-200 hover:bg-amber-50 text-amber-700 rounded-xl text-sm font-medium transition-colors shadow-sm">
+              <ClipboardList className="w-4 h-4" />
+              Demandes produits
+            </Link>
+            <Link href="/dashboard/admin/logistique/previsions"
+              className="flex items-center gap-2 px-4 py-2.5 bg-white border border-emerald-200 hover:bg-emerald-50 text-emerald-700 rounded-xl text-sm font-medium transition-colors shadow-sm">
+              <BarChart3 className="w-4 h-4" />
+              Prévisions appro
+            </Link>
           </div>
         </div>
 
@@ -390,7 +404,7 @@ function TabSouscriptions() {
               const toggleMonth = () =>
                 setExpandedMonths((prev) => {
                   const next = new Set(prev);
-                  next.has(key) ? next.delete(key) : next.add(key);
+                  if (next.has(key)) { next.delete(key); } else { next.add(key); }
                   return next;
                 });
 
@@ -479,6 +493,12 @@ function TabSouscriptions() {
                       >
                         <Eye className="w-3.5 h-3.5" /> Lire
                       </button>
+                      <Link
+                        href={`/dashboard/admin/souscriptions/${s.id}/lignes`}
+                        className="inline-flex items-center gap-1 px-3 py-1.5 bg-emerald-100 text-emerald-800 text-xs font-medium rounded-lg hover:bg-emerald-200 transition-colors"
+                      >
+                        <ClipboardList className="w-3.5 h-3.5" /> Produits
+                      </Link>
                       <button
                         onClick={() => setEditTarget(s)}
                         className="inline-flex items-center gap-1 px-3 py-1.5 bg-amber-100 text-amber-800 text-xs font-medium rounded-lg hover:bg-amber-200 transition-colors"
@@ -1856,7 +1876,7 @@ function ModalConfirmDeleteSouscription({
 
 function ModalNouvelleSouscription({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
   const t = useT();
-  const [step, setStep] = useState<1 | 2>(1);
+  const [step, setStep] = useState<1 | 2 | 3>(1);
   const [clientSearch, setClientSearch] = useState("");
   const [dClientSearch, setDClientSearch] = useState("");
   const [selectedClient, setSelectedClient] = useState<ClientOption | null>(null);
@@ -1867,6 +1887,13 @@ function ModalNouvelleSouscription({ onClose, onSuccess }: { onClose: () => void
   const [acompte, setAcompte] = useState("");
   const [dateDebut, setDateDebut] = useState(new Date().toISOString().split("T")[0]);
   const [notes, setNotes] = useState("");
+
+  // Étape 3 — produits demandés
+  const [createdSouscId, setCreatedSouscId] = useState<number | null>(null);
+  const [checkedIds, setCheckedIds] = useState<Set<number>>(new Set());
+  const [quantities, setQuantities] = useState<Record<number, string>>({});
+  const [newProds, setNewProds] = useState<{ nom: string; quantite: string }[]>([]);
+  const [savingLignes, setSavingLignes] = useState(false);
 
   useEffect(() => {
     const t = setTimeout(() => setDClientSearch(clientSearch), 400);
@@ -1911,6 +1938,26 @@ function ModalNouvelleSouscription({ onClose, onSuccess }: { onClose: () => void
     successMessage: "Souscription créée !",
   });
 
+  // Produits du PDV client pour l'étape 3
+  const pdvIdStep3 = selectedClient?.pointDeVenteId;
+  const stockUrlStep3 = step === 3
+    ? (pdvIdStep3 ? `/api/admin/stock?pdvId=${pdvIdStep3}&limit=300` : `/api/logistique/produits?limit=300`)
+    : null;
+
+  interface StockStep3Item {
+    id?: number; nom?: string; unite?: string | null; prixUnitaire?: string;
+    quantite?: number; produit?: { id: number; nom: string; unite?: string | null; prixUnitaire: string };
+  }
+  const { data: stockStep3Data } = useApi<{ data: StockStep3Item[] }>(stockUrlStep3);
+
+  // Normaliser en liste plate
+  const produitsStep3 = (stockStep3Data?.data ?? []).map((item) => {
+    if (item.produit) {
+      return { id: item.produit.id, nom: item.produit.nom, unite: item.produit.unite, stock: item.quantite ?? 0 };
+    }
+    return { id: item.id!, nom: item.nom!, unite: item.unite, stock: 0 };
+  }).filter(p => p.id && p.nom);
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!selectedClient || !packId || !montantTotal) return;
@@ -1926,8 +1973,46 @@ function ModalNouvelleSouscription({ onClose, onSuccess }: { onClose: () => void
     if (selectedPack?.type === "REVENDEUR" && formuleRevendeur) payload.formuleRevendeur = formuleRevendeur;
     if (selectedPack?.type === "FAMILIAL") payload.frequenceVersement = frequenceVersement;
 
-    const res = await mutate(payload);
-    if (res) { onSuccess(); onClose(); }
+    const res = await mutate(payload) as { id?: number } | null;
+    if (res?.id) {
+      onSuccess();
+      setCreatedSouscId(res.id);
+      setStep(3);
+    } else if (res) {
+      // fallback si pas d'id dans la réponse
+      onSuccess(); onClose();
+    }
+  }
+
+  async function submitLignes() {
+    if (!createdSouscId) { onClose(); return; }
+    const lignes: Array<{ produitId?: number; produitNomSaisi: string; quantite: number }> = [];
+
+    for (const id of checkedIds) {
+      const prod = produitsStep3.find(p => p.id === id);
+      if (!prod) continue;
+      const qte = parseInt(quantities[id] || "1");
+      if (qte > 0) lignes.push({ produitId: id, produitNomSaisi: prod.nom, quantite: qte });
+    }
+    for (const p of newProds) {
+      if (p.nom.trim() && parseInt(p.quantite) > 0) {
+        lignes.push({ produitNomSaisi: p.nom.trim(), quantite: parseInt(p.quantite) });
+      }
+    }
+
+    if (lignes.length > 0) {
+      setSavingLignes(true);
+      try {
+        await fetch(`/api/agentTerrain/souscriptions/${createdSouscId}/lignes`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ lignes }),
+        });
+      } finally {
+        setSavingLignes(false);
+      }
+    }
+    onClose();
   }
 
   return (
@@ -1942,7 +2027,7 @@ function ModalNouvelleSouscription({ onClose, onSuccess }: { onClose: () => void
 
         {/* Step indicator */}
         <div className="flex items-center gap-2 mb-6">
-          {[{ n: 1, label: "Client" }, { n: 2, label: "Config" }].map(({ n, label }) => (
+          {[{ n: 1, label: "Client" }, { n: 2, label: "Config" }, { n: 3, label: "Produits" }].map(({ n, label }) => (
             <React.Fragment key={n}>
               <div className={`flex items-center gap-1.5 ${step >= n ? "text-emerald-600" : "text-slate-400"}`}>
                 <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${step > n ? "bg-emerald-600 text-white" : step === n ? "bg-emerald-600 text-white" : "bg-slate-200 text-slate-500"}`}>
@@ -1950,7 +2035,7 @@ function ModalNouvelleSouscription({ onClose, onSuccess }: { onClose: () => void
                 </div>
                 <span className="text-sm font-medium">{label}</span>
               </div>
-              {n < 2 && <ChevronRight className="text-slate-300 w-4 h-4" />}
+              {n < 3 && <ChevronRight className="text-slate-300 w-4 h-4" />}
             </React.Fragment>
           ))}
         </div>
@@ -2149,11 +2234,111 @@ function ModalNouvelleSouscription({ onClose, onSuccess }: { onClose: () => void
                 Retour
               </button>
               <button type="submit" disabled={loading || !packId || !montantTotal}
-                className="flex-1 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 disabled:opacity-50 text-sm font-medium transition-colors">
-                {loading ? "Création…" : "Créer"}
+                className="flex-1 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 disabled:opacity-50 text-sm font-medium transition-colors flex items-center justify-center gap-2">
+                {loading ? "Création…" : <><Package className="w-4 h-4" /> Créer &amp; choisir les produits</>}
               </button>
             </div>
           </form>
+        )}
+
+        {/* Étape 3 : Produits demandés */}
+        {step === 3 && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3">
+              <div className="flex items-center gap-2">
+                <CheckCircle className="text-emerald-500 w-4 h-4 shrink-0" />
+                <p className="text-sm font-semibold text-slate-800">Souscription créée !</p>
+              </div>
+              <span className="text-xs text-slate-500">
+                {selectedClient?.prenom} {selectedClient?.nom}
+              </span>
+            </div>
+
+            <div>
+              <p className="text-sm font-medium text-slate-700 mb-1">
+                Produits souhaités par le client
+                <span className="text-slate-400 font-normal ml-1">(optionnel — cochez et saisissez les quantités)</span>
+              </p>
+              {pdvIdStep3 && (
+                <p className="text-xs text-sky-600 flex items-center gap-1 mb-2">
+                  <Package className="w-3 h-3" /> Produits du PDV : {selectedClient?.pointDeVente?.nom ?? `PDV #${pdvIdStep3}`}
+                </p>
+              )}
+
+              {!stockStep3Data ? (
+                <div className="flex items-center justify-center py-6">
+                  <div className="w-6 h-6 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+                </div>
+              ) : produitsStep3.length === 0 ? (
+                <p className="text-sm text-slate-400 text-center py-4">Aucun produit disponible</p>
+              ) : (
+                <div className="max-h-52 overflow-y-auto border border-slate-200 rounded-xl divide-y divide-slate-100">
+                  {produitsStep3.map(prod => {
+                    const checked = checkedIds.has(prod.id);
+                    return (
+                      <label key={prod.id}
+                        className={`flex items-center gap-3 px-4 py-2.5 cursor-pointer transition-colors ${checked ? "bg-emerald-50" : "hover:bg-slate-50"}`}>
+                        <input type="checkbox" className="w-4 h-4 accent-emerald-600"
+                          checked={checked}
+                          onChange={e => {
+                            setCheckedIds(s => { const n = new Set(s); if (e.target.checked) { n.add(prod.id); } else { n.delete(prod.id); } return n; });
+                            if (e.target.checked && !quantities[prod.id]) setQuantities(q => ({ ...q, [prod.id]: "1" }));
+                          }} />
+                        <span className="flex-1 text-sm text-slate-800 font-medium">{prod.nom}</span>
+                        {prod.unite && <span className="text-xs text-slate-400">{prod.unite}</span>}
+                        {prod.stock > 0 && <span className="text-xs text-slate-400">stock : {prod.stock}</span>}
+                        {checked && (
+                          <input type="number" min="1"
+                            value={quantities[prod.id] ?? "1"}
+                            onChange={e => setQuantities(q => ({ ...q, [prod.id]: e.target.value }))}
+                            onClick={e => e.preventDefault()}
+                            className="w-16 border border-emerald-300 rounded-lg px-2 py-1 text-sm text-center focus:outline-none focus:ring-1 focus:ring-emerald-400 bg-white"
+                          />
+                        )}
+                      </label>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Produits hors catalogue */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-medium text-slate-700">Produits hors catalogue</span>
+                <button type="button"
+                  onClick={() => setNewProds(p => [...p, { nom: "", quantite: "1" }])}
+                  className="text-xs text-amber-600 hover:text-amber-800 font-medium flex items-center gap-1">
+                  <Plus className="w-3 h-3" /> Ajouter
+                </button>
+              </div>
+              {newProds.map((p, i) => (
+                <div key={i} className="flex items-center gap-2 mb-2">
+                  <input type="text" placeholder="Nom du produit" value={p.nom}
+                    onChange={e => setNewProds(arr => arr.map((x, j) => j === i ? { ...x, nom: e.target.value } : x))}
+                    className="flex-1 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" />
+                  <input type="number" min="1" value={p.quantite}
+                    onChange={e => setNewProds(arr => arr.map((x, j) => j === i ? { ...x, quantite: e.target.value } : x))}
+                    className="w-20 border border-slate-200 rounded-xl px-2 py-2 text-sm text-center focus:outline-none focus:ring-2 focus:ring-amber-400" />
+                  <button type="button" onClick={() => setNewProds(arr => arr.filter((_, j) => j !== i))}
+                    className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
+                    <XCircle className="w-4 h-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex gap-3 pt-1">
+              <button type="button" onClick={onClose} disabled={savingLignes}
+                className="flex-1 py-2.5 border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50 text-sm font-medium transition-colors">
+                Passer
+              </button>
+              <button type="button" onClick={submitLignes} disabled={savingLignes}
+                className="flex-1 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 disabled:opacity-50 text-sm font-medium transition-colors">
+                {savingLignes ? "Enregistrement…" : `Enregistrer${checkedIds.size + newProds.filter(p => p.nom.trim()).length > 0 ? ` (${checkedIds.size + newProds.filter(p => p.nom.trim()).length})` : " & terminer"}`}
+              </button>
+            </div>
+          </div>
         )}
       </div>
     </div>
@@ -2228,6 +2413,14 @@ function ModalVersement({
 
 // ─── Modal : Planifier livraison ──────────────────────────────────────────────
 
+interface LigneConfirmee {
+  id: number;
+  statut: string;
+  produitId: number | null;
+  produit: { id: number; nom: string; prixUnitaire: string; unite?: string | null } | null;
+  quantite: number;
+}
+
 function ModalPlanifierLivraison({
   souscription,
   onClose,
@@ -2237,9 +2430,7 @@ function ModalPlanifierLivraison({
   onClose: () => void;
   onSuccess: () => void;
 }) {
-  const [lignes, setLignes] = useState<{ produitId: string; quantite: string; prixUnitaire: string }[]>([
-    { produitId: "", quantite: "1", prixUnitaire: "" },
-  ]);
+  const [lignesOverride, setLignesOverride] = useState<{ produitId: string; quantite: string; prixUnitaire: string }[] | null>(null);
   const [datePrevisionnelle, setDatePrevisionnelle] = useState(new Date().toISOString().split("T")[0]);
   const [notes, setNotes] = useState("");
 
@@ -2266,6 +2457,25 @@ function ModalPlanifierLivraison({
     : `/api/admin/stock?aggregate=true&limit=200`;
 
   const { data: stockData } = useApi<{ data: Produit[] }>(stockUrl);
+
+  // ── Pré-remplissage depuis les lignes confirmées ───────────────────────────
+  const { data: lignesData } = useApi<{ lignes: LigneConfirmee[] }>(
+    `/api/agentTerrain/souscriptions/${souscription.id}/lignes`
+  );
+  const confirmedLignes = (lignesData?.lignes ?? []).filter(
+    (l) => l.statut === "CONFIRME" && l.produitId
+  );
+  const preFilledLignes = React.useMemo(() => {
+    if (confirmedLignes.length === 0 || !stockData) return null;
+    return confirmedLignes.map((l) => ({
+      produitId:    String(l.produitId!),
+      quantite:     String(l.quantite),
+      prixUnitaire: l.produit ? String(l.produit.prixUnitaire) : "",
+    }));
+  }, [confirmedLignes, stockData]);
+
+  const lignes = lignesOverride ?? preFilledLignes ?? [{ produitId: "", quantite: "1", prixUnitaire: "" }];
+  const setLignes = setLignesOverride;
 
   // En mode pdvId, l'API retourne des StockSite (quantite + quantiteReservee + … + produit{})
   // En mode aggregate, elle retourne des Produit (totalStock + id/nom/prixUnitaire)
@@ -2301,17 +2511,17 @@ function ModalPlanifierLivraison({
   );
 
   const addLigne = useCallback(() =>
-    setLignes((l) => [...l, { produitId: "", quantite: "1", prixUnitaire: "" }]),
-    []
+    setLignes([...lignes, { produitId: "", quantite: "1", prixUnitaire: "" }]),
+    [lignes]
   );
 
   const removeLigne = useCallback((i: number) =>
-    setLignes((l) => l.filter((_, idx) => idx !== i)),
-    []
+    setLignes(lignes.filter((_, idx) => idx !== i)),
+    [lignes]
   );
 
   const updateLigne = useCallback((i: number, key: string, val: string) => {
-    setLignes((l) => l.map((ligne, idx) => {
+    setLignes(lignes.map((ligne, idx) => {
       if (idx !== i) return ligne;
       const updated = { ...ligne, [key]: val };
       if (key === "produitId") {
@@ -2320,7 +2530,7 @@ function ModalPlanifierLivraison({
       }
       return updated;
     }));
-  }, [produits]);
+  }, [lignes, produits]);
 
   // Budget en temps réel
   const montantTotal      = Number(souscription.montantTotal);
@@ -2434,6 +2644,15 @@ function ModalPlanifierLivraison({
             )}
           </div>
         </div>
+
+        {/* Bannière pré-remplissage */}
+        {preFilledLignes !== null && confirmedLignes.length > 0 && (
+          <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-2.5 mb-4">
+            <CheckCircle className="w-4 h-4 text-emerald-500 shrink-0" />
+            <span className="text-sm text-emerald-700 font-medium">{confirmedLignes.length} produit(s) pré-rempli(s)</span>
+            <span className="text-sm text-emerald-600">depuis les lignes confirmées — modifiables ci-dessous</span>
+          </div>
+        )}
 
         <form onSubmit={submit} className="space-y-4">
           <div>

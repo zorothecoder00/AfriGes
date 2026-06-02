@@ -2,7 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getLogistiqueSession } from "@/lib/authLogistique";
+import { getMagasinierSession } from "@/lib/authMagasinier";
 import { resolveViewAs } from "@/lib/viewAs";
+import { randomUUID } from "crypto";
+
+async function getAnySession() {
+  return (await getLogistiqueSession()) ?? (await getMagasinierSession());
+}
 
 /**
  * GET /api/logistique/mouvements
@@ -78,5 +84,72 @@ export async function GET(req: NextRequest) {
   } catch (error) {
     console.error("GET /logistique/mouvements error:", error);
     return NextResponse.json({ error: "Erreur lors du chargement du journal" }, { status: 500 });
+  }
+}
+
+/**
+ * POST /api/logistique/mouvements
+ * Entrée rapide de stock (réception manuelle depuis le tab stock).
+ * Body: { produitId, quantite, motif?, referenceExterne? }
+ * Crée un MouvementStock ENTREE et met à jour StockSite.quantite.
+ */
+export async function POST(req: NextRequest) {
+  try {
+    const session = await getAnySession();
+    if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
+
+    const { produitId, quantite, motif, referenceExterne } = await req.json() as {
+      produitId: number;
+      quantite: number;
+      motif?: string;
+      referenceExterne?: string;
+    };
+
+    if (!produitId || !quantite || Number(quantite) <= 0) {
+      return NextResponse.json({ error: "produitId et quantite (> 0) sont obligatoires" }, { status: 400 });
+    }
+
+    const userId = parseInt(session.user.id);
+
+    // Résoudre le PDV de l'utilisateur
+    const affectation = await prisma.gestionnaireAffectation.findFirst({
+      where: { userId, actif: true },
+      select: { pointDeVenteId: true },
+    });
+    if (!affectation) {
+      return NextResponse.json({ error: "Aucun point de vente assigné à cet utilisateur" }, { status: 400 });
+    }
+    const pdvId = affectation.pointDeVenteId;
+
+    const mouvement = await prisma.$transaction(async (tx) => {
+      const ref = referenceExterne || `ENT-${Date.now()}-${randomUUID().slice(0, 6).toUpperCase()}`;
+
+      const m = await tx.mouvementStock.create({
+        data: {
+          produitId:     Number(produitId),
+          pointDeVenteId: pdvId,
+          type:          "ENTREE",
+          typeEntree:    "RECEPTION_FOURNISSEUR",
+          quantite:      Number(quantite),
+          motif:         motif || null,
+          reference:     ref,
+          operateurId:   userId,
+        },
+      });
+
+      // Mettre à jour le stock réel du PDV
+      await tx.stockSite.upsert({
+        where:  { produitId_pointDeVenteId: { produitId: Number(produitId), pointDeVenteId: pdvId } },
+        update: { quantite: { increment: Number(quantite) } },
+        create: { produitId: Number(produitId), pointDeVenteId: pdvId, quantite: Number(quantite) },
+      });
+
+      return m;
+    });
+
+    return NextResponse.json({ data: mouvement }, { status: 201 });
+  } catch (error) {
+    console.error("POST /logistique/mouvements error:", error);
+    return NextResponse.json({ error: "Erreur lors de l'enregistrement" }, { status: 500 });
   }
 }

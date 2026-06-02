@@ -55,6 +55,7 @@ export async function PATCH(_req: Request, { params }: Ctx) {
 
     // Vérifier les stocks avant la transaction
     for (const l of vente.lignes) {
+      if (!l.produitId) continue;
       const stock = await prisma.stockSite.findUnique({
         where: { produitId_pointDeVenteId: { produitId: l.produitId, pointDeVenteId: pdvId } },
         include: { produit: { select: { nom: true } } },
@@ -73,6 +74,7 @@ export async function PATCH(_req: Request, { params }: Ctx) {
     const updated = await prisma.$transaction(async (tx) => {
       // Décrémenter StockSite + créer MouvementStock pour chaque ligne
       for (const l of vente.lignes) {
+        if (!l.produitId) continue;
         await tx.stockSite.update({
           where: { produitId_pointDeVenteId: { produitId: l.produitId, pointDeVenteId: pdvId } },
           data: { quantite: { decrement: l.quantite } },

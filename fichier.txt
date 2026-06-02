@@ -4,7 +4,7 @@
 On peut aussi utiliser du SVG pour les graphiques ( sans forcément dépendance externe)  
 Ce code :      
  const a = document.createElement("a");
- a.href = url;                  
+ a.href = url;                    
  a.download = filename;                                       
  a.click();                                                               
  permet de créer un téléchargement via un clic sur une URL ( utile pour les exports)
@@ -13,10 +13,14 @@ Prisma 7 est une breaking change majeure : url dans schema.prisma n'est plus
   supporté. La connexion doit passer par prisma.config.ts + un driver adapter.
 netsh wlan show profiles permet d'afficher les réseaux wifi enregistrés sur un pc
 netsh wlan show profile name="NomDuWifi" key=clear affiche toutes les propriétés du wifi sélectionné (NomDuWifi par exemple) notamment le mot de passe
-
+   
 -npm i -g @openai/codex permet d'installer le CLI de codex (agent ia d'openai qui permet d'interagir depuis le terminal)
+-Tip: Run /install-github-app to tag @claude right from your Github issues and PRs
+-Tip: Use /permissions to pre-approve and pre-deny bash, edit, and MCP tools
       
 -curl -fsSL https://claude.ai/install.cmd -o install.cmd && install.cmd && del install.cmd pour installer claude via le terminal cmd   
+
+-BQuerry pour extraire les données et faire des analyses
 
 
  Voilà. Ce que tu dois remplir obligatoirement pour activer les alertes :
@@ -39,28 +43,32 @@ netsh wlan show profile name="NomDuWifi" key=clear affiche toutes les propriét�
   Les seuils d'alertes (retard, inactivité, etc.) sont tous optionnels — les
   valeurs par défaut commentées s'appliquent si tu ne les mets pas.
      
-
-Faire des tags dans l'application pour permettre de retracer les informations sur les clients
-
-Créer un menu RIA (commissions , finances etc etc)  
-
-  
 Permettre à un client de pouvoir être de type crédit et de type comptant (pas juste 1 seul)                           DEJA FAIT
 
 Le caissier (dashboard/user/caissier ) doit pouvoir confirmer chaque opération ( c'est à dire chaque versement collecté par n agent , chaque remboursement de crédit , chaque vente directe par l'agent , magasinier admin ... ) ( et non juste une aggrégation). Pour le moment on dirait que le caissier ne confirme que le total qui est rentré dans la journéé                                                                                                      DEJA FAIT
-
-
-Au niveau de la création du pack on doit avoir déjà les spécifications de la demande des lignes de produits que le client veut
-
-
-BQuerry pour extraire les données et faire des analyses  
-
-Le responsable de crédit puisse éditer une demande de crédit ( c'est à dire la liste des produits et la quantité de produit voulu)
 
 la validation de crédit ne vient jamais sur le dashboard/user/responsablesCredit quand l'agent fait la demande
                               DEJA FAIT
 
 
 Lorsqu'on créé un client on doit pouvoir affecter un tag RIA(client ordinaire de base lorsqu'on ne fait rien)
-
+Créer un menu RIA (commissions , finances etc etc)
 Pouvoir créer des tags RIA et faire des recherches par tag( clients surtout ) sur l'app
+Faire des tags dans l'application pour permettre de retracer les informations sur les clients  
+
+
+Inventaire doit se faire chez admin et magasinier(validation invetaire et appro)
+créer un gestionnaire commercial(responsable marketing)
+choisir les taux de marge des produits(admin)
+établir les méthodes de FIFO(first in first out)
+générer automatiquement des vignettes pour les produits( étiquettes )
+
+
+Je veux aussi que tu changes le nom de l'onglet vente terrain de la page
+  dashboard/user/agentsTerrain ( ça serait mieux si on mettait ventes directes
+  et ventes à crédt pour plus de clarté directement )
+
+  Pouvoir faire une facturation(facture de vente à crédit , facture au comptant , facture pro-format) quand un client paie un produit (chez le caissier dashboard/user/caissiers)
+  Admin , RPV , RCV ,Responsable marketing aussi 
+
+

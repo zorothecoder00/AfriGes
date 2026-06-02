@@ -67,6 +67,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
 
     // Vérification stock sur le PDV effectif (avant transaction)
     for (const ligne of reception.lignes) {
+      if (!ligne.produitId) continue;
       const stockSite = await prisma.stockSite.findFirst({
         where: {
           produitId: ligne.produitId,
@@ -86,6 +87,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
     const updated = await prisma.$transaction(async (tx) => {
       // Décrémenter le stock depuis le PDV effectif (livraison ou magasinier) ou tous PDV (greedy)
       for (const ligne of reception.lignes) {
+        if (!ligne.produitId) continue;
         const sites = effectivePdvId
           ? await tx.stockSite.findMany({
               where: { produitId: ligne.produitId, pointDeVenteId: effectivePdvId, quantite: { gt: 0 } },

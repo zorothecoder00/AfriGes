@@ -70,6 +70,7 @@ interface EligibilitePackResponse {
   client: ClientOption;
 }
 interface ProduitOption { id: number; nom: string; prixUnitaire: string; prixAchat?: string | null; stock: number; totalStock?: number; quantiteReservee?: number; quantiteEnTransit?: number; quantiteEndommagee?: number; stockTheorique?: number; }
+interface PackLigneConfirmee { id: number; statut: string; produitId: number | null; produit: { id: number; nom: string; prixUnitaire: string; unite?: string | null } | null; quantite: number; }
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
 
@@ -170,7 +171,11 @@ export default function VentesPage() {
   const [checkingEligibility, setCheckingEligibility] = useState(false);
   const [eligibiliteError, setEligibiliteError]     = useState<string | null>(null);
   const [formPack, setFormPack]                     = useState({ souscriptionId: '', produitId: '', quantite: '1', prixUnitaire: '' });
+  const [packLignes, setPackLignes]                 = useState<{ produitId: string; quantite: string; prixUnitaire: string }[]>([{ produitId: '', quantite: '1', prixUnitaire: '' }]);
+  const [packPreFilledDone, setPackPreFilledDone]   = useState(false);
+  const packPreFilledRef                            = useRef(false);
   const [cancellingId, setCancellingId]             = useState<number | null>(null);
+  const [packConfirmedLignes, setPackConfirmedLignes] = useState<PackLigneConfirmee[]>([]);
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedPackClientSearch(packClientSearch), 400);
@@ -227,6 +232,27 @@ export default function VentesPage() {
     return [...map.entries()].map(([id, nom]) => ({ id, nom }));
   }, [packSelectedClient]);
 
+  // ── Lignes confirmées de la souscription sélectionnée (pré-remplissage) ───
+  const packEffectiveSouscId = formPack.souscriptionId ||
+    (eligibilitePack?.souscriptions.length === 1 ? String(eligibilitePack.souscriptions[0].id) : '');
+
+  useEffect(() => {
+    if (!packModalOpen || packStep !== 2 || !packEffectiveSouscId) {
+      setPackConfirmedLignes([]);
+      setPackLignes([{ produitId: '', quantite: '1', prixUnitaire: '' }]);
+      packPreFilledRef.current = false;
+      setPackPreFilledDone(false);
+      return;
+    }
+    fetch(`/api/agentTerrain/souscriptions/${packEffectiveSouscId}/lignes`)
+      .then(r => r.json())
+      .then(d => {
+        const confirmed = (d.lignes ?? []).filter((l: PackLigneConfirmee) => l.statut === 'CONFIRME' && l.produitId);
+        setPackConfirmedLignes(confirmed);
+      })
+      .catch(() => setPackConfirmedLignes([]));
+  }, [packModalOpen, packStep, packEffectiveSouscId]);
+
   // ── API – Produits stock (modal pack) ─────────────────────────────────────
   // Si un PDV est sélectionné → stock de ce PDV. Sinon → stock global.
   const packPdvId = packSelectedPdvId;
@@ -257,6 +283,19 @@ export default function VentesPage() {
     const dispo = (p.totalStock ?? p.stock ?? 0) - (p.quantiteReservee ?? 0);
     return dispo > 0;
   });
+
+  // ── Pré-remplissage automatique depuis les lignes confirmées ──────────────
+  useEffect(() => {
+    if (packPreFilledRef.current || packConfirmedLignes.length === 0 || !produitsResponse) return;
+    const mapped = packConfirmedLignes.map(l => ({
+      produitId:    String(l.produitId!),
+      quantite:     String(l.quantite),
+      prixUnitaire: l.produit ? String(l.produit.prixUnitaire) : '',
+    }));
+    setPackLignes(mapped);
+    packPreFilledRef.current = true;
+    setPackPreFilledDone(true);
+  }, [packConfirmedLignes, produitsResponse]);
 
   // ── Mutations ──────────────────────────────────────────────────────────────
   const { mutate: createVente, loading: creatingVente, error: createVenteError } =
@@ -384,6 +423,10 @@ export default function VentesPage() {
     setEligibilitePack(null);
     setEligibiliteError(null);
     setFormPack({ souscriptionId: '', produitId: '', quantite: '1', prixUnitaire: '' });
+    setPackConfirmedLignes([]);
+    setPackLignes([{ produitId: '', quantite: '1', prixUnitaire: '' }]);
+    packPreFilledRef.current = false;
+    setPackPreFilledDone(false);
   };
 
   const checkEligibility = async (client: ClientOption) => {
@@ -414,23 +457,22 @@ export default function VentesPage() {
 
   const handlePackSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Souscription : soit sélectionnée par l'user, soit unique (auto)
     const souscriptionId = formPack.souscriptionId ||
       (eligibilitePack?.souscriptions.length === 1 ? String(eligibilitePack.souscriptions[0].id) : '');
-    if (!souscriptionId || !formPack.produitId) return;
+    if (!souscriptionId) return;
     if (packClientPdvs.length > 0 && !packSelectedPdvId) return;
-    const produit = produits.find(p => p.id === parseInt(formPack.produitId));
-    if (!produit) return;
-    const qte = parseInt(formPack.quantite);
-    const stockDispo = Math.max(0, (produit.totalStock ?? produit.stock ?? 0) - (produit.quantiteReservee ?? 0));
-    if (qte > stockDispo) return;
-    const prixVente = parseFloat(formPack.prixUnitaire) || parseFloat(String(produit.prixUnitaire));
-    // Met à jour la ref pour l'URL de la mutation
+    const validLignes = packLignes
+      .filter(l => l.produitId && parseInt(l.quantite) > 0)
+      .map(l => ({
+        produitId:    parseInt(l.produitId),
+        quantite:     parseInt(l.quantite),
+        prixUnitaire: parseFloat(l.prixUnitaire) || 0,
+      }));
+    if (validLignes.length === 0) return;
     souscriptionIdRef.current = souscriptionId;
     const res = await addVente({
       action: 'planifier',
-      lignes: [{ produitId: parseInt(formPack.produitId), quantite: qte, prixUnitaire: prixVente }],
-      notes: `Livraison planifiée — ${produit.nom} × ${formPack.quantite}`,
+      lignes: validLignes,
       pointDeVenteId: packSelectedPdvId,
     });
     if (res) { closePackModal(); refetchPacks(); }
@@ -877,7 +919,7 @@ export default function VentesPage() {
         ══════════════════════════════════════════════════════════════════ */}
         {packModalOpen && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[130] p-4">
-            <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl relative max-h-[90vh] overflow-y-auto">
+            <div className="bg-white rounded-2xl p-6 w-full max-w-lg shadow-xl relative max-h-[90vh] overflow-y-auto">
               <button onClick={closePackModal}
                 className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg font-bold text-lg">
                 ×
@@ -888,7 +930,7 @@ export default function VentesPage() {
               </p>
 
               <div className="flex items-center gap-2 mb-5">
-                {[{ n: 1, label: 'Client' }, { n: 2, label: 'Produit' }].map(({ n, label }) => (
+                {[{ n: 1, label: 'Client' }, { n: 2, label: 'Produits' }].map(({ n, label }) => (
                   <React.Fragment key={n}>
                     <div className={`flex items-center gap-1.5 ${packStep >= n ? 'text-emerald-600' : 'text-slate-400'}`}>
                       <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
@@ -1076,90 +1118,99 @@ export default function VentesPage() {
                     );
                   })()}
 
+                  {/* Bannière pré-remplissage */}
+                  {packPreFilledDone && packConfirmedLignes.length > 0 && (
+                    <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-2.5">
+                      <CheckCircle className="w-4 h-4 text-emerald-500 shrink-0" />
+                      <span className="text-sm text-emerald-700 font-medium">{packConfirmedLignes.length} produit(s) pré-rempli(s)</span>
+                      <span className="text-sm text-emerald-600">depuis les lignes confirmées — modifiables ci-dessous</span>
+                    </div>
+                  )}
+
+                  {/* Lignes multi-produits */}
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Produit *</label>
-                    <select required value={formPack.produitId}
-                      onChange={e => {
-                        const p = produits.find(pr => pr.id === parseInt(e.target.value));
-                        setFormPack(f => ({ ...f, produitId: e.target.value, prixUnitaire: p ? String(p.prixUnitaire) : '' }));
-                      }}
-                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
-                      <option value="">Sélectionner un produit</option>
-                      {produits.map(p => {
-                        const dispoReel = Math.max(0, (p.totalStock ?? p.stock ?? 0) - (p.quantiteReservee ?? 0));
-                        const parts: string[] = [`dispo : ${dispoReel}`];
-                        if ((p.quantiteReservee   ?? 0) > 0) parts.push(`rés. : ${p.quantiteReservee}`);
-                        if ((p.quantiteEnTransit  ?? 0) > 0) parts.push(`transit : ${p.quantiteEnTransit}`);
-                        if ((p.quantiteEndommagee ?? 0) > 0) parts.push(`endom. : ${p.quantiteEndommagee}`);
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="block text-sm font-medium text-slate-700">Produits à livrer</label>
+                      <button type="button"
+                        onClick={() => setPackLignes(l => [...l, { produitId: '', quantite: '1', prixUnitaire: '' }])}
+                        className="text-xs text-emerald-600 hover:text-emerald-800 font-medium flex items-center gap-1">
+                        <Plus className="w-3 h-3" /> Ajouter
+                      </button>
+                    </div>
+                    <div className="space-y-2">
+                      {packLignes.map((ligne, idx) => {
+                        const pr = produits.find(x => x.id === parseInt(ligne.produitId));
+                        const stockDispo = pr ? Math.max(0, (pr.totalStock ?? pr.stock ?? 0) - (pr.quantiteReservee ?? 0)) : 0;
+                        const stockDepasse = !!pr && (parseInt(ligne.quantite) || 0) > stockDispo;
                         return (
-                          <option key={p.id} value={p.id}>{p.nom} ({parts.join(' · ')})</option>
+                          <div key={idx} className="grid grid-cols-[1fr_72px_88px_32px] gap-2 items-center">
+                            <select
+                              value={ligne.produitId}
+                              onChange={e => {
+                                const p = produits.find(x => x.id === parseInt(e.target.value));
+                                setPackLignes(l => l.map((row, i) => i === idx
+                                  ? { ...row, produitId: e.target.value, prixUnitaire: p ? String(p.prixUnitaire) : row.prixUnitaire }
+                                  : row
+                                ));
+                              }}
+                              className="border border-slate-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 min-w-0 truncate">
+                              <option value="">— Produit —</option>
+                              {produits.map(p => {
+                                const dispo = Math.max(0, (p.totalStock ?? p.stock ?? 0) - (p.quantiteReservee ?? 0));
+                                return <option key={p.id} value={p.id}>{p.nom} (dispo : {dispo})</option>;
+                              })}
+                            </select>
+                            <input type="number" min="1" max={stockDispo || undefined}
+                              value={ligne.quantite}
+                              onChange={e => setPackLignes(l => l.map((row, i) => i === idx ? { ...row, quantite: e.target.value } : row))}
+                              placeholder="Qté"
+                              className={`border rounded-xl px-2 py-2 text-sm text-center focus:outline-none focus:ring-2 focus:ring-emerald-500 ${stockDepasse ? 'border-red-400 bg-red-50' : 'border-slate-200'}`} />
+                            <input type="number" min="0" step="1"
+                              value={ligne.prixUnitaire}
+                              onChange={e => setPackLignes(l => l.map((row, i) => i === idx ? { ...row, prixUnitaire: e.target.value } : row))}
+                              placeholder="Prix"
+                              className="border-2 border-emerald-300 bg-emerald-50 rounded-xl px-2 py-2 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                            <button type="button"
+                              onClick={() => setPackLignes(l => l.filter((_, i) => i !== idx))}
+                              disabled={packLignes.length === 1}
+                              className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg disabled:opacity-30 transition-colors">
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
                         );
                       })}
-                    </select>
+                    </div>
                   </div>
 
+                  {/* Total lignes vs budget */}
                   {(() => {
-                    const selectedProduit = produits.find(p => p.id === parseInt(formPack.produitId));
-                    const qte = parseInt(formPack.quantite) || 0;
-                    const prix = parseFloat(formPack.prixUnitaire) || 0;
-                    const stockDispo = selectedProduit ? (selectedProduit.totalStock ?? selectedProduit.stock ?? 0) : 0;
-                    const stockDepasse = selectedProduit ? qte > stockDispo : false;
-                    const totalLivraison = qte * prix;
                     const souscId = formPack.souscriptionId ||
                       (eligibilitePack.souscriptions.length === 1 ? String(eligibilitePack.souscriptions[0].id) : '');
                     const sousc = eligibilitePack.souscriptions.find(s => String(s.id) === souscId)
                       ?? (eligibilitePack.souscriptions.length === 1 ? eligibilitePack.souscriptions[0] : null);
-                    const mVerse2      = sousc ? Number(sousc.montantVerse) : 0;
-                    const mDejaLivre2  = sousc ? Number(sousc.montantDejaLivre ?? 0) : 0;
-                    const budgetDispo  = Math.max(0, (mVerse2 > 0 ? mVerse2 : (sousc ? Number(sousc.montantTotal) : 0)) - mDejaLivre2);
-                    const budgetDepasse = totalLivraison > budgetDispo && budgetDispo > 0;
+                    if (!sousc) return null;
+                    const mVerse = Number(sousc.montantVerse);
+                    const mDejaLivre = Number(sousc.montantDejaLivre ?? 0);
+                    const budgetDispo = Math.max(0, (mVerse > 0 ? mVerse : Number(sousc.montantTotal)) - mDejaLivre);
+                    const montantLignes = packLignes.reduce((sum, l) => sum + (parseInt(l.quantite) || 0) * (parseFloat(l.prixUnitaire) || 0), 0);
+                    const budgetDepasse = montantLignes > budgetDispo && budgetDispo > 0;
+                    if (montantLignes === 0) return null;
                     return (
-                      <div className="space-y-3">
-                        <div className="grid grid-cols-2 gap-3">
-                          <div>
-                            <label className="block text-sm font-medium text-slate-700 mb-1">Quantité</label>
-                            <input type="number" min="1" max={stockDispo || undefined}
-                              required value={formPack.quantite}
-                              onChange={e => setFormPack(f => ({ ...f, quantite: e.target.value }))}
-                              className={`w-full px-4 py-2.5 border rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 ${stockDepasse ? 'border-red-400 bg-red-50' : 'border-slate-200'}`} />
-                            {selectedProduit && (
-                              <p className="text-xs mt-1 text-slate-400">
-                                Stock dispo : <span className="font-semibold text-slate-600">{stockDispo}</span>
-                              </p>
-                            )}
-                          </div>
-                          <div>
-                            <label className="block text-sm font-semibold text-emerald-700 mb-1">Prix de vente *</label>
-                            <input type="number" min="0" step="1"
-                              required value={formPack.prixUnitaire}
-                              onChange={e => setFormPack(f => ({ ...f, prixUnitaire: e.target.value }))}
-                              placeholder="0 FCFA"
-                              className="w-full px-4 py-2.5 border-2 border-emerald-300 rounded-xl bg-emerald-50 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-semibold" />
-                            {selectedProduit && (
-                              <p className="text-xs mt-1 text-slate-400">
-                                Réf. : {formatCurrency(selectedProduit.prixUnitaire)}
-                              </p>
-                            )}
-                          </div>
+                      <div className="space-y-1.5">
+                        <div className={`rounded-xl px-3 py-2.5 border text-sm flex items-center justify-between ${budgetDepasse ? 'bg-red-50 border-red-200' : 'bg-emerald-50 border-emerald-200'}`}>
+                          <span className="text-slate-600">
+                            Total livraison ({packLignes.filter(l => l.produitId && parseInt(l.quantite) > 0).length} ligne(s))
+                          </span>
+                          <span className={`font-bold ${budgetDepasse ? 'text-red-600' : 'text-emerald-700'}`}>
+                            {formatCurrency(montantLignes)}
+                            {budgetDispo > 0 && <span className="font-normal text-slate-400 text-xs"> / {formatCurrency(budgetDispo)} payés</span>}
+                          </span>
                         </div>
-                        {/* Total livraison vs budget */}
-                        {prix > 0 && qte > 0 && (
-                          <div className={`rounded-xl px-3 py-2.5 border text-sm flex items-center justify-between ${budgetDepasse ? 'bg-red-50 border-red-200' : 'bg-emerald-50 border-emerald-200'}`}>
-                            <span className="text-slate-600">Total livraison</span>
-                            <span className={`font-bold ${budgetDepasse ? 'text-red-600' : 'text-emerald-700'}`}>
-                              {formatCurrency(totalLivraison)}
-                              {budgetDispo > 0 && <span className="font-normal text-slate-400"> / {formatCurrency(budgetDispo)} payés</span>}
-                            </span>
-                          </div>
-                        )}
                         {budgetDepasse && (
                           <p className="text-xs text-red-600 font-medium flex items-center gap-1">
                             <AlertCircle className="w-3.5 h-3.5" />
-                            Dépasse le budget payé de {formatCurrency(totalLivraison - budgetDispo)}
+                            Dépasse le budget payé de {formatCurrency(montantLignes - budgetDispo)}
                           </p>
-                        )}
-                        {stockDepasse && (
-                          <p className="text-xs text-red-600 font-medium">Stock insuffisant</p>
                         )}
                       </div>
                     );
@@ -1171,18 +1222,7 @@ export default function VentesPage() {
                       Retour
                     </button>
                     <button type="submit"
-                      disabled={adding || (packClientPdvs.length > 0 && !packSelectedPdvId) || (() => {
-                        const p = produits.find(x => x.id === parseInt(formPack.produitId));
-                        if (!p) return true;
-                        if (parseInt(formPack.quantite) > (p.totalStock ?? p.stock ?? 0)) return true;
-                        const souscId = formPack.souscriptionId || (eligibilitePack.souscriptions.length === 1 ? String(eligibilitePack.souscriptions[0].id) : '');
-                        const sousc = eligibilitePack.souscriptions.find(s => String(s.id) === souscId) ?? (eligibilitePack.souscriptions.length === 1 ? eligibilitePack.souscriptions[0] : null);
-                        const mv = sousc ? Number(sousc.montantVerse) : 0;
-                        const mdl = sousc ? Number(sousc.montantDejaLivre ?? 0) : 0;
-                        const budgetDispo = Math.max(0, (mv > 0 ? mv : (sousc ? Number(sousc.montantTotal) : 0)) - mdl);
-                        const total = (parseInt(formPack.quantite) || 0) * (parseFloat(formPack.prixUnitaire) || 0);
-                        return budgetDispo > 0 && total > budgetDispo;
-                      })()}
+                      disabled={adding || (packClientPdvs.length > 0 && !packSelectedPdvId) || packLignes.every(l => !l.produitId || !(parseInt(l.quantite) > 0))}
                       className="flex-1 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 disabled:opacity-60 font-medium text-sm flex items-center justify-center gap-2 transition-colors">
                       <Truck size={15} />
                       {adding ? 'Enregistrement…' : 'Planifier la livraison'}
