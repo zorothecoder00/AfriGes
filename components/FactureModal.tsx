@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
-import { X, Printer, FileText, Plus, Trash2, Loader2, Receipt } from "lucide-react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { X, Printer, FileText, Plus, Trash2, Loader2, Receipt, Search, ChevronDown, UserPlus } from "lucide-react";
 import { formatCurrency } from "@/lib/format";
 import { toast } from "sonner";
 
@@ -57,6 +57,16 @@ export interface FactureModalProps {
   proFormaMode?: boolean;
   /** Pré-remplit le nom du client pour le pro-forma */
   proFormaClientNom?: string;
+  /**
+   * URL de recherche de clients (ex: /api/admin/clients, /api/rpv/clients, /api/caissier/clients).
+   * Si absent, le champ client reste en saisie libre.
+   */
+  searchClientsUrl?: string;
+  /**
+   * URL de recherche de produits (ex: /api/admin/produits, /api/rpv/produits, /api/caissier/produits).
+   * Si absent, la désignation reste en saisie libre.
+   */
+  searchProduitsUrl?: string;
   onClose: () => void;
   onGenerated?: (factureId: number) => void;
 }
@@ -227,20 +237,6 @@ function InvoiceLayout({ f }: { f: FactureData }) {
         </div>
       )}
 
-      {/* ── Signatures ──────────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 gap-16 mt-10 pt-8 border-t border-slate-200">
-        <div className="text-center">
-          <p className="text-xs text-slate-400 mb-10">Signature & cachet du client</p>
-          <div className="border-b border-slate-300" />
-          <p className="text-xs text-slate-500 mt-1">{f.clientNom}</p>
-        </div>
-        <div className="text-center">
-          <p className="text-xs text-slate-400 mb-10">Signature & cachet {f.entreprise.nom}</p>
-          <div className="border-b border-slate-300" />
-          <p className="text-xs text-slate-500 mt-1">{f.emiseParNom}</p>
-        </div>
-      </div>
-
       {/* ── Mention pro-forma ────────────────────────────────────────────────── */}
       {f.type === "PRO_FORMA" && (
         <p className="text-center text-xs text-slate-400 mt-6 italic">
@@ -252,6 +248,477 @@ function InvoiceLayout({ f }: { f: FactureData }) {
   );
 }
 
+// ─── Combobox client ─────────────────────────────────────────────────────────
+
+interface ClientSuggestion {
+  id: number;
+  nom: string;
+  prenom: string;
+  telephone: string | null;
+}
+
+function ClientCombobox({
+  searchClientsUrl,
+  value,
+  onChange,
+  onTelChange,
+}: {
+  searchClientsUrl: string;
+  value: string;
+  onChange: (nom: string) => void;
+  onTelChange: (tel: string) => void;
+}) {
+  const [query,       setQuery]       = useState(value);
+  const [suggestions, setSuggestions] = useState<ClientSuggestion[]>([]);
+  const [open,        setOpen]        = useState(false);
+  const [loading,     setLoading]     = useState(false);
+  const [selected,    setSelected]    = useState(false); // un client DB a été choisi
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const wrapRef     = useRef<HTMLDivElement>(null);
+
+  // Fermer le dropdown si clic extérieur
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
+  const search = useCallback(
+    (q: string) => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      if (!q.trim()) { setSuggestions([]); setOpen(false); return; }
+      debounceRef.current = setTimeout(async () => {
+        setLoading(true);
+        try {
+          const url = `${searchClientsUrl}?search=${encodeURIComponent(q)}&limit=8`;
+          const res = await fetch(url);
+          if (res.ok) {
+            const json = await res.json();
+            const items: ClientSuggestion[] = (json.data ?? []).map(
+              (c: { id: number; nom: string; prenom: string; telephone?: string | null }) => ({
+                id:        c.id,
+                nom:       c.nom,
+                prenom:    c.prenom,
+                telephone: c.telephone ?? null,
+              })
+            );
+            setSuggestions(items);
+            setOpen(items.length > 0);
+          }
+        } finally {
+          setLoading(false);
+        }
+      }, 280);
+    },
+    [searchClientsUrl]
+  );
+
+  function handleInput(val: string) {
+    if (selected) onTelChange(""); // vider le tel auto-rempli si l'utilisateur retape
+    setQuery(val);
+    setSelected(false);
+    onChange(val);
+    search(val);
+  }
+
+  function pick(c: ClientSuggestion) {
+    const fullName = `${c.prenom} ${c.nom}`.trim();
+    setQuery(fullName);
+    setSelected(true);
+    setOpen(false);
+    setSuggestions([]);
+    onChange(fullName);
+    if (c.telephone) onTelChange(c.telephone);
+  }
+
+  function clearSelection() {
+    setQuery("");
+    setSelected(false);
+    onChange("");
+    onTelChange(""); // vider le tel auto-rempli
+    setSuggestions([]);
+    setOpen(false);
+  }
+
+  return (
+    <div ref={wrapRef} className="relative">
+      <div className="relative flex items-center">
+        <Search size={14} className="absolute left-3 text-slate-400 pointer-events-none" />
+        <input
+          value={query}
+          onChange={e => handleInput(e.target.value)}
+          onFocus={() => { if (suggestions.length > 0) setOpen(true); }}
+          placeholder="Rechercher ou saisir un nouveau nom…"
+          className="w-full border border-slate-200 rounded-xl pl-8 pr-8 py-2 text-sm outline-none focus:ring-2 focus:ring-amber-300"
+        />
+        {selected ? (
+          <button
+            type="button"
+            onClick={clearSelection}
+            className="absolute right-2 p-0.5 text-slate-400 hover:text-red-500 transition-colors"
+            title="Effacer la sélection"
+          >
+            <X size={14} />
+          </button>
+        ) : (
+          loading
+            ? <Loader2 size={14} className="absolute right-2 text-slate-400 animate-spin" />
+            : query.length > 0 && <ChevronDown size={14} className="absolute right-2 text-slate-400" />
+        )}
+      </div>
+
+      {selected && (
+        <p className="text-xs text-emerald-600 mt-1 flex items-center gap-1">
+          <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500" />
+          Client existant sélectionné
+        </p>
+      )}
+
+      {open && suggestions.length > 0 && (
+        <ul className="absolute z-10 top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-lg overflow-hidden max-h-52 overflow-y-auto">
+          {suggestions.map(c => (
+            <li key={c.id}>
+              <button
+                type="button"
+                onMouseDown={e => { e.preventDefault(); pick(c); }}
+                className="w-full text-left px-4 py-2.5 hover:bg-amber-50 transition-colors flex items-center justify-between gap-2"
+              >
+                <span className="font-medium text-slate-800 text-sm">
+                  {c.prenom} {c.nom}
+                </span>
+                {c.telephone && (
+                  <span className="text-xs text-slate-400 shrink-0">{c.telephone}</span>
+                )}
+              </button>
+            </li>
+          ))}
+          {/* Option "nouveau client" si la saisie ne correspond à aucun résultat exactement */}
+          <li className="border-t border-slate-100">
+            <button
+              type="button"
+              onMouseDown={e => { e.preventDefault(); setOpen(false); setSelected(false); }}
+              className="w-full text-left px-4 py-2.5 hover:bg-slate-50 transition-colors flex items-center gap-2 text-slate-500 text-sm"
+            >
+              <UserPlus size={13} className="text-amber-500" />
+              Utiliser &ldquo;<span className="font-medium text-slate-700">{query}</span>&rdquo; comme nouveau client
+            </button>
+          </li>
+        </ul>
+      )}
+    </div>
+  );
+}
+
+// ─── Combobox produit ────────────────────────────────────────────────────────
+
+interface ProduitSuggestion {
+  id: number;
+  nom: string;
+  unite: string | null;
+  prixUnitaire: number;
+  reference: string | null;
+}
+
+function ProduitCombobox({
+  searchProduitsUrl,
+  value,
+  onChange,
+  onSelect,
+}: {
+  searchProduitsUrl: string;
+  value: string;
+  onChange: (nom: string) => void;
+  onSelect: (p: ProduitSuggestion) => void;
+}) {
+  const [query,       setQuery]       = useState(value);
+  const [suggestions, setSuggestions] = useState<ProduitSuggestion[]>([]);
+  const [open,        setOpen]        = useState(false);
+  const [loading,     setLoading]     = useState(false);
+  const [selected,    setSelected]    = useState(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const wrapRef     = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
+  const search = useCallback(
+    (q: string) => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      if (!q.trim()) { setSuggestions([]); setOpen(false); return; }
+      debounceRef.current = setTimeout(async () => {
+        setLoading(true);
+        try {
+          const res = await fetch(`${searchProduitsUrl}?search=${encodeURIComponent(q)}&limit=8`);
+          if (res.ok) {
+            const json = await res.json();
+            const items: ProduitSuggestion[] = (json.data ?? []).map(
+              (p: { id: number; nom: string; unite?: string | null; prixUnitaire: number; reference?: string | null }) => ({
+                id:           p.id,
+                nom:          p.nom,
+                unite:        p.unite ?? null,
+                prixUnitaire: p.prixUnitaire,
+                reference:    p.reference ?? null,
+              })
+            );
+            setSuggestions(items);
+            setOpen(items.length > 0);
+          }
+        } finally {
+          setLoading(false);
+        }
+      }, 280);
+    },
+    [searchProduitsUrl]
+  );
+
+  function handleInput(val: string) {
+    setQuery(val);
+    setSelected(false);
+    onChange(val);
+    search(val);
+  }
+
+  function pick(p: ProduitSuggestion) {
+    setQuery(p.nom);
+    setSelected(true);
+    setOpen(false);
+    setSuggestions([]);
+    onChange(p.nom);
+    onSelect(p);
+  }
+
+  function clearSelection() {
+    setQuery("");
+    setSelected(false);
+    onChange("");
+    setSuggestions([]);
+    setOpen(false);
+  }
+
+  return (
+    <div ref={wrapRef} className="relative">
+      <div className="relative flex items-center">
+        <Search size={13} className="absolute left-2.5 text-slate-400 pointer-events-none" />
+        <input
+          value={query}
+          onChange={e => handleInput(e.target.value)}
+          onFocus={() => { if (suggestions.length > 0) setOpen(true); }}
+          placeholder="Rechercher ou saisir…"
+          className={`w-full border rounded-xl pl-7 pr-7 py-2 text-sm outline-none focus:ring-2 focus:ring-amber-300 ${
+            selected ? "border-emerald-300 bg-emerald-50" : "border-slate-200"
+          }`}
+        />
+        {selected ? (
+          <button
+            type="button"
+            onClick={clearSelection}
+            className="absolute right-2 p-0.5 text-slate-400 hover:text-red-500 transition-colors"
+          >
+            <X size={13} />
+          </button>
+        ) : (
+          loading
+            ? <Loader2 size={13} className="absolute right-2 text-slate-400 animate-spin" />
+            : query.length > 0 && <ChevronDown size={13} className="absolute right-2 text-slate-400" />
+        )}
+      </div>
+
+      {open && suggestions.length > 0 && (
+        <ul className="absolute z-20 top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-lg overflow-hidden max-h-48 overflow-y-auto">
+          {suggestions.map(p => (
+            <li key={p.id}>
+              <button
+                type="button"
+                onMouseDown={e => { e.preventDefault(); pick(p); }}
+                className="w-full text-left px-3 py-2 hover:bg-amber-50 transition-colors"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-medium text-slate-800 text-sm truncate">{p.nom}</span>
+                  <span className="text-xs text-emerald-600 font-semibold shrink-0">
+                    {new Intl.NumberFormat("fr-FR").format(p.prixUnitaire)} FCFA
+                    {p.unite ? ` / ${p.unite}` : ""}
+                  </span>
+                </div>
+                {p.reference && (
+                  <p className="text-xs text-slate-400 mt-0.5">{p.reference}</p>
+                )}
+              </button>
+            </li>
+          ))}
+          <li className="border-t border-slate-100">
+            <button
+              type="button"
+              onMouseDown={e => { e.preventDefault(); setOpen(false); setSelected(false); }}
+              className="w-full text-left px-3 py-2 hover:bg-slate-50 transition-colors flex items-center gap-2 text-slate-500 text-sm"
+            >
+              <Plus size={12} className="text-amber-500" />
+              Utiliser &ldquo;<span className="font-medium text-slate-700">{query}</span>&rdquo; comme nouveau produit
+            </button>
+          </li>
+        </ul>
+      )}
+    </div>
+  );
+}
+
+// ─── Impression nouvelle fenêtre ─────────────────────────────────────────────
+
+function printInvoice(f: FactureData) {
+  const win = window.open("", "_blank", "width=900,height=1200");
+  if (!win) return;
+
+  const badge = TYPE_BADGE[f.type] ?? TYPE_BADGE.COMPTANT;
+  const hasTVA = f.montantTVA > 0;
+  const solde = f.montantTTC - f.montantPaye;
+  const isPaid = f.montantPaye >= f.montantTTC && f.type !== "PRO_FORMA";
+
+  function fmt(n: number) {
+    return new Intl.NumberFormat("fr-FR").format(n) + " FCFA";
+  }
+  function fmtDate(d: string) {
+    return new Date(d).toLocaleDateString("fr-FR");
+  }
+  const modeLabel = f.modePaiement ? (MODE_LABELS[f.modePaiement] ?? f.modePaiement) : "";
+
+  const lignesHtml = f.lignes.map((l, i) => `
+    <tr>
+      <td style="padding:10px 6px;border-bottom:1px solid #f1f5f9;color:#94a3b8;font-size:12px">${i + 1}</td>
+      <td style="padding:10px 6px;border-bottom:1px solid #f1f5f9;font-weight:500;color:#1e293b">
+        ${l.designation}${l.unite ? ` <span style="color:#94a3b8;font-size:11px">(${l.unite})</span>` : ""}
+      </td>
+      <td style="padding:10px 6px;border-bottom:1px solid #f1f5f9;text-align:center;color:#334155">${l.quantite}</td>
+      <td style="padding:10px 6px;border-bottom:1px solid #f1f5f9;text-align:right;color:#475569">${fmt(l.prixUnitaire)}</td>
+      <td style="padding:10px 6px;border-bottom:1px solid #f1f5f9;text-align:right;font-weight:600;color:#1e293b">${fmt(l.montant)}</td>
+    </tr>`).join("");
+
+  const totauxHtml = `
+    ${hasTVA ? `
+      <div style="display:flex;justify-content:space-between;margin-bottom:8px">
+        <span style="color:#64748b">Sous-total HT</span><span style="font-weight:500">${fmt(f.montantHT)}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:8px">
+        <span style="color:#64748b">TVA</span><span style="font-weight:500">${fmt(f.montantTVA)}</span>
+      </div>` : ""}
+    <div style="display:flex;justify-content:space-between;border-top:2px solid #e2e8f0;padding-top:10px;margin-bottom:8px">
+      <span style="font-weight:700;font-size:16px;color:#1e293b">Total TTC</span>
+      <span style="font-weight:900;font-size:18px;color:#059669">${fmt(f.montantTTC)}</span>
+    </div>
+    ${modeLabel ? `
+      <div style="display:flex;justify-content:space-between;margin-bottom:8px">
+        <span style="color:#64748b">Mode de paiement</span><span>${modeLabel}</span>
+      </div>` : ""}
+    ${f.montantPaye > 0 && f.montantPaye < f.montantTTC ? `
+      <div style="display:flex;justify-content:space-between;margin-bottom:6px">
+        <span style="color:#64748b">Montant payé</span>
+        <span style="font-weight:600;color:#059669">${fmt(f.montantPaye)}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-weight:700;color:#dc2626">
+        <span>Reste à payer</span><span>${fmt(solde)}</span>
+      </div>` : ""}
+    ${isPaid ? `
+      <div style="text-align:center;padding:8px;border-radius:8px;background:#dcfce7;color:#15803d;font-weight:900;font-size:11px;letter-spacing:2px;margin-top:8px">
+        ✓ PAYÉ INTÉGRALEMENT
+      </div>` : ""}`;
+
+  const html = `<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8"/>
+  <title>Facture ${f.numero}</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: Arial, sans-serif; font-size: 14px; color: #1e293b; background: white; padding: 40px; max-width: 794px; margin: 0 auto; }
+    @page { margin: 1cm; size: A4 portrait; }
+    @media print { body { padding: 0; } }
+  </style>
+</head>
+<body>
+
+  <!-- En-tête -->
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:32px;padding-bottom:24px;border-bottom:1px solid #e2e8f0">
+    <div>
+      <h1 style="font-size:22px;font-weight:900;color:#059669;letter-spacing:-0.5px">${f.entreprise.nom}</h1>
+      ${f.entreprise.adresse ? `<p style="font-size:13px;color:#64748b;margin-top:4px">${f.entreprise.adresse}</p>` : ""}
+      ${f.entreprise.telephone ? `<p style="font-size:13px;color:#64748b">${f.entreprise.telephone}</p>` : ""}
+      ${f.pdvNom ? `<p style="font-size:13px;font-weight:600;color:#475569;margin-top:6px">${f.pdvNom}</p>` : ""}
+      ${f.pdvTelephone ? `<p style="font-size:12px;color:#94a3b8">${f.pdvTelephone}</p>` : ""}
+    </div>
+    <div style="text-align:right">
+      <span style="display:inline-block;padding:4px 12px;border-radius:8px;font-size:11px;font-weight:900;letter-spacing:1px;background:${badge.bg === "bg-emerald-600" ? "#059669" : badge.bg === "bg-blue-600" ? "#2563eb" : "#f59e0b"};color:white">
+        FACTURE ${badge.label}
+      </span>
+      <p style="font-size:20px;font-weight:900;color:#1e293b;margin-top:6px">${f.numero}</p>
+      <p style="font-size:13px;color:#64748b;margin-top:4px">Émise le ${fmtDate(f.dateEmission)}</p>
+      ${f.dateEcheance ? `<p style="font-size:13px;font-weight:600;color:#dc2626;margin-top:2px">Échéance : ${fmtDate(f.dateEcheance)}</p>` : ""}
+      ${f.statut === "ANNULEE" ? `<span style="display:inline-block;background:#fee2e2;color:#b91c1c;font-size:11px;font-weight:700;padding:2px 8px;border-radius:4px;margin-top:4px">ANNULÉE</span>` : ""}
+    </div>
+  </div>
+
+  <!-- Parties -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:32px">
+    <div style="background:#f8fafc;border-radius:12px;padding:16px">
+      <p style="font-size:10px;font-weight:700;color:#94a3b8;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px">Facturé à</p>
+      <p style="font-weight:700;font-size:15px;color:#1e293b">${f.clientNom}</p>
+      ${f.clientTelephone ? `<p style="font-size:13px;color:#64748b;margin-top:4px">${f.clientTelephone}</p>` : ""}
+      ${f.clientAdresse ? `<p style="font-size:13px;color:#64748b">${f.clientAdresse}</p>` : ""}
+    </div>
+    <div style="background:#f8fafc;border-radius:12px;padding:16px">
+      <p style="font-size:10px;font-weight:700;color:#94a3b8;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px">Émis par</p>
+      <p style="font-weight:700;font-size:15px;color:#1e293b">${f.emiseParNom}</p>
+      ${f.pdvNom ? `<p style="font-size:13px;color:#64748b;margin-top:4px">${f.pdvNom}</p>` : ""}
+      ${f.pdvAdresse ? `<p style="font-size:13px;color:#64748b">${f.pdvAdresse}</p>` : ""}
+      ${f.pdvTelephone ? `<p style="font-size:13px;color:#64748b">${f.pdvTelephone}</p>` : ""}
+    </div>
+  </div>
+
+  <!-- Tableau -->
+  <table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:24px">
+    <thead>
+      <tr style="border-bottom:2px solid #e2e8f0">
+        <th style="text-align:left;padding-bottom:8px;color:#94a3b8;font-size:11px;letter-spacing:1px;text-transform:uppercase;width:32px">N°</th>
+        <th style="text-align:left;padding-bottom:8px;color:#94a3b8;font-size:11px;letter-spacing:1px;text-transform:uppercase">Désignation</th>
+        <th style="text-align:center;padding-bottom:8px;color:#94a3b8;font-size:11px;letter-spacing:1px;text-transform:uppercase;width:60px">Qté</th>
+        <th style="text-align:right;padding-bottom:8px;color:#94a3b8;font-size:11px;letter-spacing:1px;text-transform:uppercase;width:140px">Prix unit.</th>
+        <th style="text-align:right;padding-bottom:8px;color:#94a3b8;font-size:11px;letter-spacing:1px;text-transform:uppercase;width:140px">Montant</th>
+      </tr>
+    </thead>
+    <tbody>${lignesHtml}</tbody>
+  </table>
+
+  <!-- Totaux -->
+  <div style="display:flex;justify-content:flex-end;margin-bottom:32px">
+    <div style="width:280px">${totauxHtml}</div>
+  </div>
+
+  ${f.notes ? `
+  <!-- Notes -->
+  <div style="background:#f8fafc;border-radius:12px;padding:16px;margin-bottom:32px;font-size:13px;color:#475569;font-style:italic">
+    <strong style="font-style:normal">Note : </strong>${f.notes}
+  </div>` : ""}
+
+  ${f.type === "PRO_FORMA" ? `
+  <p style="text-align:center;font-size:11px;color:#94a3b8;margin-top:24px;font-style:italic">
+    Ce document est une facture pro-forma — il ne constitue pas une facture définitive. Valide sous réserve de disponibilité des produits.
+  </p>` : ""}
+
+</body></html>`;
+
+  win.document.write(html);
+  win.document.close();
+  setTimeout(() => win.print(), 300);
+}
+
 // ─── Composant principal ──────────────────────────────────────────────────────
 
 export default function FactureModal({
@@ -260,6 +727,8 @@ export default function FactureModal({
   receptionPackId,
   proFormaMode = false,
   proFormaClientNom = "",
+  searchClientsUrl,
+  searchProduitsUrl,
   onClose,
   onGenerated,
 }: FactureModalProps) {
@@ -363,7 +832,7 @@ export default function FactureModal({
   // ── Formulaire Pro-forma ───────────────────────────────────────────────────
   if (step === "form") {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+      <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
         <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[92vh] flex flex-col">
 
           {/* Header */}
@@ -382,17 +851,26 @@ export default function FactureModal({
           {/* Body */}
           <div className="overflow-y-auto flex-1 px-6 py-4 space-y-5">
             {/* Client */}
-            <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-3">
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1">
                   Nom client <span className="text-red-500">*</span>
                 </label>
-                <input
-                  value={pfClient}
-                  onChange={e => setPfClient(e.target.value)}
-                  placeholder="Nom complet du client"
-                  className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-amber-300"
-                />
+                {searchClientsUrl ? (
+                  <ClientCombobox
+                    searchClientsUrl={searchClientsUrl}
+                    value={pfClient}
+                    onChange={setPfClient}
+                    onTelChange={setPfTel}
+                  />
+                ) : (
+                  <input
+                    value={pfClient}
+                    onChange={e => setPfClient(e.target.value)}
+                    placeholder="Nom complet du client"
+                    className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-amber-300"
+                  />
+                )}
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1">Téléphone</label>
@@ -427,13 +905,33 @@ export default function FactureModal({
 
               <div className="space-y-2">
                 {pfLignes.map((l, i) => (
-                  <div key={i} className="grid grid-cols-12 gap-2 items-center">
-                    <input
-                      value={l.designation}
-                      onChange={e => updatePfLigne(i, "designation", e.target.value)}
-                      placeholder="Ex: Riz 25kg"
-                      className="col-span-4 border border-slate-200 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-amber-300"
-                    />
+                  <div key={i} className="grid grid-cols-12 gap-2 items-start">
+                    <div className="col-span-4">
+                      {searchProduitsUrl ? (
+                        <ProduitCombobox
+                          searchProduitsUrl={searchProduitsUrl}
+                          value={l.designation}
+                          onChange={val => updatePfLigne(i, "designation", val)}
+                          onSelect={p => setPfLignes(ls => ls.map((x, j) =>
+                            j === i
+                              ? {
+                                  ...x,
+                                  designation:  p.nom,
+                                  unite:        p.unite ?? x.unite,
+                                  prixUnitaire: p.prixUnitaire.toString(),
+                                }
+                              : x
+                          ))}
+                        />
+                      ) : (
+                        <input
+                          value={l.designation}
+                          onChange={e => updatePfLigne(i, "designation", e.target.value)}
+                          placeholder="Ex: Riz 25kg"
+                          className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-amber-300"
+                        />
+                      )}
+                    </div>
                     <input
                       value={l.unite}
                       onChange={e => updatePfLigne(i, "unite", e.target.value)}
@@ -517,21 +1015,8 @@ export default function FactureModal({
 
   return (
     <>
-      {/* Styles d'impression : seule la facture est imprimée */}
-      <style>{`
-        @media print {
-          body > * { display: none !important; }
-          #facture-print-zone {
-            display: block !important;
-            position: fixed; inset: 0;
-            background: white; z-index: 99999;
-            padding: 32px;
-          }
-        }
-      `}</style>
-
-      {/* Modal interactive (masquée à l'impression) */}
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm print:hidden">
+      {/* Modal interactive */}
+      <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
         <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[92vh] flex flex-col">
 
           {/* Header */}
@@ -550,7 +1035,7 @@ export default function FactureModal({
             </div>
             <div className="flex items-center gap-2">
               <button
-                onClick={() => window.print()}
+                onClick={() => printInvoice(facture)}
                 className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-medium transition-colors shadow-sm">
                 <Printer size={14} /> Imprimer
               </button>
@@ -567,10 +1052,6 @@ export default function FactureModal({
         </div>
       </div>
 
-      {/* Zone dédiée impression — invisible en mode normal, visible uniquement lors de window.print() */}
-      <div id="facture-print-zone" className="hidden">
-        <InvoiceLayout f={facture} />
-      </div>
     </>
   );
 }

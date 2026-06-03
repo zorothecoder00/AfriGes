@@ -73,7 +73,7 @@ function ModalCommande({ previsions, onClose, onConfirm, loading }: ModalCommand
   const totalQte = previsions.reduce((s, p) => s + p.totalQuantite, 0);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+    <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">

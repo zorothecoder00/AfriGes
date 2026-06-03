@@ -920,12 +920,12 @@ export default function ResponsablePDVPage() {
         <FactureModal receptionPackId={factureReceptionId} onClose={() => setFactureReceptionId(null)} />
       )}
       {showProForma && (
-        <FactureModal proFormaMode onClose={() => setShowProForma(false)} />
+        <FactureModal proFormaMode searchClientsUrl="/api/rpv/clients" searchProduitsUrl="/api/rpv/produits" onClose={() => setShowProForma(false)} />
       )}
 
       {/* ── Modal Annuler Vente ── */}
       {modalAnnulVente && selectedVente && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[300] p-4">
           <div className="bg-white rounded-2xl w-full max-w-md shadow-xl">
             <div className="flex items-center justify-between p-5 border-b border-slate-100">
               <div className="flex items-center gap-3">
@@ -979,7 +979,7 @@ export default function ResponsablePDVPage() {
 
       {/* ── Modal Ouvrir Caisse PDV ── */}
       {modalOuvrirCaisse && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[300] p-4">
           <div className="bg-white rounded-2xl w-full max-w-sm shadow-xl">
             <div className="flex items-center justify-between p-5 border-b border-slate-100">
               <div className="flex items-center gap-3">
@@ -1008,7 +1008,7 @@ export default function ResponsablePDVPage() {
 
       {/* ── Modal Dépense / Décaissement ── */}
       {modalDepense && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[300] p-4">
           <div className="bg-white rounded-2xl w-full max-w-sm shadow-xl">
             <div className="flex items-center justify-between p-5 border-b border-slate-100">
               <div className="flex items-center gap-3">
@@ -1055,7 +1055,7 @@ export default function ResponsablePDVPage() {
 
       {/* ── Modal Produit (créer / modifier) ── */}
       {modalProduit && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[300] p-4">
           <div className="bg-white rounded-2xl w-full max-w-md shadow-xl">
             <div className="flex items-center justify-between p-5 border-b border-slate-100">
               <div className="flex items-center gap-3">
@@ -1105,7 +1105,7 @@ export default function ResponsablePDVPage() {
 
       {/* ── Modal Mouvement de stock ── */}
       {modalMvt && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[300] p-4">
           <div className="bg-white rounded-2xl w-full max-w-md shadow-xl">
             <div className="flex items-center justify-between p-5 border-b border-slate-100">
               <div className="flex items-center gap-3">
@@ -1166,7 +1166,7 @@ export default function ResponsablePDVPage() {
 
       {/* ── Modal Nouvelle Livraison ── */}
       {modalLivraison === "create" && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 overflow-y-auto">
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[300] p-4 overflow-y-auto">
           <div className="bg-white rounded-2xl w-full max-w-lg shadow-xl my-4">
             <div className="flex items-center justify-between p-5 border-b border-slate-100">
               <div className="flex items-center gap-3">
@@ -1256,7 +1256,7 @@ export default function ResponsablePDVPage() {
 
       {/* ── Modal Détail Livraison ── */}
       {modalLivraison === "detail" && selectedLiv && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 overflow-y-auto">
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[300] p-4 overflow-y-auto">
           <div className="bg-white rounded-2xl w-full max-w-lg shadow-xl my-4">
             <div className="flex items-center justify-between p-5 border-b border-slate-100">
               <div className="flex items-center gap-3">
@@ -1336,7 +1336,7 @@ export default function ResponsablePDVPage() {
 
       {/* ── Modal Annulation livraison pack (justification obligatoire) ── */}
       {modalAnnulPack && selectedRecPack && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[300] p-4">
           <div className="bg-white rounded-2xl w-full max-w-md shadow-xl">
             <div className="flex items-center justify-between p-5 border-b border-slate-100">
               <div className="flex items-center gap-3">
@@ -1619,7 +1619,7 @@ export default function ResponsablePDVPage() {
 
       {/* ── Modal Détail livraison pack ── */}
       {modalDetailPack && selectedRecPack && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 overflow-y-auto">
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[300] p-4 overflow-y-auto">
           <div className="bg-white rounded-2xl w-full max-w-lg shadow-xl my-4">
             <div className="flex items-center justify-between p-5 border-b border-slate-100">
               <div className="flex items-center gap-3">
@@ -1680,7 +1680,7 @@ export default function ResponsablePDVPage() {
 
       {/* ── Modal Réapprovisionnement ── */}
       {modalReappro && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[300] p-4">
           <div className="bg-white rounded-2xl w-full max-w-md shadow-xl">
             <div className="flex items-center justify-between p-5 border-b border-slate-100">
               <div className="flex items-center gap-3">
@@ -1735,7 +1735,7 @@ export default function ResponsablePDVPage() {
 
       {/* ── Modal Signaler anomalie ── */}
       {modalAnomalie && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[300] p-4">
           <div className="bg-white rounded-2xl w-full max-w-md shadow-xl">
             <div className="flex items-center justify-between p-5 border-b border-slate-100">
               <div className="flex items-center gap-3">
@@ -1788,7 +1788,7 @@ export default function ResponsablePDVPage() {
 
       {/* ── Modal Client (créer / modifier) ── */}
       {modalClient && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[300] p-4">
           <div className="bg-white rounded-2xl w-full max-w-md shadow-xl">
             <div className="flex items-center justify-between p-5 border-b border-slate-100">
               <div className="flex items-center gap-3">

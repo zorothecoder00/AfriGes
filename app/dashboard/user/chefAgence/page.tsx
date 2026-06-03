@@ -1684,7 +1684,7 @@ export default function ChefAgenceDashboard() {
       {/* MODAL AFFECTATION AGENT                                             */}
       {/* ================================================================== */}
       {showAffectModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+        <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/40">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-md mx-4 p-6 space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-base font-semibold text-gray-900">Affecter un agent à un PDV</h3>

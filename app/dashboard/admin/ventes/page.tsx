@@ -603,7 +603,7 @@ export default function VentesPage() {
 
         {factureVenteId     && <FactureModal venteDirecteId={factureVenteId}       onClose={() => setFactureVenteId(null)} />}
         {factureReceptionId && <FactureModal receptionPackId={factureReceptionId} onClose={() => setFactureReceptionId(null)} />}
-        {showProForma       && <FactureModal proFormaMode onClose={() => setShowProForma(false)} />}
+        {showProForma       && <FactureModal proFormaMode searchClientsUrl="/api/admin/clients" searchProduitsUrl="/api/admin/produits" onClose={() => setShowProForma(false)} />}
 
         {/* ══════════════════════════════════════════════════════════════════
             MODAL — Nouvelle vente directe (3 étapes)

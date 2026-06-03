@@ -500,7 +500,7 @@ export default function ActionnairePage() {
 
       {/* Modal Procuration */}
       {showProcurationModal !== null && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4">
+        <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/40 backdrop-blur-sm px-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
             <h3 className="font-bold text-slate-800 text-lg mb-1 flex items-center gap-2">
               <Repeat size={20} className="text-purple-600" /> Donner Procuration

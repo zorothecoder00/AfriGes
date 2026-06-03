@@ -63,23 +63,6 @@ choisir les taux de marge des produits(admin)
 établir les méthodes de FIFO(first in first out)
 générer automatiquement des vignettes pour les produits( étiquettes )
 
-
-
-Enlever les signatures et le cachet de la clientèle
-
-L'impression de la facture aussi ne fonctionne pas 
-
 Il reste les factures à crédit à implémenter
 
-Le header des factures aussi est trop haut donc on ne voit absolument rien
-
-Pour les factures pro format au niveau des pages dashboard/admin/ventes, dashboard/user/rpv, dashboard/user/caissiers , rendre les input dynamiques ( c'est à dire que ça soit des select ou des choix depuis la base de données ; mais permettre aussi d'écrire un nouveau nom pour indiquer que le client n'est pas dans la base)
-
-Implémenter aussi au niveau de dashboard/admin/packs dans l'onglet livraison ou toute page admin qui liste l'historique ou les logs de livraison , les factures pro format et les factures ventes ( inspire toi de la façon dont le caissier gère les factures pour les produits livrés lors de réceptions de packs)
-
 Créer aussi un bouton pour pouvoir annuler les ventes ( admin , RPV , Chef d'agence et les agents de logistiques)
-
-
-
-
-

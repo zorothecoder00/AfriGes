@@ -1140,7 +1140,7 @@ export default function MagasinierPage() {
               const liv = receptionsEnCours.find(l => l.id === validerLivId);
               if (!liv) return null;
               return (
-                <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 overflow-y-auto">
+                <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[300] p-4 overflow-y-auto">
                   <div className="bg-white rounded-2xl w-full max-w-lg shadow-xl my-4">
                     <div className="flex items-center justify-between p-5 border-b border-slate-100">
                       <div className="flex items-center gap-3">

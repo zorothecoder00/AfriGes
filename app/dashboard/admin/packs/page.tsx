@@ -6,11 +6,13 @@ import {
   Clock, AlertTriangle, XCircle, ChevronRight, ChevronDown, ChevronUp,
   Truck, CreditCard, RefreshCw, Edit2, ToggleLeft, ToggleRight, Trash2, Eye,
   Calendar, Phone, User, TrendingUp, ClipboardList, BarChart3,
-} from "lucide-react";    
+  Receipt, FileText, History, ChevronLeft,
+} from "lucide-react";
 import Link from "next/link";
 import { useApi, useMutation } from "@/hooks/useApi";
 import { formatCurrency } from "@/lib/format";
 import { useT } from "@/contexts/AppSettingsContext";
+import FactureModal from "@/components/FactureModal";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -93,6 +95,7 @@ interface ReceptionPack {
   id: number;
   statut: "PLANIFIEE" | "LIVREE" | "ANNULEE";
   datePrevisionnelle?: string;
+  createdAt?: string;
   livreurNom?: string;
   souscription: {
     id: number;
@@ -844,37 +847,54 @@ function TabEcheances() {
 
 function TabLivraisons() {
   const t = useT();
-  const [livraisonTarget, setLivraisonTarget] = useState<Souscription | null>(null);
-  const [cancellingId, setCancellingId] = useState<number | null>(null);
+  const [livraisonTarget,    setLivraisonTarget]    = useState<Souscription | null>(null);
+  const [cancellingId,       setCancellingId]       = useState<number | null>(null);
+  const [factureReceptionId, setFactureReceptionId] = useState<number | null>(null);
+  const [showProForma,       setShowProForma]       = useState(false);
 
+  // ── Livraisons planifiées + souscriptions à livrer ──────────────────────────
   const { data: sData, loading: loadingS, refetch: refetchS } = useApi<SouscriptionsData>(
     "/api/admin/packs/souscriptions?statut=EN_ATTENTE,ACTIF,COMPLETE"
   );
-
   const { data: recData, loading: loadingR, refetch: refetchR } = useApi<ReceptionsPackResponse>(
     "/api/admin/packs/receptions?statut=PLANIFIEE&limit=100"
   );
 
+  // ── Historique livraisons livrées ────────────────────────────────────────────
+  const [histSearch,  setHistSearch]  = useState("");
+  const [histDSearch, setHistDSearch] = useState("");
+  const [histPage,    setHistPage]    = useState(1);
+
+  useEffect(() => {
+    const timer = setTimeout(() => { setHistDSearch(histSearch); setHistPage(1); }, 400);
+    return () => clearTimeout(timer);
+  }, [histSearch]);
+
+  const histParams = new URLSearchParams({ statut: "LIVREE", page: String(histPage), limit: "10" });
+  if (histDSearch) histParams.set("search", histDSearch);
+  const { data: livreesData, loading: loadingLivrees, refetch: refetchLivrees } =
+    useApi<ReceptionsPackResponse>(`/api/admin/packs/receptions?${histParams}`);
+
+  const livrees     = livreesData?.receptions ?? [];
+  const livreesMeta = livreesData?.meta;
+
+  // ── Annulation ──────────────────────────────────────────────────────────────
   const cancellingIdRef = useRef<number | null>(null);
   const { mutate: doCancel } = useMutation<ReceptionPack, object>(
     () => `/api/admin/packs/receptions/${cancellingIdRef.current}`,
     "DELETE",
     { successMessage: "Livraison annulée" }
   );
-
   const handleCancel = async (id: number) => {
     cancellingIdRef.current = id;
     setCancellingId(id);
     const res = await doCancel({});
-    if (res) { refetchS(); refetchR(); }
+    if (res) { refetchS(); refetchR(); refetchLivrees(); }
     setCancellingId(null);
   };
 
   const planifiees = recData?.receptions ?? [];
-  // Souscriptions qui ont déjà une livraison PLANIFIEE en cours
   const souscriptionsAvecPlanifiees = new Set(planifiees.map((r) => r.souscription.id));
-
-  // Éligibles : selon type/statut ET sans livraison PLANIFIEE en cours
   const aLivrer = (sData?.souscriptions ?? []).filter((s) => {
     if (souscriptionsAvecPlanifiees.has(s.id)) return false;
     if (s.pack.type === "URGENCE" && s.statut === "ACTIF") return true;
@@ -884,21 +904,30 @@ function TabLivraisons() {
   });
 
   const loading = loadingS || loadingR;
-  const handleRefresh = () => { refetchS(); refetchR(); };
+  const handleRefresh = () => { refetchS(); refetchR(); refetchLivrees(); };
 
   return (
     <>
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-lg font-bold text-slate-800">Livraisons produits</h2>
-          <p className="text-sm text-slate-500 mt-0.5">Planifiez et suivez les livraisons vers les clients</p>
+          <p className="text-sm text-slate-500 mt-0.5">Planifiez, suivez et facturez les livraisons vers les clients</p>
         </div>
-        <button onClick={handleRefresh} className="flex items-center gap-2 px-4 py-2 border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50 text-sm transition-colors">
-          <RefreshCw className="w-4 h-4" /> Actualiser
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowProForma(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-sm font-medium transition-colors shadow-sm"
+          >
+            <FileText className="w-4 h-4" /> Pro-forma
+          </button>
+          <button onClick={handleRefresh} className="flex items-center gap-2 px-4 py-2 border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50 text-sm transition-colors">
+            <RefreshCw className="w-4 h-4" /> Actualiser
+          </button>
+        </div>
       </div>
 
-      {/* ── Section 1 : Livraisons planifiées (annulables) ── */}
+      {/* ── Section 1 : Livraisons planifiées ── */}
       {planifiees.length > 0 && (
         <div className="space-y-3">
           <h3 className="text-sm font-semibold text-slate-700 flex items-center gap-2">
@@ -1029,11 +1058,147 @@ function TabLivraisons() {
         )}
       </div>
 
+      {/* ── Section 3 : Historique des livraisons livrées ── */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between gap-3">
+          <h3 className="text-sm font-semibold text-slate-700 flex items-center gap-2">
+            <History className="w-4 h-4 text-blue-500" />
+            Historique des livraisons
+            {livreesMeta && (
+              <span className="px-2 py-0.5 rounded-full text-xs bg-blue-100 text-blue-700 font-medium">
+                {livreesMeta.total}
+              </span>
+            )}
+          </h3>
+          <div className="relative flex-1 max-w-xs">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <input
+              value={histSearch}
+              onChange={(e) => setHistSearch(e.target.value)}
+              placeholder="Rechercher un client…"
+              className="w-full pl-9 pr-3 py-2 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-300 bg-white"
+            />
+          </div>
+        </div>
+
+        {loadingLivrees ? (
+          <div className="bg-white rounded-2xl p-8 text-center border border-slate-200">
+            <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+            <p className="text-slate-400 text-sm">Chargement…</p>
+          </div>
+        ) : livrees.length === 0 ? (
+          <div className="bg-white rounded-2xl p-10 text-center border border-slate-200">
+            <History className="w-10 h-10 text-slate-300 mx-auto mb-2" />
+            <p className="text-slate-500 text-sm">Aucune livraison trouvée</p>
+          </div>
+        ) : (
+          <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+            <table className="w-full text-sm">
+              <thead className="bg-slate-50 border-b border-slate-200">
+                <tr>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Client</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Pack</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide hidden md:table-cell">Produits</th>
+                  <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Montant</th>
+                  <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide hidden lg:table-cell">Date</th>
+                  <th className="px-4 py-3" />
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {livrees.map((rec) => {
+                  const colors = PACK_COLORS[rec.souscription.pack.type];
+                  const montant = rec.lignes.reduce((s, l) => s + l.quantite * Number(l.prixUnitaire), 0);
+                  const clientNomR = rec.souscription.client
+                    ? `${rec.souscription.client.prenom} ${rec.souscription.client.nom}`
+                    : rec.souscription.user
+                    ? `${rec.souscription.user.prenom} ${rec.souscription.user.nom}`
+                    : "—";
+                  const clientTelR = rec.souscription.client?.telephone;
+                  return (
+                    <tr key={rec.id} className="hover:bg-slate-50 transition-colors">
+                      <td className="px-4 py-3">
+                        <p className="font-medium text-slate-800">{clientNomR}</p>
+                        {clientTelR && <p className="text-xs text-slate-400 flex items-center gap-1"><Phone className="w-3 h-3" />{clientTelR}</p>}
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${colors.badge}`}>
+                          {PACK_LABELS[rec.souscription.pack.type]}
+                        </span>
+                        <p className="text-xs text-slate-500 mt-0.5">{rec.souscription.pack.nom}</p>
+                      </td>
+                      <td className="px-4 py-3 hidden md:table-cell">
+                        <p className="text-xs text-slate-500 max-w-xs truncate">
+                          {rec.lignes.map((l) => `${l.produit.nom} ×${l.quantite}`).join(", ")}
+                        </p>
+                      </td>
+                      <td className="px-4 py-3 text-right font-semibold text-emerald-700">
+                        {formatCurrency(montant)}
+                      </td>
+                      <td className="px-4 py-3 text-right text-xs text-slate-400 hidden lg:table-cell">
+                        {rec.createdAt ? fmtD(rec.createdAt) : "—"}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <button
+                          onClick={() => setFactureReceptionId(rec.id)}
+                          className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-lg hover:bg-emerald-100 text-xs font-medium transition-colors"
+                        >
+                          <Receipt className="w-3.5 h-3.5" /> Facture
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+
+            {/* Pagination */}
+            {livreesMeta && livreesMeta.totalPages > 1 && (
+              <div className="flex items-center justify-between px-4 py-3 border-t border-slate-100 bg-slate-50">
+                <p className="text-xs text-slate-500">
+                  Page {livreesMeta.page} / {livreesMeta.totalPages} · {livreesMeta.total} livraison{livreesMeta.total > 1 ? "s" : ""}
+                </p>
+                <div className="flex items-center gap-1">
+                  <button
+                    disabled={histPage <= 1}
+                    onClick={() => setHistPage(p => p - 1)}
+                    className="p-1.5 rounded-lg hover:bg-slate-200 disabled:opacity-40 transition-colors"
+                  >
+                    <ChevronLeft className="w-4 h-4 text-slate-600" />
+                  </button>
+                  <button
+                    disabled={histPage >= livreesMeta.totalPages}
+                    onClick={() => setHistPage(p => p + 1)}
+                    className="p-1.5 rounded-lg hover:bg-slate-200 disabled:opacity-40 transition-colors"
+                  >
+                    <ChevronRight className="w-4 h-4 text-slate-600" />
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* ── Modales ── */}
       {livraisonTarget !== null && (
         <ModalPlanifierLivraison
           souscription={livraisonTarget}
           onClose={() => setLivraisonTarget(null)}
-          onSuccess={() => { refetchS(); refetchR(); setLivraisonTarget(null); }}
+          onSuccess={() => { refetchS(); refetchR(); refetchLivrees(); setLivraisonTarget(null); }}
+        />
+      )}
+      {factureReceptionId !== null && (
+        <FactureModal
+          receptionPackId={factureReceptionId}
+          onClose={() => setFactureReceptionId(null)}
+        />
+      )}
+      {showProForma && (
+        <FactureModal
+          proFormaMode
+          searchClientsUrl="/api/admin/clients"
+          searchProduitsUrl="/api/admin/produits"
+          onClose={() => setShowProForma(false)}
         />
       )}
     </>

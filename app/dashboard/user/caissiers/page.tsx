@@ -469,7 +469,7 @@ function TicketRecu({ data, onClose }: { data: RecuData["data"]; onClose: () => 
   }, [data]);
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[300] p-4">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm">
         <div className="flex items-center justify-between p-5 border-b border-slate-100">
           <div className="flex items-center gap-3">
@@ -572,7 +572,7 @@ function TicketDecaissement({ data, onClose }: { data: RecuOperationData["data"]
   }, [data, titre]);
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[300] p-4">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm">
         <div className="flex items-center justify-between p-5 border-b border-slate-100">
           <div className="flex items-center gap-3">
@@ -677,7 +677,7 @@ function TicketVenteDirecte({ data, onClose }: { data: RecuVenteDirecteData["dat
   }, [data]);
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[300] p-4">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-5 border-b border-slate-100">
           <div className="flex items-center gap-3">
@@ -1321,11 +1321,11 @@ export default function CaissierPage() {
       {factureVenteId     && <FactureModal venteDirecteId={factureVenteId}       onClose={() => setFactureVenteId(null)} />}
       {factureReceptionId && <FactureModal receptionPackId={factureReceptionId} onClose={() => setFactureReceptionId(null)} />}
       {factureCreditId    && <FactureModal creditClientId={factureCreditId}      onClose={() => setFactureCreditId(null)} />}
-      {showProForma       && <FactureModal proFormaMode onClose={() => setShowProForma(false)} />}
+      {showProForma       && <FactureModal proFormaMode searchClientsUrl="/api/caissier/clients" searchProduitsUrl="/api/caissier/produits" onClose={() => setShowProForma(false)} />}
 
       {/* Modal Versement */}
       {versementModal && selectedSouscription && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[300] p-4">
           <div className="bg-white rounded-2xl w-full max-w-md shadow-xl">
             <div className="flex items-center justify-between p-6 border-b border-slate-100">
               <div className="flex items-center gap-3">
@@ -1474,7 +1474,7 @@ export default function CaissierPage() {
 
       {/* Modal Modifier un versement (date + montant) */}
       {editDateModal && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[300] p-4">
           <div className="bg-white rounded-2xl w-full max-w-sm shadow-xl">
             <div className="flex items-center justify-between p-6 border-b border-slate-100">
               <div className="flex items-center gap-3">
@@ -3800,7 +3800,7 @@ export default function CaissierPage() {
           <div className="space-y-6">
             {/* Modal confirmation / rejet */}
             {confirmTarget && (
-              <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+              <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[300] p-4">
                 <div className="bg-white rounded-2xl w-full max-w-md shadow-xl">
                   <div className="flex items-center justify-between p-6 border-b border-slate-100">
                     <div className="flex items-center gap-3">
