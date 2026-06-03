@@ -56,6 +56,17 @@ export async function GET(req: Request) {
       },
     });
 
+    // Remboursements crédit confirmés aujourd'hui — scoped au PDV
+    const rembAgg = await prisma.remboursementCredit.aggregate({
+      _sum: { montant: true },
+      where: {
+        statut: "CONFIRME",
+        dateRemboursement: { gte: startOfDay, lte: endOfDay },
+        ...(pdvId ? { credit: { client: { pointDeVenteId: pdvId } } } : {}),
+      },
+    });
+    const totalRemboursementsCredit = Number(rembAgg._sum.montant ?? 0);
+
     // Opérations caisse du jour — scoped au caissier via session
     const operationsJour = await prisma.operationCaisse.findMany({
       where: { ...sessionFilter, createdAt: { gte: startOfDay, lte: endOfDay } },
@@ -135,6 +146,7 @@ export async function GET(req: Request) {
           : null,
         bilanParProduit,
         totalEncaissementsAutres,
+        totalRemboursementsCredit,
         totalDecaissements,
         ventesDetail: versementsJour.map((v) => {
           const person = v.souscription.client ?? v.souscription.user;
@@ -270,7 +282,7 @@ export async function POST(req: Request) {
     const fondsCaisse = sessionActive ? Number(sessionActive.fondsCaisse) : 0;
 
     // Agrégats OperationCaisse du jour — scoped au caissier
-    const [encaissAgg, decaissAgg, transfertAgg] = await Promise.all([
+    const [encaissAgg, decaissAgg, transfertAgg, rembAgg] = await Promise.all([
       prisma.operationCaisse.aggregate({
         _sum: { montant: true },
         where: { ...sessionFilter, type: "ENCAISSEMENT", createdAt: { gte: startOfDay, lte: endOfDay } },
@@ -283,9 +295,17 @@ export async function POST(req: Request) {
         _sum: { montant: true },
         where: { ...sessionFilter, createdAt: { gte: startOfDay, lte: endOfDay } },
       }),
+      prisma.remboursementCredit.aggregate({
+        _sum: { montant: true },
+        where: {
+          statut: "CONFIRME",
+          dateRemboursement: { gte: startOfDay, lte: endOfDay },
+          ...(pdvId ? { credit: { client: { pointDeVenteId: pdvId } } } : {}),
+        },
+      }),
     ]);
 
-    const totalEncaissementsAutres = Number(encaissAgg._sum.montant ?? 0);
+    const totalEncaissementsAutres = Number(encaissAgg._sum.montant ?? 0) + Number(rembAgg._sum.montant ?? 0);
     const totalDecaissements       = Number(decaissAgg._sum.montant ?? 0);
     const totalTransferts          = Number(transfertAgg._sum.montant ?? 0);
     const soldeTheorique           = fondsCaisse + montantTotal + totalEncaissementsAutres - totalDecaissements - totalTransferts;

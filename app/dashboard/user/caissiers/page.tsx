@@ -90,6 +90,15 @@ interface TransfertCaisse {
   reference: string; operateurNom: string; createdAt: string;
 }
 
+interface RemboursementCreditDashboardItem {
+  id: number;
+  creditId: number;
+  creditReference: string;
+  clientNom: string;
+  montant: number;
+  heure: string;
+}
+
 interface DashboardData {
   today: { date: string; startOfDay: string };
   sessionActive: {
@@ -99,7 +108,8 @@ interface DashboardData {
   soldeTempsReel: number;
   operationsJour: { encaissements: number; decaissements: number; transferts: number };
   versements: { total: number; montant: number; nbClients: number };
-  ventesDirectes: { total: number; montant: number };
+  ventesDirectes: { total: number; montant: number; parMode?: { especes: number; virement: number; credit: number } };
+  remboursementsCredit: { total: number; montant: number; items: RemboursementCreditDashboardItem[] };
   stock: {
     total: number; faible: number; rupture: number; valeur: number;
     produitsAlerte: { id: number; nom: string; stock: number; alerteStock: number }[];
@@ -196,6 +206,26 @@ interface ClotureCaisse {
   soldeReel?: number | null;
   ecart?: number | null;
 }
+interface FactureListItem {
+  id: number;
+  numero: string;
+  type: string;
+  statut: string;
+  clientNom: string;
+  montantTTC: number;
+  montantPaye: number;
+  dateEmission: string;
+  emiseParNom: string;
+  modePaiement: string | null;
+  venteDirecteId: number | null;
+  creditClientId: number | null;
+}
+
+interface FacturesResponse {
+  data: FactureListItem[];
+  meta: { page: number; limit: number; total: number; totalPages: number };
+}
+
 interface ClotureData {
   success: boolean;
   jourEnCours: {
@@ -204,6 +234,7 @@ interface ClotureData {
     bilanParProduit: { nom: string; quantite: number; montant: number }[];
     ventesDetail: { id: number; produit: string; quantite: number; montant: number; clientNom: string; heure: string }[];
     totalEncaissementsAutres: number;
+    totalRemboursementsCredit?: number;
     totalDecaissements: number;
     encaissementsDetail: { id: number; reference: string; montant: number; motif: string; mode: string | null; operateur: string; heure: string }[];
     decaissementsDetail: { id: number; reference: string; montant: number; motif: string; categorie: string | null; operateur: string; heure: string }[];
@@ -324,7 +355,7 @@ interface RecuOperationData {
 // HELPERS
 // ============================================================================
 
-type TabKey = "synthese" | "session" | "encaissement_caisse" | "decaissement" | "transferts" | "packs" | "historique" | "recus" | "cloture" | "a_confirmer";
+type TabKey = "synthese" | "session" | "encaissement_caisse" | "decaissement" | "transferts" | "packs" | "historique" | "recus" | "cloture" | "a_confirmer" | "factures";
 
 function alertIcon(type: "danger" | "warning" | "info") {
   if (type === "danger")  return <XCircle      className="w-4 h-4 text-red-500 shrink-0"    />;
@@ -776,7 +807,9 @@ export default function CaissierPage() {
   const [venteRecuData,        setVenteRecuData]        = useState<RecuVenteDirecteData["data"] | null>(null);
   const [factureVenteId,       setFactureVenteId]       = useState<number | null>(null);
   const [factureReceptionId,   setFactureReceptionId]   = useState<number | null>(null);
+  const [factureCreditId,      setFactureCreditId]      = useState<number | null>(null);
   const [showProForma,         setShowProForma]         = useState(false);
+  const [facturesPage,         setFacturesPage]         = useState(1);
   const [notesClotureInput,    setNotesCloture]         = useState("");
   const [soldeReel,         setSoldeReel]    = useState("");
 
@@ -878,6 +911,12 @@ export default function CaissierPage() {
 
   const { data: ventesDirRes, refetch: refetchVentesDir } = useApi<VentesDirectesResponse>(`/api/caissier/ventes?${ventesDirParams}`);
   const { data: aConfirmerRes, refetch: refetchAConfirmer } = useApi<AConfirmerResponse>("/api/caissier/a-confirmer?limit=50");
+
+  const facturesParams = useMemo(
+    () => new URLSearchParams({ page: String(facturesPage), limit: "20" }).toString(),
+    [facturesPage]
+  );
+  const { data: facturesRes, refetch: refetchFactures } = useApi<FacturesResponse>(`/api/factures?${facturesParams}`);
 
   // ── Mutations ────────────────────────────────────────────────────────────
   const { mutate: collecterVersement, loading: collectant, error: erreurVersement } =
@@ -1240,6 +1279,7 @@ export default function CaissierPage() {
     refetchTransferts();
     refetchVentesDir();
     refetchAConfirmer();
+    refetchFactures();
   };
 
   // ============================================================================
@@ -1258,6 +1298,7 @@ export default function CaissierPage() {
     { key: "packs",               label: "Packs & Factures de livraison", icon: Banknote          },
     { key: "historique",          label: "Historique",      icon: Clock                          },
     { key: "recus",               label: "Reçus de transactions", icon: Receipt               },
+    { key: "factures",            label: "Factures",        icon: FileText                       },
     { key: "cloture",             label: "Clôture",         icon: Lock                           },
   ];
   const tabs = allTabs.filter((t) => isAllowed(t.key));
@@ -1279,6 +1320,7 @@ export default function CaissierPage() {
       {venteRecuModal && venteRecuData && <TicketVenteDirecte  data={venteRecuData} onClose={() => setVenteRecuModal(false)} />}
       {factureVenteId     && <FactureModal venteDirecteId={factureVenteId}       onClose={() => setFactureVenteId(null)} />}
       {factureReceptionId && <FactureModal receptionPackId={factureReceptionId} onClose={() => setFactureReceptionId(null)} />}
+      {factureCreditId    && <FactureModal creditClientId={factureCreditId}      onClose={() => setFactureCreditId(null)} />}
       {showProForma       && <FactureModal proFormaMode onClose={() => setShowProForma(false)} />}
 
       {/* Modal Versement */}
@@ -1653,7 +1695,7 @@ export default function CaissierPage() {
               <KpiCard label="Solde temps réel"      value={formatCurrency(dashboard?.soldeTempsReel ?? 0)}                                                      icon={Wallet}       color="text-teal-500"    bg="bg-teal-50"    sub="en caisse" />
               <KpiCard label="Versements packs"      value={String(dashboard?.versements.total ?? 0)}                                                             icon={Layers}       color="text-sky-500"     bg="bg-sky-50"     sub="aujourd'hui" />
               <KpiCard label="Ventes directes"       value={String(dashboard?.ventesDirectes?.total ?? 0)}                                                        icon={ShoppingBag}  color="text-indigo-500"  bg="bg-indigo-50"  sub="aujourd'hui" />
-              <KpiCard label="Total encaissé"        value={formatCurrency((dashboard?.versements.montant ?? 0) + (dashboard?.ventesDirectes?.montant ?? 0))}     icon={Banknote}     color="text-emerald-500" bg="bg-emerald-50" sub="packs + ventes" />
+              <KpiCard label="Total encaissé"        value={formatCurrency((dashboard?.versements.montant ?? 0) + (dashboard?.ventesDirectes?.montant ?? 0) + (dashboard?.remboursementsCredit?.montant ?? 0))}     icon={Banknote}     color="text-emerald-500" bg="bg-emerald-50" sub={`packs · ventes · crédits`} />
               <KpiCard label="Souscriptions actives" value={String(dashboard?.souscriptionsActives ?? 0)}                                                         icon={TrendingUp}   color="text-violet-500"  bg="bg-violet-50"  />
               <KpiCard label="Clients servis"        value={String(dashboard?.versements.nbClients ?? 0)}                                                         icon={Users}        color="text-pink-500"    bg="bg-pink-50"    sub="aujourd'hui" />
             </div>
@@ -1662,11 +1704,21 @@ export default function CaissierPage() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl p-5 text-white shadow-lg shadow-emerald-200">
                 <p className="text-emerald-100 text-xs mb-1">Total encaissé aujourd&apos;hui</p>
-                <p className="text-3xl font-bold">{formatCurrency((dashboard?.versements.montant ?? 0) + (dashboard?.ventesDirectes?.montant ?? 0))}</p>
+                <p className="text-3xl font-bold">{formatCurrency((dashboard?.versements.montant ?? 0) + (dashboard?.ventesDirectes?.montant ?? 0) + (dashboard?.remboursementsCredit?.montant ?? 0))}</p>
                 <div className="text-emerald-200 text-xs mt-2 space-y-0.5">
-                  <p>{dashboard?.versements.total ?? 0} versement(s) pack</p>
+                  <p>{dashboard?.versements.total ?? 0} versement(s) pack · {formatCurrency(dashboard?.versements.montant ?? 0)}</p>
                   {(dashboard?.ventesDirectes?.total ?? 0) > 0 && (
                     <p>{dashboard!.ventesDirectes.total} vente(s) directe(s) · {formatCurrency(dashboard!.ventesDirectes.montant)}</p>
+                  )}
+                  {(dashboard?.remboursementsCredit?.total ?? 0) > 0 && (
+                    <p>{dashboard!.remboursementsCredit.total} remboursement(s) crédit · {formatCurrency(dashboard!.remboursementsCredit.montant)}</p>
+                  )}
+                  {(dashboard?.ventesDirectes?.parMode) && (dashboard!.ventesDirectes.total ?? 0) > 0 && (
+                    <p className="text-emerald-300 pt-1 border-t border-emerald-400/30">
+                      Espèces {formatCurrency(dashboard!.ventesDirectes.parMode.especes)}
+                      {dashboard!.ventesDirectes.parMode.virement > 0 && ` · Virement ${formatCurrency(dashboard!.ventesDirectes.parMode.virement)}`}
+                      {dashboard!.ventesDirectes.parMode.credit > 0 && ` · Crédit ${formatCurrency(dashboard!.ventesDirectes.parMode.credit)}`}
+                    </p>
                   )}
                 </div>
               </div>
@@ -1745,6 +1797,31 @@ export default function CaissierPage() {
                 </div>
               </div>
             )}
+
+            {/* Actions rapides */}
+            <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60">
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-4">Actions rapides</p>
+              <div className="flex flex-wrap gap-3">
+                <button
+                  onClick={() => setActiveTab("packs")}
+                  className="flex items-center gap-2 px-4 py-2.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-xl text-sm font-semibold transition-colors border border-emerald-200"
+                >
+                  <Banknote size={16} /> Versement pack
+                </button>
+                <button
+                  onClick={() => setActiveTab("encaissement_caisse")}
+                  className="flex items-center gap-2 px-4 py-2.5 bg-sky-50 hover:bg-sky-100 text-sky-700 rounded-xl text-sm font-semibold transition-colors border border-sky-200"
+                >
+                  <ArrowUpCircle size={16} /> Encaissement
+                </button>
+                <button
+                  onClick={() => setActiveTab("cloture")}
+                  className="flex items-center gap-2 px-4 py-2.5 bg-amber-50 hover:bg-amber-100 text-amber-700 rounded-xl text-sm font-semibold transition-colors border border-amber-200"
+                >
+                  <Lock size={16} /> Clôture caisse
+                </button>
+              </div>
+            </div>
 
             {/* Derniers versements */}
             <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/60">
@@ -2931,7 +3008,7 @@ export default function CaissierPage() {
                 </h3>
                 <div className="flex items-center gap-2">
                   <Filter size={15} className="text-slate-400" />
-                  <span className="text-sm text-slate-500">{versements.length + operations.length + ventesDir.length} reçu(s)</span>
+                  <span className="text-sm text-slate-500">{versements.length + operations.length + ventesDir.length + (dashboard?.remboursementsCredit?.items?.length ?? 0)} reçu(s)</span>
                 </div>
               </div>
               <div className="relative">
@@ -3162,13 +3239,171 @@ export default function CaissierPage() {
               </div>
             )}
 
+            {/* Remboursements de crédit */}
+            {(dashboard?.remboursementsCredit?.items ?? []).length > 0 && (
+              <div>
+                <h4 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-3 flex items-center gap-2">
+                  <CreditCard size={15} />
+                  Remboursements de crédit
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                  {dashboard!.remboursementsCredit.items
+                    .filter((r) => {
+                      if (!debouncedSearch) return true;
+                      const q = debouncedSearch.toLowerCase();
+                      return r.clientNom.toLowerCase().includes(q) || r.creditReference.toLowerCase().includes(q);
+                    })
+                    .map((r) => (
+                      <div key={r.id} className="bg-white rounded-xl shadow-sm border border-slate-200 hover:shadow-md transition-all">
+                        <div className="p-5">
+                          <div className="flex items-center justify-between mb-3">
+                            <span className="inline-flex items-center gap-1.5 bg-sky-100 text-sky-700 px-3 py-1 rounded-full text-xs font-bold">
+                              <CreditCard size={11} />
+                              {r.creditReference}
+                            </span>
+                            <span className="text-xs text-slate-400">{r.heure}</span>
+                          </div>
+                          <div className="space-y-2">
+                            <div className="flex justify-between text-sm">
+                              <span className="text-slate-500">Client</span>
+                              <span className="font-semibold text-slate-800 text-right max-w-[130px] truncate">{r.clientNom}</span>
+                            </div>
+                            <div className="flex justify-between text-sm">
+                              <span className="text-slate-500">Type</span>
+                              <span className="text-slate-600">Remboursement crédit</span>
+                            </div>
+                            <div className="border-t border-dashed border-slate-200 pt-2 flex justify-between">
+                              <span className="text-slate-600 font-medium text-sm">Encaissé</span>
+                              <span className="text-lg font-bold text-sky-600">{formatCurrency(r.montant)}</span>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="px-5 pb-5">
+                          <button
+                            onClick={() => setFactureCreditId(r.creditId)}
+                            className="w-full py-2.5 bg-sky-50 hover:bg-sky-100 text-sky-700 rounded-xl text-sm font-medium transition-colors flex items-center justify-center gap-2 border border-sky-200"
+                          >
+                            <Receipt size={15} />
+                            Facture crédit
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            )}
+
             {/* État vide global */}
-            {versements.length === 0 && operations.length === 0 && ventesDir.length === 0 && (
+            {versements.length === 0 && operations.length === 0 && ventesDir.length === 0 && (dashboard?.remboursementsCredit?.items ?? []).length === 0 && (
               <div className="bg-white rounded-xl p-12 text-center shadow-sm border border-slate-200">
                 <Receipt className="w-12 h-12 text-slate-200 mx-auto mb-4" />
                 <p className="text-slate-400">Aucun reçu pour cette session</p>
               </div>
             )}
+          </div>
+        )}
+
+        {/* ============================================================
+            TAB : FACTURES
+        ============================================================ */}
+        {activeTab === "factures" && (
+          <div className="space-y-6">
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 overflow-hidden">
+              <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+                <h3 className="font-bold text-slate-800 flex items-center gap-2">
+                  <FileText size={20} className="text-sky-600" />
+                  Factures
+                </h3>
+                <div className="flex items-center gap-3">
+                  <span className="text-sm text-slate-500">{facturesRes?.meta.total ?? 0} facture(s)</span>
+                  <button
+                    onClick={refetchFactures}
+                    className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+                  >
+                    <RefreshCw size={16} />
+                  </button>
+                </div>
+              </div>
+              {(facturesRes?.data ?? []).length === 0 ? (
+                <div className="text-center py-12 text-slate-400">
+                  <FileText className="w-12 h-12 mx-auto mb-3 text-slate-200" />
+                  <p className="text-sm">Aucune facture enregistrée</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="bg-slate-50 border-b border-slate-200">
+                      <tr>
+                        {["Numéro", "Client", "Type", "Montant TTC", "Payé", "Statut", "Date", ""].map((h) => (
+                          <th key={h} className="px-5 py-3.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {facturesRes!.data.map((f) => {
+                        const typeColors: Record<string, string> = {
+                          COMPTANT: "bg-emerald-100 text-emerald-700",
+                          CREDIT:   "bg-sky-100 text-sky-700",
+                          PRO_FORMA:"bg-violet-100 text-violet-700",
+                        };
+                        const statutColors: Record<string, string> = {
+                          EMISE:    "bg-blue-100 text-blue-700",
+                          PAYEE:    "bg-emerald-100 text-emerald-700",
+                          ANNULEE:  "bg-red-100 text-red-700",
+                          EN_ATTENTE: "bg-amber-100 text-amber-700",
+                        };
+                        return (
+                          <tr key={f.id} className="hover:bg-slate-50 transition-colors">
+                            <td className="px-5 py-3.5 font-mono text-xs text-slate-600 font-semibold">{f.numero}</td>
+                            <td className="px-5 py-3.5 text-slate-800 font-medium max-w-[140px] truncate">{f.clientNom}</td>
+                            <td className="px-5 py-3.5">
+                              <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${typeColors[f.type] ?? "bg-slate-100 text-slate-600"}`}>
+                                {f.type === "PRO_FORMA" ? "Pro-forma" : f.type === "COMPTANT" ? "Comptant" : "Crédit"}
+                              </span>
+                            </td>
+                            <td className="px-5 py-3.5 font-bold text-slate-800">{formatCurrency(f.montantTTC)}</td>
+                            <td className="px-5 py-3.5 text-slate-600">{formatCurrency(f.montantPaye)}</td>
+                            <td className="px-5 py-3.5">
+                              <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${statutColors[f.statut] ?? "bg-slate-100 text-slate-600"}`}>
+                                {f.statut}
+                              </span>
+                            </td>
+                            <td className="px-5 py-3.5 text-xs text-slate-500">{formatDate(f.dateEmission)}</td>
+                            <td className="px-5 py-3.5">
+                              <button
+                                onClick={() => {
+                                  if (f.creditClientId) setFactureCreditId(f.creditClientId);
+                                  else if (f.venteDirecteId) setFactureVenteId(f.venteDirecteId);
+                                }}
+                                disabled={!f.creditClientId && !f.venteDirecteId}
+                                className="p-1.5 text-slate-400 hover:text-sky-600 hover:bg-sky-50 rounded-lg transition-colors disabled:opacity-30"
+                                title="Voir la facture"
+                              >
+                                <Eye size={15} />
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+              {facturesRes && facturesRes.meta.totalPages > 1 && (
+                <div className="px-5 py-4 border-t border-slate-100 flex items-center justify-between">
+                  <p className="text-sm text-slate-400">Page {facturesRes.meta.page} / {facturesRes.meta.totalPages}</p>
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => setFacturesPage((p) => Math.max(1, p - 1))} disabled={facturesPage <= 1} className="p-1.5 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 disabled:opacity-40">
+                      <ChevronLeft size={14} />
+                    </button>
+                    <span className="px-3 py-1 bg-slate-800 text-white rounded-lg text-sm">{facturesPage}</span>
+                    <button onClick={() => setFacturesPage((p) => Math.min(facturesRes.meta.totalPages, p + 1))} disabled={facturesPage >= facturesRes.meta.totalPages} className="p-1.5 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 disabled:opacity-40">
+                      <ChevronRight size={14} />
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         )}
 
@@ -3839,6 +4074,13 @@ export default function CaissierPage() {
                                 className="flex items-center gap-1 px-3 py-1.5 bg-red-50 text-red-600 rounded-lg text-xs font-semibold hover:bg-red-100 transition-colors"
                               >
                                 <XCircle size={13} /> Rejeter
+                              </button>
+                              <button
+                                onClick={() => setFactureCreditId(r.creditId)}
+                                className="flex items-center gap-1 px-3 py-1.5 bg-sky-50 text-sky-700 rounded-lg text-xs font-semibold hover:bg-sky-100 transition-colors"
+                                title="Générer la facture crédit"
+                              >
+                                <Receipt size={13} /> Facture
                               </button>
                             </div>
                           </td>

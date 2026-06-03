@@ -64,129 +64,20 @@ choisir les taux de marge des produits(admin)
 générer automatiquement des vignettes pour les produits( étiquettes )
 
 
- Plan d'action — Dashboard Caissier (prochaine session)
 
-  ---
-  Bloc A — Remboursements de crédit dans les stats (Points 1 & 2)
+Enlever les signatures et le cachet de la clientèle
 
-  app/api/caissier/dashboard/route.ts
-  - Ajouter modePaiement au select des ventes directes
-  - Ajouter remboursementsJour (CONFIRME, aujourd'hui, scoped PDV) au
-  Promise.all
-  - Calculer montantRemboursements, ajouter dans soldeTempsReel
-  - Ajouter clients des remboursements dans clientsVus
-  - Ajouter ventesParMode (espèces/virement/crédit)
-  - Retourner remboursementsCredit: { total, montant, items[] } et
-  ventesDirectes.parMode
+L'impression de la facture aussi ne fonctionne pas 
 
-  app/api/caissier/cloture/route.ts
-  - GET : ajouter totalRemboursementsCredit dans jourEnCours
-  - POST : inclure les remboursements dans totalEncaissementsAutres →
-  soldeTheorique correct
+Il reste les factures à crédit à implémenter
 
-  ---
-  Bloc B — UI Synthèse (Points 3 & 4)
+Le header des factures aussi est trop haut donc on ne voit absolument rien
 
-  app/dashboard/user/caissiers/page.tsx — onglet Synthèse
-  - Mettre à jour les types DashboardData et ClotureData
-  - KPI "Total encaissé" : inclure remboursements, sub-label packs + ventes +
-  crédits
-  - Bandeau vert : ajouter ligne remboursements + détail ventes par mode
-  - Ajouter section Actions rapides (Versement pack / Encaissement / Clôture)
+Pour les factures pro format au niveau des pages dashboard/admin/ventes, dashboard/user/rpv, dashboard/user/caissiers , rendre les input dynamiques ( c'est à dire que ça soit des select ou des choix depuis la base de données ; mais permettre aussi d'écrire un nouveau nom pour indiquer que le client n'est pas dans la base)
 
-  ---
-  Bloc C — Reçus de transactions (Point 5)
+Implémenter aussi au niveau de dashboard/admin/packs dans l'onglet livraison ou toute page admin qui liste l'historique ou les logs de livraison , les factures pro format et les factures ventes ( inspire toi de la façon dont le caissier gère les factures pour les produits livrés lors de réceptions de packs)
 
-  app/dashboard/user/caissiers/page.tsx — onglet Reçus de transactions
-  - Ajouter section "Remboursements de crédit" (données de
-  dashboard.remboursementsCredit.items)
-  - Mettre à jour le compteur total
-
-  ---
-  Bloc D — Factures depuis remboursements crédit
-
-  app/dashboard/user/caissiers/page.tsx
-  - Ajouter factureCreditId state + <FactureModal creditClientId=... />
-  - Bouton Receipt sur chaque remboursement confirmé dans l'onglet "À confirmer"
-
-  ---
-  Bloc E — Onglet "Factures" dédié
-
-  app/dashboard/user/caissiers/page.tsx
-  - Nouvel onglet factures dans allTabs
-  - Appel GET /api/factures avec pagination
-  - Tableau : numéro, client, type, montant TTC, payé, statut, date — bouton
-  pour ré-ouvrir le modal
-
-  ---
-  Ordre suggéré : A → B → C → D → E (chaque bloc est indépendant et testable)
-
-
-Au niveau de dashboard/admin/ventes , la création de la facture pro format est logique selon toi ?? Le nom du client et le produit choisit sont juste du string ( pas de valeur réelle)
-
-Et aussi pour les nouvelles ventes sur dashboard/admin/ventes, pour le modale de nouvelle vente , lorsqu'on choisit le produit à livrer , le bouton suivant est bloqué 
-
-C:\Users\EMMANUEL\Desktop\Nouveau dossier (3)\AfriGes\.next\dev\server\chunks\[
-root-of-the-server]__974c24a1._.js: Invalid source map. Only conformant source
-maps can be used to find the original code. Cause: Error: sourceMapURL could no
-t be parsed
-C:\Users\EMMANUEL\Desktop\Nouveau dossier (3)\AfriGes\node_modules\@prisma\clie
-nt\runtime\client.js: Invalid source map. Only conformant source maps can be us
-ed to find the original code. Cause: Error: sourceMapURL could not be parsed
-C:\Users\EMMANUEL\Desktop\Nouveau dossier (3)\AfriGes\node_modules\next\dist\co
-mpiled\next-server\app-route-turbo.runtime.dev.js: Invalid source map. Only con
-formant source maps can be used to find the original code. Cause: Error: source
-MapURL could not be parsed
-C:\Users\EMMANUEL\Desktop\Nouveau dossier (3)\AfriGes\.next\dev\server\chunks\n
-ode_modules_next_a2134509._.js: Invalid source map. Only conformant source maps
- can be used to find the original code. Cause: Error: sourceMapURL could not be
- parsed
-C:\Users\EMMANUEL\Desktop\Nouveau dossier (3)\AfriGes\node_modules\next\dist\se
-rver\base-server.js: Invalid source map. Only conformant source maps can be use
-d to find the original code. Cause: Error: sourceMapURL could not be parsed
-C:\Users\EMMANUEL\Desktop\Nouveau dossier (3)\AfriGes\node_modules\next\dist\se
-rver\next-server.js: Invalid source map. Only conformant source maps can be use
-d to find the original code. Cause: Error: sourceMapURL could not be parsed
-C:\Users\EMMANUEL\Desktop\Nouveau dossier (3)\AfriGes\node_modules\next\dist\se
-rver\dev\next-dev-server.js: Invalid source map. Only conformant source maps ca
-n be used to find the original code. Cause: Error: sourceMapURL could not be pa
-rsed
-C:\Users\EMMANUEL\Desktop\Nouveau dossier (3)\AfriGes\node_modules\next\dist\tr
-ace\trace.js: Invalid source map. Only conformant source maps can be used to fi
-nd the original code. Cause: Error: sourceMapURL could not be parsed
-C:\Users\EMMANUEL\Desktop\Nouveau dossier (3)\AfriGes\node_modules\next\dist\se
-rver\lib\router-server.js: Invalid source map. Only conformant source maps can
-be used to find the original code. Cause: Error: sourceMapURL could not be pars
-ed
-C:\Users\EMMANUEL\Desktop\Nouveau dossier (3)\AfriGes\node_modules\next\dist\se
-rver\lib\start-server.js: Invalid source map. Only conformant source maps can b
-e used to find the original code. Cause: Error: sourceMapURL could not be parse
-d
-POST /api/factures: Error [PrismaClientKnownRequestError]:
-Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$prisma$2e$ts__$
-5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].factureVente.create()` invo
-cation in
-C:\Users\EMMANUEL\Desktop\Nouveau dossier (3)\AfriGes\.next\dev\server\chunks\[
-root-of-the-server]__974c24a1._.js:798:170
-
-  795 const factureType = vente.modePaiement === "CREDIT" ? "CREDIT" : "COMPTAN
-T";
-  796 const numero = await genNumero();
-  797 const montantTTC = Number(vente.montantTotal);
-→ 798 const created = await __TURBOPACK__imported__module__$5b$project$5d2f$lib
-$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].factureV
-ente.create(
-Unique constraint failed on the fields: (`numero`)
-    at <unknown> (C:\Users\EMMANUEL\Desktop\Nouveau dossier (3)\AfriGes\.next\d
-ev\server\chunks\[root-of-the-server]__974c24a1._.js:798:170)
-    at async POST (C:\Users\EMMANUEL\Desktop\Nouveau dossier (3)\AfriGes\.next\
-dev\server\chunks\[root-of-the-server]__974c24a1._.js:798:29) {
-  code: 'P2002',
-  meta: [Object],
-  clientVersion: '7.3.0'
-}
- POST /api/factures 500 in 484ms (compile: 25ms, render: 460ms)
-  lorsqu'on clique sur générer une facture toujours dans dashboard/admin/ventes
+Créer aussi un bouton pour pouvoir annuler les ventes ( admin , RPV , Chef d'agence et les agents de logistiques)
 
 
 

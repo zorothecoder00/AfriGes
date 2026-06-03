@@ -64,6 +64,7 @@ export async function GET(req: NextRequest) {
       nbVersementsEnAttente,
       nbRemboursementsEnAttente,
       nbVentesEnAttente,
+      remboursementsJour,
     ] = await Promise.all([
 
       // Versements confirmés aujourd'hui — scoped au PDV (EN_ATTENTE exclus)
@@ -100,6 +101,7 @@ export async function GET(req: NextRequest) {
         select: {
           id: true,
           montantPaye: true,
+          modePaiement: true,
           clientNom: true,
           client: { select: { nom: true, prenom: true } },
           createdAt: true,
@@ -184,6 +186,27 @@ export async function GET(req: NextRequest) {
           ...(pdvId ? { pointDeVenteId: pdvId } : {}),
         },
       }),
+
+      // Remboursements crédits confirmés aujourd'hui — scoped au PDV
+      prisma.remboursementCredit.findMany({
+        where: {
+          statut: "CONFIRME",
+          dateRemboursement: { gte: startOfDay, lte: endOfDay },
+          ...(pdvId ? { credit: { client: { pointDeVenteId: pdvId } } } : {}),
+        },
+        select: {
+          id: true,
+          montant: true,
+          dateRemboursement: true,
+          creditId: true,
+          credit: {
+            select: {
+              reference: true,
+              client: { select: { nom: true, prenom: true } },
+            },
+          },
+        },
+      }),
     ]);
 
     // ── Stats versements du jour ───────────────────────────────────────────
@@ -193,6 +216,14 @@ export async function GET(req: NextRequest) {
     // ── Stats ventes directes du jour ─────────────────────────────────────
     const totalVentesDir   = ventesDirAujourdhui.length;
     const montantVentesDir = ventesDirAujourdhui.reduce((s, v) => s + Number(v.montantPaye), 0);
+    const ventesParMode = {
+      especes:  ventesDirAujourdhui.filter((v) => v.modePaiement === "ESPECES").reduce((s, v) => s + Number(v.montantPaye), 0),
+      virement: ventesDirAujourdhui.filter((v) => v.modePaiement === "VIREMENT").reduce((s, v) => s + Number(v.montantPaye), 0),
+      credit:   ventesDirAujourdhui.filter((v) => v.modePaiement === "CREDIT").reduce((s, v) => s + Number(v.montantPaye), 0),
+    };
+
+    // ── Stats remboursements crédit confirmés aujourd'hui ─────────────────
+    const montantRemboursements = remboursementsJour.reduce((s, r) => s + Number(r.montant), 0);
 
     const clientsVus = new Set([
       ...versementsAujourdhui.map((v) => {
@@ -202,6 +233,10 @@ export async function GET(req: NextRequest) {
       ...ventesDirAujourdhui.map((v) => {
         const nom = v.client ? `${v.client.nom}-${v.client.prenom}` : v.clientNom;
         return nom || null;
+      }).filter(Boolean) as string[],
+      ...remboursementsJour.map((r) => {
+        const c = r.credit.client;
+        return c ? `${c.nom}-${c.prenom}` : null;
       }).filter(Boolean) as string[],
     ]);
     const nbClients = clientsVus.size;
@@ -300,7 +335,7 @@ export async function GET(req: NextRequest) {
     const encaissJour   = Number(encaissAgg._sum.montant ?? 0);
     const decaissJour   = Number(decaissAgg._sum.montant ?? 0);
     const transfertJour = Number(transfertAgg._sum.montant ?? 0);
-    const soldeTempsReel = fondsCaisse + montantJour + encaissJour - decaissJour - transfertJour;
+    const soldeTempsReel = fondsCaisse + montantJour + montantRemboursements + encaissJour - decaissJour - transfertJour;
 
     return NextResponse.json({
       success: true,
@@ -332,6 +367,19 @@ export async function GET(req: NextRequest) {
         ventesDirectes: {
           total:   totalVentesDir,
           montant: montantVentesDir,
+          parMode: ventesParMode,
+        },
+        remboursementsCredit: {
+          total:   remboursementsJour.length,
+          montant: montantRemboursements,
+          items:   remboursementsJour.map((r) => ({
+            id:              r.id,
+            creditId:        r.creditId,
+            creditReference: r.credit.reference,
+            clientNom:       r.credit.client ? `${r.credit.client.prenom} ${r.credit.client.nom}` : "—",
+            montant:         Number(r.montant),
+            heure:           new Date(r.dateRemboursement).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }),
+          })),
         },
         stock: {
           total:   produitsAvecStock.length,

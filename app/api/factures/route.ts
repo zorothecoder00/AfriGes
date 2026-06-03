@@ -146,6 +146,7 @@ export async function GET(req: NextRequest) {
           id: true, numero: true, type: true, statut: true,
           clientNom: true, montantTTC: true, montantPaye: true,
           dateEmission: true, emiseParNom: true, modePaiement: true,
+          venteDirecteId: true, creditClientId: true,
         },
       }),
       prisma.factureVente.count({ where }),
