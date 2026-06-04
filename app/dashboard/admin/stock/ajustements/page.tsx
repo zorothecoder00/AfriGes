@@ -92,7 +92,7 @@ export default function AjustementsStockPage() {
 
       {/* Header */}
       <div className="flex items-center gap-4">
-        <Link href="/dashboard/admin/stock" className="p-2 hover:bg-slate-100 rounded-xl transition-colors">
+        <Link href="/dashboard/admin" className="p-2 hover:bg-slate-100 rounded-xl transition-colors">
           <ArrowLeft size={20} className="text-slate-600" />
         </Link>
         <div className="flex-1">

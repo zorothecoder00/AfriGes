@@ -255,6 +255,7 @@ interface ClientSuggestion {
   nom: string;
   prenom: string;
   telephone: string | null;
+  adresse: string | null;
 }
 
 function ClientCombobox({
@@ -262,11 +263,13 @@ function ClientCombobox({
   value,
   onChange,
   onTelChange,
+  onAdresseChange,
 }: {
   searchClientsUrl: string;
   value: string;
   onChange: (nom: string) => void;
   onTelChange: (tel: string) => void;
+  onAdresseChange?: (adresse: string) => void;
 }) {
   const [query,       setQuery]       = useState(value);
   const [suggestions, setSuggestions] = useState<ClientSuggestion[]>([]);
@@ -294,16 +297,18 @@ function ClientCombobox({
       debounceRef.current = setTimeout(async () => {
         setLoading(true);
         try {
-          const url = `${searchClientsUrl}?search=${encodeURIComponent(q)}&limit=8`;
+          const sep = searchClientsUrl.includes("?") ? "&" : "?";
+          const url = `${searchClientsUrl}${sep}search=${encodeURIComponent(q)}&limit=8`;
           const res = await fetch(url);
           if (res.ok) {
             const json = await res.json();
             const items: ClientSuggestion[] = (json.data ?? []).map(
-              (c: { id: number; nom: string; prenom: string; telephone?: string | null }) => ({
+              (c: { id: number; nom: string; prenom: string; telephone?: string | null; adresse?: string | null }) => ({
                 id:        c.id,
                 nom:       c.nom,
                 prenom:    c.prenom,
                 telephone: c.telephone ?? null,
+                adresse:   c.adresse ?? null,
               })
             );
             setSuggestions(items);
@@ -318,7 +323,7 @@ function ClientCombobox({
   );
 
   function handleInput(val: string) {
-    if (selected) onTelChange(""); // vider le tel auto-rempli si l'utilisateur retape
+    if (selected) { onTelChange(""); onAdresseChange?.(""); } // vider le tel/adresse auto-rempli si l'utilisateur retape
     setQuery(val);
     setSelected(false);
     onChange(val);
@@ -333,6 +338,7 @@ function ClientCombobox({
     setSuggestions([]);
     onChange(fullName);
     if (c.telephone) onTelChange(c.telephone);
+    onAdresseChange?.(c.adresse ?? "");
   }
 
   function clearSelection() {
@@ -340,6 +346,7 @@ function ClientCombobox({
     setSelected(false);
     onChange("");
     onTelChange(""); // vider le tel auto-rempli
+    onAdresseChange?.(""); // vider l'adresse auto-remplie
     setSuggestions([]);
     setOpen(false);
   }
@@ -575,9 +582,6 @@ function ProduitCombobox({
 // ─── Impression nouvelle fenêtre ─────────────────────────────────────────────
 
 function printInvoice(f: FactureData) {
-  const win = window.open("", "_blank", "width=900,height=1200");
-  if (!win) return;
-
   const badge = TYPE_BADGE[f.type] ?? TYPE_BADGE.COMPTANT;
   const hasTVA = f.montantTVA > 0;
   const solde = f.montantTTC - f.montantPaye;
@@ -714,9 +718,28 @@ function printInvoice(f: FactureData) {
 
 </body></html>`;
 
-  win.document.write(html);
-  win.document.close();
-  setTimeout(() => win.print(), 300);
+  // Blob URL : ne nécessite pas window.open vide + document.write (bloqué par certains navigateurs/CSP en prod)
+  const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+  const url  = URL.createObjectURL(blob);
+  const win  = window.open(url, "_blank");
+  if (!win) {
+    // Popup bloqué : téléchargement en fallback
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `facture-${f.numero}.html`;
+    a.click();
+  } else {
+    // Lancer l'impression une fois la page chargée
+    win.onload = () => {
+      win.print();
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
+    };
+    // Fallback si onload ne se déclenche pas (certains browsers)
+    setTimeout(() => {
+      try { win.print(); } catch { /* ignoré */ }
+      URL.revokeObjectURL(url);
+    }, 1500);
+  }
 }
 
 // ─── Composant principal ──────────────────────────────────────────────────────
@@ -741,6 +764,7 @@ export default function FactureModal({
   // Pro-forma form state
   const [pfClient,   setPfClient]   = useState(proFormaClientNom);
   const [pfTel,      setPfTel]      = useState("");
+  const [pfAdresse,  setPfAdresse]  = useState("");
   const [pfNotes,    setPfNotes]    = useState("");
   const [pfEcheance, setPfEcheance] = useState("");
   const [pfLignes,   setPfLignes]   = useState<ProFormaLine[]>([
@@ -772,16 +796,29 @@ export default function FactureModal({
       });
 
       if (!res.ok) {
-        const d = await res.json();
-        toast.error(d.error ?? "Erreur lors de la génération");
+        let msg = "Erreur lors de la génération de la facture";
+        try {
+          const d = await res.json();
+          msg = d.error ?? d.message ?? msg;
+        } catch { /* réponse non-JSON (page HTML d'erreur Next.js) */ }
+        toast.error(msg);
         if (!body) onClose();
         return;
       }
 
       const data = await res.json();
+      if (!data.data) {
+        toast.error("Réponse inattendue du serveur");
+        if (!body) onClose();
+        return;
+      }
       setFacture(data.data);
       setStep("preview");
       onGenerated?.(data.data.id);
+    } catch (err) {
+      console.error("generate facture:", err);
+      toast.error("Erreur réseau — impossible de générer la facture");
+      if (!body) onClose();
     } finally {
       setLoading(false);
     }
@@ -798,6 +835,7 @@ export default function FactureModal({
       type:            "PRO_FORMA",
       clientNom:       pfClient.trim(),
       clientTelephone: pfTel.trim() || undefined,
+      clientAdresse:   pfAdresse.trim() || undefined,
       notes:           pfNotes.trim() || undefined,
       dateEcheance:    pfEcheance || undefined,
       lignes: valid.map(l => ({
@@ -862,6 +900,7 @@ export default function FactureModal({
                     value={pfClient}
                     onChange={setPfClient}
                     onTelChange={setPfTel}
+                    onAdresseChange={setPfAdresse}
                   />
                 ) : (
                   <input
@@ -872,14 +911,25 @@ export default function FactureModal({
                   />
                 )}
               </div>
-              <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1">Téléphone</label>
-                <input
-                  value={pfTel}
-                  onChange={e => setPfTel(e.target.value)}
-                  placeholder="+225 …"
-                  className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-amber-300"
-                />
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">Téléphone</label>
+                  <input
+                    value={pfTel}
+                    onChange={e => setPfTel(e.target.value)}
+                    placeholder="+225 …"
+                    className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-amber-300"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">Adresse</label>
+                  <input
+                    value={pfAdresse}
+                    onChange={e => setPfAdresse(e.target.value)}
+                    placeholder="Quartier, ville…"
+                    className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-amber-300"
+                  />
+                </div>
               </div>
             </div>
 

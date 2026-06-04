@@ -5,7 +5,7 @@ import {
   Users, Search, RefreshCw, CheckCircle, XCircle, Clock,
   AlertCircle, User, Phone, MapPin, Briefcase,
   Loader2, Eye, Shield, TrendingUp, Wallet, Edit3,
-  ShoppingBag, CreditCard,
+  ShoppingBag, CreditCard, FileText,
 } from "lucide-react";
 import Link from "next/link";
 import SignOutButton from "@/components/SignOutButton";
@@ -14,6 +14,7 @@ import MessagesLink from "@/components/MessagesLink";
 import DashboardBackButton from "@/components/DashboardBackButton";
 import { useApi, useMutation } from "@/hooks/useApi";
 import { formatDate, formatDateTime, formatCurrency } from "@/lib/format";
+import FactureModal from "@/components/FactureModal";
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type EtatClient = "EN_ATTENTE_VALIDATION" | "ACTIF" | "REJETE" | "INACTIF" | "SUSPENDU" | "BLOQUE";
@@ -542,6 +543,7 @@ export default function RVCPage() {
   const [page,         setPage]         = useState(1);
   const [selected,     setSelected]     = useState<ClientRVC | null>(null);
   const [refreshKey,   setRefreshKey]   = useState(0);
+  const [showProForma, setShowProForma] = useState(false);
 
   const clientsUrl = `/api/rvc/clients?etat=${onglet}&page=${page}&limit=20${search ? `&search=${encodeURIComponent(search)}` : ""}&_k=${refreshKey}`;
   const { data, loading, error } = useApi<ApiResponse>(clientsUrl);
@@ -604,7 +606,7 @@ export default function RVCPage() {
               </div>
               <div>
                 <p className="font-bold text-base">Ventes à Crédit</p>
-                <p className="text-blue-100 text-sm">Gérer les demandes des agents</p>
+                <p className="text-blue-100 text-sm">Approuver ou refuser les demandes de livraison crédit</p>
               </div>
             </div>
             <div className="flex items-center gap-2 text-sm font-semibold bg-white/20 px-4 py-2 rounded-xl group-hover:bg-white/30 transition-colors shrink-0">
@@ -622,7 +624,7 @@ export default function RVCPage() {
               </div>
               <div>
                 <p className="font-bold text-base">Crédits Clients</p>
-                <p className="text-indigo-100 text-sm">Suivre et traiter les lignes de crédit</p>
+                <p className="text-indigo-100 text-sm">Créer, valider et suivre les dossiers de crédit</p>
               </div>
             </div>
             <div className="flex items-center gap-2 text-sm font-semibold bg-white/20 px-4 py-2 rounded-xl group-hover:bg-white/30 transition-colors shrink-0">
@@ -674,6 +676,13 @@ export default function RVCPage() {
             title="Actualiser"
           >
             <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
+          </button>
+          <button
+            onClick={() => setShowProForma(true)}
+            className="flex items-center gap-2 px-4 py-2.5 bg-amber-500 text-white rounded-xl text-sm font-medium hover:bg-amber-600 transition-colors shrink-0"
+          >
+            <FileText size={15} />
+            Pro-forma
           </button>
         </div>
 
@@ -742,6 +751,16 @@ export default function RVCPage() {
           client={selected}
           onClose={() => setSelected(null)}
           onValidated={handleRefresh}
+        />
+      )}
+
+      {/* Modal pro-forma */}
+      {showProForma && (
+        <FactureModal
+          proFormaMode
+          searchClientsUrl="/api/rvc/clients?etat=ACTIF"
+          searchProduitsUrl="/api/rvc/produits"
+          onClose={() => setShowProForma(false)}
         />
       )}
     </div>

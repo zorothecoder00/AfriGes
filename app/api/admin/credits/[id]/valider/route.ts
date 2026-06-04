@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import {
-  MemberStatus, NiveauRisque, PrioriteNotification, Role,
-  StatutCredit, TypeMouvement, TypeSortieStock,
+  MemberStatus, NiveauRisque, PrioriteNotification, Role, StatutCredit,
 } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getRVCSession } from "@/lib/authRVC";
@@ -123,39 +122,49 @@ export async function POST(_req: Request, { params }: Ctx) {
         data: { soldeActuel: { increment: montantTotal } },
       });
 
-      // ── 10. Décrémentation du stock (lignes avec produitId + PDV connu) ───
+      // ── 10. Réservation de stock (quantiteReservee) ───────────────────────
       if (credit.pointDeVenteId) {
-        const lignesAvecProduit = credit.lignes.filter((l) => l.produitId !== null);
-        for (const ligne of lignesAvecProduit) {
-          // Vérifier le stock disponible (quantite - quantiteReservee) avant de décrémenter
-          const stock = await tx.stockSite.findUnique({
-            where: { produitId_pointDeVenteId: { produitId: ligne.produitId!, pointDeVenteId: credit.pointDeVenteId } },
-          });
-          const qteDispo = (stock?.quantite ?? 0) - (stock?.quantiteReservee ?? 0);
-          if (qteDispo < ligne.quantite) {
-            throw new Error(`STOCK_INSUFFISANT:${ligne.produitNom}:${qteDispo}`);
-          }
-
-          await tx.stockSite.updateMany({
-            where: { produitId: ligne.produitId!, pointDeVenteId: credit.pointDeVenteId },
-            data:  { quantite: { decrement: ligne.quantite } },
-          });
-
-          // Journal du mouvement
-          const dateStr = new Date().toISOString().replace(/[-:T.Z]/g, "").slice(0, 14);
-          await tx.mouvementStock.create({
-            data: {
-              produitId:      ligne.produitId!,
-              pointDeVenteId: credit.pointDeVenteId,
-              type:           TypeMouvement.SORTIE,
-              typeSortie:     TypeSortieStock.VENTE_DIRECTE,
-              quantite:       ligne.quantite,
-              prixUnitaire:   ligne.prixUnitaire,
-              motif:          `Crédit validé — ${credit.reference}`,
-              reference:      `MVT-CRD-${creditId}-P${ligne.produitId}-${dateStr}`,
-              operateurId:    Number(session.user.id),
+        for (const ligne of credit.lignes) {
+          if (!ligne.produitId) continue;
+          await tx.stockSite.upsert({
+            where: {
+              produitId_pointDeVenteId: {
+                produitId:      ligne.produitId,
+                pointDeVenteId: credit.pointDeVenteId,
+              },
+            },
+            update: { quantiteReservee: { increment: ligne.quantite } },
+            create: {
+              produitId:        ligne.produitId,
+              pointDeVenteId:   credit.pointDeVenteId,
+              quantite:         0,
+              quantiteReservee: ligne.quantite,
             },
           });
+        }
+
+        // Notifier le magasinier du PDV
+        const produitLignes = credit.lignes.filter((l) => l.produitId);
+        if (produitLignes.length > 0) {
+          const magasiniers = await tx.gestionnaireAffectation.findMany({
+            where: {
+              pointDeVenteId: credit.pointDeVenteId,
+              actif:          true,
+              user: { gestionnaire: { role: "MAGAZINIER", actif: true } },
+            },
+            select: { userId: true },
+          });
+          if (magasiniers.length > 0) {
+            await tx.notification.createMany({
+              data: magasiniers.map((m) => ({
+                userId:    m.userId,
+                titre:     `Livraison requise — crédit ${credit.reference}`,
+                message:   `Crédit ${credit.reference} validé pour ${client.prenom} ${client.nom}. ${produitLignes.length} produit(s) à livrer au client.`,
+                priorite:  PrioriteNotification.HAUTE,
+                actionUrl: `/dashboard/user/magasiniers/ventes-credit`,
+              })),
+            });
+          }
         }
       }
 
@@ -223,13 +232,6 @@ export async function POST(_req: Request, { params }: Ctx) {
       if (map[error.message]) {
         const [msg, status] = map[error.message];
         return NextResponse.json({ message: msg }, { status });
-      }
-      if (error.message.startsWith("STOCK_INSUFFISANT:")) {
-        const [, produitNom, qteDispo] = error.message.split(":");
-        return NextResponse.json(
-          { message: `Stock insuffisant pour "${produitNom}". Disponible : ${qteDispo}, validation impossible.` },
-          { status: 422 }
-        );
       }
     }
     return NextResponse.json({ message: "Erreur lors de la validation du crédit" }, { status: 500 });

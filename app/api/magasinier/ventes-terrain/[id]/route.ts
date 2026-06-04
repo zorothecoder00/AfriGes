@@ -107,20 +107,31 @@ export async function PATCH(_req: Request, { params }: Ctx) {
         : vente.clientNom ?? "Client inconnu";
 
       // Notifier le RPV
+      // Vérifier si le vendeur est bien un agent terrain via ses affectations
+      const vendeurAffectation = vente.vendeurId
+        ? await tx.gestionnaireAffectation.findFirst({
+            where: { userId: vente.vendeurId, actif: true },
+            select: { user: { select: { gestionnaire: { select: { role: true } } } } },
+          })
+        : null;
+      const estVenteAgentTerrain = vendeurAffectation?.user?.gestionnaire?.role === "AGENT_TERRAIN";
+
       await notifyRoles(tx, ["RESPONSABLE_POINT_DE_VENTE"], {
         titre:    `Sortie stock validée — ${vente.reference}`,
-        message:  `Le magasinier ${magasinierNom} a validé la sortie stock pour la vente terrain ${vente.reference} (client : "${clientNom}"). L'agent terrain peut procéder à la livraison.`,
+        message:  `Le magasinier ${magasinierNom} a validé la sortie stock pour la vente ${vente.reference} (client : "${clientNom}"). Les produits sont prêts à être livrés.${estVenteAgentTerrain ? " L'agent terrain peut procéder à la livraison." : ""}`,
         priorite: PrioriteNotification.NORMAL,
         actionUrl:`/dashboard/user/responsablesPointDeVente`,
       });
 
-      // Notifier l'agent terrain pour qu'il procède à la livraison
-      await notifyRoles(tx, ["AGENT_TERRAIN"], {
-        titre:    `Stock prêt — livrez la vente ${vente.reference}`,
-        message:  `Le magasinier ${magasinierNom} a sorti les produits du stock. Vous pouvez maintenant livrer "${clientNom}".`,
-        priorite: PrioriteNotification.HAUTE,
-        actionUrl:`/dashboard/agentTerrain/ventes`,
-      });
+      // Notifier l'agent terrain uniquement si c'est lui qui a fait la vente
+      if (estVenteAgentTerrain && vente.vendeurId) {
+        await notifyRoles(tx, ["AGENT_TERRAIN"], {
+          titre:    `Stock prêt — livrez la vente ${vente.reference}`,
+          message:  `Le magasinier ${magasinierNom} a sorti les produits du stock. Vous pouvez maintenant livrer "${clientNom}".`,
+          priorite: PrioriteNotification.HAUTE,
+          actionUrl:`/dashboard/agentTerrain/ventes`,
+        });
+      }
 
       return result;
     });

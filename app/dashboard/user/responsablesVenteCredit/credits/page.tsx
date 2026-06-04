@@ -5,7 +5,7 @@ import {
   CreditCard, Search, RefreshCw, Loader2, Plus, X, Eye,
   CheckCircle2, AlertCircle, TrendingDown, Calendar, Banknote,
   ChevronLeft, ChevronRight, ChevronDown, ChevronUp, User,
-  PackageCheck, ArrowLeftRight, XCircle, Receipt,
+  PackageCheck, ArrowLeftRight, XCircle, Receipt, Edit3, Trash2,
 } from "lucide-react";
 import Link from "next/link";
 import SignOutButton from "@/components/SignOutButton";
@@ -72,12 +72,14 @@ interface CreditsResponse {
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 
 const STATUT_STYLE: Record<string, string> = {
+  EN_ATTENTE_VALIDATION: "bg-amber-100 text-amber-700",
   ACTIF:     "bg-emerald-100 text-emerald-700",
   EN_RETARD: "bg-red-100 text-red-700",
   SOLDE:     "bg-gray-100 text-gray-600",
   ANNULE:    "bg-gray-50 text-gray-400",
 };
 const STATUT_LABEL: Record<string, string> = {
+  EN_ATTENTE_VALIDATION: "En attente",
   ACTIF:     "Actif",
   EN_RETARD: "En retard",
   SOLDE:     "Soldé",
@@ -108,10 +110,11 @@ export default function RVCCreditsPage() {
   const [page,        setPage]        = useState(1);
   const LIMIT = 20;
 
-  const [detailCredit,  setDetailCredit]  = useState<CreditDetail | null>(null);
-  const [detailLoading, setDetailLoading] = useState(false);
-  const [showEcheances, setShowEcheances] = useState(false);
-  const [factureId,     setFactureId]     = useState<number | null>(null);
+  const [detailCredit,    setDetailCredit]    = useState<CreditDetail | null>(null);
+  const [detailLoading,   setDetailLoading]   = useState(false);
+  const [showEcheances,   setShowEcheances]   = useState(false);
+  const [factureId,       setFactureId]       = useState<number | null>(null);
+  const [validationLoading, setValidationLoading] = useState(false);
 
   // Ligne action states
   const [ligneActionOpen,        setLigneActionOpen]        = useState(false);
@@ -126,6 +129,28 @@ export default function RVCCreditsPage() {
   const [ligneActionLoading,     setLigneActionLoading]     = useState(false);
   const [ligneActionError,       setLigneActionError]       = useState("");
 
+  // ── Refus d'une demande EN_ATTENTE_VALIDATION ──────────────────────────────
+  const [refuserOpen,    setRefuserOpen]    = useState(false);
+  const [refuserMotif,   setRefuserMotif]   = useState("");
+  const [refuserLoading, setRefuserLoading] = useState(false);
+
+  // ── Ajout / Modification d'une ligne (EN_ATTENTE_VALIDATION) ──────────────
+  type LigneEditResults = { id: number; nom: string; reference: string | null; prixVente: string | null }[];
+  const [ligneEditOpen,       setLigneEditOpen]       = useState(false);
+  const [ligneEditId,         setLigneEditId]         = useState<number | null>(null); // null = nouvelle ligne
+  const [ligneEditType,       setLigneEditType]       = useState<"catalogue" | "nouveau">("catalogue");
+  const [ligneEditProdSearch, setLigneEditProdSearch] = useState("");
+  const [ligneEditProdResults,setLigneEditProdResults]= useState<LigneEditResults>([]);
+  const [ligneEditProdLoading,setLigneEditProdLoading]= useState(false);
+  const [ligneEditProdId,     setLigneEditProdId]     = useState("");
+  const [ligneEditProdNom,    setLigneEditProdNom]    = useState("");
+  const [ligneEditNomSaisi,   setLigneEditNomSaisi]   = useState("");
+  const [ligneEditQuantite,   setLigneEditQuantite]   = useState("1");
+  const [ligneEditPrix,       setLigneEditPrix]       = useState("");
+  const [ligneEditLoading,    setLigneEditLoading]    = useState(false);
+  const [ligneEditError,      setLigneEditError]      = useState("");
+  const [deletingLigneId,     setDeletingLigneId]     = useState<number | null>(null);
+
   const query = new URLSearchParams({
     page: String(page), limit: String(LIMIT),
     ...(search && { search }),
@@ -135,6 +160,121 @@ export default function RVCCreditsPage() {
   const { data: res, loading, refetch } = useApi<CreditsResponse>(`/api/rvc/credits?${query}`);
   const credits = res?.data ?? [];
   const meta    = res?.meta;
+
+  const handleValiderCredit = async (creditId: number) => {
+    setValidationLoading(true);
+    try {
+      const r = await fetch(`/api/admin/credits/${creditId}/valider`, { method: "POST" });
+      const j = await r.json();
+      if (r.ok) {
+        toast.success("Crédit validé — stock réservé, magasinier notifié");
+        refetch();
+        await openDetail(creditId);
+      } else {
+        toast.error(j.message ?? "Erreur lors de la validation");
+      }
+    } catch { toast.error("Erreur réseau"); }
+    finally { setValidationLoading(false); }
+  };
+
+  const handleRefuserCredit = async () => {
+    if (!detailCredit) return;
+    setRefuserLoading(true);
+    try {
+      const r = await fetch(`/api/rvc/credits/${detailCredit.id}/refuser`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ motif: refuserMotif || undefined }),
+      });
+      const j = await r.json();
+      if (r.ok) {
+        toast.success("Demande refusée — le demandeur a été notifié");
+        setRefuserOpen(false);
+        setRefuserMotif("");
+        setDetailCredit(null);
+        refetch();
+      } else {
+        toast.error(j.error ?? "Erreur lors du refus");
+      }
+    } catch { toast.error("Erreur réseau"); }
+    finally { setRefuserLoading(false); }
+  };
+
+  const openLigneEdit = (ligneId: number | null, l?: LigneCreditDetail) => {
+    setLigneEditId(ligneId);
+    setLigneEditError("");
+    setLigneEditProdSearch("");
+    setLigneEditProdResults([]);
+    if (l) {
+      setLigneEditType(l.estNouveauProduit ? "nouveau" : "catalogue");
+      setLigneEditProdId(l.produit ? String(l.produit.id) : "");
+      setLigneEditProdNom(l.produit?.nom ?? "");
+      setLigneEditProdSearch(l.produit?.nom ?? "");
+      setLigneEditNomSaisi(l.produitNomSaisi ?? l.produitNom);
+      setLigneEditQuantite(String(l.quantite));
+      setLigneEditPrix(String(Number(l.prixUnitaire)));
+    } else {
+      setLigneEditType("catalogue");
+      setLigneEditProdId("");
+      setLigneEditProdNom("");
+      setLigneEditNomSaisi("");
+      setLigneEditQuantite("1");
+      setLigneEditPrix("");
+    }
+    setLigneEditOpen(true);
+  };
+
+  const handleSaveLigne = async () => {
+    if (!detailCredit) return;
+    if (ligneEditType === "catalogue" && !ligneEditProdId) { setLigneEditError("Sélectionnez un produit"); return; }
+    if (ligneEditType === "nouveau" && !ligneEditNomSaisi.trim()) { setLigneEditError("Saisissez le nom du produit"); return; }
+    if (!ligneEditQuantite || Number(ligneEditQuantite) <= 0) { setLigneEditError("Quantité invalide"); return; }
+    setLigneEditLoading(true);
+    setLigneEditError("");
+    try {
+      const body = {
+        produitId:      ligneEditType === "catalogue" ? Number(ligneEditProdId) : undefined,
+        produitNomSaisi: ligneEditType === "nouveau" ? ligneEditNomSaisi : (ligneEditProdNom || ligneEditNomSaisi),
+        quantite:       Number(ligneEditQuantite),
+        prixUnitaire:   Number(ligneEditPrix || 0),
+      };
+      const url = ligneEditId
+        ? `/api/rvc/credits/${detailCredit.id}/lignes/${ligneEditId}`
+        : `/api/rvc/credits/${detailCredit.id}/lignes`;
+      const r = await fetch(url, {
+        method: ligneEditId ? "PUT" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const j = await r.json();
+      if (r.ok) {
+        toast.success(ligneEditId ? "Ligne modifiée" : "Ligne ajoutée");
+        setLigneEditOpen(false);
+        await openDetail(detailCredit.id);
+        refetch();
+      } else {
+        setLigneEditError(j.error ?? "Erreur");
+      }
+    } catch { setLigneEditError("Erreur réseau"); }
+    finally { setLigneEditLoading(false); }
+  };
+
+  const handleDeleteLigne = async (ligneId: number) => {
+    if (!detailCredit) return;
+    setDeletingLigneId(ligneId);
+    try {
+      const r = await fetch(`/api/rvc/credits/${detailCredit.id}/lignes/${ligneId}`, { method: "DELETE" });
+      const j = await r.json();
+      if (r.ok) {
+        toast.success("Ligne supprimée");
+        await openDetail(detailCredit.id);
+        refetch();
+      } else {
+        toast.error(j.error ?? "Erreur");
+      }
+    } catch { toast.error("Erreur réseau"); }
+    finally { setDeletingLigneId(null); }
+  };
 
   const openDetail = async (id: number) => {
     setDetailLoading(true);
@@ -207,6 +347,23 @@ export default function RVCCreditsPage() {
     return () => clearTimeout(t);
   }, [ligneActionProdSearch, ligneActionStatut]);
 
+  // Recherche produit pour édition/ajout de ligne
+  useEffect(() => {
+    if (ligneEditType !== "catalogue" || ligneEditProdSearch.trim().length < 2) {
+      setLigneEditProdResults([]); return;
+    }
+    setLigneEditProdLoading(true);
+    const t = setTimeout(async () => {
+      try {
+        const r = await fetch(`/api/rvc/produits?search=${encodeURIComponent(ligneEditProdSearch)}&limit=8`);
+        const j = await r.json();
+        setLigneEditProdResults(j.data ?? []);
+      } catch { /* ignore */ }
+      finally { setLigneEditProdLoading(false); }
+    }, 300);
+    return () => clearTimeout(t);
+  }, [ligneEditProdSearch, ligneEditType]);
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Navbar */}
@@ -260,6 +417,7 @@ export default function RVCCreditsPage() {
             <select value={statut} onChange={(e) => { setStatut(e.target.value); setPage(1); }}
               className="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
               <option value="">Tous les statuts</option>
+              <option value="EN_ATTENTE_VALIDATION">En attente</option>
               <option value="ACTIF">Actif</option>
               <option value="EN_RETARD">En retard</option>
               <option value="SOLDE">Soldé</option>
@@ -401,7 +559,25 @@ export default function RVCCreditsPage() {
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                {detailCredit && (
+                {detailCredit?.statut === "EN_ATTENTE_VALIDATION" && (
+                  <>
+                    <button
+                      onClick={() => handleValiderCredit(detailCredit.id)}
+                      disabled={validationLoading}
+                      className="flex items-center gap-1 px-2.5 py-1.5 text-xs bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50 rounded-lg font-medium"
+                    >
+                      {validationLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
+                      Valider
+                    </button>
+                    <button
+                      onClick={() => { setRefuserMotif(""); setRefuserOpen(true); }}
+                      className="flex items-center gap-1 px-2.5 py-1.5 text-xs bg-red-100 text-red-700 hover:bg-red-200 rounded-lg font-medium"
+                    >
+                      <XCircle className="w-3.5 h-3.5" /> Refuser
+                    </button>
+                  </>
+                )}
+                {detailCredit && detailCredit.statut !== "EN_ATTENTE_VALIDATION" && (
                   <button onClick={() => setFactureId(detailCredit.id)}
                     className="flex items-center gap-1 px-2.5 py-1.5 text-xs border border-emerald-200 text-emerald-700 hover:bg-emerald-50 rounded-lg">
                     <Receipt className="w-3.5 h-3.5" /> Facture
@@ -448,11 +624,21 @@ export default function RVCCreditsPage() {
                 </div>
 
                 {/* Lignes produits */}
-                {detailCredit.lignes.length > 0 && (
-                  <div>
-                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
                       Produits ({detailCredit.lignes.length})
                     </p>
+                    {detailCredit.statut === "EN_ATTENTE_VALIDATION" && (
+                      <button
+                        onClick={() => openLigneEdit(null)}
+                        className="flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-800 font-medium"
+                      >
+                        <Plus className="w-3.5 h-3.5" /> Ajouter
+                      </button>
+                    )}
+                  </div>
+                  {detailCredit.lignes.length > 0 ? (
                     <div className="space-y-2">
                       {detailCredit.lignes.map((l) => (
                         <div key={l.id} className="bg-gray-50 rounded-lg px-3 py-2.5 text-sm">
@@ -463,12 +649,39 @@ export default function RVCCreditsPage() {
                               {l.estNouveauProduit && (
                                 <span className="ml-1.5 text-xs bg-purple-100 text-purple-600 px-1.5 py-0.5 rounded-full font-medium">nouveau</span>
                               )}
+                              {Number(l.prixUnitaire) > 0 && (
+                                <span className="ml-1.5 text-xs text-gray-400">{formatCurrency(Number(l.prixUnitaire))}/u</span>
+                              )}
                             </div>
                             <div className="flex items-center gap-2 flex-shrink-0">
-                              <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${LIGNE_STATUT_STYLE[l.statut] ?? "bg-gray-100 text-gray-500"}`}>
-                                {LIGNE_STATUT_LABEL[l.statut] ?? l.statut}
-                              </span>
+                              {detailCredit.statut !== "EN_ATTENTE_VALIDATION" && (
+                                <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${LIGNE_STATUT_STYLE[l.statut] ?? "bg-gray-100 text-gray-500"}`}>
+                                  {LIGNE_STATUT_LABEL[l.statut] ?? l.statut}
+                                </span>
+                              )}
                               <span className="font-medium text-gray-800 text-xs">{formatCurrency(Number(l.montantLigne))}</span>
+                              {/* Actions EN_ATTENTE_VALIDATION : modifier / supprimer */}
+                              {detailCredit.statut === "EN_ATTENTE_VALIDATION" && (
+                                <>
+                                  <button
+                                    onClick={() => openLigneEdit(l.id, l)}
+                                    className="p-1 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors"
+                                    title="Modifier"
+                                  >
+                                    <Edit3 className="w-3.5 h-3.5" />
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeleteLigne(l.id)}
+                                    disabled={deletingLigneId === l.id}
+                                    className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors disabled:opacity-50"
+                                    title="Supprimer"
+                                  >
+                                    {deletingLigneId === l.id
+                                      ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                      : <Trash2 className="w-3.5 h-3.5" />}
+                                  </button>
+                                </>
+                              )}
                             </div>
                           </div>
 
@@ -486,7 +699,8 @@ export default function RVCCreditsPage() {
                           )}
                           {l.notes && <div className="mt-1 text-xs text-gray-500 italic">{l.notes}</div>}
 
-                          {l.statut === "EN_ATTENTE" && (
+                          {/* Actions ACTIF/EN_RETARD : livraison */}
+                          {detailCredit.statut !== "EN_ATTENTE_VALIDATION" && l.statut === "EN_ATTENTE" && (
                             <div className="mt-2 flex flex-wrap gap-1">
                               <button onClick={() => openLigneAction(detailCredit.id, l.id, "LIVRE")}
                                 className="flex items-center gap-1 px-2 py-1 text-xs bg-emerald-100 text-emerald-700 hover:bg-emerald-200 rounded-lg font-medium">
@@ -506,7 +720,7 @@ export default function RVCCreditsPage() {
                               </button>
                             </div>
                           )}
-                          {(l.statut === "INDISPONIBLE" || l.statut === "SUBSTITUE") && (
+                          {detailCredit.statut !== "EN_ATTENTE_VALIDATION" && (l.statut === "INDISPONIBLE" || l.statut === "SUBSTITUE") && (
                             <div className="mt-2">
                               <button onClick={() => openLigneAction(detailCredit.id, l.id, "ANNULE")}
                                 className="flex items-center gap-1 px-2 py-1 text-xs bg-red-100 text-red-600 hover:bg-red-200 rounded-lg font-medium">
@@ -517,8 +731,10 @@ export default function RVCCreditsPage() {
                         </div>
                       ))}
                     </div>
-                  </div>
-                )}
+                  ) : (
+                    <p className="text-xs text-gray-400 italic">Aucune ligne — ajoutez des produits.</p>
+                  )}
+                </div>
 
                 {/* Échéancier */}
                 {detailCredit.echeances.length > 0 && (
@@ -681,6 +897,180 @@ export default function RVCCreditsPage() {
 
       {factureId !== null && (
         <FactureModal creditClientId={factureId} onClose={() => setFactureId(null)} />
+      )}
+
+      {/* ── Modal refus ────────────────────────────────────────────────────────── */}
+      {refuserOpen && detailCredit && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[200] p-4">
+          <div className="bg-white rounded-2xl w-full max-w-md shadow-xl">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+              <div className="flex items-center gap-2">
+                <XCircle className="w-5 h-5 text-red-500" />
+                <h3 className="text-base font-bold text-gray-900">Refuser la demande</h3>
+              </div>
+              <button onClick={() => setRefuserOpen(false)} className="text-gray-400 hover:text-gray-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="px-6 py-4 space-y-3">
+              <p className="text-sm text-gray-600">
+                La demande <span className="font-semibold">{detailCredit.reference}</span> sera annulée et le demandeur sera notifié.
+              </p>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Motif du refus (optionnel)</label>
+                <textarea
+                  rows={3}
+                  value={refuserMotif}
+                  onChange={(e) => setRefuserMotif(e.target.value)}
+                  placeholder="Expliquez la raison du refus…"
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-400 resize-none bg-gray-50"
+                />
+              </div>
+            </div>
+            <div className="flex justify-end gap-3 px-6 py-4 border-t border-gray-100">
+              <button onClick={() => setRefuserOpen(false)}
+                className="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">
+                Annuler
+              </button>
+              <button onClick={handleRefuserCredit} disabled={refuserLoading}
+                className="flex items-center gap-2 px-5 py-2 text-sm text-white bg-red-600 hover:bg-red-700 rounded-lg font-medium disabled:opacity-50">
+                {refuserLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4" />}
+                Confirmer le refus
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal ajout / édition ligne ────────────────────────────────────────── */}
+      {ligneEditOpen && detailCredit && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[200] p-4">
+          <div className="bg-white rounded-2xl w-full max-w-md shadow-xl">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+              <h3 className="text-base font-bold text-gray-900">
+                {ligneEditId ? "Modifier la ligne" : "Ajouter une ligne"}
+              </h3>
+              <button onClick={() => setLigneEditOpen(false)} className="text-gray-400 hover:text-gray-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="px-6 py-4 space-y-4">
+              {ligneEditError && (
+                <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-lg px-3 py-2 text-red-700 text-sm">
+                  <AlertCircle className="w-4 h-4 flex-shrink-0" />{ligneEditError}
+                </div>
+              )}
+
+              {/* Type catalogue / nouveau */}
+              <div className="flex gap-2">
+                {(["catalogue", "nouveau"] as const).map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => { setLigneEditType(t); setLigneEditProdId(""); setLigneEditProdNom(""); setLigneEditProdSearch(""); }}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                      ligneEditType === t ? (t === "catalogue" ? "bg-indigo-600 text-white" : "bg-purple-600 text-white") : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                    }`}
+                  >
+                    {t === "catalogue" ? "Catalogue" : "Nouveau produit"}
+                  </button>
+                ))}
+              </div>
+
+              {/* Produit */}
+              {ligneEditType === "catalogue" ? (
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Produit *</label>
+                  {ligneEditProdId ? (
+                    <div className="flex items-center justify-between px-3 py-2 bg-indigo-50 border border-indigo-200 rounded-lg">
+                      <span className="text-sm font-medium text-indigo-800">{ligneEditProdNom}</span>
+                      <button onClick={() => { setLigneEditProdId(""); setLigneEditProdNom(""); setLigneEditProdSearch(""); }}
+                        className="text-indigo-400 hover:text-indigo-600 ml-2"><X className="w-3.5 h-3.5" /></button>
+                    </div>
+                  ) : (
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                      <input type="text" value={ligneEditProdSearch}
+                        onChange={(e) => setLigneEditProdSearch(e.target.value)}
+                        placeholder="Rechercher…"
+                        className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-gray-50"
+                      />
+                      {(ligneEditProdLoading || ligneEditProdResults.length > 0) && (
+                        <div className="absolute z-10 top-full mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                          {ligneEditProdLoading ? (
+                            <div className="flex items-center gap-2 px-3 py-3 text-sm text-gray-400">
+                              <Loader2 className="w-4 h-4 animate-spin" /> Recherche…
+                            </div>
+                          ) : ligneEditProdResults.map((p) => (
+                            <button key={p.id} type="button"
+                              onClick={() => {
+                                setLigneEditProdId(String(p.id));
+                                setLigneEditProdNom(p.nom);
+                                setLigneEditProdSearch(p.nom);
+                                setLigneEditProdResults([]);
+                                if (p.prixVente) setLigneEditPrix(String(Number(p.prixVente)));
+                              }}
+                              className="w-full text-left px-3 py-2.5 hover:bg-indigo-50 text-sm border-b border-gray-50 last:border-0">
+                              <span className="font-medium text-gray-800">{p.nom}</span>
+                              {p.reference && <span className="ml-2 text-xs text-gray-400 font-mono">{p.reference}</span>}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Nom du produit *</label>
+                  <input type="text" value={ligneEditNomSaisi}
+                    onChange={(e) => setLigneEditNomSaisi(e.target.value)}
+                    placeholder="Nom du produit à créer…"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 bg-gray-50"
+                  />
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Quantité *</label>
+                  <input type="number" value={ligneEditQuantite}
+                    onChange={(e) => setLigneEditQuantite(e.target.value)}
+                    min={1} placeholder="1"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-gray-50"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Prix unitaire (FCFA)</label>
+                  <input type="number" value={ligneEditPrix}
+                    onChange={(e) => setLigneEditPrix(e.target.value)}
+                    min={0} placeholder="0"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-gray-50"
+                  />
+                </div>
+              </div>
+
+              {ligneEditQuantite && ligneEditPrix && (
+                <p className="text-xs text-right text-gray-500">
+                  Sous-total : <span className="font-semibold text-gray-700">
+                    {formatCurrency(Number(ligneEditQuantite) * Number(ligneEditPrix))}
+                  </span>
+                </p>
+              )}
+            </div>
+            <div className="flex justify-end gap-3 px-6 py-4 border-t border-gray-100">
+              <button onClick={() => setLigneEditOpen(false)}
+                className="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">
+                Annuler
+              </button>
+              <button onClick={handleSaveLigne} disabled={ligneEditLoading}
+                className="flex items-center gap-2 px-5 py-2 text-sm text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg font-medium disabled:opacity-50">
+                {ligneEditLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                {ligneEditId ? "Enregistrer" : "Ajouter"}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

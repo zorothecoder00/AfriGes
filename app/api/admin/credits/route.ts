@@ -168,6 +168,29 @@ export async function POST(req: Request) {
       const count   = await tx.creditClient.count();
       const reference = `CRD-${dateStr}-${String(count + 1).padStart(4, "0")}`;
 
+      // ── Réservation de stock (EN_ATTENTE_VALIDATION) ─────────────────────
+      // Incrémenter quantiteReservee pour bloquer le stock en attente de validation
+      if (pointDeVenteId) {
+        for (const l of lignesCalculees) {
+          if (!l.produitId) continue;
+          await tx.stockSite.upsert({
+            where: {
+              produitId_pointDeVenteId: {
+                produitId:      Number(l.produitId),
+                pointDeVenteId: Number(pointDeVenteId),
+              },
+            },
+            update: { quantiteReservee: { increment: l.qte } },
+            create: {
+              produitId:       Number(l.produitId),
+              pointDeVenteId:  Number(pointDeVenteId),
+              quantite:        0,
+              quantiteReservee: l.qte,
+            },
+          });
+        }
+      }
+
       // ── Création du crédit ────────────────────────────────────────────────
       const credit = await tx.creditClient.create({
         data: {
@@ -214,33 +237,44 @@ export async function POST(req: Request) {
       });
 
       // ── Notifications ──────────────────────────────────────────────────────
-      const destSet = new Map<number, true>();
+      const msgNotif = `Un crédit de ${montantTotal.toLocaleString("fr-FR")} FCFA a été créé pour ${client.prenom} ${client.nom} (${reference}). En attente de validation.`;
 
+      // Admins → page admin
       const admins = await tx.user.findMany({
         where: { role: { in: [Role.ADMIN, Role.SUPER_ADMIN] } },
         select: { id: true },
       });
-      admins.forEach((u) => destSet.set(u.id, true));
+      if (admins.length > 0) {
+        await tx.notification.createMany({
+          data: admins.map((u) => ({
+            userId:   u.id,
+            titre:    "Nouveau crédit en attente de validation",
+            message:  msgNotif,
+            priorite: PrioriteNotification.HAUTE,
+            actionUrl: `/dashboard/admin/credits`,
+          })),
+        });
+      }
 
-      // Gestionnaires du PDV (RVC, RPV…)
+      // Gestionnaires du PDV (RVC, RPV…) → leur page dédiée
       if (pointDeVenteId) {
+        const adminIds = new Set(admins.map((u) => u.id));
         const pdvGest = await tx.gestionnaireAffectation.findMany({
           where: { pointDeVenteId: Number(pointDeVenteId), actif: true },
           select: { userId: true },
         });
-        pdvGest.forEach((g) => destSet.set(g.userId, true));
-      }
-
-      if (destSet.size > 0) {
-        await tx.notification.createMany({
-          data: [...destSet.keys()].map((userId) => ({
-            userId,
-            titre:    "Nouveau crédit en attente de validation",
-            message:  `Un crédit de ${montantTotal.toLocaleString("fr-FR")} FCFA a été créé pour ${client.prenom} ${client.nom} (${reference}).`,
-            priorite: PrioriteNotification.HAUTE,
-            actionUrl: `/dashboard/admin/credits/${credit.id}`,
-          })),
-        });
+        const pdvNonAdmins = pdvGest.filter((g) => !adminIds.has(g.userId));
+        if (pdvNonAdmins.length > 0) {
+          await tx.notification.createMany({
+            data: pdvNonAdmins.map((g) => ({
+              userId:   g.userId,
+              titre:    "Nouveau crédit en attente de validation",
+              message:  msgNotif,
+              priorite: PrioriteNotification.HAUTE,
+              actionUrl: `/dashboard/user/responsablesVenteCredit/credits`,
+            })),
+          });
+        }
       }
 
       return credit;

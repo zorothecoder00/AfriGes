@@ -4,7 +4,7 @@ import React, { useState, useCallback } from "react";
 import {
   PackageCheck, RefreshCw, AlertCircle, Loader2, Package,
   Truck, CheckCircle, ChevronDown, ChevronUp, CreditCard,
-  User, AlertTriangle,
+  User, AlertTriangle, Banknote,
 } from "lucide-react";
 import SignOutButton from "@/components/SignOutButton";
 import NotificationBell from "@/components/NotificationBell";
@@ -49,6 +49,32 @@ interface ApiResponse {
   aConfirmer: VenteLivraison[];
   livreesRecentes: VenteLivraison[];
   totalAConfirmer: number;
+}
+
+// ─── Types crédits RVC ──────────────────────────────────────────────────────────
+
+interface LigneCreditEnAttente {
+  id: number;
+  produitNom: string;
+  quantite: number;
+  statut: string;
+  estNouveauProduit: boolean;
+  unite: string | null;
+}
+
+interface CreditRVC {
+  id: number;
+  reference: string;
+  montantTotal: number;
+  createdAt: string;
+  client: { id: number; nom: string; telephone: string | null } | null;
+  creePar: string | null;
+  lignesEnAttente: LigneCreditEnAttente[];
+}
+
+interface CreditsRVCResponse {
+  data: CreditRVC[];
+  total: number;
 }
 
 // ─── Carte livraison ────────────────────────────────────────────────────────────
@@ -180,19 +206,108 @@ function LivraisonCard({
   );
 }
 
+// ─── Carte crédit à livrer ──────────────────────────────────────────────────────
+
+function CreditLivraisonCard({
+  credit,
+  onLivrer,
+  loadingLigneId,
+}: {
+  credit: CreditRVC;
+  onLivrer: (creditId: number, ligneId: number) => void;
+  loadingLigneId: number | null;
+}) {
+  const [open, setOpen] = useState(true);
+
+  return (
+    <div className="bg-white rounded-2xl border border-indigo-100 shadow-sm p-5 space-y-3">
+      {/* En-tête */}
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="flex items-center gap-2 mb-1 flex-wrap">
+            <p className="font-semibold text-gray-900">{credit.reference}</p>
+            <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-100 text-indigo-800">
+              {credit.lignesEnAttente.length} ligne(s) en attente
+            </span>
+          </div>
+          <p className="text-xs text-gray-500">
+            {formatDate(credit.createdAt)}{credit.creePar ? ` · Créé par ${credit.creePar}` : ""}
+          </p>
+        </div>
+        <p className="text-lg font-bold text-gray-900 flex-shrink-0 flex items-center gap-1">
+          <Banknote size={15} className="text-indigo-400" />
+          {formatCurrency(credit.montantTotal)}
+        </p>
+      </div>
+
+      {/* Client */}
+      {credit.client && (
+        <div className="flex items-center gap-2 text-sm text-gray-700">
+          <User size={13} className="text-gray-400" />
+          <span className="font-medium">{credit.client.nom}</span>
+          {credit.client.telephone && <span className="text-gray-400 text-xs">{credit.client.telephone}</span>}
+        </div>
+      )}
+
+      {/* Lignes */}
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-700"
+      >
+        {open ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+        Produits à livrer ({credit.lignesEnAttente.length})
+      </button>
+
+      {open && (
+        <div className="space-y-2">
+          {credit.lignesEnAttente.map((l) => (
+            <div key={l.id} className="flex items-center justify-between gap-3 bg-indigo-50 rounded-xl px-3 py-2.5">
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium text-gray-800 truncate">{l.produitNom}</p>
+                <p className="text-xs text-gray-500">
+                  Quantité : {l.quantite}{l.unite ? ` ${l.unite}` : ""}
+                  {l.estNouveauProduit && (
+                    <span className="ml-1.5 bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded-full text-xs">hors catalogue</span>
+                  )}
+                </p>
+              </div>
+              <button
+                onClick={() => onLivrer(credit.id, l.id)}
+                disabled={loadingLigneId === l.id}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-semibold hover:bg-emerald-700 disabled:opacity-50 shrink-0 transition-colors"
+              >
+                {loadingLigneId === l.id
+                  ? <Loader2 size={13} className="animate-spin" />
+                  : <PackageCheck size={13} />}
+                Livré
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Page principale ────────────────────────────────────────────────────────────
 
 export default function MagasinierVentesCreditPage() {
-  const [onglet,     setOnglet]     = useState<"aConfirmer" | "historique">("aConfirmer");
-  const [refreshKey, setRefreshKey] = useState(0);
-  const [loadingId,  setLoadingId]  = useState<number | null>(null);
+  const [onglet,       setOnglet]       = useState<"aConfirmer" | "creditsRVC" | "historique">("aConfirmer");
+  const [refreshKey,   setRefreshKey]   = useState(0);
+  const [loadingId,    setLoadingId]    = useState<number | null>(null);
+  const [loadingLigne, setLoadingLigne] = useState<number | null>(null);
 
   const url = `/api/magasinier/ventes-credit?_k=${refreshKey}`;
   const { data, loading, error } = useApi<ApiResponse>(url);
 
-  const aConfirmer     = data?.aConfirmer ?? [];
+  const urlCredits = `/api/magasinier/credits?_k=${refreshKey}`;
+  const { data: creditsData, loading: creditsLoading, error: creditsError } = useApi<CreditsRVCResponse>(urlCredits);
+
+  const aConfirmer      = data?.aConfirmer ?? [];
   const livreesRecentes = data?.livreesRecentes ?? [];
   const totalAConfirmer = data?.totalAConfirmer ?? 0;
+  const creditsALivrer      = creditsData?.data ?? [];
+  const totalCreditsALivrer = creditsData?.total ?? 0;
 
   const handleRefresh = useCallback(() => setRefreshKey((k) => k + 1), []);
 
@@ -212,6 +327,22 @@ export default function MagasinierVentesCreditPage() {
     }
   }, [handleRefresh]);
 
+  const handleLivrerLigne = useCallback(async (creditId: number, ligneId: number) => {
+    setLoadingLigne(ligneId);
+    try {
+      const res  = await fetch(`/api/magasinier/credits/${creditId}/lignes/${ligneId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({}) });
+      const json = await res.json();
+      if (res.ok) {
+        toast.success("Livraison confirmée");
+        handleRefresh();
+      } else {
+        toast.error(json.error ?? "Erreur");
+      }
+    } finally {
+      setLoadingLigne(null);
+    }
+  }, [handleRefresh]);
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Navbar */}
@@ -228,9 +359,9 @@ export default function MagasinierVentesCreditPage() {
                   <h1 className="text-base font-bold text-gray-900">Livraisons Crédit</h1>
                   <p className="text-xs text-gray-500">Magasinier</p>
                 </div>
-                {totalAConfirmer > 0 && (
+                {(totalAConfirmer + totalCreditsALivrer) > 0 && (
                   <span className="ml-1 px-2 py-0.5 rounded-full bg-orange-500 text-white text-xs font-bold">
-                    {totalAConfirmer}
+                    {totalAConfirmer + totalCreditsALivrer}
                   </span>
                 )}
               </div>
@@ -246,7 +377,7 @@ export default function MagasinierVentesCreditPage() {
 
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
         {/* Onglets */}
-        <div className="flex items-center gap-1 bg-white rounded-xl border border-gray-200 p-1 w-fit">
+        <div className="flex items-center gap-1 bg-white rounded-xl border border-gray-200 p-1 flex-wrap">
           <button
             onClick={() => setOnglet("aConfirmer")}
             className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
@@ -254,12 +385,28 @@ export default function MagasinierVentesCreditPage() {
             }`}
           >
             <Truck size={15} />
-            À confirmer
+            Ventes crédit
             {totalAConfirmer > 0 && (
               <span className={`ml-1 px-1.5 py-0.5 rounded-full text-xs font-bold ${
                 onglet === "aConfirmer" ? "bg-white text-green-600" : "bg-orange-100 text-orange-700"
               }`}>
                 {totalAConfirmer}
+              </span>
+            )}
+          </button>
+          <button
+            onClick={() => setOnglet("creditsRVC")}
+            className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              onglet === "creditsRVC" ? "bg-indigo-600 text-white shadow-sm" : "text-gray-600 hover:bg-gray-50"
+            }`}
+          >
+            <CreditCard size={15} />
+            Crédits à livrer
+            {totalCreditsALivrer > 0 && (
+              <span className={`ml-1 px-1.5 py-0.5 rounded-full text-xs font-bold ${
+                onglet === "creditsRVC" ? "bg-white text-indigo-600" : "bg-indigo-100 text-indigo-700"
+              }`}>
+                {totalCreditsALivrer}
               </span>
             )}
           </button>
@@ -276,7 +423,7 @@ export default function MagasinierVentesCreditPage() {
             onClick={handleRefresh}
             className="ml-2 p-2 border border-gray-200 rounded-lg hover:bg-gray-50 text-gray-500"
           >
-            <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
+            <RefreshCw size={14} className={(loading || creditsLoading) ? "animate-spin" : ""} />
           </button>
         </div>
 
@@ -311,6 +458,42 @@ export default function MagasinierVentesCreditPage() {
                     vente={v}
                     onConfirmer={handleConfirmer}
                     loading={loadingId === v.id}
+                  />
+                ))}
+              </div>
+            )}
+          </>
+        )}
+
+        {/* Crédits clients à livrer */}
+        {onglet === "creditsRVC" && (
+          <>
+            {creditsLoading && (
+              <div className="flex justify-center py-16">
+                <Loader2 size={28} className="animate-spin text-indigo-500" />
+              </div>
+            )}
+            {creditsError && !creditsLoading && (
+              <div className="flex items-center gap-2 p-4 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">
+                <AlertCircle size={16} /> {creditsError}
+              </div>
+            )}
+            {!creditsLoading && !creditsError && creditsALivrer.length === 0 && (
+              <div className="flex flex-col items-center justify-center py-20 text-gray-400">
+                <PackageCheck size={48} className="mb-3 opacity-30" />
+                <p className="text-base font-medium">Aucun crédit en attente de livraison</p>
+                <p className="text-sm mt-1">Tous les produits des crédits actifs ont été livrés.</p>
+              </div>
+            )}
+            {!creditsLoading && !creditsError && creditsALivrer.length > 0 && (
+              <div className="space-y-4">
+                <p className="text-sm text-gray-500">{totalCreditsALivrer} crédit(s) avec des livraisons en attente</p>
+                {creditsALivrer.map((credit) => (
+                  <CreditLivraisonCard
+                    key={credit.id}
+                    credit={credit}
+                    onLivrer={handleLivrerLigne}
+                    loadingLigneId={loadingLigne}
                   />
                 ))}
               </div>

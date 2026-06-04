@@ -1723,9 +1723,9 @@ export default function AgentTerrainPage() {
           <div className="flex items-center gap-2">
             <Link
               href="/dashboard/user/agentsTerrain/ventes-credit"
-              className="px-4 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-semibold hover:bg-blue-700 transition-colors flex items-center gap-2 shadow-sm"
+              className="px-4 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-semibold hover:bg-indigo-700 transition-colors flex items-center gap-2 shadow-sm"
             >
-              <CreditCard size={16} /> Mes ventes à crédit
+              <CreditCard size={16} /> Crédits Clients
             </Link>
             <button onClick={refetchAll} className="px-5 py-3 bg-white border border-slate-200 rounded-xl text-slate-700 hover:bg-slate-50 transition-all shadow-sm flex items-center gap-2 font-medium">
               <RefreshCw size={18} /> {t('refresh')}

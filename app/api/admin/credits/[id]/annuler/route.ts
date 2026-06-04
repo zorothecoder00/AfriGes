@@ -43,7 +43,7 @@ export async function POST(req: Request, { params }: Ctx) {
         include: {
           client: { select: { id: true, nom: true, prenom: true } },
           lignes: {
-            select: { id: true, produitId: true, produitNom: true, quantite: true, prixUnitaire: true },
+            select: { id: true, produitId: true, produitNom: true, quantite: true, prixUnitaire: true, statut: true },
           },
         },
       });
@@ -61,6 +61,17 @@ export async function POST(req: Request, { params }: Ctx) {
         throw new Error("REJET_IMPOSSIBLE");
       }
 
+      // ── Libération de la réservation si EN_ATTENTE_VALIDATION ────────────
+      if (credit.statut === StatutCredit.EN_ATTENTE_VALIDATION && credit.pointDeVenteId) {
+        const lignesAvecProduit = credit.lignes.filter((l) => l.produitId !== null);
+        for (const ligne of lignesAvecProduit) {
+          await tx.stockSite.updateMany({
+            where: { produitId: ligne.produitId!, pointDeVenteId: credit.pointDeVenteId! },
+            data:  { quantiteReservee: { decrement: ligne.quantite } },
+          });
+        }
+      }
+
       // ── Inversion du soldeActuel si le crédit était déjà ACTIF/EN_RETARD ─
       const creditActif =
         credit.statut === StatutCredit.ACTIF ||
@@ -72,29 +83,41 @@ export async function POST(req: Request, { params }: Ctx) {
           data: { soldeActuel: { decrement: Number(credit.soldeRestant) } },
         });
 
-        // ── Restauration du stock (lignes avec produitId + PDV connu) ──────
+        // ── Correction du stock selon le statut réel de chaque ligne ─────────
+        // LIVRE     → le stock a déjà été décrémenté, on le restaure (retour client)
+        // non-LIVRE → uniquement réservé, on libère la réservation
         if (credit.pointDeVenteId) {
-          const lignesAvecProduit = credit.lignes.filter((l) => l.produitId !== null);
-          for (const ligne of lignesAvecProduit) {
-            await tx.stockSite.updateMany({
-              where: { produitId: ligne.produitId!, pointDeVenteId: credit.pointDeVenteId! },
-              data:  { quantite: { increment: ligne.quantite } },
-            });
-
+          for (const ligne of credit.lignes) {
+            if (!ligne.produitId) continue;
             const dateStr = new Date().toISOString().replace(/[-:T.Z]/g, "").slice(0, 14);
-            await tx.mouvementStock.create({
-              data: {
-                produitId:      ligne.produitId!,
-                pointDeVenteId: credit.pointDeVenteId!,
-                type:           TypeMouvement.ENTREE,
-                typeEntree:     TypeEntreeStock.RETOUR_CLIENT,
-                quantite:       ligne.quantite,
-                prixUnitaire:   ligne.prixUnitaire,
-                motif:          `Annulation crédit — ${credit.reference}`,
-                reference:      `MVT-ANN-${creditId}-P${ligne.produitId}-${dateStr}`,
-                operateurId:    Number(session.user.id),
-              },
-            });
+
+            if (ligne.statut === "LIVRE") {
+              // Restauration physique : le stock avait été décrémenté à la livraison
+              await tx.stockSite.updateMany({
+                where: { produitId: ligne.produitId, pointDeVenteId: credit.pointDeVenteId! },
+                data:  { quantite: { increment: ligne.quantite } },
+              });
+              await tx.mouvementStock.create({
+                data: {
+                  produitId:      ligne.produitId,
+                  pointDeVenteId: credit.pointDeVenteId!,
+                  type:           TypeMouvement.ENTREE,
+                  typeEntree:     TypeEntreeStock.RETOUR_CLIENT,
+                  quantite:       ligne.quantite,
+                  prixUnitaire:   ligne.prixUnitaire,
+                  motif:          `Annulation crédit — ${credit.reference}`,
+                  reference:      `MVT-ANN-${creditId}-P${ligne.produitId}-${dateStr}`,
+                  operateurId:    Number(session.user.id),
+                },
+              });
+            } else if (ligne.statut === "EN_ATTENTE") {
+              // Libération de la réservation uniquement (pas encore livré)
+              await tx.stockSite.updateMany({
+                where: { produitId: ligne.produitId, pointDeVenteId: credit.pointDeVenteId! },
+                data:  { quantiteReservee: { decrement: ligne.quantite } },
+              });
+            }
+            // INDISPONIBLE / SUBSTITUE / ANNULE → réservation déjà libérée, rien à faire
           }
         }
       }

@@ -481,7 +481,7 @@ export default function MagasinierPage() {
     useMutation<unknown, object>(
       () => livrantVenteIdRef.current ? `/api/magasinier/ventes-terrain/${livrantVenteIdRef.current}` : '',
       'PATCH',
-      { successMessage: 'Sortie stock confirmée — l\'agent terrain peut procéder à la livraison !' }
+      { successMessage: 'Sortie de stock confirmée avec succès' }
     );
   const handleLivrerVente = async (id: number) => {
     livrantVenteIdRef.current = id;

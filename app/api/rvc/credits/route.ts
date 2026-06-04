@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getRVCSession } from "@/lib/authRVC";
-import { MemberStatus, NiveauRisque, Prisma, StatutCredit, PrioriteNotification, Role, TypeMouvement, TypeSortieStock } from "@prisma/client";
+import { MemberStatus, NiveauRisque, Prisma, StatutCredit, PrioriteNotification, Role } from "@prisma/client";
 import { notifyRoles, notifyAdmins, auditLog } from "@/lib/notifications";
 import { randomUUID } from "crypto";
 
@@ -162,14 +162,19 @@ export async function POST(req: Request) {
         if (produitIds.length > 0) {
           const stocks = await tx.stockSite.findMany({
             where: { produitId: { in: produitIds }, pointDeVenteId: rvcPdvId },
-            select: { produitId: true, quantite: true, produit: { select: { nom: true } } },
+            select: { produitId: true, quantite: true, quantiteReservee: true, produit: { select: { nom: true } } },
           });
-          const stockMap = new Map(stocks.map((s) => [s.produitId, { quantite: s.quantite, nom: s.produit.nom }]));
+          const stockMap = new Map(stocks.map((s) => [s.produitId, {
+            quantite:         s.quantite,
+            quantiteReservee: s.quantiteReservee,
+            nom:              s.produit.nom,
+          }]));
 
           for (const l of lignesCalc) {
             if (!l.produitId) continue;
             const stockInfo = stockMap.get(Number(l.produitId));
-            const stockDispo = stockInfo?.quantite ?? 0;
+            // Disponible = quantite physique - déjà réservé par d'autres crédits
+            const stockDispo = Math.max(0, (stockInfo?.quantite ?? 0) - (stockInfo?.quantiteReservee ?? 0));
             if (l.qte > stockDispo) {
               ruptures.push({
                 produitId:        Number(l.produitId),
@@ -252,9 +257,8 @@ export async function POST(req: Request) {
         data: { soldeActuel: { increment: montantTotal } },
       });
 
-      // ── Décrémentation du stock pour les lignes non-en-rupture ─────────────
-      // Les lignes en rupture sont couvertes par la CommandeInterne créée plus bas.
-      // Ici on sort seulement les lignes dont le stock était suffisant.
+      // ── Réservation de stock pour les lignes non-en-rupture ────────────────
+      // Le stock physique (quantite) ne sera débité qu'à la livraison physique (magasinier).
       if (rvcPdvId) {
         const ruptureIds = new Set(ruptures.map((r) => r.produitId));
         const lignesSansRupture = lignesCalc.filter(
@@ -263,24 +267,10 @@ export async function POST(req: Request) {
 
         for (const l of lignesSansRupture) {
           const pid = Number(l.produitId!);
-          await tx.stockSite.updateMany({
-            where: { produitId: pid, pointDeVenteId: rvcPdvId },
-            data:  { quantite: { decrement: l.qte } },
-          });
-
-          const dateStr = maintenant.toISOString().replace(/[-:T.Z]/g, "").slice(0, 14);
-          await tx.mouvementStock.create({
-            data: {
-              produitId:      pid,
-              pointDeVenteId: rvcPdvId,
-              type:           TypeMouvement.SORTIE,
-              typeSortie:     TypeSortieStock.VENTE_DIRECTE,
-              quantite:       l.qte,
-              prixUnitaire:   l.pu,
-              motif:          `Crédit RVC — ${reference}`,
-              reference:      `MVT-CRD-${credit.id}-P${pid}-${dateStr}`,
-              operateurId:    userId,
-            },
+          await tx.stockSite.upsert({
+            where: { produitId_pointDeVenteId: { produitId: pid, pointDeVenteId: rvcPdvId } },
+            update: { quantiteReservee: { increment: l.qte } },
+            create: { produitId: pid, pointDeVenteId: rvcPdvId, quantite: 0, quantiteReservee: l.qte },
           });
         }
       }
@@ -288,13 +278,28 @@ export async function POST(req: Request) {
       // Audit
       await auditLog(tx, userId, "CREATION_CREDIT_RVC", "CreditClient", credit.id);
 
-      // ── Notification normale : crédit créé (admins) ───────────────────────
+      // ── Notification : crédit créé ─────────────────────────────────────────
+      const nbSansRupture = lignesCalc.filter(l => l.produitId && !ruptures.find(r => r.produitId === Number(l.produitId))).length;
+      const msgAdmin = nbSansRupture > 0
+        ? `Crédit ${reference} (${montantTotal.toLocaleString("fr-FR")} FCFA) pour ${client.prenom} ${client.nom}. ${nbSansRupture} produit(s) à livrer physiquement au client.`
+        : `Crédit ${reference} (${montantTotal.toLocaleString("fr-FR")} FCFA) créé pour ${client.prenom} ${client.nom}.`;
+
       await notifyAdmins(tx, {
-        titre:    "Nouveau crédit créé par le RVC",
-        message:  `Crédit de ${montantTotal.toLocaleString("fr-FR")} FCFA créé pour ${client.prenom} ${client.nom} (${reference}).`,
+        titre:    `Nouveau crédit RVC — ${reference}`,
+        message:  msgAdmin,
         priorite: PrioriteNotification.NORMAL,
         actionUrl: `/dashboard/admin/credits`,
       });
+
+      // Notifier le magasinier pour les lignes disponibles en stock (livraison physique requise)
+      if (nbSansRupture > 0) {
+        await notifyRoles(tx, ["MAGAZINIER"], {
+          titre:    `Livraison requise — crédit ${reference}`,
+          message:  `${nbSansRupture} produit(s) à livrer physiquement au client ${client.prenom} ${client.nom} suite au crédit ${reference} (PDV${rvcPdvId ? ` #${rvcPdvId}` : ""}).`,
+          priorite: PrioriteNotification.HAUTE,
+          actionUrl: `/dashboard/admin/credits`,
+        });
+      }
 
       // ── Commande interne de réappro si ruptures détectées ─────────────────
       let commandeInterne: { id: number; reference: string } | null = null;

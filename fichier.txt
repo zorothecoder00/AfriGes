@@ -57,11 +57,18 @@ Pouvoir créer des tags RIA et faire des recherches par tag( clients surtout ) s
 Faire des tags dans l'application pour permettre de retracer les informations sur les clients  
 
 
-Inventaire doit se faire chez admin et magasinier(validation invetaire et appro)
+Inventaire doit se faire chez admin et magasinier(validation inventaire et appro)
+
 créer un gestionnaire commercial(responsable marketing)
+
 choisir les taux de marge des produits(admin)
+
 établir les méthodes de FIFO(first in first out)
+
 générer automatiquement des vignettes pour les produits( étiquettes )
 
 
 l'admin et les responsables (chefagence , rpv,admin  ) doivent pouvoir modifier et supprimer(uniquement les admins) les factures
+
+Vérifie si dans un dashboard/  on utilise encore les ventes directes à crédit au lieu des credits clients (surtout au niveau des caissiers et des comptables ). C'est important que tout soit correctement implémenté avec une architecture vraiment cohérente et fluide 
+ 

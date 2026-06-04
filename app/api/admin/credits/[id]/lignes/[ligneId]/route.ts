@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAdminSession } from "@/lib/authAdmin";
-import { StatutLigneCreditClient } from "@prisma/client";
+import { StatutLigneCreditClient, TypeMouvement, TypeSortieStock } from "@prisma/client";
 import { auditLog } from "@/lib/notifications";
 
 type Ctx = { params: Promise<{ id: string; ligneId: string }> };
@@ -48,7 +48,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
     const updated = await prisma.$transaction(async (tx) => {
       const ligne = await tx.ligneCreditClient.findUnique({
         where: { id: ligneIdN },
-        include: { credit: { select: { id: true, reference: true } } },
+        include: { credit: { select: { id: true, reference: true, pointDeVenteId: true } } },
       });
       if (!ligne) throw new Error("LIGNE_INTROUVABLE");
       if (ligne.creditId !== creditId) throw new Error("LIGNE_INTROUVABLE");
@@ -78,6 +78,41 @@ export async function PATCH(req: Request, { params }: Ctx) {
       });
 
       await auditLog(tx, userId, `LIGNE_CREDIT_${statut}`, "LigneCreditClient", ligneIdN);
+
+      // ── Mouvement de stock ────────────────────────────────────────────────
+      const pdvId = ligne.credit.pointDeVenteId;
+      const prevStatut = ligne.statut;
+
+      if (ligne.produitId && pdvId) {
+        if (statut === "LIVRE" && prevStatut === "EN_ATTENTE") {
+          await tx.stockSite.updateMany({
+            where: { produitId: ligne.produitId, pointDeVenteId: pdvId },
+            data: {
+              quantite:         { decrement: ligne.quantite },
+              quantiteReservee: { decrement: ligne.quantite },
+            },
+          });
+          const dateStr = new Date().toISOString().replace(/[-:T.Z]/g, "").slice(0, 14);
+          await tx.mouvementStock.create({
+            data: {
+              produitId:      ligne.produitId,
+              pointDeVenteId: pdvId,
+              type:           TypeMouvement.SORTIE,
+              typeSortie:     TypeSortieStock.LIVRAISON_CLIENT,
+              quantite:       ligne.quantite,
+              prixUnitaire:   ligne.prixUnitaire,
+              motif:          `Livraison crédit — ${ligne.credit.reference}`,
+              reference:      `MVT-LIV-${creditId}-L${ligneIdN}-${dateStr}`,
+              operateurId:    userId,
+            },
+          });
+        } else if (prevStatut === "EN_ATTENTE" && (statut === "INDISPONIBLE" || statut === "SUBSTITUE" || statut === "ANNULE")) {
+          await tx.stockSite.updateMany({
+            where: { produitId: ligne.produitId, pointDeVenteId: pdvId },
+            data: { quantiteReservee: { decrement: ligne.quantite } },
+          });
+        }
+      }
 
       return result;
     });

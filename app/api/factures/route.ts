@@ -195,6 +195,7 @@ export async function POST(req: NextRequest) {
       receptionPackId?: number;
       clientNom?: string;
       clientTelephone?: string;
+      clientAdresse?: string;
       lignes?: Array<{ designation: string; unite?: string; quantite: number; prixUnitaire: number }>;
       notes?: string;
       dateEcheance?: string;
@@ -440,6 +441,7 @@ export async function POST(req: NextRequest) {
           pdvTelephone:   aff?.pointDeVente.telephone ?? null,
           clientNom:       body.clientNom.trim(),
           clientTelephone: body.clientTelephone?.trim() ?? null,
+          clientAdresse:   body.clientAdresse?.trim() ?? null,
           emiseParId:   userId,
           emiseParNom,
           montantHT:    montantTTC,
