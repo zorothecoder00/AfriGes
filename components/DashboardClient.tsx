@@ -296,7 +296,7 @@ export default function AfriGesDashboard() {
 
         {/* Sidebar */}
         <aside className="w-72 flex-shrink-0">
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 overflow-hidden sticky top-28">
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 overflow-y-auto sticky top-28 max-h-[calc(100vh-8rem)]">
             <div className="p-4 border-b border-slate-100">
               <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">{t('main')}</h3>
               <nav className="space-y-1">
@@ -396,6 +396,8 @@ export default function AfriGesDashboard() {
               </div>
             </div>
           </div>
+
+          <div className="overflow-y-auto max-h-[calc(100vh-14rem)] space-y-6 pr-2">
 
           {/* ── Activité globale du jour ──────────────────────────────────── */}
           <div className="space-y-4">
@@ -1043,6 +1045,8 @@ export default function AfriGesDashboard() {
             </div>
 
           </div>
+
+          </div>{/* end overflow-y wrapper */}
 
         </main>
       </div>

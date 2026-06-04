@@ -176,6 +176,8 @@ export default function VentesPage() {
   const [packPreFilledDone, setPackPreFilledDone]   = useState(false);
   const packPreFilledRef                            = useRef(false);
   const [cancellingId, setCancellingId]             = useState<number | null>(null);
+  const [annulVenteTarget, setAnnulVenteTarget]     = useState<VenteDirecte | null>(null);
+  const [annulVenteMotif,  setAnnulVenteMotif]      = useState('');
   const [factureVenteId, setFactureVenteId]         = useState<number | null>(null);
   const [factureReceptionId, setFactureReceptionId] = useState<number | null>(null);
   const [showProForma, setShowProForma]             = useState(false);
@@ -318,6 +320,22 @@ export default function VentesPage() {
     'DELETE',
     { successMessage: 'Livraison annulée !' }
   );
+
+  const annulVenteIdRef = useRef<number | null>(null);
+  const { mutate: doAnnulerVente, loading: annulVenteLoading } = useMutation<unknown, { motif?: string }>(
+    () => `/api/admin/ventes/${annulVenteIdRef.current}`,
+    'PATCH',
+    { successMessage: 'Vente annulée ✓' }
+  );
+
+  const handleAnnulerVente = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!annulVenteTarget) return;
+    annulVenteIdRef.current = annulVenteTarget.id;
+    const r = await doAnnulerVente({ motif: annulVenteMotif.trim() || undefined });
+    if (r) { setAnnulVenteTarget(null); refetchVentes(); }
+    annulVenteIdRef.current = null;
+  };
 
   // ── Chargement stock du PDV sélectionné ───────────────────────────────────
   const loadStockPdv = useCallback(async (pdvId: string) => {
@@ -1405,15 +1423,26 @@ export default function VentesPage() {
                               </div>
                             </td>
                             <td className="px-5 py-4">
-                              {v.statut === 'CONFIRMEE' && (
-                                <button
-                                  onClick={() => setFactureVenteId(v.id)}
-                                  className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
-                                  title="Générer la facture"
-                                >
-                                  <Receipt size={15} />
-                                </button>
-                              )}
+                              <div className="flex items-center gap-1">
+                                {v.statut === 'CONFIRMEE' && (
+                                  <button
+                                    onClick={() => setFactureVenteId(v.id)}
+                                    className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
+                                    title="Générer la facture"
+                                  >
+                                    <Receipt size={15} />
+                                  </button>
+                                )}
+                                {['CONFIRMEE', 'BROUILLON'].includes(v.statut) && (
+                                  <button
+                                    onClick={() => { setAnnulVenteTarget(v); setAnnulVenteMotif(''); }}
+                                    className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                    title="Annuler la vente"
+                                  >
+                                    <XCircle size={15} />
+                                  </button>
+                                )}
+                              </div>
                             </td>
                           </tr>
                         );
@@ -1636,6 +1665,65 @@ export default function VentesPage() {
             </div>
           </>
         )}
+
+      {/* ── Modal Annuler Vente directe ── */}
+      {annulVenteTarget && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[300] p-4">
+          <div className="bg-white rounded-2xl w-full max-w-md shadow-xl">
+            <div className="flex items-center justify-between p-5 border-b border-slate-100">
+              <div className="flex items-center gap-3">
+                <div className="bg-red-50 p-2.5 rounded-xl"><XCircle className="text-red-600 w-5 h-5" /></div>
+                <div>
+                  <h2 className="font-bold text-slate-800">Annuler une vente</h2>
+                  <p className="text-xs text-slate-400 font-mono">{annulVenteTarget.reference}</p>
+                </div>
+              </div>
+              <button onClick={() => setAnnulVenteTarget(null)} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg">
+                <XCircle size={18} />
+              </button>
+            </div>
+            <form onSubmit={handleAnnulerVente} className="p-5 space-y-4">
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-800">
+                <strong>Attention :</strong> l&apos;annulation est définitive. Le stock sera recrédité automatiquement si la vente était confirmée.
+              </div>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Vendeur</span>
+                  <span className="font-medium">{annulVenteTarget.vendeur.prenom} {annulVenteTarget.vendeur.nom}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Montant</span>
+                  <span className="font-bold text-emerald-600">{formatCurrency(Number(annulVenteTarget.montantTotal))}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">PDV</span>
+                  <span className="font-medium">{annulVenteTarget.pointDeVente.nom}</span>
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Motif (optionnel)</label>
+                <textarea
+                  value={annulVenteMotif}
+                  onChange={e => setAnnulVenteMotif(e.target.value)}
+                  rows={3}
+                  placeholder="Raison de l'annulation…"
+                  className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-300 resize-none"
+                />
+              </div>
+              <div className="flex gap-3 pt-1">
+                <button type="button" onClick={() => setAnnulVenteTarget(null)}
+                  className="flex-1 px-4 py-2.5 border border-slate-200 text-slate-700 rounded-xl text-sm font-medium hover:bg-slate-50 transition-colors">
+                  Retour
+                </button>
+                <button type="submit" disabled={annulVenteLoading}
+                  className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-xl text-sm font-medium hover:bg-red-700 disabled:opacity-50 transition-colors">
+                  {annulVenteLoading ? 'Annulation…' : 'Confirmer l\'annulation'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       </div>
     </div>

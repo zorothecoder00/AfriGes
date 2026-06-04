@@ -270,6 +270,8 @@ export default function ChefAgenceDashboard() {
   const [ventePage,    setVentePage]    = useState(1);
   const [venteSearch,  setVenteSearch]  = useState("");
   const [venteExpanded, setVenteExpanded] = useState<number | null>(null);
+  const [annulVenteCA,  setAnnulVenteCA]  = useState<Vente | null>(null);
+  const [annulMotifCA,  setAnnulMotifCA]  = useState('');
 
   // ── Filtres Stock ────────────────────────────────────────────────────────
   const [stockPdvId,    setStockPdvId]    = useState("");
@@ -364,6 +366,23 @@ export default function ChefAgenceDashboard() {
   }, [approvType, approvPage, approvStatut, approvPdvId]);
   const { data: approvData, loading: approvLoading, refetch: approvRefetch } =
     useApi<ApprovResponse>(activeTab === "approvisionnement" ? approvUrl : null);
+
+  // ── Mutation annulation vente directe ────────────────────────────────────
+  const annulVenteCAIdRef = React.useRef<number | null>(null);
+  const { mutate: doAnnulerVenteCA, loading: annulLoadingCA } = useMutation<unknown, { motif?: string }>(
+    () => `/api/chef-agence/ventes/${annulVenteCAIdRef.current}`,
+    'PATCH',
+    { successMessage: 'Vente annulée ✓' }
+  );
+
+  const handleAnnulerVenteCA = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!annulVenteCA) return;
+    annulVenteCAIdRef.current = annulVenteCA.id;
+    const r = await doAnnulerVenteCA({ motif: annulMotifCA.trim() || undefined });
+    if (r) { setAnnulVenteCA(null); ventesRefetch(); }
+    annulVenteCAIdRef.current = null;
+  };
 
   // ── Mutation affectation ─────────────────────────────────────────────────
   const { mutate: affecterAgent, loading: affectLoading } = useMutation<
@@ -837,12 +856,23 @@ export default function ChefAgenceDashboard() {
                           <td className="px-3 py-2 text-gray-600">{v.clientNom}</td>
                           <td className="px-3 py-2 text-right font-semibold">{formatCurrency(v.montant)}</td>
                           <td className="px-3 py-2 text-center">
-                            <button
-                              onClick={() => setVenteExpanded(venteExpanded === v.id ? null : v.id)}
-                              className="text-gray-400 hover:text-gray-600"
-                            >
-                              {venteExpanded === v.id ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                            </button>
+                            <div className="flex items-center justify-center gap-1">
+                              <button
+                                onClick={() => setVenteExpanded(venteExpanded === v.id ? null : v.id)}
+                                className="text-gray-400 hover:text-gray-600"
+                              >
+                                {venteExpanded === v.id ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                              </button>
+                              {v.source === "VD" && (
+                                <button
+                                  onClick={() => { setAnnulVenteCA(v); setAnnulMotifCA(''); }}
+                                  className="p-1 text-red-400 hover:text-red-600 hover:bg-red-50 rounded"
+                                  title="Annuler cette vente"
+                                >
+                                  <XCircle className="w-4 h-4" />
+                                </button>
+                              )}
+                            </div>
                           </td>
                         </tr>
                         {venteExpanded === v.id && (
@@ -1747,6 +1777,69 @@ export default function ChefAgenceDashboard() {
                 {affectLoading ? "En cours..." : "Affecter"}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal Annuler Vente directe ── */}
+      {annulVenteCA && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[300] p-4">
+          <div className="bg-white rounded-xl w-full max-w-md shadow-xl">
+            <div className="flex items-center justify-between p-5 border-b border-gray-100">
+              <div className="flex items-center gap-3">
+                <div className="bg-red-50 p-2.5 rounded-lg"><XCircle className="text-red-600 w-5 h-5" /></div>
+                <div>
+                  <h2 className="font-bold text-gray-800">Annuler une vente directe</h2>
+                  <p className="text-xs text-gray-400 font-mono">{annulVenteCA.reference}</p>
+                </div>
+              </div>
+              <button onClick={() => setAnnulVenteCA(null)} className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg">
+                <XCircle className="w-4 h-4" />
+              </button>
+            </div>
+            <form onSubmit={handleAnnulerVenteCA} className="p-5 space-y-4">
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-800">
+                <strong>Attention :</strong> l&apos;annulation est définitive. Le stock sera recrédité si la vente était confirmée.
+              </div>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Agent</span>
+                  <span className="font-medium">{annulVenteCA.agentNom}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Client</span>
+                  <span className="font-medium">{annulVenteCA.clientNom}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Montant</span>
+                  <span className="font-bold text-emerald-600">{formatCurrency(annulVenteCA.montant)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">PDV</span>
+                  <span className="font-medium">{annulVenteCA.pdvNom}</span>
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Motif (optionnel)</label>
+                <textarea
+                  value={annulMotifCA}
+                  onChange={e => setAnnulMotifCA(e.target.value)}
+                  rows={3}
+                  placeholder="Raison de l'annulation…"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-300 resize-none"
+                />
+              </div>
+              <div className="flex gap-3 pt-1">
+                <button type="button" onClick={() => setAnnulVenteCA(null)}
+                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-50 transition-colors">
+                  Retour
+                </button>
+                <button type="submit" disabled={annulLoadingCA}
+                  className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 disabled:opacity-50 transition-colors">
+                  {annulLoadingCA ? 'Annulation…' : "Confirmer l'annulation"}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

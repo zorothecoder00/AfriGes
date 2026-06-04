@@ -735,6 +735,9 @@ export default function LogistiqueDashboardPage() {
         {/* Header */}
         <div className="flex items-start gap-4">
           <div className="flex-1">
+            <Link href="/dashboard/admin" className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700 mb-2 transition-colors">
+              <ChevronLeft size={15} /> Retour au dashboard
+            </Link>
             <h1 className="text-3xl font-bold text-slate-800">Dashboard Logistique</h1>
             <div className="flex items-center gap-3 mt-1 text-slate-500 text-sm flex-wrap">
               {pdvNom && <span className="flex items-center gap-1.5"><Store size={13} />{pdvNom}</span>}

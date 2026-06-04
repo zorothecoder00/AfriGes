@@ -64,12 +64,4 @@ choisir les taux de marge des produits(admin)
 générer automatiquement des vignettes pour les produits( étiquettes )
 
 
-Créer aussi un bouton pour pouvoir annuler les ventes ( admin , RPV , Chef d'agence et les agents de logistiques)
-
-
 l'admin et les responsables (chefagence , rpv,admin  ) doivent pouvoir modifier et supprimer(uniquement les admins) les factures
-
-Au niveau du dashboard/admin on doit donner un overflow y pour les liens pour quils coulissent
-
-Au niveau de dashboard/admin/logistiques , il ny'a pas de lien de retour vers le dashboard/admin
-Au niveau de la facture pro format au niveau du dashboard/user/responsablesVenteCredits
