@@ -361,6 +361,14 @@ enum StatutEcheanceCredit {
   EN_RETARD
 }
 
+enum StatutLigneCreditClient {
+  EN_ATTENTE    // produit inclus dans le crédit, livraison non encore confirmée
+  LIVRE         // produit effectivement remis au client
+  INDISPONIBLE  // produit non disponible au moment de la livraison
+  SUBSTITUE     // remplacé par un autre produit (voir produitSubstitutId)
+  ANNULE        // ligne annulée (ex: client ne veut plus ce produit)
+}
+
 // ============================================================
 // ENUMS — Finances & comptabilité
 // ============================================================
@@ -674,6 +682,7 @@ model User {
   facturesVenteEmises          FactureVente[]       @relation("FacturesVenteEmises")
   remboursementsEnregistres    RemboursementCredit[]
   lignesSouscriptionTraitees   LigneSouscriptionProduit[] @relation("LignesTraitees")
+  lignesCreditTraitees         LigneCreditClient[]        @relation("LignesCreditTraitees")
 
   // Visites terrain
   visitesEffectuees            VisiteClient[]       @relation("VisitesAgent")
@@ -757,6 +766,7 @@ model PointDeVente {
   collectes                  CollecteJournaliere[]
   demandesAjustement         DemandeAjustementStock[]
   lignesSouscriptionProduits LigneSouscriptionProduit[]
+  lignesCreditPDV            LigneCreditClient[]          @relation("LignesCreditPDV")
   facturesVente              FactureVente[]               @relation("FacturesVentePDV")
 
   createdAt DateTime @default(now())
@@ -1062,20 +1072,44 @@ model CreditClient {
 model LigneCreditClient {
   id           Int     @id @default(autoincrement())
   creditId     Int
-  produitId    Int?    // nullable : produit supprimé ou hors catalogue
+  produitId    Int?    // nullable : produit hors catalogue non encore créé
 
   // Snapshot au moment de la vente (conservé même si produit modifié)
-  produitNom   String
-  quantite     Int
-  prixUnitaire Decimal
-  remise       Decimal @default(0) // montant de remise (pas %)
-  montantLigne Decimal             // = (prixUnitaire * quantite) - remise
+  produitNom       String
+  produitNomSaisi  String?  // saisie libre originale — pour traçabilité si produit substitué
+  quantite         Int
+  prixUnitaire     Decimal
+  remise           Decimal  @default(0)
+  montantLigne     Decimal
+
+  // Traçabilité livraison (comme LigneSouscriptionProduit)
+  statut            StatutLigneCreditClient @default(EN_ATTENTE)
+  estNouveauProduit Boolean                @default(false)
+  notes             String?
+
+  // PDV cible — dénormalisé depuis credit.pointDeVenteId pour agrégations logistique
+  pointDeVenteId Int?
+  pointDeVente   PointDeVente? @relation("LignesCreditPDV", fields: [pointDeVenteId], references: [id])
+
+  // Substitution
+  produitSubstitutId Int?
+  produitSubstitut   Produit? @relation("LigneCreditSubstitut", fields: [produitSubstitutId], references: [id])
+
+  // Traitement
+  traiteParId    Int?
+  traitePar      User?     @relation("LignesCreditTraitees", fields: [traiteParId], references: [id])
+  dateTraitement DateTime?
 
   credit  CreditClient @relation(fields: [creditId], references: [id], onDelete: Cascade)
-  produit Produit?     @relation(fields: [produitId], references: [id])
+  produit Produit?     @relation("LigneCreditProduit", fields: [produitId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([creditId])
   @@index([produitId])
+  @@index([pointDeVenteId, statut])
+  @@index([statut])
 }
 
 model EcheanceCredit {
@@ -1241,7 +1275,8 @@ model Produit {
   lignesBonSortie      LigneBonSortie[]
 
   // Crédits clients
-  lignesCredit         LigneCreditClient[]
+  lignesCreditProduit    LigneCreditClient[] @relation("LigneCreditProduit")
+  lignesCreditSubstitut  LigneCreditClient[] @relation("LigneCreditSubstitut")
 
   // Ajustements stock
   demandesAjustement   DemandeAjustementStock[]

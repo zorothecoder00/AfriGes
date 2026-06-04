@@ -103,6 +103,7 @@ export async function POST(req: Request, { params }: Ctx) {
           modePaiement:     (modePaiement as TypePaiement) ?? TypePaiement.ESPECES,
           notes:            notes || null,
           enregistreParId:  userId,
+          statut:           "CONFIRME", // encaissement direct au comptoir — effets financiers déjà appliqués
         },
       });
 

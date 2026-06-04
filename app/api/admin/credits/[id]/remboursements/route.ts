@@ -115,6 +115,7 @@ export async function POST(req: Request, { params }: Ctx) {
           modePaiement: (modePaiement as TypePaiement) ?? TypePaiement.ESPECES,
           notes: notes || null,
           enregistreParId: Number(session.user.id),
+          statut: "CONFIRME", // enregistrement direct admin/RVC — effets financiers déjà appliqués
         },
       });
 

@@ -188,12 +188,16 @@ export async function POST(req: Request) {
           creeParId: Number(session.user.id),
           lignes: {
             create: lignesCalculees.map((l) => ({
-              produitId:   l.produitId ? Number(l.produitId) : null,
-              produitNom:  l.produitNom,
-              quantite:    l.qte,
-              prixUnitaire: l.pu,
-              remise:      l.rem,
-              montantLigne: l.montantLigne,
+              produitId:        l.produitId ? Number(l.produitId) : null,
+              produitNom:       l.produitNom,
+              produitNomSaisi:  l.produitNom,
+              quantite:         l.qte,
+              prixUnitaire:     l.pu,
+              remise:           l.rem,
+              montantLigne:     l.montantLigne,
+              statut:           "EN_ATTENTE" as const,
+              estNouveauProduit: !l.produitId,
+              pointDeVenteId:   pointDeVenteId ? Number(pointDeVenteId) : null,
             })),
           },
         },
@@ -210,16 +214,29 @@ export async function POST(req: Request) {
       });
 
       // ── Notifications ──────────────────────────────────────────────────────
+      const destSet = new Map<number, true>();
+
       const admins = await tx.user.findMany({
         where: { role: { in: [Role.ADMIN, Role.SUPER_ADMIN] } },
         select: { id: true },
       });
-      if (admins.length > 0) {
+      admins.forEach((u) => destSet.set(u.id, true));
+
+      // Gestionnaires du PDV (RVC, RPV…)
+      if (pointDeVenteId) {
+        const pdvGest = await tx.gestionnaireAffectation.findMany({
+          where: { pointDeVenteId: Number(pointDeVenteId), actif: true },
+          select: { userId: true },
+        });
+        pdvGest.forEach((g) => destSet.set(g.userId, true));
+      }
+
+      if (destSet.size > 0) {
         await tx.notification.createMany({
-          data: admins.map((u) => ({
-            userId: u.id,
-            titre: "Nouveau crédit en attente de validation",
-            message: `Un crédit de ${montantTotal} FCFA a été créé pour ${client.prenom} ${client.nom} (${reference}).`,
+          data: [...destSet.keys()].map((userId) => ({
+            userId,
+            titre:    "Nouveau crédit en attente de validation",
+            message:  `Un crédit de ${montantTotal.toLocaleString("fr-FR")} FCFA a été créé pour ${client.prenom} ${client.nom} (${reference}).`,
             priorite: PrioriteNotification.HAUTE,
             actionUrl: `/dashboard/admin/credits/${credit.id}`,
           })),

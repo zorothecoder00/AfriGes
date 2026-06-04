@@ -44,7 +44,11 @@ async function createFactureWithRetry(data: any, include: any) {
       const isNumeroConflict =
         e instanceof Prisma.PrismaClientKnownRequestError &&
         e.code === "P2002" &&
-        (e.meta as { target?: string[] })?.target?.includes("numero");
+        (() => {
+          const raw = (e.meta as { target?: unknown })?.target;
+          const str = Array.isArray(raw) ? raw.join(",") : String(raw ?? "");
+          return str.toLowerCase().includes("numero");
+        })();
       if (isNumeroConflict) continue;
       throw e;
     }

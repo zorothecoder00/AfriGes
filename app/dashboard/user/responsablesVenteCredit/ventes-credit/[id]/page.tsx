@@ -4,7 +4,7 @@ import React, { useState, useCallback, useEffect } from "react";
 import {
   CheckCircle, XCircle, AlertCircle, Loader2, Package,
   Trash2, Plus, ArrowLeftRight, Send, Edit3, CreditCard,
-  User, MapPin, Save, X, AlertTriangle, ChevronLeft,
+  User, MapPin, Save, X, AlertTriangle, ChevronLeft, Receipt,
 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
@@ -14,6 +14,7 @@ import MessagesLink from "@/components/MessagesLink";
 import { useApi } from "@/hooks/useApi";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { toast } from "sonner";
+import FactureModal from "@/components/FactureModal";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -663,8 +664,9 @@ export default function RVCVenteDetailPage() {
   const router  = useRouter();
   const venteId = Number(params.id);
 
-  const [refreshKey,   setRefreshKey]   = useState(0);
-  const [showAddModal, setShowAddModal] = useState(false);
+  const [refreshKey,    setRefreshKey]    = useState(0);
+  const [showAddModal,  setShowAddModal]  = useState(false);
+  const [showFacture,   setShowFacture]   = useState(false);
 
   // Approbation / Refus
   const [actionModal,  setActionModal]  = useState<"approuver" | "refuser" | null>(null);
@@ -904,6 +906,18 @@ export default function RVCVenteDetailPage() {
           </div>
         )}
 
+        {/* Facture crédit */}
+        {vente.creditClient && ["CREDIT_APPROUVE", "CREDIT_EN_LIVRAISON", "CREDIT_LIVRE"].includes(vente.statut) && (
+          <div className="flex justify-end">
+            <button
+              onClick={() => setShowFacture(true)}
+              className="flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-semibold transition-colors shadow-sm"
+            >
+              <Receipt size={15} /> Générer la facture crédit
+            </button>
+          </div>
+        )}
+
         {/* Notes */}
         {vente.notes && (
           <div className="bg-gray-50 rounded-2xl border border-gray-200 p-4">
@@ -912,6 +926,14 @@ export default function RVCVenteDetailPage() {
           </div>
         )}
       </div>
+
+      {/* Facture crédit modal */}
+      {showFacture && vente.creditClient && (
+        <FactureModal
+          creditClientId={vente.creditClient.id}
+          onClose={() => setShowFacture(false)}
+        />
+      )}
 
       {/* Modal ajout ligne */}
       {showAddModal && (

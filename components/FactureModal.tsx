@@ -158,7 +158,7 @@ function InvoiceLayout({ f }: { f: FactureData }) {
             <th className="text-left pb-2 text-slate-400 w-8">N°</th>
             <th className="text-left pb-2 text-slate-400">Désignation</th>
             <th className="text-center pb-2 text-slate-400 w-16">Qté</th>
-            <th className="text-right pb-2 text-slate-400 w-28">Prix unit.</th>
+            <th className="text-right pb-2 text-slate-400 w-28">Prix de vente</th>
             <th className="text-right pb-2 text-slate-400 w-28">Montant</th>
           </tr>
         </thead>
@@ -689,7 +689,7 @@ function printInvoice(f: FactureData) {
         <th style="text-align:left;padding-bottom:8px;color:#94a3b8;font-size:11px;letter-spacing:1px;text-transform:uppercase;width:32px">N°</th>
         <th style="text-align:left;padding-bottom:8px;color:#94a3b8;font-size:11px;letter-spacing:1px;text-transform:uppercase">Désignation</th>
         <th style="text-align:center;padding-bottom:8px;color:#94a3b8;font-size:11px;letter-spacing:1px;text-transform:uppercase;width:60px">Qté</th>
-        <th style="text-align:right;padding-bottom:8px;color:#94a3b8;font-size:11px;letter-spacing:1px;text-transform:uppercase;width:140px">Prix unit.</th>
+        <th style="text-align:right;padding-bottom:8px;color:#94a3b8;font-size:11px;letter-spacing:1px;text-transform:uppercase;width:140px">Prix de vente</th>
         <th style="text-align:right;padding-bottom:8px;color:#94a3b8;font-size:11px;letter-spacing:1px;text-transform:uppercase;width:140px">Montant</th>
       </tr>
     </thead>
@@ -900,7 +900,7 @@ export default function FactureModal({
                 <span className="col-span-4">Désignation *</span>
                 <span className="col-span-2">Unité</span>
                 <span className="col-span-2">Qté *</span>
-                <span className="col-span-3">Prix unit. *</span>
+                <span className="col-span-3">Prix de vente *</span>
               </div>
 
               <div className="space-y-2">

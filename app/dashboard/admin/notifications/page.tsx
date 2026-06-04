@@ -4,7 +4,10 @@ import { useState } from 'react';
 import { useApi, useMutation } from '@/hooks/useApi';
 import { useT } from '@/contexts/AppSettingsContext';
 import { formatDateTime } from '@/lib/format';
-import ClienteleTabBar from '@/components/ClienteleTabBar';
+import DashboardBackButton from '@/components/DashboardBackButton';
+import NotificationBell from '@/components/NotificationBell';
+import MessagesLink from '@/components/MessagesLink';
+import SignOutButton from '@/components/SignOutButton';
 import {
   Bell, RefreshCw, CheckCheck, AlertCircle, Info,
   ShoppingBag, Users, Calendar, TrendingUp,
@@ -78,7 +81,7 @@ export default function NotificationsClientelePage() {
 
   const lueParam     = filtre === 'non_lues' ? '&lue=false' : '';
   const { data: res, loading, refetch } =
-    useApi<NotifResponse>(`/api/admin/notifications?scope=clientele&page=${page}&limit=20${lueParam}`);
+    useApi<NotifResponse>(`/api/admin/notifications?page=${page}&limit=20${lueParam}`);
 
   const { mutate: markAllRead, loading: marking } =
     useMutation('/api/admin/notifications', 'PATCH', { successMessage: 'Notifications marquées comme lues' });
@@ -89,7 +92,7 @@ export default function NotificationsClientelePage() {
     : notifs;
 
   const handleMarkAll = async () => {
-    await markAllRead({ scope: 'clientele' });
+    await markAllRead({});
     refetch();
   };
 
@@ -104,7 +107,28 @@ export default function NotificationsClientelePage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <ClienteleTabBar />
+      {/* Navbar */}
+      <nav className="bg-white border-b border-gray-200 sticky top-0 z-40">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
+            <div className="flex items-center gap-3">
+              <DashboardBackButton />
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center">
+                <Bell size={16} className="text-white" />
+              </div>
+              <div>
+                <h1 className="text-base font-bold text-gray-900">Notifications</h1>
+                <p className="text-xs text-gray-500">Administration</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <MessagesLink />
+              <NotificationBell href="/dashboard/admin/notifications" />
+              <SignOutButton />
+            </div>
+          </div>
+        </div>
+      </nav>
 
       <div className="p-6 space-y-6 max-w-4xl mx-auto">
 
@@ -113,7 +137,7 @@ export default function NotificationsClientelePage() {
           <div>
             <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
               <Bell className="w-6 h-6 text-blue-600" />
-              {t('notif_clientele_title')}
+              Toutes les notifications
               {(res?.meta.nbNonLues ?? 0) > 0 && (
                 <span className="ml-1 px-2 py-0.5 bg-red-500 text-white text-xs rounded-full font-bold">
                   {res!.meta.nbNonLues}
@@ -121,7 +145,7 @@ export default function NotificationsClientelePage() {
               )}
             </h2>
             <p className="text-sm text-gray-500 mt-0.5">
-              {t('notif_clientele_subtitle')}
+              Notifications générales de votre espace administrateur
             </p>
           </div>
           <div className="flex gap-2">

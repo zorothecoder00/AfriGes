@@ -104,6 +104,12 @@ export async function POST(req: Request, { params }: Ctx) {
         where: { creditId, statut: { in: ["EN_ATTENTE", "PARTIEL"] } },
       });
 
+      // ── Annuler toutes les lignes non encore livrées ──────────────────────
+      await tx.ligneCreditClient.updateMany({
+        where: { creditId, statut: { not: "LIVRE" } },
+        data:  { statut: "ANNULE" },
+      });
+
       const newStatut = action === "REJETE" ? StatutCredit.REJETE : StatutCredit.ANNULE;
 
       const updated = await tx.creditClient.update({
@@ -123,23 +129,32 @@ export async function POST(req: Request, { params }: Ctx) {
         },
       });
 
-      // ── Notifications : admins + créateur du crédit ───────────────────────
-      const destinataires = new Map<number, true>();
+      // ── Notifications : admins + créateur + gestionnaires PDV ───────────
+      const destSet = new Map<number, true>();
 
       const admins = await tx.user.findMany({
         where: { role: { in: [Role.ADMIN, Role.SUPER_ADMIN] } },
         select: { id: true },
       });
-      admins.forEach((u) => destinataires.set(u.id, true));
+      admins.forEach((u) => destSet.set(u.id, true));
 
-      // Notifier le créateur (peut ne pas être admin)
-      if (credit.creeParId) destinataires.set(credit.creeParId, true);
+      // Créateur du crédit (agent terrain, RVC…)
+      if (credit.creeParId) destSet.set(credit.creeParId, true);
 
-      if (destinataires.size > 0) {
+      // Gestionnaires du PDV (RVC, RPV…)
+      if (credit.pointDeVenteId) {
+        const pdvGest = await tx.gestionnaireAffectation.findMany({
+          where: { pointDeVenteId: credit.pointDeVenteId, actif: true },
+          select: { userId: true },
+        });
+        pdvGest.forEach((g) => destSet.set(g.userId, true));
+      }
+
+      if (destSet.size > 0) {
         const titre   = action === "REJETE" ? "Crédit rejeté" : "Crédit annulé";
         const message = `Le crédit ${credit.reference} de ${credit.client.prenom} ${credit.client.nom} a été ${action === "REJETE" ? "rejeté" : "annulé"}${motif ? ` : ${motif}` : ""}.`;
         await tx.notification.createMany({
-          data: [...destinataires.keys()].map((userId) => ({
+          data: [...destSet.keys()].map((userId) => ({
             userId,
             titre,
             message,

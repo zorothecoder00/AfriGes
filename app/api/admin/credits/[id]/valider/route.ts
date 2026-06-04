@@ -170,27 +170,33 @@ export async function POST(_req: Request, { params }: Ctx) {
       });
 
       // ── 12. Notifications ─────────────────────────────────────────────────
-      const destinataires: { id: number }[] = [];
+      const destSet = new Map<number, true>();
 
       // Admins
       const admins = await tx.user.findMany({
         where: { role: { in: [Role.ADMIN, Role.SUPER_ADMIN] } },
         select: { id: true },
       });
-      destinataires.push(...admins);
+      admins.forEach((u) => destSet.set(u.id, true));
 
-      // Agent terrain affecté au client (transfert recouvrement)
-      if (client.agentTerrainId) {
-        const agentDejaPresent = destinataires.some((d) => d.id === client.agentTerrainId);
-        if (!agentDejaPresent) destinataires.push({ id: client.agentTerrainId });
+      // Agent terrain affecté au client (recouvrement terrain)
+      if (client.agentTerrainId) destSet.set(client.agentTerrainId, true);
+
+      // Gestionnaires du PDV (RVC, RPV, chef d'agence…)
+      if (credit.pointDeVenteId) {
+        const pdvGest = await tx.gestionnaireAffectation.findMany({
+          where: { pointDeVenteId: credit.pointDeVenteId, actif: true },
+          select: { userId: true },
+        });
+        pdvGest.forEach((g) => destSet.set(g.userId, true));
       }
 
-      if (destinataires.length > 0) {
+      if (destSet.size > 0) {
         await tx.notification.createMany({
-          data: destinataires.map((u) => ({
-            userId:    u.id,
+          data: [...destSet.keys()].map((userId) => ({
+            userId,
             titre:     "Crédit validé — à suivre",
-            message:   `Crédit ${credit.reference} (${montantTotal} FCFA) pour ${client.prenom} ${client.nom} validé. ${duree} échéances générées à partir du ${credit.dateDebut.toISOString().slice(0, 10)}.`,
+            message:   `Crédit ${credit.reference} (${montantTotal.toLocaleString("fr-FR")} FCFA) pour ${client.prenom} ${client.nom} validé. ${duree} échéances générées à partir du ${credit.dateDebut.toISOString().slice(0, 10)}.`,
             priorite:  PrioriteNotification.HAUTE,
             actionUrl: `/dashboard/admin/credits/${creditId}`,
           })),

@@ -28,7 +28,11 @@ export async function GET(_req: Request, { params }: Ctx) {
         validePar: { select: { id: true, nom: true, prenom: true } },
         lignes: {
           orderBy: { id: "asc" },
-          include: { produit: { select: { id: true, nom: true, reference: true } } },
+          include: {
+            produit:          { select: { id: true, nom: true, reference: true } },
+            produitSubstitut: { select: { id: true, nom: true } },
+            traitePar:        { select: { id: true, nom: true, prenom: true } },
+          },
         },
         echeances: {
           orderBy: { numeroEcheance: "asc" },
@@ -103,12 +107,16 @@ export async function PATCH(req: Request, { params }: Ctx) {
         await tx.ligneCreditClient.createMany({
           data: lignesCalculees.map((l) => ({
             creditId,
-            produitId:    l.produitId ? Number(l.produitId) : null,
-            produitNom:   l.produitNom,
-            quantite:     l.qte,
-            prixUnitaire: l.pu,
-            remise:       l.rem,
-            montantLigne: l.montantLigne,
+            produitId:        l.produitId ? Number(l.produitId) : null,
+            produitNom:       l.produitNom,
+            produitNomSaisi:  l.produitNom,
+            quantite:         l.qte,
+            prixUnitaire:     l.pu,
+            remise:           l.rem,
+            montantLigne:     l.montantLigne,
+            statut:           "EN_ATTENTE" as const,
+            estNouveauProduit: !l.produitId,
+            pointDeVenteId:   credit.pointDeVenteId,
           })),
         });
       }

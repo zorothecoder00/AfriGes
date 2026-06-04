@@ -7,7 +7,7 @@ import {
   Users, Hash, AlertTriangle, AlertCircle, Info, ChevronLeft, ChevronRight,
   Lock, Calendar, FileText, Filter, Layers, Eye, XCircle, Package,
   Wallet, Power, Pause, Play, ArrowDownCircle, ArrowUpCircle,
-  ArrowLeftRight, CreditCard, Building2, Send, ShoppingBag, Pencil,
+  ArrowLeftRight, CreditCard, Building2, Send, ShoppingBag, Pencil, Loader2,
 } from "lucide-react";     
 import Link from "next/link";          
 import SignOutButton from "@/components/SignOutButton";
@@ -810,6 +810,12 @@ export default function CaissierPage() {
   const [factureCreditId,      setFactureCreditId]      = useState<number | null>(null);
   const [showProForma,         setShowProForma]         = useState(false);
   const [facturesPage,         setFacturesPage]         = useState(1);
+  const [vcPage,               setVcPage]               = useState(1);
+  const [vcSearch,             setVcSearch]             = useState("");
+  const [vcSearchDebounced,    setVcSearchDebounced]    = useState("");
+  const [rembCreditId,         setRembCreditId]         = useState<number | null>(null);
+  const [rembMontant,          setRembMontant]          = useState("");
+  const [rembNotes,            setRembNotes]            = useState("");
   const [notesClotureInput,    setNotesCloture]         = useState("");
   const [soldeReel,         setSoldeReel]    = useState("");
 
@@ -918,6 +924,30 @@ export default function CaissierPage() {
   );
   const { data: facturesRes, refetch: refetchFactures } = useApi<FacturesResponse>(`/api/factures?${facturesParams}`);
 
+  // Debounce recherche ventes-crédit
+  useEffect(() => {
+    const t = setTimeout(() => setVcSearchDebounced(vcSearch), 350);
+    return () => clearTimeout(t);
+  }, [vcSearch]);
+
+  const vcParams = useMemo(
+    () => new URLSearchParams({ page: String(vcPage), limit: "20", ...(vcSearchDebounced ? { search: vcSearchDebounced } : {}) }).toString(),
+    [vcPage, vcSearchDebounced]
+  );
+  const { data: creditsRes, refetch: refetchCredits } = useApi<{
+    data: {
+      id: number; reference: string; statut: string;
+      montantTotal: number; montantRembourse: number; soldeRestant: number;
+      montantJournalier: number | null; dateDebut: string; dateEcheanceFin: string | null;
+      client: { id: number; nom: string; prenom: string; telephone: string; codeClient: string | null };
+      prochaineEcheance: {
+        id: number; montantDu: number; montantPaye: number;
+        restant: number; dateEcheance: string; statut: string;
+      } | null;
+    }[];
+    meta: { total: number; page: number; limit: number; totalPages: number };
+  }>(`/api/caissier/credits?${vcParams}`);
+
   // ── Mutations ────────────────────────────────────────────────────────────
   const { mutate: collecterVersement, loading: collectant, error: erreurVersement } =
     useMutation<{ versement: { id: number } }, { montant: number; type: string; notes?: string ; datePaiement?: string; }>(
@@ -961,6 +991,22 @@ export default function CaissierPage() {
       "POST",
       { successMessage: "Transfert enregistré ✓" }
     );
+
+  const { mutate: rembourserCredit, loading: rembLoading } =
+    useMutation<unknown, { montant: number; notes?: string }>(
+      () => `/api/caissier/credits/${rembCreditId ?? 0}/rembourser`,
+      "POST",
+      { successMessage: "Remboursement enregistré ✓" }
+    );
+
+  const handleRembourserCredit = async () => {
+    if (!rembCreditId || !rembMontant || Number(rembMontant) <= 0) return;
+    const result = await rembourserCredit({ montant: Number(rembMontant), notes: rembNotes || undefined });
+    if (result !== null) {
+      setRembCreditId(null);
+      refetchCredits();
+    }
+  };
 
   // ── Confirmation terrain ─────────────────────────────────────────────────
   const [confirmTarget, setConfirmTarget] = useState<{ type: "versement" | "remboursement" | "vente"; id: number; label: string; montant: number } | null>(null);
@@ -1321,6 +1367,56 @@ export default function CaissierPage() {
       {factureVenteId     && <FactureModal venteDirecteId={factureVenteId}       onClose={() => setFactureVenteId(null)} />}
       {factureReceptionId && <FactureModal receptionPackId={factureReceptionId} onClose={() => setFactureReceptionId(null)} />}
       {factureCreditId    && <FactureModal creditClientId={factureCreditId}      onClose={() => setFactureCreditId(null)} />}
+
+      {/* ── Modal remboursement crédit au comptoir ── */}
+      {rembCreditId !== null && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[200] p-4">
+          <div className="bg-white rounded-2xl w-full max-w-sm shadow-xl">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+              <h3 className="font-bold text-gray-900 flex items-center gap-2">
+                <Banknote className="w-5 h-5 text-emerald-600" />
+                Remboursement au comptoir
+              </h3>
+              <button onClick={() => setRembCreditId(null)} className="text-gray-400 hover:text-gray-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="px-5 py-4 space-y-3">
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">
+                  Montant (FCFA) <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="number" min="1" value={rembMontant}
+                  onChange={(e) => setRembMontant(e.target.value)}
+                  placeholder="Ex : 5 000"
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Notes (optionnel)</label>
+                <textarea rows={2} value={rembNotes} onChange={(e) => setRembNotes(e.target.value)}
+                  placeholder="Remarques…"
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none"
+                />
+              </div>
+            </div>
+            <div className="flex justify-end gap-3 px-5 py-4 border-t border-gray-100">
+              <button onClick={() => setRembCreditId(null)}
+                className="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">
+                Annuler
+              </button>
+              <button onClick={handleRembourserCredit}
+                disabled={rembLoading || !rembMontant || Number(rembMontant) <= 0}
+                className="flex items-center gap-2 px-5 py-2 text-sm text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg font-medium disabled:opacity-50">
+                {rembLoading
+                  ? <><Loader2 className="w-4 h-4 animate-spin" />Traitement…</>
+                  : <>Confirmer</>}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {showProForma       && <FactureModal proFormaMode searchClientsUrl="/api/caissier/clients" searchProduitsUrl="/api/caissier/produits" onClose={() => setShowProForma(false)} />}
 
       {/* Modal Versement */}
@@ -3398,6 +3494,115 @@ export default function CaissierPage() {
                     </button>
                     <span className="px-3 py-1 bg-slate-800 text-white rounded-lg text-sm">{facturesPage}</span>
                     <button onClick={() => setFacturesPage((p) => Math.min(facturesRes.meta.totalPages, p + 1))} disabled={facturesPage >= facturesRes.meta.totalPages} className="p-1.5 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 disabled:opacity-40">
+                      <ChevronRight size={14} />
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* ── Crédits clients actifs ── */}
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 overflow-hidden">
+              <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between gap-3 flex-wrap">
+                <h3 className="font-bold text-slate-800 flex items-center gap-2">
+                  <CreditCard size={20} className="text-indigo-600" />
+                  Crédits clients actifs
+                </h3>
+                <div className="flex items-center gap-2">
+                  <div className="relative">
+                    <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input
+                      value={vcSearch}
+                      onChange={(e) => { setVcSearch(e.target.value); setVcPage(1); }}
+                      placeholder="Référence, client…"
+                      className="pl-8 pr-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-300 w-44"
+                    />
+                  </div>
+                  <span className="text-sm text-slate-500">{creditsRes?.meta.total ?? 0} crédit(s)</span>
+                  <button onClick={refetchCredits} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
+                    <RefreshCw size={16} />
+                  </button>
+                </div>
+              </div>
+
+              {(creditsRes?.data ?? []).length === 0 ? (
+                <div className="text-center py-10 text-slate-400">
+                  <CreditCard className="w-10 h-10 mx-auto mb-2 text-slate-200" />
+                  <p className="text-sm">Aucun crédit actif pour ce PDV</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="bg-slate-50 border-b border-slate-200">
+                      <tr>
+                        {["Référence", "Client", "Total", "Solde restant", "Prochaine échéance", "Statut", ""].map((h) => (
+                          <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {creditsRes!.data.map((c) => {
+                        const enRetard = c.statut === "EN_RETARD";
+                        return (
+                          <tr key={c.id} className="hover:bg-slate-50 transition-colors">
+                            <td className="px-4 py-3 font-mono text-xs text-slate-600 font-semibold">{c.reference}</td>
+                            <td className="px-4 py-3">
+                              <p className="text-slate-800 font-medium">{c.client.prenom} {c.client.nom}</p>
+                              <p className="text-xs text-slate-400">{c.client.telephone}</p>
+                            </td>
+                            <td className="px-4 py-3 font-bold text-slate-800">{formatCurrency(c.montantTotal)}</td>
+                            <td className="px-4 py-3">
+                              <span className={`font-bold ${enRetard ? "text-red-600" : "text-amber-600"}`}>
+                                {formatCurrency(c.soldeRestant)}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-xs text-slate-500">
+                              {c.prochaineEcheance ? (
+                                <>
+                                  <span className={enRetard ? "text-red-500 font-medium" : ""}>{formatDate(c.prochaineEcheance.dateEcheance)}</span>
+                                  <span className="ml-1 text-slate-400">· {formatCurrency(c.prochaineEcheance.restant)}</span>
+                                </>
+                              ) : <span className="text-slate-300">—</span>}
+                            </td>
+                            <td className="px-4 py-3">
+                              <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${enRetard ? "bg-red-100 text-red-700" : "bg-emerald-100 text-emerald-700"}`}>
+                                {enRetard ? "En retard" : "Actif"}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3">
+                              <div className="flex items-center gap-1">
+                                <button
+                                  onClick={() => { setRembCreditId(c.id); setRembMontant(""); setRembNotes(""); }}
+                                  className="flex items-center gap-1 px-2.5 py-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg text-xs font-semibold hover:bg-emerald-100 transition-colors"
+                                >
+                                  <Banknote size={12} /> Rembourser
+                                </button>
+                                <button
+                                  onClick={() => setFactureCreditId(c.id)}
+                                  className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                                  title="Facture crédit"
+                                >
+                                  <Receipt size={13} />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {creditsRes && creditsRes.meta.totalPages > 1 && (
+                <div className="px-5 py-4 border-t border-slate-100 flex items-center justify-between">
+                  <p className="text-sm text-slate-400">Page {creditsRes.meta.page} / {creditsRes.meta.totalPages}</p>
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => setVcPage((p) => Math.max(1, p - 1))} disabled={vcPage <= 1} className="p-1.5 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 disabled:opacity-40">
+                      <ChevronLeft size={14} />
+                    </button>
+                    <span className="px-3 py-1 bg-slate-800 text-white rounded-lg text-sm">{vcPage}</span>
+                    <button onClick={() => setVcPage((p) => Math.min(creditsRes.meta.totalPages, p + 1))} disabled={vcPage >= creditsRes.meta.totalPages} className="p-1.5 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 disabled:opacity-40">
                       <ChevronRight size={14} />
                     </button>
                   </div>

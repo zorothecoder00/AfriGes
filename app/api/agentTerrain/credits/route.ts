@@ -99,6 +99,7 @@ export async function POST(req: Request) {
           id: true, nom: true, prenom: true,
           agentTerrainId: true, etat: true,
           limiteCredit: true, soldeActuel: true, niveauRisque: true,
+          pointDeVenteId: true,
         },
       });
       if (!client) throw new Error("CLIENT_INTROUVABLE");
@@ -134,6 +135,7 @@ export async function POST(req: Request) {
         data: {
           reference,
           clientId: client.id,
+          pointDeVenteId: client.pointDeVenteId ?? null,
           statut: "EN_ATTENTE_VALIDATION",
           montantTotal: montant,
           montantRembourse: 0,
@@ -148,11 +150,14 @@ export async function POST(req: Request) {
           creeParId: agentId,
           lignes: {
             create: [{
-              produitNom: `Crédit terrain — ${agentNom}`,
-              quantite: 1,
-              prixUnitaire: montant,
-              remise: 0,
-              montantLigne: montant,
+              produitNom:       `Crédit terrain — ${agentNom}`,
+              produitNomSaisi:  `Crédit terrain — ${agentNom}`,
+              quantite:         1,
+              prixUnitaire:     montant,
+              remise:           0,
+              montantLigne:     montant,
+              statut:           "EN_ATTENTE" as const,
+              estNouveauProduit: true,
             }],
           },
         },
@@ -175,6 +180,25 @@ export async function POST(req: Request) {
         priorite: "HAUTE",
         actionUrl: `/dashboard/admin/credits`,
       });
+
+      // ── Notifier les gestionnaires du PDV (RVC, RPV…) ─────────────────────
+      if (client.pointDeVenteId) {
+        const pdvGest = await tx.gestionnaireAffectation.findMany({
+          where: { pointDeVenteId: client.pointDeVenteId, actif: true },
+          select: { userId: true },
+        });
+        if (pdvGest.length > 0) {
+          await tx.notification.createMany({
+            data: pdvGest.map((g) => ({
+              userId:    g.userId,
+              titre:     "Nouvelle demande de crédit (terrain) — en attente de validation",
+              message:   `Demande de ${montant.toLocaleString("fr-FR")} FCFA pour ${client.prenom} ${client.nom} (${reference}) soumise par ${agentNom}.`,
+              priorite:  "HAUTE" as const,
+              actionUrl: `/dashboard/admin/credits`,
+            })),
+          });
+        }
+      }
 
       return credit;
     });
