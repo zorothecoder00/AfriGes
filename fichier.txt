@@ -57,7 +57,7 @@ Pouvoir créer des tags RIA et faire des recherches par tag( clients surtout ) s
 Faire des tags dans l'application pour permettre de retracer les informations sur les clients  
 
 
-Inventaire doit se faire chez admin et magasinier(validation inventaire et appro)
+Inventaire doit se faire chez L'admin et magasinier(validation inventaire et appro)
 
 créer un gestionnaire commercial(responsable marketing)
 
@@ -71,4 +71,11 @@ générer automatiquement des vignettes pour les produits( étiquettes )
 l'admin et les responsables (chefagence , rpv,admin  ) doivent pouvoir modifier et supprimer(uniquement les admins) les factures
 
 Vérifie si dans un dashboard/  on utilise encore les ventes directes à crédit au lieu des credits clients (surtout au niveau des caissiers et des comptables ). C'est important que tout soit correctement implémenté avec une architecture vraiment cohérente et fluide 
- 
+
+Lorsque le rvc valide une demande de crédit venant de l'agent de terrain , la facture qu'il fait à ce moment garde les lignes du crédit que le rvc lui même a créé . ça ne prend pas en compte ce que l'agent de terrain a fait comme demande sur la facture
+
+Toujous sur le dashboard/user/responableventecredit , lorsqu'on veut créer un crédit à un client mais que ce client n'a pas de limite , est ce que ça ne serait pas lpogique de le rediriger vers le post ou le patch de limite de plafond ?? Comme çela l'UX sera très clair
+
+erreur d'application et Exception côté client sur quasiment toutes les actions(post ou patch surtoutet même get je crois) d'un de mes supérieurs sur l'app déployée (sur vercel)
+
+pouvoir supprimer des factures et des ventes à crédit
