@@ -101,6 +101,286 @@ const LIGNE_STATUT_LABEL: Record<string, string> = {
   ANNULE:       "Annulé",
 };
 
+// ─── NouveauCreditModal ────────────────────────────────────────────────────────
+
+interface ClientOption { id: number; nom: string; prenom: string; telephone: string }
+interface ProduitOption { id: number; nom: string; reference: string; unite: string | null; prixUnitaire: number; quantite: number }
+interface EligibiliteResponse {
+  eligible: boolean;
+  raisons: string[];
+  alertes: string[];
+  client: { limiteCredit: number | null };
+}
+
+function NouveauCreditModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
+  // ── Données initiales ─────────────────────────────────────────────────────
+  const { data: initData, loading: initLoading } = useApi<{ clients: ClientOption[]; produitsDispo: ProduitOption[] }>("/api/rvc/credits/init");
+  const clients  = initData?.clients  ?? [];
+  const produits = initData?.produitsDispo ?? [];
+
+  // ── Étape 1 : sélection client + éligibilité ─────────────────────────────
+  const [clientId,     setClientId]     = useState("");
+  const [eligibilite,  setEligibilite]  = useState<EligibiliteResponse | null>(null);
+  const [eligLoading,  setEligLoading]  = useState(false);
+
+  // ── Inline : définir limite crédit si absente ─────────────────────────────
+  const [showSetLimite, setShowSetLimite] = useState(false);
+  const [limiteInput,   setLimiteInput]   = useState("");
+  const [limiteLoading, setLimiteLoading] = useState(false);
+
+  // ── Formulaire crédit ─────────────────────────────────────────────────────
+  const [dureeJours,   setDureeJours]   = useState("30");
+  const [dateDebut,    setDateDebut]    = useState(new Date().toISOString().slice(0, 10));
+  const [garantie,     setGarantie]     = useState("");
+  const [observations, setObservations] = useState("");
+  const [lignes, setLignes] = useState([{ produitId: "", produitNom: "", quantite: "1", prixUnitaire: "", remise: "0" }]);
+  const [submitLoading, setSubmitLoading] = useState(false);
+
+  const checkEligibilite = async (cid: string) => {
+    if (!cid) { setEligibilite(null); return; }
+    setEligLoading(true);
+    try {
+      const r = await fetch(`/api/rvc/clients/${cid}/eligibilite-credit`);
+      const j = await r.json();
+      if (r.ok) {
+        setEligibilite(j);
+        setShowSetLimite(j.client?.limiteCredit === null);
+      }
+    } finally { setEligLoading(false); }
+  };
+
+  const handleSetLimite = async () => {
+    if (!clientId || !limiteInput || Number(limiteInput) <= 0) return toast.error("Montant invalide");
+    setLimiteLoading(true);
+    try {
+      const r = await fetch(`/api/rvc/clients/${clientId}/limite-credit`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ limiteCredit: Number(limiteInput) }),
+      });
+      const j = await r.json();
+      if (r.ok) {
+        toast.success("Limite de crédit définie");
+        setShowSetLimite(false);
+        await checkEligibilite(clientId);
+      } else {
+        toast.error(j.error ?? "Erreur");
+      }
+    } finally { setLimiteLoading(false); }
+  };
+
+  const setLigne = (i: number, field: string, val: string) => {
+    setLignes((prev) => {
+      const next = [...prev];
+      next[i] = { ...next[i], [field]: val };
+      if (field === "produitId" && val) {
+        const p = produits.find((p) => p.id === Number(val));
+        if (p) { next[i].produitNom = p.nom; next[i].prixUnitaire = String(p.prixUnitaire); }
+      }
+      return next;
+    });
+  };
+
+  const montantTotal = lignes.reduce((s, l) => {
+    const qte = Number(l.quantite) || 0;
+    const pu  = Number(l.prixUnitaire) || 0;
+    const rem = Number(l.remise) || 0;
+    return s + Math.max(0, qte * pu - rem);
+  }, 0);
+
+  const handleSubmit = async () => {
+    if (!clientId) return toast.error("Sélectionnez un client");
+    if (lignes.some((l) => !l.produitNom.trim())) return toast.error("Nom requis pour chaque produit");
+    if (lignes.some((l) => !Number(l.prixUnitaire) || Number(l.prixUnitaire) <= 0)) return toast.error("Prix invalide");
+    if (montantTotal <= 0) return toast.error("Montant total invalide");
+    setSubmitLoading(true);
+    try {
+      const r = await fetch("/api/rvc/credits", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          clientId:     Number(clientId),
+          dureeJours:   Number(dureeJours),
+          dateDebut,
+          garantie:     garantie || undefined,
+          observations: observations || undefined,
+          lignes: lignes.map((l) => ({
+            produitId:   l.produitId ? Number(l.produitId) : undefined,
+            produitNom:  l.produitNom.trim(),
+            quantite:    Number(l.quantite),
+            prixUnitaire: Number(l.prixUnitaire),
+            remise:      Number(l.remise) || 0,
+          })),
+        }),
+      });
+      const j = await r.json();
+      if (r.ok) {
+        const rupturesMsg = j.ruptures?.length
+          ? ` — ${j.ruptures.length} produit(s) en rupture : commande interne créée automatiquement.`
+          : "";
+        toast.success(`Crédit créé (ACTIF)${rupturesMsg}`);
+        onSuccess();
+      } else {
+        toast.error(j.error ?? "Erreur lors de la création");
+      }
+    } finally { setSubmitLoading(false); }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        {/* Header */}
+        <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between rounded-t-2xl z-10">
+          <h2 className="text-base font-bold text-gray-900">Nouveau crédit client</h2>
+          <button onClick={onClose} className="p-1.5 hover:bg-gray-100 rounded-lg"><X className="w-4 h-4" /></button>
+        </div>
+
+        <div className="p-6 space-y-5">
+          {initLoading && <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 animate-spin text-indigo-500" /></div>}
+
+          {!initLoading && (
+            <>
+              {/* Client */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Client *</label>
+                <select
+                  value={clientId}
+                  onChange={(e) => { setClientId(e.target.value); setEligibilite(null); setShowSetLimite(false); checkEligibilite(e.target.value); }}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                >
+                  <option value="">-- Sélectionner un client --</option>
+                  {clients.map((c) => (
+                    <option key={c.id} value={c.id}>{c.prenom} {c.nom} — {c.telephone}</option>
+                  ))}
+                </select>
+
+                {/* Éligibilité */}
+                {eligLoading && <p className="mt-2 text-xs text-gray-400 flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin" /> Vérification…</p>}
+                {!eligLoading && eligibilite && (
+                  <div className={`mt-2 p-3 rounded-xl text-xs space-y-1 ${eligibilite.eligible ? "bg-green-50 border border-green-200" : "bg-red-50 border border-red-200"}`}>
+                    {eligibilite.raisons.map((r, i) => <p key={i} className="text-red-700">• {r}</p>)}
+                    {eligibilite.alertes.map((a, i) => <p key={i} className="text-amber-700">⚠ {a}</p>)}
+                    {eligibilite.eligible && !eligibilite.raisons.length && <p className="text-green-700">✓ Client éligible</p>}
+                  </div>
+                )}
+
+                {/* Inline : définir limite crédit */}
+                {showSetLimite && (
+                  <div className="mt-3 p-4 bg-amber-50 border border-amber-200 rounded-xl space-y-2">
+                    <p className="text-sm font-medium text-amber-800">Ce client n&apos;a pas de limite de crédit définie.</p>
+                    <p className="text-xs text-amber-700">Définissez une limite maintenant pour continuer.</p>
+                    <div className="flex gap-2">
+                      <input
+                        type="number" min={1} placeholder="Montant limite (FCFA)"
+                        value={limiteInput} onChange={(e) => setLimiteInput(e.target.value)}
+                        className="flex-1 px-3 py-2 border border-amber-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
+                      />
+                      <button
+                        onClick={handleSetLimite} disabled={limiteLoading}
+                        className="px-4 py-2 bg-amber-600 text-white rounded-lg text-sm font-medium hover:bg-amber-700 disabled:opacity-50 flex items-center gap-1.5"
+                      >
+                        {limiteLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
+                        Définir
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Durée + Date */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Durée (jours) *</label>
+                  <input type="number" min={1} value={dureeJours} onChange={(e) => setDureeJours(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Date de début *</label>
+                  <input type="date" value={dateDebut} onChange={(e) => setDateDebut(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                </div>
+              </div>
+
+              {/* Garantie + Observations */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Garantie</label>
+                  <input type="text" value={garantie} placeholder="ex. titre foncier…" onChange={(e) => setGarantie(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Observations</label>
+                  <input type="text" value={observations} onChange={(e) => setObservations(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                </div>
+              </div>
+
+              {/* Lignes produits */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-sm font-medium text-gray-700">Produits *</label>
+                  <button onClick={() => setLignes((p) => [...p, { produitId: "", produitNom: "", quantite: "1", prixUnitaire: "", remise: "0" }])}
+                    className="flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-800 font-medium">
+                    <Plus className="w-3.5 h-3.5" /> Ajouter
+                  </button>
+                </div>
+                <div className="space-y-3">
+                  {lignes.map((l, i) => (
+                    <div key={i} className="bg-gray-50 rounded-xl p-3 space-y-2">
+                      <div className="flex items-center gap-2">
+                        <select value={l.produitId} onChange={(e) => setLigne(i, "produitId", e.target.value)}
+                          className="flex-1 px-2.5 py-1.5 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                          <option value="">Hors catalogue (saisie libre)</option>
+                          {produits.map((p) => (
+                            <option key={p.id} value={p.id}>{p.nom} — {p.reference} (dispo: {p.quantite})</option>
+                          ))}
+                        </select>
+                        {lignes.length > 1 && (
+                          <button onClick={() => setLignes((p) => p.filter((_, j) => j !== i))} className="p-1.5 text-red-400 hover:text-red-600">
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
+                      <div className="grid grid-cols-4 gap-2">
+                        <div className="col-span-2">
+                          <input type="text" placeholder="Nom du produit *" value={l.produitNom} onChange={(e) => setLigne(i, "produitNom", e.target.value)}
+                            className="w-full px-2.5 py-1.5 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                        </div>
+                        <input type="number" placeholder="Qté" min={1} value={l.quantite} onChange={(e) => setLigne(i, "quantite", e.target.value)}
+                          className="px-2.5 py-1.5 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                        <input type="number" placeholder="Prix u." min={0} value={l.prixUnitaire} onChange={(e) => setLigne(i, "prixUnitaire", e.target.value)}
+                          className="px-2.5 py-1.5 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Total */}
+              <div className="flex items-center justify-between p-3 bg-indigo-50 rounded-xl">
+                <span className="text-sm font-semibold text-indigo-800">Montant total</span>
+                <span className="text-lg font-bold text-indigo-900">{formatCurrency(montantTotal)}</span>
+              </div>
+
+              {/* Actions */}
+              <div className="flex gap-3 pt-2">
+                <button onClick={onClose} className="flex-1 py-3 border border-gray-200 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50">
+                  Annuler
+                </button>
+                <button onClick={handleSubmit} disabled={submitLoading || showSetLimite}
+                  className="flex-1 py-3 bg-indigo-600 text-white rounded-xl text-sm font-semibold hover:bg-indigo-700 disabled:opacity-50 flex items-center justify-center gap-2">
+                  {submitLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <CreditCard className="w-4 h-4" />}
+                  Créer le crédit
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function RVCCreditsPage() {
@@ -109,6 +389,8 @@ export default function RVCCreditsPage() {
   const [statut,      setStatut]      = useState("");
   const [page,        setPage]        = useState(1);
   const LIMIT = 20;
+
+  const [showNouveauCredit, setShowNouveauCredit] = useState(false);
 
   const [detailCredit,    setDetailCredit]    = useState<CreditDetail | null>(null);
   const [detailLoading,   setDetailLoading]   = useState(false);
@@ -423,10 +705,12 @@ export default function RVCCreditsPage() {
               <option value="SOLDE">Soldé</option>
               <option value="ANNULE">Annulé</option>
             </select>
-            <Link href="/dashboard/user/responsablesVenteCredit/ventes-credit"
-              className="flex items-center gap-1.5 px-3 py-2 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">
+            <button
+              onClick={() => setShowNouveauCredit(true)}
+              className="flex items-center gap-1.5 px-3 py-2 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+            >
               <Plus size={14} /> Nouveau crédit
-            </Link>
+            </button>
             <button onClick={refetch} className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50 text-gray-500">
               <RefreshCw size={15} className={loading ? "animate-spin" : ""} />
             </button>
@@ -897,6 +1181,13 @@ export default function RVCCreditsPage() {
 
       {factureId !== null && (
         <FactureModal creditClientId={factureId} onClose={() => setFactureId(null)} />
+      )}
+
+      {showNouveauCredit && (
+        <NouveauCreditModal
+          onClose={() => setShowNouveauCredit(false)}
+          onSuccess={() => { setShowNouveauCredit(false); refetch(); }}
+        />
       )}
 
       {/* ── Modal refus ────────────────────────────────────────────────────────── */}

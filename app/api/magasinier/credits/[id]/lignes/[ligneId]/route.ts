@@ -36,6 +36,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
               id: true,
               reference: true,
               pointDeVenteId: true,
+              creeParId: true,
               client: { select: { nom: true, prenom: true } },
             },
           },
@@ -108,6 +109,19 @@ export async function PATCH(req: Request, { params }: Ctx) {
         priorite: PrioriteNotification.NORMAL,
         actionUrl: `/dashboard/user/responsablesVenteCredit/credits`,
       });
+
+      // Notifier l'agent terrain créateur du crédit
+      if (ligne.credit.creeParId && ligne.credit.creeParId !== userId) {
+        await tx.notification.create({
+          data: {
+            userId:    ligne.credit.creeParId,
+            titre:     `Livraison effectuée — ${ligne.credit.reference}`,
+            message:   `"${ligne.produitNom}" ×${ligne.quantite} a été livré à ${nomClient} (crédit ${ligne.credit.reference}).`,
+            priorite:  PrioriteNotification.NORMAL,
+            actionUrl: `/dashboard/user/agentsTerrain/credits`,
+          },
+        });
+      }
 
       return result;
     });

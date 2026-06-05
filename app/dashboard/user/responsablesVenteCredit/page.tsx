@@ -5,7 +5,7 @@ import {
   Users, Search, RefreshCw, CheckCircle, XCircle, Clock,
   AlertCircle, User, Phone, MapPin, Briefcase,
   Loader2, Eye, Shield, TrendingUp, Wallet, Edit3,
-  ShoppingBag, CreditCard, FileText,
+  CreditCard, FileText,
 } from "lucide-react";
 import Link from "next/link";
 import SignOutButton from "@/components/SignOutButton";
@@ -594,44 +594,24 @@ export default function RVCPage() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
 
-        {/* Bannières de navigation */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Link
-            href="/dashboard/user/responsablesVenteCredit/ventes-credit"
-            className="flex items-center justify-between w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-2xl px-6 py-4 hover:from-blue-700 hover:to-indigo-700 transition-all shadow-md group"
-          >
-            <div className="flex items-center gap-4">
-              <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center shrink-0">
-                <ShoppingBag size={20} />
-              </div>
-              <div>
-                <p className="font-bold text-base">Ventes à Crédit</p>
-                <p className="text-blue-100 text-sm">Approuver ou refuser les demandes de livraison crédit</p>
-              </div>
+        {/* Bannière navigation */}
+        <Link
+          href="/dashboard/user/responsablesVenteCredit/credits"
+          className="flex items-center justify-between w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-2xl px-6 py-4 hover:from-indigo-700 hover:to-purple-700 transition-all shadow-md group"
+        >
+          <div className="flex items-center gap-4">
+            <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center shrink-0">
+              <CreditCard size={20} />
             </div>
-            <div className="flex items-center gap-2 text-sm font-semibold bg-white/20 px-4 py-2 rounded-xl group-hover:bg-white/30 transition-colors shrink-0">
-              Ouvrir <span className="ml-1">→</span>
+            <div>
+              <p className="font-bold text-base">Crédits Clients</p>
+              <p className="text-indigo-100 text-sm">Créer, valider et suivre tous les dossiers de crédit</p>
             </div>
-          </Link>
-
-          <Link
-            href="/dashboard/user/responsablesVenteCredit/credits"
-            className="flex items-center justify-between w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-2xl px-6 py-4 hover:from-indigo-700 hover:to-purple-700 transition-all shadow-md group"
-          >
-            <div className="flex items-center gap-4">
-              <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center shrink-0">
-                <CreditCard size={20} />
-              </div>
-              <div>
-                <p className="font-bold text-base">Crédits Clients</p>
-                <p className="text-indigo-100 text-sm">Créer, valider et suivre les dossiers de crédit</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2 text-sm font-semibold bg-white/20 px-4 py-2 rounded-xl group-hover:bg-white/30 transition-colors shrink-0">
-              Ouvrir <span className="ml-1">→</span>
-            </div>
-          </Link>
-        </div>
+          </div>
+          <div className="flex items-center gap-2 text-sm font-semibold bg-white/20 px-4 py-2 rounded-xl group-hover:bg-white/30 transition-colors shrink-0">
+            Ouvrir <span className="ml-1">→</span>
+          </div>
+        </Link>
 
         {/* Onglets clients */}
         <div className="flex items-center gap-1 bg-white rounded-xl border border-gray-200 p-1 w-fit">

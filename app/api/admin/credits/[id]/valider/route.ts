@@ -161,7 +161,7 @@ export async function POST(_req: Request, { params }: Ctx) {
                 titre:     `Livraison requise — crédit ${credit.reference}`,
                 message:   `Crédit ${credit.reference} validé pour ${client.prenom} ${client.nom}. ${produitLignes.length} produit(s) à livrer au client.`,
                 priorite:  PrioriteNotification.HAUTE,
-                actionUrl: `/dashboard/user/magasiniers/ventes-credit`,
+                actionUrl: `/dashboard/user/magasiniers/ventes-credit`,  // livraisons crédit Flow A
               })),
             });
           }

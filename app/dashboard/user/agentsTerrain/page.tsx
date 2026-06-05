@@ -1722,7 +1722,7 @@ export default function AgentTerrainPage() {
           </div>
           <div className="flex items-center gap-2">
             <Link
-              href="/dashboard/user/agentsTerrain/ventes-credit"
+              href="/dashboard/user/agentsTerrain/credits"
               className="px-4 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-semibold hover:bg-indigo-700 transition-colors flex items-center gap-2 shadow-sm"
             >
               <CreditCard size={16} /> Crédits Clients

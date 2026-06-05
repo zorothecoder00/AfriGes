@@ -79,7 +79,7 @@ export async function POST(req: Request, { params }: Ctx) {
             titre:     `Demande crédit refusée — ${credit.reference}`,
             message:   msg,
             priorite:  "HAUTE",
-            actionUrl: `/dashboard/user/agentsTerrain/ventes-credit`,
+            actionUrl: `/dashboard/user/agentsTerrain/credits`,
           },
         });
       }
