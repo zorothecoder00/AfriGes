@@ -38,7 +38,8 @@ export default function GlobalError({
             >
               Réessayer
             </button>
-            <a
+            {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
+          <a
               href="/"
               style={{ padding: "0.5rem 1.25rem", background: "#e5e7eb", color: "#374151", borderRadius: 8, textDecoration: "none", fontWeight: 600 }}
             >
