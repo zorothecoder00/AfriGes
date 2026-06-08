@@ -9,9 +9,10 @@ import {
 } from 'lucide-react';
 import { useApi, useMutation } from '@/hooks/useApi';
 import { formatDate, formatCurrency } from '@/lib/format';
-import { toast } from 'sonner'; 
+import { toast } from 'sonner';
 import ClienteleTabBar from '@/components/ClienteleTabBar';
 import { useT } from '@/contexts/AppSettingsContext';
+import { useTagModal } from '@/contexts/TagModalContext';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -41,7 +42,7 @@ interface LigneDetail {
   montantCollecte: string;
   statut: 'EN_ATTENTE' | 'COLLECTE' | 'PARTIEL' | 'ECHEC';
   notes: string | null;
-  client: { id: number; nom: string; prenom: string; telephone: string; adresse: string | null; quartier: string | null; ville: string | null; codeClient: string | null };
+  client: { id: number; nom: string; prenom: string; telephone: string; adresse: string | null; quartier: string | null; ville: string | null; codeClient: string | null; segment: string; tags: { tag: { id: number; nom: string; couleur: string } }[] };
   souscription: { id: number; montantTotal: string; montantVerse: string; montantRestant: string; statut: string; pack: { nom: string; type: string } };
   versementPack: { id: number; montant: string; datePaiement: string; reference: string } | null;
 }
@@ -348,6 +349,7 @@ export default function CollectesPage() {
 
 function SaisieCollecteModal({ id, onClose, onSaved }: { id: number; onClose: () => void; onSaved: () => void }) {
   const t = useT();
+  const tagModal = useTagModal();
   const { data: res, loading } = useApi<{ data: CollecteDetail }>(`/api/admin/collectes/${id}`);
   const { mutate: patch, loading: saving } = useMutation(`/api/admin/collectes/${id}`, 'PATCH');
   const { mutate: valider, loading: validating } = useMutation(`/api/admin/collectes/${id}/valider`, 'POST');
@@ -426,7 +428,12 @@ function SaisieCollecteModal({ id, onClose, onSaved }: { id: number; onClose: ()
                   return (
                     <tr key={ligne.id} className="hover:bg-gray-50">
                       <td className="px-4 py-3">
-                        <div className="font-medium text-gray-800">{ligne.client.prenom} {ligne.client.nom}</div>
+                        <div className="font-medium text-gray-800">
+                          {ligne.client.prenom} {ligne.client.nom}
+                          {ligne.client.segment === 'RIA' && (
+                            <span className="ml-1.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-indigo-100 text-indigo-700 leading-none">★ RIA</span>
+                          )}
+                        </div>
                         <div className="flex items-center gap-1 text-xs text-gray-500 mt-0.5">
                           <Phone className="w-3 h-3" /> {ligne.client.telephone}
                         </div>
@@ -434,6 +441,20 @@ function SaisieCollecteModal({ id, onClose, onSaved }: { id: number; onClose: ()
                           <div className="flex items-center gap-1 text-xs text-gray-400 mt-0.5">
                             <MapPin className="w-3 h-3" />
                             {[ligne.client.quartier, ligne.client.ville].filter(Boolean).join(', ')}
+                          </div>
+                        )}
+                        {ligne.client.tags.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {ligne.client.tags.map(({ tag }) => (
+                              <button
+                                key={tag.id}
+                                onClick={() => tagModal?.openTag(tag)}
+                                className="px-1.5 py-0.5 rounded-full text-[10px] font-semibold text-white leading-none hover:opacity-80 transition-opacity"
+                                style={{ backgroundColor: tag.couleur }}
+                              >
+                                {tag.nom}
+                              </button>
+                            ))}
                           </div>
                         )}
                       </td>
@@ -536,6 +557,7 @@ function CollecteDetailModal({
   id, onClose, onValidated,
 }: { id: number; onClose: () => void; onValidated: () => void }) {
   const t = useT();
+  const tagModal = useTagModal();
   const { data: res, loading } = useApi<{ data: CollecteDetail }>(`/api/admin/collectes/${id}`);
   const { mutate: valider, loading: validating } = useMutation(`/api/admin/collectes/${id}/valider`, 'POST');
 
@@ -601,7 +623,24 @@ function CollecteDetailModal({
                         <span className="font-medium text-gray-800 text-sm">
                           {l.client.prenom} {l.client.nom}
                         </span>
+                        {l.client.segment === 'RIA' && (
+                          <span className="ml-1.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-indigo-100 text-indigo-700 leading-none">★ RIA</span>
+                        )}
                         <span className="ml-2 text-xs text-gray-500">{l.client.telephone}</span>
+                        {l.client.tags.length > 0 && (
+                          <span className="ml-2 inline-flex flex-wrap gap-1">
+                            {l.client.tags.map(({ tag }) => (
+                              <button
+                                key={tag.id}
+                                onClick={() => tagModal?.openTag(tag)}
+                                className="px-1.5 py-0.5 rounded-full text-[10px] font-semibold text-white leading-none hover:opacity-80 transition-opacity"
+                                style={{ backgroundColor: tag.couleur }}
+                              >
+                                {tag.nom}
+                              </button>
+                            ))}
+                          </span>
+                        )}
                       </div>
                       <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${LIGNE_STATUT_BADGE[l.statut] ?? 'bg-gray-100 text-gray-600'}`}>
                         {l.statut}

@@ -73,8 +73,10 @@ export async function GET(req: Request) {
               client: {
                 select: {
                   id: true, nom: true, prenom: true, telephone: true, codeClient: true,
+                  segment: true,
                   agentTerrain: { select: { id: true, nom: true, prenom: true } },
                   pointDeVente: { select: { id: true, nom: true, code: true } },
+                  tags: { select: { tag: { select: { id: true, nom: true, couleur: true } } } },
                 },
               },
             },

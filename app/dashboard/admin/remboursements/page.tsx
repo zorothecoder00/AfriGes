@@ -9,6 +9,7 @@ import { useApi } from '@/hooks/useApi';
 import { formatDate, formatCurrency } from '@/lib/format';
 import { exportToCsv } from '@/lib/exportCsv';
 import ClienteleTabBar from '@/components/ClienteleTabBar';
+import { useTagModal } from '@/contexts/TagModalContext';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -30,8 +31,10 @@ interface Versement {
     client: {
       id: number; nom: string; prenom: string; telephone: string;
       codeClient: string | null;
+      segment: string;
       agentTerrain: { id: number; nom: string; prenom: string } | null;
       pointDeVente: { id: number; nom: string; code: string } | null;
+      tags: { tag: { id: number; nom: string; couleur: string } }[];
     };
   };
   ligneCollecte: {
@@ -78,6 +81,7 @@ const PACK_TYPE_BADGE: Record<string, string> = {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function RemboursementsPage() {
+  const tagModal = useTagModal();
   const [page,        setPage]        = useState(1);
   const [searchInput, setSearchInput] = useState('');
   const [search,      setSearch]      = useState('');
@@ -304,6 +308,9 @@ export default function RemboursementsPage() {
                     <td className="px-4 py-3">
                       <div className="font-medium text-gray-900">
                         {v.souscription.client.prenom} {v.souscription.client.nom}
+                        {v.souscription.client.segment === 'RIA' && (
+                          <span className="ml-1.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-indigo-100 text-indigo-700 leading-none">★ RIA</span>
+                        )}
                       </div>
                       <div className="flex items-center gap-1 text-xs text-gray-500 mt-0.5">
                         <Phone className="w-3 h-3" />
@@ -313,6 +320,20 @@ export default function RemboursementsPage() {
                         <div className="flex items-center gap-1 text-xs text-gray-400 mt-0.5">
                           <MapPin className="w-3 h-3" />
                           {v.souscription.client.pointDeVente.nom}
+                        </div>
+                      )}
+                      {v.souscription.client.tags.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {v.souscription.client.tags.map(({ tag }) => (
+                            <button
+                              key={tag.id}
+                              onClick={() => tagModal?.openTag(tag)}
+                              className="px-1.5 py-0.5 rounded-full text-[10px] font-semibold text-white leading-none hover:opacity-80 transition-opacity"
+                              style={{ backgroundColor: tag.couleur }}
+                            >
+                              {tag.nom}
+                            </button>
+                          ))}
                         </div>
                       )}
                     </td>

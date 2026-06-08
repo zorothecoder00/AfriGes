@@ -27,6 +27,8 @@ export async function GET(_req: Request, { params }: Ctx) {
               select: {
                 id: true, nom: true, prenom: true, telephone: true, codeClient: true,
                 adresse: true, quartier: true, ville: true,
+                segment: true,
+                tags: { select: { tag: { select: { id: true, nom: true, couleur: true } } } },
               },
             },
             souscription: {
