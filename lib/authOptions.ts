@@ -106,10 +106,17 @@ export const authOptions: NextAuthOptions = {
 			} else {
 				// Requêtes suivantes : vérifier que le compte est toujours actif
 				// et que le token n'a pas été révoqué (force_disconnect)
-				const dbUser = await prisma.user.findUnique({
-					where: { id: Number(token.id) },
-					select: { etat: true, tokenVersion: true, mustChangePassword: true },
-				})
+				// On rafraîchit aussi gestionnaireRole au cas où il a changé depuis le login
+				const [dbUser, gestionnaire] = await Promise.all([
+					prisma.user.findUnique({
+						where: { id: Number(token.id) },
+						select: { etat: true, tokenVersion: true, mustChangePassword: true },
+					}),
+					prisma.gestionnaire.findUnique({
+						where: { memberId: Number(token.id) },
+						select: { role: true },
+					}),
+				])
 				if (
 					!dbUser ||
 					dbUser.etat === "SUSPENDU" ||
@@ -119,6 +126,7 @@ export const authOptions: NextAuthOptions = {
 				} else {
 					delete token.error
 					token.mustChangePassword = dbUser.mustChangePassword
+					token.gestionnaireRole = gestionnaire?.role ?? null
 				}
 			}
 			return token
@@ -141,10 +149,11 @@ export const authOptions: NextAuthOptions = {
 
 	session: {
 		strategy: "jwt",
-		maxAge: 60 * 60,//1heure en secondes 
+		maxAge:    30 * 24 * 60 * 60, // 30 jours
+		updateAge: 24 * 60 * 60,      // renouvelle le token une fois par jour si l'user est actif
 	},
 	jwt: {
-		maxAge: 60 * 60,
+		maxAge: 30 * 24 * 60 * 60, // 30 jours
 	},
 	pages: {
 	    signIn: "/auth/login", // page login

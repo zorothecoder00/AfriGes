@@ -1,6 +1,4 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/authOptions";
 import { prisma } from "@/lib/prisma";
 
 const VISUAL_DEFAULTS: Record<string, string> = {
@@ -17,8 +15,6 @@ const VISUAL_DEFAULTS: Record<string, string> = {
  */
 export async function GET() {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session) return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
 
     const rows = await prisma.systemSetting.findMany({
       where: { key: { in: Object.keys(VISUAL_DEFAULTS) } },
