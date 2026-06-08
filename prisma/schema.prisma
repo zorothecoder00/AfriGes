@@ -50,6 +50,7 @@ enum RoleGestionnaire {
   RESPONSABLE_MARKETING
   ACTIONNAIRE
   REVENDEUR
+  RESPONSABLE_RH                     // gestionnaire RH (OGRH)
 }
 
 // ============================================================
@@ -718,6 +719,9 @@ model Gestionnaire {
   actionnaireProfile      ActionnaireProfile?
   procurationsMandant     ProcurationAssemblee[] @relation("procurationsMandant")
   procurationsMandataire  ProcurationAssemblee[] @relation("procurationsMandataire")
+
+  // OGRH
+  profilRH                ProfilRH?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2731,4 +2735,700 @@ model LigneFactureVente {
   montant      Decimal
 
   facture FactureVente @relation(fields: [factureId], references: [id], onDelete: Cascade)
+}
+
+// ============================================================
+// OGRH — MODULE 1 : DOSSIER COLLABORATEUR
+// Extension RH du Gestionnaire (nomenclature AfriGes)
+// ============================================================
+
+enum StatutCollaborateur {
+  ACTIF
+  EN_PERIODE_ESSAI
+  SUSPENDU
+  DEMISSIONNAIRE
+  LICENCIE
+  RETRAITE
+  INACTIF
+}
+
+enum TypeContrat {
+  CDI
+  CDD
+  STAGE
+  CONSULTANT
+  PRESTATAIRE
+  FREELANCE
+}
+
+enum SituationMatrimoniale {
+  CELIBATAIRE
+  MARIE
+  DIVORCE
+  VEUF
+  UNION_LIBRE
+}
+
+enum NiveauHierarchique {
+  DIRECTION
+  MANAGER
+  SUPERVISEUR
+  AGENT
+  STAGIAIRE
+}
+
+enum TypeDocumentCollaborateur {
+  CNI
+  PASSEPORT
+  DIPLOME
+  CERTIFICAT
+  CV
+  ATTESTATION
+  CONTRAT
+  PHOTO_IDENTITE
+  AUTRE
+}
+
+/// Profil RH d'un Gestionnaire — données administratives et contractuelles
+/// Lié à Gestionnaire (1-1) ; toutes les autres entités OGRH pointent vers ProfilRH.id
+model ProfilRH {
+  id             Int     @id @default(autoincrement())
+  gestionnaireId Int     @unique
+
+  // ── Identité ──────────────────────────────────────────────
+  matricule             String                @unique  // ex: MAT-2026-0001 (auto-généré)
+  dateNaissance         DateTime?
+  lieuNaissance         String?
+  sexe                  Sexe?
+  nationalite           String?
+  situationMatrimoniale SituationMatrimoniale?
+  nbEnfants             Int                   @default(0)
+  telephoneSecondaire   String?
+
+  // ── Contrat & poste ───────────────────────────────────────
+  typeContrat        TypeContrat?
+  dateEmbauche       DateTime?
+  dateFin            DateTime?              // CDD uniquement
+  fonction           String?
+  service            String?
+  departement        String?
+  niveauHierarchique NiveauHierarchique?
+  statut             StatutCollaborateur    @default(ACTIF)
+  notes              String?
+
+  // ── Hiérarchie (manager direct = autre ProfilRH) ──────────
+  managerId   Int?
+  manager     ProfilRH?  @relation("HierarchieRH", fields: [managerId], references: [id])
+  subordonnes ProfilRH[] @relation("HierarchieRH")
+
+  // ── Relations ─────────────────────────────────────────────
+  gestionnaire          Gestionnaire             @relation(fields: [gestionnaireId], references: [id])
+  documents             DocumentCollaborateur[]
+  soldesConges          SoldeConge[]
+  demandesConge         DemandeConge[]
+  missions              Mission[]                @relation("MissionsCollaborateur")
+  missionsValidees      Mission[]                @relation("MissionsValidateurRH")
+  documentsGeneres      DocumentRHGenere[]
+  fichesPaie              FichePaie[]
+  participationsFormation ParticipationFormation[]
+  pointages               Pointage[]
+  avantages               AvantageRH[]
+  remboursementsFrais     RemboursementFrais[]
+  evaluations             EvaluationRH[]          @relation("EvaluationsCollaborateur")
+  evaluationsEffectuees   EvaluationRH[]          @relation("EvaluationsEffectuees")
+  procedures              ProcedureDisciplinaire[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([statut])
+  @@index([departement])
+  @@index([managerId])
+}
+
+/// Documents uploadés pour le dossier d'un collaborateur
+/// Jamais supprimés — versionning par compteur
+model DocumentCollaborateur {
+  id         Int                       @id @default(autoincrement())
+  profilRHId Int
+  type       TypeDocumentCollaborateur
+  nom        String
+  fileUrl    String
+  version    Int                       @default(1)
+  notes      String?
+  uploadePar Int                       // User.id de l'agent qui a uploadé
+
+  profilRH ProfilRH @relation(fields: [profilRHId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@index([profilRHId])
+  @@index([type])
+}
+
+// ============================================================
+// OGRH — MODULE 6 : CONGÉS & ABSENCES
+// ============================================================
+
+enum TypeConge {
+  ANNUEL
+  MALADIE
+  EXCEPTIONNEL
+  PERMISSION
+  FORMATION
+  MATERNITE
+  PATERNITE
+  SANS_SOLDE
+}
+
+enum StatutDemandeConge {
+  EN_ATTENTE         // soumis par le collaborateur
+  VALIDE_MANAGER     // approuvé par le manager direct
+  VALIDE_RH          // approuvé par le RH
+  APPROUVE           // décision finale favorable
+  REJETE             // refusé (à n'importe quelle étape)
+  ANNULE             // annulé par le collaborateur
+}
+
+/// Règles de congé par type — configurables par le RH sans dev
+model PolitiqueConge {
+  id             Int       @id @default(autoincrement())
+  type           TypeConge @unique
+  joursParAn     Int       @default(0)
+  reportable     Boolean   @default(false)
+  joursMaxReport Int       @default(0)
+  actif          Boolean   @default(true)
+  description    String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+/// Solde de congés par collaborateur, par type et par année calendaire
+model SoldeConge {
+  id         Int       @id @default(autoincrement())
+  profilRHId Int
+  type       TypeConge
+  annee      Int
+  totalDroit Int       @default(0)
+  pris       Int       @default(0)   // calculé à chaque validation
+  reporte    Int       @default(0)
+  restant    Int       @default(0)   // totalDroit + reporte - pris
+
+  profilRH ProfilRH @relation(fields: [profilRHId], references: [id])
+
+  @@unique([profilRHId, type, annee])
+  @@index([profilRHId])
+}
+
+/// Demande de congé avec workflow d'approbation à 2 niveaux
+model DemandeConge {
+  id         Int                @id @default(autoincrement())
+  profilRHId Int
+  type       TypeConge
+  dateDebut  DateTime
+  dateFin    DateTime
+  nbJours    Int
+  motif      String?
+  statut     StatutDemandeConge @default(EN_ATTENTE)
+
+  // Workflow
+  managerId           Int?       // ProfilRH.gestionnaireId du manager
+  rhId                Int?       // User.id du responsable RH
+  commentaireRefus    String?
+  dateValidationMgr   DateTime?
+  dateValidationRH    DateTime?
+  dateDecisionFinale  DateTime?
+
+  profilRH ProfilRH @relation(fields: [profilRHId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([profilRHId])
+  @@index([statut])
+  @@index([dateDebut, dateFin])
+}
+
+// ============================================================
+// OGRH — MODULE 7 : MISSIONS & DÉPLACEMENTS
+// ============================================================
+
+enum StatutMission {
+  CREE
+  VALIDE
+  EN_COURS
+  CLOTURE
+  ANNULE
+}
+
+model Mission {
+  id              Int           @id @default(autoincrement())
+  reference       String        @unique  // ex: MSN-2026-0001
+  titre           String
+  objectifs       String?
+  livrables       String?
+  destination     String?
+  dateDepart      DateTime
+  dateRetour      DateTime?
+  dateRetourReel  DateTime?
+  statut          StatutMission @default(CREE)
+  rapport         String?       // texte de compte-rendu ou URL fichier
+  notes           String?
+
+  collaborateurId Int            // ProfilRH.id
+  valideParId     Int?           // ProfilRH.id du validateur
+
+  collaborateur ProfilRH  @relation("MissionsCollaborateur", fields: [collaborateurId], references: [id])
+  validePar     ProfilRH? @relation("MissionsValidateurRH",  fields: [valideParId],     references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([collaborateurId])
+  @@index([statut])
+  @@index([dateDepart])
+}
+
+// ============================================================
+// OGRH — MODULE 12 : DOCUMENTS RH GÉNÉRÉS
+// PDF produits automatiquement par le système (attestations, lettres…)
+// Jamais supprimés — archivage + versionning obligatoire
+// ============================================================
+
+enum TypeDocumentRHGenere {
+  ATTESTATION_TRAVAIL
+  CERTIFICAT_PRESENCE
+  DECISION_AFFECTATION
+  LETTRE_MISSION
+  AUTRE
+}
+
+model DocumentRHGenere {
+  id         Int                  @id @default(autoincrement())
+  profilRHId Int
+  type       TypeDocumentRHGenere
+  titre      String
+  version    Int                  @default(1)
+  fileUrl    String?              // null tant que le PDF n'est pas encore généré
+  generePar  Int                  // User.id du RH ou admin qui a déclenché la génération
+  notes      String?
+  archive    Boolean              @default(false)
+
+  profilRH ProfilRH @relation(fields: [profilRHId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@index([profilRHId])
+  @@index([type])
+}
+
+// ============================================================
+// OGRH — MODULE 2 : PAIE & RÉMUNÉRATION
+// ============================================================
+
+enum StatutFichePaie {
+  BROUILLON
+  VALIDE
+  PAYE
+}
+
+enum TypeComposantSalaire {
+  SALAIRE_BASE
+  PRIME_PERFORMANCE
+  PRIME_ANCIENNETE
+  PRIME_TRANSPORT
+  PRIME_LOGEMENT
+  HEURES_SUPPLEMENTAIRES
+  INDEMNITE_MISSION
+  DEDUCTION_ABSENCE
+  COTISATION_RETRAITE
+  COTISATION_SANTE
+  IMPOT_REVENU
+  AVANCE_SUR_SALAIRE
+  AUTRE_GAIN
+  AUTRE_RETENUE
+}
+
+model FichePaie {
+  id            Int             @id @default(autoincrement())
+  profilRHId    Int
+  mois          Int             // 1–12
+  annee         Int
+  salaireBase   Decimal         @default(0)
+  totalBrut     Decimal         @default(0)
+  totalRetenues Decimal         @default(0)
+  netAPayer     Decimal         @default(0)
+  statut        StatutFichePaie @default(BROUILLON)
+  fichierUrl    String?
+  notes         String?
+  genereParId   Int             // User.id
+
+  profilRH   ProfilRH           @relation(fields: [profilRHId], references: [id])
+  composants ComposantSalaire[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([profilRHId, mois, annee])
+  @@index([profilRHId])
+  @@index([statut])
+  @@index([annee, mois])
+}
+
+model ComposantSalaire {
+  id          Int                  @id @default(autoincrement())
+  fichePaieId Int
+  type        TypeComposantSalaire
+  libelle     String
+  montant     Decimal
+  isRetenue   Boolean              @default(false)
+
+  fichePaie FichePaie @relation(fields: [fichePaieId], references: [id], onDelete: Cascade)
+
+  @@index([fichePaieId])
+}
+
+// ============================================================
+// OGRH — MODULE 4 : FORMATION & DÉVELOPPEMENT
+// ============================================================
+
+enum StatutFormation {
+  PLANIFIEE
+  EN_COURS
+  TERMINEE
+  ANNULEE
+}
+
+enum StatutParticipationFormation {
+  INSCRIT
+  PRESENT
+  ABSENT
+  CERTIFIE
+}
+
+model Formation {
+  id          Int            @id @default(autoincrement())
+  titre       String
+  objectifs   String?
+  lieu        String?
+  formateur   String?
+  dateDebut   DateTime
+  dateFin     DateTime?
+  dureeHeures Int?
+  cout        Decimal?
+  statut      StatutFormation @default(PLANIFIEE)
+  notes       String?
+  createdById Int            // User.id
+
+  participations ParticipationFormation[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([statut])
+  @@index([dateDebut])
+}
+
+model ParticipationFormation {
+  id            Int                          @id @default(autoincrement())
+  formationId   Int
+  profilRHId    Int
+  statut        StatutParticipationFormation @default(INSCRIT)
+  note          Decimal?
+  certificatUrl String?
+  notes         String?
+
+  formation Formation @relation(fields: [formationId], references: [id], onDelete: Cascade)
+  profilRH  ProfilRH  @relation(fields: [profilRHId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([formationId, profilRHId])
+  @@index([profilRHId])
+  @@index([statut])
+}
+
+// ============================================================
+// OGRH — MODULE 8 : POINTAGE & PRÉSENCE
+// ============================================================
+
+enum StatutPointage {
+  PRESENT
+  ABSENT
+  RETARD
+  DEMI_JOURNEE
+  CONGE
+  MISSION
+  FERIE
+}
+
+enum SourcePointage {
+  MANUEL
+  IMPORT
+}
+
+model Pointage {
+  id           Int            @id @default(autoincrement())
+  profilRHId   Int
+  date         DateTime
+  heureArrivee DateTime?
+  heureDepart  DateTime?
+  statut       StatutPointage @default(PRESENT)
+  source       SourcePointage @default(MANUEL)
+  notes        String?
+  saisieParId  Int            // User.id
+
+  profilRH ProfilRH @relation(fields: [profilRHId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([profilRHId, date])
+  @@index([profilRHId])
+  @@index([date])
+  @@index([statut])
+}
+
+// ============================================================
+// OGRH — MODULE 10 : AVANTAGES & REMBOURSEMENTS
+// ============================================================
+
+enum TypeAvantageRH {
+  TRANSPORT
+  LOGEMENT
+  TELEPHONE
+  REPAS
+  VEHICULE
+  ASSURANCE
+  AUTRE
+}
+
+enum TypeRemboursementFrais {
+  DEPLACEMENT
+  REPAS
+  HEBERGEMENT
+  COMMUNICATION
+  MATERIEL
+  AUTRE
+}
+
+enum StatutRemboursementFrais {
+  EN_ATTENTE
+  APPROUVE
+  REJETE
+  PAYE
+}
+
+model AvantageRH {
+  id             Int            @id @default(autoincrement())
+  profilRHId     Int
+  type           TypeAvantageRH
+  libelle        String
+  montantMensuel Decimal        @default(0)
+  actif          Boolean        @default(true)
+  dateDebut      DateTime
+  dateFin        DateTime?
+  notes          String?
+
+  profilRH ProfilRH @relation(fields: [profilRHId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([profilRHId])
+  @@index([actif])
+}
+
+model RemboursementFrais {
+  id           Int                      @id @default(autoincrement())
+  profilRHId   Int
+  type         TypeRemboursementFrais
+  libelle      String
+  montant      Decimal
+  dateFrais    DateTime
+  justificatif String?
+  statut       StatutRemboursementFrais  @default(EN_ATTENTE)
+  traiteParId  Int?                     // User.id
+  commentaire  String?
+  notes        String?
+
+  profilRH ProfilRH @relation(fields: [profilRHId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([profilRHId])
+  @@index([statut])
+  @@index([dateFrais])
+}
+
+// ============================================================
+// OGRH — MODULE 3 : ÉVALUATION DE PERFORMANCE
+// ============================================================
+
+enum PeriodeEvaluation {
+  ANNUELLE
+  SEMESTRIELLE
+  TRIMESTRIELLE
+  PROBATOIRE
+}
+
+enum StatutEvaluationRH {
+  BROUILLON
+  EN_COURS
+  CLOTURE
+}
+
+model EvaluationRH {
+  id               Int                 @id @default(autoincrement())
+  profilRHId       Int
+  evaluateurId     Int?                // ProfilRH.id du manager/RH évaluateur
+  periode          PeriodeEvaluation
+  annee            Int
+  dateDebut        DateTime
+  dateFin          DateTime?
+  statut           StatutEvaluationRH  @default(BROUILLON)
+  noteGlobale      Decimal?            // /5
+  appreciation     String?
+  pointsForts      String?
+  axesAmelioration String?
+  objectifsN1      String?
+  notes            String?
+
+  profilRH   ProfilRH  @relation("EvaluationsCollaborateur", fields: [profilRHId],   references: [id])
+  evaluateur ProfilRH? @relation("EvaluationsEffectuees",    fields: [evaluateurId], references: [id])
+  criteres   CritereEvaluation[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([profilRHId])
+  @@index([annee])
+  @@index([statut])
+}
+
+model CritereEvaluation {
+  id           Int     @id @default(autoincrement())
+  evaluationId Int
+  libelle      String
+  note         Decimal // /5
+  commentaire  String?
+
+  evaluation EvaluationRH @relation(fields: [evaluationId], references: [id], onDelete: Cascade)
+
+  @@index([evaluationId])
+}
+
+// ============================================================
+// OGRH — MODULE 5 : RECRUTEMENT
+// ============================================================
+
+enum StatutPoste {
+  OUVERT
+  EN_COURS
+  POURVU
+  ANNULE
+}
+
+enum StatutCandidature {
+  RECU
+  SHORTLISTE
+  ENTRETIEN
+  OFFRE
+  ACCEPTE
+  REJETE
+}
+
+model PosteOuvert {
+  id                  Int         @id @default(autoincrement())
+  titre               String
+  departement         String?
+  service             String?
+  typeContrat         TypeContrat?
+  description         String?
+  competencesRequises String?
+  experienceMin       Int?
+  dateOuverture       DateTime    @default(now())
+  dateLimite          DateTime?
+  statut              StatutPoste @default(OUVERT)
+  notes               String?
+  createdById         Int         // User.id
+
+  candidatures Candidature[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([statut])
+}
+
+model Candidature {
+  id             Int               @id @default(autoincrement())
+  posteId        Int
+  nomCandidat    String
+  prenomCandidat String
+  email          String?
+  telephone      String?
+  cvUrl          String?
+  lettreUrl      String?
+  statut         StatutCandidature @default(RECU)
+  noteEntretien  Decimal?
+  dateEntretien  DateTime?
+  commentaire    String?
+  notes          String?
+
+  poste PosteOuvert @relation(fields: [posteId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([posteId])
+  @@index([statut])
+}
+
+// ============================================================
+// OGRH — MODULE 9 : DISCIPLINAIRE
+// ============================================================
+
+enum TypeSanction {
+  AVERTISSEMENT
+  BLAME
+  MISE_A_PIED
+  LICENCIEMENT_CAUSE
+  AUTRE
+}
+
+enum StatutProcedure {
+  OUVERTE
+  EN_INSTRUCTION
+  CLOTUREE
+  ANNULEE
+}
+
+model ProcedureDisciplinaire {
+  id               Int             @id @default(autoincrement())
+  profilRHId       Int
+  type             TypeSanction
+  motif            String
+  faitsReproches   String?
+  dateIncident     DateTime
+  dateProcedure    DateTime        @default(now())
+  statut           StatutProcedure @default(OUVERTE)
+  dateConvocation  DateTime?
+  reponseCollab    String?
+  decision         String?
+  dateDecision     DateTime?
+  dureeSuspension  Int?            // jours (si mise à pied)
+  notes            String?
+  traiteParId      Int             // User.id
+
+  profilRH ProfilRH @relation(fields: [profilRHId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([profilRHId])
+  @@index([statut])
 }

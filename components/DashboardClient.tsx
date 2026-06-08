@@ -6,6 +6,7 @@ import {
   ShoppingCart, MoreVertical, Download, Plus, ChevronDown, MessageSquare, Store, Shield,
   Activity, AlertTriangle, CheckCircle, XCircle, Wallet, BarChart2, Truck, RefreshCw,
   Calendar, CreditCard, TrendingDown, DollarSign, Clock, Award, Percent, ClipboardCheck,
+  UserCog, Banknote, GraduationCap, CalendarDays, MapPin, Star, Building2, Gift, FileWarning,
 } from 'lucide-react';      
 import Link from "next/link";     
 import { useSession } from 'next-auth/react';
@@ -333,6 +334,23 @@ export default function AfriGesDashboard() {
                 <Link href="/dashboard/admin/approvisionnements" className="w-full flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-50 rounded-xl transition-all"><Truck size={20} /><span>Approvisionnements</span></Link>
                 <Link href="/dashboard/admin/stock/ajustements" className="w-full flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-50 rounded-xl transition-all"><ClipboardCheck size={20} /><span>Ajustements stock</span></Link>
                 <Link href="/dashboard/gestionnaire/logistique" className="w-full flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-50 rounded-xl transition-all"><BarChart2 size={20} /><span>Dashboard logistique</span></Link>
+              </nav>
+            </div>
+            {/* RH — Gestion des ressources humaines */}
+            <div className="p-4 border-b border-slate-100">
+              <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Ressources humaines</h3>
+              <nav className="space-y-1">
+                <Link href="/dashboard/admin/rh/collaborateurs" className="w-full flex items-center gap-3 px-4 py-2.5 text-slate-600 hover:bg-slate-50 rounded-xl transition-all"><UserCog size={18} /><span>Collaborateurs</span></Link>
+                <Link href="/dashboard/admin/rh/paie"           className="w-full flex items-center gap-3 px-4 py-2.5 pl-10 text-slate-500 hover:bg-slate-50 rounded-xl transition-all text-sm"><Banknote size={16} /><span>Paie</span></Link>
+                <Link href="/dashboard/admin/rh/formations"     className="w-full flex items-center gap-3 px-4 py-2.5 pl-10 text-slate-500 hover:bg-slate-50 rounded-xl transition-all text-sm"><GraduationCap size={16} /><span>Formations</span></Link>
+                <Link href="/dashboard/admin/rh/pointages"      className="w-full flex items-center gap-3 px-4 py-2.5 pl-10 text-slate-500 hover:bg-slate-50 rounded-xl transition-all text-sm"><Clock size={16} /><span>Pointages</span></Link>
+                <Link href="/dashboard/admin/rh/avantages"      className="w-full flex items-center gap-3 px-4 py-2.5 pl-10 text-slate-500 hover:bg-slate-50 rounded-xl transition-all text-sm"><Gift size={16} /><span>Avantages &amp; Frais</span></Link>
+                <Link href="/dashboard/admin/rh/conges"         className="w-full flex items-center gap-3 px-4 py-2.5 pl-10 text-slate-500 hover:bg-slate-50 rounded-xl transition-all text-sm"><CalendarDays size={16} /><span>Congés</span></Link>
+                <Link href="/dashboard/admin/rh/missions"       className="w-full flex items-center gap-3 px-4 py-2.5 pl-10 text-slate-500 hover:bg-slate-50 rounded-xl transition-all text-sm"><MapPin size={16} /><span>Missions</span></Link>
+                <Link href="/dashboard/admin/rh/evaluations"    className="w-full flex items-center gap-3 px-4 py-2.5 pl-10 text-slate-500 hover:bg-slate-50 rounded-xl transition-all text-sm"><Star size={16} /><span>Évaluations</span></Link>
+                <Link href="/dashboard/admin/rh/recrutement"    className="w-full flex items-center gap-3 px-4 py-2.5 pl-10 text-slate-500 hover:bg-slate-50 rounded-xl transition-all text-sm"><UserCheck size={16} /><span>Recrutement</span></Link>
+                <Link href="/dashboard/admin/rh/disciplinaire"  className="w-full flex items-center gap-3 px-4 py-2.5 pl-10 text-slate-500 hover:bg-slate-50 rounded-xl transition-all text-sm"><FileWarning size={16} /><span>Disciplinaire</span></Link>
+                <Link href="/dashboard/admin/rh/organigramme"   className="w-full flex items-center gap-3 px-4 py-2.5 pl-10 text-slate-500 hover:bg-slate-50 rounded-xl transition-all text-sm"><Building2 size={16} /><span>Organigramme</span></Link>
               </nav>
             </div>
             {/* Visible pour ADMIN et SUPER_ADMIN */}
