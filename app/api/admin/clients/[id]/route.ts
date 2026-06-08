@@ -3,6 +3,7 @@ import {
   MemberStatus,
   Role,
   PrioriteNotification,
+  SegmentClient,
 } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getAdminSession } from "@/lib/authAdmin";
@@ -117,6 +118,7 @@ export async function PATCH(
       photoUrl, pieceIdentiteUrl, numeroCNI,
       activite, nomCommerce,
       latitude, longitude,
+      segment,
       typeClient, limiteCredit,
     } = body;
 
@@ -211,6 +213,7 @@ export async function PATCH(
           ...(nomCommerce        !== undefined && { nomCommerce: nomCommerce || null }),
           ...(latitude           !== undefined && { latitude: latitude != null ? Number(latitude) : null }),
           ...(longitude          !== undefined && { longitude: longitude != null ? Number(longitude) : null }),
+          ...(segment            !== undefined && { segment: segment as SegmentClient }),
           ...(typeClient         !== undefined && { typeClient: typeClient || null }),
           ...(limiteCredit       !== undefined && { limiteCredit: limiteCredit != null ? Number(limiteCredit) : null }),
         },

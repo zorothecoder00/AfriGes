@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Search, Plus, Phone, MapPin, Eye, Edit, Trash2, Store, Building2, Link2, Link2Off, X,
   TrendingUp, TrendingDown, CreditCard, ShoppingBag, ChevronDown, ChevronRight, Banknote, Hash,
-  AlertTriangle, Package, UserCheck, Navigation, Loader2,
+  AlertTriangle, Package, UserCheck, Navigation, Loader2, Tag,
   Archive, PauseCircle, Ban, CheckCircle, Filter, SlidersHorizontal } from 'lucide-react';
 import Link from 'next/link';
 import { useApi, useMutation } from '@/hooks/useApi';
@@ -25,6 +25,8 @@ interface AgentTerrainOption {
   };
 }
 
+interface TagOption { id: number; nom: string; couleur: string }
+
 interface Client {
   id: number;
   nom: string;
@@ -39,11 +41,13 @@ interface Client {
   typeClient: string | null;
   limiteCredit: string | number | null;
   soldeActuel: string | number | null;
+  segment: string;
   createdAt: string;
   pointDeVente: ClientPdv | null;
   pointsDeVente?: { pointDeVente: ClientPdv }[];
   agentTerrain: { id: number; nom: string; prenom: string } | null;
   _count: { souscriptionsPacks: number; ventesDirectes: number };
+  tags?: { tag: TagOption }[];
 }
 
 interface ClientsResponse {
@@ -111,6 +115,101 @@ interface HistoriqueData {
   };
 }
 
+// ─── Modal tags d'un client ───────────────────────────────────────────────────
+
+function TagsClientModal({
+  client,
+  allTags,
+  onClose,
+  onSuccess,
+}: {
+  client: Client;
+  allTags: TagOption[];
+  onClose: () => void;
+  onSuccess: () => void;
+}) {
+  const currentTagIds = new Set((client.tags ?? []).map((t) => t.tag.id));
+  const [loading, setLoading] = useState<number | null>(null);
+
+  // Tags compatibles avec le segment du client (universels + spécifiques au segment)
+  const compatibleTags = allTags; // le back vérifie la compatibilité
+
+  const toggle = async (tag: TagOption) => {
+    const isAttached = currentTagIds.has(tag.id);
+    setLoading(tag.id);
+    try {
+      const r = await fetch(`/api/admin/clients/${client.id}/tags`, {
+        method:  isAttached ? "DELETE" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ tagId: tag.id }),
+      });
+      const j = await r.json();
+      if (r.ok) {
+        onSuccess();
+      } else {
+        const { toast } = await import("sonner");
+        toast.error(j.error ?? "Erreur");
+      }
+    } finally { setLoading(null); }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[150] p-4">
+      <div className="bg-white rounded-2xl w-full max-w-md shadow-xl">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
+          <div>
+            <h2 className="text-base font-bold text-slate-800">Tags du client</h2>
+            <p className="text-xs text-slate-500 mt-0.5">{client.prenom} {client.nom}</p>
+          </div>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={18} /></button>
+        </div>
+        <div className="px-6 py-5">
+          {compatibleTags.length === 0 ? (
+            <p className="text-sm text-slate-500 text-center py-4">
+              Aucun tag disponible.{' '}
+              <a href="/dashboard/admin/tags" className="text-indigo-600 underline">Créer des tags</a>
+            </p>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {compatibleTags.map((tag) => {
+                const attached = currentTagIds.has(tag.id);
+                return (
+                  <button
+                    key={tag.id}
+                    onClick={() => toggle(tag)}
+                    disabled={loading === tag.id}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium border-2 transition-all ${
+                      attached
+                        ? 'text-white border-transparent'
+                        : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
+                    }`}
+                    style={attached ? { backgroundColor: tag.couleur, borderColor: tag.couleur } : {}}
+                  >
+                    {loading === tag.id
+                      ? <Loader2 className="w-3 h-3 animate-spin" />
+                      : attached
+                        ? <CheckCircle size={13} />
+                        : <Plus size={13} />
+                    }
+                    {tag.nom}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+          <p className="text-xs text-slate-400 mt-4">Cliquez sur un tag pour l&apos;ajouter ou le retirer.</p>
+        </div>
+        <div className="px-6 pb-5">
+          <button onClick={onClose}
+            className="w-full py-2.5 border border-slate-200 rounded-xl text-sm font-medium text-slate-700 hover:bg-slate-50">
+            Fermer
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function ClientsPage() {
@@ -131,6 +230,8 @@ export default function ClientsPage() {
     activite: '', nomCommerce: '',
     // GPS
     latitude: '', longitude: '',
+    // Segment
+    segment: 'ORDINAIRE',
     // Type & crédit
     typeClient: '', limiteCredit: '',
     // Statut & affectation
@@ -162,6 +263,11 @@ export default function ClientsPage() {
   // ── Filtre statut & filtres avancés ────────────────────────────────────────
   const [filterEtat,    setFilterEtat]    = useState('');
   const [filterAvance,  setFilterAvance]  = useState('');
+  const [filterSegment, setFilterSegment] = useState('');
+  const [filterTagId,   setFilterTagId]   = useState('');
+
+  // ── Modal gestion des tags d'un client ─────────────────────────────────────
+  const [tagsClient,    setTagsClient]    = useState<Client | null>(null);
 
   // ── Quick action statut (suspendre/bloquer/archiver/activer) ───────────────
   const [quickStatusClient, setQuickStatusClient] = useState<Client | null>(null);
@@ -254,6 +360,8 @@ export default function ClientsPage() {
   if (filterAgentId)   params.set('agentTerrainId', filterAgentId);
   if (filterEtat)      params.set('etat', filterEtat);
   if (filterAvance)    params.set('filtre', filterAvance);
+  if (filterSegment)   params.set('segment', filterSegment);
+  if (filterTagId)     params.set('tagId', filterTagId);
 
   const { data: response, loading, error, refetch } =
     useApi<ClientsResponse>(`/api/admin/clients?${params}`);
@@ -263,6 +371,10 @@ export default function ClientsPage() {
   // PDV pour filtres et sélecteurs
   const { data: pdvResponse } = useApi<{ data: PDVOption[] }>('/api/admin/pdv?limit=200&actif=true');
   const pdvOptions = pdvResponse?.data ?? [];
+
+  // Tags disponibles
+  const { data: tagsResponse } = useApi<{ data: TagOption[] }>('/api/admin/tags');
+  const allTags = tagsResponse?.data ?? [];
 
   // Agents terrain pour filtres et modal d'affectation
   const { data: agentsTerrainResponse } =
@@ -321,6 +433,7 @@ export default function ClientsPage() {
       nomCommerce:         formData.nomCommerce         || null,
       latitude:            formData.latitude            ? Number(formData.latitude)  : null,
       longitude:           formData.longitude           ? Number(formData.longitude) : null,
+      segment:             formData.segment,
       typeClient:          formData.typeClient          || null,
       limiteCredit:        formData.limiteCredit        ? Number(formData.limiteCredit) : null,
       etat:                formData.etat,
@@ -328,7 +441,7 @@ export default function ClientsPage() {
     });
     if (result) {
       setModalOpen(false);
-      setFormData({ nom: '', prenom: '', telephone: '', adresse: '', pointsDeVenteIds: [], sexe: '', dateNaissance: '', telephoneSecondaire: '', quartier: '', ville: '', photoUrl: '', pieceIdentiteUrl: '', numeroCNI: '', activite: '', nomCommerce: '', latitude: '', longitude: '', typeClient: '', limiteCredit: '', etat: 'ACTIF', agentTerrainId: '' });
+      setFormData({ nom: '', prenom: '', telephone: '', adresse: '', pointsDeVenteIds: [], sexe: '', dateNaissance: '', telephoneSecondaire: '', quartier: '', ville: '', photoUrl: '', pieceIdentiteUrl: '', numeroCNI: '', activite: '', nomCommerce: '', latitude: '', longitude: '', segment: 'ORDINAIRE', typeClient: '', limiteCredit: '', etat: 'ACTIF', agentTerrainId: '' });
       refetch();
     }
   };
@@ -716,6 +829,26 @@ export default function ClientsPage() {
                   </div>
                 </section>
 
+                {/* ─ Segment ─ */}
+                <section>
+                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Segment client</p>
+                  <div className="flex gap-3">
+                    {(['ORDINAIRE', 'RIA'] as const).map((s) => (
+                      <label key={s} className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl border-2 cursor-pointer transition-all ${
+                        formData.segment === s
+                          ? s === 'RIA'
+                            ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
+                            : 'border-slate-400 bg-slate-50 text-slate-700'
+                          : 'border-slate-200 hover:border-slate-300 text-slate-500'
+                      }`}>
+                        <input type="radio" name="segment" value={s} checked={formData.segment === s}
+                          onChange={() => setFormData({...formData, segment: s})} className="sr-only" />
+                        <span className="text-sm font-semibold">{s === 'RIA' ? '★ RIA' : 'Ordinaire'}</span>
+                      </label>
+                    ))}
+                  </div>
+                </section>
+
                 {/* ─ Type client & crédit ─ */}
                 <section>
                   <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Type client & crédit</p>
@@ -1001,8 +1134,23 @@ export default function ClientsPage() {
                 <option key={a.id} value={String(a.member.id)}>{a.member.prenom} {a.member.nom}</option>
               ))}
             </select>
-            {(searchQuery || filterPdvId || filterAgentId || filterEtat || filterAvance) && (
-              <button onClick={() => { setSearchQuery(''); setDebouncedSearch(''); setFilterPdvId(''); setFilterAgentId(''); setFilterEtat(''); setFilterAvance(''); setPage(1); }}
+            <select value={filterSegment} onChange={e => { setFilterSegment(e.target.value); setPage(1); }}
+              className="px-3 py-2.5 border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50">
+              <option value="">Tous segments</option>
+              <option value="ORDINAIRE">Ordinaire</option>
+              <option value="RIA">★ RIA</option>
+            </select>
+            {allTags.length > 0 && (
+              <select value={filterTagId} onChange={e => { setFilterTagId(e.target.value); setPage(1); }}
+                className="px-3 py-2.5 border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50">
+                <option value="">Tous les tags</option>
+                {allTags.map(t => (
+                  <option key={t.id} value={String(t.id)}>{t.nom}</option>
+                ))}
+              </select>
+            )}
+            {(searchQuery || filterPdvId || filterAgentId || filterEtat || filterAvance || filterSegment || filterTagId) && (
+              <button onClick={() => { setSearchQuery(''); setDebouncedSearch(''); setFilterPdvId(''); setFilterAgentId(''); setFilterEtat(''); setFilterAvance(''); setFilterSegment(''); setFilterTagId(''); setPage(1); }}
                 className="flex items-center gap-1 px-3 py-2.5 text-xs text-red-500 border border-red-200 rounded-xl hover:bg-red-50">
                 <X size={14} /> Réinitialiser
               </button>
@@ -1038,6 +1186,7 @@ export default function ClientsPage() {
               <thead className="bg-slate-50 border-b border-slate-200">
                 <tr>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Client</th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Segment / Tags</th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Téléphone</th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Adresse</th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">{t('clients_pdv_affecte')}</th>
@@ -1088,6 +1237,32 @@ export default function ClientsPage() {
                             )}
                           </div>
                         </div>
+                      </div>
+                    </td>
+                    {/* Segment + Tags */}
+                    <td className="px-6 py-4">
+                      <div className="flex flex-col gap-1.5">
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-semibold w-fit ${
+                          client.segment === 'RIA'
+                            ? 'bg-indigo-100 text-indigo-700'
+                            : 'bg-slate-100 text-slate-500'
+                        }`}>
+                          {client.segment === 'RIA' ? '★ RIA' : 'Ordinaire'}
+                        </span>
+                        {(client.tags ?? []).length > 0 && (
+                          <div className="flex flex-wrap gap-1">
+                            {(client.tags ?? []).slice(0, 3).map(({ tag }) => (
+                              <span key={tag.id}
+                                className="text-xs px-1.5 py-0.5 rounded-full text-white font-medium"
+                                style={{ backgroundColor: tag.couleur }}>
+                                {tag.nom}
+                              </span>
+                            ))}
+                            {(client.tags ?? []).length > 3 && (
+                              <span className="text-xs text-slate-400">+{(client.tags ?? []).length - 3}</span>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </td>
                     <td className="px-6 py-4">
@@ -1183,6 +1358,11 @@ export default function ClientsPage() {
                           title="Fixer le plafond de crédit">
                           <CreditCard size={16} />
                         </button>
+                        <button onClick={() => setTagsClient(client)}
+                          className="p-2 text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
+                          title="Gérer les tags">
+                          <Tag size={16} />
+                        </button>
                         {/* Menu statut rapide */}
                         <div className="relative" onClick={(e) => e.stopPropagation()}>
                           <button onClick={() => setQuickStatusClient(quickStatusClient?.id === client.id ? null : client)}
@@ -1228,7 +1408,7 @@ export default function ClientsPage() {
                 ))}
                 {clients.length === 0 && (
                   <tr>
-                    <td colSpan={8} className="px-6 py-12 text-center text-slate-500">{t('clients_none_found')}</td>
+                    <td colSpan={9} className="px-6 py-12 text-center text-slate-500">{t('clients_none_found')}</td>
                   </tr>
                 )}
               </tbody>
@@ -1255,6 +1435,16 @@ export default function ClientsPage() {
           )}
         </div>
       </div>
+
+      {/* ══ MODAL — Gestion des tags d'un client ══════════════════════════ */}
+      {tagsClient && (
+        <TagsClientModal
+          client={tagsClient}
+          allTags={allTags}
+          onClose={() => setTagsClient(null)}
+          onSuccess={() => { setTagsClient(null); refetch(); }}
+        />
+      )}
 
       {/* ══ MODAL — Confirmation suppression ════════════════════════════ */}
       {deleteConfirmClient && (

@@ -67,6 +67,11 @@ enum TypeClient {
   CREDIT
 }
 
+enum SegmentClient {
+  ORDINAIRE
+  RIA
+}
+
 enum NiveauRisque {
   FAIBLE
   MOYEN
@@ -826,6 +831,9 @@ model Client {
   latitude           Float?            // coordonnée GPS latitude
   longitude          Float?            // coordonnée GPS longitude
 
+  // ── Segment ────────────────────────────────────────────────
+  segment            SegmentClient     @default(ORDINAIRE)
+
   // ── Type & crédit ──────────────────────────────────────────
   typeClient         TypeClient?       // COMPTANT ou CREDIT
   limiteCredit       Decimal?          // plafond de crédit accordé
@@ -845,6 +853,7 @@ model Client {
 
   agentAffectations  ClientAgentAffectation[]
   pointsDeVente      ClientPointDeVente[]
+  tags               ClientTag[]
   souscriptionsPacks SouscriptionPack[]
   pointsFidelite     PointsFidelite?
   ventesDirectes     VenteDirecte[]
@@ -866,6 +875,7 @@ model Client {
   updatedAt DateTime @updatedAt
 
   @@index([typeClient])
+  @@index([segment])
   @@index([niveauRisque])
   @@index([ville])
 }
@@ -929,6 +939,41 @@ model ClientPointDeVente {
   @@unique([clientId, pointDeVenteId])
   @@index([clientId])
   @@index([pointDeVenteId])
+}
+
+// ============================================================
+// TAGS CLIENTS
+// ============================================================
+
+model Tag {
+  id          Int            @id @default(autoincrement())
+  nom         String         @unique
+  couleur     String         @default("#6366f1") // hex couleur pour l'UI
+  description String?
+  segment     SegmentClient? // null = applicable à tous les segments
+  actif       Boolean        @default(true)
+
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  clients     ClientTag[]
+
+  @@index([segment])
+  @@index([actif])
+}
+
+// Table de jonction Client ↔ Tag (many-to-many)
+model ClientTag {
+  clientId  Int
+  tagId     Int
+  createdAt DateTime @default(now())
+
+  client    Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  tag       Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([clientId, tagId])
+  @@index([clientId])
+  @@index([tagId])
 }
 
 // ============================================================

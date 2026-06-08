@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { MemberStatus, PrioriteNotification, Prisma, Role } from "@prisma/client";
+import { MemberStatus, PrioriteNotification, Prisma, Role, SegmentClient } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getAdminSession } from "@/lib/authAdmin";
 
@@ -24,8 +24,10 @@ export async function GET(req: Request) {
 
     const pdvIdNumber = pdvId ? Number(pdvId) : null;
 
-    const etatParam    = searchParams.get("etat");    // ACTIF|INACTIF|SUSPENDU|BLOQUE
+    const etatParam    = searchParams.get("etat");     // ACTIF|INACTIF|SUSPENDU|BLOQUE
     const filtreParam  = searchParams.get("filtre");  // debiteurs|en_retard|bloques|gros_clients|sans_activite|archives
+    const segmentParam = searchParams.get("segment"); // ORDINAIRE|RIA
+    const tagIdParam   = searchParams.get("tagId");   // filtre par tag (id)
 
     const now = new Date();
 
@@ -51,7 +53,9 @@ export async function GET(req: Request) {
 
     const where: Prisma.ClientWhereInput = {
       // filtre statut (menu déroulant)
-      ...(etatParam && { etat: etatParam as MemberStatus }),
+      ...(etatParam  && { etat:    etatParam  as MemberStatus }),
+      ...(segmentParam && { segment: segmentParam as SegmentClient }),
+      ...(tagIdParam && { tags: { some: { tagId: Number(tagIdParam) } } }),
       // filtre avancé override statut si besoin
       ...filtreAvance,
       ...(pdvIdNumber && {
@@ -111,10 +115,12 @@ export async function GET(req: Request) {
           id: true, nom: true, prenom: true, telephone: true, adresse: true,
           etat: true, createdAt: true, codeClient: true, quartier: true, ville: true,
           niveauRisque: true, typeClient: true, limiteCredit: true, soldeActuel: true,
+          segment: true,
           _count: { select: { souscriptionsPacks: true, ventesDirectes: true } },
           pointDeVente: { select: { id: true, nom: true, code: true } },
           pointsDeVente: { select: { pointDeVente: { select: { id: true, nom: true, code: true } } } },
           agentTerrain: { select: { id: true, nom: true, prenom: true } },
+          tags: { select: { tag: { select: { id: true, nom: true, couleur: true } } } },
         },
       }),
       prisma.client.count({ where }),
@@ -159,6 +165,8 @@ export async function POST(req: Request) {
       activite, nomCommerce,
       // GPS
       latitude, longitude,
+      // Segment
+      segment,
       // Type & crédit
       typeClient, limiteCredit,
       // Statut
@@ -226,6 +234,7 @@ export async function POST(req: Request) {
           nomCommerce:        nomCommerce         || null,
           latitude:           latitude            != null ? Number(latitude)  : null,
           longitude:          longitude           != null ? Number(longitude) : null,
+          segment:            (segment as SegmentClient) || SegmentClient.ORDINAIRE,
           typeClient:         typeClient          || null,
           limiteCredit:       limiteCredit        != null ? Number(limiteCredit) : null,
           soldeActuel:        0,

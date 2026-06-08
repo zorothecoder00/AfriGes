@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Users, AlertTriangle, Calendar, TrendingUp, ArrowLeft, LayoutDashboard, UserCheck, Bell, Shield, BarChart2, BellRing, CreditCard } from "lucide-react";
+import { Users, AlertTriangle, Calendar, TrendingUp, ArrowLeft, LayoutDashboard, UserCheck, Bell, Shield, BarChart2, BellRing, CreditCard, Tag } from "lucide-react";
 
 const TABS = [
   {
@@ -40,6 +40,12 @@ const TABS = [
     label: "Crédits",
     icon:  <CreditCard className="w-4 h-4" />,
     match: (p: string) => p.startsWith("/dashboard/admin/credits"),
+  },
+  {
+    href:  "/dashboard/admin/tags",
+    label: "Tags",
+    icon:  <Tag className="w-4 h-4" />,
+    match: (p: string) => p.startsWith("/dashboard/admin/tags"),
   },
   {
     href:  "/dashboard/admin/agents-terrain",
