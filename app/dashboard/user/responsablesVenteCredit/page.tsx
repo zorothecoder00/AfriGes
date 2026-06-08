@@ -12,6 +12,7 @@ import SignOutButton from "@/components/SignOutButton";
 import NotificationBell from "@/components/NotificationBell";
 import MessagesLink from "@/components/MessagesLink";
 import DashboardBackButton from "@/components/DashboardBackButton";
+import ClientSegmentTags from "@/components/ClientSegmentTags";
 import { useApi, useMutation } from "@/hooks/useApi";
 import { formatDate, formatDateTime, formatCurrency } from "@/lib/format";
 import FactureModal from "@/components/FactureModal";
@@ -45,6 +46,8 @@ interface ClientRVC {
   scoreSolvabilite: number | null;
   soldeActuel: string | null;
   nbCreditsEnRetard: number;
+  segment: string;
+  tags: { tag: { id: number; nom: string; couleur: string } }[];
   agentTerrain: { nom: string; prenom: string; telephone: string } | null;
   pointDeVente: { nom: string; code: string } | null;
   validationPar: { nom: string; prenom: string } | null;
@@ -482,6 +485,7 @@ function ClientCard({ client, onClick }: { client: ClientRVC; onClick: () => voi
           <div>
             <p className="font-semibold text-gray-900 text-sm">{client.prenom} {client.nom}</p>
             <p className="text-xs text-gray-500">{client.codeClient ?? "—"}</p>
+            <ClientSegmentTags segment={client.segment} tags={client.tags} />
           </div>
         </div>
         <div className="flex items-center gap-1.5">

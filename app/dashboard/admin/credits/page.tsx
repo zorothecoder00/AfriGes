@@ -13,6 +13,7 @@ import { formatCurrency, formatDate } from '@/lib/format';
 import { toast } from 'sonner';
 import { useT } from '@/contexts/AppSettingsContext';
 import ClienteleTabBar from '@/components/ClienteleTabBar';
+import { useTagModal } from '@/contexts/TagModalContext';
 import FactureModal from '@/components/FactureModal';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -33,7 +34,10 @@ interface CreditClient {
   observations: string | null;
   createdAt: string;
   updatedAt: string;
-  client: { id: number; nom: string; prenom: string; codeClient: string | null; telephone: string };
+  client: {
+    id: number; nom: string; prenom: string; codeClient: string | null; telephone: string; segment: string;
+    tags?: { tag: { id: number; nom: string; couleur: string } }[];
+  };
   creePar: { id: number; nom: string; prenom: string };
   validePar: { id: number; nom: string; prenom: string } | null;
   dateValidation: string | null;
@@ -150,6 +154,7 @@ const MODE_PAIEMENT_OPTIONS = [
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function CreditsPage() {
+  const tagModal = useTagModal();
   // ── Filtres ────────────────────────────────────────────────────────────────
   const [search,      setSearch]      = useState('');
   const [searchInput, setSearchInput] = useState('');
@@ -649,6 +654,21 @@ export default function CreditsPage() {
                               <p className="text-xs text-gray-400 font-mono">{credit.client.codeClient}</p>
                             )}
                             <p className="text-xs text-gray-400">{credit.client.telephone}</p>
+                            {(credit.client.tags ?? []).length > 0 && (
+                              <div className="flex flex-wrap gap-1 mt-1">
+                                {(credit.client.tags ?? []).slice(0, 3).map(({ tag }) => (
+                                  <button
+                                    key={tag.id}
+                                    onClick={() => tagModal?.openTag(tag)}
+                                    className="px-1.5 py-0.5 rounded-full text-[10px] font-semibold text-white hover:opacity-80 transition-opacity"
+                                    style={{ backgroundColor: tag.couleur }}
+                                    title={`Voir tous les clients "${tag.nom}"`}
+                                  >
+                                    {tag.nom}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
                           </td>
 
                           {/* Montant total */}

@@ -71,6 +71,8 @@ export async function GET(req: Request) {
         prenom:    true,
         telephone: true,
         adresse:   true,
+        segment:   true,
+        tags: { select: { tag: { select: { id: true, nom: true, couleur: true } } } },
       },
     });
 

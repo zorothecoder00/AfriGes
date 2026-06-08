@@ -10,6 +10,7 @@ import Link from 'next/link';
 import { useApi } from '@/hooks/useApi';
 import { formatDate, formatCurrency } from '@/lib/format';
 import ClienteleTabBar from '@/components/ClienteleTabBar';
+import { useTagModal } from '@/contexts/TagModalContext';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -32,7 +33,8 @@ interface Creance {
   pack: { id: number; nom: string; type: string };
   client: {
     id: number; nom: string; prenom: string; telephone: string;
-    codeClient: string | null; etat: string;
+    codeClient: string | null; etat: string; segment: string;
+    tags?: { tag: { id: number; nom: string; couleur: string } }[];
     agentTerrain: { id: number; nom: string; prenom: string } | null;
     pointDeVente: { id: number; nom: string; code: string } | null;
   };
@@ -76,6 +78,7 @@ function pct(verse: string, total: string) {
 
 export default function CreancesPage() {
   const [page,     setPage]     = useState(1);
+  const tagModal = useTagModal();
   const [search,   setSearch]   = useState('');
   const [searchInput, setSearchInput] = useState('');
   const [statut,   setStatut]   = useState('');
@@ -262,6 +265,18 @@ export default function CreancesPage() {
                           <div className="flex items-center gap-1 text-xs text-gray-400 mt-0.5">
                             <MapPin className="w-3 h-3" />
                             {c.client.pointDeVente.nom}
+                          </div>
+                        )}
+                        {(c.client.tags ?? []).length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {(c.client.tags ?? []).slice(0, 3).map(({ tag }) => (
+                              <button key={tag.id}
+                                onClick={() => tagModal?.openTag(tag)}
+                                className="px-1.5 py-0.5 rounded-full text-[10px] font-semibold text-white hover:opacity-80 transition-opacity"
+                                style={{ backgroundColor: tag.couleur }}
+                                title={`Voir tous les clients "${tag.nom}"`}
+                              >{tag.nom}</button>
+                            ))}
                           </div>
                         )}
                       </td>

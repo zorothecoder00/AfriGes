@@ -12,6 +12,7 @@ import { useApi, useMutation } from '@/hooks/useApi';
 import { formatCurrency, formatDateTime } from '@/lib/format';
 import { exportToCsv } from '@/lib/exportCsv';
 import { useT } from '@/contexts/AppSettingsContext';
+import { useTagModal } from '@/contexts/TagModalContext';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -40,7 +41,10 @@ interface VenteDirecte {
   createdAt: string;
   pointDeVente: { id: number; nom: string; code: string };
   vendeur: { id: number; nom: string; prenom: string };
-  client?: { id: number; nom: string; prenom: string; telephone: string };
+  client?: {
+    id: number; nom: string; prenom: string; telephone: string; segment: string;
+    tags?: { tag: { id: number; nom: string; couleur: string } }[];
+  };
   lignes: { id: number; quantite: number; prixUnitaire: string | number; montant: string | number; produit: { id: number; nom: string } }[];
 }
 interface VentesResponse {
@@ -105,6 +109,7 @@ function initials(nom: string, prenom: string) {
 
 export default function VentesPage() {
   const t = useT();
+  const tagModal = useTagModal();
   const [activeTab, setActiveTab] = useState<'ventes' | 'packs'>('ventes');
   const isVentesTab = activeTab === 'ventes';
 
@@ -1389,6 +1394,21 @@ export default function VentesPage() {
                                 <div>
                                   <p className="text-sm font-semibold text-slate-800">{nom}</p>
                                   <p className="text-xs text-slate-400">{v.client?.telephone ?? v.clientTelephone ?? '—'}</p>
+                                  {v.client && (v.client.tags ?? []).length > 0 && (
+                                    <div className="flex flex-wrap gap-1 mt-0.5">
+                                      {(v.client.tags ?? []).slice(0, 3).map(({ tag }) => (
+                                        <button
+                                          key={tag.id}
+                                          onClick={e => { e.stopPropagation(); tagModal?.openTag(tag); }}
+                                          className="px-1.5 py-0.5 rounded-full text-[10px] font-semibold text-white hover:opacity-80 transition-opacity"
+                                          style={{ backgroundColor: tag.couleur }}
+                                          title={`Voir tous les clients "${tag.nom}"`}
+                                        >
+                                          {tag.nom}
+                                        </button>
+                                      ))}
+                                    </div>
+                                  )}
                                 </div>
                               </div>
                             </td>

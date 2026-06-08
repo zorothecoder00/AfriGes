@@ -68,7 +68,12 @@ export async function GET(req: Request) {
         include: {
           pointDeVente: { select: { id: true, nom: true, code: true } },
           vendeur:      { select: { id: true, nom: true, prenom: true } },
-          client:       { select: { id: true, nom: true, prenom: true, telephone: true } },
+          client: {
+            select: {
+              id: true, nom: true, prenom: true, telephone: true, segment: true,
+              tags: { select: { tag: { select: { id: true, nom: true, couleur: true } } } },
+            },
+          },
           lignes: {
             include: { produit: { select: { id: true, nom: true } } },
           },

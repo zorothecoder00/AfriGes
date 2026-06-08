@@ -68,13 +68,14 @@ export async function GET(req: NextRequest) {
         orderBy: [{ nom: "asc" }, { prenom: "asc" }],
         select: {
           id: true, nom: true, prenom: true, telephone: true, adresse: true, etat: true,
-          createdAt: true,
+          segment: true, createdAt: true,
           pointDeVente: { select: { id: true, nom: true, code: true } },
           pointsDeVente: {
             select: {
               pointDeVente: { select: { id: true, nom: true, code: true } },
             },
           },
+          tags: { select: { tag: { select: { id: true, nom: true, couleur: true } } } },
           souscriptionsPacks: {
             where:  { statut: { in: ["ACTIF", "EN_ATTENTE"] } },
             select: { id: true, statut: true, montantTotal: true, montantVerse: true, montantRestant: true,

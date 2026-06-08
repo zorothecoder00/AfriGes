@@ -40,6 +40,7 @@ export async function GET(
     const client = await prisma.client.findUnique({
       where: { id: clientId },
       include: {
+        tags:          { select: { tag: { select: { id: true, nom: true, couleur: true } } } },
         pointDeVente:  { select: { id: true, nom: true, code: true } },
         pointsDeVente: { select: { pointDeVente: { select: { id: true, nom: true, code: true } } } },
         agentTerrain:  { select: { id: true, nom: true, prenom: true } },

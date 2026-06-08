@@ -95,8 +95,10 @@ export async function GET(req: Request) {
       validationPar: {
         select: { nom: true, prenom: true },
       },
+      segment: true,
       scoreSolvabilite: true,
       soldeActuel: true,
+      tags: { select: { tag: { select: { id: true, nom: true, couleur: true } } } },
       creditsClients: {
         where: { statut: StatutCredit.EN_RETARD },
         select: { id: true },

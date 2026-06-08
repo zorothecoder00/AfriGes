@@ -64,9 +64,10 @@ export async function GET(req: NextRequest) {
           id: true, nom: true, prenom: true, telephone: true,
           adresse: true, quartier: true, ville: true, activite: true, etat: true,
           typeClient: true, limiteCredit: true, soldeActuel: true,
-          niveauRisque: true, codeClient: true,
+          niveauRisque: true, codeClient: true, segment: true,
           latitude: true, longitude: true,
           createdAt: true,
+          tags: { select: { tag: { select: { id: true, nom: true, couleur: true } } } },
           _count: {
             select: {
               souscriptionsPacks: {

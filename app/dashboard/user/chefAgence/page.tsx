@@ -13,6 +13,7 @@ import SignOutButton from "@/components/SignOutButton";
 import NotificationBell from "@/components/NotificationBell";
 import MessagesLink from "@/components/MessagesLink";
 import UserPdvBadge from "@/components/UserPdvBadge";
+import ClientSegmentTags from "@/components/ClientSegmentTags";
 import { useApi } from "@/hooks/useApi";
 import { useMutation } from "@/hooks/useApi";
 import { formatCurrency, formatDate } from "@/lib/format";
@@ -147,6 +148,8 @@ interface EquipeResponse {
 interface ClientItem {
   id: number; nom: string; prenom: string; telephone: string | null;
   adresse: string | null; etat: string; createdAt: string;
+  segment?: string;
+  tags?: { tag: { id: number; nom: string; couleur: string } }[];
   pdv: { id: number; nom: string; code: string } | null;
   souscriptionsActives: { id: number; statut: string; packNom: string; packType: string; montantTotal: number; montantVerse: number; montantRestant: number }[];
   nbVentes: number; nbSouscriptions: number;
@@ -1405,6 +1408,7 @@ export default function ChefAgenceDashboard() {
                           <td className="px-3 py-2">
                             <p className="font-medium text-gray-900">{c.prenom} {c.nom}</p>
                             {c.adresse && <p className="text-xs text-gray-400">{c.adresse}</p>}
+                            <ClientSegmentTags segment={c.segment} tags={c.tags} />
                           </td>
                           <td className="px-3 py-2 text-gray-600">{c.pdv?.nom ?? "—"}</td>
                           <td className="px-3 py-2 text-gray-500">{c.telephone ?? "—"}</td>

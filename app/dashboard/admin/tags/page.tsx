@@ -8,6 +8,7 @@ import SignOutButton from "@/components/SignOutButton";
 import NotificationBell from "@/components/NotificationBell";
 import MessagesLink from "@/components/MessagesLink";
 import ClienteleTabBar from "@/components/ClienteleTabBar";
+import { useTagModal } from "@/contexts/TagModalContext";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -205,6 +206,7 @@ function TagModal({
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function TagsPage() {
+  const tagModal = useTagModal();
   const [filterSegment, setFilterSegment] = useState("");
   const [showInactifs,  setShowInactifs]  = useState(false);
 
@@ -310,12 +312,14 @@ export default function TagsPage() {
                 {/* Badge + nom */}
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center gap-2.5">
-                    <span
-                      className="px-3 py-1.5 rounded-full text-white text-xs font-bold"
+                    <button
+                      onClick={() => tag._count.clients > 0 && tagModal?.openTag({ id: tag.id, nom: tag.nom, couleur: tag.couleur })}
+                      className={`px-3 py-1.5 rounded-full text-white text-xs font-bold transition-opacity ${tag._count.clients > 0 ? "hover:opacity-80 cursor-pointer" : "cursor-default"}`}
                       style={{ backgroundColor: tag.couleur }}
+                      title={tag._count.clients > 0 ? `Voir les ${tag._count.clients} clients` : "Aucun client"}
                     >
                       {tag.nom}
-                    </span>
+                    </button>
                     {!tag.actif && (
                       <span className="text-xs text-gray-400 italic">inactif</span>
                     )}
@@ -345,10 +349,14 @@ export default function TagsPage() {
 
                 {/* Footer */}
                 <div className="flex items-center justify-between pt-3 border-t border-gray-100">
-                  <div className="flex items-center gap-1 text-xs text-gray-500">
+                  <button
+                    onClick={() => tag._count.clients > 0 && tagModal?.openTag({ id: tag.id, nom: tag.nom, couleur: tag.couleur })}
+                    disabled={tag._count.clients === 0}
+                    className={`flex items-center gap-1 text-xs transition-colors ${tag._count.clients > 0 ? "text-indigo-600 hover:text-indigo-800 hover:underline cursor-pointer" : "text-gray-400 cursor-default"}`}
+                  >
                     <Users className="w-3.5 h-3.5" />
                     <span>{tag._count.clients} client{tag._count.clients !== 1 ? "s" : ""}</span>
-                  </div>
+                  </button>
                   {tag.segment ? (
                     <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${SEGMENT_STYLE[tag.segment]}`}>
                       {SEGMENT_LABELS[tag.segment]}

@@ -15,6 +15,7 @@ import NotificationBell from "@/components/NotificationBell";
 import MessagesLink from "@/components/MessagesLink";
 import UserPdvBadge from "@/components/UserPdvBadge";
 import DashboardBackButton from "@/components/DashboardBackButton";
+import ClientSegmentTags from "@/components/ClientSegmentTags";
 import { useApi, useMutation } from "@/hooks/useApi";
 import FactureModal from "@/components/FactureModal";
 import { formatCurrency, formatDate } from "@/lib/format";
@@ -165,6 +166,8 @@ interface Client {
   soldeActuel: string | null;
   niveauRisque: string | null;
   codeClient: string | null;
+  segment: string;
+  tags?: { tag: { id: number; nom: string; couleur: string } }[];
   createdAt: string;
   _count?: { souscriptionsPacks: number };
 }
@@ -2784,6 +2787,7 @@ export default function AgentTerrainPage() {
                           </div>
                           <div>
                             <p className="font-semibold text-slate-800">{client.prenom} {client.nom}</p>
+                            <ClientSegmentTags segment={client.segment} tags={client.tags} />
                             {client.activite && <p className="text-xs text-slate-400">{client.activite}</p>}
                           </div>
                         </div>

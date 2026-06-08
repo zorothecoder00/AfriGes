@@ -72,6 +72,7 @@ export async function GET(req: NextRequest) {
               pointDeVente: { select: { id: true, nom: true, code: true } },
             },
           },
+          tags: { select: { tag: { select: { id: true, nom: true, couleur: true } } } },
         },
       }),
       prisma.client.count({ where }),

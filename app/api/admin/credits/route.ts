@@ -51,7 +51,12 @@ export async function GET(req: Request) {
           montantJournalier: true, tauxPenalite: true,
           garantie: true, observations: true, dateValidation: true,
           createdAt: true, updatedAt: true,
-          client: { select: { id: true, nom: true, prenom: true, codeClient: true, telephone: true } },
+          client: {
+            select: {
+              id: true, nom: true, prenom: true, codeClient: true, telephone: true, segment: true,
+              tags: { select: { tag: { select: { id: true, nom: true, couleur: true } } } },
+            },
+          },
           creePar:  { select: { id: true, nom: true, prenom: true } },
           validePar: { select: { id: true, nom: true, prenom: true } },
           _count: { select: { lignes: true, echeances: true, remboursements: true } },

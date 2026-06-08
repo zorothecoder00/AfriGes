@@ -16,6 +16,7 @@ import NotificationBell from "@/components/NotificationBell";
 import MessagesLink from "@/components/MessagesLink";
 import UserPdvBadge from "@/components/UserPdvBadge";
 import DashboardBackButton from "@/components/DashboardBackButton";
+import ClientSegmentTags from "@/components/ClientSegmentTags";
 import FactureModal from "@/components/FactureModal";
 import { useApi, useMutation } from "@/hooks/useApi";
 import { formatCurrency, formatDate, formatDateTime } from "@/lib/format";
@@ -137,6 +138,8 @@ interface DashboardResponse { success: boolean; data: DashboardData }
 interface ClientPDV {
   id: number; nom: string; prenom: string; telephone: string;
   adresse: string | null; etat: string; createdAt: string;
+  segment?: string;
+  tags?: { tag: { id: number; nom: string; couleur: string } }[];
   _count: { souscriptionsPacks: number };
 }
 interface ClientsResponse {
@@ -3450,6 +3453,7 @@ export default function ResponsablePDVPage() {
                             </div>
                             <div>
                               <p className="font-semibold text-slate-800">{c.prenom} {c.nom}</p>
+                              <ClientSegmentTags segment={c.segment} tags={c.tags} />
                               <p className="text-xs text-slate-400">#{c.id}</p>
                             </div>
                           </div>

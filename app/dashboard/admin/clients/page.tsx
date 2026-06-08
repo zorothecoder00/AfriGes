@@ -10,6 +10,7 @@ import { useApi, useMutation } from '@/hooks/useApi';
 import { formatDate, formatDateTime, formatCurrency } from '@/lib/format';
 import { useT } from '@/contexts/AppSettingsContext';
 import ClienteleTabBar from '@/components/ClienteleTabBar';
+import { useTagModal } from '@/contexts/TagModalContext';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -214,6 +215,7 @@ function TagsClientModal({
 
 export default function ClientsPage() {
   const t = useT();
+  const tagModal = useTagModal();
   const [searchQuery, setSearchQuery]     = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [page, setPage]                   = useState(1);
@@ -1252,11 +1254,15 @@ export default function ClientsPage() {
                         {(client.tags ?? []).length > 0 && (
                           <div className="flex flex-wrap gap-1">
                             {(client.tags ?? []).slice(0, 3).map(({ tag }) => (
-                              <span key={tag.id}
-                                className="text-xs px-1.5 py-0.5 rounded-full text-white font-medium"
-                                style={{ backgroundColor: tag.couleur }}>
+                              <button
+                                key={tag.id}
+                                onClick={() => tagModal?.openTag(tag)}
+                                className="text-xs px-1.5 py-0.5 rounded-full text-white font-medium hover:opacity-80 transition-opacity cursor-pointer"
+                                style={{ backgroundColor: tag.couleur }}
+                                title={`Voir tous les clients "${tag.nom}"`}
+                              >
                                 {tag.nom}
-                              </span>
+                              </button>
                             ))}
                             {(client.tags ?? []).length > 3 && (
                               <span className="text-xs text-slate-400">+{(client.tags ?? []).length - 3}</span>

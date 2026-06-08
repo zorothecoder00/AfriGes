@@ -71,7 +71,12 @@ export async function GET(req: NextRequest) {
             select: {
               id: true,
               pack:   { select: { id: true, nom: true, type: true } },
-              client: { select: { id: true, nom: true, prenom: true, telephone: true } },
+              client: {
+                select: {
+                  id: true, nom: true, prenom: true, telephone: true, segment: true,
+                  tags: { select: { tag: { select: { id: true, nom: true, couleur: true } } } },
+                },
+              },
             },
           },
           // Renseigné si le produit existe dans le catalogue — nom canonique
