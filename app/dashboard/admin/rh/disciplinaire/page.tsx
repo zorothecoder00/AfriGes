@@ -5,8 +5,9 @@ import { useApi, useMutation } from "@/hooks/useApi";
 import { toast } from "sonner";
 import {
   Plus, Search, CheckCircle2, Clock,
-  Shield, FileWarning, Ban,
+  Shield, FileWarning, Ban, ArrowLeft,
 } from "lucide-react";
+import Link from "next/link";
 
 /* ─── Types ─────────────────────────────────────────────── */
 type TypeSanction = "AVERTISSEMENT" | "BLAME" | "MISE_A_PIED" | "RETROGRADATION" | "LICENCIEMENT" | "AUTRE";
@@ -456,6 +457,9 @@ export default function DisciplinairePage() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
+            <Link href="/dashboard/admin/rh" className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700 mb-2">
+              <ArrowLeft size={15} /> Dashboard RH
+            </Link>
             <h1 className="text-2xl font-bold text-gray-900">Procédures disciplinaires</h1>
             <p className="text-sm text-gray-500 mt-1">Suivi et gestion des procédures disciplinaires</p>
           </div>

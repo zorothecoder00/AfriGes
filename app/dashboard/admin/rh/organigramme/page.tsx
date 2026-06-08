@@ -3,8 +3,9 @@
 import React, { useState, useMemo } from "react";
 import { useApi } from "@/hooks/useApi";
 import {
-  Users, ChevronDown, ChevronRight, Building2, Search, BarChart3
+  Users, ChevronDown, ChevronRight, Building2, Search, BarChart3, ArrowLeft,
 } from "lucide-react";
+import Link from "next/link";
 
 /* ─── Types ─────────────────────────────────────────────── */
 interface OrgNode {
@@ -211,6 +212,9 @@ export default function OrganigrammePage() {
       <div className="bg-white border-b border-gray-100 px-6 py-4">
         <div className="max-w-screen-2xl mx-auto flex items-center justify-between flex-wrap gap-3">
           <div>
+            <Link href="/dashboard/admin/rh" className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700 mb-2">
+              <ArrowLeft size={15} /> Dashboard RH
+            </Link>
             <h1 className="text-xl font-bold text-gray-900">Organigramme</h1>
             <p className="text-sm text-gray-500 mt-0.5">
               {data ? `${data.total} collaborateurs actifs` : "Chargement…"}

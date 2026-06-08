@@ -4,8 +4,9 @@ import { useState, useCallback } from "react";
 import {
   RefreshCw, ChevronLeft, ChevronRight,
   CheckCircle, XCircle, Clock, CalendarDays,
-  Plane, Sun, AlertTriangle, Save, Search,
+  Plane, Sun, AlertTriangle, Save, Search, ArrowLeft,
 } from "lucide-react";
+import Link from "next/link";
 import { useApi, useMutation } from "@/hooks/useApi";
 import { toast } from "sonner";
 
@@ -88,6 +89,9 @@ export default function PointagesPage() {
 
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
+            <Link href="/dashboard/admin/rh" className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700 mb-2">
+              <ArrowLeft size={15} /> Dashboard RH
+            </Link>
             <h1 className="text-2xl font-bold text-slate-900">Pointage & Présence</h1>
             <p className="text-sm text-slate-500 mt-0.5">Suivi des présences par collaborateur</p>
           </div>

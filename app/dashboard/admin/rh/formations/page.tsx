@@ -5,7 +5,7 @@ import {
   Search, RefreshCw, Plus, X, Save,
   BookOpen, CheckCircle, Clock, PlayCircle,
   XCircle, Flag, User, Calendar, MapPin,
-  UserPlus, Award,
+  UserPlus, Award, ArrowLeft,
 } from "lucide-react";
 import Link from "next/link";
 import { useApi, useMutation } from "@/hooks/useApi";
@@ -105,6 +105,9 @@ export default function FormationsPage() {
 
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
+            <Link href="/dashboard/admin/rh" className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700 mb-2">
+              <ArrowLeft size={15} /> Dashboard RH
+            </Link>
             <h1 className="text-2xl font-bold text-slate-900">Formations & Développement</h1>
             <p className="text-sm text-slate-500 mt-0.5">Plan de formation des collaborateurs</p>
           </div>

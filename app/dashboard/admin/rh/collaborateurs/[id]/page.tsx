@@ -318,12 +318,13 @@ export default function DossierCollaborateurPage({
         {/* ── Breadcrumb + titre ── */}
         <div className="flex items-start justify-between flex-wrap gap-3">
           <div>
-            <Link
-              href="/dashboard/admin/rh/collaborateurs"
-              className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700 mb-2"
-            >
-              <ArrowLeft className="w-4 h-4" /> Collaborateurs
-            </Link>
+            <div className="flex items-center gap-1.5 text-sm text-slate-400 mb-2">
+              <Link href="/dashboard/admin/rh" className="hover:text-slate-600 transition-colors">Dashboard RH</Link>
+              <span>/</span>
+              <Link href="/dashboard/admin/rh/collaborateurs" className="flex items-center gap-1 hover:text-slate-600 transition-colors">
+                <ArrowLeft className="w-3.5 h-3.5" /> Collaborateurs
+              </Link>
+            </div>
             <div className="flex items-center gap-3">
               <div className="w-12 h-12 rounded-full bg-emerald-500 flex items-center justify-center text-white font-bold text-lg">
                 {profil.gestionnaire.member.prenom[0]}{profil.gestionnaire.member.nom[0]}

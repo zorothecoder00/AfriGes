@@ -7,7 +7,7 @@ import {
   Users, Banknote, GraduationCap, Clock, Gift,
   CalendarDays, MapPin, Star, UserCheck, FileWarning,
   Building2, TrendingUp, AlertTriangle, CheckCircle2,
-  ArrowRight, RefreshCw,
+  ArrowRight, ArrowLeft, RefreshCw,
 } from "lucide-react";
 
 /* ─── Types ─────────────────────────────────────────────── */
@@ -107,6 +107,9 @@ export default function RHDashboardPage() {
         {/* Header */}
         <div className="flex items-center justify-between mb-4">
           <div>
+            <Link href="/dashboard/admin" className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700 mb-2">
+              <ArrowLeft size={15} /> Dashboard Admin
+            </Link>
             <h1 className="text-2xl font-bold text-gray-900">Tableau de bord RH</h1>
             <p className="text-sm text-gray-500 mt-1">Vue consolidée de la gestion des ressources humaines</p>
           </div>

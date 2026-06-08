@@ -4,7 +4,7 @@ import { useState, useCallback } from "react";
 import {
   Search, RefreshCw, Plus, X, Save,
   Star, CheckCircle, Clock, PlayCircle,
-  Trash2, ChevronDown, ChevronUp, User,
+  Trash2, ChevronDown, ChevronUp, User, ArrowLeft,
 } from "lucide-react";
 import Link from "next/link";
 import { useApi, useMutation } from "@/hooks/useApi";
@@ -103,6 +103,9 @@ export default function EvaluationsPage() {
       <div className="p-6 space-y-6 max-w-6xl mx-auto">
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
+            <Link href="/dashboard/admin/rh" className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700 mb-2">
+              <ArrowLeft size={15} /> Dashboard RH
+            </Link>
             <h1 className="text-2xl font-bold text-slate-900">Évaluations de performance</h1>
             <p className="text-sm text-slate-500 mt-0.5">Suivi des évaluations périodiques des collaborateurs</p>
           </div>

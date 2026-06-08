@@ -5,7 +5,7 @@ import {
   Search, RefreshCw, Filter, Plus,
   FileText, Archive, ArchiveRestore,
   ExternalLink, Save, X, User,
-  CheckCircle, Clock, Download,
+  CheckCircle, Clock, Download, ArrowLeft,
 } from "lucide-react";
 import Link from "next/link";
 import { useApi, useMutation } from "@/hooks/useApi";
@@ -86,6 +86,9 @@ export default function DocumentsRHPage() {
         {/* ── En-tête ── */}
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
+            <Link href="/dashboard/admin/rh" className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700 mb-2">
+              <ArrowLeft size={15} /> Dashboard RH
+            </Link>
             <h1 className="text-2xl font-bold text-slate-900">Documents RH générés</h1>
             <p className="text-sm text-slate-500 mt-0.5">
               Attestations, certificats, lettres de mission et décisions

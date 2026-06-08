@@ -4,7 +4,7 @@ import { useState, useCallback } from "react";
 import {
   Search, RefreshCw, Plus, X, Save,
   CheckCircle, Clock, XCircle, CreditCard,
-  DollarSign, AlertTriangle,
+  DollarSign, AlertTriangle, ArrowLeft,
 } from "lucide-react";
 import Link from "next/link";
 import { useApi, useMutation } from "@/hooks/useApi";
@@ -86,6 +86,9 @@ export default function AvantagesPage() {
     <div className="min-h-screen bg-slate-50">
       <div className="p-6 max-w-6xl mx-auto space-y-6">
         <div>
+          <Link href="/dashboard/admin/rh" className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700 mb-2">
+            <ArrowLeft size={15} /> Dashboard RH
+          </Link>
           <h1 className="text-2xl font-bold text-slate-900">Avantages & Remboursements</h1>
           <p className="text-sm text-slate-500 mt-0.5">Avantages en nature et remboursements de frais</p>
         </div>

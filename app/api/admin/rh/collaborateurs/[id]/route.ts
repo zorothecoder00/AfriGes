@@ -41,7 +41,17 @@ const PROFIL_INCLUDE = {
     orderBy: { createdAt: "desc" as const },
   },
   _count: {
-    select: { documents: true, demandesConge: true, missions: true },
+    select: {
+      documents: true,
+      demandesConge: true,
+      missions: true,
+      evaluations: true,
+      procedures: true,
+      fichesPaie: true,
+      participationsFormation: true,
+      pointages: true,
+      avantages: true,
+    },
   },
 };
 

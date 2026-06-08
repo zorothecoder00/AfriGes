@@ -340,7 +340,8 @@ export default function AfriGesDashboard() {
             <div className="p-4 border-b border-slate-100">
               <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Ressources humaines</h3>
               <nav className="space-y-1">
-                <Link href="/dashboard/admin/rh/collaborateurs" className="w-full flex items-center gap-3 px-4 py-2.5 text-slate-600 hover:bg-slate-50 rounded-xl transition-all"><UserCog size={18} /><span>Collaborateurs</span></Link>
+                <Link href="/dashboard/admin/rh" className="w-full flex items-center gap-3 px-4 py-2.5 text-slate-600 hover:bg-slate-50 rounded-xl transition-all font-medium"><UserCog size={18} /><span>Dashboard RH</span></Link>
+                <Link href="/dashboard/admin/rh/collaborateurs" className="w-full flex items-center gap-3 px-4 py-2.5 pl-10 text-slate-500 hover:bg-slate-50 rounded-xl transition-all text-sm"><Users size={16} /><span>Collaborateurs</span></Link>
                 <Link href="/dashboard/admin/rh/paie"           className="w-full flex items-center gap-3 px-4 py-2.5 pl-10 text-slate-500 hover:bg-slate-50 rounded-xl transition-all text-sm"><Banknote size={16} /><span>Paie</span></Link>
                 <Link href="/dashboard/admin/rh/formations"     className="w-full flex items-center gap-3 px-4 py-2.5 pl-10 text-slate-500 hover:bg-slate-50 rounded-xl transition-all text-sm"><GraduationCap size={16} /><span>Formations</span></Link>
                 <Link href="/dashboard/admin/rh/pointages"      className="w-full flex items-center gap-3 px-4 py-2.5 pl-10 text-slate-500 hover:bg-slate-50 rounded-xl transition-all text-sm"><Clock size={16} /><span>Pointages</span></Link>

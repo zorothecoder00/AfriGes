@@ -6,8 +6,9 @@ import { toast } from "sonner";
 import {
   Briefcase, Plus, Search, Users, CheckCircle2, XCircle,
   Clock, ChevronDown, ChevronUp, UserPlus, Eye, Calendar,
-  FileText, Star, Phone, Mail, ArrowRight
+  FileText, Star, Phone, Mail, ArrowRight, ArrowLeft,
 } from "lucide-react";
+import Link from "next/link";
 
 /* ─── Types ─────────────────────────────────────────────── */
 type StatutPoste = "BROUILLON" | "OUVERT" | "POURVU" | "ANNULE";
@@ -494,6 +495,9 @@ export default function RecrutementPage() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
+            <Link href="/dashboard/admin/rh" className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700 mb-2">
+              <ArrowLeft size={15} /> Dashboard RH
+            </Link>
             <h1 className="text-2xl font-bold text-gray-900">Recrutement</h1>
             <p className="text-sm text-gray-500 mt-1">Gestion des postes ouverts et candidatures</p>
           </div>

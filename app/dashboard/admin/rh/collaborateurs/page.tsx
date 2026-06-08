@@ -6,7 +6,7 @@ import {
   Search, RefreshCw, UserPlus, Filter,
   Users, UserCheck, Clock, UserX,
   Building2, Briefcase, ChevronRight,
-  Phone, Mail,
+  Phone, Mail, ArrowLeft,
 } from "lucide-react";
 import { useApi } from "@/hooks/useApi";
 import { formatDate } from "@/lib/format";
@@ -125,6 +125,9 @@ export default function CollaborateursPage() {
         {/* ── En-tête ── */}
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
+            <Link href="/dashboard/admin/rh" className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700 mb-2">
+              <ArrowLeft size={15} /> Dashboard RH
+            </Link>
             <h1 className="text-2xl font-bold text-slate-900">Collaborateurs</h1>
             <p className="text-sm text-slate-500 mt-0.5">
               Dossiers RH — {res?.meta.total ?? 0} collaborateur{(res?.meta.total ?? 0) !== 1 ? "s" : ""}
