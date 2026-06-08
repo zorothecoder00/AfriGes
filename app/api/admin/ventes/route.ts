@@ -115,6 +115,12 @@ export async function POST(req: Request) {
     if (!pointDeVenteId || !modePaiement || montantPaye === undefined || !lignes?.length) {
       return NextResponse.json({ error: "pointDeVenteId, modePaiement, montantPaye et lignes sont obligatoires" }, { status: 400 });
     }
+    if (modePaiement === "CREDIT") {
+      return NextResponse.json(
+        { error: "Les ventes à crédit doivent passer par le module Crédits clients (admin/credits), pas par une vente directe." },
+        { status: 400 }
+      );
+    }
 
     // Vérifier stocks et calculer montant
     let montantTotal = 0;

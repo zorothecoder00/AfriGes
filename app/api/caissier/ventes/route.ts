@@ -142,6 +142,13 @@ export async function POST(req: Request) {
     if (!modePaiement || montantPaye === undefined || !lignes?.length) {
       return NextResponse.json({ error: "modePaiement, montantPaye et lignes sont obligatoires" }, { status: 400 });
     }
+    // Les ventes à crédit doivent passer par le module CreditClient, pas par la caisse directe
+    if (modePaiement === "CREDIT") {
+      return NextResponse.json(
+        { error: "Les ventes à crédit doivent être créées via le module Crédits clients (CreditClient), pas comme vente directe caisse." },
+        { status: 400 }
+      );
+    }
 
     // Vérifier stocks et calculer montant total
     let montantTotal = 0;

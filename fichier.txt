@@ -12,7 +12,7 @@ import { randomUUID } from "crypto";  permet de générer des UUID(sorte d'ident
 Prisma 7 est une breaking change majeure : url dans schema.prisma n'est plus
   supporté. La connexion doit passer par prisma.config.ts + un driver adapter.
 netsh wlan show profiles permet d'afficher les réseaux wifi enregistrés sur un pc
-netsh wlan show profile name="NomDuWifi" key=clear affiche toutes les propriétés du wifi sélectionné (NomDuWifi par exemple) notamment le mot de passe
+netsh wlan show profile name="NomDuWifi" key=clear affiche toutes les propriétés du wifi sélectionné (NomDuWifi par exemple) notamment le mot de passe  
    
 -npm i -g @openai/codex permet d'installer le CLI de codex (agent ia d'openai qui permet d'interagir depuis le terminal)
 -Tip: Run /install-github-app to tag @claude right from your Github issues and PRs
@@ -69,10 +69,6 @@ générer automatiquement des vignettes pour les produits( étiquettes )
 
 
 l'admin et les responsables (chefagence , rpv,admin  ) doivent pouvoir modifier et supprimer(uniquement les admins) les factures
-
-Vérifie si dans un dashboard/  on utilise encore les ventes directes à crédit au lieu des credits clients (surtout au niveau des caissiers et des comptables ). C'est important que tout soit correctement implémenté avec une architecture vraiment cohérente et fluide 
-
-Toujous sur le dashboard/user/responableventecredit , lorsqu'on veut créer un crédit à un client mais que ce client n'a pas de limite , est ce que ça ne serait pas lpogique de le rediriger vers le post ou le patch de limite de plafond ?? Comme çela l'UX sera très clair
 
 erreur d'application et Exception côté client sur quasiment toutes les actions(post ou patch surtoutet même get je crois) d'un de mes supérieurs sur l'app déployée (sur vercel) 
 

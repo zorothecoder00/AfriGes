@@ -1533,7 +1533,6 @@ export default function AgentTerrainPage() {
   // ── Ventes terrain ──
   const [showVenteForm, setShowVenteForm]     = useState(false);
   const [vClientId, setVClientId]             = useState("");
-  const [vCreditClientId, setVCreditClientId] = useState("");
   const [vClientNom, setVClientNom]       = useState("");
   const [vClientTel, setVClientTel]       = useState("");
   const [vModePaiement, setVModePaiement] = useState("ESPECES");
@@ -1570,11 +1569,6 @@ export default function AgentTerrainPage() {
 
   const handleSubmitVente = async (e: React.FormEvent) => {
     e.preventDefault();
-    const isCredit = vModePaiement === "CREDIT";
-    if (isCredit && !vClientId) {
-      toast.error("Sélectionnez un client enregistré pour une vente à crédit.");
-      return;
-    }
     const lignesValides = vLignes.filter(l => l.produitId && l.quantite);
     if (!lignesValides.length) return;
     const montantTotal = lignesValides.reduce((s, l) => {
@@ -1583,26 +1577,20 @@ export default function AgentTerrainPage() {
     }, 0);
     const res = await submitVente({
       modePaiement: vModePaiement,
-      montantPaye: isCredit ? 0 : (Number(vMontantPaye) || montantTotal),
+      montantPaye: Number(vMontantPaye) || montantTotal,
       clientId: vClientId || undefined,
-      creditClientId: (isCredit && vCreditClientId) ? Number(vCreditClientId) : undefined,
       clientNom: !vClientId ? vClientNom || undefined : undefined,
       clientTelephone: !vClientId ? vClientTel || undefined : undefined,
       notes: vNotes || undefined,
       lignes: lignesValides.map(l => ({
         produitId: Number(l.produitId),
         quantite:  Number(l.quantite),
-        // prixUnitaire volontairement omis — prix imposé par le catalogue côté serveur
       })),
     });
     if (res) {
-      if (isCredit) {
-        toast.success("Demande de crédit envoyée au Responsable Crédit !");
-      } else {
-        toast.success("Vente enregistrée — stock mis à jour !");
-      }
+      toast.success("Vente enregistrée — stock mis à jour !");
       setShowVenteForm(false);
-      setVClientId(""); setVCreditClientId(""); setVClientNom(""); setVClientTel("");
+      setVClientId(""); setVClientNom(""); setVClientTel("");
       setVMontantPaye(""); setVNotes("");
       setVLignes([{ produitId: "", quantite: "", prixUnitaire: "" }]);
       refetchVentes();
@@ -2532,28 +2520,23 @@ export default function AgentTerrainPage() {
                       <button
                         type="button"
                         onClick={() => { setVModePaiement("ESPECES"); setVMontantPaye(""); }}
-                        className={`flex flex-col items-center gap-1.5 py-4 rounded-xl border-2 font-semibold text-sm transition-all ${vModePaiement !== "CREDIT" ? "border-teal-500 bg-teal-50 text-teal-700" : "border-slate-200 bg-white text-slate-500 hover:border-slate-300"}`}
+                        className="flex flex-col items-center gap-1.5 py-4 rounded-xl border-2 font-semibold text-sm transition-all border-teal-500 bg-teal-50 text-teal-700"
                       >
                         <span className="text-2xl">💵</span>
                         <span>Vente Comptant</span>
                         <span className="text-xs font-normal opacity-70">Payé immédiatement</span>
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => { setVModePaiement("CREDIT"); setVMontantPaye(""); setVClientNom(""); setVClientTel(""); }}
-                        className={`flex flex-col items-center gap-1.5 py-4 rounded-xl border-2 font-semibold text-sm transition-all ${vModePaiement === "CREDIT" ? "border-amber-500 bg-amber-50 text-amber-700" : "border-slate-200 bg-white text-slate-500 hover:border-slate-300"}`}
+                      <Link
+                        href="/dashboard/user/agentsTerrain/credits"
+                        onClick={() => setShowVenteForm(false)}
+                        className="flex flex-col items-center gap-1.5 py-4 rounded-xl border-2 font-semibold text-sm transition-all border-slate-200 bg-white text-slate-500 hover:border-amber-400 hover:text-amber-600 hover:bg-amber-50"
                       >
                         <span className="text-2xl">🏦</span>
                         <span>Vente à Crédit</span>
-                        <span className="text-xs font-normal opacity-70">Validation RVC requise</span>
-                      </button>
+                        <span className="text-xs font-normal opacity-70">Page dédiée →</span>
+                      </Link>
                     </div>
-                    {vModePaiement === "CREDIT" && (
-                      <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mt-2">
-                        La demande sera envoyée au Responsable Crédit. Le stock ne sera pas débité tant que le crédit n&apos;est pas approuvé.
-                      </p>
-                    )}
-                    {vModePaiement !== "CREDIT" && (
+                    {(
                       <div className="flex items-center gap-2 mt-2">
                         <select value={vModePaiement} onChange={e => setVModePaiement(e.target.value)}
                           className="px-3 py-1.5 border border-slate-200 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-teal-500">
@@ -2572,9 +2555,7 @@ export default function AgentTerrainPage() {
                   {/* Client */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-xs font-medium text-slate-600 mb-1">
-                        Client {vModePaiement === "CREDIT" && <span className="text-red-500">* (obligatoire pour un crédit)</span>}
-                      </label>
+                      <label className="block text-xs font-medium text-slate-600 mb-1">Client</label>
                       <select value={vClientId} onChange={e => { setVClientId(e.target.value); setVClientNom(""); setVClientTel(""); }}
                         className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-teal-500">
                         <option value="">— Saisie manuelle —</option>
@@ -2584,43 +2565,7 @@ export default function AgentTerrainPage() {
                       </select>
                     </div>
                     {/* Afficher info crédit du client sélectionné en mode CRÉDIT */}
-                    {vModePaiement === "CREDIT" && vClientId && (() => {
-                      const sel = clientsDispo.find(c => String(c.id) === vClientId);
-                      if (!sel) return null;
-                      const limite = Number(sel.limiteCredit ?? 0);
-                      const solde  = Number(sel.soldeActuel  ?? 0);
-                      const dispo  = limite - solde;
-                      return (
-                        <div className="space-y-2">
-                          <div className={`text-xs px-3 py-2 rounded-lg border ${dispo > 0 ? "bg-green-50 border-green-200 text-green-700" : "bg-red-50 border-red-200 text-red-700"}`}>
-                            {limite === 0
-                              ? "⚠️ Ce client n'a pas de limite de crédit définie."
-                              : `Limite : ${limite.toLocaleString("fr-FR")} FCFA — Utilisé : ${solde.toLocaleString("fr-FR")} — Disponible : ${dispo.toLocaleString("fr-FR")} FCFA`}
-                          </div>
-                          {sel.creditsClients.length > 0 && (
-                            <div>
-                              <label className="block text-xs font-medium text-slate-600 mb-1">
-                                Ligne de crédit à utiliser <span className="text-slate-400">(optionnel)</span>
-                              </label>
-                              <select value={vCreditClientId} onChange={e => setVCreditClientId(e.target.value)}
-                                className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-400">
-                                <option value="">— Aucune ligne spécifique —</option>
-                                {sel.creditsClients.map(cc => {
-                                  const dispo2 = Number(cc.montantTotal) - Number(cc.montantConsomme);
-                                  return (
-                                    <option key={cc.id} value={cc.id}>
-                                      {cc.reference} · dispo {dispo2.toLocaleString("fr-FR")} FCFA [{cc.statut}]
-                                    </option>
-                                  );
-                                })}
-                              </select>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })()}
-                    {/* Saisie manuelle uniquement en mode COMPTANT */}
-                    {!vClientId && vModePaiement !== "CREDIT" && (
+                    {!vClientId && (
                       <div className="grid grid-cols-2 gap-2">
                         <input placeholder="Nom client" value={vClientNom} onChange={e => setVClientNom(e.target.value)}
                           className="px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
@@ -2673,23 +2618,15 @@ export default function AgentTerrainPage() {
                     </div>
                   </div>
 
-                  {/* Montant payé — comptant uniquement */}
-                  {vModePaiement !== "CREDIT" && (
-                    <div>
-                      <label className="block text-xs font-medium text-slate-600 mb-1">
-                        Montant payé (calculé : <strong>{vMontantCalcule.toLocaleString("fr-FR")} FCFA</strong>)
-                      </label>
-                      <input type="number" min="0" placeholder={String(vMontantCalcule)}
-                        value={vMontantPaye} onChange={e => setVMontantPaye(e.target.value)}
-                        className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
-                    </div>
-                  )}
-                  {vModePaiement === "CREDIT" && vMontantCalcule > 0 && (
-                    <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 flex items-center justify-between">
-                      <span className="text-xs text-amber-700">Montant de la demande de crédit</span>
-                      <span className="font-bold text-amber-800 text-base">{vMontantCalcule.toLocaleString("fr-FR")} FCFA</span>
-                    </div>
-                  )}
+                  {/* Montant payé */}
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">
+                      Montant payé (calculé : <strong>{vMontantCalcule.toLocaleString("fr-FR")} FCFA</strong>)
+                    </label>
+                    <input type="number" min="0" placeholder={String(vMontantCalcule)}
+                      value={vMontantPaye} onChange={e => setVMontantPaye(e.target.value)}
+                      className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
+                  </div>
 
                   <textarea placeholder="Notes (optionnel)" rows={2} value={vNotes} onChange={e => setVNotes(e.target.value)}
                     className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm resize-none focus:outline-none focus:ring-2 focus:ring-teal-500" />
@@ -2698,12 +2635,10 @@ export default function AgentTerrainPage() {
                     <button type="button" onClick={() => setShowVenteForm(false)}
                       className="flex-1 py-2.5 border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50 text-sm">Annuler</button>
                     <button type="submit" disabled={venteSubmitLoading || vLignes.every(l => !l.produitId)}
-                      className={`flex-1 py-2.5 text-white rounded-xl disabled:opacity-50 text-sm font-semibold flex items-center justify-center gap-2 ${vModePaiement === "CREDIT" ? "bg-amber-600 hover:bg-amber-700" : "bg-teal-600 hover:bg-teal-700"}`}>
+                      className="flex-1 py-2.5 text-white rounded-xl disabled:opacity-50 text-sm font-semibold flex items-center justify-center gap-2 bg-teal-600 hover:bg-teal-700">
                       {venteSubmitLoading
                         ? <><Loader2 size={14} className="animate-spin" /> Enregistrement…</>
-                        : vModePaiement === "CREDIT"
-                          ? <><Send size={14} /> Envoyer au Responsable Crédit</>
-                          : <><Send size={14} /> Valider la vente</>}
+                        : <><Send size={14} /> Valider la vente</>}
                     </button>
                   </div>
                 </form>
@@ -2926,12 +2861,12 @@ export default function AgentTerrainPage() {
               <p className="text-sm text-slate-500">
                 Consultez le profil crédit de vos clients et lancez une vente à crédit directement.
               </p>
-              <button
-                onClick={() => { setActiveTab("ventes"); setShowVenteForm(true); setVModePaiement("CREDIT"); }}
+              <Link
+                href="/dashboard/user/agentsTerrain/credits"
                 className="flex items-center gap-2 px-4 py-2.5 bg-amber-600 text-white rounded-xl hover:bg-amber-700 text-sm font-medium shadow-lg shadow-amber-200"
               >
                 <Plus size={16} /> Nouvelle vente à crédit
-              </button>
+              </Link>
             </div>
 
             {/* Stats */}
@@ -3083,17 +3018,12 @@ export default function AgentTerrainPage() {
 
                           {/* Action */}
                           {client.creditDisponible > 0 && (
-                            <button
-                              onClick={() => {
-                                setActiveTab("ventes");
-                                setShowVenteForm(true);
-                                setVModePaiement("CREDIT");
-                                setVClientId(String(client.id));
-                              }}
+                            <Link
+                              href="/dashboard/user/agentsTerrain/credits"
                               className="flex items-center gap-2 px-4 py-2 bg-amber-600 text-white rounded-xl hover:bg-amber-700 text-xs font-semibold"
                             >
                               <ShoppingCart size={13} /> Créer une vente à crédit pour ce client
-                            </button>
+                            </Link>
                           )}
                         </div>
                       )}

@@ -239,10 +239,13 @@ async function syncVentesDirectes(
 
   const pdvFilter = pdvId !== null ? { pointDeVenteId: pdvId } : {};
 
+  // Les VenteDirecte avec modePaiement=CREDIT sont des créances (aucun cash reçu) —
+  // elles sont traitées via le module CreditClient/RemboursementCredit, pas ici.
   const ventes = await prisma.venteDirecte.findMany({
     where: {
-      statut:    { notIn: ["BROUILLON", "ANNULEE"] },
-      createdAt: { gte: dateMin, lte: dateMax },
+      statut:       { notIn: ["BROUILLON", "ANNULEE"] },
+      modePaiement: { not: "CREDIT" },
+      createdAt:    { gte: dateMin, lte: dateMax },
       ...pdvFilter,
     },
     select: { id: true, reference: true, createdAt: true, montantPaye: true, clientNom: true, modePaiement: true },
@@ -423,7 +426,7 @@ export async function GET(req: NextRequest) {
     const [nbCaisse, nbVentes, nbVentesDir, nbAchats] = await Promise.all([
       prisma.operationCaisse.count({ where: { createdAt: { gte: debut, lte: fin }, ...pdvCaisseFilter } }),
       prisma.versementPack.count({ where: { datePaiement: { gte: debut, lte: fin }, statut: "PAYE", ...pdvVersFilter } }),
-      prisma.venteDirecte.count({ where: { statut: { notIn: ["BROUILLON", "ANNULEE"] }, createdAt: { gte: debut, lte: fin }, ...pdvVenteDirFilter } }),
+      prisma.venteDirecte.count({ where: { statut: { notIn: ["BROUILLON", "ANNULEE"] }, modePaiement: { not: "CREDIT" }, createdAt: { gte: debut, lte: fin }, ...pdvVenteDirFilter } }),
       prisma.mouvementStock.count({
         where: { type: "ENTREE", dateMouvement: { gte: debut, lte: fin }, NOT: { reference: { startsWith: "INIT-" } }, ...pdvMouvFilter },
       }),
