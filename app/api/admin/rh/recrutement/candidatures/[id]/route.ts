@@ -7,9 +7,13 @@ type Ctx = { params: Promise<{ id: string }> };
 
 /**
  * PATCH /api/admin/rh/recrutement/candidatures/[id]
- * Avancer le statut ou mettre à jour les champs
- * Body workflow: { action: "SHORTLISTER" | "PLANIFIER_ENTRETIEN" | "FAIRE_OFFRE" | "ACCEPTER" | "REJETER" }
- * Body édition:  { noteEntretien?, dateEntretien?, commentaire?, cvUrl?, lettreUrl?, notes? }
+ *
+ * Workflow: { action: "PRE_QUALIFIER" | "SHORTLISTER" | "PLANIFIER_ENTRETIEN" | "ENVOYER_TEST"
+ *                    | "VALIDER_CANDIDATURE" | "FAIRE_OFFRE" | "DEMARRER_INTEGRATION"
+ *                    | "ACCEPTER" | "REJETER" }
+ * Édition libre: { noteEntretien?, noteTest?, scoreCandidat?, dateEntretien?, dateTest?,
+ *                  commentaire?, cvUrl?, lettreUrl?, notes?, competences?, formation?,
+ *                  experienceAnnees?, sourceCandidat? }
  */
 export async function PATCH(req: NextRequest, { params }: Ctx) {
   try {
@@ -25,20 +29,29 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
 
     if (action) {
       const TRANSITIONS: Record<string, { from: StatutCandidature[]; to: StatutCandidature }> = {
-        SHORTLISTER:        { from: ["RECU"],                         to: "SHORTLISTE" },
-        PLANIFIER_ENTRETIEN:{ from: ["RECU","SHORTLISTE"],            to: "ENTRETIEN"  },
-        FAIRE_OFFRE:        { from: ["ENTRETIEN","SHORTLISTE"],       to: "OFFRE"      },
-        ACCEPTER:           { from: ["OFFRE"],                        to: "ACCEPTE"    },
-        REJETER:            { from: ["RECU","SHORTLISTE","ENTRETIEN","OFFRE"], to: "REJETE" },
+        PRE_QUALIFIER:          { from: ["RECU"],                                        to: "PRE_QUALIFICATION" },
+        SHORTLISTER:            { from: ["RECU", "PRE_QUALIFICATION"],                   to: "SHORTLISTE"        },
+        PLANIFIER_ENTRETIEN:    { from: ["RECU","PRE_QUALIFICATION","SHORTLISTE"],        to: "ENTRETIEN"         },
+        ENVOYER_TEST:           { from: ["ENTRETIEN","SHORTLISTE"],                      to: "TEST"              },
+        VALIDER_CANDIDATURE:    { from: ["TEST","ENTRETIEN"],                            to: "VALIDATION"        },
+        FAIRE_OFFRE:            { from: ["VALIDATION","ENTRETIEN","SHORTLISTE"],         to: "OFFRE"             },
+        DEMARRER_INTEGRATION:   { from: ["OFFRE"],                                       to: "INTEGRATION"       },
+        ACCEPTER:               { from: ["INTEGRATION","OFFRE"],                         to: "ACCEPTE"           },
+        REJETER:                { from: ["RECU","PRE_QUALIFICATION","SHORTLISTE",
+                                         "ENTRETIEN","TEST","VALIDATION","OFFRE"],       to: "REJETE"            },
       };
+
       const t = TRANSITIONS[action];
       if (!t) return NextResponse.json({ error: "Action invalide" }, { status: 400 });
-      if (!t.from.includes(cand.statut)) return NextResponse.json({ error: `Impossible depuis ${cand.statut}` }, { status: 422 });
+      if (!t.from.includes(cand.statut)) {
+        return NextResponse.json({ error: `Impossible depuis le statut ${cand.statut}` }, { status: 422 });
+      }
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const data: any = { statut: t.to };
       if (editFields.dateEntretien !== undefined) data.dateEntretien = editFields.dateEntretien ? new Date(editFields.dateEntretien) : null;
-      if (editFields.commentaire   !== undefined) data.commentaire   = editFields.commentaire ?? null;
+      if (editFields.dateTest      !== undefined) data.dateTest      = editFields.dateTest      ? new Date(editFields.dateTest)      : null;
+      if (editFields.commentaire   !== undefined) data.commentaire   = editFields.commentaire   ?? null;
 
       const updated = await prisma.candidature.update({ where: { id: Number(id) }, data });
       return NextResponse.json({ data: updated });
@@ -47,12 +60,19 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
     // Édition libre
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const data: any = {};
-    if (editFields.noteEntretien !== undefined) data.noteEntretien = editFields.noteEntretien !== null ? Number(editFields.noteEntretien) : null;
-    if (editFields.dateEntretien !== undefined) data.dateEntretien = editFields.dateEntretien ? new Date(editFields.dateEntretien) : null;
-    if (editFields.commentaire   !== undefined) data.commentaire   = editFields.commentaire   ?? null;
-    if (editFields.cvUrl         !== undefined) data.cvUrl         = editFields.cvUrl         ?? null;
-    if (editFields.lettreUrl     !== undefined) data.lettreUrl     = editFields.lettreUrl     ?? null;
-    if (editFields.notes         !== undefined) data.notes         = editFields.notes         ?? null;
+    if (editFields.noteEntretien    !== undefined) data.noteEntretien    = editFields.noteEntretien    !== null ? Number(editFields.noteEntretien)    : null;
+    if (editFields.noteTest         !== undefined) data.noteTest         = editFields.noteTest         !== null ? Number(editFields.noteTest)         : null;
+    if (editFields.scoreCandidat    !== undefined) data.scoreCandidat    = editFields.scoreCandidat    !== null ? Number(editFields.scoreCandidat)    : null;
+    if (editFields.dateEntretien    !== undefined) data.dateEntretien    = editFields.dateEntretien    ? new Date(editFields.dateEntretien)    : null;
+    if (editFields.dateTest         !== undefined) data.dateTest         = editFields.dateTest         ? new Date(editFields.dateTest)         : null;
+    if (editFields.commentaire      !== undefined) data.commentaire      = editFields.commentaire      ?? null;
+    if (editFields.cvUrl            !== undefined) data.cvUrl            = editFields.cvUrl            ?? null;
+    if (editFields.lettreUrl        !== undefined) data.lettreUrl        = editFields.lettreUrl        ?? null;
+    if (editFields.notes            !== undefined) data.notes            = editFields.notes            ?? null;
+    if (editFields.competences      !== undefined) data.competences      = editFields.competences      ?? null;
+    if (editFields.formation        !== undefined) data.formation        = editFields.formation        ?? null;
+    if (editFields.experienceAnnees !== undefined) data.experienceAnnees = editFields.experienceAnnees !== null ? Number(editFields.experienceAnnees) : null;
+    if (editFields.sourceCandidat   !== undefined) data.sourceCandidat   = editFields.sourceCandidat   ?? null;
 
     const updated = await prisma.candidature.update({ where: { id: Number(id) }, data });
     return NextResponse.json({ data: updated });

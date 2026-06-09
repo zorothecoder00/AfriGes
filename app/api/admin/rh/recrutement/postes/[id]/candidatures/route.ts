@@ -27,7 +27,11 @@ export async function POST(req: NextRequest, { params }: Ctx) {
 
     const { id }  = await params;
     const body    = await req.json();
-    const { nomCandidat, prenomCandidat, email, telephone, cvUrl, lettreUrl, notes } = body;
+    const {
+      nomCandidat, prenomCandidat, email, telephone,
+      cvUrl, lettreUrl, notes, competences, formation,
+      experienceAnnees, sourceCandidat,
+    } = body;
 
     if (!nomCandidat || !prenomCandidat) {
       return NextResponse.json({ error: "nomCandidat et prenomCandidat sont obligatoires" }, { status: 400 });
@@ -41,15 +45,19 @@ export async function POST(req: NextRequest, { params }: Ctx) {
 
     const candidature = await prisma.candidature.create({
       data: {
-        posteId:       Number(id),
+        posteId:          Number(id),
         nomCandidat,
         prenomCandidat,
-        email:     email     ?? null,
-        telephone: telephone ?? null,
-        cvUrl:     cvUrl     ?? null,
-        lettreUrl: lettreUrl ?? null,
-        notes:     notes     ?? null,
-        statut:    "RECU",
+        email:            email            ?? null,
+        telephone:        telephone        ?? null,
+        cvUrl:            cvUrl            ?? null,
+        lettreUrl:        lettreUrl        ?? null,
+        notes:            notes            ?? null,
+        competences:      competences      ?? null,
+        formation:        formation        ?? null,
+        experienceAnnees: experienceAnnees ? Number(experienceAnnees) : null,
+        sourceCandidat:   sourceCandidat   ?? null,
+        statut:           "RECU",
       },
     });
 

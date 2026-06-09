@@ -116,6 +116,12 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
     if (body.managerId            !== undefined) data.managerId            = body.managerId ? Number(body.managerId) : null;
     if (body.notes                !== undefined) data.notes                = body.notes;
 
+    // Snapshot avant modification (uniquement les champs modifiés)
+    const avant: Record<string, unknown> = {};
+    for (const key of Object.keys(data)) {
+      avant[key] = (existing as Record<string, unknown>)[key] ?? null;
+    }
+
     const updated = await prisma.profilRH.update({
       where: { id: Number(id) },
       data,
@@ -124,11 +130,11 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
 
     await prisma.auditLog.create({
       data: {
-        userId:  parseInt(session.user.id),
-        action:  "UPDATE",
-        entite:  "ProfilRH",
+        userId:   parseInt(session.user.id),
+        action:   "UPDATE",
+        entite:   "ProfilRH",
         entiteId: updated.id,
-        details: `Mise à jour dossier RH — ${updated.matricule}`,
+        details:  JSON.parse(JSON.stringify({ avant, apres: data })),
       },
     });
 

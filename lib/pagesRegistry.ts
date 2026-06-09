@@ -113,4 +113,20 @@ export const PAGES_REGISTRY: RoleRegistry[] = [
       { key: "ventes",     label: "Ventes",     defaultAllowed: true, module: "terrain" },
     ],
   },
+  {
+    role: "RESPONSABLE_RH",
+    label: "Responsable RH",
+    sections: [
+      { key: "dashboard",    label: "Tableau de bord",        defaultAllowed: true, module: "rh" },
+      { key: "effectif",     label: "Effectif & Collaborateurs",defaultAllowed: true, module: "rh" },
+      { key: "presence",     label: "Présence & Pointages",   defaultAllowed: true, module: "rh" },
+      { key: "conges",       label: "Congés",                  defaultAllowed: true, module: "rh" },
+      { key: "recrutement",  label: "Recrutement",             defaultAllowed: true, module: "rh" },
+      { key: "formations",   label: "Formations",              defaultAllowed: true, module: "rh" },
+      { key: "evaluations",  label: "Évaluations",             defaultAllowed: true, module: "rh" },
+      { key: "documents",    label: "Documents RH",            defaultAllowed: true, module: "rh" },
+      { key: "audit",        label: "Audit & Traçabilité",     defaultAllowed: true, module: "rh" },
+      { key: "preferences",  label: "Préférences notifications",defaultAllowed: true, module: "rh" },
+    ],
+  },
 ];

@@ -106,9 +106,10 @@ export default function SuperAdminPage() {
   const [activeTab, setActiveTab] = useState<TabKey>("systeme");
 
   // ── États utilisateurs
-  const [userSearch, setUserSearch]   = useState("");
-  const [userEtat,   setUserEtat]     = useState("");
-  const [userPage,   setUserPage]     = useState(1);
+  const [userSearch,          setUserSearch]          = useState("");
+  const [userEtat,            setUserEtat]            = useState("");
+  const [userGestionnaireRole,setUserGestionnaireRole]= useState("");
+  const [userPage,            setUserPage]            = useState(1);
   const [selectedUser, setSelectedUser] = useState<UserSA | null>(null);
   const [modalUser, setModalUser]     = useState<"detail" | "reset" | "permission" | "confirm_delete" | null>(null);
   const [motifAction, setMotifAction] = useState("");
@@ -442,6 +443,39 @@ export default function SuperAdminPage() {
               </div>
             )}
 
+            {/* Module RH — accès rapide */}
+            <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <Wrench className="text-indigo-500 w-5 h-5" />
+                  <h2 className="font-bold text-slate-800">Module RH</h2>
+                </div>
+                <Link href="/dashboard/admin/rh" className="text-xs text-violet-600 font-semibold hover:underline flex items-center gap-1">
+                  Ouvrir <ChevronRight size={12} />
+                </Link>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                {[
+                  { href: "/dashboard/admin/rh",              label: "Dashboard RH",       color: "text-indigo-600 bg-indigo-50 border-indigo-200" },
+                  { href: "/dashboard/admin/rh/collaborateurs",label: "Collaborateurs",     color: "text-blue-600 bg-blue-50 border-blue-200" },
+                  { href: "/dashboard/admin/rh/conges",        label: "Congés",             color: "text-amber-600 bg-amber-50 border-amber-200" },
+                  { href: "/dashboard/admin/rh/recrutement",   label: "Recrutement",        color: "text-emerald-600 bg-emerald-50 border-emerald-200" },
+                  { href: "/dashboard/admin/rh/formations",    label: "Formations",         color: "text-violet-600 bg-violet-50 border-violet-200" },
+                  { href: "/dashboard/admin/rh/evaluations",   label: "Évaluations",        color: "text-yellow-600 bg-yellow-50 border-yellow-200" },
+                  { href: "/dashboard/admin/rh/paie",          label: "Paie",               color: "text-teal-600 bg-teal-50 border-teal-200" },
+                  { href: "/dashboard/admin/rh/audit",         label: "Audit RH",           color: "text-rose-600 bg-rose-50 border-rose-200" },
+                ].map(({ href, label, color }) => (
+                  <Link key={href} href={href}
+                    className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-medium ${color} hover:opacity-80 transition-opacity`}>
+                    <ChevronRight size={11} /> {label}
+                  </Link>
+                ))}
+              </div>
+              <p className="text-xs text-slate-400 mt-3 flex items-center gap-1">
+                <Zap size={11} /> Rôle gestionnaire concerné : <span className="font-mono font-medium text-slate-500">RESPONSABLE_RH</span>
+              </p>
+            </div>
+
             {/* Logs récents */}
             <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
               <div className="flex items-center justify-between mb-4">
@@ -487,6 +521,18 @@ export default function SuperAdminPage() {
                 <option value="SUSPENDU">Suspendu</option>
                 <option value="INACTIF">Inactif</option>
               </select>
+              <select value={userGestionnaireRole} onChange={(e) => { setUserGestionnaireRole(e.target.value); setUserPage(1); }}
+                className="px-3 py-2 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-violet-500">
+                <option value="">Tous les rôles</option>
+                <option value="RESPONSABLE_RH">Responsable RH</option>
+                <option value="RESPONSABLE_POINT_DE_VENTE">Resp. PDV</option>
+                <option value="CHEF_AGENCE">Chef d&apos;agence</option>
+                <option value="CAISSIER">Caissier</option>
+                <option value="MAGAZINIER">Magasinier</option>
+                <option value="COMPTABLE">Comptable</option>
+                <option value="AGENT_LOGISTIQUE_APPROVISIONNEMENT">Agent logistique</option>
+                <option value="AGENT_TERRAIN">Agent terrain</option>
+              </select>
               <button onClick={refetchUsers} className="p-2.5 border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors"><RefreshCw size={15} /></button>
             </div>
 
@@ -504,7 +550,9 @@ export default function SuperAdminPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {(usersRes?.data ?? []).map((u) => {
+                    {(usersRes?.data ?? [])
+                      .filter((u) => !userGestionnaireRole || u.gestionnaire?.role === userGestionnaireRole)
+                      .map((u) => {
                       const es = etatStyle[u.etat] ?? etatStyle.INACTIF;
                       const busy = processingUserId === u.id;
                       return (
@@ -879,6 +927,12 @@ export default function SuperAdminPage() {
               <AlertTriangle size={16} className="text-amber-600 mt-0.5 shrink-0" />
               <p className="text-sm text-amber-700">La désactivation d&apos;un module rend ses fonctionnalités inaccessibles à tous les utilisateurs. Agissez avec précaution.</p>
             </div>
+            <div className="bg-indigo-50 border border-indigo-200 rounded-2xl px-5 py-3 flex items-start gap-3">
+              <Info size={15} className="text-indigo-500 mt-0.5 shrink-0" />
+              <p className="text-xs text-indigo-700">
+                Le module <span className="font-mono font-semibold">rh</span> pilote l&apos;accès du rôle <span className="font-mono font-semibold">RESPONSABLE_RH</span> ainsi que toutes les sections RH définies dans <em>Accès sections</em>. Le désactiver bloque l&apos;intégralité du tableau de bord RH gestionnaire.
+              </p>
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {(modulesRes?.data ?? []).map((m) => (
                 <div key={m.id} className={`bg-white rounded-2xl border p-5 shadow-sm flex items-start justify-between gap-4 transition-all ${m.actif ? "border-slate-200" : "border-red-200 bg-red-50/30"}`}>
@@ -933,6 +987,10 @@ export default function SuperAdminPage() {
                 {logSearch && <button onClick={() => setLogSearch("")}><X size={14} className="text-slate-400 hover:text-slate-600" /></button>}
               </div>
               <button onClick={refetchLogs} className="p-2.5 border border-slate-200 rounded-xl hover:bg-slate-50"><RefreshCw size={15} /></button>
+              <Link href="/dashboard/admin/rh/audit"
+                className="flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-700 border border-indigo-200 text-sm rounded-xl font-medium hover:bg-indigo-100 transition-colors">
+                <ShieldCheck size={14} />Journal RH
+              </Link>
               <button onClick={handleExportLogs} className="flex items-center gap-2 px-4 py-2 bg-violet-600 text-white text-sm rounded-xl font-medium hover:bg-violet-700 transition-colors">
                 <Download size={14} />Export CSV
               </button>

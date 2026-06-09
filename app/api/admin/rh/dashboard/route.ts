@@ -113,10 +113,12 @@ export async function GET() {
           parDepartement,
         },
         paie: {
-          brouillons:    paieStatutMap["BROUILLON"] ?? 0,
-          valides:       paieStatutMap["VALIDE"]    ?? 0,
-          payes:         paieStatutMap["PAYE"]      ?? 0,
-          totalNetMois:  totalNetMois._sum.netAPayer ?? 0,
+          brouillons:    paieStatutMap["BROUILLON"]    ?? 0,
+          enControle:    paieStatutMap["CONTROLE"]     ?? 0,
+          valides:       paieStatutMap["VALIDE"]       ?? 0,
+          enPaiement:    paieStatutMap["EN_PAIEMENT"]  ?? 0,
+          payes:         paieStatutMap["PAYE"]         ?? 0,
+          totalNetMois:  Number(totalNetMois._sum.netAPayer ?? 0),
         },
         conges: {
           enAttente:     congesEnAttente,

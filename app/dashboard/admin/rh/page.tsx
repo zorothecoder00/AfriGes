@@ -7,7 +7,7 @@ import {
   Users, Banknote, GraduationCap, Clock, Gift,
   CalendarDays, MapPin, Star, UserCheck, FileWarning,
   Building2, TrendingUp, AlertTriangle, CheckCircle2,
-  ArrowRight, ArrowLeft, RefreshCw,
+  ArrowRight, ArrowLeft, RefreshCw, ClipboardList, Brain, Rocket, FileText,
 } from "lucide-react";
 
 /* ─── Types ─────────────────────────────────────────────── */
@@ -21,7 +21,9 @@ interface RHStats {
   };
   paie: {
     brouillons: number;
+    enControle: number;
     valides: number;
+    enPaiement: number;
     payes: number;
     totalNetMois: number;
   };
@@ -129,6 +131,19 @@ export default function RHDashboardPage() {
 
         {s && (
           <>
+            {/* ── Onboarding ── */}
+            <SectionTitle>Intégration</SectionTitle>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <StatCard
+                href="/dashboard/admin/rh/onboarding"
+                icon={<ClipboardList size={20} />}
+                title="Onboardings en cours"
+                value={s.recrutement.candidaturesEnAttente}
+                sub="Nouveaux collaborateurs"
+                color="text-violet-600 bg-violet-50"
+              />
+            </div>
+
             {/* ── Effectifs ── */}
             <SectionTitle>Effectifs</SectionTitle>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -229,21 +244,41 @@ export default function RHDashboardPage() {
             <SectionTitle>Paie & Avantages</SectionTitle>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <StatCard
-                href="/dashboard/admin/rh/paie"
+                href="/dashboard/admin/rh/paie?statut=BROUILLON"
                 icon={<Banknote size={20} />}
                 title="Fiches brouillon"
                 value={s.paie.brouillons}
                 color="text-gray-600 bg-gray-50"
               />
               <StatCard
-                href="/dashboard/admin/rh/paie"
+                href="/dashboard/admin/rh/paie?statut=CONTROLE"
                 icon={<Banknote size={20} />}
-                title="Fiches validées"
+                title="En contrôle RH"
+                value={s.paie.enControle}
+                sub="Validation en cours"
+                color="text-yellow-600 bg-yellow-50"
+                alert={s.paie.enControle > 0}
+              />
+              <StatCard
+                href="/dashboard/admin/rh/paie?statut=VALIDE"
+                icon={<Banknote size={20} />}
+                title="Validées"
                 value={s.paie.valides}
-                sub="En attente de paiement"
+                sub="Prêtes à mettre en paiement"
                 color="text-blue-600 bg-blue-50"
                 alert={s.paie.valides > 0}
               />
+              <StatCard
+                href="/dashboard/admin/rh/paie?statut=EN_PAIEMENT"
+                icon={<Banknote size={20} />}
+                title="En paiement"
+                value={s.paie.enPaiement}
+                sub="Ordres émis"
+                color="text-purple-600 bg-purple-50"
+                alert={s.paie.enPaiement > 0}
+              />
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <StatCard
                 href="/dashboard/admin/rh/paie"
                 icon={<TrendingUp size={20} />}
@@ -340,13 +375,18 @@ export default function RHDashboardPage() {
                   { href: "/dashboard/admin/rh/paie",           icon: <Banknote size={16} />, label: "Paie" },
                   { href: "/dashboard/admin/rh/formations",     icon: <GraduationCap size={16} />, label: "Formations" },
                   { href: "/dashboard/admin/rh/pointages",      icon: <Clock size={16} />, label: "Pointages" },
+                  { href: "/dashboard/admin/rh/horaires",       icon: <Clock size={16} />, label: "Horaires" },
                   { href: "/dashboard/admin/rh/avantages",      icon: <Gift size={16} />, label: "Avantages" },
                   { href: "/dashboard/admin/rh/conges",         icon: <CalendarDays size={16} />, label: "Congés" },
+                  { href: "/dashboard/admin/rh/competences",    icon: <Brain   size={16} />, label: "Compétences" },
+                  { href: "/dashboard/admin/rh/carrieres",     icon: <Rocket  size={16} />, label: "Carrières" },
                   { href: "/dashboard/admin/rh/missions",       icon: <MapPin size={16} />, label: "Missions" },
                   { href: "/dashboard/admin/rh/evaluations",    icon: <Star size={16} />, label: "Évaluations" },
                   { href: "/dashboard/admin/rh/recrutement",    icon: <UserCheck size={16} />, label: "Recrutement" },
                   { href: "/dashboard/admin/rh/disciplinaire",  icon: <FileWarning size={16} />, label: "Disciplinaire" },
                   { href: "/dashboard/admin/rh/organigramme",   icon: <Building2 size={16} />, label: "Organigramme" },
+                  { href: "/dashboard/admin/rh/documents-rh",  icon: <FileText  size={16} />, label: "Documents RH" },
+                  { href: "/dashboard/admin/rh/audit",         icon: <Clock     size={16} />, label: "Audit & Traçabilité" },
                 ].map(({ href, icon, label }) => (
                   <Link
                     key={href}

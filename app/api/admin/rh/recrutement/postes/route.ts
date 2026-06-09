@@ -21,7 +21,8 @@ export async function GET(req: NextRequest) {
     if (search) where.OR = [
       { titre:       { contains: search, mode: "insensitive" } },
       { departement: { contains: search, mode: "insensitive" } },
-      { service:     { contains: search, mode: "insensitive" } },
+      { lieu:        { contains: search, mode: "insensitive" } },
+      { reference:   { contains: search, mode: "insensitive" } },
     ];
 
     const [postes, total, stats] = await Promise.all([
@@ -30,7 +31,17 @@ export async function GET(req: NextRequest) {
         orderBy: { createdAt: "desc" },
         include: {
           _count: { select: { candidatures: true } },
-          candidatures: { select: { statut: true } },
+          candidatures: {
+            orderBy: { dateCandidature: "desc" },
+            select: {
+              id: true, nomCandidat: true, prenomCandidat: true,
+              email: true, telephone: true, statut: true,
+              noteEntretien: true, noteTest: true, scoreCandidat: true,
+              dateEntretien: true, commentaire: true, cvUrl: true,
+              lettreUrl: true, notes: true, dateCandidature: true,
+              competences: true, formation: true, experienceAnnees: true, sourceCandidat: true,
+            },
+          },
         },
       }),
       prisma.posteOuvert.count({ where }),
@@ -38,7 +49,11 @@ export async function GET(req: NextRequest) {
     ]);
 
     const statsMap = Object.fromEntries(stats.map((s) => [s.statut, s._count.id]));
-    return NextResponse.json({ data: postes, meta: { page, limit, total, totalPages: Math.ceil(total / limit) }, stats: statsMap });
+    return NextResponse.json({
+      data: postes,
+      meta: { page, limit, total, totalPages: Math.ceil(total / limit) },
+      stats: statsMap,
+    });
   } catch (error) {
     console.error("GET /api/admin/rh/recrutement/postes", error);
     return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
@@ -51,27 +66,44 @@ export async function POST(req: NextRequest) {
     if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
 
     const body = await req.json();
-    const { titre, departement, service, typeContrat, description, competencesRequises, experienceMin, dateLimite, notes } = body;
+    const { titre } = body;
 
     if (!titre) return NextResponse.json({ error: "titre est obligatoire" }, { status: 400 });
 
+    // Générer la référence automatique : REC-YYYY-XXXX
+    const year  = new Date().getFullYear();
+    const count = await prisma.posteOuvert.count();
+    const reference = `REC-${year}-${String(count + 1).padStart(4, "0")}`;
+
     const poste = await prisma.posteOuvert.create({
       data: {
+        reference,
         titre,
-        departement:         departement         ?? null,
-        service:             service             ?? null,
-        typeContrat:         typeContrat         ? (typeContrat as TypeContrat) : null,
-        description:         description         ?? null,
-        competencesRequises: competencesRequises ?? null,
-        experienceMin:       experienceMin       ? Number(experienceMin) : null,
-        dateLimite:          dateLimite          ? new Date(dateLimite) : null,
-        notes:               notes               ?? null,
-        createdById:         parseInt(session.user.id),
-        statut:              "OUVERT",
+        departement:  body.departement  ?? null,
+        service:      body.service      ?? null,
+        lieu:         body.lieu         ?? null,
+        typeContrat:  body.typeContrat  ? (body.typeContrat as TypeContrat) : null,
+        description:  body.description  ?? null,
+        exigences:    body.exigences    ?? null,
+        experienceMin:body.experienceMin ? Number(body.experienceMin) : null,
+        nbPostes:     body.nbPostes     ? Number(body.nbPostes) : 1,
+        salaireMini:  body.salaireMini  ? Number(body.salaireMini)  : null,
+        salaireMaxi:  body.salaireMaxi  ? Number(body.salaireMaxi)  : null,
+        budgetPoste:  body.budgetPoste  ? Number(body.budgetPoste)  : null,
+        dateLimite:   body.dateLimite   ? new Date(body.dateLimite) : null,
+        notes:        body.notes        ?? null,
+        createdById:  parseInt(session.user.id),
+        statut:       "BROUILLON",
       },
     });
 
-    await prisma.auditLog.create({ data: { userId: parseInt(session.user.id), action: "CREATE", entite: "PosteOuvert", entiteId: poste.id, details: `Poste "${titre}" créé` } });
+    await prisma.auditLog.create({
+      data: {
+        userId: parseInt(session.user.id), action: "CREATE",
+        entite: "PosteOuvert", entiteId: poste.id,
+        details: `Poste "${titre}" créé — ${reference}`,
+      },
+    });
     return NextResponse.json({ data: poste }, { status: 201 });
   } catch (error) {
     console.error("POST /api/admin/rh/recrutement/postes", error);

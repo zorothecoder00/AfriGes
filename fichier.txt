@@ -13,7 +13,7 @@ Prisma 7 est une breaking change majeure : url dans schema.prisma n'est plus
   supporté. La connexion doit passer par prisma.config.ts + un driver adapter.
 netsh wlan show profiles permet d'afficher les réseaux wifi enregistrés sur un pc
 netsh wlan show profile name="NomDuWifi" key=clear affiche toutes les propriétés du wifi sélectionné (NomDuWifi par exemple) notamment le mot de passe  
-   
+    
 -npm i -g @openai/codex permet d'installer le CLI de codex (agent ia d'openai qui permet d'interagir depuis le terminal)
 -Tip: Run /install-github-app to tag @claude right from your Github issues and PRs
 -Tip: Use /permissions to pre-approve and pre-deny bash, edit, and MCP tools
@@ -61,6 +61,3 @@ l'admin et les responsables (chefagence , rpv,admin  ) doivent pouvoir modifier 
 erreur d'application et Exception côté client sur quasiment toutes les actions(post ou patch surtoutet même get je crois) d'un de mes supérieurs sur l'app déployée (sur vercel) 
 
 pouvoir supprimer des factures et des ventes à crédit
-
-
-Pour les modules RH j'ai déjà fait le 1, 6, 7,  12

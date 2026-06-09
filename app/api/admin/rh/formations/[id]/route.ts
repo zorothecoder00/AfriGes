@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAdminSession } from "@/lib/authAdmin";
 import { StatutFormation, StatutParticipationFormation } from "@prisma/client";
+import { notifyInscriptionFormation } from "@/lib/notificationsRH";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -72,7 +73,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
       if (!t.from.includes(formation.statut)) return NextResponse.json({ error: `Impossible depuis ${formation.statut}` }, { status: 422 });
 
       const updated = await prisma.formation.update({ where: { id: Number(id) }, data: { statut: t.to }, include: INCLUDE });
-      await prisma.auditLog.create({ data: { userId: parseInt(session.user.id), action: "UPDATE", entite: "Formation", entiteId: Number(id), details: `Formation #${id} : ${formation.statut} → ${t.to}` } });
+      await prisma.auditLog.create({ data: { userId: parseInt(session.user.id), action: "UPDATE", entite: "Formation", entiteId: Number(id), details: { avant: { statut: formation.statut }, apres: { statut: t.to } } } });
       return NextResponse.json({ data: updated });
     }
 
@@ -110,24 +111,30 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
         }
       });
       const updated = await prisma.formation.findUnique({ where: { id: Number(id) }, include: INCLUDE });
+      // Notifier les nouveaux participants (non-bloquant)
+      if (addParticipants?.length) {
+        for (const pid of addParticipants) {
+          notifyInscriptionFormation(Number(id), pid).catch(() => {});
+        }
+      }
       return NextResponse.json({ data: updated });
     }
 
     // ── Édition champs ────────────────────────────────────────────────────────
-    const allowed = ["titre", "objectifs", "lieu", "formateur", "dateDebut", "dateFin", "dureeHeures", "cout", "notes"];
+    const allowed = ["titre", "type", "objectifs", "lieu", "formateur", "dateDebut", "dateFin", "dureeHeures", "cout", "budgetAlloue", "certificationNom", "notes"];
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const updateData: any = {};
     for (const key of allowed) {
       if (key in editFields) {
         if (key === "dateDebut" || key === "dateFin") updateData[key] = editFields[key] ? new Date(editFields[key]) : null;
-        else if (key === "dureeHeures" || key === "cout") updateData[key] = editFields[key] ? Number(editFields[key]) : null;
+        else if (["dureeHeures", "cout", "budgetAlloue"].includes(key)) updateData[key] = editFields[key] ? Number(editFields[key]) : null;
         else updateData[key] = editFields[key] ?? null;
       }
     }
     if (Object.keys(updateData).length === 0) return NextResponse.json({ error: "Aucun champ à mettre à jour" }, { status: 400 });
 
     const updated = await prisma.formation.update({ where: { id: Number(id) }, data: updateData, include: INCLUDE });
-    await prisma.auditLog.create({ data: { userId: parseInt(session.user.id), action: "UPDATE", entite: "Formation", entiteId: Number(id), details: `Formation #${id} modifiée` } });
+    await prisma.auditLog.create({ data: { userId: parseInt(session.user.id), action: "UPDATE", entite: "Formation", entiteId: Number(id), details: { avant: Object.fromEntries(Object.keys(updateData).map((k) => [k, (formation as Record<string, unknown>)[k] ?? null])), apres: updateData } } });
     return NextResponse.json({ data: updated });
   } catch (error) {
     console.error("PATCH /api/admin/rh/formations/[id]", error);

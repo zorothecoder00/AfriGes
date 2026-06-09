@@ -66,6 +66,7 @@ const ROLE_LABELS: Record<string, string> = {
   RESPONSABLE_MARKETING:              "Resp. marketing",
   REVENDEUR:                          "Revendeur",
   ACTIONNAIRE:                        "Actionnaire",
+  RESPONSABLE_RH:                     "Resp. RH",
 };
 
 export default function MessageModal({ onClose }: Props) {

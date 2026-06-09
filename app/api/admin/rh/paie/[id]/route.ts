@@ -20,8 +20,8 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
         composants: true,
         profilRH: {
           select: {
-            id: true, matricule: true,
-            gestionnaire: { select: { member: { select: { nom: true, prenom: true } } } },
+            id: true, matricule: true, fonction: true, departement: true,
+            gestionnaire: { select: { member: { select: { nom: true, prenom: true, photo: true } } } },
           },
         },
       },
@@ -36,9 +36,14 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
 
 /**
  * PATCH /api/admin/rh/paie/[id]
- * Met à jour la fiche ou fait avancer le statut
- * Body workflow: { action: "VALIDER" | "MARQUER_PAYE" | "REPASSER_BROUILLON" }
- * Body édition:  { salaireBase?, composants?, notes?, fichierUrl? }
+ *
+ * Workflow:
+ *   action: "SOUMETTRE_CONTROLE" | "VALIDER" | "REFUSER_CONTROLE"
+ *         | "METTRE_EN_PAIEMENT" | "MARQUER_PAYE" | "REPASSER_BROUILLON"
+ *   + modePaiement? (pour METTRE_EN_PAIEMENT)
+ *
+ * Édition (BROUILLON seulement):
+ *   { salaireBase?, composants?, notes?, fichierUrl? }
  */
 export async function PATCH(req: NextRequest, { params }: Ctx) {
   try {
@@ -47,31 +52,79 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
 
     const { id } = await params;
     const body   = await req.json();
-    const { action, composants, salaireBase, notes, fichierUrl } = body;
+    const { action, composants, salaireBase, notes, fichierUrl, modePaiement } = body;
 
     const fiche = await prisma.fichePaie.findUnique({ where: { id: Number(id) } });
     if (!fiche) return NextResponse.json({ error: "Fiche introuvable" }, { status: 404 });
 
     // ── Workflow statut ────────────────────────────────────────────────────────
     if (action) {
-      const TRANSITIONS: Record<string, { from: StatutFichePaie[]; to: StatutFichePaie }> = {
-        VALIDER:            { from: ["BROUILLON"],      to: "VALIDE"    },
-        MARQUER_PAYE:       { from: ["VALIDE"],          to: "PAYE"      },
-        REPASSER_BROUILLON: { from: ["VALIDE"],          to: "BROUILLON" },
+      const userId = parseInt(session.user.id);
+
+      type Transition = {
+        from: StatutFichePaie[];
+        to: StatutFichePaie;
+        extra?: (now: Date) => Record<string, unknown>;
       };
+
+      const TRANSITIONS: Record<string, Transition> = {
+        SOUMETTRE_CONTROLE: {
+          from: ["BROUILLON"],
+          to:   "CONTROLE",
+        },
+        VALIDER: {
+          from: ["CONTROLE", "BROUILLON"],
+          to:   "VALIDE",
+          extra: (now) => ({ valideParId: userId, dateValidation: now }),
+        },
+        REFUSER_CONTROLE: {
+          from: ["CONTROLE"],
+          to:   "BROUILLON",
+        },
+        METTRE_EN_PAIEMENT: {
+          from: ["VALIDE"],
+          to:   "EN_PAIEMENT",
+          extra: (now) => ({
+            misEnPaiementParId: userId,
+            dateMiseEnPaiement: now,
+            modePaiement: modePaiement ?? null,
+          }),
+        },
+        MARQUER_PAYE: {
+          from: ["EN_PAIEMENT"],
+          to:   "PAYE",
+        },
+        REPASSER_BROUILLON: {
+          from: ["VALIDE", "CONTROLE"],
+          to:   "BROUILLON",
+        },
+      };
+
       const transition = TRANSITIONS[action];
       if (!transition) return NextResponse.json({ error: "Action invalide" }, { status: 400 });
       if (!transition.from.includes(fiche.statut)) {
         return NextResponse.json({ error: `Impossible depuis ${fiche.statut}` }, { status: 422 });
       }
+
+      const now   = new Date();
+      const extra = transition.extra ? transition.extra(now) : {};
+
       const updated = await prisma.fichePaie.update({
         where: { id: Number(id) },
-        data:  { statut: transition.to },
+        data:  { statut: transition.to, ...extra } as never,
         include: { composants: true },
       });
+
       await prisma.auditLog.create({
-        data: { userId: parseInt(session.user.id), action: "UPDATE", entite: "FichePaie", entiteId: updated.id, details: `Fiche paie #${id} : ${fiche.statut} → ${transition.to}` },
+        data: {
+          userId,
+          action:   "UPDATE",
+          entite:   "FichePaie",
+          entiteId: updated.id,
+          details:  { avant: { statut: fiche.statut }, apres: { statut: transition.to } },
+        },
       });
+
       return NextResponse.json({ data: updated });
     }
 
@@ -121,8 +174,15 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
     }
 
     await prisma.auditLog.create({
-      data: { userId: parseInt(session.user.id), action: "UPDATE", entite: "FichePaie", entiteId: Number(id), details: `Fiche paie #${id} modifiée` },
+      data: {
+        userId:   parseInt(session.user.id),
+        action:   "UPDATE",
+        entite:   "FichePaie",
+        entiteId: Number(id),
+        details:  { avant: { statut: fiche.statut }, apres: { edited: true } },
+      },
     });
+
     return NextResponse.json({ data: updated });
   } catch (error) {
     console.error("PATCH /api/admin/rh/paie/[id]", error);

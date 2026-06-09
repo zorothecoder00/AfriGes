@@ -12,6 +12,7 @@ import {
   Download, Archive, ExternalLink,
   Star, AlertTriangle, Shield,
   Banknote, GraduationCap, Gift, ChevronDown,
+  History, ArrowRight,
 } from "lucide-react";
 import { useApi, useMutation } from "@/hooks/useApi";
 import { formatDate } from "@/lib/format";
@@ -283,7 +284,7 @@ export default function DossierCollaborateurPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
-  const [tab, setTab] = useState<"identite" | "contrat" | "documents" | "conges" | "missions" | "docs-rh" | "evaluations" | "disciplinaire" | "paie" | "formations" | "pointages" | "avantages">("identite");
+  const [tab, setTab] = useState<"identite" | "contrat" | "documents" | "conges" | "missions" | "docs-rh" | "evaluations" | "disciplinaire" | "paie" | "formations" | "pointages" | "avantages" | "historique">("identite");
 
   const { data: res, loading, refetch } = useApi<{ data: ProfilRH }>(
     `/api/admin/rh/collaborateurs/${id}`
@@ -361,9 +362,9 @@ export default function DossierCollaborateurPage({
         {/* ── Onglets ── */}
         <div className="border-b border-slate-200">
           <div className="flex gap-1">
-            {(["identite", "contrat", "documents", "conges", "missions", "docs-rh", "paie", "formations", "pointages", "avantages", "evaluations", "disciplinaire"] as const).map((t) => {
-              const labels: Record<string, string> = { identite: "Identité", contrat: "Contrat & poste", documents: `Documents (${profil._count.documents})`, conges: `Congés (${profil._count.demandesConge})`, missions: `Missions (${profil._count.missions})`, "docs-rh": "Docs RH", paie: `Paie (${profil._count.fichesPaie})`, formations: `Formations (${profil._count.participationsFormation})`, pointages: "Pointages", avantages: `Avantages (${profil._count.avantages})`, evaluations: `Évaluations (${profil._count.evaluations})`, disciplinaire: `Disciplinaire (${profil._count.procedures})` };
-              const icons: Record<string, React.ReactNode>  = { identite: <User className="w-4 h-4" />, contrat: <Briefcase className="w-4 h-4" />, documents: <FileText className="w-4 h-4" />, conges: <CalendarDays className="w-4 h-4" />, missions: <MapPin className="w-4 h-4" />, "docs-rh": <Archive className="w-4 h-4" />, paie: <Banknote className="w-4 h-4" />, formations: <GraduationCap className="w-4 h-4" />, pointages: <Clock className="w-4 h-4" />, avantages: <Gift className="w-4 h-4" />, evaluations: <Star className="w-4 h-4" />, disciplinaire: <AlertTriangle className="w-4 h-4" /> };
+            {(["identite", "contrat", "documents", "conges", "missions", "docs-rh", "paie", "formations", "pointages", "avantages", "evaluations", "disciplinaire", "historique"] as const).map((t) => {
+              const labels: Record<string, string> = { identite: "Identité", contrat: "Contrat & poste", documents: `Documents (${profil._count.documents})`, conges: `Congés (${profil._count.demandesConge})`, missions: `Missions (${profil._count.missions})`, "docs-rh": "Docs RH", paie: `Paie (${profil._count.fichesPaie})`, formations: `Formations (${profil._count.participationsFormation})`, pointages: "Pointages", avantages: `Avantages (${profil._count.avantages})`, evaluations: `Évaluations (${profil._count.evaluations})`, disciplinaire: `Disciplinaire (${profil._count.procedures})`, historique: "Historique de poste" };
+              const icons: Record<string, React.ReactNode>  = { identite: <User className="w-4 h-4" />, contrat: <Briefcase className="w-4 h-4" />, documents: <FileText className="w-4 h-4" />, conges: <CalendarDays className="w-4 h-4" />, missions: <MapPin className="w-4 h-4" />, "docs-rh": <Archive className="w-4 h-4" />, paie: <Banknote className="w-4 h-4" />, formations: <GraduationCap className="w-4 h-4" />, pointages: <Clock className="w-4 h-4" />, avantages: <Gift className="w-4 h-4" />, evaluations: <Star className="w-4 h-4" />, disciplinaire: <AlertTriangle className="w-4 h-4" />, historique: <History className="w-4 h-4" /> };
               return (
                 <button
                   key={t}
@@ -417,6 +418,9 @@ export default function DossierCollaborateurPage({
         )}
         {tab === "disciplinaire" && (
           <DisciplinaireTab profilId={profil.id} />
+        )}
+        {tab === "historique" && (
+          <HistoriquePosteTab profilId={profil.id} />
         )}
 
       </div>
@@ -1861,6 +1865,134 @@ function DisciplinaireTab({ profilId }: { profilId: number }) {
               </span>
             </div>
           ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Onglet Historique de poste ─────────────────────────────────────────────────
+
+interface HistoriquePosteItem {
+  id: number;
+  ancienManagerId:    number | null;
+  nouveauManagerId:   number | null;
+  ancienneFonction:   string | null;
+  nouvelleFonction:   string | null;
+  ancienService:      string | null;
+  nouveauService:     string | null;
+  ancienDepartement:  string | null;
+  nouveauDepartement: string | null;
+  motif:              string | null;
+  createdAt:          string;
+  ancienManager:  { nom: string; prenom: string } | null;
+  nouveauManager: { nom: string; prenom: string } | null;
+}
+
+function HistoriquePosteTab({ profilId }: { profilId: number }) {
+  const { data: res, loading } = useApi<{ data: HistoriquePosteItem[] }>(
+    `/api/admin/rh/collaborateurs/${profilId}/historique-poste`
+  );
+  const items = res?.data ?? [];
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20 text-slate-400">
+        <RefreshCw className="w-5 h-5 animate-spin mr-2" /> Chargement…
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+      <div className="px-5 py-3 bg-slate-50 border-b border-slate-200">
+        <h2 className="text-sm font-semibold text-slate-700 uppercase tracking-wide">
+          Historique organisationnel ({items.length})
+        </h2>
+      </div>
+
+      {items.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-16 text-slate-400">
+          <History className="w-10 h-10 mb-2 opacity-30" />
+          <p className="text-sm">Aucun mouvement enregistré</p>
+          <p className="text-xs mt-1 text-slate-300">Les réaffectations depuis l&apos;organigramme apparaîtront ici</p>
+        </div>
+      ) : (
+        <div className="relative px-5 py-4">
+          {/* Ligne verticale de timeline */}
+          <div className="absolute left-9 top-4 bottom-4 w-0.5 bg-slate-100" />
+
+          <div className="space-y-6">
+            {items.map((item) => {
+              const managerChange =
+                item.ancienManagerId !== item.nouveauManagerId ||
+                (!item.ancienManagerId && item.nouveauManagerId) ||
+                (item.ancienManagerId && !item.nouveauManagerId);
+
+              const fonctionChange = item.ancienneFonction !== item.nouvelleFonction;
+              const deptChange = item.ancienDepartement !== item.nouveauDepartement;
+
+              return (
+                <div key={item.id} className="relative flex gap-4">
+                  {/* Point timeline */}
+                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-indigo-100 border-2 border-indigo-300 flex items-center justify-center z-10">
+                    <History className="w-3.5 h-3.5 text-indigo-600" />
+                  </div>
+
+                  <div className="flex-1 pb-2">
+                    <div className="text-xs text-slate-400 mb-2">{formatDate(item.createdAt)}</div>
+
+                    <div className="bg-slate-50 rounded-lg p-3 space-y-2 border border-slate-100">
+                      {/* Changement manager */}
+                      {managerChange && (
+                        <div className="flex items-center gap-2 text-xs">
+                          <span className="text-slate-500 w-20 flex-shrink-0">Manager</span>
+                          <span className="text-slate-600">
+                            {item.ancienManager
+                              ? `${item.ancienManager.prenom} ${item.ancienManager.nom}`
+                              : <span className="italic text-slate-400">Aucun</span>}
+                          </span>
+                          <ArrowRight className="w-3 h-3 text-slate-400 flex-shrink-0" />
+                          <span className="font-medium text-indigo-700">
+                            {item.nouveauManager
+                              ? `${item.nouveauManager.prenom} ${item.nouveauManager.nom}`
+                              : <span className="italic text-slate-400">Aucun</span>}
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Changement fonction */}
+                      {fonctionChange && (
+                        <div className="flex items-center gap-2 text-xs">
+                          <span className="text-slate-500 w-20 flex-shrink-0">Fonction</span>
+                          <span className="text-slate-600">{item.ancienneFonction ?? "—"}</span>
+                          <ArrowRight className="w-3 h-3 text-slate-400 flex-shrink-0" />
+                          <span className="font-medium text-indigo-700">{item.nouvelleFonction ?? "—"}</span>
+                        </div>
+                      )}
+
+                      {/* Changement département */}
+                      {deptChange && (
+                        <div className="flex items-center gap-2 text-xs">
+                          <span className="text-slate-500 w-20 flex-shrink-0">Département</span>
+                          <span className="text-slate-600">{item.ancienDepartement ?? "—"}</span>
+                          <ArrowRight className="w-3 h-3 text-slate-400 flex-shrink-0" />
+                          <span className="font-medium text-indigo-700">{item.nouveauDepartement ?? "—"}</span>
+                        </div>
+                      )}
+
+                      {/* Motif */}
+                      {item.motif && (
+                        <div className="text-xs text-slate-400 italic border-t border-slate-200 pt-2 mt-2">
+                          {item.motif}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
     </div>

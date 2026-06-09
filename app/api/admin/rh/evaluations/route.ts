@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAdminSession } from "@/lib/authAdmin";
-import { StatutEvaluationRH, PeriodeEvaluation } from "@prisma/client";
+import { StatutEvaluationRH, PeriodeEvaluation, TypeEvaluation } from "@prisma/client";
 
 /**
  * GET /api/admin/rh/evaluations
@@ -17,6 +17,7 @@ export async function GET(req: NextRequest) {
     const annee      = searchParams.get("annee");
     const statut     = searchParams.get("statut")  as StatutEvaluationRH | null;
     const periode    = searchParams.get("periode") as PeriodeEvaluation  | null;
+    const type       = searchParams.get("type")    as TypeEvaluation     | null;
     const search     = searchParams.get("search")?.trim() ?? "";
     const page       = Math.max(1, Number(searchParams.get("page")  || 1));
     const limit      = Math.min(50, Math.max(1, Number(searchParams.get("limit") || 20)));
@@ -24,10 +25,11 @@ export async function GET(req: NextRequest) {
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const where: any = {};
-    if (profilRHId) where.profilRHId = Number(profilRHId);
-    if (annee)      where.annee      = Number(annee);
-    if (statut)     where.statut     = statut;
-    if (periode)    where.periode    = periode;
+    if (profilRHId) where.profilRHId    = Number(profilRHId);
+    if (annee)      where.annee         = Number(annee);
+    if (statut)     where.statut        = statut;
+    if (periode)    where.periode       = periode;
+    if (type)       where.typeEvaluation = type;
     if (search) {
       where.profilRH = {
         gestionnaire: { member: { OR: [
@@ -38,7 +40,8 @@ export async function GET(req: NextRequest) {
     }
 
     const INCLUDE = {
-      criteres: true,
+      criteres:  true,
+      objectifs: true,
       profilRH: {
         select: {
           id: true, matricule: true,
@@ -53,17 +56,20 @@ export async function GET(req: NextRequest) {
       },
     };
 
-    const [evaluations, total, stats] = await Promise.all([
+    const [evaluations, total, statsByStatut, statsByType] = await Promise.all([
       prisma.evaluationRH.findMany({ where, skip, take: limit, orderBy: [{ annee: "desc" }, { createdAt: "desc" }], include: INCLUDE }),
       prisma.evaluationRH.count({ where }),
-      prisma.evaluationRH.groupBy({ by: ["statut"], _count: { id: true } }),
+      prisma.evaluationRH.groupBy({ by: ["statut"],         _count: { id: true } }),
+      prisma.evaluationRH.groupBy({ by: ["typeEvaluation"], _count: { id: true } }),
     ]);
 
-    const statsMap = Object.fromEntries(stats.map((s) => [s.statut, s._count.id]));
+    const statsStatut = Object.fromEntries(statsByStatut.map((s) => [s.statut, s._count.id]));
+    const statsType   = Object.fromEntries(statsByType.map((s) => [String(s.typeEvaluation), s._count.id]));
     return NextResponse.json({
       data: evaluations,
       meta: { page, limit, total, totalPages: Math.ceil(total / limit) },
-      stats: statsMap,
+      stats: statsStatut,
+      statsByType: statsType,
     });
   } catch (error) {
     console.error("GET /api/admin/rh/evaluations", error);
@@ -82,7 +88,7 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json();
     const {
-      profilRHId, evaluateurId, periode, annee, dateDebut, dateFin,
+      profilRHId, evaluateurId, typeEvaluation, periode, annee, dateDebut, dateFin,
       noteGlobale, appreciation, pointsForts, axesAmelioration, objectifsN1, notes,
       criteres = [],
     } = body;
@@ -94,7 +100,8 @@ export async function POST(req: NextRequest) {
     const evaluation = await prisma.evaluationRH.create({
       data: {
         profilRHId:       Number(profilRHId),
-        evaluateurId:     evaluateurId ? Number(evaluateurId) : null,
+        evaluateurId:     evaluateurId   ? Number(evaluateurId) : null,
+        typeEvaluation:   typeEvaluation ? typeEvaluation as TypeEvaluation : null,
         periode:          periode as PeriodeEvaluation,
         annee:            Number(annee),
         dateDebut:        new Date(dateDebut),

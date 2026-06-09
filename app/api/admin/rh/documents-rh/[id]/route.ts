@@ -17,7 +17,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
 
     const { id } = await params;
     const body   = await req.json();
-    const { fileUrl, notes, archive } = body;
+    const { fileUrl, contenu, notes, archive } = body;
 
     const doc = await prisma.documentRHGenere.findUnique({ where: { id: Number(id) } });
     if (!doc) return NextResponse.json({ error: "Document introuvable" }, { status: 404 });
@@ -25,6 +25,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const updateData: any = {};
     if (fileUrl  !== undefined) updateData.fileUrl  = fileUrl  ?? null;
+    if (contenu  !== undefined) updateData.contenu  = contenu  ?? null;
     if (notes    !== undefined) updateData.notes    = notes    ?? null;
     if (archive  !== undefined) updateData.archive  = Boolean(archive);
 

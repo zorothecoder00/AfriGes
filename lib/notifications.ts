@@ -133,16 +133,18 @@ export async function notifyRoles(
  * Crée une entrée d'audit log dans la transaction courante.
  *
  * @param userId   - ID de l'utilisateur qui effectue l'action
- * @param action   - Code action (ex : "VENTE_CAISSIER", "RECEPTION_STOCK_RPV")
- * @param entite   - Nom de l'entité affectée (ex : "VenteCreditAlimentaire")
+ * @param action   - Code action (ex : "UPDATE", "CREATE", "ARCHIVE")
+ * @param entite   - Nom de l'entité affectée (ex : "ProfilRH", "DemandeConge")
  * @param entiteId - ID de l'entité affectée (optionnel)
+ * @param details  - Contexte libre : { avant, apres, note, ... } (optionnel)
  */
 export async function auditLog(
   tx: TxClient,
   userId: number,
   action: string,
   entite: string,
-  entiteId?: number
+  entiteId?: number,
+  details?: Record<string, unknown>
 ): Promise<void> {
   await tx.auditLog.create({
     data: {
@@ -150,6 +152,7 @@ export async function auditLog(
       action,
       entite,
       ...(entiteId !== undefined && { entiteId }),
+      ...(details   !== undefined && { details: JSON.parse(JSON.stringify(details)) }),
     },
   });
 }

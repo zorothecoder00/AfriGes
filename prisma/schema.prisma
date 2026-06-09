@@ -621,8 +621,9 @@ model User {
 
   // Système
   auditLogs            AuditLog[]
-  notifications        Notification[]
-  piecesJustificatives PieceJustificative[]
+  notifications           Notification[]
+  preferenceNotifRH       PreferenceNotificationRH?
+  piecesJustificatives    PieceJustificative[]
   userPermissions      UserPermission[]
   securityLogs         SecurityLog[]
   messagesEnvoyes      Message[]            @relation("MessagesEnvoyes")
@@ -2312,6 +2313,29 @@ model Parametre {
   valeur String
 }
 
+/// Préférences de notification RH par utilisateur
+/// (canaux activés + déclencheurs souhaités)
+model PreferenceNotificationRH {
+  id               Int     @id @default(autoincrement())
+  userId           Int     @unique
+
+  // ── Canaux ──────────────────────────────────────────────────
+  canalApp         Boolean @default(true)   // notification in-app (toujours activé)
+  canalEmail       Boolean @default(false)  // envoi email
+
+  // ── Déclencheurs ────────────────────────────────────────────
+  finContrat       Boolean @default(true)   // CDD expirant J-30 et J-7
+  validationConge  Boolean @default(true)   // congé approuvé / refusé
+  evaluationProg   Boolean @default(true)   // évaluation programmée (J-7)
+  formationAsuivre Boolean @default(true)   // formation inscrite qui démarre (J-3)
+  documentExpirant Boolean @default(true)   // document collaborateur expirant (J-30)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  updatedAt DateTime @updatedAt
+  @@index([userId])
+}
+
 // ============================================================
 // COMPTABILITÉ SYSCOHADA
 // ============================================================
@@ -2797,6 +2821,7 @@ model ProfilRH {
 
   // ── Identité ──────────────────────────────────────────────
   matricule             String                @unique  // ex: MAT-2026-0001 (auto-généré)
+  emailProfessionnel    String?               @unique  // ex: prenom.nom@company.com (auto-généré à l'onboarding)
   dateNaissance         DateTime?
   lieuNaissance         String?
   sexe                  Sexe?
@@ -2821,6 +2846,10 @@ model ProfilRH {
   manager     ProfilRH?  @relation("HierarchieRH", fields: [managerId], references: [id])
   subordonnes ProfilRH[] @relation("HierarchieRH")
 
+  // ── Horaires de référence ──────────────────────────────────
+  configHoraireId Int?
+  configHoraire   ConfigHoraire? @relation(fields: [configHoraireId], references: [id])
+
   // ── Relations ─────────────────────────────────────────────
   gestionnaire          Gestionnaire             @relation(fields: [gestionnaireId], references: [id])
   documents             DocumentCollaborateur[]
@@ -2830,6 +2859,8 @@ model ProfilRH {
   missionsValidees      Mission[]                @relation("MissionsValidateurRH")
   documentsGeneres      DocumentRHGenere[]
   fichesPaie              FichePaie[]
+  avancesSalaire          AvanceSalaire[]
+  pretsEmploye            PretEmploye[]
   participationsFormation ParticipationFormation[]
   pointages               Pointage[]
   avantages               AvantageRH[]
@@ -2837,6 +2868,11 @@ model ProfilRH {
   evaluations             EvaluationRH[]          @relation("EvaluationsCollaborateur")
   evaluationsEffectuees   EvaluationRH[]          @relation("EvaluationsEffectuees")
   procedures              ProcedureDisciplinaire[]
+  historiquesPoste        HistoriquePoste[]
+  planCarriere            PlanCarriere?
+  successions             SuccesseurPotentiel[]
+  onboarding              OnboardingEmploye?
+  competences             CollaborateurCompetence[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2846,17 +2882,47 @@ model ProfilRH {
   @@index([managerId])
 }
 
-/// Documents uploadés pour le dossier d'un collaborateur
-/// Jamais supprimés — versionning par compteur
-model DocumentCollaborateur {
-  id         Int                       @id @default(autoincrement())
+// ============================================================
+// OGRH — MODULE 2 : HISTORIQUE ORGANISATIONNEL
+// ============================================================
+
+enum TypeMouvementCarriere {
+  PROMOTION
+  MUTATION
+  EVOLUTION
+  RECLASSEMENT
+}
+
+enum NiveauReadiness {
+  PRET_MAINTENANT
+  PRET_SOUS_1_AN
+  PRET_1_A_3_ANS
+  EN_DEVELOPPEMENT
+}
+
+/// Trace chaque changement de poste, de manager ou de département d'un collaborateur
+model HistoriquePoste {
+  id         Int      @id @default(autoincrement())
   profilRHId Int
-  type       TypeDocumentCollaborateur
-  nom        String
-  fileUrl    String
-  version    Int                       @default(1)
-  notes      String?
-  uploadePar Int                       // User.id de l'agent qui a uploadé
+
+  type       TypeMouvementCarriere? // PROMOTION | MUTATION | EVOLUTION | RECLASSEMENT
+
+  // Avant
+  ancienManagerId    Int?
+  ancienneFonction   String?
+  ancienService      String?
+  ancienDepartement  String?
+  ancienSalaire      Decimal?
+
+  // Après
+  nouveauManagerId   Int?
+  nouvelleFonction   String?
+  nouveauService     String?
+  nouveauDepartement String?
+  nouveauSalaire     Decimal?
+
+  motif      String?
+  modifiePar Int      // User.id de l'auteur du changement
 
   profilRH ProfilRH @relation(fields: [profilRHId], references: [id])
 
@@ -2864,6 +2930,83 @@ model DocumentCollaborateur {
 
   @@index([profilRHId])
   @@index([type])
+  @@index([createdAt])
+}
+
+/// Plan de carrière individuel d'un collaborateur (upsert — 1 par profilRH)
+model PlanCarriere {
+  id                Int       @id @default(autoincrement())
+  profilRHId        Int       @unique
+  aspiration        String?
+  prochainPosteVise String?
+  dateRevision      DateTime?
+  actions           String?   // plan d'actions concrètes
+  notes             String?
+
+  profilRH ProfilRH @relation(fields: [profilRHId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+/// Poste stratégique nécessitant un plan de succession
+model PosteCritique {
+  id                  Int     @id @default(autoincrement())
+  titre               String
+  departement         String?
+  description         String?
+  nbSuccesseursRequis Int     @default(2)
+  actif               Boolean @default(true)
+
+  successeurs SuccesseurPotentiel[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([actif])
+}
+
+/// Lien collaborateur ↔ poste critique avec niveau de préparation
+model SuccesseurPotentiel {
+  id              Int             @id @default(autoincrement())
+  posteCritiqueId Int
+  profilRHId      Int
+  readiness       NiveauReadiness
+  estTalentCle    Boolean         @default(false)
+  notes           String?
+
+  posteCritique PosteCritique @relation(fields: [posteCritiqueId], references: [id], onDelete: Cascade)
+  profilRH      ProfilRH      @relation(fields: [profilRHId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([posteCritiqueId, profilRHId])
+  @@index([posteCritiqueId])
+  @@index([profilRHId])
+  @@index([estTalentCle])
+}
+
+/// Documents uploadés pour le dossier d'un collaborateur
+/// Jamais supprimés — versionning par compteur
+model DocumentCollaborateur {
+  id             Int                       @id @default(autoincrement())
+  profilRHId     Int
+  type           TypeDocumentCollaborateur
+  nom            String
+  fileUrl        String
+  version        Int                       @default(1)
+  notes          String?
+  dateExpiration DateTime?                 // CNI, passeport, permis… (null = pas d'expiration)
+  uploadePar     Int                       // User.id de l'agent qui a uploadé
+
+  profilRH ProfilRH @relation(fields: [profilRHId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@index([profilRHId])
+  @@index([type])
+  @@index([dateExpiration])
 }
 
 // ============================================================
@@ -3011,6 +3154,7 @@ model DocumentRHGenere {
   titre      String
   version    Int                  @default(1)
   fileUrl    String?              // null tant que le PDF n'est pas encore généré
+  contenu    String?              // HTML généré automatiquement par le système
   generePar  Int                  // User.id du RH ou admin qui a déclenché la génération
   notes      String?
   archive    Boolean              @default(false)
@@ -3028,9 +3172,11 @@ model DocumentRHGenere {
 // ============================================================
 
 enum StatutFichePaie {
-  BROUILLON
-  VALIDE
-  PAYE
+  BROUILLON      // en cours de saisie
+  CONTROLE       // soumis au contrôle RH
+  VALIDE         // validé par la direction
+  EN_PAIEMENT    // ordre de paiement émis
+  PAYE           // versement effectué
 }
 
 enum TypeComposantSalaire {
@@ -3039,15 +3185,36 @@ enum TypeComposantSalaire {
   PRIME_ANCIENNETE
   PRIME_TRANSPORT
   PRIME_LOGEMENT
+  PRIME_FONCTION
+  PRIME_RESPONSABILITE
   HEURES_SUPPLEMENTAIRES
   INDEMNITE_MISSION
+  COMMISSION
+  BONUS
+  PRIME_EXCEPTIONNELLE
   DEDUCTION_ABSENCE
+  DEDUCTION_RETARD
   COTISATION_RETRAITE
   COTISATION_SANTE
   IMPOT_REVENU
   AVANCE_SUR_SALAIRE
+  REMBOURSEMENT_PRET
+  SANCTION_FINANCIERE
   AUTRE_GAIN
   AUTRE_RETENUE
+}
+
+enum StatutAvanceSalaire {
+  EN_ATTENTE
+  APPROUVE
+  REJETE
+  REMBOURSE
+}
+
+enum StatutPretEmploye {
+  EN_COURS
+  SOLDE
+  EN_DEFAUT
 }
 
 model FichePaie {
@@ -3063,6 +3230,14 @@ model FichePaie {
   fichierUrl    String?
   notes         String?
   genereParId   Int             // User.id
+  // Workflow
+  controleParId        Int?    // User.id
+  dateControle         DateTime?
+  valideParId          Int?    // User.id
+  dateValidation       DateTime?
+  misEnPaiementParId   Int?    // User.id
+  dateMiseEnPaiement   DateTime?
+  modePaiement         String? // VIREMENT | MOBILE_MONEY | ESPECES
 
   profilRH   ProfilRH           @relation(fields: [profilRHId], references: [id])
   composants ComposantSalaire[]
@@ -3083,10 +3258,101 @@ model ComposantSalaire {
   libelle     String
   montant     Decimal
   isRetenue   Boolean              @default(false)
+  ordre       Int                  @default(0) // pour l'affichage du bulletin
 
   fichePaie FichePaie @relation(fields: [fichePaieId], references: [id], onDelete: Cascade)
 
   @@index([fichePaieId])
+}
+
+// ── Grilles salariales ─────────────────────────────────────
+
+model GrilleSalariale {
+  id          Int      @id @default(autoincrement())
+  categorie   String   // "Agent", "Superviseur", "Manager"…
+  niveau      String   // "N1", "N2", "N3"…
+  salaireMin  Decimal
+  salaireMax  Decimal
+  description String?
+  actif       Boolean  @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([categorie, niveau])
+}
+
+// ── Types de composants personnalisés (moteur configurable) ─
+
+model TypeComposantPaie {
+  id        Int     @id @default(autoincrement())
+  code      String  @unique  // ex: "PRIME_SOIR", "COMM_RECOUVREMENT"
+  libelle   String
+  categorie String  // "PRIME" | "COMMISSION" | "RETENUE" | "INDEMNITE" | "BONUS"
+  isRetenue Boolean @default(false)
+  actif     Boolean @default(true)
+
+  createdAt DateTime @default(now())
+}
+
+// ── Barèmes de commissions ──────────────────────────────────
+
+model BaremeCommission {
+  id          Int      @id @default(autoincrement())
+  libelle     String
+  profilCible String   // rôle gestionnaire ciblé : "COMMERCIAL", "AGENT_TERRAIN"…
+  type        String   // "FIXE" | "POURCENTAGE" | "PALIER"
+  valeur      Decimal? // montant (FIXE) ou taux % (POURCENTAGE)
+  paliers     Json?    // [{min: 1, max: 50, taux: 2}, {min: 51, max: 100, taux: 3}…]
+  actif       Boolean  @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ── Avances sur salaire ─────────────────────────────────────
+
+model AvanceSalaire {
+  id             Int                  @id @default(autoincrement())
+  profilRHId     Int
+  montant        Decimal
+  motif          String?
+  echeancesMois  Int                  @default(1)  // nb de mois pour remboursement
+  montantRestant Decimal
+  statut         StatutAvanceSalaire  @default(EN_ATTENTE)
+  commentaire    String?              // motif refus ou note
+  approuveParId  Int?                 // User.id
+  dateApprobation DateTime?
+
+  profilRH ProfilRH @relation(fields: [profilRHId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([profilRHId])
+  @@index([statut])
+}
+
+// ── Prêts employés ──────────────────────────────────────────
+
+model PretEmploye {
+  id              Int               @id @default(autoincrement())
+  profilRHId      Int
+  montant         Decimal
+  tauxInteret     Decimal           @default(0) // % annuel
+  dureesMois      Int               // nombre total d'échéances
+  montantMensuel  Decimal           // calculé : (montant + intérêts) / dureesMois
+  montantRestant  Decimal
+  statut          StatutPretEmploye @default(EN_COURS)
+  notes           String?
+
+  profilRH ProfilRH @relation(fields: [profilRHId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([profilRHId])
+  @@index([statut])
 }
 
 // ============================================================
@@ -3100,6 +3366,12 @@ enum StatutFormation {
   ANNULEE
 }
 
+enum TypeFormation {
+  INTERNE
+  EXTERNE
+  ELEARNING
+}
+
 enum StatutParticipationFormation {
   INSCRIT
   PRESENT
@@ -3108,18 +3380,21 @@ enum StatutParticipationFormation {
 }
 
 model Formation {
-  id          Int            @id @default(autoincrement())
-  titre       String
-  objectifs   String?
-  lieu        String?
-  formateur   String?
-  dateDebut   DateTime
-  dateFin     DateTime?
-  dureeHeures Int?
-  cout        Decimal?
-  statut      StatutFormation @default(PLANIFIEE)
-  notes       String?
-  createdById Int            // User.id
+  id               Int             @id @default(autoincrement())
+  titre            String
+  type             TypeFormation?
+  objectifs        String?
+  lieu             String?
+  formateur        String?
+  dateDebut        DateTime
+  dateFin          DateTime?
+  dureeHeures      Int?
+  cout             Decimal?        // coût réel
+  budgetAlloue     Decimal?        // budget prévisionnel
+  certificationNom String?         // nom de la certification délivrée
+  statut           StatutFormation @default(PLANIFIEE)
+  notes            String?
+  createdById      Int             // User.id
 
   participations ParticipationFormation[]
 
@@ -3127,6 +3402,7 @@ model Formation {
   updatedAt DateTime @updatedAt
 
   @@index([statut])
+  @@index([type])
   @@index([dateDebut])
 }
 
@@ -3180,6 +3456,16 @@ model Pointage {
   notes        String?
   saisieParId  Int            // User.id
 
+  // ── Calculs (remplis automatiquement à la saisie) ──────────
+  tempsTotal     Int?  // minutes effectivement travaillées
+  retardMinutes  Int?  // minutes de retard vs heure théorique
+  heuresSup      Int?  // minutes au-delà de la durée théorique
+  justificatif   String?  // motif absence / retard
+
+  // ── Validation ─────────────────────────────────────────────
+  valideParId  Int?      // User.id du validateur
+  valideA      DateTime? // date de validation
+
   profilRH ProfilRH @relation(fields: [profilRHId], references: [id])
 
   createdAt DateTime @default(now())
@@ -3189,6 +3475,86 @@ model Pointage {
   @@index([profilRHId])
   @@index([date])
   @@index([statut])
+}
+
+/// Horaires de référence utilisés pour calculer retards et heures sup
+/// Un profil peut avoir sa propre config ; sinon la config par défaut s'applique
+model ConfigHoraire {
+  id                   Int      @id @default(autoincrement())
+  nom                  String?  // ex: "Bureau 8h-17h", "Terrain 7h-15h"
+  heureArrivee         String?  // "08:30" format HH:mm
+  heureDepart          String?  // "17:30" format HH:mm
+  pauseDejeunnerMinutes Int?    // durée pause déjeuner en minutes (ex: 60)
+  dureeJourneeMinutes  Int?     // durée théorique par jour en minutes (ex: 480)
+  joursOuvres          Json?    // tableau [1,2,3,4,5] (1=lundi … 7=dimanche)
+  toleranceRetardMin   Int?     // minutes de tolérance avant comptage retard (ex: 5)
+  estDefaut            Boolean  @default(false)  // config appliquée si aucune perso
+  createdById          Int?     // User.id
+
+  collaborateurs ProfilRH[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([estDefaut])
+}
+
+// ============================================================
+// OGRH — MODULE 9 : COMPÉTENCES
+// ============================================================
+
+enum TypeCompetence {
+  HARD_SKILL
+  SOFT_SKILL
+}
+
+enum NiveauCompetence {
+  DEBUTANT
+  INTERMEDIAIRE
+  AVANCE
+  EXPERT
+}
+
+/// Référentiel des compétences de l'entreprise
+model Competence {
+  id          Int            @id @default(autoincrement())
+  nom         String
+  description String?
+  type        TypeCompetence
+  categorie   String?        // ex: "Informatique", "Finance", "Leadership"
+  actif       Boolean        @default(true)
+  createdById Int?           // User.id
+
+  collaborateurCompetences CollaborateurCompetence[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([type])
+  @@index([categorie])
+  @@index([actif])
+}
+
+/// Compétence d'un collaborateur avec son niveau
+model CollaborateurCompetence {
+  id              Int              @id @default(autoincrement())
+  profilRHId      Int
+  competenceId    Int
+  niveau          NiveauCompetence
+  dateAcquisition DateTime?
+  notes           String?
+  evalueParId     Int?             // User.id du RH qui a évalué
+
+  profilRH   ProfilRH   @relation(fields: [profilRHId],   references: [id])
+  competence Competence @relation(fields: [competenceId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([profilRHId, competenceId])
+  @@index([profilRHId])
+  @@index([competenceId])
+  @@index([niveau])
 }
 
 // ============================================================
@@ -3277,8 +3643,18 @@ enum PeriodeEvaluation {
 
 enum StatutEvaluationRH {
   BROUILLON
+  OBJECTIFS_FIXES
   EN_COURS
+  EVALUATION
+  VALIDATION
+  PLAN_AMELIORATION
   CLOTURE
+}
+
+enum TypeEvaluation {
+  HIERARCHIQUE
+  AUTO_EVALUATION
+  EVALUATION_360
 }
 
 model EvaluationRH {
@@ -3289,17 +3665,20 @@ model EvaluationRH {
   annee            Int
   dateDebut        DateTime
   dateFin          DateTime?
+  typeEvaluation   TypeEvaluation?
   statut           StatutEvaluationRH  @default(BROUILLON)
   noteGlobale      Decimal?            // /5
   appreciation     String?
   pointsForts      String?
   axesAmelioration String?
   objectifsN1      String?
+  planAmelioration String?
   notes            String?
 
   profilRH   ProfilRH  @relation("EvaluationsCollaborateur", fields: [profilRHId],   references: [id])
   evaluateur ProfilRH? @relation("EvaluationsEffectuees",    fields: [evaluateurId], references: [id])
   criteres   CritereEvaluation[]
+  objectifs  ObjectifKPI[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -3321,38 +3700,71 @@ model CritereEvaluation {
   @@index([evaluationId])
 }
 
+model ObjectifKPI {
+  id             Int      @id @default(autoincrement())
+  evaluationId   Int
+  libelle        String
+  indicateur     String?
+  valeurCible    Decimal
+  valeurAtteinte Decimal?
+  unite          String?
+  poids          Int?     // pondération en % (0-100)
+  commentaire    String?
+
+  evaluation EvaluationRH @relation(fields: [evaluationId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([evaluationId])
+}
+
 // ============================================================
 // OGRH — MODULE 5 : RECRUTEMENT
 // ============================================================
 
 enum StatutPoste {
-  OUVERT
-  EN_COURS
-  POURVU
+  BROUILLON  // créé, en attente de validation interne
+  OUVERT     // validé et publié
+  EN_COURS   // recrutement actif
+  POURVU     // poste occupé
   ANNULE
 }
 
 enum StatutCandidature {
   RECU
+  PRE_QUALIFICATION // premier filtre téléphonique ou écrit
   SHORTLISTE
   ENTRETIEN
+  TEST              // test technique / pratique
+  VALIDATION        // validation RH / direction
   OFFRE
+  INTEGRATION       // processus d'onboarding en cours
   ACCEPTE
   REJETE
 }
 
 model PosteOuvert {
   id                  Int         @id @default(autoincrement())
+  reference           String?     @unique // ex: REC-2026-0001 (auto-généré)
   titre               String
   departement         String?
   service             String?
+  lieu                String?
   typeContrat         TypeContrat?
   description         String?
-  competencesRequises String?
-  experienceMin       Int?
+  exigences           String?     // profil requis (ex-competencesRequises)
+  competencesRequises String?     // conservé pour compatibilité
+  experienceMin       Int?        // années d'expérience minimum
+  nbPostes            Int         @default(1)
+  salaireMini         Int?        // FCFA
+  salaireMaxi         Int?        // FCFA
+  budgetPoste         Int?        // budget total alloué au recrutement (FCFA)
   dateOuverture       DateTime    @default(now())
   dateLimite          DateTime?
   statut              StatutPoste @default(OUVERT)
+  validateurId        Int?        // User.id du validateur interne
+  dateValidation      DateTime?   // date de validation interne
   notes               String?
   createdById         Int         // User.id
 
@@ -3362,29 +3774,157 @@ model PosteOuvert {
   updatedAt DateTime @updatedAt
 
   @@index([statut])
+  @@index([createdById])
 }
 
 model Candidature {
-  id             Int               @id @default(autoincrement())
-  posteId        Int
-  nomCandidat    String
-  prenomCandidat String
-  email          String?
-  telephone      String?
-  cvUrl          String?
-  lettreUrl      String?
-  statut         StatutCandidature @default(RECU)
-  noteEntretien  Decimal?
-  dateEntretien  DateTime?
-  commentaire    String?
-  notes          String?
+  id               Int               @id @default(autoincrement())
+  posteId          Int
+  nomCandidat      String
+  prenomCandidat   String
+  email            String?
+  telephone        String?
+  cvUrl            String?
+  lettreUrl        String?
+  statut           StatutCandidature @default(RECU)
+  scoreCandidat    Int?              // score global /100 (calculé ou saisi)
+  noteEntretien    Decimal?          // note /5 après entretien
+  noteTest         Decimal?          // note /20 après test technique
+  dateEntretien    DateTime?
+  dateTest         DateTime?
+  commentaire      String?
+  notes            String?
+  competences      String?           // tags CSV ex: "React,TypeScript,Node.js"
+  formation        String?           // ex: "Bac+5 Informatique"
+  experienceAnnees Int?              // nb années d'expérience déclarées
+  sourceCandidat   String?           // ex: "LinkedIn", "Recommandation", "Site web"
+  dateCandidature  DateTime          @default(now())
 
-  poste PosteOuvert @relation(fields: [posteId], references: [id], onDelete: Cascade)
+  poste      PosteOuvert        @relation(fields: [posteId], references: [id], onDelete: Cascade)
+  onboarding OnboardingEmploye?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([posteId])
+  @@index([statut])
+  @@index([scoreCandidat])
+}
+
+// ============================================================
+// OGRH — MODULE 4 : ONBOARDING
+// Déclenché automatiquement à l'acceptation d'une candidature.
+// Crée en une transaction : matricule + email pro + ProfilRH + checklist.
+// ============================================================
+
+enum StatutOnboarding {
+  EN_COURS   // onboarding lancé, étapes en progression
+  TERMINE    // toutes les étapes obligatoires sont FAIT
+  SUSPENDU   // mis en pause (ex: délai de prise de poste)
+  ANNULE     // collaborateur n'a finalement pas rejoint
+}
+
+enum TypeEtapeOnboarding {
+  SIGNATURE_CONTRAT  // signature du contrat de travail
+  REMISE_MATERIEL    // remise ordinateur, badge, téléphone…
+  FORMATION          // session de formation d'intégration
+  AFFECTATION        // affectation au PDV / service / manager
+  ACCES_SYSTEME      // création des accès informatiques
+  PRESENTATION       // présentation à l'équipe
+  AUTRE
+}
+
+enum StatutEtapeOnboarding {
+  EN_ATTENTE  // pas encore traitée
+  FAIT        // complétée
+  IGNORE      // volontairement ignorée (non applicable)
+}
+
+/// Template de checklist réutilisable — 1 template par profil de poste ou type de contrat
+model TemplateOnboarding {
+  id          Int     @id @default(autoincrement())
+  nom         String  // ex: "Intégration Commercial", "Onboarding Tech"
+  description String?
+  actif       Boolean @default(true)
+  createdById Int     // User.id du RH qui a créé le template
+
+  etapes      EtapeTemplate[]
+  onboardings OnboardingEmploye[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([actif])
+}
+
+/// Étape d'un template — ordonnée, copiée vers EtapeOnboarding à la création de l'instance
+model EtapeTemplate {
+  id          Int                 @id @default(autoincrement())
+  templateId  Int
+  ordre       Int                 // position dans la checklist (1, 2, 3…)
+  titre       String
+  description String?
+  type        TypeEtapeOnboarding @default(AUTRE)
+  delaiJours  Int                 @default(0)   // délai max en jours depuis le début de l'onboarding
+  obligatoire Boolean             @default(true) // si false : peut être IGNORE sans bloquer la progression
+
+  template TemplateOnboarding @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@index([templateId])
+  @@index([templateId, ordre])
+}
+
+/// Instance d'onboarding créée automatiquement lors de l'acceptation d'une candidature
+/// Matricule, email professionnel et ProfilRH sont créés dans la même transaction
+model OnboardingEmploye {
+  id             Int              @id @default(autoincrement())
+  candidatureId  Int              @unique  // 1 onboarding par candidature
+  profilRHId     Int              @unique  // 1 onboarding par collaborateur
+  templateId     Int?             // template source (null si checklist créée manuellement)
+  statut         StatutOnboarding @default(EN_COURS)
+  dateDebut      DateTime         @default(now())
+  dateFinPrevue  DateTime?        // calculée : dateDebut + max(delaiJours des étapes)
+  dateCloture    DateTime?        // remplie quand statut → TERMINE ou ANNULE
+  progressionPct Int              @default(0)  // mis à jour à chaque changement d'étape
+  notes          String?
+  createdById    Int              // User.id du RH qui a validé le recrutement
+
+  candidature Candidature         @relation(fields: [candidatureId], references: [id])
+  profilRH    ProfilRH            @relation(fields: [profilRHId],    references: [id])
+  template    TemplateOnboarding? @relation(fields: [templateId],    references: [id])
+  etapes      EtapeOnboarding[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([statut])
+  @@index([dateDebut])
+}
+
+/// Instance d'une étape pour un onboarding spécifique (copiée depuis EtapeTemplate ou créée manuellement)
+model EtapeOnboarding {
+  id           Int                   @id @default(autoincrement())
+  onboardingId Int
+  ordre        Int
+  titre        String
+  description  String?
+  type         TypeEtapeOnboarding   @default(AUTRE)
+  statut       StatutEtapeOnboarding @default(EN_ATTENTE)
+  obligatoire  Boolean               @default(true)
+
+  // Responsable et délai
+  responsableId Int?      // User.id de la personne chargée de cette étape
+  dateLimite    DateTime?
+  dateFaite     DateTime?
+  commentaire   String?
+
+  onboarding OnboardingEmploye @relation(fields: [onboardingId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([onboardingId])
+  @@index([onboardingId, ordre])
   @@index([statut])
 }
 

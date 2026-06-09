@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAdminSession } from "@/lib/authAdmin";
 import { StatutDemandeConge, TypeConge } from "@prisma/client";
+import { notifyValidationConge } from "@/lib/notificationsRH";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -33,6 +34,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
       VALIDER_RH:      { from: ["VALIDE_MANAGER"],   to: "VALIDE_RH"      },
       APPROUVER:       { from: ["EN_ATTENTE", "VALIDE_MANAGER", "VALIDE_RH"], to: "APPROUVE" },
       REJETER:         { from: ["EN_ATTENTE", "VALIDE_MANAGER", "VALIDE_RH"], to: "REJETE"  },
+      ANNULER:         { from: ["EN_ATTENTE", "VALIDE_MANAGER", "VALIDE_RH", "APPROUVE"], to: "ANNULE" },
     };
 
     const transition = TRANSITIONS[action];
@@ -76,6 +78,15 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
         },
       });
 
+      // Quand annulé depuis APPROUVE → restaurer le solde
+      if (action === "ANNULER" && demande.statut === "APPROUVE") {
+        const annee = new Date(demande.dateDebut).getFullYear();
+        await tx.soldeConge.updateMany({
+          where: { profilRHId: demande.profilRHId, type: demande.type as TypeConge, annee },
+          data:  { pris: { decrement: demande.nbJours }, restant: { increment: demande.nbJours } },
+        });
+      }
+
       // Quand approuvé → déduire du solde de congé
       if (action === "APPROUVER") {
         const annee = new Date(demande.dateDebut).getFullYear();
@@ -110,9 +121,22 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
         action:   "UPDATE",
         entite:   "DemandeConge",
         entiteId: updated.id,
-        details:  `Demande #${id} : ${demande.statut} → ${transition.to}`,
+        details:  {
+          avant: { statut: demande.statut },
+          apres: { statut: transition.to },
+          note:  commentaire ?? null,
+        },
       },
     });
+
+    // Notification in-app au collaborateur lors de la décision finale
+    if (action === "APPROUVER" || action === "REJETER") {
+      notifyValidationConge(
+        updated.id,
+        action === "APPROUVER",
+        action === "REJETER" ? (commentaire ?? undefined) : undefined
+      ).catch(() => {}); // non-bloquant
+    }
 
     return NextResponse.json({ data: updated });
   } catch (error) {

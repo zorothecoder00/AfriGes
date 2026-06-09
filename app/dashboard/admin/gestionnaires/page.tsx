@@ -58,6 +58,7 @@ const ROLE_DASHBOARD_MAP: Record<string, string> = {
   AUDITEUR_INTERNE:                     '/dashboard/user/auditeursInterne',
   ACTIONNAIRE:                          '/dashboard/user/actionnaires',
   REVENDEUR:                            '/dashboard/user/revendeurs',
+  RESPONSABLE_RH:                       '/dashboard/user/responsablesRH',
 };
 
 // Rôles qui gèrent une ZONE multi-PDV (chef d'agence)
@@ -79,6 +80,7 @@ const ROLES_AVEC_PDV = new Set([
   'AUDITEUR_INTERNE',
   'RESPONSABLE_ECONOMIQUE',
   'REVENDEUR',
+  'RESPONSABLE_RH',
 ]);
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
@@ -379,6 +381,7 @@ export default function GestionnairesPage() {
               <option value="RESPONSABLE_ECONOMIQUE">Resp. économique</option>
               <option value="RESPONSABLE_MARKETING">Resp. marketing</option>
               <option value="ACTIONNAIRE">Actionnaire</option>
+              <option value="RESPONSABLE_RH">Responsable RH</option>
             </select>
           </div>
         </div>
@@ -425,6 +428,7 @@ export default function GestionnairesPage() {
                     <option value="RESPONSABLE_ECONOMIQUE">Responsable économique</option>
                     <option value="RESPONSABLE_MARKETING">Responsable marketing</option>
                     <option value="ACTIONNAIRE">Actionnaire</option>
+                    <option value="RESPONSABLE_RH">Responsable RH</option>
                   </select>
                 </div>
                 <button type="submit" disabled={adding}
