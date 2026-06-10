@@ -4,9 +4,6 @@ import React, { useState } from "react";
 import { Tag, Plus, Pencil, Trash2, X, Loader2, Users, CheckCircle2, AlertCircle } from "lucide-react";
 import { useApi } from "@/hooks/useApi";
 import { toast } from "sonner";
-import SignOutButton from "@/components/SignOutButton";
-import NotificationBell from "@/components/NotificationBell";
-import MessagesLink from "@/components/MessagesLink";
 import ClienteleTabBar from "@/components/ClienteleTabBar";
 import { useTagModal } from "@/contexts/TagModalContext";
 

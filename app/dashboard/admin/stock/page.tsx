@@ -135,12 +135,18 @@ export default function GestionStockPage() {
   const pdvs    = response?.pdvs ?? [];
 
   // Typed per vue
-  const grandStockItems = vue === 'grand'
-    ? ((response?.data ?? []) as GrandStockItem[]).filter(item => Array.isArray(item.stocks))
-    : [];
-  const stockItems = vue === 'pdv'
-    ? ((response?.data ?? []) as StockItem[]).filter(item => !!item.produit && !!item.pointDeVente)
-    : [];
+  const grandStockItems = React.useMemo(
+    () => vue === 'grand'
+      ? ((response?.data ?? []) as GrandStockItem[]).filter(item => Array.isArray(item.stocks))
+      : [],
+    [vue, response]
+  );
+  const stockItems = React.useMemo(
+    () => vue === 'pdv'
+      ? ((response?.data ?? []) as StockItem[]).filter(item => !!item.produit && !!item.pointDeVente)
+      : [],
+    [vue, response]
+  );
 
   // Chargement indépendant de TOUS les produits pour les modaux (approvisionnement + transfert)
   // Déclenché dès qu'un des deux modaux est ouvert

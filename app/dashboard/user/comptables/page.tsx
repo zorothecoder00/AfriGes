@@ -3,14 +3,13 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import {
   Calculator, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight,
-  ArrowLeft, RefreshCw, Download, Search, ChevronLeft, ChevronRight,
+  RefreshCw, Download, Search, ChevronLeft, ChevronRight,
   FileText, BarChart3, BookOpen, Wallet, Package, Calendar,
   AlertCircle, CheckCircle, Filter, X, Users, Lock, LockOpen, Plus,
   Paperclip, Trash2, ExternalLink, Upload,
   BookMarked, Percent, Building2, PlusCircle, Edit2, Save, ShoppingBag,
   ToggleLeft, ToggleRight, ListChecks, BadgeCheck, ChevronsUpDown,
 } from "lucide-react";
-import Link from "next/link";
 import SignOutButton from "@/components/SignOutButton";
 import NotificationBell from "@/components/NotificationBell";
 import MessagesLink from "@/components/MessagesLink";
@@ -435,7 +434,7 @@ export default function ComptablePage() {
   const [ecrituresDateMin, setEcrituresDateMin] = useState("");
   const [ecrituresDateMax, setEcrituresDateMax] = useState("");
   const [showSaisie, setShowSaisie]           = useState(false);
-  const [editEcriture, setEditEcriture]       = useState<EcritureComptable | null>(null);
+  const [editEcriture] = useState<EcritureComptable | null>(null);
   const [saisieForm, setSaisieForm]           = useState({
     date: new Date().toISOString().slice(0, 10),
     libelle: "", journal: "CAISSE", notes: "",
@@ -446,7 +445,7 @@ export default function ComptablePage() {
   ]);
 
   // ── État TVA ─────────────────────────────────────────────────────────
-  const [tvaPage, setTvaPage]               = useState(1);
+  const [tvaPage] = useState(1);
   const [tvaPeriode, setTvaPeriode]         = useState(() => {
     const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
   });

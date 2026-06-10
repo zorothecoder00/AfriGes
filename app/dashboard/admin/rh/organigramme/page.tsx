@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useRef, useCallback } from "react";
+import React, { useState, useMemo, useCallback } from "react";
 import { useApi, useMutation } from "@/hooks/useApi";
 import {
   Users, ChevronDown, ChevronRight, Building2, Search,
@@ -8,6 +8,7 @@ import {
   History, ArrowRight, X, Check, AlertCircle, RefreshCw,
 } from "lucide-react";
 import Link from "next/link";
+import Image from "next/image";
 import { toast } from "sonner";
 import { formatDate } from "@/lib/format";
 
@@ -204,7 +205,7 @@ function PersonCard({ node, depts, highlight, isDragTarget, onDragStart, onDrop 
     >
       <div className="flex justify-center mb-2">
         {member?.photo ? (
-          <img src={member.photo} alt={name} className="w-12 h-12 rounded-full object-cover" />
+          <Image src={member.photo} alt={name} className="w-12 h-12 rounded-full object-cover" width={48} height={48} />
         ) : (
           <div className={`w-12 h-12 rounded-full flex items-center justify-center text-sm font-bold border ${color}`}>
             {member ? getInitials(member.nom, member.prenom) : "?"}
@@ -324,7 +325,7 @@ function VueFonctionnelle({ flat, depts }: { flat: OrgNode[]; depts: string[] })
                 return (
                   <div key={n.id} className="flex items-center gap-2 bg-gray-50 rounded-xl px-3 py-2 border border-gray-100">
                     {member?.photo ? (
-                      <img src={member.photo} alt={name} className="w-8 h-8 rounded-full object-cover" />
+                      <Image src={member.photo} alt={name} className="w-8 h-8 rounded-full object-cover" width={32} height={32} />
                     ) : (
                       <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold border ${color}`}>
                         {member ? getInitials(member.nom, member.prenom) : "?"}
@@ -376,7 +377,7 @@ function VueGeographique({ flat, depts }: { flat: OrgNode[]; depts: string[] }) 
                 return (
                   <div key={n.id} className="flex items-center gap-2 bg-gray-50 rounded-xl px-3 py-2 border border-gray-100">
                     {member?.photo ? (
-                      <img src={member.photo} alt={name} className="w-8 h-8 rounded-full object-cover" />
+                      <Image src={member.photo} alt={name} className="w-8 h-8 rounded-full object-cover" width={32} height={32} />
                     ) : (
                       <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold border ${deptColor}`}>
                         {member ? getInitials(member.nom, member.prenom) : "?"}

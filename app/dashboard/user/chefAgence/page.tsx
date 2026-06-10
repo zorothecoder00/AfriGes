@@ -268,7 +268,7 @@ export default function ChefAgenceDashboard() {
   // ── Filtres Ventes ───────────────────────────────────────────────────────
   const [ventePeriod,  setVentePeriod]  = useState(30);
   const [ventePdvId,   setVentePdvId]   = useState("");
-  const [venteAgentId, setVenteAgentId] = useState("");
+  const [venteAgentId] = useState("");
   const [venteType,    setVenteType]    = useState("all");
   const [ventePage,    setVentePage]    = useState(1);
   const [venteSearch,  setVenteSearch]  = useState("");

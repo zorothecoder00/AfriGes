@@ -72,7 +72,7 @@ export default function CompetencesPage() {
   // Filtres matrice
   const [matriceDept,  setMatriceDept]  = useState("");
   const [matriceType,  setMatriceType]  = useState("");
-  const [matriceCat,   setMatriceCat]   = useState("");
+  const [matriceCat] = useState("");
 
   // Onglet collaborateur
   const [selectedCollab, setSelectedCollab] = useState<ProfilRH | null>(null);

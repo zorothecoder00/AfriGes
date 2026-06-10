@@ -61,3 +61,13 @@ l'admin et les responsables (chefagence , rpv,admin  ) doivent pouvoir modifier 
 erreur d'application et Exception côté client sur quasiment toutes les actions(post ou patch surtoutet même get je crois) d'un de mes supérieurs sur l'app déployée (sur vercel) 
 
 pouvoir supprimer des factures et des ventes à crédit
+
+
+      Module 1
+Upload multi-fichiers
+OCR automatique des documents
+
+
+La facture sur les credits doit prendre en compte les prix de vente et non les prix d'achat
+
+les stocks doivent avoir des prix d'achat et de vente par date ( par semaine , par mois avec un historique des prix

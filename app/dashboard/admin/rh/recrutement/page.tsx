@@ -7,7 +7,8 @@ import {
   Briefcase, Plus, Search, Users, CheckCircle2, XCircle,
   Clock, ChevronDown, ChevronUp, UserPlus, FileText, Star,
   Phone, Mail, ArrowLeft, Filter, Database, Banknote,
-  Award, RefreshCw, X,
+  Award, RefreshCw, X, KeyRound, AlertCircle, ExternalLink,
+  Copy, Check,
 } from "lucide-react";
 import Link from "next/link";
 import { formatDate } from "@/lib/format";
@@ -154,11 +155,59 @@ function StarRating({ value, onChange }: { value: number; onChange?: (v: number)
   );
 }
 
+/* ─── Modal mot de passe temporaire ─────────────────────── */
+function TempPasswordModal({
+  tempPassword, profilRHId, onClose,
+}: { tempPassword: string; profilRHId: number; onClose: () => void }) {
+  const [copied, setCopied] = useState(false);
+  const copy = () => {
+    navigator.clipboard.writeText(tempPassword);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+  return (
+    <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm">
+        <div className="p-6 text-center space-y-4">
+          <div className="w-14 h-14 mx-auto bg-green-50 rounded-2xl flex items-center justify-center">
+            <KeyRound size={28} className="text-green-600" />
+          </div>
+          <div>
+            <h2 className="font-bold text-gray-900 text-lg">Collaborateur créé !</h2>
+            <p className="text-sm text-gray-500 mt-1">Communiquer ce mot de passe temporaire au nouvel employé :</p>
+          </div>
+          <div className="bg-gray-900 text-green-400 font-mono text-lg px-5 py-3 rounded-xl tracking-wider select-all">
+            {tempPassword}
+          </div>
+          <div className="flex items-start gap-1.5 text-xs text-amber-700 bg-amber-50 rounded-lg px-3 py-2 text-left">
+            <AlertCircle size={14} className="flex-shrink-0 mt-0.5" />
+            <span>Ce mot de passe ne sera plus affiché. Notez-le maintenant.</span>
+          </div>
+          <div className="flex gap-3">
+            <button onClick={copy}
+              className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium rounded-lg border ${
+                copied ? "border-green-400 text-green-700 bg-green-50" : "border-gray-200 text-gray-700 hover:bg-gray-50"
+              }`}>
+              {copied ? <CheckCircle2 size={14} /> : null} {copied ? "Copié !" : "Copier"}
+            </button>
+            <a href={`/dashboard/admin/rh/collaborateurs/${profilRHId}`}
+              className="flex-1 flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700">
+              <ExternalLink size={14} /> Voir dossier
+            </a>
+          </div>
+          <button onClick={onClose} className="w-full text-sm text-gray-400 hover:text-gray-600 py-1">Fermer</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ─── Modal Candidature ──────────────────────────────────── */
 function CandidatureModal({
-  cand, posteId, onClose, onRefresh,
+  cand, posteId: _posteId, onClose, onRefresh,
 }: { cand: Candidature; posteId: number; onClose: () => void; onRefresh: () => void }) {
   const { mutate, loading } = useMutation(`/api/admin/rh/recrutement/candidatures/${cand.id}`, "PATCH");
+  const [tempPassData, setTempPassData] = useState<{ tempPassword: string; profilRHId: number } | null>(null);
   const [form, setForm] = useState({
     noteEntretien:   cand.noteEntretien   ?? 0,
     noteTest:        cand.noteTest        ?? 0,
@@ -173,6 +222,26 @@ function CandidatureModal({
   });
 
   async function handleAction(action: string) {
+    if (action === "ACCEPTER") {
+      // Fetch direct pour récupérer tempPassword hors du wrapper useMutation
+      try {
+        const r = await fetch(`/api/admin/rh/recrutement/candidatures/${cand.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action, dateEntretien: form.dateEntretien || null }),
+        });
+        const json = await r.json();
+        if (!r.ok) { toast.error(json.error ?? "Erreur"); return; }
+        toast.success(json.message ?? "Candidature acceptée");
+        onRefresh();
+        if (json.collaborateurCree && json.tempPassword) {
+          setTempPassData({ tempPassword: json.tempPassword, profilRHId: json.profilRHId });
+        } else {
+          onClose();
+        }
+      } catch { toast.error("Erreur réseau"); }
+      return;
+    }
     const res = await mutate({ action, dateEntretien: form.dateEntretien || null, dateTest: form.dateTest || null });
     if (res) { toast.success("Statut mis à jour"); onRefresh(); onClose(); }
     else toast.error("Erreur");
@@ -196,6 +265,16 @@ function CandidatureModal({
   }
 
   const actions = CAND_ACTIONS[cand.statut] ?? [];
+
+  if (tempPassData) {
+    return (
+      <TempPasswordModal
+        tempPassword={tempPassData.tempPassword}
+        profilRHId={tempPassData.profilRHId}
+        onClose={onClose}
+      />
+    );
+  }
 
   return (
     <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={onClose}>
@@ -464,6 +543,28 @@ function CandidaturePipeline({ candidatures, posteId, onRefresh }: {
   );
 }
 
+/* ─── Bouton copie lien public ───────────────────────────── */
+function CopyLinkButton({ posteId }: { posteId: number }) {
+  const [copied, setCopied] = useState(false);
+  const copy = () => {
+    const url = `${window.location.origin}/postes/${posteId}`;
+    navigator.clipboard.writeText(url);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+  return (
+    <button onClick={copy} title="Copier le lien de candidature"
+      className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border transition-colors ${
+        copied
+          ? "border-emerald-300 bg-emerald-50 text-emerald-700"
+          : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50"
+      }`}>
+      {copied ? <Check size={12} /> : <Copy size={12} />}
+      {copied ? "Lien copié !" : "Lien candidature"}
+    </button>
+  );
+}
+
 /* ─── PosteCard ──────────────────────────────────────────── */
 function PosteCard({ poste, onRefresh }: { poste: PosteOuvert; onRefresh: () => void }) {
   const [expanded, setExpanded] = useState(false);
@@ -513,6 +614,9 @@ function PosteCard({ poste, onRefresh }: { poste: PosteOuvert; onRefresh: () => 
               <Users size={14} />
               <span className="font-semibold">{poste._count.candidatures}</span>
             </div>
+            {["OUVERT", "EN_COURS"].includes(poste.statut) && (
+              <CopyLinkButton posteId={poste.id} />
+            )}
             <button onClick={() => setExpanded(!expanded)} className="p-1.5 rounded-lg hover:bg-gray-100">
               {expanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
             </button>

@@ -18,8 +18,10 @@ export async function GET(req: Request) {
     const skip = (page - 1) * limit;
 
     // Filtres
-    const roleParam = searchParams.get("role");
-    const actifParam = searchParams.get("actif");
+    const roleParam      = searchParams.get("role");
+    const actifParam     = searchParams.get("actif");
+    const search         = searchParams.get("search")?.trim() ?? "";
+    const sansProfilRH   = searchParams.get("sansProfilRH") === "true";
 
     const role =
       roleParam &&
@@ -37,6 +39,16 @@ export async function GET(req: Request) {
     const where: Prisma.GestionnaireWhereInput = {
       ...(role && { role }),
       ...(actif !== undefined && { actif }),
+      ...(sansProfilRH && { profilRH: null }),
+      ...(search && {
+        member: {
+          OR: [
+            { nom:    { contains: search, mode: "insensitive" } },
+            { prenom: { contains: search, mode: "insensitive" } },
+            { email:  { contains: search, mode: "insensitive" } },
+          ],
+        },
+      }),
     };
 
     const [gestionnaires, total, totalActifs, totalInactifs, rolesDistincts] = await Promise.all([

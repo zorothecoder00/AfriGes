@@ -354,14 +354,14 @@ export default function DossierCollaborateurPage({
         {/* ── Infos rapides ── */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <InfoChip icon={<Mail className="w-3.5 h-3.5" />}    label={profil.gestionnaire.member.email} />
-          <InfoChip icon={<Phone className="w-3.5 h-3.5" />}   label={profil.gestionnaire.member.telephone ?? "—"} />
+          <InfoChip icon={<Phone className="w-3.5 h-3.5" />}   label={profil.gestionnaire.member.telephone ?? profil.telephoneSecondaire ?? "—"} />
           <InfoChip icon={<Building2 className="w-3.5 h-3.5" />} label={pdv?.nom ?? "Aucun PDV"} />
           <InfoChip icon={<Briefcase className="w-3.5 h-3.5" />} label={profil.fonction ?? "Fonction non définie"} />
         </div>
 
         {/* ── Onglets ── */}
-        <div className="border-b border-slate-200">
-          <div className="flex gap-1">
+        <div className="border-b border-slate-200 overflow-x-auto">
+          <div className="flex gap-1 min-w-max">
             {(["identite", "contrat", "documents", "conges", "missions", "docs-rh", "paie", "formations", "pointages", "avantages", "evaluations", "disciplinaire", "historique"] as const).map((t) => {
               const labels: Record<string, string> = { identite: "Identité", contrat: "Contrat & poste", documents: `Documents (${profil._count.documents})`, conges: `Congés (${profil._count.demandesConge})`, missions: `Missions (${profil._count.missions})`, "docs-rh": "Docs RH", paie: `Paie (${profil._count.fichesPaie})`, formations: `Formations (${profil._count.participationsFormation})`, pointages: "Pointages", avantages: `Avantages (${profil._count.avantages})`, evaluations: `Évaluations (${profil._count.evaluations})`, disciplinaire: `Disciplinaire (${profil._count.procedures})`, historique: "Historique de poste" };
               const icons: Record<string, React.ReactNode>  = { identite: <User className="w-4 h-4" />, contrat: <Briefcase className="w-4 h-4" />, documents: <FileText className="w-4 h-4" />, conges: <CalendarDays className="w-4 h-4" />, missions: <MapPin className="w-4 h-4" />, "docs-rh": <Archive className="w-4 h-4" />, paie: <Banknote className="w-4 h-4" />, formations: <GraduationCap className="w-4 h-4" />, pointages: <Clock className="w-4 h-4" />, avantages: <Gift className="w-4 h-4" />, evaluations: <Star className="w-4 h-4" />, disciplinaire: <AlertTriangle className="w-4 h-4" />, historique: <History className="w-4 h-4" /> };
@@ -469,7 +469,7 @@ function IdentiteTab({ profil, onSaved }: { profil: ProfilRH; onSaved: () => voi
         <ReadField label="Prénom" value={profil.gestionnaire.member.prenom} />
         <ReadField label="Nom"    value={profil.gestionnaire.member.nom} />
         <ReadField label="Email"  value={profil.gestionnaire.member.email} />
-        <ReadField label="Téléphone principal" value={profil.gestionnaire.member.telephone ?? "—"} />
+        <ReadField label="Téléphone principal" value={profil.gestionnaire.member.telephone ?? profil.telephoneSecondaire ?? "—"} />
         {profil.gestionnaire.member.adresse && (
           <ReadField label="Adresse" value={profil.gestionnaire.member.adresse} />
         )}

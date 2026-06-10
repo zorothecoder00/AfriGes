@@ -2,14 +2,13 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import {
-  ShoppingCart, Receipt, TrendingUp, Search, ArrowLeft, RefreshCw,
+  ShoppingCart, Receipt, TrendingUp, Search, RefreshCw,
   Plus, X, CheckCircle, Clock, Banknote, Printer, BarChart3,
   Users, Hash, AlertTriangle, AlertCircle, Info, ChevronLeft, ChevronRight,
   Lock, Calendar, FileText, Filter, Layers, Eye, XCircle, Package,
   Wallet, Power, Pause, Play, ArrowDownCircle, ArrowUpCircle,
   ArrowLeftRight, CreditCard, Building2, Send, ShoppingBag, Pencil, Loader2,
 } from "lucide-react";     
-import Link from "next/link";          
 import SignOutButton from "@/components/SignOutButton";
 import NotificationBell from "@/components/NotificationBell";
 import FactureModal from "@/components/FactureModal";
@@ -1868,7 +1867,7 @@ export default function CaissierPage() {
                 <div className="space-y-2">
                   
                   {dashboard!.echeancesEnRetard.map((e) => {
-                    const person = e.souscription?.client ?? e.souscription?.user;
+                    const _person = e.souscription?.client ?? e.souscription?.user; void _person;
                     return (
                       <div key={e.id} className="flex items-center justify-between py-2.5 border-b border-red-50 last:border-0">
                         <div className="flex items-center gap-3">

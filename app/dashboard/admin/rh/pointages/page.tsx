@@ -456,7 +456,6 @@ function DayCell({ day, dateStr, isWE, pointage, cfg, isSelected, onSelect, onSe
   }, [open]);
 
   const arrivee = fmtTime(pointage?.heureArrivee ?? null);
-  const depart  = fmtTime(pointage?.heureDepart  ?? null);
   const hasRetard = pointage && (pointage.retardMinutes ?? 0) > 0;
   const hasHsup   = pointage && (pointage.heuresSup     ?? 0) > 0;
   const isValidated = pointage?.valideParId != null;
@@ -526,8 +525,6 @@ function PointageDetailPanel({ dateStr, pointage, collab, onClose, onRefresh }: 
   const [justificatif, setJustificatif] = useState(pointage?.justificatif ?? "");
   const [saving,  setSaving]  = useState(false);
   const [validing, setValiding] = useState(false);
-
-  const cfg = STATUT_CONFIG[statut];
 
   const buildDatetime = (dateStr: string, time: string) => {
     if (!time) return null;

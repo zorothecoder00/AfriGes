@@ -6,7 +6,7 @@ import {
   Users, UserCheck, UserX, Clock, TrendingUp, TrendingDown,
   Star, AlertTriangle, Calendar, Briefcase, RefreshCw, Bell,
   ArrowRight, ChevronRight, CheckCircle2, Building2,
-  FileWarning, GraduationCap, FileText, Target, ShieldCheck, MessageSquare, DollarSign,
+  FileWarning, GraduationCap, FileText, Target, ShieldCheck, MessageSquare, DollarSign, ClipboardList,
 } from "lucide-react";
 import { useApi } from "@/hooks/useApi";
 
@@ -506,7 +506,8 @@ export default function DashboardRHPage() {
                   { href: "/dashboard/admin/rh/documents-rh",    icon: <FileText size={15} />,      label: "Documents RH"    },
                   { href: "/dashboard/admin/rh/organigramme",    icon: <Building2 size={15} />,     label: "Organigramme"    },
                   { href: "/dashboard/admin/rh/disciplinaire",   icon: <FileWarning size={15} />,   label: "Disciplinaire"   },
-                  { href: "/dashboard/user/responsablesRH/paie", icon: <DollarSign size={15} />,    label: "Paie"            },
+                  { href: "/dashboard/user/responsablesRH/paie",        icon: <DollarSign    size={15} />, label: "Paie"        },
+                  { href: "/dashboard/user/responsablesRH/onboarding", icon: <ClipboardList size={15} />, label: "Onboarding" },
                 ].map(({ href, icon, label }) => (
                   <Link
                     key={href}

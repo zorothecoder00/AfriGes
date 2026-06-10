@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { ArrowLeft, Send, MessageSquare, ChevronDown, ChevronUp, Clock, Smile } from "lucide-react";
+import { Send, MessageSquare, ChevronDown, ChevronUp, Clock, Smile } from "lucide-react";
 import DashboardBackButton from "@/components/DashboardBackButton";
 import { useApi, useMutation } from "@/hooks/useApi";
 import { formatDateTime } from "@/lib/format";

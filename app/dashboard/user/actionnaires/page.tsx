@@ -2,14 +2,13 @@
 
 import React, { useState, useCallback, useEffect } from "react";
 import {
-  Briefcase, TrendingUp, ArrowLeft, RefreshCw, DollarSign,
+  Briefcase, TrendingUp, RefreshCw, DollarSign,
   PieChart, Users, Calendar, Building2, Clock, Package,
   BarChart3, LucideIcon, FileText, Star, Target, CheckCircle,
   ThumbsUp, ThumbsDown, Minus, ChevronDown, ChevronUp, AlertCircle,
   Loader2, User, Shield, BookOpen, Download, ArrowUpRight, ArrowDownRight,
   Repeat, Settings2, ExternalLink, TrendingDown, Info, Lock, Globe,
 } from "lucide-react";
-import Link from "next/link";
 import SignOutButton from "@/components/SignOutButton";
 import NotificationBell from "@/components/NotificationBell";
 import MessagesLink from "@/components/MessagesLink";

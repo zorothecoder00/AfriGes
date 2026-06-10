@@ -53,10 +53,6 @@ interface LignesResponse {
   stats: { total: number; enAttente: number; confirmes: number; indisponibles: number; substitues: number };
 }
 
-interface ProduitsResponse {
-  data: ProduitCatalogue[];
-}
-
 // ─── Statut config ────────────────────────────────────────────────────────────
 
 const STATUT_CFG: Record<StatutLigne, { label: string; bg: string; text: string; icon: React.ReactNode }> = {

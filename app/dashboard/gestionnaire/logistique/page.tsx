@@ -5,7 +5,7 @@ import {
   Package, Truck, AlertTriangle, ArrowRightLeft, BarChart3,
   ClipboardList, CheckCircle, XCircle, Clock, RefreshCw, Store,
   TrendingDown, TrendingUp, ChevronLeft, ChevronRight, Search,
-  ExternalLink, Eye, Calendar, User, Layers,
+  ExternalLink, Calendar, User, Layers,
 } from "lucide-react";
 import Link from "next/link";
 import { useApi } from "@/hooks/useApi";

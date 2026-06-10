@@ -4,10 +4,10 @@ import React, { useState, useCallback } from "react";
 import {
   Shield, Users, Settings, Layers, FileText, Activity,
   HardDrive, AlertTriangle, CheckCircle, XCircle, RefreshCw,
-  Search, Download, Eye, EyeOff, Lock, Unlock, LogOut,
+  Search, Download, Eye, Lock, Unlock, LogOut,
   Key, ToggleLeft, ToggleRight, Save, ArrowLeft, Bell,
-  Database, Server, Clock, TrendingUp, Package, Banknote,
-  ChevronRight, UserX, UserCheck, Zap, Filter, X, Info,
+  TrendingUp, Package, Banknote,
+  ChevronRight, UserX, UserCheck, Zap, X, Info,
   ShieldAlert, ShieldCheck, Terminal, Globe, Palette,
   Hash, BarChart3, Wrench,
 } from "lucide-react";

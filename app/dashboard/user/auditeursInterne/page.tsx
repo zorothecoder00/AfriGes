@@ -2,14 +2,13 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import {
-  Shield, Search, ArrowLeft, RefreshCw, AlertTriangle, Activity,
+  Shield, Search, RefreshCw, AlertTriangle, Activity,
   FileText, Package, CreditCard as CreditCardIcon, Users, TrendingUp,
   BarChart3, LucideIcon, ChevronLeft, ChevronRight, Calendar, Truck,
   CheckCircle, XCircle, Clock, Eye, Loader2, Filter, BadgeAlert,
   ShieldAlert, ShieldCheck, Download, Layers, ClipboardList, PenLine,
   AlertOctagon, ArrowUpCircle, ArrowDownCircle, ArrowRightLeft,
 } from "lucide-react";
-import Link from "next/link";
 import SignOutButton from "@/components/SignOutButton";
 import NotificationBell from "@/components/NotificationBell";
 import MessagesLink from "@/components/MessagesLink";
@@ -475,7 +474,7 @@ export default function AuditeurInternePage() {
 
   // ── Ventes Globales ──────────────────────────────────────────────────────────
   const [ventesPeriod, setVentesPeriod]     = useState(30);
-  const [ventesPdvId, setVentesPdvId]       = useState("");
+  const [ventesPdvId] = useState("");
   const [ventesView, setVentesView]         = useState<"global" | "parPdv" | "parVendeur" | "detail">("global");
   const ventesStatsParams = new URLSearchParams({ period: String(ventesPeriod) });
   if (ventesPdvId) ventesStatsParams.set("pdvId", ventesPdvId);
@@ -485,7 +484,7 @@ export default function AuditeurInternePage() {
 
   // ── Caisses ──────────────────────────────────────────────────────────────────
   const [caissesPeriod, setCaissesPeriod]   = useState(30);
-  const [caissesPdvId, setCaissesPdvId]     = useState("");
+  const [caissesPdvId] = useState("");
   const [caissesSubTab, setCaissesSubTab]   = useState<"clotures" | "sessions" | "parPdv">("clotures");
   const caissesParams = new URLSearchParams({ period: String(caissesPeriod) });
   if (caissesPdvId) caissesParams.set("pdvId", caissesPdvId);
@@ -576,11 +575,11 @@ export default function AuditeurInternePage() {
 
   const d = dashboard;
   const score = d?.stats.scoreConformite ?? 100;
-  const scoreColor =
+  const _scoreColor =
     score >= 90 ? "text-emerald-600" :
     score >= 70 ? "text-blue-600" :
     score >= 50 ? "text-amber-600" :
-    "text-red-600";
+    "text-red-600"; void _scoreColor;
   const scoreBg =
     score >= 90 ? "from-emerald-500 to-emerald-600" :
     score >= 70 ? "from-blue-500 to-blue-600" :

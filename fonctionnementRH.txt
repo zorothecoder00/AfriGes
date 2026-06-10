@@ -1,0 +1,261 @@
+Le Module RH d'AfriGes — Vue d'ensemble
+
+  Le module RH couvre tout le cycle de vie d'un employé : recrutement → embauche
+  → onboarding → gestion quotidienne → paie → évolution de carrière → fin de
+  contrat.
+
+  ---
+  1. C'est quoi un "Collaborateur" ?
+
+  Dans AfriGes, un collaborateur est un employé formel de l'entreprise,
+  représenté par un modèle ProfilRH lié à un User système (compte de connexion).
+
+  Chaque collaborateur a :
+  - Identité : date de naissance, nationalité, situation matrimoniale, nb
+  d'enfants
+  - Contrat : type (CDI, CDD, Stage...), date d'embauche, date de fin
+  - Poste : fonction, service, département, niveau hiérarchique
+  - Hiérarchie : un manager (relation avec un autre ProfilRH)
+  - Matricule unique, email professionnel
+
+  ---
+  2. Comment ajouter un collaborateur
+
+  Il y a deux chemins :
+
+  Chemin A — Recrutement (recommandé)
+
+  Recrutement → Créer un poste ouvert → Candidats postulent →
+  Sélection → Candidature passe au statut ACCEPTE →
+  Onboarding créé automatiquement → Collaborateur créé
+
+  Chemin B — Ajout direct
+
+  Via dashboard/admin/rh/collaborateurs → bouton "Nouveau collaborateur" →
+  formulaire avec :
+  - Sélection d'un gestionnaire existant (User du système) ou création d'un
+  nouveau User
+  - Renseignement du profil RH complet
+
+  ---
+  3. Le Recrutement (ATS intégré)
+
+  Page : dashboard/admin/rh/recrutement
+
+  Flux complet :
+  Créer Poste Ouvert (BROUILLON → OUVERT)
+      ↓
+  Candidatures reçues (RECU)
+      ↓
+  PRE_QUALIFICATION → SHORTLISTE → ENTRETIEN → TEST → VALIDATION → OFFRE
+      ↓
+  ACCEPTE → déclenche l'Onboarding automatiquement
+
+  Chaque candidature stocke : CV, lettre de motivation, score, notes
+  d'entretien/test, source (recommandation, site, LinkedIn...).
+
+  ---
+  4. L'Onboarding
+
+  Page : dashboard/admin/rh/onboarding
+
+  Quand un candidat est accepté, un processus d'intégration se crée
+  automatiquement à partir d'un template (liste de tâches prédéfinies) :
+
+  Exemples d'étapes :
+  - Signature de contrat
+  - Remise du matériel
+  - Création des accès systèmes
+  - Formation initiale
+  - Présentation à l'équipe
+
+  Chaque étape a un responsable, une date limite, et un statut (EN_ATTENTE /
+  FAIT / IGNORE). La progression en % est calculée automatiquement.
+
+  ---
+  5. Gestion quotidienne du collaborateur
+
+  Congés (dashboard/admin/rh/conges)
+
+  Workflow à 2 niveaux de validation :
+  Demande → VALIDE_MANAGER → VALIDE_RH → APPROUVE
+                                        ↘ REJETE
+  - Soldes de congés calculés par type (annuel, maladie, maternité...)
+  - Calendrier visuel des absences
+  - Politiques configurables (jours par an, report possible...)
+
+  Présences/Pointages (dashboard/admin/rh/pointages)
+
+  Chaque jour, un enregistrement Pointage capture :
+  - Heure d'arrivée / départ
+  - Statut : PRESENT, ABSENT, RETARD, DEMI_JOURNEE, CONGE, MISSION, FERIE
+  - Calcul automatique : temps total, minutes de retard, heures supplémentaires
+  - Validation par un responsable
+  - Génération de rapports
+
+  Les horaires de référence viennent d'une ConfigHoraire (heure d'arrivée,
+  départ, tolérance retard, jours ouvrés).
+
+  Missions (dashboard/admin/rh/missions)
+
+  Déplacements professionnels avec objectifs, livrables, dates, destination,
+  rapport de retour.
+  CREE → VALIDE → EN_COURS → CLOTURE
+
+  ---
+  6. La Paie (dashboard/admin/rh/paie)
+
+  C'est le module le plus complet. Il a 5 tabs :
+
+  Tab Fiches de Paie
+
+  Workflow :
+  BROUILLON → SOUMETTRE_CONTROLE → CONTROLE → VALIDER (RH) → VALIDE →
+  METTRE_EN_PAIEMENT → EN_PAIEMENT → MARQUER_PAYE → PAYE
+  Chaque fiche contient des composants de salaire :
+  - Salaire de base
+  - Primes (performance, ancienneté, transport, logement...)
+  - Heures supplémentaires
+  - Commissions
+  - Déductions (cotisations, impôts...)
+
+  Tab Avances & Prêts
+
+  - Avances sur salaire : EN_ATTENTE → APPROUVE/REJETE → REMBOURSE
+  - Prêts employés : montant, taux d'intérêt, durée, mensualités → EN_COURS →
+  SOLDE/EN_DEFAUT
+
+  Tab Ordres de Paiement
+
+  Liste de toutes les fiches EN_PAIEMENT → marquage PAYE en masse.
+
+  Tab Configuration
+
+  - Grilles salariales : catégorie × niveau → fourchette min/max
+  - Types de composants : composants personnalisés (prime Ramadan, bonus
+  projet...)
+  - Barèmes de commissions : FIXE, POURCENTAGE, ou PALIER (ex: >100 ventes = 5%)
+
+  Tab Tableau de bord
+
+  - Masse salariale mensuelle totale
+  - Répartition par département
+  - Totaux avances/prêts en cours
+
+  Bulletin imprimable
+
+  dashboard/admin/rh/paie/[id]/bulletin → page CSS @media print pour générer un
+  vrai bulletin de salaire.
+
+  ---
+  7. Développement & Performance
+
+  Compétences (dashboard/admin/rh/competences)
+
+  - Catalogue de compétences HARD_SKILL / SOFT_SKILL
+  - Affectation par collaborateur avec niveau : DEBUTANT → INTERMEDIAIRE →
+  AVANCE → EXPERT
+  - Vue Matrice de compétences (qui sait faire quoi)
+
+  Formations (dashboard/admin/rh/formations)
+
+  - Programmes INTERNE / EXTERNE / ELEARNING
+  - Suivi des participations + notes + certifications
+  - Statistiques de budget formation
+
+  Évaluations (dashboard/admin/rh/evaluations)
+
+  3 types : hiérarchique, auto-évaluation, 360°
+
+  Workflow :
+  BROUILLON → OBJECTIFS_FIXES → EN_COURS → EVALUATION →
+  VALIDATION → PLAN_AMELIORATION → CLOTURE
+  - Critères notés /5
+  - KPIs avec cible vs atteint
+  - Plan d'amélioration intégré
+
+  Carrières (dashboard/admin/rh/carrieres)
+
+  - Historique de postes : chaque promotion/mutation enregistrée (avant/après)
+  - Plan de carrière individuel : aspiration, prochain poste visé, actions à
+  mener
+  - Postes critiques : liste des postes stratégiques de l'entreprise
+  - Successeurs potentiels : PRET_MAINTENANT / sous 1 an / 1-3 ans /
+  EN_DEVELOPPEMENT
+
+  ---
+  8. Avantages & Frais
+
+  Avantages (dashboard/admin/rh/avantages)
+
+  Allocation mensuelle par type : transport, logement, téléphone, repas,
+  véhicule, assurance... avec dates de début/fin.
+
+  Remboursements de frais
+
+  Défraiement des dépenses professionnelles (déplacement, repas, hébergement...)
+  avec justificatifs → EN_ATTENTE → APPROUVE → PAYE.
+
+  ---
+  9. Procédures Disciplinaires (dashboard/admin/rh/disciplinaire)
+
+  Gestion formelle des incidents : avertissement, blâme, mise à pied,
+  licenciement.
+  - Date incident, faits reprochés, date convocation
+  - Réponse du collaborateur
+  - Décision finale + durée de suspension si applicable
+
+  ---
+  10. Documents RH (dashboard/admin/rh/documents-rh)
+
+  Génération automatique de documents PDF :
+  - Attestation de travail
+  - Certificat de présence
+  - Décision d'affectation
+  - Lettre de mission
+
+  ---
+  11. Organigramme (dashboard/admin/rh/organigramme)
+
+  Visualisation de la hiérarchie basée sur les relations managerId entre
+  ProfilRH. L'historique des changements organisationnels est tracé.
+
+  ---
+  12. Vue RESPONSABLE_RH (dashboard/user/responsablesRH)
+
+  Le RESPONSABLE_RH a une vue restreinte à son périmètre (son PDV) :
+
+  ┌─────────────┬─────────────────────────────────────────────────┐
+  │    Page     │               Ce qu'il peut faire               │
+  ├─────────────┼─────────────────────────────────────────────────┤
+  │ Dashboard   │ Voir les stats de son équipe                    │
+  ├─────────────┼─────────────────────────────────────────────────┤
+  │ Paie        │ SOUMETTRE_CONTROLE, VALIDER, REFUSER les fiches │
+  ├─────────────┼─────────────────────────────────────────────────┤
+  │ Audit       │ Voir les logs de son périmètre                  │
+  ├─────────────┼─────────────────────────────────────────────────┤
+  │ Préférences │ Configurer ses notifications                    │
+  └─────────────┴─────────────────────────────────────────────────┘
+
+  ---
+  Résumé du flux complet
+
+  RECRUTEMENT → Candidat ACCEPTE
+        ↓
+  ONBOARDING → tâches d'intégration
+        ↓
+  COLLABORATEUR actif → Pointages quotidiens
+                      → Demandes de congés
+                      → Missions
+                      → Formations
+                      → Évaluations annuelles
+                      → Plan de carrière
+        ↓
+  PAIE mensuelle → Bulletin imprimable → Paiement
+        ↓
+  (si besoin) DISCIPLINAIRE / AVANTAGES / REMBOURSEMENTS
+        ↓
+  Fin contrat → Historique conservé
+
+  Le module est complet et enterprise-grade — tout est tracé, tout a un workflow
+  d'approbation, et les données sont auditables.
