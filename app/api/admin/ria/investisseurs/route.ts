@@ -128,7 +128,7 @@ export async function POST(req: NextRequest) {
       return { user, gestionnaire, profil, portefeuille };
     });
 
-    return NextResponse.json({ data: result }, { status: 201 });
+    return NextResponse.json({ data: { ...result, tmpPassword } }, { status: 201 });
   } catch (error) {
     console.error("POST /api/admin/ria/investisseurs", error);
     return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });

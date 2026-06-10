@@ -6,7 +6,7 @@ import { useMutation } from "@/hooks/useApi";
 import { toast } from "sonner";
 import {
   Plus, Search, RefreshCw, User, Phone, Mail, ChevronRight,
-  Wallet, TrendingUp, CheckCircle, XCircle,
+  Wallet, TrendingUp, CheckCircle, XCircle, Copy, KeyRound,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -39,9 +39,10 @@ function CreateModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
     profession: "", pays: "", notes: "",
     avecPortefeuille: true, nomPortefeuille: "Portefeuille Principal",
   });
+  const [credentials, setCredentials] = useState<{ email: string; password: string } | null>(null);
 
   const set = (k: string, v: string | boolean) => setForm((p) => ({ ...p, [k]: v }));
-  const mutation = useMutation<{ data: unknown }, typeof form>("/api/admin/ria/investisseurs", "POST");
+  const mutation = useMutation<{ tmpPassword: string }, typeof form>("/api/admin/ria/investisseurs", "POST");
 
   const submit = async () => {
     if (!form.nom || !form.prenom || !form.email) {
@@ -49,9 +50,71 @@ function CreateModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
       return;
     }
     const res = await mutation.mutate(form);
-    if (res) { toast.success("Investisseur créé avec succès"); onSuccess(); onClose(); }
-    else toast.error(mutation.error ?? "Erreur lors de la création");
+    if (res) {
+      toast.success("Investisseur créé avec succès");
+      onSuccess();
+      setCredentials({ email: form.email, password: res.tmpPassword });
+    } else {
+      toast.error(mutation.error ?? "Erreur lors de la création");
+    }
   };
+
+  const copy = (text: string) => {
+    navigator.clipboard.writeText(text);
+    toast.success("Copié !");
+  };
+
+  // ── Écran de succès avec credentials ──
+  if (credentials) {
+    return (
+      <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+        <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 space-y-5">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-emerald-50 rounded-xl"><KeyRound className="w-5 h-5 text-emerald-600" /></div>
+            <div>
+              <h2 className="text-lg font-bold text-slate-900">Investisseur créé !</h2>
+              <p className="text-sm text-slate-500">Transmettez ces identifiants à l&apos;investisseur</p>
+            </div>
+          </div>
+
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 space-y-3">
+            <p className="text-xs font-semibold text-amber-700 uppercase tracking-wider">Identifiants de connexion</p>
+            <div className="flex items-center justify-between gap-2">
+              <div>
+                <p className="text-xs text-slate-400">Email</p>
+                <p className="font-medium text-slate-900">{credentials.email}</p>
+              </div>
+              <button onClick={() => copy(credentials.email)} className="p-1.5 text-slate-400 hover:text-slate-600">
+                <Copy className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="flex items-center justify-between gap-2">
+              <div>
+                <p className="text-xs text-slate-400">Mot de passe temporaire</p>
+                <p className="font-mono font-bold text-slate-900 text-lg tracking-widest">{credentials.password}</p>
+              </div>
+              <button onClick={() => copy(credentials.password)} className="p-1.5 text-slate-400 hover:text-slate-600">
+                <Copy className="w-4 h-4" />
+              </button>
+            </div>
+            <p className="text-xs text-amber-600">
+              L&apos;investisseur devra changer son mot de passe à la première connexion.
+            </p>
+          </div>
+
+          <button onClick={() => copy(`Email : ${credentials.email}\nMot de passe : ${credentials.password}`)}
+            className="w-full flex items-center justify-center gap-2 px-4 py-2 border border-slate-200 rounded-lg text-sm text-slate-600 hover:bg-slate-50">
+            <Copy className="w-4 h-4" /> Copier les deux informations
+          </button>
+
+          <button onClick={onClose}
+            className="w-full px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700">
+            Fermer
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
