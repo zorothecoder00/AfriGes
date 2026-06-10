@@ -7,6 +7,7 @@ import {
   Star, AlertTriangle, Calendar, Briefcase, RefreshCw, Bell,
   ArrowRight, ChevronRight, CheckCircle2, Building2,
   FileWarning, GraduationCap, FileText, Target, ShieldCheck, MessageSquare, DollarSign, ClipboardList,
+  MapPin,
 } from "lucide-react";
 import { useApi } from "@/hooks/useApi";
 
@@ -157,7 +158,7 @@ export default function DashboardRHPage() {
               <div className="flex gap-3 flex-wrap">
                 {d.alertes.congesEnAttente > 0 && (
                   <Link
-                    href="/dashboard/admin/rh/conges"
+                    href="/dashboard/user/responsablesRH/conges"
                     className="flex items-center gap-2 px-4 py-2.5 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-800 hover:bg-amber-100 transition-all"
                   >
                     <Calendar className="w-4 h-4 text-amber-600" />
@@ -167,7 +168,7 @@ export default function DashboardRHPage() {
                 )}
                 {d.alertes.cddExpirant > 0 && (
                   <Link
-                    href="/dashboard/admin/rh/collaborateurs?typeContrat=CDD"
+                    href="/dashboard/user/responsablesRH/collaborateurs?typeContrat=CDD"
                     className="flex items-center gap-2 px-4 py-2.5 bg-red-50 border border-red-200 rounded-xl text-sm text-red-800 hover:bg-red-100 transition-all"
                   >
                     <AlertTriangle className="w-4 h-4 text-red-600" />
@@ -181,7 +182,7 @@ export default function DashboardRHPage() {
             {/* ══════════════════════════════════════════════════════════
                 SECTION 1 — EFFECTIF
             ══════════════════════════════════════════════════════════ */}
-            <Section title="Effectif" icon={<Users size={16} />} href="/dashboard/admin/rh/collaborateurs">
+            <Section title="Effectif" icon={<Users size={16} />} href="/dashboard/user/responsablesRH/collaborateurs">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
 
                 {/* Total & statuts */}
@@ -265,7 +266,7 @@ export default function DashboardRHPage() {
             {/* ══════════════════════════════════════════════════════════
                 SECTION 2 — PRÉSENCE
             ══════════════════════════════════════════════════════════ */}
-            <Section title="Présence" icon={<CheckCircle2 size={16} />} href="/dashboard/admin/rh/pointages">
+            <Section title="Présence" icon={<CheckCircle2 size={16} />} href="/dashboard/user/responsablesRH/pointages">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
 
                 {/* KPIs today */}
@@ -352,7 +353,7 @@ export default function DashboardRHPage() {
             {/* ══════════════════════════════════════════════════════════
                 SECTION 3 — RECRUTEMENT
             ══════════════════════════════════════════════════════════ */}
-            <Section title="Recrutement" icon={<UserCheck size={16} />} href="/dashboard/admin/rh/recrutement">
+            <Section title="Recrutement" icon={<UserCheck size={16} />} href="/dashboard/user/responsablesRH/recrutement">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
 
                 {/* KPIs recrutement */}
@@ -362,21 +363,21 @@ export default function DashboardRHPage() {
                     label="Postes ouverts"
                     value={d.recrutement.postesOuverts}
                     color="text-indigo-600 bg-indigo-50"
-                    href="/dashboard/admin/rh/recrutement?statut=OUVERT"
+                    href="/dashboard/user/responsablesRH/recrutement?statut=OUVERT"
                   />
                   <KpiCard
                     icon={<Target className="w-5 h-5" />}
                     label="Recrutements en cours"
                     value={d.recrutement.postesEnCours}
                     color="text-blue-600 bg-blue-50"
-                    href="/dashboard/admin/rh/recrutement?statut=EN_COURS"
+                    href="/dashboard/user/responsablesRH/recrutement?statut=EN_COURS"
                   />
                   <KpiCard
                     icon={<Users className="w-5 h-5" />}
                     label="Candidatures actives"
                     value={d.recrutement.candidaturesActives}
                     color="text-teal-600 bg-teal-50"
-                    href="/dashboard/admin/rh/recrutement"
+                    href="/dashboard/user/responsablesRH/recrutement"
                   />
                 </div>
 
@@ -384,7 +385,7 @@ export default function DashboardRHPage() {
                 <div className="md:col-span-2 bg-white rounded-2xl border border-slate-200 overflow-hidden">
                   <div className="px-5 py-3.5 border-b border-slate-100 flex items-center justify-between">
                     <p className="text-sm font-semibold text-slate-700">Postes actifs récents</p>
-                    <Link href="/dashboard/admin/rh/recrutement" className="text-xs text-emerald-600 hover:underline flex items-center gap-1">
+                    <Link href="/dashboard/user/responsablesRH/recrutement" className="text-xs text-emerald-600 hover:underline flex items-center gap-1">
                       Voir tout <ArrowRight className="w-3 h-3" />
                     </Link>
                   </div>
@@ -497,17 +498,18 @@ export default function DashboardRHPage() {
               <h3 className="text-sm font-semibold text-slate-700 mb-4">Accès rapide</h3>
               <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-2">
                 {[
-                  { href: "/dashboard/admin/rh/collaborateurs",    icon: <Users size={15} />,         label: "Collaborateurs"  },
-                  { href: "/dashboard/admin/rh/pointages",       icon: <CheckCircle2 size={15} />,  label: "Pointages"       },
-                  { href: "/dashboard/admin/rh/conges",          icon: <Calendar size={15} />,      label: "Congés"          },
-                  { href: "/dashboard/admin/rh/recrutement",     icon: <UserCheck size={15} />,     label: "Recrutement"     },
-                  { href: "/dashboard/admin/rh/evaluations",     icon: <Star size={15} />,          label: "Évaluations"     },
-                  { href: "/dashboard/admin/rh/formations",      icon: <GraduationCap size={15} />, label: "Formations"      },
-                  { href: "/dashboard/admin/rh/documents-rh",    icon: <FileText size={15} />,      label: "Documents RH"    },
-                  { href: "/dashboard/admin/rh/organigramme",    icon: <Building2 size={15} />,     label: "Organigramme"    },
-                  { href: "/dashboard/admin/rh/disciplinaire",   icon: <FileWarning size={15} />,   label: "Disciplinaire"   },
-                  { href: "/dashboard/user/responsablesRH/paie",        icon: <DollarSign    size={15} />, label: "Paie"        },
-                  { href: "/dashboard/user/responsablesRH/onboarding", icon: <ClipboardList size={15} />, label: "Onboarding" },
+                  { href: "/dashboard/user/responsablesRH/collaborateurs", icon: <Users size={15} />, label: "Collaborateurs" },
+                  { href: "/dashboard/user/responsablesRH/pointages",  icon: <CheckCircle2  size={15} />, label: "Pointages"   },
+                  { href: "/dashboard/user/responsablesRH/conges",    icon: <Calendar      size={15} />, label: "Congés"      },
+                  { href: "/dashboard/user/responsablesRH/missions",  icon: <MapPin        size={15} />, label: "Missions"    },
+                  { href: "/dashboard/user/responsablesRH/recrutement", icon: <UserCheck   size={15} />, label: "Recrutement" },
+                  { href: "/dashboard/admin/rh/evaluations",          icon: <Star          size={15} />, label: "Évaluations" },
+                  { href: "/dashboard/admin/rh/formations",           icon: <GraduationCap size={15} />, label: "Formations"  },
+                  { href: "/dashboard/admin/rh/documents-rh",         icon: <FileText      size={15} />, label: "Documents RH"},
+                  { href: "/dashboard/admin/rh/organigramme",         icon: <Building2     size={15} />, label: "Organigramme"},
+                  { href: "/dashboard/admin/rh/disciplinaire",        icon: <FileWarning   size={15} />, label: "Disciplinaire"},
+                  { href: "/dashboard/user/responsablesRH/paie",      icon: <DollarSign    size={15} />, label: "Paie"        },
+                  { href: "/dashboard/user/responsablesRH/onboarding",icon: <ClipboardList size={15} />, label: "Onboarding"  },
                 ].map(({ href, icon, label }) => (
                   <Link
                     key={href}
@@ -597,7 +599,7 @@ function PerfList({ title, icon, items, emptyMsg, emptyIcon }: {
           {items.map((c) => (
             <Link
               key={c.id}
-              href={`/dashboard/admin/rh/collaborateurs/${c.id}`}
+              href={`/dashboard/user/responsablesRH/collaborateurs/${c.id}`}
               className="flex items-center gap-3 px-5 py-3 hover:bg-slate-50 group"
             >
               <div className="w-8 h-8 rounded-full bg-emerald-500 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">

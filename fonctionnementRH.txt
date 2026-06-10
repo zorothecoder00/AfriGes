@@ -102,8 +102,12 @@ Le Module RH d'AfriGes — Vue d'ensemble
   rapport de retour.
   CREE → VALIDE → EN_COURS → CLOTURE
 
+                          DEJA FAIT
+
+
+
   ---
-  6. La Paie (dashboard/admin/rh/paie)
+  6. La Paie (dashboard/admin/rh/paie ET dashboard/user/responsablesRH)
 
   C'est le module le plus complet. Il a 5 tabs :
 

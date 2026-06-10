@@ -7,6 +7,7 @@ import {
   Activity, AlertTriangle, CheckCircle, XCircle, Wallet, BarChart2, Truck, RefreshCw,
   Calendar, CreditCard, TrendingDown, DollarSign, Clock, Award, Percent, ClipboardCheck,
   UserCog, Banknote, GraduationCap, CalendarDays, MapPin, Star, Building2, Gift, FileWarning,
+  Settings, Network,
 } from 'lucide-react';      
 import Link from "next/link";     
 import { useSession } from 'next-auth/react';
@@ -352,6 +353,19 @@ export default function AfriGesDashboard() {
                 <Link href="/dashboard/admin/rh/recrutement"    className="w-full flex items-center gap-3 px-4 py-2.5 pl-10 text-slate-500 hover:bg-slate-50 rounded-xl transition-all text-sm"><UserCheck size={16} /><span>Recrutement</span></Link>
                 <Link href="/dashboard/admin/rh/disciplinaire"  className="w-full flex items-center gap-3 px-4 py-2.5 pl-10 text-slate-500 hover:bg-slate-50 rounded-xl transition-all text-sm"><FileWarning size={16} /><span>Disciplinaire</span></Link>
                 <Link href="/dashboard/admin/rh/organigramme"   className="w-full flex items-center gap-3 px-4 py-2.5 pl-10 text-slate-500 hover:bg-slate-50 rounded-xl transition-all text-sm"><Building2 size={16} /><span>Organigramme</span></Link>
+              </nav>
+            </div>
+            {/* RIA — Réseau des Investisseurs AfriSime */}
+            <div className="p-4 border-b border-slate-100">
+              <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">RIA — Investisseurs</h3>
+              <nav className="space-y-1">
+                <Link href="/dashboard/admin/ria"                 className="w-full flex items-center gap-3 px-4 py-2.5 text-slate-600 hover:bg-slate-50 rounded-xl transition-all font-medium"><Network size={18} /><span>Dashboard RIA</span></Link>
+                <Link href="/dashboard/admin/ria/investisseurs"   className="w-full flex items-center gap-3 px-4 py-2.5 pl-10 text-slate-500 hover:bg-slate-50 rounded-xl transition-all text-sm"><Users size={16} /><span>Investisseurs</span></Link>
+                <Link href="/dashboard/admin/ria/fonds"           className="w-full flex items-center gap-3 px-4 py-2.5 pl-10 text-slate-500 hover:bg-slate-50 rounded-xl transition-all text-sm"><Wallet size={16} /><span>Fonds — Dépôts &amp; Retraits</span></Link>
+                <Link href="/dashboard/admin/ria/financements"    className="w-full flex items-center gap-3 px-4 py-2.5 pl-10 text-slate-500 hover:bg-slate-50 rounded-xl transition-all text-sm"><Activity size={16} /><span>Financements</span></Link>
+                <Link href="/dashboard/admin/ria/affectations"    className="w-full flex items-center gap-3 px-4 py-2.5 pl-10 text-slate-500 hover:bg-slate-50 rounded-xl transition-all text-sm"><UserCheck size={16} /><span>Affectations clients</span></Link>
+                <Link href="/dashboard/admin/ria/distributions"   className="w-full flex items-center gap-3 px-4 py-2.5 pl-10 text-slate-500 hover:bg-slate-50 rounded-xl transition-all text-sm"><DollarSign size={16} /><span>Distributions</span></Link>
+                <Link href="/dashboard/admin/ria/config"          className="w-full flex items-center gap-3 px-4 py-2.5 pl-10 text-slate-500 hover:bg-slate-50 rounded-xl transition-all text-sm"><Settings size={16} /><span>Configuration</span></Link>
               </nav>
             </div>
             {/* Visible pour ADMIN et SUPER_ADMIN */}

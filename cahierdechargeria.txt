@@ -1,0 +1,306 @@
+ PLAN D'IMPLÉMENTATION — MODULE RIA
+
+  ---
+  I. CE QUI EXISTE DÉJÀ (à réutiliser, ne pas recréer)
+
+  ┌────────────────────────────────────┬────────────────────────────────────┐
+  │      Existant dans le schéma       │           Rôle dans RIA            │
+  ├────────────────────────────────────┼────────────────────────────────────┤
+  │ Client.segment = RIA               │ Déjà prévu — segmente les clients  │
+  │                                    │ du réseau                          │
+  ├────────────────────────────────────┼────────────────────────────────────┤
+  │ Client.niveauRisque +              │ Scoring déjà structuré, RIA        │
+  │ scoreSolvabilite                   │ l'enrichit                         │
+  ├────────────────────────────────────┼────────────────────────────────────┤
+  │ ClientScoreHistorique              │ Historique scoring — RIA y ajoute  │
+  │                                    │ ses calculs                        │
+  ├────────────────────────────────────┼────────────────────────────────────┤
+  │ CreditClient + EcheanceCredit      │ Source des opérations de           │
+  │                                    │ financement                        │
+  ├────────────────────────────────────┼────────────────────────────────────┤
+  │ RemboursementCredit (statut        │ Déclencheur du remboursement       │
+  │ CONFIRME)                          │ portefeuille                       │
+  ├────────────────────────────────────┼────────────────────────────────────┤
+  │ CollecteJournaliere                │ Alimente le recouvrement RIA       │
+  ├────────────────────────────────────┼────────────────────────────────────┤
+  │ EcritureComptable                  │ Écritures automatiques             │
+  │                                    │ comptabilité                       │
+  ├────────────────────────────────────┼────────────────────────────────────┤
+  │ NiveauRisque                       │ Mapping A/B/C/D dans l'UI — on     │
+  │ (FAIBLE/MOYEN/ELEVE/CRITIQUE)      │ ajoute ClasseRisqueRIA enum dédié  │
+  ├────────────────────────────────────┼────────────────────────────────────┤
+  │ RoleGestionnaire                   │ Ajouter RESPONSABLE_RIA            │
+  └────────────────────────────────────┴────────────────────────────────────┘
+
+  ---
+  II. SCHÉMA PRISMA — CE QU'ON AJOUTE
+
+  2.1 Nouveaux enums
+
+  enum StatutInvestisseur    { ACTIF, INACTIF, SUSPENDU, EN_ATTENTE }
+  enum StatutDepotRIA        { EN_ATTENTE, VALIDE, REJETE }
+  enum StatutRetraitRIA      { EN_ATTENTE, VALIDE, PAYE, REJETE }
+  enum StatutFinancementRIA  { ACTIF, REMBOURSE, EN_RETARD, DEFAUT, ANNULE }
+  enum StatutDistributionRIA { PLANIFIE, EN_ATTENTE_PAIEMENT, DISTRIBUE,
+  REINVESTI }
+  enum ClasseRisqueRIA       { A, B, C, D, E }  // A=excellent, E=défaillant
+
+  enum TypeMouvementRIA {
+    DEPOT
+    RETRAIT
+    FINANCEMENT_CLIENT   // capital engagé dans un crédit
+    REMBOURSEMENT_CLIENT // retour depuis le recouvrement
+    BENEFICE_GENERE      // 10%/mois calculé
+    BENEFICE_DISTRIBUE   // 4% versé investisseur
+    BENEFICE_REINVESTI   // 4% réinjecté capital
+    FOND_SECURITE        // 2% réserve
+    AJUSTEMENT           // correction manuelle
+  }
+
+  2.2 Nouveaux modèles (10 modèles)
+
+  Investisseur                 — fiche investisseur (≠ User)
+  PortefeuilleRIA              — portfolio par investisseur
+  AffectationClientRIA         — portefeuille ↔ client + pourcentage
+  DepotInvestisseur            — entrées de capital
+  RetraitInvestisseur          — demandes de retrait
+  MouvementFondsRIA            — journal financier complet
+  OperationFinancementRIA      — lien portefeuille ↔ CreditClient
+  RemboursementRIA             — remboursement affecté au portefeuille
+  DistributionBenefice         — calcul mensuel 10% → 4%+4%+2%
+  ConfigBeneficeRIA            — taux configurables
+  DocumentInvestisseur         — contrats, conventions, relevés
+  RapportMensuelRIA            — snapshot JSON du rapport mensuel
+
+  2.3 Ajouts sur modèles existants
+
+  // RoleGestionnaire — ajouter :
+  RESPONSABLE_RIA
+
+  // CreditClient — ajouter backlink :
+  financementsRIA  OperationFinancementRIA[]
+
+  // Client — ajouter backlinks :
+  affectationsRIA  AffectationClientRIA[]
+  financementsRIA  OperationFinancementRIA[]
+
+  // User — ajouter :
+  investisseurRIA  Investisseur?   // pour espace investisseur futur (nullable)
+
+  2.4 Structure clé de PortefeuilleRIA
+
+  model PortefeuilleRIA {
+    capitalInvesti    Decimal  // total dépôts validés
+    capitalDisponible Decimal  // libre = investi - engagé
+    capitalEngage     Decimal  // dans financements actifs
+    capitalRecouvre   Decimal  // remboursements reçus
+    capitalBloque     Decimal  // gelé (litige/défaut)
+
+    beneficesGeneres    Decimal  // cumulé 10%
+    beneficesDistribues Decimal  // cumulé 4% versés
+    beneficesReinvestis Decimal  // cumulé 4% réinjectés
+    fondSecurite        Decimal  // cumulé 2%
+  }
+
+  ---
+  III. ARCHITECTURE APIs
+
+  /api/admin/ria/
+  ├── dashboard/                  GET — KPIs temps réel complets
+  │
+  ├── investisseurs/              GET (liste, filtre, pagination) | POST
+  │   └── [id]/
+  │       ├── route.ts            GET fiche complète | PATCH
+  │       ├── portefeuilles/      GET | POST
+  │       └── documents/          GET | POST
+  │
+  ├── fonds/
+  │   ├── depots/                 GET | POST
+  │   │   └── [id]/               PATCH { action: VALIDER | REJETER }
+  │   ├── retraits/               GET | POST
+  │   │   └── [id]/               PATCH { action: VALIDER | PAYER | REJETER }
+  │   └── mouvements/             GET journal complet (filtre
+  type/date/investisseur)
+  │
+  ├── portefeuilles/              GET (tous, avec stats) | POST
+  │   └── [id]/
+  │       ├── route.ts            GET détail | PATCH
+  │       └── affectations/       GET | POST | DELETE [clientId]
+  │
+  ├── financement/                GET (liste ops) | POST (manuel)
+  │   └── [id]/                   GET détail | PATCH statut
+  │
+  ├── recouvrement/               GET (stats recouvrement par
+  portefeuille/client)
+  │
+  ├── benefices/
+  │   ├── calcul/                 POST (déclencher le calcul mensuel)
+  │   └── distributions/          GET | PATCH { action: DISTRIBUER | REINVESTIR
+  }
+  │
+  ├── scoring/                    GET (clients RIA + score) | POST (recalculer)
+  ├── risques/                    GET (analyse risques portefeuilles)
+  │
+  ├── reporting/
+  │   ├── mensuel/                GET liste | POST (générer rapport mois/année)
+  │   └── [id]/                   GET rapport détaillé (imprimable)
+  │
+  ├── commissions/                GET (agents, chef agence...) | POST (calculer)
+  ├── bi/                         GET (top 10, prévisions, KPIs stratégiques)
+  └── config/                     GET | PATCH (taux bénéfices)
+
+  ---
+  IV. ARCHITECTURE PAGES
+
+  dashboard/admin/ria/
+  ├── page.tsx                    Tableau de bord RIA — 15+ KPIs temps réel
+  │
+  ├── investisseurs/
+  │   ├── page.tsx                Liste + stats + modal création
+  │   └── [id]/page.tsx           Fiche complète (infos, portefeuilles, docs,
+  mouvements)
+  │
+  ├── fonds/page.tsx              3 tabs : Dépôts | Retraits | Journal des
+  mouvements
+  │
+  ├── portefeuilles/
+  │   ├── page.tsx                Tous les portefeuilles (valeur, rendement,
+  risque)
+  │   └── [id]/page.tsx           Détail + affectations clients (graph %
+  circulaire)
+  │
+  ├── financement/page.tsx        Opérations de financement (filtres
+  crédit/vente/statut)
+  ├── recouvrement/page.tsx       Suivi recouvrement (encours, échues, impayés)
+  ├── benefices/page.tsx          Calcul mensuel + distribution +
+  réinvestissement
+  ├── scoring/page.tsx            Scoring clients RIA (liste A→E, filtres)
+  ├── reporting/
+  │   ├── page.tsx                Rapports mensuels par investisseur
+  │   └── [id]/bulletin/page.tsx  Rapport imprimable (même pattern bulletin
+  paie)
+  ├── commissions/page.tsx        Commissions agents par période
+  ├── bi/page.tsx                 BI avancée (top 10, prévisions trésorerie)
+  └── config/page.tsx             Configuration taux + paramètres
+
+  ---
+  V. INTÉGRATIONS INTER-MODULES (les hooks critiques)
+
+  Hook 1 — CreditClient VALIDE → Financement RIA
+
+  Fichier : app/api/admin/credits/[id]/valider/route.ts
+  À la validation d'un crédit :
+    → client.affectationsRIA (actives)
+    → Pour chaque affectation :
+        montantPart = credit.montantTotal × (affectation.pourcentage / 100)
+        → créer OperationFinancementRIA
+        → portefeuille.capitalDisponible -= montantPart
+        → portefeuille.capitalEngage     += montantPart
+        → créer MouvementFondsRIA (FINANCEMENT_CLIENT, DEBIT)
+    → Tout dans prisma.$transaction
+
+  Hook 2 — RemboursementCredit CONFIRME → Remboursement RIA
+
+  Fichier : endpoint de confirmation caissier
+  À la confirmation d'un remboursement :
+    → credit.financementsRIA (ACTIF ou EN_RETARD)
+    → Pour chaque OperationFinancementRIA :
+        part = remboursement.montant × (financement.montantFinance /
+  credit.montantTotal)
+        → créer RemboursementRIA
+        → financement.montantRembourse += part
+        → financement.encours          -= part
+        → portefeuille.capitalRecouvre += part
+        → portefeuille.capitalEngage   -= part
+        → créer MouvementFondsRIA (REMBOURSEMENT_CLIENT, CREDIT)
+    → Tout dans prisma.$transaction
+
+  Hook 3 — Distribution bénéfices (manuel, fin de mois)
+
+  Admin clique "Calculer bénéfices — Mois M / Année A"
+    → Pour chaque PortefeuilleRIA actif :
+        base = capitalEngage
+        genere    = base × (config.tauxGenere / 100)
+        distribue = base × (config.tauxDistribue / 100)
+        reinvesti = base × (config.tauxReinvesti / 100)
+        securite  = base × (config.tauxFondSecurite / 100)
+        → créer DistributionBenefice
+        → portefeuille.beneficesGeneres += genere
+        → créer MouvementFondsRIA x4 (BENEFICE_GENERE, BENEFICE_DISTRIBUE, etc.)
+
+  ---
+  VI. PHASES D'IMPLÉMENTATION
+
+  Phase 1 — Fondations (schéma + CRUD de base)
+
+  - Prisma : tous les modèles + enums + migration
+  - API + page : CRUD Investisseurs, CRUD Portefeuilles
+  - API + page Fonds : dépôts, retraits, journal des mouvements
+  - Dashboard RIA minimal (chiffres, pas encore de hooks inter-modules)
+
+  Phase 2 — Affectations et financement
+
+  - Page portefeuilles/[id] avec gestion des affectations (% par client)
+  - Hook CreditClient → OperationFinancementRIA
+  - API + page Financement (liste, statuts)
+  - Dashboard RIA enrichi (capital engagé, encours)
+
+  Phase 3 — Recouvrement et scoring
+
+  - Hook RemboursementCredit → RemboursementRIA
+  - Page Recouvrement RIA (suivi par portefeuille)
+  - Algorithme scoring A→E automatique
+  - Alertes retards (3/7/15/30 jours)
+
+  Phase 4 — Bénéfices et reporting
+
+  - Config taux (page + API)
+  - Calcul mensuel bénéfices (trigger manuel)
+  - Rapports mensuels investisseurs imprimables
+  - Commissions agents
+
+  Phase 5 — BI + comptabilité + espace investisseur
+
+  - Intégration écritures comptables automatiques
+  - Page BI (top 10, prévisions trésorerie 30/60/90/180/360j)
+  - Routes /api/investisseur/ préparées (non exposées — architecture seulement)
+  - Documents générés (contrat, attestation, relevé)
+
+  ---
+  VII. POINTS DÉLICATS À ANTICIPER
+
+  ┌─────┬───────────────────────┬───────────────────────────────────────────┐
+  │  #  │        Risque         │                 Solution                  │
+  ├─────┼───────────────────────┼───────────────────────────────────────────┤
+  │     │                       │ Autorisé — le reste reste                 │
+  │ 1   │ Somme des % < 100%    │ capitalDisponible. Avertissement UI si >  │
+  │     │                       │ 100%                                      │
+  ├─────┼───────────────────────┼───────────────────────────────────────────┤
+  │     │ Un client financé par │ OK — une OperationFinancementRIA par      │
+  │ 2   │  plusieurs            │ portefeuille, indépendantes               │
+  │     │ portefeuilles         │                                           │
+  ├─────┼───────────────────────┼───────────────────────────────────────────┤
+  │     │ Cohérence des         │ Toutes les mises à jour dans              │
+  │ 3   │ capitaux portefeuille │ prisma.$transaction — jamais de mise à    │
+  │     │                       │ jour partielle                            │
+  ├─────┼───────────────────────┼───────────────────────────────────────────┤
+  │ 4   │ Performance dashboard │ groupBy + index composites + pas de N+1.  │
+  │     │                       │ Calculs agrégés côté DB                   │
+  ├─────┼───────────────────────┼───────────────────────────────────────────┤
+  │ 5   │ Taux 10%/mois très    │ Paramétrable via ConfigBeneficeRIA — ne   │
+  │     │ élevé                 │ pas hardcoder                             │
+  ├─────┼───────────────────────┼───────────────────────────────────────────┤
+  │ 6   │ Espace investisseur   │ Investisseur.userId nullable dès Phase 1  │
+  │     │ (futur)               │ — évite migration future                  │
+  ├─────┼───────────────────────┼───────────────────────────────────────────┤
+  │ 7   │ Rapport PDF           │ Pattern identique au bulletin de paie     │
+  │     │                       │ (@media print + window.print())           │
+  ├─────┼───────────────────────┼───────────────────────────────────────────┤
+  │     │                       │ Intégration Phase 5 seulement — Phase 1-4 │
+  │ 8   │ Écritures comptables  │  : créer les mouvements RIA sans écriture │
+  │     │                       │  compta                                   │
+  └─────┴───────────────────────┴───────────────────────────────────────────┘
+
+  ---
+  Ce plan est le référentiel. On suit les phases dans l'ordre. On commence par
+  la Phase 1 quand tu dis go.

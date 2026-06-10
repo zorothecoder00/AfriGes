@@ -1,6 +1,78 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getRHSession } from "@/lib/authRH";
+import { TypeComposantSalaire } from "@prisma/client";
+
+/**
+ * POST /api/responsableRH/paie
+ * Crée une fiche en BROUILLON pour un collaborateur du PDV du RH
+ */
+export async function POST(req: NextRequest) {
+  try {
+    const session = await getRHSession();
+    if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
+
+    const isAdmin = ["ADMIN", "SUPER_ADMIN"].includes(session.user.role ?? "");
+    const { profilRHId, mois, annee, salaireBase = 0, composants = [], notes } = await req.json();
+
+    if (!profilRHId || !mois || !annee) {
+      return NextResponse.json({ error: "profilRHId, mois et annee sont obligatoires" }, { status: 400 });
+    }
+
+    if (!isAdmin) {
+      const meId = parseInt(session.user.id);
+      const affectation = await prisma.gestionnaireAffectation.findFirst({
+        where:  { userId: meId, actif: true },
+        select: { pointDeVenteId: true },
+      });
+      if (affectation) {
+        const pdvUsers = await prisma.gestionnaireAffectation.findMany({
+          where:  { pointDeVenteId: affectation.pointDeVenteId, actif: true },
+          select: { userId: true },
+        });
+        const pdvUserIds = pdvUsers.map((u) => u.userId);
+        const profil = await prisma.profilRH.findFirst({
+          where:  { id: Number(profilRHId), gestionnaire: { memberId: { in: pdvUserIds } } },
+          select: { id: true },
+        });
+        if (!profil) return NextResponse.json({ error: "Collaborateur hors de votre périmètre" }, { status: 403 });
+      }
+    }
+
+    type Comp = { type: string; libelle: string; montant: number; isRetenue: boolean };
+    const comps = composants as Comp[];
+    const totalBrut     = comps.filter((c) => !c.isRetenue).reduce((s, c) => s + Number(c.montant), Number(salaireBase));
+    const totalRetenues = comps.filter((c) =>  c.isRetenue).reduce((s, c) => s + Number(c.montant), 0);
+
+    const fiche = await prisma.fichePaie.create({
+      data: {
+        profilRHId:    Number(profilRHId),
+        genereParId:   parseInt(session.user.id),
+        mois:          Number(mois),
+        annee:         Number(annee),
+        salaireBase:   Number(salaireBase),
+        totalBrut,
+        totalRetenues,
+        netAPayer: totalBrut - totalRetenues,
+        notes:     notes ?? null,
+        composants: {
+          create: comps.map((c) => ({
+            type:      c.type as TypeComposantSalaire,
+            libelle:   c.libelle,
+            montant:   Number(c.montant),
+            isRetenue: c.isRetenue,
+          })),
+        },
+      },
+      include: { composants: true },
+    });
+
+    return NextResponse.json({ data: fiche }, { status: 201 });
+  } catch (error) {
+    console.error("POST /api/responsableRH/paie", error);
+    return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
+  }
+}
 
 /**
  * GET /api/responsableRH/paie

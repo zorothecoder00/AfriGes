@@ -51,6 +51,7 @@ enum RoleGestionnaire {
   ACTIONNAIRE
   REVENDEUR
   RESPONSABLE_RH                     // gestionnaire RH (OGRH)
+  INVESTISSEUR_RIA                   // investisseur Réseau AfriSime
 }
 
 // ============================================================
@@ -703,6 +704,10 @@ model User {
   // Clients validés ou rejetés par ce RVC
   clientsValides               Client[]             @relation("ClientValidateur")
 
+  // RIA
+  depotsRIAValides             DepotInvestisseur[]   @relation("DepotsValides")
+  retraitsRIAValides           RetraitInvestisseur[] @relation("RetraitsValides")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -723,6 +728,9 @@ model Gestionnaire {
 
   // OGRH
   profilRH                ProfilRH?
+
+  // RIA
+  profilRIA               ProfilInvestisseurRIA?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -875,6 +883,10 @@ model Client {
   validationParId  Int?       // User.id du RVC qui a statué
   validationPar    User?      @relation("ClientValidateur", fields: [validationParId], references: [id])
   dateValidation   DateTime?  // date de la décision (activation ou rejet)
+
+  // RIA
+  affectationsRIA  AffectationClientRIA[]
+  financementsRIA  OperationFinancementRIA[] @relation("FinancementsRIAClient")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1109,6 +1121,7 @@ model CreditClient {
   remboursements   RemboursementCredit[]
   livraisons       VenteDirecte[]
   facturesVente    FactureVente[]  @relation("CreditClientFactures")
+  financementsRIA  OperationFinancementRIA[] @relation("FinancementsRIACredit")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -3971,4 +3984,334 @@ model ProcedureDisciplinaire {
 
   @@index([profilRHId])
   @@index([statut])
+}
+
+// ============================================================
+// ENUMS — Module RIA (Réseau des Investisseurs AfriSime)
+// ============================================================
+
+enum StatutDepotRIA {
+  EN_ATTENTE
+  VALIDE
+  REJETE
+}
+
+enum StatutRetraitRIA {
+  EN_ATTENTE
+  VALIDE
+  PAYE
+  REJETE
+}
+
+enum StatutFinancementRIA {
+  ACTIF
+  REMBOURSE
+  EN_RETARD
+  DEFAUT
+  ANNULE
+}
+
+enum StatutDistributionRIA {
+  PLANIFIE
+  EN_ATTENTE_PAIEMENT
+  DISTRIBUE
+  REINVESTI
+}
+
+enum ClasseRisqueRIA {
+  A
+  B
+  C
+  D
+  E
+}
+
+enum TypeMouvementRIA {
+  DEPOT
+  RETRAIT
+  FINANCEMENT_CLIENT
+  REMBOURSEMENT_CLIENT
+  BENEFICE_GENERE
+  BENEFICE_DISTRIBUE
+  BENEFICE_REINVESTI
+  FOND_SECURITE
+  AJUSTEMENT
+}
+
+// ============================================================
+// MODULE RIA — RÉSEAU DES INVESTISSEURS AFRISIME
+// ============================================================
+
+model ProfilInvestisseurRIA {
+  id               Int     @id @default(autoincrement())
+  gestionnaireId   Int     @unique
+  profession       String?
+  pays             String?
+  pieceIdentiteUrl String?
+  notes            String?
+
+  gestionnaire  Gestionnaire      @relation(fields: [gestionnaireId], references: [id])
+  portefeuilles PortefeuilleRIA[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model PortefeuilleRIA {
+  id          Int     @id @default(autoincrement())
+  reference   String  @unique // PF-00001
+  profilRIAId Int
+  nom         String?
+  actif       Boolean @default(true)
+  notes       String?
+
+  capitalInvesti    Decimal @default(0)
+  capitalDisponible Decimal @default(0)
+  capitalEngage     Decimal @default(0)
+  capitalRecouvre   Decimal @default(0)
+  capitalBloque     Decimal @default(0)
+
+  beneficesGeneres    Decimal @default(0)
+  beneficesDistribues Decimal @default(0)
+  beneficesReinvestis Decimal @default(0)
+  fondSecurite        Decimal @default(0)
+
+  profilRIA     ProfilInvestisseurRIA     @relation(fields: [profilRIAId], references: [id])
+  affectations  AffectationClientRIA[]
+  financements  OperationFinancementRIA[]
+  mouvements    MouvementFondsRIA[]        @relation("MouvementsPF")
+  depots        DepotInvestisseur[]
+  retraits      RetraitInvestisseur[]
+  distributions DistributionBenefice[]
+  documents     DocumentInvestisseur[]
+  rapports      RapportMensuelRIA[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([profilRIAId])
+  @@index([actif])
+}
+
+model AffectationClientRIA {
+  id             Int             @id @default(autoincrement())
+  portefeuilleId Int
+  clientId       Int
+  pourcentage    Decimal
+  montantAlloue  Decimal         @default(0)
+  classeRisque   ClasseRisqueRIA @default(A)
+  actif          Boolean         @default(true)
+  dateDebut      DateTime        @default(now())
+  dateFin        DateTime?
+  notes          String?
+
+  portefeuille PortefeuilleRIA           @relation(fields: [portefeuilleId], references: [id])
+  client       Client                    @relation(fields: [clientId],       references: [id])
+  financements OperationFinancementRIA[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([portefeuilleId])
+  @@index([clientId])
+  @@index([clientId, actif])
+}
+
+model DepotInvestisseur {
+  id              Int            @id @default(autoincrement())
+  reference       String         @unique
+  portefeuilleId  Int
+  montant         Decimal
+  statut          StatutDepotRIA @default(EN_ATTENTE)
+  modePaiement    String?
+  justificatifUrl String?
+  notes           String?
+  valideParId     Int?
+  dateValidation  DateTime?
+
+  portefeuille PortefeuilleRIA    @relation(fields: [portefeuilleId], references: [id])
+  validePar    User?              @relation("DepotsValides",   fields: [valideParId], references: [id])
+  mouvement    MouvementFondsRIA? @relation("MouvementDepot")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([portefeuilleId])
+  @@index([statut])
+}
+
+model RetraitInvestisseur {
+  id             Int              @id @default(autoincrement())
+  reference      String           @unique
+  portefeuilleId Int
+  montant        Decimal
+  statut         StatutRetraitRIA @default(EN_ATTENTE)
+  motif          String?
+  modePaiement   String?
+  notes          String?
+  valideParId    Int?
+  dateValidation DateTime?
+  datePaiement   DateTime?
+
+  portefeuille PortefeuilleRIA    @relation(fields: [portefeuilleId], references: [id])
+  validePar    User?              @relation("RetraitsValides",  fields: [valideParId], references: [id])
+  mouvement    MouvementFondsRIA? @relation("MouvementRetrait")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([portefeuilleId])
+  @@index([statut])
+}
+
+model MouvementFondsRIA {
+  id             Int              @id @default(autoincrement())
+  type           TypeMouvementRIA
+  montant        Decimal
+  sens           String
+  description    String?
+  reference      String?
+
+  portefeuilleId Int
+  depotId        Int?  @unique
+  retraitId      Int?  @unique
+  financementId  Int?
+  distributionId Int?
+
+  portefeuille PortefeuilleRIA          @relation("MouvementsPF",          fields: [portefeuilleId], references: [id])
+  depot        DepotInvestisseur?        @relation("MouvementDepot",         fields: [depotId],         references: [id])
+  retrait      RetraitInvestisseur?      @relation("MouvementRetrait",        fields: [retraitId],        references: [id])
+  financement  OperationFinancementRIA? @relation("MouvementsFinancement",  fields: [financementId],   references: [id])
+  distribution DistributionBenefice?    @relation("MouvementsDistribution", fields: [distributionId],  references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@index([portefeuilleId])
+  @@index([type])
+  @@index([createdAt])
+  @@index([financementId])
+  @@index([distributionId])
+}
+
+model OperationFinancementRIA {
+  id             Int                  @id @default(autoincrement())
+  reference      String               @unique
+  portefeuilleId Int
+  affectationId  Int?
+  clientId       Int
+  creditClientId Int?
+
+  montantFinance   Decimal
+  montantRembourse Decimal @default(0)
+  encours          Decimal
+
+  statut          StatutFinancementRIA @default(ACTIF)
+  dateFinancement DateTime             @default(now())
+  dateEcheance    DateTime?
+  notes           String?
+
+  portefeuille PortefeuilleRIA        @relation(fields: [portefeuilleId], references: [id])
+  affectation  AffectationClientRIA?  @relation(fields: [affectationId],  references: [id])
+  client       Client                 @relation("FinancementsRIAClient",  fields: [clientId],        references: [id])
+  creditClient CreditClient?          @relation("FinancementsRIACredit",  fields: [creditClientId],  references: [id])
+
+  remboursements RemboursementRIA[]
+  mouvements     MouvementFondsRIA[] @relation("MouvementsFinancement")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([portefeuilleId])
+  @@index([clientId])
+  @@index([statut])
+  @@index([creditClientId])
+}
+
+model RemboursementRIA {
+  id                    Int     @id @default(autoincrement())
+  financementId         Int
+  montant               Decimal
+  remboursementCreditId Int?
+
+  financement OperationFinancementRIA @relation(fields: [financementId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@index([financementId])
+}
+
+model DistributionBenefice {
+  id             Int @id @default(autoincrement())
+  portefeuilleId Int
+  mois           Int
+  annee          Int
+
+  capitalBase         Decimal
+  tauxGenere          Decimal
+  tauxDistribue       Decimal
+  tauxReinvesti       Decimal
+  tauxFondSecurite    Decimal
+  montantGenere       Decimal
+  montantDistribue    Decimal
+  montantReinvesti    Decimal
+  montantFondSecurite Decimal
+
+  statut       StatutDistributionRIA @default(PLANIFIE)
+  datePaiement DateTime?
+  traitePar    Int?
+  notes        String?
+
+  portefeuille PortefeuilleRIA     @relation(fields: [portefeuilleId], references: [id])
+  mouvements   MouvementFondsRIA[] @relation("MouvementsDistribution")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([portefeuilleId, mois, annee])
+  @@index([portefeuilleId])
+  @@index([mois, annee])
+}
+
+model ConfigBeneficeRIA {
+  id               Int     @id @default(autoincrement())
+  tauxGenere       Decimal @default(10)
+  tauxDistribue    Decimal @default(4)
+  tauxReinvesti    Decimal @default(4)
+  tauxFondSecurite Decimal @default(2)
+  actif            Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model DocumentInvestisseur {
+  id             Int    @id @default(autoincrement())
+  portefeuilleId Int
+  type           String
+  nom            String
+  url            String
+  description    String?
+
+  portefeuille PortefeuilleRIA @relation(fields: [portefeuilleId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@index([portefeuilleId])
+}
+
+model RapportMensuelRIA {
+  id             Int     @id @default(autoincrement())
+  portefeuilleId Int
+  mois           Int
+  annee          Int
+  donnees        Json
+  pdfUrl         String?
+  genereParId    Int?
+
+  portefeuille PortefeuilleRIA @relation(fields: [portefeuilleId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@unique([portefeuilleId, mois, annee])
+  @@index([portefeuilleId])
 }

@@ -1,0 +1,98 @@
+import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { getAdminSession } from "@/lib/authAdmin";
+import { ClasseRisqueRIA } from "@prisma/client";
+
+export async function GET(req: NextRequest) {
+  try {
+    const session = await getAdminSession();
+    if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
+
+    const { searchParams } = req.nextUrl;
+    const portefeuilleId = searchParams.get("portefeuilleId");
+    const clientId       = searchParams.get("clientId");
+    const actif          = searchParams.get("actif");
+    const page  = Math.max(1, parseInt(searchParams.get("page")  ?? "1"));
+    const limit = Math.min(50, Math.max(1, parseInt(searchParams.get("limit") ?? "20")));
+    const skip  = (page - 1) * limit;
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const where: any = {};
+    if (portefeuilleId) where.portefeuilleId = parseInt(portefeuilleId);
+    if (clientId)       where.clientId       = parseInt(clientId);
+    if (actif !== null) where.actif          = actif !== "false";
+
+    const [affectations, total] = await Promise.all([
+      prisma.affectationClientRIA.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { createdAt: "desc" },
+        include: {
+          portefeuille: {
+            include: {
+              profilRIA: {
+                include: {
+                  gestionnaire: { include: { member: { select: { id: true, nom: true, prenom: true } } } },
+                },
+              },
+            },
+          },
+          client: { select: { id: true, nom: true, prenom: true, telephone: true, niveauRisque: true, scoreSolvabilite: true } },
+          _count: { select: { financements: true } },
+        },
+      }),
+      prisma.affectationClientRIA.count({ where }),
+    ]);
+
+    return NextResponse.json({
+      data: affectations,
+      meta: { page, limit, total, totalPages: Math.ceil(total / limit) },
+    });
+  } catch (error) {
+    console.error("GET /api/admin/ria/affectations", error);
+    return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
+  }
+}
+
+export async function POST(req: NextRequest) {
+  try {
+    const session = await getAdminSession();
+    if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
+
+    const { portefeuilleId, clientId, pourcentage, montantAlloue, classeRisque, notes } = await req.json();
+
+    if (!portefeuilleId || !clientId || pourcentage === undefined) {
+      return NextResponse.json({ error: "portefeuilleId, clientId et pourcentage sont obligatoires" }, { status: 400 });
+    }
+
+    const [pf, client] = await Promise.all([
+      prisma.portefeuilleRIA.findUnique({ where: { id: parseInt(portefeuilleId) } }),
+      prisma.client.findUnique({ where: { id: parseInt(clientId) } }),
+    ]);
+    if (!pf)     return NextResponse.json({ error: "Portefeuille introuvable" }, { status: 404 });
+    if (!client) return NextResponse.json({ error: "Client introuvable" }, { status: 404 });
+
+    // Désactiver l'ancienne affectation active de ce client pour ce portefeuille
+    await prisma.affectationClientRIA.updateMany({
+      where: { portefeuilleId: parseInt(portefeuilleId), clientId: parseInt(clientId), actif: true },
+      data:  { actif: false, dateFin: new Date() },
+    });
+
+    const affectation = await prisma.affectationClientRIA.create({
+      data: {
+        portefeuilleId: parseInt(portefeuilleId),
+        clientId:       parseInt(clientId),
+        pourcentage:    Number(pourcentage),
+        montantAlloue:  montantAlloue ? Number(montantAlloue) : 0,
+        classeRisque:   (classeRisque as ClasseRisqueRIA) ?? "A",
+        notes:          notes ?? null,
+      },
+    });
+
+    return NextResponse.json({ data: affectation }, { status: 201 });
+  } catch (error) {
+    console.error("POST /api/admin/ria/affectations", error);
+    return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
+  }
+}
