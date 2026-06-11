@@ -82,6 +82,38 @@ export async function POST(req: NextRequest) {
 
     const montant = Number(montantFinance);
 
+    // ── Ligne de crédit : chercher l'affectation active pour ce portefeuille + client ──
+    const affectationActive = await prisma.affectationClientRIA.findFirst({
+      where: {
+        portefeuilleId: parseInt(portefeuilleId),
+        clientId:       parseInt(clientId),
+        actif:          true,
+      },
+      include: {
+        financements: {
+          where:  { statut: { in: ["ACTIF", "EN_RETARD"] } },
+          select: { encours: true },
+        },
+      },
+    });
+
+    let resolvedAffectationId: number | null = affectationId ? parseInt(affectationId) : null;
+
+    if (affectationActive) {
+      // Utiliser cette affectation (priorité sur l'éventuel affectationId passé manuellement)
+      resolvedAffectationId = affectationActive.id;
+
+      // Vérifier le plafond de la ligne de crédit
+      const encoursActuel = affectationActive.financements.reduce((sum, f) => sum + Number(f.encours), 0);
+      const disponible    = Number(affectationActive.montantAlloue) - encoursActuel;
+
+      if (Number(affectationActive.montantAlloue) > 0 && montant > disponible) {
+        return NextResponse.json({
+          error: `Dépassement de la ligne de crédit. Plafond : ${Number(affectationActive.montantAlloue).toLocaleString("fr-FR")} FCFA — Encours actuel : ${encoursActuel.toLocaleString("fr-FR")} FCFA — Disponible : ${Math.max(0, disponible).toLocaleString("fr-FR")} FCFA.`,
+        }, { status: 400 });
+      }
+    }
+
     const financement = await prisma.$transaction(async (tx) => {
       const fin = await tx.operationFinancementRIA.create({
         data: {
@@ -91,7 +123,7 @@ export async function POST(req: NextRequest) {
           montantFinance: montant,
           encours:        montant,
           creditClientId: creditClientId ? parseInt(creditClientId) : null,
-          affectationId:  affectationId  ? parseInt(affectationId)  : null,
+          affectationId:  resolvedAffectationId,
           dateEcheance:   dateEcheance   ? new Date(dateEcheance)   : null,
           notes:          notes ?? null,
         },

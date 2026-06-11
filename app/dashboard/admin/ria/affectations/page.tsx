@@ -10,6 +10,8 @@ import { Plus, RefreshCw, Search, Users, ToggleLeft, ToggleRight, AlertTriangle,
 interface AffectationItem {
   id: number; pourcentage: number; montantAlloue: number; classeRisque: string;
   actif: boolean; dateDebut: string; dateFin: string | null; notes: string | null;
+  encoursActuel: number;
+  disponible: number;
   portefeuille: {
     id: number; reference: string; nom: string | null;
     profilRIA: { gestionnaire: { member: { id: number; nom: string; prenom: string } } };
@@ -247,19 +249,19 @@ export default function AffectationsPage() {
         <table className="w-full text-sm">
           <thead className="bg-slate-50 border-b border-slate-200">
             <tr>
-              {["Investisseur", "Portefeuille", "Client", "Risque client", "% Alloué", "Montant alloué", "Classe", "Financements", "Depuis", "Actif"].map((h) => (
+              {["Investisseur", "Portefeuille", "Client", "Risque client", "% Alloué", "Ligne de crédit", "Classe", "Depuis", "Actif"].map((h) => (
                 <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">{h}</th>
               ))}
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
             {loading && !affectations.length && (
-              <tr><td colSpan={10} className="px-4 py-8 text-center text-slate-400">
+              <tr><td colSpan={9} className="px-4 py-8 text-center text-slate-400">
                 <RefreshCw className="w-4 h-4 animate-spin inline mr-2" />Chargement…
               </td></tr>
             )}
             {!loading && affectations.length === 0 && (
-              <tr><td colSpan={10} className="px-4 py-8 text-center text-slate-400">
+              <tr><td colSpan={9} className="px-4 py-8 text-center text-slate-400">
                 <Users className="w-6 h-6 inline mb-1" /><br />Aucune affectation
               </td></tr>
             )}
@@ -279,13 +281,41 @@ export default function AffectationsPage() {
                     ) : "—"}
                   </td>
                   <td className="px-4 py-3 font-semibold text-emerald-700">{toNum(a.pourcentage).toFixed(1)}%</td>
-                  <td className="px-4 py-3 text-slate-700">{fmt(toNum(a.montantAlloue))} F</td>
+                  <td className="px-4 py-3 min-w-[180px]">
+                    {toNum(a.montantAlloue) > 0 ? (() => {
+                      const pct     = Math.min(100, (a.encoursActuel / toNum(a.montantAlloue)) * 100);
+                      const surPct  = pct >= 100;
+                      return (
+                        <div className="space-y-1">
+                          <div className="flex justify-between text-xs">
+                            <span className="text-slate-500">Limite&nbsp;: <span className="font-semibold text-slate-700">{fmt(toNum(a.montantAlloue))} F</span></span>
+                            <span className={surPct ? "text-red-600 font-semibold" : "text-slate-400"}>
+                              {pct.toFixed(0)}% utilisé
+                            </span>
+                          </div>
+                          <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                            <div
+                              className={`h-full rounded-full transition-all ${surPct ? "bg-red-500" : pct > 75 ? "bg-amber-400" : "bg-emerald-500"}`}
+                              style={{ width: `${pct}%` }}
+                            />
+                          </div>
+                          <div className="flex justify-between text-xs">
+                            <span className="text-blue-600">Encours&nbsp;: <span className="font-semibold">{fmt(a.encoursActuel)} F</span></span>
+                            <span className={`font-semibold ${a.disponible <= 0 ? "text-red-500" : "text-emerald-600"}`}>
+                              Dispo&nbsp;: {fmt(a.disponible)} F
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })() : (
+                      <span className="text-xs text-slate-400 italic">Plafond non défini</span>
+                    )}
+                  </td>
                   <td className="px-4 py-3">
                     <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${RISQUE_STYLE[a.classeRisque] ?? "bg-slate-100 text-slate-600"}`}>
                       Classe {a.classeRisque}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-center font-medium text-blue-600">{a._count.financements}</td>
                   <td className="px-4 py-3 text-slate-400 text-xs">{fmtDate(a.dateDebut)}</td>
                   <td className="px-4 py-3">
                     <button onClick={() => toggleActif(a.id, a.actif)} className="text-slate-400 hover:text-emerald-600">

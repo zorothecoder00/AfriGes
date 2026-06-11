@@ -40,13 +40,27 @@ export async function GET(req: NextRequest) {
           },
           client: { select: { id: true, nom: true, prenom: true, telephone: true, niveauRisque: true, scoreSolvabilite: true } },
           _count: { select: { financements: true } },
+          // Financements actifs liés à cette affectation pour calculer l'encours
+          financements: {
+            where:  { statut: { in: ["ACTIF", "EN_RETARD"] } },
+            select: { encours: true },
+          },
         },
       }),
       prisma.affectationClientRIA.count({ where }),
     ]);
 
+    // Enrichir chaque affectation avec encoursActuel et disponible
+    const data = affectations.map((a) => {
+      const encoursActuel = a.financements.reduce((sum, f) => sum + Number(f.encours), 0);
+      const disponible    = Math.max(0, Number(a.montantAlloue) - encoursActuel);
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { financements: _f, ...rest } = a;
+      return { ...rest, encoursActuel, disponible };
+    });
+
     return NextResponse.json({
-      data: affectations,
+      data,
       meta: { page, limit, total, totalPages: Math.ceil(total / limit) },
     });
   } catch (error) {

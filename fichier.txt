@@ -74,12 +74,3 @@ les stocks doivent avoir des prix d'achat et de vente par date ( par semaine , p
 
 
 
-Explique moi les classes(A, B, C, D, E) sur le dashboard/admin/recouvrement
-
-que fait le bouton escalade auto dans dashboard/admin/recouvrement
-
-Comment fonctionnent les distributions et les commissions ???
-
-L'onglet Business intelligence aussi explique moi comment ça fonctionne
-
-Explique moi aussi le fonctionnement de /dashboard/admin/ria/config
