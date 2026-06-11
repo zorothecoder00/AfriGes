@@ -15,6 +15,7 @@ const ROLE_ROUTES: Record<string, string> = {
   AGENT_TERRAIN:                        "/dashboard/user/agentsTerrain",
   RESPONSABLE_VENTE_CREDIT:             "/dashboard/user/responsablesVenteCredit",
   RESPONSABLE_RH:                       "/dashboard/user/responsablesRH",
+  RESPONSABLE_RIA:                      "/dashboard/user/responsablesRIA",
   INVESTISSEUR_RIA:                     "/dashboard/user/investisseurs",
   COMMERCIAL:                           "/dashboard/user/revendeurs",
 };

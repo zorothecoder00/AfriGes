@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getAdminSession } from "@/lib/authAdmin";
+import { getRIASession } from "@/lib/authRIA";
 
 function refDepot(): string {
   const d = new Date().toISOString().slice(0, 10).replace(/-/g, "");
@@ -10,7 +10,7 @@ function refDepot(): string {
 
 export async function GET(req: NextRequest) {
   try {
-    const session = await getAdminSession();
+    const session = await getRIASession();
     if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
 
     const { searchParams } = req.nextUrl;
@@ -58,7 +58,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getAdminSession();
+    const session = await getRIASession();
     if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
 
     const { portefeuilleId, montant, modePaiement, justificatifUrl, notes } = await req.json();

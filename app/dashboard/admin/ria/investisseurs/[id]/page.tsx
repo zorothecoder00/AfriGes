@@ -16,7 +16,8 @@ import Link from "next/link";
 interface Portefeuille {
   id: number; reference: string; nom: string | null; actif: boolean;
   capitalInvesti: number; capitalDisponible: number; capitalEngage: number; capitalRecouvre: number;
-  beneficesGeneres: number; beneficesDistribues: number; fondSecurite: number;
+  capitalBloque: number; beneficesGeneres: number; beneficesDistribues: number;
+  beneficesReinvestis: number; fondSecurite: number;
   depots:   { id: number; reference: string; montant: number; statut: string; createdAt: string }[];
   retraits: { id: number; reference: string; montant: number; statut: string; createdAt: string }[];
 }
@@ -25,7 +26,8 @@ interface Investisseur {
   id: number;
   member: { id: number; nom: string; prenom: string; email: string; telephone: string | null; adresse: string | null; etat: string; dateAdhesion: string };
   profilRIA: {
-    id: number; profession: string | null; pays: string | null; pieceIdentiteUrl: string | null; notes: string | null;
+    id: number; numero: string | null; profession: string | null; pays: string | null;
+    pieceIdentiteUrl: string | null; notes: string | null;
     portefeuilles: Portefeuille[];
   } | null;
 }
@@ -194,10 +196,15 @@ export default function FicheInvestisseurPage() {
 
   const profil = inv.profilRIA;
   const portefeuilles = profil?.portefeuilles ?? [];
-  const totalInvesti    = portefeuilles.reduce((s, p) => s + toNum(p.capitalInvesti), 0);
+  const totalInvesti    = portefeuilles.reduce((s, p) => s + toNum(p.capitalInvesti),    0);
   const totalDisponible = portefeuilles.reduce((s, p) => s + toNum(p.capitalDisponible), 0);
-  const totalEngage     = portefeuilles.reduce((s, p) => s + toNum(p.capitalEngage), 0);
-  const totalBenef      = portefeuilles.reduce((s, p) => s + toNum(p.beneficesGeneres), 0);
+  const totalEngage     = portefeuilles.reduce((s, p) => s + toNum(p.capitalEngage),     0);
+  const totalRecouvre   = portefeuilles.reduce((s, p) => s + toNum(p.capitalRecouvre),   0);
+  const totalBloque     = portefeuilles.reduce((s, p) => s + toNum(p.capitalBloque),     0);
+  const totalBenef      = portefeuilles.reduce((s, p) => s + toNum(p.beneficesGeneres),  0);
+  const totalDistrib    = portefeuilles.reduce((s, p) => s + toNum(p.beneficesDistribues), 0);
+  const totalReinvesti  = portefeuilles.reduce((s, p) => s + toNum(p.beneficesReinvestis), 0);
+  const totalFondSec    = portefeuilles.reduce((s, p) => s + toNum(p.fondSecurite),      0);
 
   return (
     <div className="p-6 space-y-6 max-w-5xl mx-auto">
@@ -232,6 +239,9 @@ export default function FicheInvestisseurPage() {
             </div>
             <div>
               <p className="text-lg font-bold text-slate-900">{m.prenom} {m.nom}</p>
+              {profil?.numero && (
+                <p className="text-xs font-mono text-emerald-600 font-semibold">{profil.numero}</p>
+              )}
               <p className="text-xs text-slate-400">Depuis le {fmtDate(m.dateAdhesion)}</p>
             </div>
           </div>
@@ -253,18 +263,23 @@ export default function FicheInvestisseurPage() {
         </div>
 
         {/* KPIs financiers */}
-        <div className="lg:col-span-2 grid grid-cols-2 gap-4">
+        <div className="lg:col-span-2 grid grid-cols-2 gap-3">
           {[
-            { label: "Capital investi",   value: totalInvesti,    color: "text-slate-900",   icon: <Wallet className="w-5 h-5 text-emerald-600" /> },
-            { label: "Capital disponible",value: totalDisponible, color: "text-emerald-700", icon: <Wallet className="w-5 h-5 text-emerald-500" /> },
-            { label: "Capital engagé",    value: totalEngage,     color: "text-blue-700",    icon: <TrendingUp className="w-5 h-5 text-blue-500" /> },
-            { label: "Bénéfices générés", value: totalBenef,      color: "text-violet-700",  icon: <TrendingUp className="w-5 h-5 text-violet-500" /> },
+            { label: "Capital investi",    value: totalInvesti,   color: "text-slate-900",   icon: <Wallet className="w-5 h-5 text-emerald-600" /> },
+            { label: "Capital disponible", value: totalDisponible,color: "text-emerald-700", icon: <Wallet className="w-5 h-5 text-emerald-500" /> },
+            { label: "Capital engagé",     value: totalEngage,    color: "text-blue-700",    icon: <TrendingUp className="w-5 h-5 text-blue-500" /> },
+            { label: "Capital recouvré",   value: totalRecouvre,  color: "text-teal-700",    icon: <TrendingUp className="w-5 h-5 text-teal-500" /> },
+            { label: "Capital immobilisé", value: totalBloque,    color: totalBloque > 0 ? "text-red-600" : "text-slate-400", icon: <Wallet className="w-5 h-5 text-slate-400" /> },
+            { label: "Bénéfices générés",  value: totalBenef,     color: "text-violet-700",  icon: <TrendingUp className="w-5 h-5 text-violet-500" /> },
+            { label: "Bénéf. distribués",  value: totalDistrib,   color: "text-emerald-600", icon: <TrendingUp className="w-5 h-5 text-emerald-400" /> },
+            { label: "Bénéf. réinvestis",  value: totalReinvesti, color: "text-blue-600",    icon: <TrendingUp className="w-5 h-5 text-blue-400" /> },
+            { label: "Fonds de sécurité",  value: totalFondSec,   color: "text-amber-700",   icon: <Wallet className="w-5 h-5 text-amber-500" /> },
           ].map((k) => (
-            <div key={k.label} className="bg-white rounded-2xl border border-slate-200 p-4 flex items-start gap-3">
-              <div className="p-2 bg-slate-50 rounded-lg">{k.icon}</div>
-              <div>
-                <p className="text-xs text-slate-400 font-medium">{k.label}</p>
-                <p className={`text-xl font-bold mt-0.5 ${k.color}`}>{fmt(k.value)} <span className="text-xs font-normal text-slate-400">FCFA</span></p>
+            <div key={k.label} className="bg-white rounded-xl border border-slate-200 p-3 flex items-start gap-2">
+              <div className="p-1.5 bg-slate-50 rounded-lg flex-shrink-0">{k.icon}</div>
+              <div className="min-w-0">
+                <p className="text-xs text-slate-400 font-medium truncate">{k.label}</p>
+                <p className={`text-base font-bold mt-0.5 ${k.color}`}>{fmt(k.value)} <span className="text-xs font-normal text-slate-400">F</span></p>
               </div>
             </div>
           ))}

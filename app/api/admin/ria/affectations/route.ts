@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getAdminSession } from "@/lib/authAdmin";
+import { getRIASession } from "@/lib/authRIA";
 import { ClasseRisqueRIA } from "@prisma/client";
 
 export async function GET(req: NextRequest) {
   try {
-    const session = await getAdminSession();
+    const session = await getRIASession();
     if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
 
     const { searchParams } = req.nextUrl;
@@ -57,7 +57,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getAdminSession();
+    const session = await getRIASession();
     if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
 
     const { portefeuilleId, clientId, pourcentage, montantAlloue, classeRisque, notes } = await req.json();
@@ -72,6 +72,20 @@ export async function POST(req: NextRequest) {
     ]);
     if (!pf)     return NextResponse.json({ error: "Portefeuille introuvable" }, { status: 404 });
     if (!client) return NextResponse.json({ error: "Client introuvable" }, { status: 404 });
+
+    // Calcul somme % actifs du portefeuille (hors ce client s'il a déjà une affectation)
+    const autresAffectations = await prisma.affectationClientRIA.aggregate({
+      where: {
+        portefeuilleId: parseInt(portefeuilleId),
+        actif:          true,
+        clientId:       { not: parseInt(clientId) },
+      },
+      _sum: { pourcentage: true },
+    });
+    const sommePourcentages = Number(autresAffectations._sum.pourcentage ?? 0) + Number(pourcentage);
+    const warning = sommePourcentages > 100
+      ? `La somme des pourcentages atteint ${sommePourcentages.toFixed(1)} % (> 100 %). Le capital restant sera maintenu comme capitalDisponible.`
+      : null;
 
     // Désactiver l'ancienne affectation active de ce client pour ce portefeuille
     await prisma.affectationClientRIA.updateMany({
@@ -90,7 +104,7 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    return NextResponse.json({ data: affectation }, { status: 201 });
+    return NextResponse.json({ data: affectation, warning }, { status: 201 });
   } catch (error) {
     console.error("POST /api/admin/ria/affectations", error);
     return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });

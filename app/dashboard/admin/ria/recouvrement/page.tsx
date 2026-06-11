@@ -23,7 +23,7 @@ interface FinancementRecouvrement {
   joursRetard: number;
   niveauAlerte: NiveauAlerte;
   portefeuille: { id: number; reference: string; nom: string | null; investisseur: string };
-  client: { id: number; nom: string; telephone: string | null };
+  client: { id: number; nom: string; telephone: string | null; agentTerrain: string | null };
   creditReference: string | null;
   classeRisque: string;
 }
@@ -88,6 +88,7 @@ export default function RecouvrementPage() {
   const [filtrePF, setFiltrePF] = useState<string>("");
   const [sortField, setSortField] = useState<"joursRetard" | "encours">("joursRetard");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  const [filtreAgent, setFiltreAgent] = useState<string>("");
 
   const { data, loading, error, refetch } = useApi<RecouvrementData>("/api/admin/ria/recouvrement");
 
@@ -99,6 +100,7 @@ export default function RecouvrementPage() {
 
     if (filtreAlerte !== "TOUS") list = list.filter((f) => f.niveauAlerte === filtreAlerte);
     if (filtrePF) list = list.filter((f) => String(f.portefeuille.id) === filtrePF);
+    if (filtreAgent) list = list.filter((f) => f.client.agentTerrain === filtreAgent);
     if (search) {
       const q = search.toLowerCase();
       list = list.filter(
@@ -116,7 +118,16 @@ export default function RecouvrementPage() {
     });
 
     return list;
-  }, [data, tab, filtreAlerte, filtrePF, search, sortField, sortDir]);
+  }, [data, tab, filtreAlerte, filtrePF, filtreAgent, search, sortField, sortDir]);
+
+  const agentsDisponibles = useMemo(() => {
+    if (!data) return [];
+    const seen = new Set<string>();
+    for (const f of data.financements) {
+      if (f.client.agentTerrain) seen.add(f.client.agentTerrain);
+    }
+    return [...seen].sort();
+  }, [data]);
 
   function toggleSort(field: typeof sortField) {
     if (sortField === field) setSortDir((d) => (d === "desc" ? "asc" : "desc"));
@@ -302,6 +313,19 @@ export default function RecouvrementPage() {
                 </option>
               ))}
             </select>
+
+            {agentsDisponibles.length > 0 && (
+              <select
+                value={filtreAgent}
+                onChange={(e) => setFiltreAgent(e.target.value)}
+                className="px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-300"
+              >
+                <option value="">Tous les agents terrain</option>
+                {agentsDisponibles.map((a) => (
+                  <option key={a} value={a}>{a}</option>
+                ))}
+              </select>
+            )}
           </div>
 
           {/* Tableau */}
@@ -311,6 +335,7 @@ export default function RecouvrementPage() {
                 <thead className="bg-slate-50 text-xs text-slate-500 uppercase">
                   <tr>
                     <th className="px-4 py-3 text-left">Client</th>
+                    <th className="px-4 py-3 text-left">Agent terrain</th>
                     <th className="px-4 py-3 text-left">Portefeuille</th>
                     <th className="px-4 py-3 text-left">Crédit</th>
                     <th className="px-4 py-3 text-center">Classe</th>
@@ -337,7 +362,7 @@ export default function RecouvrementPage() {
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {financementsFiltres.length === 0 && (
-                    <tr><td colSpan={7} className="px-4 py-8 text-center text-slate-400">
+                    <tr><td colSpan={8} className="px-4 py-8 text-center text-slate-400">
                       {tab === "alertes" ? "Aucun retard détecté — tous les financements sont à jour." : "Aucun résultat."}
                     </td></tr>
                   )}
@@ -349,6 +374,9 @@ export default function RecouvrementPage() {
                         <td className="px-4 py-3">
                           <p className="font-medium text-slate-800">{f.client.nom}</p>
                           {f.client.telephone && <p className="text-xs text-slate-400">{f.client.telephone}</p>}
+                        </td>
+                        <td className="px-4 py-3 text-xs text-slate-500">
+                          {f.client.agentTerrain ?? <span className="text-slate-300">—</span>}
                         </td>
                         <td className="px-4 py-3 text-slate-600 text-xs">{f.portefeuille.reference}</td>
                         <td className="px-4 py-3 text-xs text-slate-500">{f.creditReference ?? f.reference}</td>

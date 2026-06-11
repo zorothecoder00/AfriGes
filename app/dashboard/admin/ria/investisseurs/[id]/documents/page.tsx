@@ -2,7 +2,7 @@
 
 import { use, useState } from "react";
 import { useApi } from "@/hooks/useApi";
-import { RefreshCw, Printer, FileText, Shield, BookOpen } from "lucide-react";
+import { RefreshCw, Printer, FileText, Shield, BookOpen, Award } from "lucide-react";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -397,12 +397,180 @@ function Releve({ inv }: { inv: InvestisseurData }) {
   );
 }
 
+// ── Document : Convention de partenariat ──────────────────────────────────────
+
+function Convention({ inv }: { inv: InvestisseurData }) {
+  const m   = inv.member;
+  const pfs = inv.profilRIA?.portefeuilles ?? [];
+  const totalInvesti = pfs.reduce((s, p) => s + Number(p.capitalInvesti), 0);
+
+  return (
+    <div className="print-doc">
+      {/* En-tête */}
+      <div className="flex items-start justify-between border-b-2 border-emerald-600 pb-6 mb-6">
+        <div>
+          <h1 className="text-xl font-bold text-emerald-700">AfriGes — Réseau des Investisseurs AfriSime</h1>
+          <p className="text-slate-500 text-sm mt-1">Convention de Partenariat Financier</p>
+        </div>
+        <div className="text-right text-sm text-slate-500">
+          <p>Date : {today}</p>
+          <p>Réf. : CVP-{String(m.id).padStart(5, "0")}</p>
+        </div>
+      </div>
+
+      {/* Préambule */}
+      <section className="mb-6">
+        <h2 className="section-title">PRÉAMBULE</h2>
+        <p className="text-sm text-slate-700 leading-relaxed">
+          La présente convention de partenariat est conclue dans le cadre du{" "}
+          <strong>Réseau des Investisseurs AfriSime (RIA)</strong>, dispositif de financement participatif
+          permettant à des investisseurs privés de contribuer au développement des activités de la clientèle
+          de la structure AfriGes. Elle formalise les engagements mutuels entre AfriSime et l&apos;investisseur
+          partenaire, dans un esprit de transparence, de performance et de bénéfice partagé.
+        </p>
+      </section>
+
+      {/* Parties */}
+      <section className="mb-6">
+        <h2 className="section-title">IDENTIFICATION DES PARTIES</h2>
+        <div className="grid grid-cols-2 gap-6 text-sm">
+          <div className="bg-slate-50 rounded-lg p-4">
+            <p className="font-semibold text-slate-700 mb-2">PARTIE A — AfriSime (Opérateur)</p>
+            <p className="text-slate-600">AfriGes — AfriSime</p>
+            <p className="text-slate-500 text-xs mt-1">Gestionnaire et opérateur du Réseau RIA</p>
+            <p className="text-slate-500 text-xs">Responsable de la gestion des fonds, de l&apos;affectation des crédits et de la redistribution des bénéfices</p>
+          </div>
+          <div className="bg-emerald-50 rounded-lg p-4">
+            <p className="font-semibold text-emerald-700 mb-2">PARTIE B — Investisseur Partenaire</p>
+            <p className="text-slate-800 font-bold">{m.prenom} {m.nom}</p>
+            {m.email    && <p className="text-slate-500 text-xs mt-1">{m.email}</p>}
+            {m.telephone && <p className="text-slate-500 text-xs">{m.telephone}</p>}
+            {m.adresse  && <p className="text-slate-500 text-xs">{m.adresse}</p>}
+            <p className="text-slate-500 text-xs mt-1">Membre depuis {fmtDate(m.dateAdhesion)}</p>
+          </div>
+        </div>
+      </section>
+
+      {/* Objet et durée */}
+      <section className="mb-6">
+        <h2 className="section-title">OBJET ET DURÉE</h2>
+        <div className="space-y-2 text-sm text-slate-700">
+          <p>
+            <strong>Art. 1 — Objet :</strong> La présente convention a pour objet de définir les modalités
+            de partenariat financier entre AfriSime et l&apos;Investisseur Partenaire, notamment les conditions
+            de dépôt, d&apos;affectation, de rendement et de retrait des fonds investis.
+          </p>
+          <p>
+            <strong>Art. 2 — Durée :</strong> La convention prend effet à compter de sa date de signature
+            et est conclue pour une durée indéterminée, résiliable par l&apos;une ou l&apos;autre des parties
+            avec un préavis de <strong>30 jours</strong> par notification écrite.
+          </p>
+        </div>
+      </section>
+
+      {/* Engagements */}
+      <section className="mb-6">
+        <h2 className="section-title">ENGAGEMENTS DES PARTIES</h2>
+        <div className="grid grid-cols-2 gap-4 text-sm">
+          <div>
+            <p className="font-semibold text-slate-700 mb-2">AfriSime s&apos;engage à :</p>
+            <ol className="list-decimal list-inside space-y-1 text-slate-600 text-xs">
+              <li>Gérer les fonds investis avec diligence et transparence.</li>
+              <li>Affecter les capitaux à des clients solvables selon la politique de crédit RIA.</li>
+              <li>Distribuer les bénéfices générés selon la configuration en vigueur.</li>
+              <li>Fournir des relevés de compte réguliers et accessibles via la plateforme.</li>
+              <li>Traiter les demandes de retrait dans un délai maximal de 5 jours ouvrés.</li>
+              <li>Notifier l&apos;Investisseur de toute modification des taux ou conditions.</li>
+            </ol>
+          </div>
+          <div>
+            <p className="font-semibold text-slate-700 mb-2">L&apos;Investisseur s&apos;engage à :</p>
+            <ol className="list-decimal list-inside space-y-1 text-slate-600 text-xs">
+              <li>Fournir des informations exactes et à jour lors de l&apos;adhésion.</li>
+              <li>Effectuer les dépôts selon les modalités définies par AfriSime.</li>
+              <li>Respecter les délais et procédures de retrait.</li>
+              <li>Ne pas divulguer les informations confidentielles relatives au RIA.</li>
+              <li>Signaler immédiatement tout changement de situation le concernant.</li>
+            </ol>
+          </div>
+        </div>
+      </section>
+
+      {/* Conditions financières */}
+      <section className="mb-6">
+        <h2 className="section-title">CONDITIONS FINANCIÈRES AU {today.toUpperCase()}</h2>
+        <table className="w-full text-sm border border-slate-100 rounded-lg overflow-hidden">
+          <tbody className="divide-y divide-slate-100">
+            <tr className="bg-slate-50">
+              <td className="px-4 py-2 text-slate-500">Nombre de portefeuilles actifs</td>
+              <td className="px-4 py-2 text-right font-medium">{pfs.length}</td>
+            </tr>
+            <tr>
+              <td className="px-4 py-2 text-slate-500">Capital total investi</td>
+              <td className="px-4 py-2 text-right font-bold text-emerald-700">{fmt(totalInvesti)}</td>
+            </tr>
+            {pfs.map((pf) => (
+              <tr key={pf.id} className="bg-slate-50/50">
+                <td className="px-4 py-1.5 text-xs text-slate-400 pl-8">↳ {pf.reference}{pf.nom ? ` — ${pf.nom}` : ""}</td>
+                <td className="px-4 py-1.5 text-right text-xs text-slate-600">{fmt(Number(pf.capitalInvesti))}</td>
+              </tr>
+            ))}
+            <tr>
+              <td className="px-4 py-2 text-slate-500">Bénéfices totaux générés</td>
+              <td className="px-4 py-2 text-right font-medium text-violet-700">{fmt(pfs.reduce((s, p) => s + Number(p.beneficesGeneres), 0))}</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      {/* Confidentialité et litiges */}
+      <section className="mb-6">
+        <h2 className="section-title">CONFIDENTIALITÉ ET RÈGLEMENT DES LITIGES</h2>
+        <div className="space-y-2 text-sm text-slate-700">
+          <p>
+            <strong>Art. 3 — Confidentialité :</strong> Les informations relatives aux portefeuilles, aux taux
+            de rendement et aux opérations financières ont un caractère strictement confidentiel. Elles ne peuvent
+            être divulguées à des tiers sans accord écrit préalable d&apos;AfriSime.
+          </p>
+          <p>
+            <strong>Art. 4 — Litiges :</strong> En cas de désaccord sur l&apos;interprétation ou l&apos;exécution
+            de la présente convention, les parties s&apos;engagent à rechercher une solution amiable. À défaut,
+            tout litige sera soumis à la juridiction compétente du lieu du siège social d&apos;AfriSime.
+          </p>
+        </div>
+      </section>
+
+      {/* Signatures */}
+      <div className="grid grid-cols-2 gap-12 mt-10">
+        <div>
+          <p className="text-sm text-slate-500 mb-1">Pour AfriSime,</p>
+          <p className="text-xs text-slate-400 mb-8">Le Directeur Général</p>
+          <div className="border-b border-slate-400 mb-1"></div>
+          <p className="text-xs text-slate-500">Nom, signature et cachet</p>
+        </div>
+        <div>
+          <p className="text-sm text-slate-500 mb-1">Lu et approuvé,</p>
+          <p className="text-xs text-slate-400 mb-8">L&apos;Investisseur Partenaire</p>
+          <div className="border-b border-slate-400 mb-1"></div>
+          <p className="text-xs text-slate-500">{m.prenom} {m.nom}</p>
+        </div>
+      </div>
+
+      <div className="border-t border-slate-200 pt-4 mt-6 text-xs text-slate-400 flex justify-between">
+        <span>CVP-RIA-{String(m.id).padStart(5, "0")} — Convention de partenariat</span>
+        <span>Document généré le {today} — confidentiel</span>
+      </div>
+    </div>
+  );
+}
+
 // ── Page principale ───────────────────────────────────────────────────────────
 
 const DOCS = [
-  { id: "contrat",      label: "Contrat d'adhésion",   icon: FileText,  desc: "Contrat d'investissement et conditions de participation" },
-  { id: "attestation",  label: "Attestation",           icon: Shield,    desc: "Attestation officielle de participation au RIA" },
-  { id: "releve",       label: "Relevé de compte",      icon: BookOpen,  desc: "État détaillé des portefeuilles, dépôts, retraits et financements" },
+  { id: "contrat",      label: "Contrat d'adhésion",       icon: FileText,  desc: "Contrat d'investissement et conditions de participation" },
+  { id: "attestation",  label: "Attestation",               icon: Shield,    desc: "Attestation officielle de participation au RIA" },
+  { id: "releve",       label: "Relevé de compte",          icon: BookOpen,  desc: "État détaillé des portefeuilles, dépôts, retraits et financements" },
+  { id: "convention",   label: "Convention de partenariat", icon: Award,     desc: "Convention formalisant le partenariat financier entre AfriSime et l'investisseur" },
 ];
 
 export default function DocumentsPage({ params }: { params: Promise<{ id: string }> }) {
@@ -471,6 +639,7 @@ export default function DocumentsPage({ params }: { params: Promise<{ id: string
         {docType === "contrat"     && <Contrat     inv={inv} />}
         {docType === "attestation" && <Attestation inv={inv} />}
         {docType === "releve"      && <Releve      inv={inv} />}
+        {docType === "convention"  && <Convention  inv={inv} />}
       </div>
 
       {/* CSS print + utilitaires */}

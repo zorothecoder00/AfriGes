@@ -7,7 +7,7 @@ import {
   Activity, AlertTriangle, CheckCircle, XCircle, Wallet, BarChart2, Truck, RefreshCw,
   Calendar, CreditCard, TrendingDown, DollarSign, Clock, Award, Percent, ClipboardCheck,
   UserCog, Banknote, GraduationCap, CalendarDays, MapPin, Star, Building2, Gift, FileWarning,
-  Settings, Network,
+  Settings, Network, FileText,
 } from 'lucide-react';      
 import Link from "next/link";     
 import { useSession } from 'next-auth/react';
@@ -364,7 +364,13 @@ export default function AfriGesDashboard() {
                 <Link href="/dashboard/admin/ria/fonds"           className="w-full flex items-center gap-3 px-4 py-2.5 pl-10 text-slate-500 hover:bg-slate-50 rounded-xl transition-all text-sm"><Wallet size={16} /><span>Fonds — Dépôts &amp; Retraits</span></Link>
                 <Link href="/dashboard/admin/ria/financements"    className="w-full flex items-center gap-3 px-4 py-2.5 pl-10 text-slate-500 hover:bg-slate-50 rounded-xl transition-all text-sm"><Activity size={16} /><span>Financements</span></Link>
                 <Link href="/dashboard/admin/ria/affectations"    className="w-full flex items-center gap-3 px-4 py-2.5 pl-10 text-slate-500 hover:bg-slate-50 rounded-xl transition-all text-sm"><UserCheck size={16} /><span>Affectations clients</span></Link>
+                <Link href="/dashboard/admin/ria/recouvrement"    className="w-full flex items-center gap-3 px-4 py-2.5 pl-10 text-slate-500 hover:bg-slate-50 rounded-xl transition-all text-sm"><TrendingDown size={16} /><span>Recouvrement</span></Link>
+                <Link href="/dashboard/admin/ria/scoring"         className="w-full flex items-center gap-3 px-4 py-2.5 pl-10 text-slate-500 hover:bg-slate-50 rounded-xl transition-all text-sm"><Star size={16} /><span>Scoring</span></Link>
+                <Link href="/dashboard/admin/ria/benefices"       className="w-full flex items-center gap-3 px-4 py-2.5 pl-10 text-slate-500 hover:bg-slate-50 rounded-xl transition-all text-sm"><TrendingUp size={16} /><span>Bénéfices</span></Link>
                 <Link href="/dashboard/admin/ria/distributions"   className="w-full flex items-center gap-3 px-4 py-2.5 pl-10 text-slate-500 hover:bg-slate-50 rounded-xl transition-all text-sm"><DollarSign size={16} /><span>Distributions</span></Link>
+                <Link href="/dashboard/admin/ria/reporting"       className="w-full flex items-center gap-3 px-4 py-2.5 pl-10 text-slate-500 hover:bg-slate-50 rounded-xl transition-all text-sm"><FileText size={16} /><span>Reporting</span></Link>
+                <Link href="/dashboard/admin/ria/commissions"     className="w-full flex items-center gap-3 px-4 py-2.5 pl-10 text-slate-500 hover:bg-slate-50 rounded-xl transition-all text-sm"><Award size={16} /><span>Commissions</span></Link>
+                <Link href="/dashboard/admin/ria/bi"              className="w-full flex items-center gap-3 px-4 py-2.5 pl-10 text-slate-500 hover:bg-slate-50 rounded-xl transition-all text-sm"><BarChart2 size={16} /><span>BI &amp; Analytique</span></Link>
                 <Link href="/dashboard/admin/ria/config"          className="w-full flex items-center gap-3 px-4 py-2.5 pl-10 text-slate-500 hover:bg-slate-50 rounded-xl transition-all text-sm"><Settings size={16} /><span>Configuration</span></Link>
               </nav>
             </div>

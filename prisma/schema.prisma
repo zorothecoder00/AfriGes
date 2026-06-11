@@ -4046,6 +4046,7 @@ enum TypeMouvementRIA {
 model ProfilInvestisseurRIA {
   id               Int     @id @default(autoincrement())
   gestionnaireId   Int     @unique
+  numero           String? @unique  // INV-00001 — généré à la création
   profession       String?
   pays             String?
   pieceIdentiteUrl String?

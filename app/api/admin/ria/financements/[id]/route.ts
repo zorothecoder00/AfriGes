@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getAdminSession } from "@/lib/authAdmin";
+import { getRIASession } from "@/lib/authRIA";
 import { StatutFinancementRIA } from "@prisma/client";
 
 type Ctx = { params: Promise<{ id: string }> };
 
 export async function GET(_req: NextRequest, { params }: Ctx) {
   try {
-    const session = await getAdminSession();
+    const session = await getRIASession();
     if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
 
     const { id } = await params;
@@ -42,7 +42,7 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
 // action: MARQUER_EN_RETARD | MARQUER_DEFAUT | ANNULER
 export async function PATCH(req: NextRequest, { params }: Ctx) {
   try {
-    const session = await getAdminSession();
+    const session = await getRIASession();
     if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
 
     const { id } = await params;
@@ -88,7 +88,35 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
           });
         }
       });
+    } else if (action === "MARQUER_DEFAUT") {
+      // Perte confirmée : encours transféré de capitalEngage → capitalBloque
+      await prisma.$transaction(async (tx) => {
+        await tx.operationFinancementRIA.update({
+          where: { id: fin.id },
+          data: { statut: "DEFAUT", notes: notes ?? fin.notes },
+        });
+        if (Number(fin.encours) > 0) {
+          await tx.portefeuilleRIA.update({
+            where: { id: fin.portefeuilleId },
+            data: {
+              capitalEngage:  { decrement: Number(fin.encours) },
+              capitalBloque:  { increment: Number(fin.encours) },
+            },
+          });
+          await tx.mouvementFondsRIA.create({
+            data: {
+              type:           "AJUSTEMENT",
+              montant:        fin.encours,
+              sens:           "DEBIT",
+              description:    `Défaut de paiement — financement ${fin.reference} immobilisé`,
+              portefeuilleId: fin.portefeuilleId,
+              financementId:  fin.id,
+            },
+          });
+        }
+      });
     } else {
+      // MARQUER_EN_RETARD — simple changement de statut
       await prisma.operationFinancementRIA.update({
         where: { id: fin.id },
         data: { statut: TRANSITIONS[action], notes: notes ?? fin.notes },

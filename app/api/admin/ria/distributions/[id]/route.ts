@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getAdminSession } from "@/lib/authAdmin";
+import { getRIASession } from "@/lib/authRIA";
 import { ecritureDistributionRIA } from "@/lib/riaComptable";
 
 type Ctx = { params: Promise<{ id: string }> };
@@ -8,7 +8,7 @@ type Ctx = { params: Promise<{ id: string }> };
 // action: TRAITER — distribue + réinvestit + fonds sécurité en une seule transaction
 export async function PATCH(req: NextRequest, { params }: Ctx) {
   try {
-    const session = await getAdminSession();
+    const session = await getRIASession();
     if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
 
     const { id } = await params;

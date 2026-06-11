@@ -159,6 +159,51 @@ export async function POST(req: Request, { params }: Ctx) {
         data: { soldeActuel: { decrement: montantEffectif } },
       });
 
+      // ── Hook RIA — remboursement proportionnel des financements liés ──────
+      const financementsRIA = await tx.operationFinancementRIA.findMany({
+        where: { creditClientId: creditId, statut: { in: ["ACTIF", "EN_RETARD"] } },
+      });
+      if (financementsRIA.length > 0) {
+        const totalEncoursRIA = financementsRIA.reduce((s, f) => s + Number(f.encours), 0);
+        for (const fin of financementsRIA) {
+          if (Number(fin.encours) <= 0) continue;
+          const partProportion = totalEncoursRIA > 0 ? Number(fin.encours) / totalEncoursRIA : 0;
+          const part = Number(Math.min(montantEffectif * partProportion, Number(fin.encours)).toFixed(2));
+          if (part <= 0) continue;
+          const newEncours = Number(Math.max(0, Number(fin.encours) - part).toFixed(2));
+          await tx.remboursementRIA.create({
+            data: { financementId: fin.id, montant: part, remboursementCreditId: remboursement.id },
+          });
+          await tx.operationFinancementRIA.update({
+            where: { id: fin.id },
+            data: {
+              montantRembourse: { increment: part },
+              encours:          newEncours,
+              statut:           newEncours <= 0 ? "REMBOURSE" : fin.statut,
+            },
+          });
+          await tx.portefeuilleRIA.update({
+            where: { id: fin.portefeuilleId },
+            data: {
+              capitalEngage:     { decrement: part },
+              capitalRecouvre:   { increment: part },
+              capitalDisponible: { increment: part },
+            },
+          });
+          await tx.mouvementFondsRIA.create({
+            data: {
+              type:           "REMBOURSEMENT_CLIENT",
+              montant:        part,
+              sens:           "CREDIT",
+              description:    `Remboursement automatique — crédit ${credit.reference}`,
+              reference:      fin.reference,
+              portefeuilleId: fin.portefeuilleId,
+              financementId:  fin.id,
+            },
+          });
+        }
+      }
+
       // ── Audit log ─────────────────────────────────────────────────────────
       await tx.auditLog.create({
         data: {

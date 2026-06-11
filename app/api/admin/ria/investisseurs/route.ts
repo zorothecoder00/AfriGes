@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getAdminSession } from "@/lib/authAdmin";
+import { getRIASession } from "@/lib/authRIA";
 import bcrypt from "bcryptjs";
 
 // ── GET — liste des investisseurs ──────────────────────────────────────────────
 
 export async function GET(req: NextRequest) {
   try {
-    const session = await getAdminSession();
+    const session = await getRIASession();
     if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
 
     const { searchParams } = req.nextUrl;
@@ -19,14 +19,13 @@ export async function GET(req: NextRequest) {
     const where = {
       role: "INVESTISSEUR_RIA" as const,
       ...(search ? {
-        member: {
-          OR: [
-            { nom:    { contains: search, mode: "insensitive" as const } },
-            { prenom: { contains: search, mode: "insensitive" as const } },
-            { email:  { contains: search, mode: "insensitive" as const } },
-            { telephone: { contains: search } },
-          ],
-        },
+        OR: [
+          { member: { nom:       { contains: search, mode: "insensitive" as const } } },
+          { member: { prenom:    { contains: search, mode: "insensitive" as const } } },
+          { member: { email:     { contains: search, mode: "insensitive" as const } } },
+          { member: { telephone: { contains: search } } },
+          { profilRIA: { numero: { contains: search, mode: "insensitive" as const } } },
+        ],
       } : {}),
     };
 
@@ -45,9 +44,11 @@ export async function GET(req: NextRequest) {
               portefeuilles: {
                 where: { actif: true },
                 select: {
-                  id: true, reference: true, nom: true,
+                  id: true, reference: true, nom: true, actif: true,
                   capitalInvesti: true, capitalDisponible: true, capitalEngage: true,
-                  beneficesGeneres: true, beneficesDistribues: true,
+                  capitalRecouvre: true, capitalBloque: true,
+                  beneficesGeneres: true, beneficesDistribues: true, beneficesReinvestis: true,
+                  fondSecurite: true,
                 },
               },
             },
@@ -71,7 +72,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getAdminSession();
+    const session = await getRIASession();
     if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
 
     const body = await req.json();
@@ -103,9 +104,11 @@ export async function POST(req: NextRequest) {
         data: { memberId: user.id, role: "INVESTISSEUR_RIA" },
       });
 
+      const nbProfils = await tx.profilInvestisseurRIA.count();
       const profil = await tx.profilInvestisseurRIA.create({
         data: {
           gestionnaireId: gestionnaire.id,
+          numero: `INV-${String(nbProfils + 1).padStart(5, "0")}`,
           profession: profession ?? null,
           pays: pays ?? null,
           pieceIdentiteUrl: pieceIdentiteUrl ?? null,

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useApi } from "@/hooks/useApi";
 import { toast } from "sonner";
-import { Plus, RefreshCw, Search, Users, ToggleLeft, ToggleRight } from "lucide-react";
+import { Plus, RefreshCw, Search, Users, ToggleLeft, ToggleRight, AlertTriangle, PieChart } from "lucide-react";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -51,6 +51,20 @@ function CreateModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
   const set = (k: string, v: string) => setForm((p) => ({ ...p, [k]: v }));
   const [loading, setLoading] = useState(false);
 
+  // Affectations actives du portefeuille sélectionné pour afficher le % déjà alloué
+  const { data: aff0Res } = useApi<{ data: { pourcentage: number; clientId: number }[]; meta: { total: number } }>(
+    form.portefeuilleId
+      ? `/api/admin/ria/affectations?portefeuilleId=${form.portefeuilleId}&actif=true&limit=100`
+      : null
+  );
+  const affectationsActives = aff0Res?.data ?? [];
+  // Exclure le même client si déjà affecté (il sera remplacé)
+  const sommeDejAllouee = affectationsActives
+    .filter((a) => String(a.clientId) !== form.clientId)
+    .reduce((s, a) => s + Number(a.pourcentage), 0);
+  const totalAvecNouveau = sommeDejAllouee + (Number(form.pourcentage) || 0);
+  const depassement = totalAvecNouveau > 100;
+
   const submit = async () => {
     if (!form.portefeuilleId || !form.clientId || !form.pourcentage) {
       toast.error("Portefeuille, client et pourcentage sont requis");
@@ -64,8 +78,14 @@ function CreateModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
         body: JSON.stringify({ ...form, pourcentage: Number(form.pourcentage), montantAlloue: form.montantAlloue ? Number(form.montantAlloue) : 0 }),
       });
       const json = await res.json();
-      if (res.ok) { toast.success("Affectation créée"); onSuccess(); onClose(); }
-      else toast.error(json.error ?? "Erreur");
+      if (res.ok) {
+        toast.success("Affectation créée");
+        if (json.warning) toast.warning(json.warning, { duration: 6000 });
+        onSuccess();
+        onClose();
+      } else {
+        toast.error(json.error ?? "Erreur");
+      }
     } finally { setLoading(false); }
   };
 
@@ -86,6 +106,31 @@ function CreateModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
                 <option key={pf.id} value={pf.id}>{pf.profilRIA.gestionnaire.member.prenom} {pf.profilRIA.gestionnaire.member.nom} — {pf.nom ?? pf.reference}</option>
               ))}
             </select>
+
+            {/* Jauge % déjà alloué */}
+            {form.portefeuilleId && (
+              <div className="mt-2">
+                <div className="flex items-center justify-between text-xs mb-1">
+                  <span className="flex items-center gap-1 text-slate-500"><PieChart className="w-3 h-3" /> Déjà alloué : <span className="font-semibold text-slate-700">{sommeDejAllouee.toFixed(1)} %</span></span>
+                  <span className={`font-semibold ${depassement ? "text-red-600" : "text-slate-500"}`}>
+                    Total avec ce client : {totalAvecNouveau.toFixed(1)} %
+                  </span>
+                </div>
+                <div className="h-2 bg-slate-100 rounded-full overflow-hidden flex">
+                  <div className="h-full bg-emerald-500 transition-all" style={{ width: `${Math.min(100, sommeDejAllouee)}%` }} />
+                  {Number(form.pourcentage) > 0 && (
+                    <div className={`h-full transition-all ${depassement ? "bg-red-400" : "bg-blue-400"}`}
+                      style={{ width: `${Math.min(100 - Math.min(100, sommeDejAllouee), Number(form.pourcentage))}%` }} />
+                  )}
+                </div>
+                {depassement && (
+                  <p className="flex items-center gap-1 text-xs text-red-600 mt-1">
+                    <AlertTriangle className="w-3 h-3 flex-shrink-0" />
+                    Dépassement de {(totalAvecNouveau - 100).toFixed(1)} % — autorisé, le solde reste en capitalDisponible.
+                  </p>
+                )}
+              </div>
+            )}
           </div>
 
           <div>
@@ -104,8 +149,8 @@ function CreateModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-medium text-slate-600 mb-1">Pourcentage alloué (%) *</label>
-              <input type="number" min={0} max={100} value={form.pourcentage} onChange={(e) => set("pourcentage", e.target.value)}
-                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent" />
+              <input type="number" min={0} max={200} value={form.pourcentage} onChange={(e) => set("pourcentage", e.target.value)}
+                className={`w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:border-transparent ${depassement ? "border-red-300 focus:ring-red-400" : "border-slate-200 focus:ring-emerald-500"}`} />
             </div>
             <div>
               <label className="block text-xs font-medium text-slate-600 mb-1">Montant alloué (FCFA)</label>

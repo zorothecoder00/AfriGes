@@ -36,7 +36,12 @@ export async function GET(req: Request) {
           },
         },
         affectation: { select: { id: true, classeRisque: true } },
-        client: { select: { id: true, nom: true, prenom: true, telephone: true } },
+        client: {
+          select: {
+            id: true, nom: true, prenom: true, telephone: true,
+            agentTerrain: { select: { nom: true, prenom: true } },
+          },
+        },
         creditClient: {
           select: {
             id: true,
@@ -90,6 +95,9 @@ export async function GET(req: Request) {
           id: fin.client.id,
           nom: `${fin.client.prenom} ${fin.client.nom}`,
           telephone: fin.client.telephone,
+          agentTerrain: fin.client.agentTerrain
+            ? `${fin.client.agentTerrain.prenom} ${fin.client.agentTerrain.nom}`
+            : null,
         },
         creditReference: fin.creditClient?.reference ?? null,
         classeRisque: fin.affectation?.classeRisque ?? "A",
