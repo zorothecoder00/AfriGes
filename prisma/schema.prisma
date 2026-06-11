@@ -52,6 +52,7 @@ enum RoleGestionnaire {
   REVENDEUR
   RESPONSABLE_RH                     // gestionnaire RH (OGRH)
   INVESTISSEUR_RIA                   // investisseur Réseau AfriSime
+  RESPONSABLE_RIA                    // gestionnaire du réseau RIA
 }
 
 // ============================================================

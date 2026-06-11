@@ -7,7 +7,7 @@ import { useMutation } from "@/hooks/useApi";
 import { toast } from "sonner";
 import {
   ArrowLeft, RefreshCw, User, Phone, Mail, MapPin, Briefcase, Globe,
-  Wallet, TrendingUp, Plus, ChevronDown, ChevronUp,
+  Wallet, TrendingUp, Plus, ChevronDown, ChevronUp, FileText,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -210,9 +210,15 @@ export default function FicheInvestisseurPage() {
         </Link>
         <span className="text-slate-300">/</span>
         <h1 className="text-lg font-bold text-slate-900">{m.prenom} {m.nom}</h1>
-        <button onClick={refetch} className="ml-auto p-2 text-slate-400 hover:text-slate-600 border border-slate-200 rounded-lg">
-          <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
-        </button>
+        <div className="ml-auto flex items-center gap-2">
+          <Link href={`/dashboard/admin/ria/investisseurs/${m.id}/documents`}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-slate-600 border border-slate-200 rounded-lg bg-white hover:bg-slate-50">
+            <FileText className="w-3.5 h-3.5" /> Documents
+          </Link>
+          <button onClick={refetch} className="p-2 text-slate-400 hover:text-slate-600 border border-slate-200 rounded-lg">
+            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+          </button>
+        </div>
       </div>
 
       {/* Profil + KPIs */}

@@ -6,18 +6,25 @@ import { usePathname } from "next/navigation";
 import {
   LayoutDashboard, Users, Wallet, Activity,
   UserCheck, DollarSign, Settings, ChevronRight, Home,
+  ArrowDownUp, Star, TrendingUp, FileText, Award, BarChart2,
 } from "lucide-react";
 
 // ── Navigation RIA ────────────────────────────────────────────────────────────
 
 const NAV_ITEMS = [
-  { href: "/dashboard/admin/ria",              label: "Dashboard",       icon: LayoutDashboard, exact: true },
-  { href: "/dashboard/admin/ria/investisseurs", label: "Investisseurs",  icon: Users },
-  { href: "/dashboard/admin/ria/fonds",         label: "Fonds",          icon: Wallet },
-  { href: "/dashboard/admin/ria/financements",  label: "Financements",   icon: Activity },
-  { href: "/dashboard/admin/ria/affectations",  label: "Affectations",   icon: UserCheck },
-  { href: "/dashboard/admin/ria/distributions", label: "Distributions",  icon: DollarSign },
-  { href: "/dashboard/admin/ria/config",        label: "Configuration",  icon: Settings },
+  { href: "/dashboard/admin/ria",                label: "Dashboard",      icon: LayoutDashboard, exact: true },
+  { href: "/dashboard/admin/ria/investisseurs",  label: "Investisseurs",  icon: Users },
+  { href: "/dashboard/admin/ria/fonds",          label: "Fonds",          icon: Wallet },
+  { href: "/dashboard/admin/ria/financements",   label: "Financements",   icon: Activity },
+  { href: "/dashboard/admin/ria/affectations",   label: "Affectations",   icon: UserCheck },
+  { href: "/dashboard/admin/ria/recouvrement",   label: "Recouvrement",   icon: ArrowDownUp },
+  { href: "/dashboard/admin/ria/scoring",        label: "Scoring",        icon: Star },
+  { href: "/dashboard/admin/ria/benefices",      label: "Bénéfices",      icon: TrendingUp },
+  { href: "/dashboard/admin/ria/reporting",      label: "Reporting",      icon: FileText },
+  { href: "/dashboard/admin/ria/commissions",    label: "Commissions",    icon: Award },
+  { href: "/dashboard/admin/ria/distributions",  label: "Distributions",  icon: DollarSign },
+  { href: "/dashboard/admin/ria/bi",             label: "BI",             icon: BarChart2 },
+  { href: "/dashboard/admin/ria/config",         label: "Configuration",  icon: Settings },
 ];
 
 function isActive(pathname: string, href: string, exact?: boolean) {

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAdminSession } from "@/lib/authAdmin";
+import { ecritureDépôtRIA } from "@/lib/riaComptable";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -25,6 +26,13 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
     const adminId = parseInt(session.user.id);
 
     if (action === "VALIDER") {
+      const pf = await prisma.portefeuilleRIA.findUnique({
+        where: { id: depot.portefeuilleId },
+        select: { profilRIA: { select: { gestionnaire: { select: { member: { select: { nom: true, prenom: true } } } } } } },
+      });
+      const mem = pf?.profilRIA?.gestionnaire?.member;
+      const investisseurNom = mem ? `${mem.prenom} ${mem.nom}` : "Investisseur";
+
       await prisma.$transaction(async (tx) => {
         await tx.depotInvestisseur.update({
           where: { id: depot.id },
@@ -49,6 +57,13 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
             portefeuilleId: depot.portefeuilleId,
             depotId:       depot.id,
           },
+        });
+
+        await ecritureDépôtRIA(tx, {
+          montant: Number(depot.montant),
+          reference: depot.reference,
+          investisseurNom,
+          userId: adminId,
         });
       });
     } else {

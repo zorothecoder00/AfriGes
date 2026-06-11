@@ -122,6 +122,57 @@ export async function POST(_req: Request, { params }: Ctx) {
         data: { soldeActuel: { increment: montantTotal } },
       });
 
+      // ── 9b. Hook RIA — pour chaque affectation active du client ──────────
+      const affectationsRIA = await tx.affectationClientRIA.findMany({
+        where: { clientId: credit.clientId, actif: true },
+        include: { portefeuille: { select: { id: true, capitalDisponible: true } } },
+      });
+
+      for (const aff of affectationsRIA) {
+        const montantPart = montantTotal * (Number(aff.pourcentage) / 100);
+        if (montantPart <= 0) continue;
+
+        // Vérifier capital disponible suffisant
+        if (Number(aff.portefeuille.capitalDisponible) < montantPart) continue;
+
+        const ref = `FIN-RIA-${Date.now()}-${aff.id}`;
+
+        await tx.operationFinancementRIA.create({
+          data: {
+            reference:       ref,
+            portefeuilleId:  aff.portefeuilleId,
+            affectationId:   aff.id,
+            clientId:        credit.clientId,
+            creditClientId:  creditId,
+            montantFinance:  montantPart,
+            montantRembourse: 0,
+            encours:         montantPart,
+            statut:          "ACTIF",
+            dateFinancement: new Date(),
+            dateEcheance:    dateEcheanceFin,
+          },
+        });
+
+        await tx.portefeuilleRIA.update({
+          where: { id: aff.portefeuilleId },
+          data: {
+            capitalDisponible: { decrement: montantPart },
+            capitalEngage:     { increment: montantPart },
+          },
+        });
+
+        await tx.mouvementFondsRIA.create({
+          data: {
+            portefeuilleId: aff.portefeuilleId,
+            type:           "FINANCEMENT_CLIENT",
+            sens:           "DEBIT",
+            montant:        montantPart,
+            description:    `Financement crédit ${credit.reference} — client ${client.prenom} ${client.nom}`,
+            reference:      ref,
+          },
+        });
+      }
+
       // ── 10. Réservation de stock (quantiteReservee) ───────────────────────
       if (credit.pointDeVenteId) {
         for (const ligne of credit.lignes) {

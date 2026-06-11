@@ -176,7 +176,53 @@ export async function POST(req: Request, { params }: Ctx) {
         });
       }
 
-      // 6. Audit + notifications
+      // 6. Hook RIA — cascade vers RemboursementRIA si ce crédit finance des portefeuilles
+      const financementsRIA = await tx.operationFinancementRIA.findMany({
+        where: { creditClientId: credit.id, statut: { in: ["ACTIF", "EN_RETARD"] } },
+      });
+
+      for (const fin of financementsRIA) {
+        const part = montantNum * (Number(fin.montantFinance) / Number(credit.montantTotal));
+        if (part <= 0) continue;
+
+        await tx.remboursementRIA.create({
+          data: { financementId: fin.id, montant: part, remboursementCreditId: remboursementId },
+        });
+
+        const newEncours    = Math.max(0, Number(fin.encours) - part);
+        const finEstSolde   = newEncours <= 0.01;
+
+        await tx.operationFinancementRIA.update({
+          where: { id: fin.id },
+          data: {
+            montantRembourse: { increment: part },
+            encours:          finEstSolde ? 0 : { decrement: part },
+            statut:           finEstSolde ? "REMBOURSE" : fin.statut,
+          },
+        });
+
+        await tx.portefeuilleRIA.update({
+          where: { id: fin.portefeuilleId },
+          data: {
+            capitalRecouvre: { increment: part },
+            capitalEngage:   { decrement: finEstSolde ? Number(fin.encours) : part },
+          },
+        });
+
+        await tx.mouvementFondsRIA.create({
+          data: {
+            portefeuilleId: fin.portefeuilleId,
+            type:           "REMBOURSEMENT_CLIENT",
+            sens:           "CREDIT",
+            montant:        part,
+            financementId:  fin.id,
+            description:    `Remboursement crédit ${credit.reference} — part RIA`,
+            reference:      `RIA-RMB-${Date.now()}`,
+          },
+        });
+      }
+
+      // 7. Audit + notifications
       await auditLog(tx, userId, "REMBOURSEMENT_CREDIT_CONFIRME", "RemboursementCredit", remboursementId);
 
       const clientNom = credit.client

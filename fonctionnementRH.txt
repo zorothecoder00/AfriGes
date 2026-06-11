@@ -148,7 +148,7 @@ Le Module RH d'AfriGes — Vue d'ensemble
 
   Bulletin imprimable
 
-  dashboard/admin/rh/paie/[id]/bulletin → page CSS @media print pour générer un
+  dashboard/admin/rh/paie/[id]/bulletin et dashboard/user/responsablesRH/.... → page CSS @media print pour générer un
   vrai bulletin de salaire.
 
   ---

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAdminSession } from "@/lib/authAdmin";
+import { ecritureRetraitRIA } from "@/lib/riaComptable";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -35,6 +36,13 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
       if (retrait.statut !== "VALIDE") {
         return NextResponse.json({ error: "Le retrait doit être validé avant d'être payé" }, { status: 400 });
       }
+      const pf = await prisma.portefeuilleRIA.findUnique({
+        where: { id: retrait.portefeuilleId },
+        select: { profilRIA: { select: { gestionnaire: { select: { member: { select: { nom: true, prenom: true } } } } } } },
+      });
+      const mem = pf?.profilRIA?.gestionnaire?.member;
+      const investisseurNom = mem ? `${mem.prenom} ${mem.nom}` : "Investisseur";
+
       await prisma.$transaction(async (tx) => {
         await tx.retraitInvestisseur.update({
           where: { id: retrait.id },
@@ -56,6 +64,13 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
             portefeuilleId: retrait.portefeuilleId,
             retraitId:     retrait.id,
           },
+        });
+
+        await ecritureRetraitRIA(tx, {
+          montant: Number(retrait.montant),
+          reference: retrait.reference,
+          investisseurNom,
+          userId: adminId,
         });
       });
     } else {

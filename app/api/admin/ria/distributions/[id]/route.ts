@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAdminSession } from "@/lib/authAdmin";
+import { ecritureDistributionRIA } from "@/lib/riaComptable";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -30,6 +31,12 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
     const genere        = Number(dist.montantGenere);
     const MOIS_LABELS   = ["", "Jan", "Fév", "Mar", "Avr", "Mai", "Jun", "Jul", "Aoû", "Sep", "Oct", "Nov", "Déc"];
     const periode       = `${MOIS_LABELS[dist.mois]} ${dist.annee}`;
+
+    const pf = await prisma.portefeuilleRIA.findUnique({
+      where: { id: dist.portefeuilleId },
+      select: { reference: true },
+    });
+    const portefeuilleRef = pf?.reference ?? `PF-${dist.portefeuilleId}`;
 
     await prisma.$transaction(async (tx) => {
       // Mise à jour portefeuille
@@ -92,6 +99,16 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
           traitePar:   adminId,
           notes:       notes ?? dist.notes,
         },
+      });
+
+      await ecritureDistributionRIA(tx, {
+        montantDistribue:  distrib,
+        montantReinvesti:  reinvesti,
+        montantSecurite:   fondSec,
+        mois:              dist.mois,
+        annee:             dist.annee,
+        portefeuilleRef,
+        userId:            adminId,
       });
     });
 
