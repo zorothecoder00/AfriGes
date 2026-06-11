@@ -706,8 +706,9 @@ model User {
   clientsValides               Client[]             @relation("ClientValidateur")
 
   // RIA
-  depotsRIAValides             DepotInvestisseur[]   @relation("DepotsValides")
-  retraitsRIAValides           RetraitInvestisseur[] @relation("RetraitsValides")
+  depotsRIAValides             DepotInvestisseur[]      @relation("DepotsValides")
+  retraitsRIAValides           RetraitInvestisseur[]    @relation("RetraitsValides")
+  actionsRIAEffectuees         ActionRecouvrementRIA[]  @relation("ActionsRIAEffectuees")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -4039,6 +4040,21 @@ enum TypeMouvementRIA {
   AJUSTEMENT
 }
 
+enum TypeActionRecouvrement {
+  APPEL_TELEPHONIQUE
+  VISITE_TERRAIN
+  MISE_EN_DEMEURE
+  ACCORD_ECHEANCIER
+  SAISIE_GARANTIE
+  NOTE_INTERNE
+}
+
+enum StatutActionRecouvrement {
+  EN_COURS
+  RESOLU
+  SANS_SUITE
+}
+
 // ============================================================
 // MODULE RIA — RÉSEAU DES INVESTISSEURS AFRISIME
 // ============================================================
@@ -4217,8 +4233,9 @@ model OperationFinancementRIA {
   client       Client                 @relation("FinancementsRIAClient",  fields: [clientId],        references: [id])
   creditClient CreditClient?          @relation("FinancementsRIACredit",  fields: [creditClientId],  references: [id])
 
-  remboursements RemboursementRIA[]
-  mouvements     MouvementFondsRIA[] @relation("MouvementsFinancement")
+  remboursements      RemboursementRIA[]
+  mouvements          MouvementFondsRIA[]     @relation("MouvementsFinancement")
+  actionsRecouvrement ActionRecouvrementRIA[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -4316,4 +4333,26 @@ model RapportMensuelRIA {
 
   @@unique([portefeuilleId, mois, annee])
   @@index([portefeuilleId])
+}
+
+model ActionRecouvrementRIA {
+  id            Int                      @id @default(autoincrement())
+  financementId Int
+  type          TypeActionRecouvrement
+  statut        StatutActionRecouvrement @default(EN_COURS)
+  notes         String?
+  resultat      String?
+  effectueParId Int?
+  dateAction    DateTime                 @default(now())
+  dateRelance   DateTime?
+
+  financement OperationFinancementRIA @relation(fields: [financementId], references: [id])
+  effectuePar User?                   @relation("ActionsRIAEffectuees", fields: [effectueParId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([financementId])
+  @@index([statut])
+  @@index([dateAction])
 }

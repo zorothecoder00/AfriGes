@@ -334,6 +334,62 @@ async function syncAchats(
   return { created, skipped };
 }
 
+// ── RIA : remboursements de financement ───────────────────────────────────────
+// SYNC-RIA-REMB-{id} : OD — Débit 471 (obligation investisseur allégée) / Crédit 411 (créance client allégée)
+async function syncRIARemboursements(
+  map: ComptesMap,
+  userId: number,
+  dateMin: Date,
+  dateMax: Date
+): Promise<{ created: number; skipped: number }> {
+  let created = 0; let skipped = 0;
+
+  const remboursements = await prisma.remboursementRIA.findMany({
+    where: { createdAt: { gte: dateMin, lte: dateMax } },
+    include: {
+      financement: {
+        select: {
+          reference: true,
+          client: { select: { nom: true, prenom: true } },
+        },
+      },
+    },
+    orderBy: { createdAt: "asc" },
+  });
+
+  for (const r of remboursements) {
+    const ref = `SYNC-RIA-REMB-${r.id}`;
+    if (await referenceExiste(ref)) { skipped++; continue; }
+    if (!map[N.AVANCES] || !map[N.CLIENTS]) { skipped++; continue; }
+
+    const montant  = Number(r.montant);
+    const clientNom = r.financement?.client
+      ? `${r.financement.client.prenom} ${r.financement.client.nom}`
+      : "Client RIA";
+    const finRef   = r.financement?.reference ?? `FIN-${r.financementId}`;
+
+    await prisma.ecritureComptable.create({
+      data: {
+        reference: ref,
+        date:      r.createdAt,
+        libelle:   `Remboursement RIA — ${finRef} — ${clientNom}`,
+        journal:   "OD",
+        statut:    "BROUILLON",
+        userId,
+        lignes: {
+          create: [
+            { compteId: map[N.AVANCES], libelle: `Rbt RIA ${finRef}`, debit: montant, credit: 0 },
+            { compteId: map[N.CLIENTS], libelle: `Rbt RIA ${finRef}`, debit: 0,       credit: montant },
+          ],
+        },
+      },
+    });
+    created++;
+  }
+
+  return { created, skipped };
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Route handler
 // ─────────────────────────────────────────────────────────────────────────────
@@ -347,7 +403,7 @@ export async function POST(req: NextRequest) {
     const viewAs  = isAdmin ? resolveViewAs(req) : null;
 
     const body = await req.json();
-    const { action = "all", dateMin, dateMax } = body;
+    const { action = "all", dateMin, dateMax } = body as { action?: string; dateMin?: string; dateMax?: string };
 
     const userId = Number(session.user.id);
     const pdvId  = await getComptablePdvId(session, viewAs?.userId);
@@ -377,6 +433,9 @@ export async function POST(req: NextRequest) {
     }
     if (action === "achats" || action === "all") {
       resultats.achats = await syncAchats(map, userId, debut, fin, pdvId);
+    }
+    if (action === "ria" || action === "all") {
+      resultats.ria_remboursements = await syncRIARemboursements(map, userId, debut, fin);
     }
 
     const totalCreated = Object.values(resultats).reduce((s, r) => s + r.created, 0);
@@ -423,13 +482,14 @@ export async function GET(req: NextRequest) {
     });
     const syncRefs = new Set(dejaImportees.map((e) => e.reference));
 
-    const [nbCaisse, nbVentes, nbVentesDir, nbAchats] = await Promise.all([
+    const [nbCaisse, nbVentes, nbVentesDir, nbAchats, nbRIARemb] = await Promise.all([
       prisma.operationCaisse.count({ where: { createdAt: { gte: debut, lte: fin }, ...pdvCaisseFilter } }),
       prisma.versementPack.count({ where: { datePaiement: { gte: debut, lte: fin }, statut: "PAYE", ...pdvVersFilter } }),
       prisma.venteDirecte.count({ where: { statut: { notIn: ["BROUILLON", "ANNULEE"] }, modePaiement: { not: "CREDIT" }, createdAt: { gte: debut, lte: fin }, ...pdvVenteDirFilter } }),
       prisma.mouvementStock.count({
         where: { type: "ENTREE", dateMouvement: { gte: debut, lte: fin }, NOT: { reference: { startsWith: "INIT-" } }, ...pdvMouvFilter },
       }),
+      prisma.remboursementRIA.count({ where: { createdAt: { gte: debut, lte: fin } } }),
     ]);
 
     // Calculer les non encore importés
@@ -437,13 +497,15 @@ export async function GET(req: NextRequest) {
     const ventesSyncees    = [...syncRefs].filter((r) => r.startsWith("SYNC-VRS-")).length;
     const ventesDirSyncees = [...syncRefs].filter((r) => r.startsWith("SYNC-VD-")).length;
     const achatsSyncees    = [...syncRefs].filter((r) => r.startsWith("SYNC-MST-")).length;
+    const riaRembSyncees   = [...syncRefs].filter((r) => r.startsWith("SYNC-RIA-REMB-")).length;
 
     return NextResponse.json({
       apercu: {
-        caisse:          { total: nbCaisse,    dejaSyncees: caisseSyncees,    aSyncer: Math.max(0, nbCaisse    - caisseSyncees) },
-        ventes:          { total: nbVentes,    dejaSyncees: ventesSyncees,    aSyncer: Math.max(0, nbVentes    - ventesSyncees) },
-        ventes_directes: { total: nbVentesDir, dejaSyncees: ventesDirSyncees, aSyncer: Math.max(0, nbVentesDir - ventesDirSyncees) },
-        achats:          { total: nbAchats,    dejaSyncees: achatsSyncees,    aSyncer: Math.max(0, nbAchats    - achatsSyncees) },
+        caisse:             { total: nbCaisse,    dejaSyncees: caisseSyncees,    aSyncer: Math.max(0, nbCaisse    - caisseSyncees) },
+        ventes:             { total: nbVentes,    dejaSyncees: ventesSyncees,    aSyncer: Math.max(0, nbVentes    - ventesSyncees) },
+        ventes_directes:    { total: nbVentesDir, dejaSyncees: ventesDirSyncees, aSyncer: Math.max(0, nbVentesDir - ventesDirSyncees) },
+        achats:             { total: nbAchats,    dejaSyncees: achatsSyncees,    aSyncer: Math.max(0, nbAchats    - achatsSyncees) },
+        ria_remboursements: { total: nbRIARemb,   dejaSyncees: riaRembSyncees,   aSyncer: Math.max(0, nbRIARemb  - riaRembSyncees) },
       },
     });
   } catch (e) {
