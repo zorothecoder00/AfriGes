@@ -3458,6 +3458,7 @@ enum StatutPointage {
 enum SourcePointage {
   MANUEL
   IMPORT
+  SELF_SERVICE
 }
 
 model Pointage {

@@ -59,6 +59,8 @@ const ROLE_DASHBOARD_MAP: Record<string, string> = {
   ACTIONNAIRE:                          '/dashboard/user/actionnaires',
   REVENDEUR:                            '/dashboard/user/revendeurs',
   RESPONSABLE_RH:                       '/dashboard/user/responsablesRH',
+  INVESTISSEUR_RIA:                     '/dashboard/user/investisseurs',
+  RESPONSABLE_RIA:                      '/dashboard/user/responsablesRIA',
 };
 
 // Rôles qui gèrent une ZONE multi-PDV (chef d'agence)
@@ -382,6 +384,8 @@ export default function GestionnairesPage() {
               <option value="RESPONSABLE_MARKETING">Resp. marketing</option>
               <option value="ACTIONNAIRE">Actionnaire</option>
               <option value="RESPONSABLE_RH">Responsable RH</option>
+              <option value="INVESTISSEUR_RIA">Investisseur RIA</option>
+              <option value="RESPONSABLE_RIA">Responsable RIA</option>
             </select>
           </div>
         </div>
@@ -429,6 +433,8 @@ export default function GestionnairesPage() {
                     <option value="RESPONSABLE_MARKETING">Responsable marketing</option>
                     <option value="ACTIONNAIRE">Actionnaire</option>
                     <option value="RESPONSABLE_RH">Responsable RH</option>
+                    <option value="INVESTISSEUR_RIA">Investisseur RIA</option>
+                    <option value="RESPONSABLE_RIA">Responsable RIA</option>
                   </select>
                 </div>
                 <button type="submit" disabled={adding}

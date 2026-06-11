@@ -72,31 +72,14 @@ La facture sur les credits doit prendre en compte les prix de vente et non les p
 
 les stocks doivent avoir des prix d'achat et de vente par date ( par semaine , par mois avec un historique des prix
 
- ---
-  Résumé des travaux :
-  1. Dashboard API — ajouter 12 KPIs manquants dans /api/admin/ria/dashboard
-  2. Dashboard page — afficher les 15+ KPIs complets
-  3. Schéma — ajouter numero sur ProfilInvestisseurRIA
-  4. Fiche investisseur — afficher capitalBloqué, bénéficesRéinvestis,
-  fondSecurité + convention dans documents
-  5. Sidebar — compléter les liens RIA dans DashboardClient.tsx
-  6. Page Portefeuilles — créer /ria/portefeuilles/page.tsx
-  7. Dashboard RESPONSABLE_RIA — créer app/dashboard/user/responsablesRIA/
-
-  Je commence par quoi ? Je recommande de démarrer par les points 1+2 (dashboard
-  complet) et 7 (responsable RIA) qui sont les plus impactants.
-
-Il manque 3 sous-menus complets côté RESPONSABLE_RIA. Il faudrait créer :
-
-  - responsablesRIA/investisseurs/page.tsx
-  - responsablesRIA/investisseurs/[id]/page.tsx + documents
-  - responsablesRIA/fonds/page.tsx
-  - responsablesRIA/portefeuilles/page.tsx
-  - responsablesRIA/portefeuilles/[id]/page.tsx
-
-  Et mettre à jour les APIs /api/admin/ria/investisseurs,
-  /api/admin/ria/fonds/*, /api/admin/ria/portefeuilles/*,
-  /api/admin/ria/affectations pour utiliser getRIASession() au lieu de
-  getAdminSession() (sinon le RESPONSABLE_RIA sera bloqué 403).
 
 
+Explique moi les classes(A, B, C, D, E) sur le dashboard/admin/recouvrement
+
+que fait le bouton escalade auto dans dashboard/admin/recouvrement
+
+Comment fonctionnent les distributions et les commissions ???
+
+L'onglet Business intelligence aussi explique moi comment ça fonctionne
+
+Explique moi aussi le fonctionnement de /dashboard/admin/ria/config
