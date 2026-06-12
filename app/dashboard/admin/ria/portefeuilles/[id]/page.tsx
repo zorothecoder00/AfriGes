@@ -7,7 +7,8 @@ import Link from "next/link";
 import {
   RefreshCw, ArrowLeft, Wallet, TrendingUp, Activity,
   Users, BarChart2, Clock, CheckCircle2, XCircle, Star,
-  ChevronRight, Edit2, Save, X,
+  ChevronRight, Edit2, Save, X, PieChart, AlertTriangle,
+  UserCheck, UserMinus, UserX, Target, Percent,
 } from "lucide-react";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -35,6 +36,25 @@ interface Distribution {
 }
 interface Depot   { id: number; reference: string; montant: number; statut: string; createdAt: string }
 interface Retrait { id: number; reference: string; montant: number; statut: string; createdAt: string }
+
+interface AnalyseData {
+  dureeMois: number; dureeAns: number;
+  // Financière
+  capitalInvesti: number; capitalRecupere: number;
+  beneficeBrut: number; beneficeNet: number;
+  rendementMensuel: number; rendementAnnuel: number;
+  roi: number; triSimplifiee: number;
+  cashFlowNet: number; cashFlowEntrees: number; cashFlowSorties: number;
+  // Commerciale
+  nbClientsFinances: number; nouveauxClients: number;
+  clientsActifs: number; clientsInactifs: number; clientsPerdus: number;
+  // Recouvrement
+  montantAttendu: number; montantRecouvre: number; ecart: number;
+  tauxRecouvrement: number; tauxImpayes: number;
+  encoursImpayes: number; totalEncours: number;
+  // Historique
+  evolutionMensuelle: { mois: number; annee: number; montantGenere: number; montantDistribue: number; rendementMois: number }[];
+}
 
 interface Portefeuille {
   id: number; reference: string; nom: string | null; actif: boolean; notes: string | null;
@@ -144,15 +164,266 @@ function CapitalBar({ investi, disponible, engage, bloque }: {
   );
 }
 
+// ── Barre de progression ──────────────────────────────────────────────────────
+
+function ProgressBar({ value, max = 100, color = "bg-emerald-500" }: {
+  value: number; max?: number; color?: string;
+}) {
+  const pct = max > 0 ? Math.min(100, (value / max) * 100) : 0;
+  return (
+    <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+      <div className={`h-full rounded-full transition-all ${color}`} style={{ width: `${pct}%` }} />
+    </div>
+  );
+}
+
+// ── Composant analyse ─────────────────────────────────────────────────────────
+
+function AnalyseTab({ analyseData: a, loading, onRefresh }: {
+  analyseData: AnalyseData | null;
+  loading: boolean;
+  onRefresh: () => void;
+}) {
+  const MOIS_SHORT = ["Jan","Fév","Mar","Avr","Mai","Jun","Jul","Aoû","Sep","Oct","Nov","Déc"];
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-48 text-slate-400 gap-2">
+        <RefreshCw className="w-5 h-5 animate-spin" /> Calcul en cours…
+      </div>
+    );
+  }
+  if (!a) {
+    return (
+      <div className="flex flex-col items-center gap-3 h-48 justify-center text-slate-400">
+        <p>Impossible de charger l&apos;analyse.</p>
+        <button onClick={onRefresh} className="text-sm text-emerald-600 hover:underline">Réessayer</button>
+      </div>
+    );
+  }
+
+  const maxEvol = Math.max(...a.evolutionMensuelle.map((e) => e.montantGenere), 1);
+
+  return (
+    <div className="space-y-6">
+
+      {/* En-tête durée */}
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-slate-500">
+          Portefeuille actif depuis <span className="font-semibold text-slate-700">{a.dureeMois} mois</span>
+          {a.dureeAns >= 1 && <> ({a.dureeAns.toFixed(1)} an{a.dureeAns >= 2 ? "s" : ""})</>}
+        </p>
+        <button onClick={onRefresh} className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-700 border border-slate-200 px-3 py-1.5 rounded-lg">
+          <RefreshCw className="w-3 h-3" /> Recalculer
+        </button>
+      </div>
+
+      {/* ── Performance Financière ── */}
+      <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+        <div className="px-5 py-4 border-b border-slate-100 flex items-center gap-2 bg-slate-50">
+          <Wallet className="w-4 h-4 text-emerald-600" />
+          <h3 className="font-semibold text-slate-800">Performance Financière</h3>
+        </div>
+        <div className="p-5 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+          {[
+            { label: "Capital investi",   value: `${fmt(a.capitalInvesti)} F`,  color: "text-slate-900",   sub: "Base" },
+            { label: "Capital récupéré",  value: `${fmt(a.capitalRecupere)} F`, color: "text-violet-700",  sub: "Recouvré" },
+            { label: "Bénéfice brut",     value: `${fmt(a.beneficeBrut)} F`,    color: "text-amber-700",   sub: "Avant réserves" },
+            { label: "Bénéfice net",      value: `${fmt(a.beneficeNet)} F`,     color: a.beneficeNet >= 0 ? "text-emerald-700" : "text-red-600", sub: "Après fonds sécurité" },
+            { label: "Cash-flow net",     value: `${fmt(a.cashFlowNet)} F`,     color: a.cashFlowNet >= 0 ? "text-emerald-700" : "text-red-600", sub: `+${fmt(a.cashFlowEntrees)} / -${fmt(a.cashFlowSorties)}` },
+          ].map((k) => (
+            <div key={k.label} className="space-y-0.5">
+              <p className="text-xs text-slate-400">{k.label}</p>
+              <p className={`text-base font-bold tabular-nums ${k.color}`}>{k.value}</p>
+              <p className="text-xs text-slate-300">{k.sub}</p>
+            </div>
+          ))}
+        </div>
+
+        <div className="px-5 pb-5 grid grid-cols-2 md:grid-cols-4 gap-4 border-t border-slate-100 pt-4">
+          {[
+            { label: "ROI total",           value: a.roi.toFixed(2),              suffix: "%", color: a.roi >= 0 ? "text-emerald-700" : "text-red-600", icon: <Percent className="w-3.5 h-3.5" />, sub: "Rendement sur capital investi" },
+            { label: "Rendement mensuel",   value: a.rendementMensuel.toFixed(3), suffix: "%", color: "text-blue-700",  icon: <TrendingUp className="w-3.5 h-3.5" />, sub: "Moyen par mois" },
+            { label: "Rendement annuel",    value: a.rendementAnnuel.toFixed(2),  suffix: "%", color: "text-indigo-700",icon: <TrendingUp className="w-3.5 h-3.5" />, sub: "Annualisé" },
+            { label: "TRI simplifié (CAGR)",value: a.triSimplifiee.toFixed(2),    suffix: "%", color: "text-violet-700",icon: <Activity   className="w-3.5 h-3.5" />, sub: `Sur ${a.dureeAns.toFixed(1)} an(s)` },
+          ].map((k) => (
+            <div key={k.label} className="bg-slate-50 rounded-xl p-4">
+              <div className="flex items-center gap-1.5 mb-1">
+                <span className="text-slate-400">{k.icon}</span>
+                <p className="text-xs text-slate-500">{k.label}</p>
+              </div>
+              <p className={`text-2xl font-bold tabular-nums ${k.color}`}>
+                {k.value}<span className="text-sm font-medium ml-0.5">{k.suffix}</span>
+              </p>
+              <p className="text-xs text-slate-300 mt-0.5">{k.sub}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ── Performance Commerciale ── */}
+      <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+        <div className="px-5 py-4 border-b border-slate-100 flex items-center gap-2 bg-slate-50">
+          <Users className="w-4 h-4 text-blue-600" />
+          <h3 className="font-semibold text-slate-800">Performance Commerciale</h3>
+        </div>
+        <div className="p-5 grid grid-cols-2 md:grid-cols-5 gap-4">
+          {[
+            { label: "Clients financés",  value: a.nbClientsFinances, color: "text-slate-900",   icon: <Users      className="w-4 h-4 text-slate-400"   />, bg: "bg-slate-50"   },
+            { label: "Nouveaux (30j)",    value: a.nouveauxClients,   color: "text-blue-700",    icon: <UserCheck  className="w-4 h-4 text-blue-400"   />, bg: "bg-blue-50"    },
+            { label: "Clients actifs",    value: a.clientsActifs,     color: "text-emerald-700", icon: <UserCheck  className="w-4 h-4 text-emerald-400"/>, bg: "bg-emerald-50" },
+            { label: "Clients inactifs",  value: a.clientsInactifs,   color: "text-amber-700",   icon: <UserMinus  className="w-4 h-4 text-amber-400"  />, bg: "bg-amber-50"   },
+            { label: "Clients perdus",    value: a.clientsPerdus,     color: a.clientsPerdus > 0 ? "text-red-700" : "text-slate-500", icon: <UserX className="w-4 h-4 text-red-400" />, bg: a.clientsPerdus > 0 ? "bg-red-50" : "bg-slate-50" },
+          ].map((k) => (
+            <div key={k.label} className={`${k.bg} rounded-xl p-4 flex flex-col gap-2`}>
+              <div className="flex items-center gap-1.5">{k.icon}<p className="text-xs text-slate-500">{k.label}</p></div>
+              <p className={`text-3xl font-bold tabular-nums ${k.color}`}>{k.value}</p>
+            </div>
+          ))}
+        </div>
+        {/* Jauge actifs/inactifs/perdus */}
+        {(a.clientsActifs + a.clientsInactifs + a.clientsPerdus) > 0 && (
+          <div className="px-5 pb-5">
+            <p className="text-xs text-slate-400 mb-2">Répartition clients affectés</p>
+            <div className="flex h-3 rounded-full overflow-hidden gap-0.5">
+              {a.clientsActifs > 0 && (
+                <div className="bg-emerald-400 transition-all"
+                  style={{ width: `${(a.clientsActifs / (a.clientsActifs + a.clientsInactifs + a.clientsPerdus)) * 100}%` }}
+                  title={`Actifs ${a.clientsActifs}`} />
+              )}
+              {a.clientsInactifs > 0 && (
+                <div className="bg-amber-300 transition-all"
+                  style={{ width: `${(a.clientsInactifs / (a.clientsActifs + a.clientsInactifs + a.clientsPerdus)) * 100}%` }}
+                  title={`Inactifs ${a.clientsInactifs}`} />
+              )}
+              {a.clientsPerdus > 0 && (
+                <div className="bg-red-400 transition-all"
+                  style={{ width: `${(a.clientsPerdus / (a.clientsActifs + a.clientsInactifs + a.clientsPerdus)) * 100}%` }}
+                  title={`Perdus ${a.clientsPerdus}`} />
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ── Performance de Recouvrement ── */}
+      <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+        <div className="px-5 py-4 border-b border-slate-100 flex items-center gap-2 bg-slate-50">
+          <Target className="w-4 h-4 text-violet-600" />
+          <h3 className="font-semibold text-slate-800">Performance de Recouvrement</h3>
+        </div>
+        <div className="p-5 grid grid-cols-2 md:grid-cols-4 gap-5">
+          <div className="space-y-1">
+            <p className="text-xs text-slate-400">Montant attendu</p>
+            <p className="text-lg font-bold text-slate-900 tabular-nums">{fmt(a.montantAttendu)} F</p>
+            <p className="text-xs text-slate-300">Total financements</p>
+          </div>
+          <div className="space-y-1">
+            <p className="text-xs text-slate-400">Montant recouvré</p>
+            <p className="text-lg font-bold text-emerald-700 tabular-nums">{fmt(a.montantRecouvre)} F</p>
+            <p className="text-xs text-slate-300">Remboursements reçus</p>
+          </div>
+          <div className="space-y-1">
+            <p className="text-xs text-slate-400">Écart</p>
+            <p className={`text-lg font-bold tabular-nums ${a.ecart > 0 ? "text-amber-600" : "text-emerald-600"}`}>
+              {fmt(a.ecart)} F
+            </p>
+            <p className="text-xs text-slate-300">Reste à recouvrer</p>
+          </div>
+          <div className="space-y-1">
+            <p className="text-xs text-slate-400">Encours impayés</p>
+            <p className={`text-lg font-bold tabular-nums ${a.encoursImpayes > 0 ? "text-red-600" : "text-slate-400"}`}>
+              {fmt(a.encoursImpayes)} F
+            </p>
+            <p className="text-xs text-slate-300">En retard / Défaut</p>
+          </div>
+        </div>
+
+        {/* Jauges taux */}
+        <div className="px-5 pb-5 grid grid-cols-1 md:grid-cols-2 gap-5">
+          <div>
+            <div className="flex justify-between text-xs mb-1.5">
+              <span className="text-slate-500 flex items-center gap-1"><CheckCircle2 className="w-3 h-3 text-emerald-500" /> Taux de recouvrement</span>
+              <span className={`font-bold ${a.tauxRecouvrement >= 80 ? "text-emerald-700" : a.tauxRecouvrement >= 50 ? "text-amber-600" : "text-red-600"}`}>
+                {a.tauxRecouvrement.toFixed(1)}%
+              </span>
+            </div>
+            <ProgressBar
+              value={a.tauxRecouvrement}
+              max={100}
+              color={a.tauxRecouvrement >= 80 ? "bg-emerald-500" : a.tauxRecouvrement >= 50 ? "bg-amber-400" : "bg-red-400"}
+            />
+          </div>
+          <div>
+            <div className="flex justify-between text-xs mb-1.5">
+              <span className="text-slate-500 flex items-center gap-1">
+                <AlertTriangle className="w-3 h-3 text-red-400" /> Taux d&apos;impayés
+              </span>
+              <span className={`font-bold ${a.tauxImpayes === 0 ? "text-emerald-700" : a.tauxImpayes <= 10 ? "text-amber-600" : "text-red-600"}`}>
+                {a.tauxImpayes.toFixed(1)}%
+              </span>
+            </div>
+            <ProgressBar
+              value={a.tauxImpayes}
+              max={100}
+              color={a.tauxImpayes === 0 ? "bg-emerald-500" : a.tauxImpayes <= 10 ? "bg-amber-400" : "bg-red-500"}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* ── Évolution mensuelle du rendement ── */}
+      {a.evolutionMensuelle.length > 0 && (
+        <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+          <div className="px-5 py-4 border-b border-slate-100 flex items-center gap-2 bg-slate-50">
+            <BarChart2 className="w-4 h-4 text-amber-600" />
+            <h3 className="font-semibold text-slate-800">Évolution mensuelle des bénéfices</h3>
+          </div>
+          <div className="p-5 overflow-x-auto">
+            <table className="w-full text-xs min-w-[480px]">
+              <thead>
+                <tr className="text-slate-400 uppercase tracking-wider border-b border-slate-100">
+                  <th className="pb-2 text-left font-medium">Période</th>
+                  <th className="pb-2 text-right font-medium">Bénéfice généré</th>
+                  <th className="pb-2 text-right font-medium">Distribué</th>
+                  <th className="pb-2 text-right font-medium">Rendement mois</th>
+                  <th className="pb-2 text-right font-medium w-32">Barre</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-50">
+                {a.evolutionMensuelle.map((e) => (
+                  <tr key={`${e.annee}-${e.mois}`} className="hover:bg-slate-50">
+                    <td className="py-2 font-medium text-slate-700">{MOIS_SHORT[(e.mois ?? 1) - 1]} {e.annee}</td>
+                    <td className="py-2 text-right text-amber-600 font-semibold tabular-nums">{fmt(e.montantGenere)} F</td>
+                    <td className="py-2 text-right text-emerald-600 tabular-nums">{fmt(e.montantDistribue)} F</td>
+                    <td className="py-2 text-right font-bold text-indigo-600">{e.rendementMois.toFixed(3)}%</td>
+                    <td className="py-2 pl-4">
+                      <ProgressBar value={e.montantGenere} max={maxEvol} color="bg-amber-400" />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+    </div>
+  );
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function PortefeuilleDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
-  const [tab, setTab]       = useState<"overview" | "clients" | "financements" | "mouvements" | "distributions">("overview");
+  const [tab, setTab]       = useState<"overview" | "clients" | "financements" | "mouvements" | "distributions" | "analyse">("overview");
   const [editing, setEditing] = useState(false);
   const [editNom, setEditNom] = useState("");
 
   const { data: pfRes, loading, refetch } = useApi<{ data: Portefeuille }>(`/api/admin/ria/portefeuilles/${id}`);
+  const { data: analyseRes, loading: analyseLoading, refetch: refetchAnalyse } = useApi<{ data: AnalyseData }>(
+    tab === "analyse" ? `/api/admin/ria/portefeuilles/${id}/analyse` : null
+  );
   const { data: affRes, refetch: refetchAff } = useApi<{ data: Affectation[]; meta: { total: number } }>(
     `/api/admin/ria/affectations?portefeuilleId=${id}&limit=50`
   );
@@ -220,6 +491,7 @@ export default function PortefeuilleDetailPage({ params }: { params: Promise<{ i
     { id: "financements",  label: `Financements (${pf.financements.length})`, icon: <Activity className="w-3.5 h-3.5" /> },
     { id: "mouvements",    label: `Mouvements (${pf.mouvements.length})`,     icon: <BarChart2 className="w-3.5 h-3.5" /> },
     { id: "distributions", label: `Distributions (${pf.distributions.length})`, icon: <TrendingUp className="w-3.5 h-3.5" /> },
+    { id: "analyse",       label: "Analyse de portefeuille",                    icon: <PieChart className="w-3.5 h-3.5" /> },
   ] as const;
 
   return (
@@ -625,6 +897,15 @@ export default function PortefeuilleDetailPage({ params }: { params: Promise<{ i
             </tbody>
           </table>
         </div>
+      )}
+
+      {/* ── Tab : Analyse de portefeuille ────────────────────────────────────── */}
+      {tab === "analyse" && (
+        <AnalyseTab
+          analyseData={analyseRes?.data ?? null}
+          loading={analyseLoading}
+          onRefresh={refetchAnalyse}
+        />
       )}
 
       {/* ── Tab : Distributions ──────────────────────────────────────────────── */}

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getRIASession } from "@/lib/authRIA";
+import { ecritureFinancementRIA } from "@/lib/riaComptable";
 
 function refFin(): string {
   const d = new Date().toISOString().slice(0, 10).replace(/-/g, "");
@@ -147,6 +148,19 @@ export async function POST(req: NextRequest) {
           portefeuilleId: parseInt(portefeuilleId),
           financementId: fin.id,
         },
+      });
+
+      const clientInfo = await tx.client.findUnique({
+        where: { id: parseInt(clientId) },
+        select: { nom: true, prenom: true },
+      });
+      const pf2 = await tx.portefeuilleRIA.findUnique({ where: { id: parseInt(portefeuilleId) }, select: { reference: true } });
+      await ecritureFinancementRIA(tx, {
+        montant,
+        reference:      fin.reference,
+        clientNom:      clientInfo ? `${clientInfo.prenom} ${clientInfo.nom}` : `Client ${clientId}`,
+        portefeuilleRef: pf2?.reference ?? `PF-${portefeuilleId}`,
+        userId:         parseInt(session.user.id),
       });
 
       return fin;

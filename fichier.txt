@@ -74,3 +74,4 @@ les stocks doivent avoir des prix d'achat et de vente par date ( par semaine , p
 
 
 
+

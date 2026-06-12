@@ -4,13 +4,20 @@ type TX = Omit<Prisma.TransactionClient, "$connect" | "$disconnect" | "$on" | "$
 
 // Numéros de comptes SYSCOHADA utilisés pour les opérations RIA
 // Les écritures sont créées uniquement si le compte existe dans le plan comptable.
-const COMPTES = {
-  BANQUE:              "52",   // Banques — dépôts/retraits
-  INVESTISSEURS:       "1672", // Comptes courants associés RIA (ou 467)
+export const COMPTES_RIA = {
+  BANQUE:              "52",   // Banques — trésorerie
+  INVESTISSEURS:       "1672", // Comptes courants associés RIA
+  CREANCES_CLIENTS:    "416",  // Créances clients RIA (financement crédit)
   PRODUITS_FINANCIERS: "776",  // Revenus des participations
-  CHARGES_FINANCIERES: "676",  // Charges d'intérêts
+  CHARGES_FINANCIERES: "676",  // Charges d'intérêts / distributions
   FOND_SECURITE:       "165",  // Provisions financières
 };
+
+// Alias interne pour compatibilité
+const COMPTES = COMPTES_RIA;
+
+// Préfixe commun à toutes les écritures RIA — utile pour filtrer le journal
+export const RIA_REF_PREFIX = "RIA-";
 
 function genRef(prefix: string): string {
   return `${prefix}-${Date.now()}-${Math.floor(Math.random() * 9000) + 1000}`;
@@ -137,6 +144,77 @@ export async function ecritureDistributionRIA(
       statut:    "VALIDE",
       userId:    params.userId ?? null,
       lignes:    { create: lignes },
+    },
+  });
+}
+
+// ── Écriture : Financement client (déblocage crédit) ─────────────────────────
+// Dr Créances Clients RIA / Cr Fonds Investisseur
+export async function ecritureFinancementRIA(
+  tx: TX,
+  params: {
+    montant: number;
+    reference: string;
+    clientNom: string;
+    portefeuilleRef: string;
+    userId?: number;
+  }
+) {
+  const [idCreances, idInv] = await Promise.all([
+    findCompte(tx, COMPTES.CREANCES_CLIENTS),
+    findCompte(tx, COMPTES.INVESTISSEURS),
+  ]);
+  if (!idCreances || !idInv) return;
+
+  await tx.ecritureComptable.create({
+    data: {
+      reference: genRef("RIA-FIN"),
+      date:      new Date(),
+      libelle:   `Financement RIA — ${params.clientNom} — ${params.reference}`,
+      journal:   "OD",
+      statut:    "VALIDE",
+      userId:    params.userId ?? null,
+      lignes: {
+        create: [
+          { compteId: idCreances, libelle: `Crédit client ${params.clientNom} — ${params.reference}`, debit: params.montant, credit: 0 },
+          { compteId: idInv,      libelle: `Fonds investisseur ${params.portefeuilleRef}`,             debit: 0,              credit: params.montant },
+        ],
+      },
+    },
+  });
+}
+
+// ── Écriture : Recouvrement (remboursement client) ────────────────────────────
+// Dr Trésorerie / Cr Créances Clients RIA
+export async function ecritureRecouvrementRIA(
+  tx: TX,
+  params: {
+    montant: number;
+    reference: string;
+    clientNom: string;
+    userId?: number;
+  }
+) {
+  const [idBanque, idCreances] = await Promise.all([
+    findCompte(tx, COMPTES.BANQUE),
+    findCompte(tx, COMPTES.CREANCES_CLIENTS),
+  ]);
+  if (!idBanque || !idCreances) return;
+
+  await tx.ecritureComptable.create({
+    data: {
+      reference: genRef("RIA-REM"),
+      date:      new Date(),
+      libelle:   `Recouvrement RIA — ${params.clientNom} — ${params.reference}`,
+      journal:   "BANQUE",
+      statut:    "VALIDE",
+      userId:    params.userId ?? null,
+      lignes: {
+        create: [
+          { compteId: idBanque,   libelle: `Encaissement remboursement ${params.reference}`, debit: params.montant, credit: 0 },
+          { compteId: idCreances, libelle: `Solde créance ${params.clientNom}`,              debit: 0,              credit: params.montant },
+        ],
+      },
     },
   });
 }

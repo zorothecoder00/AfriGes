@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getRIASession } from "@/lib/authRIA";
+import { ecritureRecouvrementRIA } from "@/lib/riaComptable";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -66,6 +67,17 @@ export async function POST(req: NextRequest, { params }: Ctx) {
           portefeuilleId: fin.portefeuilleId,
           financementId: fin.id,
         },
+      });
+
+      const clientInfo = await tx.client.findUnique({
+        where: { id: fin.clientId },
+        select: { nom: true, prenom: true },
+      });
+      await ecritureRecouvrementRIA(tx, {
+        montant:    montantRemb,
+        reference:  fin.reference,
+        clientNom:  clientInfo ? `${clientInfo.prenom} ${clientInfo.nom}` : `Client ${fin.clientId}`,
+        userId:     parseInt(session.user.id),
       });
     });
 

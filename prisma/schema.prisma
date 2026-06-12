@@ -709,6 +709,8 @@ model User {
   depotsRIAValides             DepotInvestisseur[]      @relation("DepotsValides")
   retraitsRIAValides           RetraitInvestisseur[]    @relation("RetraitsValides")
   actionsRIAEffectuees         ActionRecouvrementRIA[]  @relation("ActionsRIAEffectuees")
+  commissionsRIA               CommissionAgentRIA[]     @relation("CommissionsAgent")
+  commissionsApprouvees        CommissionAgentRIA[]     @relation("CommissionsApprob")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -4356,4 +4358,58 @@ model ActionRecouvrementRIA {
   @@index([financementId])
   @@index([statut])
   @@index([dateAction])
+}
+
+// ── Commissions Agents RIA ─────────────────────────────────────────────────────
+
+enum StatutCommissionRIA {
+  CALCULE
+  APPROUVE
+  PAYE
+  ANNULE
+}
+
+model ConfigCommissionRIA {
+  id          Int     @id @default(autoincrement())
+  roleType    String  @unique // "AGENT_TERRAIN" | "CHEF_AGENCE" | "RPV_REGIONAL"
+  tauxBase    Decimal @default(1.0) // % du montant recouvré
+  description String?
+  actif       Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model CommissionAgentRIA {
+  id     Int    @id @default(autoincrement())
+  userId Int
+  mois   Int
+  annee  Int
+  roleType String // "AGENT_TERRAIN" | "CHEF_AGENCE" | "RPV_REGIONAL"
+  pdvId  Int?   // PDV concerné (pour chef agence / RPV)
+
+  montantRecouvre      Decimal @default(0)
+  nbDossiers           Int     @default(0)
+  nbDossiersRembourses Int     @default(0)
+  tauxSucces           Decimal @default(0)
+
+  taux    Decimal @default(0)
+  montant Decimal @default(0)
+
+  statut          StatutCommissionRIA @default(CALCULE)
+  approuveParId   Int?
+  dateApprobation DateTime?
+  datePaiement    DateTime?
+  notes           String?
+
+  user        User  @relation("CommissionsAgent",    fields: [userId],        references: [id])
+  approuvePar User? @relation("CommissionsApprob",   fields: [approuveParId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, mois, annee, roleType])
+  @@index([mois, annee])
+  @@index([statut])
+  @@index([userId])
 }

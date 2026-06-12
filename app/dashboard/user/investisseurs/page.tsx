@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import {
   Wallet, TrendingUp, Activity, RefreshCw, ArrowDownCircle, ArrowUpCircle,
-  DollarSign, Network, ChevronRight, AlertCircle,
+  DollarSign, Network, ChevronRight, AlertCircle, FileText,
 } from "lucide-react";
 import { useApi } from "@/hooks/useApi";
 import NotificationBell from "@/components/NotificationBell";
@@ -96,7 +96,7 @@ export default function InvestisseurDashboardPage() {
   const { data: mvtRes, loading: mvtLoading, refetch: mvtRefetch } =
     useApi<{ data: Mouvement[] }>("/api/investisseurRIA/mouvements?limit=10");
 
-  const [activeTab, setActiveTab] = useState<"portefeuilles" | "mouvements">("portefeuilles");
+  const [activeTab, setActiveTab] = useState<"portefeuilles" | "mouvements" | "rapports">("portefeuilles");
 
   const portefeuilles = pfRes?.data ?? [];
   const mouvements    = mvtRes?.data ?? [];
@@ -149,12 +149,18 @@ export default function InvestisseurDashboardPage() {
 
         {/* ── Tabs ── */}
         <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl w-fit">
-          {(["portefeuilles", "mouvements"] as const).map((tab) => (
-            <button key={tab} onClick={() => setActiveTab(tab)}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors capitalize ${activeTab === tab ? "bg-white shadow-sm text-slate-900" : "text-slate-500 hover:text-slate-700"}`}>
-              {tab === "portefeuilles" ? `Portefeuilles (${portefeuilles.length})` : "Mouvements récents"}
-            </button>
-          ))}
+          <button onClick={() => setActiveTab("portefeuilles")}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${activeTab === "portefeuilles" ? "bg-white shadow-sm text-slate-900" : "text-slate-500 hover:text-slate-700"}`}>
+            Portefeuilles ({portefeuilles.length})
+          </button>
+          <button onClick={() => setActiveTab("mouvements")}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${activeTab === "mouvements" ? "bg-white shadow-sm text-slate-900" : "text-slate-500 hover:text-slate-700"}`}>
+            Mouvements récents
+          </button>
+          <button onClick={() => setActiveTab("rapports")}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5 ${activeTab === "rapports" ? "bg-white shadow-sm text-slate-900" : "text-slate-500 hover:text-slate-700"}`}>
+            <FileText className="w-4 h-4" /> Rapports mensuels
+          </button>
         </div>
 
         {/* ── Portefeuilles ── */}
@@ -212,6 +218,27 @@ export default function InvestisseurDashboardPage() {
                 </div>
               </div>
             ))}
+          </div>
+        )}
+
+        {/* ── Rapports mensuels ── */}
+        {activeTab === "rapports" && (
+          <div className="bg-white rounded-2xl border border-slate-200 p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="font-bold text-slate-900">Rapports mensuels</h3>
+                <p className="text-xs text-slate-400 mt-0.5">Consultez et téléchargez vos rapports de performance</p>
+              </div>
+              <Link href="/dashboard/user/investisseurs/rapports"
+                className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors">
+                <FileText className="w-4 h-4" /> Voir tous les rapports <ChevronRight className="w-3.5 h-3.5" />
+              </Link>
+            </div>
+            <p className="text-sm text-slate-500 bg-slate-50 rounded-xl p-4">
+              Vos rapports mensuels détaillent l&apos;évolution de votre portefeuille : capital investi, engagé, récupéré,
+              rendement, clients financés, encours, retards et gains réalisés. Cliquez sur &ldquo;Voir tous les rapports&rdquo;
+              pour accéder à la liste complète et les exporter en PDF ou Excel.
+            </p>
           </div>
         )}
 
