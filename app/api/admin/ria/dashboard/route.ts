@@ -62,7 +62,11 @@ export async function GET() {
         _count: { id: true },
       }),
 
-      prisma.affectationClientRIA.count({ where: { actif: true } }),
+      prisma.affectationClientRIA.findMany({
+        where: { actif: true },
+        distinct: ["clientId"],
+        select: { clientId: true },
+      }).then((r) => r.length),
 
       prisma.operationFinancementRIA.count({ where: { statut: "ACTIF" } }),
 
