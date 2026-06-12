@@ -13,17 +13,34 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
     const { id } = await params;
     const { actif, pourcentage, montantAlloue, classeRisque, notes } = await req.json();
 
-    const affectation = await prisma.affectationClientRIA.findUnique({ where: { id: parseInt(id) } });
+    const affectation = await prisma.affectationClientRIA.findUnique({
+      where: { id: parseInt(id) },
+      include: { portefeuille: { select: { capitalInvesti: true } } },
+    });
     if (!affectation) return NextResponse.json({ error: "Affectation introuvable" }, { status: 404 });
+
+    const capitalInvesti = Number(affectation.portefeuille.capitalInvesti);
+
+    // Dériver le champ manquant pour garantir la cohérence
+    let newPourcentage  = pourcentage  !== undefined ? Number(pourcentage)  : undefined;
+    let newMontant      = montantAlloue !== undefined ? Number(montantAlloue) : undefined;
+
+    if (newPourcentage !== undefined) {
+      // Le pourcentage fait autorité → recalcule le montant
+      newMontant = Math.round(newPourcentage / 100 * capitalInvesti);
+    } else if (newMontant !== undefined && capitalInvesti > 0) {
+      // Le montant fait autorité (pas de pourcentage fourni) → recalcule le pourcentage
+      newPourcentage = parseFloat((newMontant / capitalInvesti * 100).toFixed(4));
+    }
 
     const updated = await prisma.affectationClientRIA.update({
       where: { id: parseInt(id) },
       data: {
-        ...(actif       !== undefined ? { actif, dateFin: actif === false ? new Date() : null } : {}),
-        ...(pourcentage !== undefined ? { pourcentage: Number(pourcentage) }          : {}),
-        ...(montantAlloue !== undefined ? { montantAlloue: Number(montantAlloue) }    : {}),
-        ...(classeRisque  !== undefined ? { classeRisque: classeRisque as ClasseRisqueRIA } : {}),
-        ...(notes         !== undefined ? { notes }                                   : {}),
+        ...(actif             !== undefined ? { actif, dateFin: actif === false ? new Date() : null } : {}),
+        ...(newPourcentage    !== undefined ? { pourcentage: newPourcentage }   : {}),
+        ...(newMontant        !== undefined ? { montantAlloue: newMontant }     : {}),
+        ...(classeRisque      !== undefined ? { classeRisque: classeRisque as ClasseRisqueRIA } : {}),
+        ...(notes             !== undefined ? { notes }                        : {}),
       },
     });
 

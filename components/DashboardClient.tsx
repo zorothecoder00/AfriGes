@@ -7,7 +7,7 @@ import {
   Activity, AlertTriangle, CheckCircle, XCircle, Wallet, BarChart2, Truck, RefreshCw,
   Calendar, CreditCard, TrendingDown, DollarSign, Clock, Award, Percent, ClipboardCheck,
   UserCog, Banknote, GraduationCap, CalendarDays, MapPin, Star, Building2, Gift, FileWarning,
-  Settings, Network, FileText, BookOpen,
+  Settings, Network, FileText, BookOpen, FolderOpen,
 } from 'lucide-react';      
 import Link from "next/link";     
 import { useSession } from 'next-auth/react';
@@ -372,6 +372,8 @@ export default function AfriGesDashboard() {
                 <Link href="/dashboard/admin/ria/comptabilite"   className="w-full flex items-center gap-3 px-4 py-2.5 pl-10 text-slate-500 hover:bg-slate-50 rounded-xl transition-all text-sm"><BookOpen size={16} /><span>Comptabilité</span></Link>
                 <Link href="/dashboard/admin/ria/commissions"     className="w-full flex items-center gap-3 px-4 py-2.5 pl-10 text-slate-500 hover:bg-slate-50 rounded-xl transition-all text-sm"><Award size={16} /><span>Commissions</span></Link>
                 <Link href="/dashboard/admin/ria/bi"              className="w-full flex items-center gap-3 px-4 py-2.5 pl-10 text-slate-500 hover:bg-slate-50 rounded-xl transition-all text-sm"><BarChart2 size={16} /><span>BI &amp; Analytique</span></Link>
+                <Link href="/dashboard/admin/ria/alertes"         className="w-full flex items-center gap-3 px-4 py-2.5 pl-10 text-slate-500 hover:bg-slate-50 rounded-xl transition-all text-sm"><AlertTriangle size={16} /><span>Alertes Automatiques</span></Link>
+                <Link href="/dashboard/admin/ria/documents"       className="w-full flex items-center gap-3 px-4 py-2.5 pl-10 text-slate-500 hover:bg-slate-50 rounded-xl transition-all text-sm"><FolderOpen size={16} /><span>Documents Générés</span></Link>
                 <Link href="/dashboard/admin/ria/config"          className="w-full flex items-center gap-3 px-4 py-2.5 pl-10 text-slate-500 hover:bg-slate-50 rounded-xl transition-all text-sm"><Settings size={16} /><span>Configuration</span></Link>
               </nav>
             </div>

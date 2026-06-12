@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import {
   LayoutDashboard, Users, Wallet, Briefcase, Home, ChevronRight,
   UserCheck, Activity, TrendingDown, ArrowUpCircle, Star, Award,
-  DollarSign, BarChart2, FileText, Settings, BookOpen,
+  DollarSign, BarChart2, FileText, Settings, BookOpen, AlertTriangle, FolderOpen,
 } from "lucide-react";
 
 const NAV = [
@@ -24,6 +24,8 @@ const NAV = [
   { href: "/dashboard/user/responsablesRIA/bi",                     label: "BI",            icon: BarChart2 },
   { href: "/dashboard/user/responsablesRIA/rapports",               label: "Rapports",      icon: FileText },
   { href: "/dashboard/user/responsablesRIA/comptabilite",           label: "Comptabilité",  icon: BookOpen },
+  { href: "/dashboard/user/responsablesRIA/alertes",                label: "Alertes",       icon: AlertTriangle },
+  { href: "/dashboard/user/responsablesRIA/documents",              label: "Documents",     icon: FolderOpen },
   { href: "/dashboard/user/responsablesRIA/config",                 label: "Config",        icon: Settings },
 ];
 

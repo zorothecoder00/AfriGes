@@ -3,15 +3,17 @@
 import { useState } from "react";
 import { useApi } from "@/hooks/useApi";
 import { toast } from "sonner";
-import { Plus, RefreshCw, Search, Users, ToggleLeft, ToggleRight, AlertTriangle, PieChart } from "lucide-react";
+import {
+  Plus, RefreshCw, Search, Users, ToggleLeft, ToggleRight,
+  AlertTriangle, PieChart, CheckCircle,
+} from "lucide-react";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 interface AffectationItem {
   id: number; pourcentage: number; montantAlloue: number; classeRisque: string;
   actif: boolean; dateDebut: string; dateFin: string | null; notes: string | null;
-  encoursActuel: number;
-  disponible: number;
+  encoursActuel: number; disponible: number;
   portefeuille: {
     id: number; reference: string; nom: string | null;
     profilRIA: { gestionnaire: { member: { id: number; nom: string; prenom: string } } };
@@ -20,20 +22,21 @@ interface AffectationItem {
   _count: { financements: number };
 }
 
-interface PortefeuilleOpt { id: number; reference: string; nom: string | null; profilRIA: { gestionnaire: { member: { nom: string; prenom: string } } } }
+interface PortefeuilleOpt {
+  id: number; reference: string; nom: string | null; capitalInvesti: number;
+  profilRIA: { gestionnaire: { member: { nom: string; prenom: string } } };
+}
 interface ClientOpt { id: number; nom: string; prenom: string; telephone: string | null }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-const fmt = (n: number) => new Intl.NumberFormat("fr-FR").format(Math.round(n));
-const toNum = (v: unknown) => Number(v ?? 0);
+const fmt     = (n: number) => new Intl.NumberFormat("fr-FR").format(Math.round(n));
+const toNum   = (v: unknown) => Number(v ?? 0);
 const fmtDate = (s: string) => new Date(s).toLocaleDateString("fr-FR");
 
 const RISQUE_STYLE: Record<string, string> = {
-  A: "bg-emerald-50 text-emerald-700",
-  B: "bg-blue-50 text-blue-700",
-  C: "bg-amber-50 text-amber-700",
-  D: "bg-orange-50 text-orange-700",
+  A: "bg-emerald-50 text-emerald-700", B: "bg-blue-50 text-blue-700",
+  C: "bg-amber-50 text-amber-700",     D: "bg-orange-50 text-orange-700",
   E: "bg-red-50 text-red-700",
 };
 
@@ -44,32 +47,80 @@ function CreateModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
   const pfs = pfRes?.data ?? [];
 
   const [clientSearch, setClientSearch] = useState("");
-  const { data: clientRes } = useApi<{ data: ClientOpt[] }>(`/api/admin/clients?limit=20&search=${encodeURIComponent(clientSearch)}`);
+  const [selectedClient, setSelectedClient] = useState<ClientOpt | null>(null);
+
+  const { data: clientRes } = useApi<{ data: ClientOpt[] }>(
+    clientSearch.length >= 1
+      ? `/api/admin/clients?limit=100&search=${encodeURIComponent(clientSearch)}`
+      : `/api/admin/clients?limit=50`
+  );
   const clients = clientRes?.data ?? [];
 
   const [form, setForm] = useState({
-    portefeuilleId: "", clientId: "", pourcentage: "", montantAlloue: "", classeRisque: "A", notes: "",
+    portefeuilleId: "", clientId: "", pourcentage: "", classeRisque: "A", notes: "",
   });
   const set = (k: string, v: string) => setForm((p) => ({ ...p, [k]: v }));
   const [loading, setLoading] = useState(false);
 
-  // Affectations actives du portefeuille sélectionné pour afficher le % déjà alloué
-  const { data: aff0Res } = useApi<{ data: { pourcentage: number; clientId: number }[]; meta: { total: number } }>(
+  // "pourcentage" | "montant" — ce que l'utilisateur saisit
+  const [saisieMode, setSaisieMode] = useState<"pourcentage" | "montant">("pourcentage");
+  // valeur brute saisie dans le champ actif
+  const [valeurSaisie, setValeurSaisie] = useState("");
+
+  // Capital du portefeuille sélectionné
+  const selectedPf     = pfs.find((p) => String(p.id) === form.portefeuilleId);
+  const capitalInvesti = selectedPf ? Number(selectedPf.capitalInvesti) : 0;
+
+  // Forcer mode pourcentage quand pas de capital (montant ne peut pas se convertir)
+  const modeEffectif = capitalInvesti === 0 ? "pourcentage" : saisieMode;
+
+  const valNum = parseFloat(valeurSaisie) || 0;
+
+  // Calculs dérivés
+  const pourcentageCalcule = modeEffectif === "montant" && capitalInvesti > 0
+    ? parseFloat((valNum / capitalInvesti * 100).toFixed(2))
+    : valNum;
+  const montantCalcule = capitalInvesti > 0
+    ? Math.round(pourcentageCalcule / 100 * capitalInvesti)
+    : 0;
+
+  // Valeur affichée dans l'info-bulle de l'autre champ
+  const autreValeurAffichee = modeEffectif === "pourcentage"
+    ? capitalInvesti > 0 ? `${new Intl.NumberFormat("fr-FR").format(montantCalcule)} FCFA` : "—"
+    : `${pourcentageCalcule.toFixed(2)} %`;
+
+  const handleValeurSaisie = (v: string) => {
+    setValeurSaisie(v);
+    // Met à jour le pourcentage dans form (c'est lui qui part à l'API)
+    const n = parseFloat(v) || 0;
+    const pct = modeEffectif === "montant" && capitalInvesti > 0
+      ? parseFloat((n / capitalInvesti * 100).toFixed(4))
+      : n;
+    set("pourcentage", String(pct));
+  };
+
+  const handleModeChange = (mode: "pourcentage" | "montant") => {
+    if (capitalInvesti === 0 && mode === "montant") return; // pas de capital → mode montant impossible
+    setSaisieMode(mode);
+    setValeurSaisie(""); // reset la saisie au changement de mode
+    set("pourcentage", "");
+  };
+
+  // Affectations actives du portefeuille (jauge %)
+  const { data: aff0Res } = useApi<{ data: { pourcentage: number; clientId: number }[] }>(
     form.portefeuilleId
       ? `/api/admin/ria/affectations?portefeuilleId=${form.portefeuilleId}&actif=true&limit=100`
       : null
   );
-  const affectationsActives = aff0Res?.data ?? [];
-  // Exclure le même client si déjà affecté (il sera remplacé)
-  const sommeDejAllouee = affectationsActives
+  const sommeDejAllouee = (aff0Res?.data ?? [])
     .filter((a) => String(a.clientId) !== form.clientId)
     .reduce((s, a) => s + Number(a.pourcentage), 0);
   const totalAvecNouveau = sommeDejAllouee + (Number(form.pourcentage) || 0);
   const depassement = totalAvecNouveau > 100;
 
   const submit = async () => {
-    if (!form.portefeuilleId || !form.clientId || !form.pourcentage) {
-      toast.error("Portefeuille, client et pourcentage sont requis");
+    if (!form.portefeuilleId || !form.clientId || !form.pourcentage || Number(form.pourcentage) <= 0) {
+      toast.error("Portefeuille, client et une valeur d'allocation sont requis");
       return;
     }
     setLoading(true);
@@ -77,14 +128,20 @@ function CreateModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
       const res = await fetch("/api/admin/ria/affectations", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, pourcentage: Number(form.pourcentage), montantAlloue: form.montantAlloue ? Number(form.montantAlloue) : 0 }),
+        // On n'envoie que le pourcentage — le serveur calcule montantAlloue
+        body: JSON.stringify({
+          portefeuilleId: form.portefeuilleId,
+          clientId:       form.clientId,
+          pourcentage:    Number(form.pourcentage),
+          classeRisque:   form.classeRisque,
+          notes:          form.notes,
+        }),
       });
       const json = await res.json();
       if (res.ok) {
         toast.success("Affectation créée");
         if (json.warning) toast.warning(json.warning, { duration: 6000 });
-        onSuccess();
-        onClose();
+        onSuccess(); onClose();
       } else {
         toast.error(json.error ?? "Erreur");
       }
@@ -93,29 +150,39 @@ function CreateModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
 
   return (
     <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
         <div className="px-6 py-4 border-b border-slate-200 flex justify-between">
           <h3 className="font-semibold text-slate-900">Nouvelle affectation client</h3>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600 font-bold text-lg">&times;</button>
         </div>
         <div className="p-6 space-y-4">
+
+          {/* Portefeuille */}
           <div>
             <label className="block text-xs font-medium text-slate-600 mb-1">Portefeuille *</label>
             <select value={form.portefeuilleId} onChange={(e) => set("portefeuilleId", e.target.value)}
               className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent">
               <option value="">Sélectionner…</option>
               {pfs.map((pf) => (
-                <option key={pf.id} value={pf.id}>{pf.profilRIA.gestionnaire.member.prenom} {pf.profilRIA.gestionnaire.member.nom} — {pf.nom ?? pf.reference}</option>
+                <option key={pf.id} value={pf.id}>
+                  {pf.profilRIA.gestionnaire.member.prenom} {pf.profilRIA.gestionnaire.member.nom} — {pf.nom ?? pf.reference}
+                </option>
               ))}
             </select>
 
-            {/* Jauge % déjà alloué */}
             {form.portefeuilleId && (
-              <div className="mt-2">
-                <div className="flex items-center justify-between text-xs mb-1">
-                  <span className="flex items-center gap-1 text-slate-500"><PieChart className="w-3 h-3" /> Déjà alloué : <span className="font-semibold text-slate-700">{sommeDejAllouee.toFixed(1)} %</span></span>
+              <div className="mt-2 space-y-1">
+                {capitalInvesti > 0 && (
+                  <p className="text-xs text-slate-400">
+                    Capital total : <span className="font-medium text-slate-600">{fmt(capitalInvesti)} FCFA</span>
+                  </p>
+                )}
+                <div className="flex items-center justify-between text-xs">
+                  <span className="flex items-center gap-1 text-slate-500">
+                    <PieChart className="w-3 h-3" /> Déjà alloué : <span className="font-semibold text-slate-700">{sommeDejAllouee.toFixed(1)}%</span>
+                  </span>
                   <span className={`font-semibold ${depassement ? "text-red-600" : "text-slate-500"}`}>
-                    Total avec ce client : {totalAvecNouveau.toFixed(1)} %
+                    Total : {totalAvecNouveau.toFixed(1)}%
                   </span>
                 </div>
                 <div className="h-2 bg-slate-100 rounded-full overflow-hidden flex">
@@ -126,41 +193,137 @@ function CreateModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
                   )}
                 </div>
                 {depassement && (
-                  <p className="flex items-center gap-1 text-xs text-red-600 mt-1">
+                  <p className="flex items-center gap-1 text-xs text-red-600">
                     <AlertTriangle className="w-3 h-3 flex-shrink-0" />
-                    Dépassement de {(totalAvecNouveau - 100).toFixed(1)} % — autorisé, le solde reste en capitalDisponible.
+                    Dépassement de {(totalAvecNouveau - 100).toFixed(1)}% — autorisé
                   </p>
                 )}
               </div>
             )}
           </div>
 
+          {/* Client */}
           <div>
-            <label className="block text-xs font-medium text-slate-600 mb-1">Rechercher un client *</label>
-            <input value={clientSearch} onChange={(e) => setClientSearch(e.target.value)} placeholder="Nom, prénom…"
-              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent mb-1" />
-            {clients.length > 0 && (
-              <select value={form.clientId} onChange={(e) => set("clientId", e.target.value)} size={3}
-                className="w-full border border-slate-200 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-emerald-500">
-                <option value="">— choisir —</option>
-                {clients.map((c) => <option key={c.id} value={c.id}>{c.prenom} {c.nom} {c.telephone ? `· ${c.telephone}` : ""}</option>)}
-              </select>
+            <label className="block text-xs font-medium text-slate-600 mb-1">Client *</label>
+
+            {/* Chip client sélectionné */}
+            {selectedClient && (
+              <div className="mb-2 flex items-center gap-2 px-3 py-2 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-lg text-sm">
+                <CheckCircle className="w-4 h-4 text-emerald-500 flex-shrink-0" />
+                <span className="font-medium">{selectedClient.prenom} {selectedClient.nom}</span>
+                {selectedClient.telephone && <span className="text-xs opacity-70">{selectedClient.telephone}</span>}
+                <button type="button" onClick={() => { set("clientId", ""); setSelectedClient(null); }}
+                  className="ml-auto text-emerald-400 hover:text-emerald-700 font-bold text-lg leading-none">×</button>
+              </div>
+            )}
+
+            {/* Recherche */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+              <input value={clientSearch} onChange={(e) => setClientSearch(e.target.value)}
+                placeholder={selectedClient ? "Changer de client…" : "Rechercher par nom, téléphone…"}
+                className="w-full pl-8 pr-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent" />
+            </div>
+
+            {/* Liste résultats */}
+            {(clientSearch.length >= 1 || !selectedClient) && clients.length > 0 && (
+              <div className="mt-1 max-h-44 overflow-y-auto border border-slate-200 rounded-lg divide-y divide-slate-50 shadow-sm">
+                {clients.map((c) => {
+                  const isSel = form.clientId === String(c.id);
+                  return (
+                    <button key={c.id} type="button"
+                      onClick={() => { set("clientId", String(c.id)); setSelectedClient(c); setClientSearch(""); }}
+                      className={`w-full px-3 py-2.5 text-sm flex items-center justify-between gap-3 transition-colors text-left ${
+                        isSel ? "bg-emerald-50 text-emerald-900" : "hover:bg-slate-50 text-slate-700"
+                      }`}>
+                      <span>
+                        <span className={`font-medium ${isSel ? "text-emerald-800" : ""}`}>{c.prenom} {c.nom}</span>
+                        {c.telephone && <span className="text-xs text-slate-400 ml-2">{c.telephone}</span>}
+                      </span>
+                      {isSel && <CheckCircle className="w-4 h-4 text-emerald-500 flex-shrink-0" />}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+            {clientSearch.length >= 1 && clients.length === 0 && (
+              <p className="mt-1 text-xs text-slate-400 px-1">Aucun résultat pour « {clientSearch} »</p>
             )}
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">Pourcentage alloué (%) *</label>
-              <input type="number" min={0} max={200} value={form.pourcentage} onChange={(e) => set("pourcentage", e.target.value)}
-                className={`w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:border-transparent ${depassement ? "border-red-300 focus:ring-red-400" : "border-slate-200 focus:ring-emerald-500"}`} />
+          {/* Allocation — un seul champ actif à la fois */}
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-2">Allocation *</label>
+
+            {/* Toggle mode */}
+            <div className="flex rounded-lg border border-slate-200 overflow-hidden mb-3 w-fit">
+              <button
+                type="button"
+                onClick={() => handleModeChange("pourcentage")}
+                className={`px-4 py-1.5 text-xs font-medium transition-colors ${
+                  modeEffectif === "pourcentage"
+                    ? "bg-emerald-600 text-white"
+                    : "bg-white text-slate-500 hover:bg-slate-50"
+                }`}
+              >
+                Par pourcentage (%)
+              </button>
+              <button
+                type="button"
+                onClick={() => handleModeChange("montant")}
+                disabled={capitalInvesti === 0}
+                title={capitalInvesti === 0 ? "Pas de capital investi dans ce portefeuille" : undefined}
+                className={`px-4 py-1.5 text-xs font-medium transition-colors ${
+                  modeEffectif === "montant"
+                    ? "bg-emerald-600 text-white"
+                    : capitalInvesti === 0
+                    ? "bg-slate-50 text-slate-300 cursor-not-allowed"
+                    : "bg-white text-slate-500 hover:bg-slate-50"
+                }`}
+              >
+                Par montant (FCFA)
+              </button>
             </div>
-            <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">Montant alloué (FCFA)</label>
-              <input type="number" min={0} value={form.montantAlloue} onChange={(e) => set("montantAlloue", e.target.value)}
-                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent" />
+
+            {/* Champ unique actif */}
+            <div className="flex items-center gap-3">
+              <div className="flex-1">
+                <input
+                  type="number"
+                  min={0}
+                  max={modeEffectif === "pourcentage" ? 200 : undefined}
+                  value={valeurSaisie}
+                  onChange={(e) => handleValeurSaisie(e.target.value)}
+                  placeholder={modeEffectif === "pourcentage" ? "ex : 15" : "ex : 1 500 000"}
+                  className={`w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:border-transparent ${
+                    depassement ? "border-red-300 focus:ring-red-400" : "border-slate-200 focus:ring-emerald-500"
+                  }`}
+                />
+              </div>
+              <span className="text-sm font-semibold text-slate-500 flex-shrink-0">
+                {modeEffectif === "pourcentage" ? "%" : "FCFA"}
+              </span>
             </div>
+
+            {/* Valeur dérivée — lecture seule */}
+            {valeurSaisie && (
+              <div className="mt-2 flex items-center gap-2 px-3 py-2 bg-slate-50 rounded-lg border border-slate-200">
+                <span className="text-xs text-slate-500">
+                  {modeEffectif === "pourcentage" ? "Montant correspondant :" : "Pourcentage correspondant :"}
+                </span>
+                <span className="text-xs font-semibold text-emerald-700">{autreValeurAffichee}</span>
+              </div>
+            )}
+
+            {capitalInvesti === 0 && (
+              <p className="flex items-center gap-1 text-xs text-amber-600 mt-2">
+                <AlertTriangle className="w-3 h-3 flex-shrink-0" />
+                Pas de capital investi — le montant alloué sera recalculé automatiquement au premier dépôt validé.
+              </p>
+            )}
           </div>
 
+          {/* Classe risque */}
           <div>
             <label className="block text-xs font-medium text-slate-600 mb-1">Classe de risque</label>
             <select value={form.classeRisque} onChange={(e) => set("classeRisque", e.target.value)}
@@ -169,9 +332,10 @@ function CreateModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
             </select>
           </div>
         </div>
+
         <div className="px-6 py-4 border-t border-slate-200 flex justify-end gap-3">
           <button onClick={onClose} className="px-4 py-2 text-sm border border-slate-200 rounded-lg hover:bg-slate-50">Annuler</button>
-          <button onClick={submit} disabled={loading}
+          <button onClick={submit} disabled={loading || !form.clientId}
             className="px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 disabled:opacity-50">
             {loading ? "Création…" : "Créer"}
           </button>
@@ -283,21 +447,17 @@ export default function AffectationsPage() {
                   <td className="px-4 py-3 font-semibold text-emerald-700">{toNum(a.pourcentage).toFixed(1)}%</td>
                   <td className="px-4 py-3 min-w-[180px]">
                     {toNum(a.montantAlloue) > 0 ? (() => {
-                      const pct     = Math.min(100, (a.encoursActuel / toNum(a.montantAlloue)) * 100);
-                      const surPct  = pct >= 100;
+                      const pct    = Math.min(100, (a.encoursActuel / toNum(a.montantAlloue)) * 100);
+                      const surPct = pct >= 100;
                       return (
                         <div className="space-y-1">
                           <div className="flex justify-between text-xs">
                             <span className="text-slate-500">Limite&nbsp;: <span className="font-semibold text-slate-700">{fmt(toNum(a.montantAlloue))} F</span></span>
-                            <span className={surPct ? "text-red-600 font-semibold" : "text-slate-400"}>
-                              {pct.toFixed(0)}% utilisé
-                            </span>
+                            <span className={surPct ? "text-red-600 font-semibold" : "text-slate-400"}>{pct.toFixed(0)}% utilisé</span>
                           </div>
                           <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                            <div
-                              className={`h-full rounded-full transition-all ${surPct ? "bg-red-500" : pct > 75 ? "bg-amber-400" : "bg-emerald-500"}`}
-                              style={{ width: `${pct}%` }}
-                            />
+                            <div className={`h-full rounded-full transition-all ${surPct ? "bg-red-500" : pct > 75 ? "bg-amber-400" : "bg-emerald-500"}`}
+                              style={{ width: `${pct}%` }} />
                           </div>
                           <div className="flex justify-between text-xs">
                             <span className="text-blue-600">Encours&nbsp;: <span className="font-semibold">{fmt(a.encoursActuel)} F</span></span>

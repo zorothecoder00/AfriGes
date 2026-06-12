@@ -711,6 +711,7 @@ model User {
   actionsRIAEffectuees         ActionRecouvrementRIA[]  @relation("ActionsRIAEffectuees")
   commissionsRIA               CommissionAgentRIA[]     @relation("CommissionsAgent")
   commissionsApprouvees        CommissionAgentRIA[]     @relation("CommissionsApprob")
+  documentsRIAGeneres          DocumentRIAGenere[]      @relation("DocumentsRIAGeneres")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -4071,8 +4072,9 @@ model ProfilInvestisseurRIA {
   pieceIdentiteUrl String?
   notes            String?
 
-  gestionnaire  Gestionnaire      @relation(fields: [gestionnaireId], references: [id])
-  portefeuilles PortefeuilleRIA[]
+  gestionnaire      Gestionnaire        @relation(fields: [gestionnaireId], references: [id])
+  portefeuilles     PortefeuilleRIA[]
+  documentsGeneres  DocumentRIAGenere[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -4104,8 +4106,9 @@ model PortefeuilleRIA {
   depots        DepotInvestisseur[]
   retraits      RetraitInvestisseur[]
   distributions DistributionBenefice[]
-  documents     DocumentInvestisseur[]
-  rapports      RapportMensuelRIA[]
+  documents        DocumentInvestisseur[]
+  rapports         RapportMensuelRIA[]
+  documentsGeneres DocumentRIAGenere[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -4412,4 +4415,57 @@ model CommissionAgentRIA {
   @@index([mois, annee])
   @@index([statut])
   @@index([userId])
+}
+
+// ── Documents Générés RIA ─────────────────────────────────────────────────────
+
+enum TypeDocumentRIAGenere {
+  CONTRAT_INVESTISSEUR
+  RECU_INVESTISSEMENT
+  ATTESTATION_INVESTISSEMENT
+  RELEVE_PORTEFEUILLE
+  RAPPORT_MENSUEL
+  RAPPORT_ANNUEL
+  RAPPORT_RENTABILITE
+  RAPPORT_RISQUE
+  ETAT_CREANCES
+  RAPPORT_FINANCIER
+}
+
+model DocumentRIAGenere {
+  id             Int                   @id @default(autoincrement())
+  type           TypeDocumentRIAGenere
+  titre          String
+  contenu        String?               // HTML généré, stocké pour impression
+  version        Int                   @default(1)
+
+  investisseurId Int?
+  portefeuilleId Int?
+  depotId        Int?
+  mois           Int?
+  annee          Int?
+
+  genereParId    Int
+  archive        Boolean               @default(false)
+
+  investisseur ProfilInvestisseurRIA? @relation(fields: [investisseurId], references: [id])
+  portefeuille PortefeuilleRIA?       @relation(fields: [portefeuilleId], references: [id])
+  generePar    User                   @relation("DocumentsRIAGeneres", fields: [genereParId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@index([type])
+  @@index([investisseurId])
+  @@index([portefeuilleId])
+  @@index([createdAt])
+}
+
+// ── Alertes Automatiques RIA ───────────────────────────────────────────────────
+
+model ConfigAlerteRIA {
+  id          Int      @id @default(autoincrement())
+  cle         String   @unique
+  valeur      String   // valeur numérique sérialisée
+  description String?
+  updatedAt   DateTime @updatedAt
 }

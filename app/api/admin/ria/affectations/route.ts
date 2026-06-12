@@ -80,12 +80,20 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "portefeuilleId, clientId et pourcentage sont obligatoires" }, { status: 400 });
     }
 
+    if (Number(pourcentage) < 0 || Number(pourcentage) > 200) {
+      return NextResponse.json({ error: "Le pourcentage doit être compris entre 0 et 200" }, { status: 400 });
+    }
+
     const [pf, client] = await Promise.all([
       prisma.portefeuilleRIA.findUnique({ where: { id: parseInt(portefeuilleId) } }),
       prisma.client.findUnique({ where: { id: parseInt(clientId) } }),
     ]);
     if (!pf)     return NextResponse.json({ error: "Portefeuille introuvable" }, { status: 404 });
     if (!client) return NextResponse.json({ error: "Client introuvable" }, { status: 404 });
+
+    // montantAlloue est toujours dérivé du pourcentage × capitalInvesti côté serveur
+    // pour garantir la cohérence — la valeur envoyée par le client est ignorée
+    const montantAlloueCalcule = Math.round(Number(pourcentage) / 100 * Number(pf.capitalInvesti));
 
     // Calcul somme % actifs du portefeuille (hors ce client s'il a déjà une affectation)
     const autresAffectations = await prisma.affectationClientRIA.aggregate({
@@ -112,7 +120,7 @@ export async function POST(req: NextRequest) {
         portefeuilleId: parseInt(portefeuilleId),
         clientId:       parseInt(clientId),
         pourcentage:    Number(pourcentage),
-        montantAlloue:  montantAlloue ? Number(montantAlloue) : 0,
+        montantAlloue:  montantAlloueCalcule,
         classeRisque:   (classeRisque as ClasseRisqueRIA) ?? "A",
         notes:          notes ?? null,
       },

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { Fragment, useState, useMemo } from "react";
 import {
   BarChart2, RefreshCw, Search, CheckCircle2,
   AlertTriangle, TrendingDown, Shield, Info,
@@ -359,8 +359,8 @@ function TabRisque() {
                 const expanded = expandedId === aff.id;
                 const cfg = CLASSE_CONFIG[aff.classeRisque];
                 return (
-                  <>
-                    <tr key={aff.id} onClick={() => setExpandedId(expanded ? null : aff.id)}
+                  <Fragment key={aff.id}>
+                    <tr onClick={() => setExpandedId(expanded ? null : aff.id)}
                       className={`cursor-pointer hover:bg-slate-50 ${diverge ? "bg-amber-50/30" : ""} ${expanded ? "bg-slate-50" : ""}`}>
                       <td className="px-2 py-3 text-center text-slate-400">
                         {expanded ? <ChevronDown className="w-4 h-4 inline" /> : <ChevronRight className="w-4 h-4 inline" />}
@@ -402,9 +402,9 @@ function TabRisque() {
                       <td className="px-4 py-3 text-right font-medium text-slate-800">{fmt(aff.totalEncours)}</td>
                     </tr>
                     {expanded && aff.criteresDetail && (
-                      <tr key={`${aff.id}-d`}><td colSpan={9} className="p-0"><CriteresRisquePanel d={aff.criteresDetail} /></td></tr>
+                      <tr><td colSpan={9} className="p-0"><CriteresRisquePanel d={aff.criteresDetail} /></td></tr>
                     )}
-                  </>
+                  </Fragment>
                 );
               })}
             </tbody>
@@ -559,8 +559,8 @@ function TabSolvabilite() {
                 const changed = c.scoreStocke !== null && c.scoreStocke !== c.scoreCalcule;
                 const expanded = expandedId === c.id;
                 return (
-                  <>
-                    <tr key={c.id} onClick={() => setExpandedId(expanded ? null : c.id)}
+                  <Fragment key={c.id}>
+                    <tr onClick={() => setExpandedId(expanded ? null : c.id)}
                       className={`cursor-pointer hover:bg-slate-50 ${changed ? "bg-amber-50/20" : ""} ${expanded ? "bg-slate-50" : ""}`}>
                       <td className="px-2 py-3 text-center text-slate-400">
                         {expanded ? <ChevronDown className="w-4 h-4 inline" /> : <ChevronRight className="w-4 h-4 inline" />}
@@ -617,7 +617,7 @@ function TabSolvabilite() {
                       </td>
                     </tr>
                     {expanded && (
-                      <tr key={`${c.id}-hist`}>
+                      <tr>
                         <td colSpan={7} className="px-4 py-3 bg-slate-50 border-t border-slate-100">
                           <div className="flex items-center gap-2 mb-2">
                             <History className="w-3.5 h-3.5 text-slate-500" />
@@ -627,7 +627,7 @@ function TabSolvabilite() {
                         </td>
                       </tr>
                     )}
-                  </>
+                  </Fragment>
                 );
               })}
             </tbody>
