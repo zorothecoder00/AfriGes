@@ -1,306 +1,465 @@
- PLAN D'IMPLÉMENTATION — MODULE RIA
+Résumé du flux dans l'ordre logique
+
+  1. Config → définir les taux (fait une seule fois / mis à jour si besoin)
+  2. Investisseurs → créer le compte + profil RIA
+  3. Fonds → enregistrer un dépôt → valider pour créditer le portefeuille
+  4. Affectations → lier le portefeuille à un ou plusieurs clients avec un %
+  5. Financements → créer un prêt client depuis le portefeuille affecté
+  6. Recouvrement → suivre les remboursements, gérer les retards
+  7. Scoring → réévaluer les classes de risque et scores de solvabilité
+  8. Distributions → calculer et verser les bénéfices mensuels
+  9. Commissions → rémunérer les agents de terrain sur leurs performances
+  10. Reporting / Documents → générer les documents officiels et rapports
+  11. BI / Alertes / Dashboard → surveiller la santé globale du réseau
+
+
+ Module RIA — Guide complet du processus
 
   ---
-  I. CE QUI EXISTE DÉJÀ (à réutiliser, ne pas recréer)
+  Vue d'ensemble du cycle de vie
 
-  ┌────────────────────────────────────┬────────────────────────────────────┐
-  │      Existant dans le schéma       │           Rôle dans RIA            │
-  ├────────────────────────────────────┼────────────────────────────────────┤
-  │ Client.segment = RIA               │ Déjà prévu — segmente les clients  │
-  │                                    │ du réseau                          │
-  ├────────────────────────────────────┼────────────────────────────────────┤
-  │ Client.niveauRisque +              │ Scoring déjà structuré, RIA        │
-  │ scoreSolvabilite                   │ l'enrichit                         │
-  ├────────────────────────────────────┼────────────────────────────────────┤
-  │ ClientScoreHistorique              │ Historique scoring — RIA y ajoute  │
-  │                                    │ ses calculs                        │
-  ├────────────────────────────────────┼────────────────────────────────────┤
-  │ CreditClient + EcheanceCredit      │ Source des opérations de           │
-  │                                    │ financement                        │
-  ├────────────────────────────────────┼────────────────────────────────────┤
-  │ RemboursementCredit (statut        │ Déclencheur du remboursement       │
-  │ CONFIRME)                          │ portefeuille                       │
-  ├────────────────────────────────────┼────────────────────────────────────┤
-  │ CollecteJournaliere                │ Alimente le recouvrement RIA       │
-  ├────────────────────────────────────┼────────────────────────────────────┤
-  │ EcritureComptable                  │ Écritures automatiques             │
-  │                                    │ comptabilité                       │
-  ├────────────────────────────────────┼────────────────────────────────────┤
-  │ NiveauRisque                       │ Mapping A/B/C/D dans l'UI — on     │
-  │ (FAIBLE/MOYEN/ELEVE/CRITIQUE)      │ ajoute ClasseRisqueRIA enum dédié  │
-  ├────────────────────────────────────┼────────────────────────────────────┤
-  │ RoleGestionnaire                   │ Ajouter RESPONSABLE_RIA            │
-  └────────────────────────────────────┴────────────────────────────────────┘
+  Configuration → Investisseurs → Portefeuilles → Fonds (dépôts)
+         ↓
+  Affectations (clients) → Financements → Recouvrement
+         ↓
+  Scoring → Bénéfices → Distributions → Commissions
+         ↓
+  Reporting / BI / Documents / Alertes
 
   ---
-  II. SCHÉMA PRISMA — CE QU'ON AJOUTE
+  1. Configuration (à faire en premier)
 
-  2.1 Nouveaux enums
+  Page : /ria/config
 
-  enum StatutInvestisseur    { ACTIF, INACTIF, SUSPENDU, EN_ATTENTE }
-  enum StatutDepotRIA        { EN_ATTENTE, VALIDE, REJETE }
-  enum StatutRetraitRIA      { EN_ATTENTE, VALIDE, PAYE, REJETE }
-  enum StatutFinancementRIA  { ACTIF, REMBOURSE, EN_RETARD, DEFAUT, ANNULE }
-  enum StatutDistributionRIA { PLANIFIE, EN_ATTENTE_PAIEMENT, DISTRIBUE,
-  REINVESTI }
-  enum ClasseRisqueRIA       { A, B, C, D, E }  // A=excellent, E=défaillant
+  C'est le point de départ obligatoire. Avant tout, l'admin définit les taux de
+  répartition des bénéfices qui s'appliquent à tous les portefeuilles :
 
-  enum TypeMouvementRIA {
-    DEPOT
-    RETRAIT
-    FINANCEMENT_CLIENT   // capital engagé dans un crédit
-    REMBOURSEMENT_CLIENT // retour depuis le recouvrement
-    BENEFICE_GENERE      // 10%/mois calculé
-    BENEFICE_DISTRIBUE   // 4% versé investisseur
-    BENEFICE_REINVESTI   // 4% réinjecté capital
-    FOND_SECURITE        // 2% réserve
-    AJUSTEMENT           // correction manuelle
-  }
+  ┌─────────────────────┬─────────────────────────────────────────┬─────────┐
+  │        Champ        │                  Rôle                   │ Exemple │
+  ├─────────────────────┼─────────────────────────────────────────┼─────────┤
+  │ Taux généré         │ Rendement total produit par le capital  │ 10 %    │
+  │                     │ engagé                                  │         │
+  ├─────────────────────┼─────────────────────────────────────────┼─────────┤
+  │ Taux distribué      │ Part versée à l'investisseur            │ 4 %     │
+  ├─────────────────────┼─────────────────────────────────────────┼─────────┤
+  │ Taux réinvesti      │ Part ajoutée au capital du portefeuille │ 4 %     │
+  ├─────────────────────┼─────────────────────────────────────────┼─────────┤
+  │ Taux fonds de       │ Réserve de garantie                     │ 2 %     │
+  │ sécurité            │                                         │         │
+  └─────────────────────┴─────────────────────────────────────────┴─────────┘
 
-  2.2 Nouveaux modèles (10 modèles)
-
-  Investisseur                 — fiche investisseur (≠ User)
-  PortefeuilleRIA              — portfolio par investisseur
-  AffectationClientRIA         — portefeuille ↔ client + pourcentage
-  DepotInvestisseur            — entrées de capital
-  RetraitInvestisseur          — demandes de retrait
-  MouvementFondsRIA            — journal financier complet
-  OperationFinancementRIA      — lien portefeuille ↔ CreditClient
-  RemboursementRIA             — remboursement affecté au portefeuille
-  DistributionBenefice         — calcul mensuel 10% → 4%+4%+2%
-  ConfigBeneficeRIA            — taux configurables
-  DocumentInvestisseur         — contrats, conventions, relevés
-  RapportMensuelRIA            — snapshot JSON du rapport mensuel
-
-  2.3 Ajouts sur modèles existants
-
-  // RoleGestionnaire — ajouter :
-  RESPONSABLE_RIA
-
-  // CreditClient — ajouter backlink :
-  financementsRIA  OperationFinancementRIA[]
-
-  // Client — ajouter backlinks :
-  affectationsRIA  AffectationClientRIA[]
-  financementsRIA  OperationFinancementRIA[]
-
-  // User — ajouter :
-  investisseurRIA  Investisseur?   // pour espace investisseur futur (nullable)
-
-  2.4 Structure clé de PortefeuilleRIA
-
-  model PortefeuilleRIA {
-    capitalInvesti    Decimal  // total dépôts validés
-    capitalDisponible Decimal  // libre = investi - engagé
-    capitalEngage     Decimal  // dans financements actifs
-    capitalRecouvre   Decimal  // remboursements reçus
-    capitalBloque     Decimal  // gelé (litige/défaut)
-
-    beneficesGeneres    Decimal  // cumulé 10%
-    beneficesDistribues Decimal  // cumulé 4% versés
-    beneficesReinvestis Decimal  // cumulé 4% réinjectés
-    fondSecurite        Decimal  // cumulé 2%
-  }
+  La règle de validation : distribué + réinvesti + fonds sécurité = taux généré.
+  Le bouton Enregistrer est grisé tant que l'équation n'est pas vérifiée. La
+  page affiche aussi un historique de toutes les configurations passées — chaque
+  save crée une nouvelle version, on peut voir l'évolution dans le temps.
 
   ---
-  III. ARCHITECTURE APIs
+  2. Création d'un Investisseur
 
-  /api/admin/ria/
-  ├── dashboard/                  GET — KPIs temps réel complets
-  │
-  ├── investisseurs/              GET (liste, filtre, pagination) | POST
-  │   └── [id]/
-  │       ├── route.ts            GET fiche complète | PATCH
-  │       ├── portefeuilles/      GET | POST
-  │       └── documents/          GET | POST
-  │
-  ├── fonds/
-  │   ├── depots/                 GET | POST
-  │   │   └── [id]/               PATCH { action: VALIDER | REJETER }
-  │   ├── retraits/               GET | POST
-  │   │   └── [id]/               PATCH { action: VALIDER | PAYER | REJETER }
-  │   └── mouvements/             GET journal complet (filtre
-  type/date/investisseur)
-  │
-  ├── portefeuilles/              GET (tous, avec stats) | POST
-  │   └── [id]/
-  │       ├── route.ts            GET détail | PATCH
-  │       └── affectations/       GET | POST | DELETE [clientId]
-  │
-  ├── financement/                GET (liste ops) | POST (manuel)
-  │   └── [id]/                   GET détail | PATCH statut
-  │
-  ├── recouvrement/               GET (stats recouvrement par
-  portefeuille/client)
-  │
-  ├── benefices/
-  │   ├── calcul/                 POST (déclencher le calcul mensuel)
-  │   └── distributions/          GET | PATCH { action: DISTRIBUER | REINVESTIR
-  }
-  │
-  ├── scoring/                    GET (clients RIA + score) | POST (recalculer)
-  ├── risques/                    GET (analyse risques portefeuilles)
-  │
-  ├── reporting/
-  │   ├── mensuel/                GET liste | POST (générer rapport mois/année)
-  │   └── [id]/                   GET rapport détaillé (imprimable)
-  │
-  ├── commissions/                GET (agents, chef agence...) | POST (calculer)
-  ├── bi/                         GET (top 10, prévisions, KPIs stratégiques)
-  └── config/                     GET | PATCH (taux bénéfices)
+  Page : /ria/investisseurs
+
+  Le bouton "Nouvel investisseur" ouvre une modal avec deux modes :
+
+  Mode "Nouveau compte"
+
+  L'admin crée un compte utilisateur from scratch : nom, prénom, email,
+  téléphone, adresse, profession, pays, notes. Un mot de passe temporaire est
+  généré automatiquement. À la fin de la création, une popup affiche les
+  identifiants (email + mot de passe temporaire) à transmettre à l'investisseur
+  — il peut les copier avec le bouton copier. L'option "Créer un portefeuille
+  principal" est cochée par défaut avec le nom "Portefeuille Principal"
+  pré-rempli.
+
+  Mode "Utilisateur existant"
+
+  Si la personne a déjà un compte dans le système (un agent terrain, un RPV,
+  etc.), on recherche par nom/email. On lui ajoute juste le rôle
+  INVESTISSEUR_RIA et un profil RIA (profession, pays). Même option de créer un
+  portefeuille en même temps.
+
+  Liste des investisseurs
+
+  La page affiche des cartes expandables : en cliquant sur une carte, les
+  portefeuilles de l'investisseur se déroulent avec leurs KPIs (capital investi,
+  disponible, bénéfices). Le bouton "Fiche" en bas à droite mène à la page
+  détail.
 
   ---
-  IV. ARCHITECTURE PAGES
+  3. Fiche Investisseur
 
-  dashboard/admin/ria/
-  ├── page.tsx                    Tableau de bord RIA — 15+ KPIs temps réel
-  │
-  ├── investisseurs/
-  │   ├── page.tsx                Liste + stats + modal création
-  │   └── [id]/page.tsx           Fiche complète (infos, portefeuilles, docs,
-  mouvements)
-  │
-  ├── fonds/page.tsx              3 tabs : Dépôts | Retraits | Journal des
-  mouvements
-  │
-  ├── portefeuilles/
-  │   ├── page.tsx                Tous les portefeuilles (valeur, rendement,
-  risque)
-  │   └── [id]/page.tsx           Détail + affectations clients (graph %
-  circulaire)
-  │
-  ├── financement/page.tsx        Opérations de financement (filtres
-  crédit/vente/statut)
-  ├── recouvrement/page.tsx       Suivi recouvrement (encours, échues, impayés)
-  ├── benefices/page.tsx          Calcul mensuel + distribution +
-  réinvestissement
-  ├── scoring/page.tsx            Scoring clients RIA (liste A→E, filtres)
-  ├── reporting/
-  │   ├── page.tsx                Rapports mensuels par investisseur
-  │   └── [id]/bulletin/page.tsx  Rapport imprimable (même pattern bulletin
-  paie)
-  ├── commissions/page.tsx        Commissions agents par période
-  ├── bi/page.tsx                 BI avancée (top 10, prévisions trésorerie)
-  └── config/page.tsx             Configuration taux + paramètres
+  Page : /ria/investisseurs/[id]
+
+  Contient trois grandes sections :
+
+  - Infos personnelles : nom, email, téléphone, profession, pays — avec bouton
+  Modifier
+  - Ses portefeuilles : liste expandable, chaque portefeuille montre les
+  capitaux + bouton "Voir le portefeuille" qui mène à la page détail
+  - Bouton "Ajouter un portefeuille" : ouvre une modal pour créer un nouveau
+  portefeuille pour cet investisseur (référence auto générée PF-00001,
+  PF-00002…, nom optionnel)
 
   ---
-  V. INTÉGRATIONS INTER-MODULES (les hooks critiques)
+  4. Portefeuilles
 
-  Hook 1 — CreditClient VALIDE → Financement RIA
+  Page : /ria/portefeuilles (liste globale) et /ria/portefeuilles/[id] (détail)
 
-  Fichier : app/api/admin/credits/[id]/valider/route.ts
-  À la validation d'un crédit :
-    → client.affectationsRIA (actives)
-    → Pour chaque affectation :
-        montantPart = credit.montantTotal × (affectation.pourcentage / 100)
-        → créer OperationFinancementRIA
-        → portefeuille.capitalDisponible -= montantPart
-        → portefeuille.capitalEngage     += montantPart
-        → créer MouvementFondsRIA (FINANCEMENT_CLIENT, DEBIT)
-    → Tout dans prisma.$transaction
+  Page liste
 
-  Hook 2 — RemboursementCredit CONFIRME → Remboursement RIA
+  Tableau de tous les portefeuilles avec filtres par investisseur, capital,
+  statut actif/inactif. Chaque ligne expandable montre les mouvements récents.
 
-  Fichier : endpoint de confirmation caissier
-  À la confirmation d'un remboursement :
-    → credit.financementsRIA (ACTIF ou EN_RETARD)
-    → Pour chaque OperationFinancementRIA :
-        part = remboursement.montant × (financement.montantFinance /
-  credit.montantTotal)
-        → créer RemboursementRIA
-        → financement.montantRembourse += part
-        → financement.encours          -= part
-        → portefeuille.capitalRecouvre += part
-        → portefeuille.capitalEngage   -= part
-        → créer MouvementFondsRIA (REMBOURSEMENT_CLIENT, CREDIT)
-    → Tout dans prisma.$transaction
+  Page détail d'un portefeuille
 
-  Hook 3 — Distribution bénéfices (manuel, fin de mois)
-
-  Admin clique "Calculer bénéfices — Mois M / Année A"
-    → Pour chaque PortefeuilleRIA actif :
-        base = capitalEngage
-        genere    = base × (config.tauxGenere / 100)
-        distribue = base × (config.tauxDistribue / 100)
-        reinvesti = base × (config.tauxReinvesti / 100)
-        securite  = base × (config.tauxFondSecurite / 100)
-        → créer DistributionBenefice
-        → portefeuille.beneficesGeneres += genere
-        → créer MouvementFondsRIA x4 (BENEFICE_GENERE, BENEFICE_DISTRIBUE, etc.)
+  C'est la fiche la plus complète du module — on y voit tout :
+  - Répartition du capital : barre de progression visuelle (disponible / engagé
+  / recouvré / bloqué)
+  - Onglet Mouvements : journal chronologique de tous les flux (dépôts,
+  retraits, financements, remboursements)
+  - Onglet Affectations actives : les clients affectés avec leur classe de
+  risque et encours
+  - Onglet Financements : tous les prêts liés à ce portefeuille
+  - Onglet Distributions : historique des bénéfices distribués
 
   ---
-  VI. PHASES D'IMPLÉMENTATION
+  5. Fonds — Dépôts et Retraits
 
-  Phase 1 — Fondations (schéma + CRUD de base)
+  Page : /ria/fonds — 3 onglets : Dépôts | Retraits | Journal
 
-  - Prisma : tous les modèles + enums + migration
-  - API + page : CRUD Investisseurs, CRUD Portefeuilles
-  - API + page Fonds : dépôts, retraits, journal des mouvements
-  - Dashboard RIA minimal (chiffres, pas encore de hooks inter-modules)
+  Dépôts (injection de capital)
 
-  Phase 2 — Affectations et financement
+  Le bouton "Nouveau dépôt" ouvre une modal : on choisit le portefeuille (liste
+  déroulante avec nom de l'investisseur), on saisit le montant, le mode de
+  paiement (virement, espèces, chèque…) et une note optionnelle.
 
-  - Page portefeuilles/[id] avec gestion des affectations (% par client)
-  - Hook CreditClient → OperationFinancementRIA
-  - API + page Financement (liste, statuts)
-  - Dashboard RIA enrichi (capital engagé, encours)
+  Le dépôt est créé au statut EN_ATTENTE. Dans la liste, chaque dépôt EN_ATTENTE
+  a deux boutons :
+  - ✓ Valider → statut VALIDE, le capital entre dans le portefeuille
+  (capitalInvesti et capitalDisponible augmentent)
+  - ✗ Rejeter → statut REJETE, aucun impact sur le capital
 
-  Phase 3 — Recouvrement et scoring
+  Retraits (sortie de capital)
 
-  - Hook RemboursementCredit → RemboursementRIA
-  - Page Recouvrement RIA (suivi par portefeuille)
-  - Algorithme scoring A→E automatique
-  - Alertes retards (3/7/15/30 jours)
+  Même logique : "Nouveau retrait" → on choisit portefeuille, montant, motif. Le
+  retrait passe par EN_ATTENTE → Valider (= VALIDE, capitalDisponible réservé)
+  → Payer (= PAYE, capitalDisponible effectivement déduit). Possibilité de
+  Rejeter à tout moment avant PAYE.
 
-  Phase 4 — Bénéfices et reporting
+  Journal
 
-  - Config taux (page + API)
-  - Calcul mensuel bénéfices (trigger manuel)
-  - Rapports mensuels investisseurs imprimables
-  - Commissions agents
-
-  Phase 5 — BI + comptabilité + espace investisseur
-
-  - Intégration écritures comptables automatiques
-  - Page BI (top 10, prévisions trésorerie 30/60/90/180/360j)
-  - Routes /api/investisseur/ préparées (non exposées — architecture seulement)
-  - Documents générés (contrat, attestation, relevé)
+  Troisième onglet : historique filtrable de tous les MouvementFondsRIA — chaque
+  opération validée génère automatiquement une ligne ici (dépôt, retrait,
+  financement, remboursement, distribution). Filtres par type, sens
+  (ENTREE/SORTIE), portefeuille.
 
   ---
-  VII. POINTS DÉLICATS À ANTICIPER
+  6. Affectations — Lier un investisseur à un client
 
-  ┌─────┬───────────────────────┬───────────────────────────────────────────┐
-  │  #  │        Risque         │                 Solution                  │
-  ├─────┼───────────────────────┼───────────────────────────────────────────┤
-  │     │                       │ Autorisé — le reste reste                 │
-  │ 1   │ Somme des % < 100%    │ capitalDisponible. Avertissement UI si >  │
-  │     │                       │ 100%                                      │
-  ├─────┼───────────────────────┼───────────────────────────────────────────┤
-  │     │ Un client financé par │ OK — une OperationFinancementRIA par      │
-  │ 2   │  plusieurs            │ portefeuille, indépendantes               │
-  │     │ portefeuilles         │                                           │
-  ├─────┼───────────────────────┼───────────────────────────────────────────┤
-  │     │ Cohérence des         │ Toutes les mises à jour dans              │
-  │ 3   │ capitaux portefeuille │ prisma.$transaction — jamais de mise à    │
-  │     │                       │ jour partielle                            │
-  ├─────┼───────────────────────┼───────────────────────────────────────────┤
-  │ 4   │ Performance dashboard │ groupBy + index composites + pas de N+1.  │
-  │     │                       │ Calculs agrégés côté DB                   │
-  ├─────┼───────────────────────┼───────────────────────────────────────────┤
-  │ 5   │ Taux 10%/mois très    │ Paramétrable via ConfigBeneficeRIA — ne   │
-  │     │ élevé                 │ pas hardcoder                             │
-  ├─────┼───────────────────────┼───────────────────────────────────────────┤
-  │ 6   │ Espace investisseur   │ Investisseur.userId nullable dès Phase 1  │
-  │     │ (futur)               │ — évite migration future                  │
-  ├─────┼───────────────────────┼───────────────────────────────────────────┤
-  │ 7   │ Rapport PDF           │ Pattern identique au bulletin de paie     │
-  │     │                       │ (@media print + window.print())           │
-  ├─────┼───────────────────────┼───────────────────────────────────────────┤
-  │     │                       │ Intégration Phase 5 seulement — Phase 1-4 │
-  │ 8   │ Écritures comptables  │  : créer les mouvements RIA sans écriture │
-  │     │                       │  compta                                   │
-  └─────┴───────────────────────┴───────────────────────────────────────────┘
+  Page : /ria/affectations
+
+  C'est l'étape qui dit : "ce portefeuille finance ce client à hauteur de X %".
+
+  Le bouton "Nouvelle affectation" ouvre la modal avec :
+  - Sélection du portefeuille : dès qu'on choisit, une barre de progression
+  apparaît en dessous montrant les % déjà alloués aux autres clients de ce
+  portefeuille + le total projeté
+  - Sélection du client : champ de recherche live (nom, téléphone)
+  - Allocation : toggle [Par pourcentage] / [Par montant] — on saisit une seule
+  valeur, l'autre se calcule automatiquement et s'affiche en lecture seule
+  - Classe de risque : A (très faible) → E (critique)
+
+  Dans la liste
+
+  Chaque ligne affiche la "Ligne de crédit" : une barre de progression encours /
+  montantAlloue avec les couleurs verte (< 75 %), orange (75-99 %), rouge (100
+  %+). On voit aussi le montant disponible restant.
+
+  Le bouton Toggle (icône ToggleRight/ToggleLeft) en fin de ligne permet de
+  désactiver / réactiver une affectation sans la supprimer — historique
+  conservé.
 
   ---
-  Ce plan est le référentiel. On suit les phases dans l'ordre. On commence par
-  la Phase 1 quand tu dis go.
+  7. Financements — Les prêts aux clients
+
+  Page : /ria/financements
+
+  C'est le cœur opérationnel. Le bouton "Nouveau financement" ouvre la modal la
+  plus complexe du module :
+
+  1. Choix du portefeuille → charge les stats de capital disponible en temps
+  réel
+  2. Choix du client → si ce client a déjà une affectation active sur ce
+  portefeuille, la ligne de crédit s'affiche automatiquement (montant alloué,
+  encours actuel, disponible restant)
+  3. Lien crédit client : champ optionnel pour rattacher ce financement à un
+  crédit existant dans le système principal — utile pour la traçabilité croisée
+  4. Montant : en FCFA, limité par le disponible de l'affectation
+  5. Date d'échéance : date de remboursement prévue
+  6. Taux / pourcentage RIA : la part RIA dans ce financement (si co-financement
+  avec d'autres sources)
+  7. Notes
+
+  Le financement est créé au statut ACTIF. capitalDisponible du portefeuille est
+  débité, capitalEngage augmente.
+
+  Vue expandable dans la liste
+
+  Chaque ligne de financement est expandable et montre :
+  - La barre de remboursement (montantRembourse / montantFinance en %)
+  - Les remboursements reçus avec dates
+  - Le bouton "Ajouter un remboursement" directement inline
+  - Les changements de statut : ACTIF → EN_RETARD → DEFAUT ou ACTIF → REMBOURSE
+
+  Les statuts EN_RETARD et DEFAUT s'affichent en rouge, avec badge d'alerte.
+
+  ---
+  8. Recouvrement
+
+  Page : /ria/recouvrement — 4 onglets : Vue globale | Clients | Alertes |
+  Actions
+
+  Onglet Vue globale
+
+  4 KPIs : total encours, total remboursé, taux de recouvrement global, alertes
+  actives. En dessous, un tableau par portefeuille avec le taux de recouvrement
+  de chaque investisseur.
+
+  Onglet Clients
+
+  Tableau de tous les financements actifs/en retard avec les niveaux d'alerte :
+  - J3 : 3-6 jours de retard — orange
+  - J7 : 7-14 jours — orange foncé
+  - J15 : 15-29 jours — rouge
+  - J30+ : 30+ jours — rouge critique + badge "DÉFAUT IMMINENT"
+
+  Chaque ligne est expandable : on voit le numéro de téléphone du client,
+  l'agent terrain assigné, le lien vers le crédit associé.
+
+  Onglet Alertes
+
+  Vue concentrée uniquement sur les dossiers en retard, triés par gravité.
+  Chaque alerte a un bouton "Action" qui ouvre un formulaire pour :
+  - Enregistrer un contact client (note de relance)
+  - Marquer un paiement partiel reçu
+  - Planifier une visite terrain
+
+  Onglet Actions
+
+  Journal des actions de recouvrement enregistrées : relances, visites,
+  promesses de paiement.
+
+  ---
+  9. Scoring
+
+  Page : /ria/scoring — 2 sections : Scoring risque (A→E) | Scoring solvabilité
+  (0→100)
+
+  Scoring risque A→E (par affectation)
+
+  La page liste toutes les affectations actives avec leur classe de risque
+  actuelle (celle choisie manuellement) et la classe calculée automatiquement
+  par l'algorithme.
+
+  Le bouton "Recalculer" (icône Brain ✨)  relance l'algorithme sur toutes les  
+  affectations. Le calcul se base sur :
+  - Historique de paiement : nb d'échéances en retard sur le total
+  - Retard actif : nb de jours de retard en cours
+  - Taux de recouvrement : montant remboursé / montant financé
+  - Fréquence : bonus si le client a eu ≥ 3 financements
+  - Ancienneté : bonus si la relation dure > 6 mois
+
+  Si la classe calculée diffère de la classe manuelle, une icône d'alerte jaune
+  apparaît. L'admin peut cliquer "Appliquer" pour écraser la classe manuelle par
+  la calculée.
+
+  Scoring solvabilité 0→100 (par client)
+
+  Section séparée avec un score composite sur 100 :
+  - 40 pts : historique de paiement
+  - 30 pts : taux de rotation (nb remboursements complets / total)
+  - 30 pts : volume d'achat
+
+  Le niveau textuel est dérivé du score : < 30 = CRITIQUE, 30-49 = MAUVAIS,
+  50-64 = MOYEN, 65-79 = BON, ≥ 80 = EXCELLENT. Bouton "Mettre à jour tous" pour
+  recalculer tous les scores d'un coup.
+
+  ---
+  10. Bénéfices
+
+  Page : /ria/benefices
+
+  Vue synthétique des bénéfices générés, distribués, réinvestis et mis en fonds
+  de sécurité — par portefeuille et par période. Sert de vue de contrôle avant
+  de déclencher les distributions.
+
+  ---
+  11. Distributions — Reverser les bénéfices
+
+  Page : /ria/distributions
+
+  Planifier une distribution
+
+  Bouton "Planifier" → modal avec :
+  - Choix du portefeuille
+  - Mois / Année concernés
+  - Dès que les deux sont choisis et que la configuration est présente, une
+  prévisualisation s'affiche :
+    - Capital de base engagé
+    - Montant généré = capitalEngagé × tauxGénéré / 100
+    - Montant distribué = montantGénéré × (tauxDistribué / tauxGénéré)
+    - Montant réinvesti
+    - Montant fonds de sécurité
+
+  Statuts d'une distribution
+
+  PLANIFIE → EN_ATTENTE_PAIEMENT → DISTRIBUE / REINVESTI
+
+  Le bouton "Traiter" sur une distribution PLANIFIE ou EN_ATTENTE_PAIEMENT
+  déclenche l'opération réelle : les montants sont crédités dans le portefeuille
+  (capitalDisponible += distribué + réinvesti, capitalInvesti += réinvesti,
+  fondSecurite += fonds).
+
+  ---
+  12. Commissions — Rémunération des agents
+
+  Page : /ria/commissions
+
+  Rémunère automatiquement 3 types de rôles selon leur performance de
+  recouvrement :
+
+  ┌───────────────┬───────────────────────────────────┐
+  │     Rôle      │         Ce qui est mesuré         │
+  ├───────────────┼───────────────────────────────────┤
+  │ Agent Terrain │ Montant recouvré sur ses clients  │
+  ├───────────────┼───────────────────────────────────┤
+  │ Chef Agence   │ Recouvrement agrégé de son agence │
+  ├───────────────┼───────────────────────────────────┤
+  │ RPV Régional  │ Recouvrement régional             │
+  └───────────────┴───────────────────────────────────┘
+
+  Fonctionnement
+
+  En haut de la page : sélecteur Mois / Année + bouton "Calculer les
+  commissions". Le système parcourt tous les remboursements du mois, les groupe
+  par responsable, applique le taux de base configuré et crée les lignes de
+  commission au statut CALCULE.
+
+  Cycle de validation
+
+  CALCULE → APPROUVE → PAYE
+
+  - Bouton "Approuver" : l'admin valide le montant calculé
+  - Bouton "Payer" : marque comme effectivement versé (avec date de paiement)
+  - Bouton "Annuler" : annule la commission (si erreur)
+
+  Configuration des taux
+
+  Un panneau en bas de page permet de définir le taux de base par rôle (ex :
+  Agent Terrain = 2 %, Chef Agence = 1 %, RPV = 0.5 %) — ces taux sont
+  activables/désactivables indépendamment.
+
+  ---
+  13. Reporting
+
+  Page : /ria/rapports
+
+  Génération de bulletins périodiques (mensuels / annuels) par portefeuille. Le
+  bouton "Nouveau rapport" crée un rapport au statut BROUILLON. Chaque rapport
+  est ensuite accessible via /ria/rapports/[id] où il peut être imprimé /
+  exporté PDF avec window.print().
+
+  ---
+  14. Documents Générés
+
+  Page : /ria/documents
+
+  10 types de documents générés automatiquement en HTML printable :
+
+  ┌────────────────────────────────┬────────────────────────────────────────┐
+  │              Type              │              Déclencheur               │
+  ├────────────────────────────────┼────────────────────────────────────────┤
+  │ Contrat investisseur           │ Sélection investisseur                 │
+  ├────────────────────────────────┼────────────────────────────────────────┤
+  │ Reçu d'investissement          │ Sélection d'un dépôt                   │
+  ├────────────────────────────────┼────────────────────────────────────────┤
+  │ Attestation d'investissement   │ Sélection investisseur                 │
+  ├────────────────────────────────┼────────────────────────────────────────┤
+  │ Relevé de portefeuille         │ Sélection portefeuille                 │
+  ├────────────────────────────────┼────────────────────────────────────────┤
+  │ Rapport mensuel                │ Portefeuille + Mois + Année            │
+  ├────────────────────────────────┼────────────────────────────────────────┤
+  │ Rapport annuel                 │ Portefeuille + Année                   │
+  ├────────────────────────────────┼────────────────────────────────────────┤
+  │ Rapport de rentabilité         │ Sélection portefeuille                 │
+  ├────────────────────────────────┼────────────────────────────────────────┤
+  │ Rapport de risque              │ Sélection portefeuille                 │
+  ├────────────────────────────────┼────────────────────────────────────────┤
+  │ État des créances              │ Portefeuille (optionnel, sinon global) │
+  ├────────────────────────────────┼────────────────────────────────────────┤
+  │ Rapport financier & analytique │ Portefeuille (optionnel, sinon global) │
+  └────────────────────────────────┴────────────────────────────────────────┘
+
+  En haut de la page, 10 cartes filtrables (une par type) montrant le nombre de
+  documents générés pour chaque type — cliquer sur une carte filtre la liste.
+
+  La page détail /ria/documents/[id] affiche le document en HTML et propose
+  Imprimer / PDF + Archiver (admin) ou juste imprimer (respRIA).
+
+  ---
+  15. Alertes Automatiques
+
+  Page : /ria/alertes
+
+  Surveillance en temps réel organisée en 3 sections :
+
+  Clients en retard
+
+  4 niveaux de gravité : J3, J7, J15, J30+. Chaque dossier liste le client, son
+  téléphone, la référence du financement, le portefeuille concerné et
+  l'investisseur.
+
+  Investisseurs
+
+  - Capital faible : portefeuilles dont capitalDisponible / capitalInvesti <
+  seuil configuré (défaut 20 %)
+  - Portefeuilles à risque : ceux ayant > 30 % d'affectations en classe D ou E
+  - Rentabilité en baisse : comparaison taux de distribution mois en cours vs
+  mois précédent, alerte si baisse > 10 %
+
+  Direction
+
+  - Impayés critiques : total montant en retard + défaut vs seuil (défaut 1 000
+  000 FCFA)
+  - Taux de défaut global : si > 10 % des financements actifs sont en problème
+
+  ---
+  16. BI — Business Intelligence
+
+  Page : /ria/bi
+
+  4 groupes d'analyses avancées en onglets :
+
+  - Top Investisseurs : sous-onglets "Par capital investi" (bar chart) et "Par
+  rentabilité/ROI" (% retour sur capital)
+  - Top Clients : sous-onglets "Par volume financé" et "Par solvabilité" (score
+  + niveau badge)
+  - Top Agents : bar chart des agents terrain par montant recouvré
+  - Top Régions : tableau des villes avec rendement colorisé vert/amber/rouge
+
+  ---
+  17. Indicateurs Stratégiques (dans le Dashboard principal)
+
+  Page : /ria (dashboard)
+
+  En plus des 6 blocs KPIs habituels, la section Indicateurs Stratégiques
+  affiche :
+
+  - Score de santé global : jauge circulaire 0→100 (vert ≥ 75, amber ≥ 50, rouge
+  < 50)
+  - NAV (valeur nette active = disponible + engagé + réinvesti + sécurité)
+  - DSO (jours moyens de recouvrement)
+  - Coût du risque et Taux de défaut avec alertes si seuils dépassés
+  - 5 tableaux de rendement segmenté : par ville, par quartier, par secteur
+  d'activité, par agence, par agent terrain
+  - Graphique prévisions : 7 barres (J+30 à J+360) en mode Trésorerie ou
+  Bénéfices (toggle)

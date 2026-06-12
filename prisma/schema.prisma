@@ -712,6 +712,10 @@ model User {
   commissionsRIA               CommissionAgentRIA[]     @relation("CommissionsAgent")
   commissionsApprouvees        CommissionAgentRIA[]     @relation("CommissionsApprob")
   documentsRIAGeneres          DocumentRIAGenere[]      @relation("DocumentsRIAGeneres")
+  membresCommissionRIA         MembreCommissionRIA[]    @relation("MembresCommissionRIA")
+  reunionsOrganisees           ReunionCommissionRIA[]   @relation("ReunionsOrganisees")
+  resolutionsResponsable       ResolutionCommRIA[]      @relation("ResolutionsResponsable")
+  plansActionResponsable       PlanActionCommRIA[]      @relation("PlansActionResponsable")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -4468,4 +4472,159 @@ model ConfigAlerteRIA {
   valeur      String   // valeur numérique sérialisée
   description String?
   updatedAt   DateTime @updatedAt
+}
+
+// ── Gouvernance des Commissions RIA ──────────────────────────────────────────
+
+enum TypeCommissionRIA {
+  FINANCE
+  OPERATIONS_TERRAIN
+  AUDIT
+  OPTIMISATION
+}
+
+enum RoleMembreCommissionRIA {
+  PRESIDENT
+  VICE_PRESIDENT
+  SECRETAIRE
+  TRESORIER
+  MEMBRE
+}
+
+enum StatutReunionCommissionRIA {
+  PLANIFIEE
+  EN_COURS
+  TENUE
+  ANNULEE
+  REPORTEE
+}
+
+enum StatutResolutionRIA {
+  EN_ATTENTE
+  APPROUVEE
+  REJETEE
+  EN_APPLICATION
+  APPLIQUEE
+}
+
+enum StatutPlanActionCommRIA {
+  A_FAIRE
+  EN_COURS
+  TERMINE
+  ABANDONNE
+}
+
+enum PrioriteActionRIA {
+  CRITIQUE
+  HAUTE
+  MOYENNE
+  BASSE
+}
+
+model MembreCommissionRIA {
+  id             Int                     @id @default(autoincrement())
+  typeCommission TypeCommissionRIA
+  userId         Int
+  role           RoleMembreCommissionRIA @default(MEMBRE)
+  dateEntree     DateTime                @default(now())
+  dateSortie     DateTime?
+  actif          Boolean                 @default(true)
+  notes          String?
+
+  user           User                    @relation("MembresCommissionRIA", fields: [userId], references: [id])
+
+  presences      PresenceReunionRIA[]
+
+  createdAt      DateTime                @default(now())
+  updatedAt      DateTime                @updatedAt
+
+  @@unique([typeCommission, userId])
+  @@index([typeCommission])
+  @@index([userId])
+}
+
+model ReunionCommissionRIA {
+  id             Int                        @id @default(autoincrement())
+  typeCommission TypeCommissionRIA
+  titre          String
+  dateHeure      DateTime
+  lieu           String?
+  ordreJour      String?                    // Texte libre ou JSON
+  statut         StatutReunionCommissionRIA @default(PLANIFIEE)
+  compteRendu    String?
+  organisateurId Int
+
+  organisateur   User                       @relation("ReunionsOrganisees", fields: [organisateurId], references: [id])
+  presences      PresenceReunionRIA[]
+  resolutions    ResolutionCommRIA[]
+
+  createdAt      DateTime                   @default(now())
+  updatedAt      DateTime                   @updatedAt
+
+  @@index([typeCommission])
+  @@index([statut])
+  @@index([dateHeure])
+}
+
+model PresenceReunionRIA {
+  id         Int                  @id @default(autoincrement())
+  reunionId  Int
+  membreId   Int
+  present    Boolean              @default(true)
+  procuration Boolean             @default(false)
+  notes      String?
+
+  reunion    ReunionCommissionRIA @relation(fields: [reunionId], references: [id], onDelete: Cascade)
+  membre     MembreCommissionRIA  @relation(fields: [membreId], references: [id])
+
+  @@unique([reunionId, membreId])
+  @@index([reunionId])
+}
+
+model ResolutionCommRIA {
+  id             Int                   @id @default(autoincrement())
+  reunionId      Int?
+  typeCommission TypeCommissionRIA
+  numero         String                @unique
+  titre          String
+  description    String?
+  statut         StatutResolutionRIA   @default(EN_ATTENTE)
+  dateEcheance   DateTime?
+  responsableId  Int?
+
+  reunion        ReunionCommissionRIA? @relation(fields: [reunionId], references: [id])
+  responsable    User?                 @relation("ResolutionsResponsable", fields: [responsableId], references: [id])
+  plansAction    PlanActionCommRIA[]
+
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+
+  @@index([typeCommission])
+  @@index([statut])
+}
+
+model PlanActionCommRIA {
+  id             Int                     @id @default(autoincrement())
+  resolutionId   Int?
+  typeCommission TypeCommissionRIA
+  titre          String
+  description    String?
+  priorite       PrioriteActionRIA       @default(MOYENNE)
+  statut         StatutPlanActionCommRIA @default(A_FAIRE)
+  responsableId  Int?
+  dateDebut      DateTime?
+  dateEcheance   DateTime?
+  dateTermine    DateTime?
+  progression    Int                     @default(0) // 0-100 %
+  notes          String?
+
+  resolution     ResolutionCommRIA?      @relation(fields: [resolutionId], references: [id])
+  responsable    User?                   @relation("PlansActionResponsable", fields: [responsableId], references: [id])
+
+  createdAt      DateTime                @default(now())
+  updatedAt      DateTime                @updatedAt
+
+  @@index([typeCommission])
+  @@index([statut])
+  @@index([priorite])
 }
