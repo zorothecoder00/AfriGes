@@ -717,6 +717,17 @@ model User {
   resolutionsResponsable       ResolutionCommRIA[]      @relation("ResolutionsResponsable")
   plansActionResponsable       PlanActionCommRIA[]      @relation("PlansActionResponsable")
 
+  // Gouvernance RIA — extensions CDC
+  compteRendusValides          CompteRenduReunionRIA[]  @relation("CRValidesPar")
+  dossiersICCrees              DossierInterCommission[] @relation("DossiersICCrees")
+  dossiersICValides            DossierInterCommission[] @relation("DossiersICValides")
+  versionsDossiersIC           VersionDossierIC[]       @relation("VersionsDossiersIC")
+  echangesICAuteur             EchangeInterCommission[] @relation("EchangesICAuteur")
+  observationsCommRIA          ObservationCommissionRIA[] @relation("ObservationsCommRIA")
+  rapportsCommRediges          RapportCommissionRIA[]   @relation("RapportsCommRediges")
+  rapportsCommValides          RapportCommissionRIA[]   @relation("RapportsCommValides")
+  anomaliesRIAResolues         AnomalieGouvRIA[]        @relation("AnomaliesRIAResolues")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -4489,6 +4500,8 @@ enum RoleMembreCommissionRIA {
   SECRETAIRE
   TRESORIER
   MEMBRE
+  RAPPORTEUR_1   // Prépare dossiers, analyses, brouillons, rapports — ne valide pas
+  RAPPORTEUR_2   // Vérifie dossiers, modifie analyses, produit observations — ne valide pas
 }
 
 enum StatutReunionCommissionRIA {
@@ -4505,6 +4518,10 @@ enum StatutResolutionRIA {
   REJETEE
   EN_APPLICATION
   APPLIQUEE
+  EN_PREPARATION  // CDC — résolution en cours de rédaction
+  SOUMISE         // CDC — soumise au vote
+  ADOPTEE         // CDC — adoptée par vote
+  EXECUTEE        // CDC — entièrement mise en œuvre
 }
 
 enum StatutPlanActionCommRIA {
@@ -4512,6 +4529,9 @@ enum StatutPlanActionCommRIA {
   EN_COURS
   TERMINE
   ABANDONNE
+  NON_DEMARRE  // CDC — tâche créée mais pas encore démarrée
+  REALISE      // CDC — alias TERMINE (CDC)
+  EN_RETARD    // CDC — échéance dépassée sans complétion
 }
 
 enum PrioriteActionRIA {
@@ -4552,11 +4572,17 @@ model ReunionCommissionRIA {
   ordreJour      String?                    // Texte libre ou JSON
   statut         StatutReunionCommissionRIA @default(PLANIFIEE)
   compteRendu    String?
+
+  // Convocation (CDC)
+  convocationEnvoyee Boolean   @default(false)
+  dateConvocation    DateTime?
+
   organisateurId Int
 
   organisateur   User                       @relation("ReunionsOrganisees", fields: [organisateurId], references: [id])
   presences      PresenceReunionRIA[]
   resolutions    ResolutionCommRIA[]
+  compteRenduStr CompteRenduReunionRIA?     // compte rendu structuré
 
   createdAt      DateTime                   @default(now())
   updatedAt      DateTime                   @updatedAt
@@ -4567,12 +4593,18 @@ model ReunionCommissionRIA {
 }
 
 model PresenceReunionRIA {
-  id         Int                  @id @default(autoincrement())
-  reunionId  Int
-  membreId   Int
-  present    Boolean              @default(true)
-  procuration Boolean             @default(false)
-  notes      String?
+  id          Int                  @id @default(autoincrement())
+  reunionId   Int
+  membreId    Int
+  present     Boolean              @default(true)
+  excuse      Boolean              @default(false)   // absent mais excusé
+  procuration Boolean              @default(false)
+  notes       String?
+
+  // Signature numérique (CDC)
+  signatureNumerique Boolean   @default(false)
+  dateSignature      DateTime?
+  signatureToken     String?   // token unique généré pour valider la signature
 
   reunion    ReunionCommissionRIA @relation(fields: [reunionId], references: [id], onDelete: Cascade)
   membre     MembreCommissionRIA  @relation(fields: [membreId], references: [id])
@@ -4627,4 +4659,227 @@ model PlanActionCommRIA {
   @@index([typeCommission])
   @@index([statut])
   @@index([priorite])
+}
+
+// ── Gouvernance RIA — Nouveaux enums (CDC) ────────────────────────────────────
+
+enum StatutDossierInterCommission {
+  EN_PREPARATION
+  TRANSMIS
+  RECU
+  EN_ANALYSE
+  EN_ATTENTE_DECISION
+  APPROUVE
+  REJETE
+  EXECUTE
+}
+
+enum TypeDossierIC {
+  DEMANDE_FINANCEMENT
+  RAPPORT_AUDIT
+  RECOMMANDATION
+  PLAN_ACTION
+  AUTRE
+}
+
+enum TypeEchangeIC {
+  OBSERVATION
+  DEMANDE_AJUSTEMENT
+  VALIDATION
+  REJET
+  INFORMATION
+  RETOUR_DOSSIER
+}
+
+enum TypeObservationComm {
+  COMMENTAIRE
+  PLANIFICATION
+  DOCUMENT
+  DISCUSSION
+  ALERTE
+}
+
+enum TypeRapportCommRIA {
+  MENSUEL
+  TRIMESTRIEL
+  ANNUEL
+  AUDIT
+  EXCEPTIONNEL
+}
+
+enum StatutRapportCommRIA {
+  BROUILLON
+  SOUMIS
+  VALIDE
+  ARCHIVE
+}
+
+enum NiveauAnomalieCommRIA {
+  MINEURE
+  MAJEURE
+  CRITIQUE
+}
+
+// ── Gouvernance RIA — Nouveaux modèles (CDC) ──────────────────────────────────
+
+// Compte rendu structuré d'une réunion (décisions / recommandations / actions)
+model CompteRenduReunionRIA {
+  id              Int                  @id @default(autoincrement())
+  reunionId       Int                  @unique
+  decisions       String?
+  recommandations String?
+  actionsDefinies String?
+  observations    String?
+  valideParId     Int?
+  dateValidation  DateTime?
+
+  reunion   ReunionCommissionRIA @relation(fields: [reunionId], references: [id], onDelete: Cascade)
+  validePar User?                @relation("CRValidesPar", fields: [valideParId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Dossiers de travail inter-commissions (workflow CDC Scénarios 1-4)
+model DossierInterCommission {
+  id                   Int                          @id @default(autoincrement())
+  reference            String                       @unique // DIC-2026-00001
+  type                 TypeDossierIC
+  titre                String
+  description          String?
+  statut               StatutDossierInterCommission @default(EN_PREPARATION)
+
+  commissionEmettrice  TypeCommissionRIA
+  commissionReceptrice TypeCommissionRIA
+
+  // Données financières (pour DEMANDE_FINANCEMENT)
+  montantDemande  Decimal?
+  montantApprouve Decimal?
+
+  versionCourante Int @default(1)
+
+  creeParId   Int
+  valideParId Int?
+  dateValidation DateTime?
+
+  creePar   User  @relation("DossiersICCrees",  fields: [creeParId],   references: [id])
+  validePar User? @relation("DossiersICValides", fields: [valideParId], references: [id])
+
+  versions VersionDossierIC[]
+  echanges EchangeInterCommission[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([statut])
+  @@index([commissionEmettrice])
+  @@index([commissionReceptrice])
+  @@index([type])
+}
+
+// Historique versionné des modifications d'un dossier inter-commissions
+model VersionDossierIC {
+  id           Int                    @id @default(autoincrement())
+  dossierId    Int
+  version      Int
+  contenu      Json                   // snapshot structuré du dossier à cette version
+  motif        String?
+  modifieParId Int
+
+  dossier    DossierInterCommission @relation(fields: [dossierId],    references: [id], onDelete: Cascade)
+  modifiePar User                   @relation("VersionsDossiersIC",  fields: [modifieParId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@unique([dossierId, version])
+  @@index([dossierId])
+}
+
+// Échanges entre commissions sur un dossier (observations, demandes d'ajustement, rejets…)
+model EchangeInterCommission {
+  id          Int                    @id @default(autoincrement())
+  dossierId   Int
+  auteurId    Int
+  commission  TypeCommissionRIA
+  type        TypeEchangeIC
+  contenu     String
+  pieceJointeUrl String?
+
+  dossier DossierInterCommission @relation(fields: [dossierId], references: [id], onDelete: Cascade)
+  auteur  User                   @relation("EchangesICAuteur", fields: [auteurId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@index([dossierId])
+  @@index([auteurId])
+  @@index([commission])
+}
+
+// Espace de collaboration interne (discussions, planification, documents) par commission
+model ObservationCommissionRIA {
+  id             Int                 @id @default(autoincrement())
+  typeCommission TypeCommissionRIA
+  auteurId       Int
+  type           TypeObservationComm
+  contenu        String
+  pieceJointeUrl String?
+  epingle        Boolean             @default(false)
+
+  auteur User @relation("ObservationsCommRIA", fields: [auteurId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([typeCommission])
+  @@index([auteurId])
+  @@index([typeCommission, epingle])
+}
+
+// Rapports de gouvernance produits par les commissions (mensuel, trimestriel, audit…)
+model RapportCommissionRIA {
+  id             Int                  @id @default(autoincrement())
+  typeCommission TypeCommissionRIA
+  type           TypeRapportCommRIA
+  titre          String
+  contenu        Json?                // données structurées (KPIs, tableaux…)
+  contenuHtml    String?              // HTML rendu pour impression
+  statut         StatutRapportCommRIA @default(BROUILLON)
+  periode        String?              // ex: "2026-06" | "T2-2026"
+  redacteurId    Int?
+  valideParId    Int?
+  dateValidation DateTime?
+
+  redacteur User? @relation("RapportsCommRediges", fields: [redacteurId], references: [id])
+  validePar User? @relation("RapportsCommValides", fields: [valideParId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([typeCommission])
+  @@index([type])
+  @@index([statut])
+  @@index([periode])
+}
+
+// Anomalies détectées automatiquement par le système (Centre d'Intelligence Décisionnelle)
+model AnomalieGouvRIA {
+  id             Int                   @id @default(autoincrement())
+  typeCommission TypeCommissionRIA?    // null = visible par toutes les commissions
+  niveau         NiveauAnomalieCommRIA @default(MINEURE)
+  titre          String
+  description    String
+  donnees        Json?                 // contexte : IDs, montants, références concernés
+  resolue        Boolean               @default(false)
+  dateResolution DateTime?
+  resolueParId   Int?
+
+  resoluepar User? @relation("AnomaliesRIAResolues", fields: [resolueParId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([typeCommission])
+  @@index([niveau])
+  @@index([resolue])
+  @@index([createdAt])
 }

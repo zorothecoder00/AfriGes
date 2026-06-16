@@ -43,7 +43,7 @@ export async function GET(req: NextRequest) {
           // Financements actifs liés à cette affectation pour calculer l'encours
           financements: {
             where:  { statut: { in: ["ACTIF", "EN_RETARD"] } },
-            select: { encours: true },
+            select: { encours: true, dateFinancement: true },
           },
         },
       }),
@@ -51,8 +51,14 @@ export async function GET(req: NextRequest) {
     ]);
 
     // Enrichir chaque affectation avec encoursActuel et disponible
+    // IMPORTANT : seuls les financements créés APRÈS la date de début de l'affectation
+    // sont pris en compte — les opérations antérieures ne concernent pas le RIA.
     const data = affectations.map((a) => {
-      const encoursActuel = a.financements.reduce((sum, f) => sum + Number(f.encours), 0);
+      const dateDebut = new Date(a.dateDebut);
+      const finsPostAffectation = a.financements.filter(
+        (f) => new Date(f.dateFinancement) >= dateDebut
+      );
+      const encoursActuel = finsPostAffectation.reduce((sum, f) => sum + Number(f.encours), 0);
       const disponible    = Math.max(0, Number(a.montantAlloue) - encoursActuel);
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { financements: _f, ...rest } = a;

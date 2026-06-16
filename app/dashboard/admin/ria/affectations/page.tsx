@@ -5,7 +5,7 @@ import { useApi } from "@/hooks/useApi";
 import { toast } from "sonner";
 import {
   Plus, RefreshCw, Search, Users, ToggleLeft, ToggleRight,
-  AlertTriangle, PieChart, CheckCircle,
+  AlertTriangle, PieChart, CheckCircle, Pencil,
 } from "lucide-react";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -345,12 +345,187 @@ function CreateModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
   );
 }
 
+// ── Modal édition affectation (admin uniquement) ──────────────────────────────
+
+function EditModal({
+  affectation,
+  onClose,
+  onSuccess,
+}: {
+  affectation: AffectationItem;
+  onClose: () => void;
+  onSuccess: () => void;
+}) {
+  // Dériver le capital investi depuis montantAlloue / pourcentage
+  const capitalInvesti = toNum(affectation.pourcentage) > 0
+    ? Math.round(toNum(affectation.montantAlloue) / (toNum(affectation.pourcentage) / 100))
+    : 0;
+
+  const [saisieMode, setSaisieMode] = useState<"pourcentage" | "montant">("pourcentage");
+  const [valeurSaisie, setValeurSaisie] = useState(toNum(affectation.pourcentage).toFixed(2));
+  const [classeRisque, setClasseRisque] = useState(affectation.classeRisque);
+  const [notes, setNotes] = useState(affectation.notes ?? "");
+  const [dateDebut, setDateDebut] = useState(
+    affectation.dateDebut ? affectation.dateDebut.slice(0, 10) : ""
+  );
+  const [loading, setLoading] = useState(false);
+
+  const valNum = parseFloat(valeurSaisie) || 0;
+  const pourcentageCalcule = saisieMode === "montant" && capitalInvesti > 0
+    ? parseFloat((valNum / capitalInvesti * 100).toFixed(4))
+    : valNum;
+  const montantCalcule = capitalInvesti > 0
+    ? Math.round(pourcentageCalcule / 100 * capitalInvesti)
+    : toNum(affectation.montantAlloue);
+
+  const handleValeurSaisie = (v: string) => {
+    setValeurSaisie(v);
+  };
+
+  const handleModeChange = (mode: "pourcentage" | "montant") => {
+    if (capitalInvesti === 0 && mode === "montant") return;
+    setSaisieMode(mode);
+    if (mode === "pourcentage") {
+      setValeurSaisie(toNum(affectation.pourcentage).toFixed(2));
+    } else {
+      setValeurSaisie(toNum(affectation.montantAlloue).toFixed(0));
+    }
+  };
+
+  const submit = async () => {
+    if (!valeurSaisie || Number(valeurSaisie) <= 0) {
+      toast.error("Valeur d'allocation invalide");
+      return;
+    }
+    if (!dateDebut) {
+      toast.error("Date de début requise");
+      return;
+    }
+    setLoading(true);
+    try {
+      const body: Record<string, unknown> = {
+        classeRisque,
+        notes: notes || null,
+        dateDebut,
+      };
+      if (saisieMode === "pourcentage") {
+        body.pourcentage = pourcentageCalcule;
+      } else {
+        body.montantAlloue = montantCalcule;
+      }
+
+      const res = await fetch(`/api/admin/ria/affectations/${affectation.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const json = await res.json();
+      if (res.ok) {
+        toast.success("Affectation mise à jour");
+        onSuccess();
+        onClose();
+      } else {
+        toast.error(json.error ?? "Erreur");
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg">
+        <div className="px-6 py-4 border-b border-slate-200 flex justify-between items-center">
+          <div>
+            <h3 className="font-semibold text-slate-900">Modifier l&apos;affectation</h3>
+            <p className="text-xs text-slate-400 mt-0.5">
+              {affectation.client.prenom} {affectation.client.nom} — {affectation.portefeuille.nom ?? affectation.portefeuille.reference}
+            </p>
+          </div>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 font-bold text-lg">&times;</button>
+        </div>
+        <div className="p-6 space-y-4">
+
+          {/* Date de début */}
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-1">Date de début d&apos;affectation *</label>
+            <input type="date" value={dateDebut} onChange={e => setDateDebut(e.target.value)}
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent" />
+            <p className="text-xs text-amber-600 mt-1 flex items-center gap-1">
+              <AlertTriangle className="w-3 h-3 flex-shrink-0" />
+              Seuls les financements après cette date seront comptés dans la ligne de crédit.
+            </p>
+          </div>
+
+          {/* Allocation */}
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-2">Allocation (ligne de crédit)</label>
+            <div className="flex rounded-lg border border-slate-200 overflow-hidden mb-3 w-fit">
+              <button type="button" onClick={() => handleModeChange("pourcentage")}
+                className={`px-4 py-1.5 text-xs font-medium transition-colors ${saisieMode === "pourcentage" ? "bg-emerald-600 text-white" : "bg-white text-slate-500 hover:bg-slate-50"}`}>
+                Par % du capital
+              </button>
+              <button type="button" onClick={() => handleModeChange("montant")}
+                disabled={capitalInvesti === 0}
+                className={`px-4 py-1.5 text-xs font-medium transition-colors ${saisieMode === "montant" ? "bg-emerald-600 text-white" : capitalInvesti === 0 ? "bg-slate-50 text-slate-300 cursor-not-allowed" : "bg-white text-slate-500 hover:bg-slate-50"}`}>
+                Par montant (FCFA)
+              </button>
+            </div>
+            <div className="flex items-center gap-3">
+              <input type="number" min={0} value={valeurSaisie}
+                onChange={e => handleValeurSaisie(e.target.value)}
+                className="flex-1 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent" />
+              <span className="text-sm font-semibold text-slate-500 shrink-0">
+                {saisieMode === "pourcentage" ? "%" : "FCFA"}
+              </span>
+            </div>
+            {valeurSaisie && capitalInvesti > 0 && (
+              <div className="mt-2 px-3 py-2 bg-slate-50 rounded-lg border border-slate-100 text-xs text-slate-500">
+                {saisieMode === "pourcentage"
+                  ? <>Montant correspondant&nbsp;: <span className="font-semibold text-emerald-700">{new Intl.NumberFormat("fr-FR").format(montantCalcule)} FCFA</span></>
+                  : <>Pourcentage correspondant&nbsp;: <span className="font-semibold text-emerald-700">{pourcentageCalcule.toFixed(2)} %</span></>
+                }
+              </div>
+            )}
+          </div>
+
+          {/* Classe de risque */}
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-1">Classe de risque</label>
+            <select value={classeRisque} onChange={e => setClasseRisque(e.target.value)}
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent">
+              {["A", "B", "C", "D", "E"].map(r => <option key={r} value={r}>Classe {r}</option>)}
+            </select>
+          </div>
+
+          {/* Notes */}
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-1">Notes</label>
+            <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2}
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent resize-none"
+              placeholder="Observations sur cette affectation..." />
+          </div>
+        </div>
+
+        <div className="px-6 py-4 border-t border-slate-200 flex justify-end gap-3">
+          <button onClick={onClose} className="px-4 py-2 text-sm border border-slate-200 rounded-lg hover:bg-slate-50">Annuler</button>
+          <button onClick={submit} disabled={loading}
+            className="px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 disabled:opacity-50">
+            {loading ? "Enregistrement…" : "Enregistrer"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function AffectationsPage() {
   const [actif, setActif] = useState("true");
   const [search, setSearch] = useState("");
   const [showCreate, setShowCreate] = useState(false);
+  const [editingAffectation, setEditingAffectation] = useState<AffectationItem | null>(null);
 
   const { data: res, loading, refetch } = useApi<{ data: AffectationItem[]; meta: { total: number } }>(
     `/api/admin/ria/affectations?limit=50&actif=${actif}`
@@ -413,7 +588,7 @@ export default function AffectationsPage() {
         <table className="w-full text-sm">
           <thead className="bg-slate-50 border-b border-slate-200">
             <tr>
-              {["Investisseur", "Portefeuille", "Client", "Risque client", "% Alloué", "Ligne de crédit", "Classe", "Depuis", "Actif"].map((h) => (
+              {["Investisseur", "Portefeuille", "Client", "Risque client", "% Alloué", "Ligne de crédit", "Classe", "Depuis", "Actif", ""].map((h) => (
                 <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">{h}</th>
               ))}
             </tr>
@@ -482,6 +657,13 @@ export default function AffectationsPage() {
                       {a.actif ? <ToggleRight className="w-5 h-5 text-emerald-600" /> : <ToggleLeft className="w-5 h-5" />}
                     </button>
                   </td>
+                  <td className="px-4 py-3">
+                    <button onClick={() => setEditingAffectation(a)}
+                      className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                      title="Modifier cette affectation">
+                      <Pencil className="w-4 h-4" />
+                    </button>
+                  </td>
                 </tr>
               );
             })}
@@ -490,6 +672,14 @@ export default function AffectationsPage() {
       </div>
 
       {showCreate && <CreateModal onClose={() => setShowCreate(false)} onSuccess={refetch} />}
+
+      {editingAffectation && (
+        <EditModal
+          affectation={editingAffectation}
+          onClose={() => setEditingAffectation(null)}
+          onSuccess={refetch}
+        />
+      )}
     </div>
   );
 }

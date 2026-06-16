@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import {
   LayoutDashboard, Users, Wallet, Activity,
   UserCheck, DollarSign, Settings, ChevronRight, Home,
-  ArrowDownUp, Star, TrendingUp, FileText, Award, BarChart2,
+  ArrowDownUp, Star, TrendingUp, FileText, Award, BarChart2, Shield,
 } from "lucide-react";
 
 // ── Navigation RIA ────────────────────────────────────────────────────────────
@@ -24,6 +24,7 @@ const NAV_ITEMS = [
   { href: "/dashboard/admin/ria/commissions",    label: "Commissions",    icon: Award },
   { href: "/dashboard/admin/ria/distributions",  label: "Distributions",  icon: DollarSign },
   { href: "/dashboard/admin/ria/bi",             label: "BI",             icon: BarChart2 },
+  { href: "/dashboard/admin/ria/gouvernance",    label: "Gouvernance",    icon: Shield },
   { href: "/dashboard/admin/ria/config",         label: "Configuration",  icon: Settings },
 ];
 

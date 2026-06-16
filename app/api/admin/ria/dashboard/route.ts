@@ -27,7 +27,7 @@ export async function GET() {
       financementsDetail,
       remboursementsMeta,
     ] = await Promise.all([
-      prisma.gestionnaire.count({ where: { role: "INVESTISSEUR_RIA" } }),
+      prisma.profilInvestisseurRIA.count(),
 
       prisma.portefeuilleRIA.aggregate({
         _sum: {

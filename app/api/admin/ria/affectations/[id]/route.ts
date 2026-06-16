@@ -11,7 +11,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
     if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
 
     const { id } = await params;
-    const { actif, pourcentage, montantAlloue, classeRisque, notes } = await req.json();
+    const { actif, pourcentage, montantAlloue, classeRisque, notes, dateDebut } = await req.json();
 
     const affectation = await prisma.affectationClientRIA.findUnique({
       where: { id: parseInt(id) },
@@ -41,6 +41,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
         ...(newMontant        !== undefined ? { montantAlloue: newMontant }     : {}),
         ...(classeRisque      !== undefined ? { classeRisque: classeRisque as ClasseRisqueRIA } : {}),
         ...(notes             !== undefined ? { notes }                        : {}),
+        ...(dateDebut         !== undefined ? { dateDebut: new Date(dateDebut) } : {}),
       },
     });
 
