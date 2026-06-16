@@ -28,13 +28,11 @@ interface PlanAction {
 interface Data { plans: PlanAction[] }
 
 const STATUTS: Record<string, { label: string; color: string }> = {
-  NON_DEMARRE: { label: "Non démarré",  color: "bg-slate-100 text-slate-600" },
-  EN_COURS:    { label: "En cours",     color: "bg-blue-100 text-blue-700" },
-  EN_ATTENTE:  { label: "En attente",   color: "bg-amber-100 text-amber-700" },
-  REALISE:     { label: "Réalisé",      color: "bg-emerald-100 text-emerald-700" },
-  EN_RETARD:   { label: "En retard",    color: "bg-rose-100 text-rose-700" },
-  ABANDONNE:   { label: "Abandonné",    color: "bg-rose-50 text-rose-400" },
-  TERMINE:     { label: "Terminé",      color: "bg-teal-100 text-teal-700" },
+  A_FAIRE:   { label: "Non démarré", color: "bg-slate-100 text-slate-600" },
+  EN_COURS:  { label: "En cours",    color: "bg-blue-100 text-blue-700" },
+  EN_RETARD: { label: "En retard",   color: "bg-rose-100 text-rose-700" },
+  TERMINE:   { label: "Réalisé",     color: "bg-emerald-100 text-emerald-700" },
+  ABANDONNE: { label: "Abandonné",   color: "bg-rose-50 text-rose-400" },
 };
 
 const PRIOS = ["BASSE", "MOYENNE", "HAUTE", "CRITIQUE"];
@@ -104,7 +102,7 @@ function CreateModal({ onClose, onDone }: { onClose: () => void; onDone: () => v
                 className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400">
                 <option value="FINANCE">Finance</option>
                 <option value="OPERATIONS_TERRAIN">Opérations Terrain</option>
-                <option value="AUDIT">Audit</option>
+                <option value="AUDIT_CONTROLE">Audit & Contrôle</option>
                 <option value="OPTIMISATION">Optimisation</option>
               </select>
             </div>
@@ -161,7 +159,7 @@ export default function PlansActionsPage() {
   const allPlans = (data?.plans || []).map(p => ({
     ...p,
     enRetard: !!p.dateEcheance && new Date(p.dateEcheance) < now
-      && !["TERMINE", "REALISE", "ABANDONNE"].includes(p.statut),
+      && !["TERMINE", "ABANDONNE"].includes(p.statut),
   }));
   const items = allPlans.filter(p =>
     (!search || p.titre.toLowerCase().includes(search.toLowerCase())) &&
@@ -198,7 +196,7 @@ export default function PlansActionsPage() {
             <p className="text-xs text-slate-500">En cours</p>
           </div>
           <div className="bg-white border border-slate-200 rounded-xl p-4 text-center">
-            <p className="text-2xl font-bold text-emerald-600">{allPlans.filter(p => ["TERMINE", "REALISE"].includes(p.statut)).length}</p>
+            <p className="text-2xl font-bold text-emerald-600">{allPlans.filter(p => p.statut === "TERMINE").length}</p>
             <p className="text-xs text-slate-500">Terminés</p>
           </div>
           <button onClick={() => setShowRetard(!showRetard)}
@@ -224,7 +222,7 @@ export default function PlansActionsPage() {
           <option value="">Toutes commissions</option>
           <option value="FINANCE">Finance</option>
           <option value="OPERATIONS_TERRAIN">Opérations</option>
-          <option value="AUDIT">Audit</option>
+          <option value="AUDIT_CONTROLE">Audit & Contrôle</option>
           <option value="OPTIMISATION">Optimisation</option>
         </select>
         <select value={filterStatut} onChange={e => setFilterStatut(e.target.value)}

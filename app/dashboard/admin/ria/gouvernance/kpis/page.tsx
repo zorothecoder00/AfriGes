@@ -29,10 +29,10 @@ interface KpiGlobal {
 }
 
 const COMM_COLORS: Record<string, string> = {
-  FINANCE:           "blue",
-  OPERATIONS_TERRAIN:"emerald",
-  AUDIT:             "amber",
-  OPTIMISATION:      "violet",
+  FINANCE:            "blue",
+  OPERATIONS_TERRAIN: "emerald",
+  AUDIT_CONTROLE:     "amber",
+  OPTIMISATION:       "violet",
 };
 
 const COLOR_CLASSES: Record<string, { bg: string; text: string; ring: string; bar: string }> = {

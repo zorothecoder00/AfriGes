@@ -19,7 +19,7 @@ const NAV = [
   { href: "/dashboard/user/responsablesRIA/affectations",           label: "Affectations",  icon: UserCheck },
   { href: "/dashboard/user/responsablesRIA/distributions",          label: "Distributions", icon: ArrowUpCircle },
   { href: "/dashboard/user/responsablesRIA/scoring",                label: "Scoring",       icon: Star },
-  { href: "/dashboard/user/responsablesRIA/commissions",            label: "Commissions",   icon: Award },
+  { href: "/dashboard/user/responsablesRIA/commissions",            label: "Rémunérations agents", icon: Award },
   { href: "/dashboard/user/responsablesRIA/gouvernance",            label: "Gouvernance",   icon: Shield },
   { href: "/dashboard/user/responsablesRIA/benefices",              label: "Bénéfices",     icon: DollarSign },
   { href: "/dashboard/user/responsablesRIA/bi",                     label: "BI",            icon: BarChart2 },

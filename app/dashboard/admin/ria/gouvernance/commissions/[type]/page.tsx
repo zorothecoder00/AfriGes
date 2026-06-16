@@ -14,17 +14,17 @@ import Link from "next/link";
 type PageParams = { type: string };
 
 const COMMISSION_META: Record<string, { label: string; color: string; bg: string; desc: string }> = {
-  finance:           { label: "Commission Finance",            color: "text-blue-700",    bg: "bg-blue-50",    desc: "Analyse financière, investissements, contrôle de gestion" },
-  operations_terrain:{ label: "Commission Opérations Terrain", color: "text-emerald-700", bg: "bg-emerald-50", desc: "Activités terrain, approvisionnement, performance commerciale" },
-  audit:             { label: "Commission Audit",              color: "text-amber-700",   bg: "bg-amber-50",   desc: "Contrôle interne, conformité, gestion des risques" },
-  optimisation:      { label: "Commission Optimisation",       color: "text-violet-700",  bg: "bg-violet-50",  desc: "Processus, innovation, amélioration continue" },
+  finance:             { label: "Commission Finance",                              color: "text-blue-700",    bg: "bg-blue-50",    desc: "Analyse financière, investissements, contrôle de gestion" },
+  "operations-terrain":{ label: "Commission Opérations Terrain & Approvisionnement", color: "text-emerald-700", bg: "bg-emerald-50", desc: "Activités terrain, approvisionnement, performance commerciale" },
+  "audit-controle":    { label: "Commission Audit & Contrôle Interne",            color: "text-amber-700",   bg: "bg-amber-50",   desc: "Contrôle interne, conformité, gestion des risques" },
+  optimisation:        { label: "Commission Optimisation des Processus",           color: "text-violet-700",  bg: "bg-violet-50",  desc: "Processus, innovation, amélioration continue" },
 };
 
 const TYPE_MAP: Record<string, string> = {
-  finance:           "FINANCE",
-  operations_terrain:"OPERATIONS_TERRAIN",
-  audit:             "AUDIT",
-  optimisation:      "OPTIMISATION",
+  finance:             "FINANCE",
+  "operations-terrain":"OPERATIONS_TERRAIN",
+  "audit-controle":    "AUDIT_CONTROLE",
+  optimisation:        "OPTIMISATION",
 };
 
 interface Membre {

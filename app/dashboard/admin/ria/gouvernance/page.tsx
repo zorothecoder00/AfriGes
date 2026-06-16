@@ -29,16 +29,16 @@ interface DashboardGouvData {
 }
 
 const COMMISSION_COLORS: Record<string, string> = {
-  FINANCE:          "from-blue-500 to-blue-700",
-  OPERATIONS_TERRAIN:"from-emerald-500 to-emerald-700",
-  AUDIT:            "from-amber-500 to-amber-700",
-  OPTIMISATION:     "from-violet-500 to-violet-700",
+  FINANCE:            "from-blue-500 to-blue-700",
+  OPERATIONS_TERRAIN: "from-emerald-500 to-emerald-700",
+  AUDIT_CONTROLE:     "from-amber-500 to-amber-700",
+  OPTIMISATION:       "from-violet-500 to-violet-700",
 };
 const COMMISSION_LABELS: Record<string, string> = {
-  FINANCE:           "Commission Finance",
-  OPERATIONS_TERRAIN:"Commission Opérations",
-  AUDIT:             "Commission Audit",
-  OPTIMISATION:      "Commission Optimisation",
+  FINANCE:            "Commission Finance",
+  OPERATIONS_TERRAIN: "Commission Opérations",
+  AUDIT_CONTROLE:     "Commission Audit & Contrôle",
+  OPTIMISATION:       "Commission Optimisation",
 };
 
 function StatCard({ label, value, sub, color, icon }: {

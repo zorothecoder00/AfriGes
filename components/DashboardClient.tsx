@@ -8,6 +8,7 @@ import {
   Calendar, CreditCard, TrendingDown, DollarSign, Clock, Award, Percent, ClipboardCheck,
   UserCog, Banknote, GraduationCap, CalendarDays, MapPin, Star, Building2, Gift, FileWarning,
   Settings, Network, FileText, BookOpen, FolderOpen,
+  Brain, Gavel, ListChecks, GitBranch, BarChart3,
 } from 'lucide-react';      
 import Link from "next/link";     
 import { useSession } from 'next-auth/react';
@@ -370,8 +371,21 @@ export default function AfriGesDashboard() {
                 <Link href="/dashboard/admin/ria/distributions"   className="w-full flex items-center gap-3 px-4 py-2.5 pl-10 text-slate-500 hover:bg-slate-50 rounded-xl transition-all text-sm"><DollarSign size={16} /><span>Distributions</span></Link>
                 <Link href="/dashboard/admin/ria/rapports"        className="w-full flex items-center gap-3 px-4 py-2.5 pl-10 text-slate-500 hover:bg-slate-50 rounded-xl transition-all text-sm"><FileText size={16} /><span>Rapports mensuels</span></Link>
                 <Link href="/dashboard/admin/ria/comptabilite"   className="w-full flex items-center gap-3 px-4 py-2.5 pl-10 text-slate-500 hover:bg-slate-50 rounded-xl transition-all text-sm"><BookOpen size={16} /><span>Comptabilité</span></Link>
-                <Link href="/dashboard/admin/ria/commissions"     className="w-full flex items-center gap-3 px-4 py-2.5 pl-10 text-slate-500 hover:bg-slate-50 rounded-xl transition-all text-sm"><Award size={16} /><span>Commissions</span></Link>
-                <Link href="/dashboard/admin/ria/gouvernance"     className="w-full flex items-center gap-3 px-4 py-2.5 pl-10 text-slate-500 hover:bg-emerald-50 rounded-xl transition-all text-sm"><Shield size={16} /><span>Gouvernance RIA</span></Link>
+                <Link href="/dashboard/admin/ria/commissions"     className="w-full flex items-center gap-3 px-4 py-2.5 pl-10 text-slate-500 hover:bg-slate-50 rounded-xl transition-all text-sm"><Award size={16} /><span>Rémunérations agents</span></Link>
+                {/* Gouvernance RIA — 10 sous-menus CDC */}
+                <div className="pt-1 pl-10">
+                  <span className="text-xs font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-1"><Shield size={11} /> Gouvernance RIA</span>
+                </div>
+                <Link href="/dashboard/admin/ria/gouvernance"                              className="w-full flex items-center gap-3 px-4 py-2 pl-14 text-slate-500 hover:bg-emerald-50 rounded-xl transition-all text-xs"><Shield size={14} /><span>Tableau de Bord Général</span></Link>
+                <Link href="/dashboard/admin/ria/gouvernance/commissions/finance"             className="w-full flex items-center gap-3 px-4 py-2 pl-14 text-slate-500 hover:bg-emerald-50 rounded-xl transition-all text-xs"><DollarSign size={14} /><span>Commission Finance</span></Link>
+                <Link href="/dashboard/admin/ria/gouvernance/commissions/operations-terrain" className="w-full flex items-center gap-3 px-4 py-2 pl-14 text-slate-500 hover:bg-emerald-50 rounded-xl transition-all text-xs"><Truck size={14} /><span>Commission Opérations Terrain</span></Link>
+                <Link href="/dashboard/admin/ria/gouvernance/commissions/audit-controle"    className="w-full flex items-center gap-3 px-4 py-2 pl-14 text-slate-500 hover:bg-emerald-50 rounded-xl transition-all text-xs"><ClipboardCheck size={14} /><span>Commission Audit &amp; Contrôle</span></Link>
+                <Link href="/dashboard/admin/ria/gouvernance/commissions/optimisation"      className="w-full flex items-center gap-3 px-4 py-2 pl-14 text-slate-500 hover:bg-emerald-50 rounded-xl transition-all text-xs"><Settings size={14} /><span>Commission Optimisation</span></Link>
+                <Link href="/dashboard/admin/ria/gouvernance/reunions"                     className="w-full flex items-center gap-3 px-4 py-2 pl-14 text-slate-500 hover:bg-emerald-50 rounded-xl transition-all text-xs"><Calendar size={14} /><span>Réunions &amp; Sessions</span></Link>
+                <Link href="/dashboard/admin/ria/gouvernance/resolutions"                  className="w-full flex items-center gap-3 px-4 py-2 pl-14 text-slate-500 hover:bg-emerald-50 rounded-xl transition-all text-xs"><Gavel size={14} /><span>Recommandations &amp; Résolutions</span></Link>
+                <Link href="/dashboard/admin/ria/gouvernance/plans-actions"                className="w-full flex items-center gap-3 px-4 py-2 pl-14 text-slate-500 hover:bg-emerald-50 rounded-xl transition-all text-xs"><ListChecks size={14} /><span>Plans d&apos;Actions</span></Link>
+                <Link href="/dashboard/admin/ria/gouvernance/rapports"                     className="w-full flex items-center gap-3 px-4 py-2 pl-14 text-slate-500 hover:bg-emerald-50 rounded-xl transition-all text-xs"><BarChart3 size={14} /><span>Rapports &amp; Archives</span></Link>
+                <Link href="/dashboard/admin/ria/gouvernance/kpis"                         className="w-full flex items-center gap-3 px-4 py-2 pl-14 text-slate-500 hover:bg-emerald-50 rounded-xl transition-all text-xs"><TrendingUp size={14} /><span>Indicateurs de Performance</span></Link>
                 <Link href="/dashboard/admin/ria/bi"              className="w-full flex items-center gap-3 px-4 py-2.5 pl-10 text-slate-500 hover:bg-slate-50 rounded-xl transition-all text-sm"><BarChart2 size={16} /><span>BI &amp; Analytique</span></Link>
                 <Link href="/dashboard/admin/ria/alertes"         className="w-full flex items-center gap-3 px-4 py-2.5 pl-10 text-slate-500 hover:bg-slate-50 rounded-xl transition-all text-sm"><AlertTriangle size={16} /><span>Alertes Automatiques</span></Link>
                 <Link href="/dashboard/admin/ria/documents"       className="w-full flex items-center gap-3 px-4 py-2.5 pl-10 text-slate-500 hover:bg-slate-50 rounded-xl transition-all text-sm"><FolderOpen size={16} /><span>Documents Générés</span></Link>

@@ -41,10 +41,10 @@ const TYPES: Record<string, string> = {
 };
 
 const COMM_LABELS: Record<string, string> = {
-  FINANCE:           "Finance",
-  OPERATIONS_TERRAIN:"Opérations",
-  AUDIT:             "Audit",
-  OPTIMISATION:      "Optimisation",
+  FINANCE:            "Finance",
+  OPERATIONS_TERRAIN: "Opérations",
+  AUDIT_CONTROLE:     "Audit & Contrôle",
+  OPTIMISATION:       "Optimisation",
 };
 
 function CreateModal({ onClose, onDone }: { onClose: () => void; onDone: () => void }) {
@@ -90,7 +90,7 @@ function CreateModal({ onClose, onDone }: { onClose: () => void; onDone: () => v
                 className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400">
                 <option value="FINANCE">Finance</option>
                 <option value="OPERATIONS_TERRAIN">Opérations Terrain</option>
-                <option value="AUDIT">Audit</option>
+                <option value="AUDIT_CONTROLE">Audit & Contrôle</option>
                 <option value="OPTIMISATION">Optimisation</option>
               </select>
             </div>
@@ -209,7 +209,7 @@ export default function RapportsGouvernancePage() {
           <option value="">Toutes commissions</option>
           <option value="FINANCE">Finance</option>
           <option value="OPERATIONS_TERRAIN">Opérations</option>
-          <option value="AUDIT">Audit</option>
+          <option value="AUDIT_CONTROLE">Audit & Contrôle</option>
           <option value="OPTIMISATION">Optimisation</option>
         </select>
         <button onClick={() => setRefresh(r => r + 1)}

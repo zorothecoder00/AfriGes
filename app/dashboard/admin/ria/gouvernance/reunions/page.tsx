@@ -28,7 +28,7 @@ interface ReunionsData { reunions: Reunion[] }
 const STATUTS: Record<string, { label: string; color: string }> = {
   PLANIFIEE:  { label: "Planifiée",   color: "bg-blue-100 text-blue-700" },
   EN_COURS:   { label: "En cours",    color: "bg-emerald-100 text-emerald-700" },
-  TERMINEE:   { label: "Terminée",    color: "bg-slate-100 text-slate-600" },
+  TENUE:      { label: "Tenue",       color: "bg-slate-100 text-slate-600" },
   ANNULEE:    { label: "Annulée",     color: "bg-rose-100 text-rose-700" },
   REPORTEE:   { label: "Reportée",    color: "bg-amber-100 text-amber-700" },
 };
@@ -37,7 +37,7 @@ const COMMISSIONS = [
   { value: "", label: "Toutes commissions" },
   { value: "FINANCE", label: "Finance" },
   { value: "OPERATIONS_TERRAIN", label: "Opérations Terrain" },
-  { value: "AUDIT", label: "Audit" },
+  { value: "AUDIT_CONTROLE", label: "Audit & Contrôle" },
   { value: "OPTIMISATION", label: "Optimisation" },
 ];
 
@@ -82,7 +82,7 @@ function CreateModal({ onClose, onDone }: { onClose: () => void; onDone: () => v
                 className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
                 <option value="FINANCE">Finance</option>
                 <option value="OPERATIONS_TERRAIN">Opérations Terrain</option>
-                <option value="AUDIT">Audit</option>
+                <option value="AUDIT_CONTROLE">Audit & Contrôle</option>
                 <option value="OPTIMISATION">Optimisation</option>
               </select>
             </div>

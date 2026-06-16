@@ -53,6 +53,8 @@ enum RoleGestionnaire {
   RESPONSABLE_RH                     // gestionnaire RH (OGRH)
   INVESTISSEUR_RIA                   // investisseur Réseau AfriSime
   RESPONSABLE_RIA                    // gestionnaire du réseau RIA
+  PRESIDENT_COMMISSION_RIA           // préside une commission de gouvernance RIA
+  RAPPORTEUR_COMMISSION_RIA          // rapporteur d'une commission de gouvernance RIA
 }
 
 // ============================================================

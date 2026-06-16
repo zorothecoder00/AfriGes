@@ -25,19 +25,17 @@ interface PlanAction {
 interface Data { plans: (PlanAction & { enRetard: boolean })[] }
 
 const STATUTS: Record<string, string> = {
-  A_FAIRE:      "bg-slate-100 text-slate-600",
-  NON_DEMARRE:  "bg-slate-100 text-slate-500",
-  EN_COURS:     "bg-blue-100 text-blue-700",
-  TERMINE:      "bg-emerald-100 text-emerald-700",
-  REALISE:      "bg-emerald-100 text-emerald-700",
-  EN_RETARD:    "bg-rose-100 text-rose-700",
-  ABANDONNE:    "bg-slate-100 text-slate-400",
+  A_FAIRE:   "bg-slate-100 text-slate-600",
+  EN_COURS:  "bg-blue-100 text-blue-700",
+  TERMINE:   "bg-emerald-100 text-emerald-700",
+  EN_RETARD: "bg-rose-100 text-rose-700",
+  ABANDONNE: "bg-slate-100 text-slate-400",
 };
 
 const COMM_LABELS: Record<string, string> = {
-  FINANCE:           "Finance",
-  OPERATIONS_TERRAIN:"Opérations",
-  AUDIT:             "Audit",
+  FINANCE:            "Finance",
+  OPERATIONS_TERRAIN: "Opérations",
+  AUDIT_CONTROLE:     "Audit & Contrôle",
   OPTIMISATION:      "Optimisation",
 };
 
@@ -109,7 +107,7 @@ export default function MesPlansActionsPage() {
           <p className="text-xs text-slate-500">En cours</p>
         </div>
         <div className="bg-white border border-slate-200 rounded-xl p-4 text-center">
-          <p className="text-2xl font-bold text-emerald-600">{allPlans.filter(p => ["TERMINE", "REALISE"].includes(p.statut)).length}</p>
+          <p className="text-2xl font-bold text-emerald-600">{allPlans.filter(p => p.statut === "TERMINE").length}</p>
           <p className="text-xs text-slate-500">Terminés</p>
         </div>
         <div className={`rounded-xl p-4 text-center border ${nbRetard > 0 ? "border-rose-200 bg-rose-50" : "bg-white border-slate-200"}`}>
@@ -159,7 +157,7 @@ export default function MesPlansActionsPage() {
                       {new Date(p.dateEcheance).toLocaleDateString("fr-FR")}
                     </p>
                   )}
-                  {!["TERMINE", "REALISE", "ABANDONNE"].includes(p.statut) && (
+                  {!["TERMINE", "ABANDONNE"].includes(p.statut) && (
                     <button onClick={() => updateProgression(p.id)}
                       className="text-xs px-2 py-1 text-teal-600 border border-teal-200 rounded hover:bg-teal-50">
                       Mettre à jour

@@ -74,5 +74,10 @@ les stocks doivent avoir des prix d'achat et de vente par date ( par semaine , p
 
 
 Permettre aux caissiers dashboard/user/caissiers de pouvoir faire aussi le recouvrement des crédits (creditclient)
+  
 
+Si tu finis , tu corriges aussi les modules réunions, résolutions et plans
+  d'actions puis les modules strucutres de commisions chez le
+  dashboard/user/responsablesRIA pour que ce soit exactement comme chez
+  l'admin
 

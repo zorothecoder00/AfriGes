@@ -21,22 +21,18 @@ interface Resolution {
 interface Data { resolutions: Resolution[] }
 
 const STATUTS: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
-  EN_ATTENTE:     { label: "En attente",     color: "bg-slate-100 text-slate-600",     icon: <Circle className="w-3.5 h-3.5" /> },
-  EN_PREPARATION: { label: "En préparation", color: "bg-slate-100 text-slate-500",     icon: <Circle className="w-3.5 h-3.5" /> },
-  SOUMISE:        { label: "Soumise",        color: "bg-blue-100 text-blue-700",       icon: <Clock className="w-3.5 h-3.5" /> },
-  APPROUVEE:      { label: "Approuvée",      color: "bg-emerald-100 text-emerald-700", icon: <CheckCircle2 className="w-3.5 h-3.5" /> },
-  ADOPTEE:        { label: "Adoptée",        color: "bg-emerald-100 text-emerald-700", icon: <CheckCircle2 className="w-3.5 h-3.5" /> },
-  REJETEE:        { label: "Rejetée",        color: "bg-rose-100 text-rose-700",       icon: <XCircle className="w-3.5 h-3.5" /> },
-  EN_APPLICATION: { label: "En application", color: "bg-amber-100 text-amber-700",     icon: <PlayCircle className="w-3.5 h-3.5" /> },
-  APPLIQUEE:      { label: "Appliquée",      color: "bg-teal-100 text-teal-700",       icon: <PlayCircle className="w-3.5 h-3.5" /> },
-  EXECUTEE:       { label: "Exécutée",       color: "bg-teal-100 text-teal-700",       icon: <PlayCircle className="w-3.5 h-3.5" /> },
+  EN_ATTENTE:     { label: "En préparation", color: "bg-slate-100 text-slate-600",     icon: <Circle className="w-3.5 h-3.5" /> },
+  EN_COURS:       { label: "Soumise",        color: "bg-blue-100 text-blue-700",       icon: <Clock className="w-3.5 h-3.5" /> },
+  MISE_EN_OEUVRE: { label: "Adoptée",        color: "bg-emerald-100 text-emerald-700", icon: <CheckCircle2 className="w-3.5 h-3.5" /> },
+  ABANDONNEE:     { label: "Rejetée",        color: "bg-rose-100 text-rose-700",       icon: <XCircle className="w-3.5 h-3.5" /> },
+  IMPLEMENTEE:    { label: "Exécutée",       color: "bg-teal-100 text-teal-700",       icon: <PlayCircle className="w-3.5 h-3.5" /> },
 };
 
 const COMM_LABELS: Record<string, string> = {
-  FINANCE:           "Finance",
-  OPERATIONS_TERRAIN:"Opérations",
-  AUDIT:             "Audit",
-  OPTIMISATION:      "Optimisation",
+  FINANCE:            "Finance",
+  OPERATIONS_TERRAIN: "Opérations",
+  AUDIT_CONTROLE:     "Audit & Contrôle",
+  OPTIMISATION:       "Optimisation",
 };
 
 export default function MesResolutionsPage() {
@@ -70,7 +66,7 @@ export default function MesResolutionsPage() {
             <option value="">Toutes commissions</option>
             <option value="FINANCE">Finance</option>
             <option value="OPERATIONS_TERRAIN">Opérations</option>
-            <option value="AUDIT">Audit</option>
+            <option value="AUDIT_CONTROLE">Audit & Contrôle</option>
             <option value="OPTIMISATION">Optimisation</option>
           </select>
           <select value={filterStatut} onChange={e => setFilterStatut(e.target.value)}

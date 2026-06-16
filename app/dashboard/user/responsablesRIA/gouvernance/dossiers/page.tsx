@@ -36,10 +36,10 @@ const STATUTS: Record<string, { label: string; color: string }> = {
 };
 
 const COMM_LABELS: Record<string, string> = {
-  FINANCE:           "Finance",
-  OPERATIONS_TERRAIN:"Opérations",
-  AUDIT:             "Audit",
-  OPTIMISATION:      "Optimisation",
+  FINANCE:            "Finance",
+  OPERATIONS_TERRAIN: "Opérations",
+  AUDIT_CONTROLE:     "Audit & Contrôle",
+  OPTIMISATION:       "Optimisation",
 };
 
 export default function MesDossiersPage() {

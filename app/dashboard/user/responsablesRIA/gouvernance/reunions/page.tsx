@@ -29,15 +29,15 @@ const STATUTS: Record<string, string> = {
   PLANIFIEE: "bg-blue-100 text-blue-700",
   EN_COURS:  "bg-emerald-100 text-emerald-700",
   TENUE:     "bg-slate-100 text-slate-600",
-  TERMINEE:  "bg-slate-100 text-slate-600",
   ANNULEE:   "bg-rose-100 text-rose-700",
+  REPORTEE:  "bg-amber-100 text-amber-700",
 };
 
 const COMM_LABELS: Record<string, string> = {
-  FINANCE:           "Finance",
-  OPERATIONS_TERRAIN:"Opérations",
-  AUDIT:             "Audit",
-  OPTIMISATION:      "Optimisation",
+  FINANCE:            "Finance",
+  OPERATIONS_TERRAIN: "Opérations",
+  AUDIT_CONTROLE:     "Audit & Contrôle",
+  OPTIMISATION:       "Optimisation",
 };
 
 export default function MesReunionsPage() {

@@ -25,22 +25,18 @@ interface Resolution {
 interface Data { resolutions: Resolution[] }
 
 const STATUTS: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
-  EN_ATTENTE:     { label: "En attente",      color: "bg-slate-100 text-slate-600",     icon: <Circle className="w-3.5 h-3.5" /> },
-  EN_PREPARATION: { label: "En préparation",  color: "bg-slate-100 text-slate-600",     icon: <Circle className="w-3.5 h-3.5" /> },
-  SOUMISE:        { label: "Soumise",         color: "bg-blue-100 text-blue-700",       icon: <Clock className="w-3.5 h-3.5" /> },
-  APPROUVEE:      { label: "Approuvée",       color: "bg-emerald-100 text-emerald-700", icon: <CheckCircle2 className="w-3.5 h-3.5" /> },
-  ADOPTEE:        { label: "Adoptée",         color: "bg-emerald-100 text-emerald-700", icon: <CheckCircle2 className="w-3.5 h-3.5" /> },
-  REJETEE:        { label: "Rejetée",         color: "bg-rose-100 text-rose-700",       icon: <XCircle className="w-3.5 h-3.5" /> },
-  EN_APPLICATION: { label: "En application",  color: "bg-amber-100 text-amber-700",     icon: <PlayCircle className="w-3.5 h-3.5" /> },
-  APPLIQUEE:      { label: "Appliquée",       color: "bg-teal-100 text-teal-700",       icon: <PlayCircle className="w-3.5 h-3.5" /> },
-  EXECUTEE:       { label: "Exécutée",        color: "bg-teal-100 text-teal-700",       icon: <PlayCircle className="w-3.5 h-3.5" /> },
+  EN_ATTENTE:     { label: "En préparation", color: "bg-slate-100 text-slate-600",     icon: <Circle className="w-3.5 h-3.5" /> },
+  EN_COURS:       { label: "Soumise",        color: "bg-blue-100 text-blue-700",       icon: <Clock className="w-3.5 h-3.5" /> },
+  MISE_EN_OEUVRE: { label: "Adoptée",        color: "bg-emerald-100 text-emerald-700", icon: <CheckCircle2 className="w-3.5 h-3.5" /> },
+  ABANDONNEE:     { label: "Rejetée",        color: "bg-rose-100 text-rose-700",       icon: <XCircle className="w-3.5 h-3.5" /> },
+  IMPLEMENTEE:    { label: "Exécutée",       color: "bg-teal-100 text-teal-700",       icon: <PlayCircle className="w-3.5 h-3.5" /> },
 };
 
 const COMMISSIONS = [
   { value: "", label: "Toutes" },
   { value: "FINANCE", label: "Finance" },
   { value: "OPERATIONS_TERRAIN", label: "Opérations" },
-  { value: "AUDIT", label: "Audit" },
+  { value: "AUDIT_CONTROLE", label: "Audit & Contrôle" },
   { value: "OPTIMISATION", label: "Optimisation" },
 ];
 
@@ -93,7 +89,7 @@ function CreateModal({ onClose, onDone }: { onClose: () => void; onDone: () => v
                 className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400">
                 <option value="FINANCE">Finance</option>
                 <option value="OPERATIONS_TERRAIN">Opérations Terrain</option>
-                <option value="AUDIT">Audit</option>
+                <option value="AUDIT_CONTROLE">Audit & Contrôle</option>
                 <option value="OPTIMISATION">Optimisation</option>
               </select>
             </div>

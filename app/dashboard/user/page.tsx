@@ -17,6 +17,8 @@ const ROLE_ROUTES: Record<string, string> = {
   RESPONSABLE_RH:                       "/dashboard/user/responsablesRH",
   RESPONSABLE_RIA:                      "/dashboard/user/responsablesRIA",
   INVESTISSEUR_RIA:                     "/dashboard/user/investisseurs",
+  PRESIDENT_COMMISSION_RIA:             "/dashboard/user/responsablesRIA/gouvernance",
+  RAPPORTEUR_COMMISSION_RIA:            "/dashboard/user/responsablesRIA/gouvernance",
   COMMERCIAL:                           "/dashboard/user/revendeurs",
 };
 

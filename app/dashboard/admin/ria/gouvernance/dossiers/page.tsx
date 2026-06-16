@@ -39,10 +39,10 @@ const STATUTS: Record<string, { label: string; color: string; icon: React.ReactN
 };
 
 const COMM_LABELS: Record<string, string> = {
-  FINANCE:           "Finance",
-  OPERATIONS_TERRAIN:"Opérations",
-  AUDIT:             "Audit",
-  OPTIMISATION:      "Optimisation",
+  FINANCE:            "Finance",
+  OPERATIONS_TERRAIN: "Opérations",
+  AUDIT_CONTROLE:     "Audit & Contrôle",
+  OPTIMISATION:       "Optimisation",
 };
 
 function StatusBadge({ statut }: { statut: string }) {
@@ -57,7 +57,7 @@ function StatusBadge({ statut }: { statut: string }) {
 function CreateModal({ onClose, onDone }: { onClose: () => void; onDone: () => void }) {
   const [form, setForm] = useState({
     titre: "", type: "DEMANDE_AVIS", priorite: "NORMALE",
-    commissionEmettrice: "FINANCE", commissionReceptrice: "AUDIT",
+    commissionEmettrice: "FINANCE", commissionReceptrice: "AUDIT_CONTROLE",
     description: "", dateEcheance: "",
   });
   const { mutate, loading } = useMutation("/api/admin/ria/commissions/gouvernance/dossiers", "POST");
@@ -76,7 +76,7 @@ function CreateModal({ onClose, onDone }: { onClose: () => void; onDone: () => v
   const commissions = [
     { value: "FINANCE", label: "Finance" },
     { value: "OPERATIONS_TERRAIN", label: "Opérations Terrain" },
-    { value: "AUDIT", label: "Audit" },
+    { value: "AUDIT_CONTROLE", label: "Audit & Contrôle" },
     { value: "OPTIMISATION", label: "Optimisation" },
   ];
 
@@ -227,7 +227,7 @@ export default function DossiersPage() {
           <option value="">Toutes commissions</option>
           <option value="FINANCE">Finance</option>
           <option value="OPERATIONS_TERRAIN">Opérations</option>
-          <option value="AUDIT">Audit</option>
+          <option value="AUDIT_CONTROLE">Audit & Contrôle</option>
           <option value="OPTIMISATION">Optimisation</option>
         </select>
         <button onClick={() => setRefresh(r => r + 1)}
