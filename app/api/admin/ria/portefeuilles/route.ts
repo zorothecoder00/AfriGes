@@ -39,8 +39,16 @@ export async function GET(req: NextRequest) {
       prisma.portefeuilleRIA.count({ where }),
     ]);
 
+    // rendementMoyen n'est pas stocké : calculé (bénéfices générés / capital investi)
+    const data = portefeuilles.map((p) => ({
+      ...p,
+      rendementMoyen: Number(p.capitalInvesti) > 0
+        ? (Number(p.beneficesGeneres) / Number(p.capitalInvesti)) * 100
+        : 0,
+    }));
+
     return NextResponse.json({
-      data: portefeuilles,
+      data,
       meta: { page, limit, total, totalPages: Math.ceil(total / limit) },
     });
   } catch (error) {

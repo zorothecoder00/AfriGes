@@ -94,6 +94,7 @@ export async function GET(req: NextRequest) {
                   capitalRecouvre: true, capitalBloque: true,
                   beneficesGeneres: true, beneficesDistribues: true, beneficesReinvestis: true,
                   fondSecurite: true,
+                  affectations: { select: { id: true, actif: true, financements: { select: { statut: true } } } },
                 },
               },
             },
@@ -103,8 +104,24 @@ export async function GET(req: NextRequest) {
       prisma.gestionnaire.count({ where }),
     ]);
 
+    // rendementMoyen n'est pas stocké : on le calcule par portefeuille (bénéfices / capital investi)
+    const data = investisseurs.map((inv) => ({
+      ...inv,
+      profilRIA: inv.profilRIA
+        ? {
+            ...inv.profilRIA,
+            portefeuilles: inv.profilRIA.portefeuilles.map((p) => ({
+              ...p,
+              rendementMoyen: Number(p.capitalInvesti) > 0
+                ? (Number(p.beneficesGeneres) / Number(p.capitalInvesti)) * 100
+                : 0,
+            })),
+          }
+        : inv.profilRIA,
+    }));
+
     return NextResponse.json({
-      data: investisseurs,
+      data,
       meta: { page, limit, total, totalPages: Math.ceil(total / limit) },
     });
   } catch (error) {

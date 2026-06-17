@@ -38,7 +38,13 @@ export async function GET(req: NextRequest) {
               },
             },
           },
-          client: { select: { id: true, nom: true, prenom: true, telephone: true, niveauRisque: true, scoreSolvabilite: true } },
+          client: {
+            select: {
+              id: true, nom: true, prenom: true, telephone: true, niveauRisque: true, scoreSolvabilite: true,
+              ville: true, quartier: true, activite: true,
+              pointDeVente: { select: { nom: true } },
+            },
+          },
           _count: { select: { financements: true } },
           // Financements actifs liés à cette affectation pour calculer l'encours
           financements: {
@@ -60,7 +66,12 @@ export async function GET(req: NextRequest) {
       );
       const encoursActuel = finsPostAffectation.reduce((sum, f) => sum + Number(f.encours), 0);
       const disponible    = Math.max(0, Number(a.montantAlloue) - encoursActuel);
-      return { ...a, encoursActuel, disponible };
+      // Alias géographiques : les pages gouvernance attendent commune/region/secteurActivite,
+      // mappés sur les champs réels du client (quartier/ville/activite).
+      const client = a.client
+        ? { ...a.client, commune: a.client.quartier ?? a.client.ville, region: a.client.ville, secteurActivite: a.client.activite }
+        : a.client;
+      return { ...a, client, encoursActuel, disponible };
     });
 
     return NextResponse.json({
