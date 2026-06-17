@@ -3,7 +3,7 @@
 import { use } from "react";
 import Link from "next/link";
 import { useApi } from "@/hooks/useApi";
-import { slugToEnum, commissionLabel } from "@/lib/commissionsRIA";
+import { slugToEnum, commissionLabel, roleLabel } from "@/lib/commissionsRIA";
 import {
   Shield, Users, Calendar, Gavel, ListChecks, MessageSquare,
   ArrowLeft, AlertTriangle, Pin,
@@ -30,10 +30,6 @@ interface Data {
   plansAction: Plan[]; observations: Observation[];
 }
 
-const ROLE_LABELS: Record<string, string> = {
-  PRESIDENT: "Président(e)", VICE_PRESIDENT: "Vice-Président(e)", SECRETAIRE: "Secrétaire",
-  TRESORIER: "Trésorier(ère)", RAPPORTEUR_1: "Rapporteur 1", RAPPORTEUR_2: "Rapporteur 2", MEMBRE: "Membre",
-};
 const STATUT_PLAN: Record<string, string> = {
   A_FAIRE: "bg-slate-100 text-slate-600", NON_DEMARRE: "bg-slate-100 text-slate-600",
   EN_COURS: "bg-blue-100 text-blue-700", EN_RETARD: "bg-rose-100 text-rose-700",
@@ -65,7 +61,7 @@ export default function MaCommissionDetailPage({ params }: { params: Promise<{ t
         </h1>
         {data?.monRole && (
           <span className={`inline-block mt-1 text-xs px-2 py-0.5 rounded-full font-medium ${roleBadge(data.monRole)}`}>
-            Mon rôle : {ROLE_LABELS[data.monRole] || data.monRole}
+            Mon rôle : {roleLabel(data.monRole)}
           </span>
         )}
       </div>
@@ -100,7 +96,7 @@ export default function MaCommissionDetailPage({ params }: { params: Promise<{ t
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium text-slate-800 truncate">{m.user.prenom} {m.user.nom}</p>
                   </div>
-                  <span className={`text-xs px-2 py-0.5 rounded-full ${roleBadge(m.role)}`}>{ROLE_LABELS[m.role] || m.role}</span>
+                  <span className={`text-xs px-2 py-0.5 rounded-full ${roleBadge(m.role)}`}>{roleLabel(m.role)}</span>
                 </div>
               ))}
             </div>

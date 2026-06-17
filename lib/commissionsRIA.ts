@@ -52,3 +52,46 @@ export function enumToSlug(type: TypeCommissionRIA): CommissionSlug {
 export function commissionLabel(type: TypeCommissionRIA | string): string {
   return COMMISSION_LABELS[type as TypeCommissionRIA] ?? String(type);
 }
+
+// ── Structure officielle d'une commission ────────────────────────────────────
+// Chaque commission comporte exactement 3 postes : Président, Rapporteur 1,
+// Rapporteur 2. (L'enum Prisma RoleMembreCommissionRIA contient d'anciennes
+// valeurs — VICE_PRESIDENT, SECRETAIRE, TRESORIER, MEMBRE — qui ne sont plus
+// proposées dans l'interface.)
+export const COMMISSION_ROLES = ["PRESIDENT", "RAPPORTEUR_1", "RAPPORTEUR_2"] as const;
+export type CommissionRole = (typeof COMMISSION_ROLES)[number];
+
+export const COMMISSION_ROLE_LABELS: Record<string, string> = {
+  PRESIDENT:    "Président(e)",
+  RAPPORTEUR_1: "Rapporteur 1",
+  RAPPORTEUR_2: "Rapporteur 2",
+};
+
+/** Pouvoirs associés à chaque poste (cahier des charges). */
+export const COMMISSION_ROLE_POWERS: Record<CommissionRole, string[]> = {
+  PRESIDENT: [
+    "Convocation",
+    "Validation des rapports",
+    "Validation des recommandations",
+    "Validation des résolutions",
+    "Attribution des tâches",
+    "Signature électronique",
+  ],
+  RAPPORTEUR_1: [
+    "Préparation des dossiers",
+    "Analyse",
+    "Rédaction des rapports",
+    "Préparation des réunions",
+  ],
+  RAPPORTEUR_2: [
+    "Vérification des analyses",
+    "Contrôle documentaire",
+    "Co-rédaction des rapports",
+    "Suivi des actions",
+  ],
+};
+
+/** Libellé d'un poste (fallback sur la valeur brute pour d'éventuelles données héritées). */
+export function roleLabel(role: string): string {
+  return COMMISSION_ROLE_LABELS[role] ?? role;
+}

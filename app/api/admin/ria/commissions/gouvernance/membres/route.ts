@@ -46,12 +46,12 @@ export async function POST(req: NextRequest) {
       create: {
         typeCommission,
         userId: Number(userId),
-        role: (role as RoleMembreCommissionRIA) ?? "MEMBRE",
+        role: (role as RoleMembreCommissionRIA) ?? "RAPPORTEUR_2",
         notes,
         actif: true,
       },
       update: {
-        role: (role as RoleMembreCommissionRIA) ?? "MEMBRE",
+        role: (role as RoleMembreCommissionRIA) ?? "RAPPORTEUR_2",
         notes,
         actif: true,
         dateSortie: null,

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useApi } from "@/hooks/useApi";
-import { commissionLabel, enumToSlug } from "@/lib/commissionsRIA";
+import { commissionLabel, enumToSlug, roleLabel } from "@/lib/commissionsRIA";
 import type { TypeCommissionRIA } from "@prisma/client";
 import {
   Shield, Calendar, ListChecks, FileText, Users, ArrowRight,
@@ -25,16 +25,6 @@ const COMM_COLORS: Record<string, { bg: string; text: string; bar: string }> = {
   OPERATIONS_TERRAIN: { bg: "bg-emerald-50", text: "text-emerald-700", bar: "bg-emerald-600" },
   AUDIT:              { bg: "bg-amber-50",   text: "text-amber-700",   bar: "bg-amber-600" },
   OPTIMISATION:       { bg: "bg-violet-50",  text: "text-violet-700",  bar: "bg-violet-600" },
-};
-
-const ROLE_LABELS: Record<string, string> = {
-  PRESIDENT:     "Président(e)",
-  VICE_PRESIDENT:"Vice-Président(e)",
-  SECRETAIRE:    "Secrétaire",
-  TRESORIER:     "Trésorier(ère)",
-  RAPPORTEUR_1:  "Rapporteur 1",
-  RAPPORTEUR_2:  "Rapporteur 2",
-  MEMBRE:        "Membre",
 };
 
 export default function PortailGouvernancePage() {
@@ -73,7 +63,7 @@ export default function PortailGouvernancePage() {
                       {commissionLabel(c.typeCommission)}
                     </h2>
                     <span className={`text-xs px-2 py-0.5 rounded-full bg-white/70 ${clr.text} font-medium`}>
-                      {ROLE_LABELS[c.role] || c.role}
+                      {roleLabel(c.role)}
                     </span>
                   </div>
                   <div className="flex items-center gap-3">

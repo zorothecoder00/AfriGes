@@ -10,6 +10,7 @@ import {
   Shield, ArrowLeft, UserPlus, Eye, Pencil, Trash2, Check, X, Search,
 } from "lucide-react";
 import Link from "next/link";
+import { COMMISSION_ROLES, COMMISSION_ROLE_LABELS, COMMISSION_ROLE_POWERS, roleLabel } from "@/lib/commissionsRIA";
 
 type PageParams = { type: string };
 
@@ -96,11 +97,6 @@ const STATUTS_RESOLUTION: Record<string, string> = {
   ADOPTEE: "bg-emerald-100 text-emerald-700", REJETEE: "bg-rose-100 text-rose-700",
   EXECUTEE: "bg-teal-100 text-teal-700",
 };
-const ROLES_LABEL: Record<string, string> = {
-  PRESIDENT: "Président(e)", VICE_PRESIDENT: "Vice-Président(e)", SECRETAIRE: "Secrétaire",
-  TRESORIER: "Trésorier(ère)", RAPPORTEUR_1: "Rapporteur 1", RAPPORTEUR_2: "Rapporteur 2",
-  MEMBRE: "Membre",
-};
 
 function MembreRow({ m, onDone }: { m: Membre; onDone: () => void }) {
   const [editing, setEditing] = useState(false);
@@ -139,7 +135,7 @@ function MembreRow({ m, onDone }: { m: Membre; onDone: () => void }) {
           <>
             <select value={role} onChange={e => setRole(e.target.value)}
               className="text-xs border border-slate-200 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-400">
-              {Object.entries(ROLES_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+              {COMMISSION_ROLES.map(r => <option key={r} value={r}>{COMMISSION_ROLE_LABELS[r]}</option>)}
             </select>
             <button onClick={saveRole} disabled={saving} title="Enregistrer le rôle"
               className="p-1 text-emerald-600 hover:bg-emerald-50 rounded disabled:opacity-50">
@@ -153,7 +149,7 @@ function MembreRow({ m, onDone }: { m: Membre; onDone: () => void }) {
         ) : (
           <>
             <span className={`text-xs px-2 py-0.5 rounded-full ${m.role === "PRESIDENT" ? "bg-amber-100 text-amber-700" : m.role.startsWith("RAPPORTEUR") ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-600"}`}>
-              {ROLES_LABEL[m.role] || m.role}
+              {roleLabel(m.role)}
             </span>
             {m.actif ? (
               <>
@@ -183,7 +179,7 @@ function AddMembreModal({ typeCommission, onClose, onDone }: {
 }) {
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<UserLite | null>(null);
-  const [role, setRole] = useState("MEMBRE");
+  const [role, setRole] = useState<string>("RAPPORTEUR_2");
   const { mutate, loading } = useMutation("/api/admin/ria/commissions/gouvernance/membres", "POST");
 
   // Recherche d'utilisateurs par nom / prénom / email (min. 2 caractères).
@@ -261,8 +257,15 @@ function AddMembreModal({ typeCommission, onClose, onDone }: {
             <label className="block text-xs font-medium text-slate-600 mb-1">Rôle</label>
             <select value={role} onChange={e => setRole(e.target.value)}
               className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
-              {Object.entries(ROLES_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+              {COMMISSION_ROLES.map(r => <option key={r} value={r}>{COMMISSION_ROLE_LABELS[r]}</option>)}
             </select>
+            <ul className="mt-2 space-y-0.5">
+              {COMMISSION_ROLE_POWERS[role as keyof typeof COMMISSION_ROLE_POWERS]?.map(p => (
+                <li key={p} className="text-xs text-slate-400 flex items-center gap-1.5">
+                  <span className="w-1 h-1 rounded-full bg-slate-300 shrink-0" /> {p}
+                </li>
+              ))}
+            </ul>
           </div>
           <div className="flex justify-end gap-3 pt-2">
             <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 rounded-lg">Annuler</button>
