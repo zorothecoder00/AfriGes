@@ -10,12 +10,10 @@ import { formatCurrency } from "@/lib/format";
 const TODAY_MS = Date.now();
 
 interface Financement {
-  id: number; reference: string; montant: number; statut: string;
-  dateEcheance: string | null; montantRembourse: number; taux: number;
-  affectation: {
-    client: { nom: string; prenom: string; commune: string | null };
-    portefeuille: { reference: string; profilRIA: { gestionnaire: { member: { nom: string; prenom: string } } } };
-  };
+  id: number; reference: string; montantFinance: number; statut: string;
+  dateEcheance: string | null; montantRembourse: number; taux?: number;
+  client: { nom: string; prenom: string; commune?: string | null };
+  portefeuille: { reference: string; profilRIA: { gestionnaire: { member: { nom: string; prenom: string } } } };
 }
 interface FResponse { data: Financement[] }
 
@@ -43,12 +41,12 @@ export default function AnomaliesPage() {
   const anomalies = useMemo<Anomalie[]>(() => {
     const result: Anomalie[] = [];
     (data?.data ?? []).forEach(f => {
-      const montant = toNum(f.montant);
+      const montant = toNum(f.montantFinance);
       const remb    = toNum(f.montantRembourse);
       const taux    = toNum(f.taux);
       const pct     = montant > 0 ? remb / montant * 100 : 100;
-      const client  = `${f.affectation.client.prenom} ${f.affectation.client.nom}`;
-      const inv     = `${f.affectation.portefeuille.profilRIA.gestionnaire.member.prenom} ${f.affectation.portefeuille.profilRIA.gestionnaire.member.nom}`;
+      const client  = `${f.client.prenom} ${f.client.nom}`;
+      const inv     = `${f.portefeuille.profilRIA.gestionnaire.member.prenom} ${f.portefeuille.profilRIA.gestionnaire.member.nom}`;
 
       if (f.statut === "EN_RETARD") {
         const jours = f.dateEcheance

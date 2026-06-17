@@ -17,7 +17,8 @@ interface RetraitStats { data: { statut: string }[] }
 export default function GoulotsPage() {
   const { type } = useParams() as { type: string };
   const [refresh, setRefresh] = useState(0);
-  const { data: dash  } = useApi<DashData>(`/api/admin/ria/dashboard?_r=${refresh}`);
+  const { data: dashRes } = useApi<{ data: DashData }>(`/api/admin/ria/dashboard?_r=${refresh}`);
+  const dash = dashRes?.data;
   const { data: depots } = useApi<DepotStats>(`/api/admin/ria/fonds/depots?limit=100&_r=${refresh}`);
   const { data: retraits} = useApi<RetraitStats>(`/api/admin/ria/fonds/retraits?limit=100&_r=${refresh}`);
 

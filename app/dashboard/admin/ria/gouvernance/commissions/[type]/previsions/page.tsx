@@ -21,12 +21,13 @@ function prevMonth(offset: number) {
 export default function PreviisionsPage() {
   const { type } = useParams() as { type: string };
   const [refresh, setRefresh] = useState(0);
-  const { data, loading } = useApi<DashData>(`/api/admin/ria/dashboard?_r=${refresh}`);
+  const { data: res, loading } = useApi<{ data: DashData }>(`/api/admin/ria/dashboard?_r=${refresh}`);
 
   if (type !== "finance") return (
     <div className="p-6 text-center text-slate-400 text-sm">Section réservée à la Commission Finance.</div>
   );
 
+  const data = res?.data;
   if (loading || !data) return (
     <div className="flex items-center justify-center h-60">
       <div className="w-7 h-7 border-4 border-blue-400 border-t-transparent rounded-full animate-spin" />

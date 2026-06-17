@@ -7,13 +7,11 @@ import { RefreshCw, TrendingUp, AlertTriangle, CheckCircle2 } from "lucide-react
 import { formatCurrency } from "@/lib/format";
 
 interface Financement {
-  id: number; reference: string; montant: number; taux: number;
-  statut: string; dateDebut: string | null; dateEcheance: string | null;
-  montantRembourse: number; nombreEcheances: number; echeancesPayees: number;
-  affectation: {
-    client: { nom: string; prenom: string };
-    portefeuille: { reference: string; profilRIA: { gestionnaire: { member: { nom: string; prenom: string } } } };
-  };
+  id: number; reference: string; montantFinance: number; taux?: number;
+  statut: string; dateDebut?: string | null; dateEcheance: string | null;
+  montantRembourse: number; nombreEcheances?: number; echeancesPayees?: number;
+  client: { nom: string; prenom: string };
+  portefeuille: { reference: string; profilRIA: { gestionnaire: { member: { nom: string; prenom: string } } } };
 }
 interface FResponse { data: Financement[]; meta: { total: number } }
 
@@ -36,7 +34,7 @@ export default function InvestissementsPage() {
 
   const items = data?.data ?? [];
   const toNum = (v: unknown) => Number(v ?? 0);
-  const total  = items.reduce((s, f) => s + toNum(f.montant), 0);
+  const total  = items.reduce((s, f) => s + toNum(f.montantFinance), 0);
   const rembourse = items.reduce((s, f) => s + toNum(f.montantRembourse), 0);
   const retard = items.filter(f => f.statut === "EN_RETARD").length;
 
@@ -105,7 +103,7 @@ export default function InvestissementsPage() {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {items.map(f => {
-                  const montant = toNum(f.montant);
+                  const montant = toNum(f.montantFinance);
                   const remb    = toNum(f.montantRembourse);
                   const pct     = montant > 0 ? (remb / montant * 100) : 0;
                   const echs    = `${f.echeancesPayees ?? 0}/${f.nombreEcheances ?? 0}`;
@@ -113,12 +111,12 @@ export default function InvestissementsPage() {
                     <tr key={f.id} className="hover:bg-slate-50">
                       <td className="px-4 py-3 font-mono text-xs text-slate-600">{f.reference}</td>
                       <td className="px-4 py-3 font-medium text-slate-800">
-                        {f.affectation.client.prenom} {f.affectation.client.nom}
+                        {f.client.prenom} {f.client.nom}
                       </td>
                       <td className="px-4 py-3 text-xs text-slate-500">
-                        {f.affectation.portefeuille.reference}
+                        {f.portefeuille.reference}
                         <span className="block text-slate-400">
-                          {f.affectation.portefeuille.profilRIA.gestionnaire.member.prenom} {f.affectation.portefeuille.profilRIA.gestionnaire.member.nom}
+                          {f.portefeuille.profilRIA.gestionnaire.member.prenom} {f.portefeuille.profilRIA.gestionnaire.member.nom}
                         </span>
                       </td>
                       <td className="px-4 py-3 text-right font-medium">{formatCurrency(montant)}</td>

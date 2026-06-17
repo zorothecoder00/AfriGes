@@ -6,11 +6,10 @@ import { useState } from "react";
 import { RefreshCw, ClipboardList, Calendar, CheckCircle2 } from "lucide-react";
 
 interface Reunion {
-  id: number; titre: string; statut: string; dateReunion: string;
+  id: number; titre: string; statut: string; dateHeure: string;
   typeCommission: string; lieu: string | null;
-  commission: { type: string; nom: string };
 }
-interface ReuResponse { data: Reunion[]; meta: { total: number } }
+interface ReuResponse { reunions: Reunion[] }
 
 const STATUT_STYLE: Record<string, string> = {
   PLANIFIEE: "bg-blue-50 text-blue-700",
@@ -28,7 +27,7 @@ export default function ProgrammePage() {
     <div className="p-6 text-center text-slate-400 text-sm">Section réservée à la Commission Audit & Contrôle.</div>
   );
 
-  const items = data?.data ?? [];
+  const items = data?.reunions ?? [];
   const planifiees = items.filter(r => r.statut === "PLANIFIEE").length;
   const tenues     = items.filter(r => r.statut === "TENUE").length;
 
@@ -48,7 +47,7 @@ export default function ProgrammePage() {
       <div className="grid grid-cols-3 gap-4">
         <div className="bg-white border border-slate-200 rounded-xl p-4 text-center">
           <ClipboardList className="w-5 h-5 text-amber-500 mx-auto mb-1" />
-          <p className="text-2xl font-bold text-slate-800">{data?.meta.total ?? 0}</p>
+          <p className="text-2xl font-bold text-slate-800">{items.length}</p>
           <p className="text-xs text-slate-500">Sessions totales</p>
         </div>
         <div className="bg-white border border-slate-200 rounded-xl p-4 text-center">
@@ -84,16 +83,16 @@ export default function ProgrammePage() {
               <div key={r.id} className="px-5 py-4 hover:bg-slate-50 flex items-start gap-4">
                 <div className="bg-amber-50 text-amber-700 rounded-lg p-2 text-center w-14 flex-shrink-0">
                   <p className="text-xs font-medium">
-                    {new Date(r.dateReunion).toLocaleDateString("fr", { month: "short" }).toUpperCase()}
+                    {new Date(r.dateHeure).toLocaleDateString("fr", { month: "short" }).toUpperCase()}
                   </p>
                   <p className="text-lg font-bold leading-none">
-                    {new Date(r.dateReunion).getDate()}
+                    {new Date(r.dateHeure).getDate()}
                   </p>
                 </div>
                 <div className="flex-1">
                   <p className="font-medium text-slate-800">{r.titre}</p>
                   <p className="text-xs text-slate-500 mt-0.5">
-                    {new Date(r.dateReunion).toLocaleTimeString("fr", { hour: "2-digit", minute: "2-digit" })}
+                    {new Date(r.dateHeure).toLocaleTimeString("fr", { hour: "2-digit", minute: "2-digit" })}
                     {r.lieu && ` · ${r.lieu}`}
                   </p>
                 </div>

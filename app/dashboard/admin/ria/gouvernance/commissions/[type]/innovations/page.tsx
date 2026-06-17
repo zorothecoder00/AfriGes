@@ -10,7 +10,7 @@ interface PlanAction {
   priorite: string; dateEcheance: string | null; progression: number;
   responsable: { nom: string; prenom: string } | null;
 }
-interface PlanResponse { data: PlanAction[]; meta: { total: number } }
+interface PlanResponse { plans: PlanAction[] }
 
 const STATUT_STYLE: Record<string, string> = {
   EN_ATTENTE:   "bg-slate-50 text-slate-600",
@@ -31,7 +31,7 @@ export default function InnovationsPage() {
     <div className="p-6 text-center text-slate-400 text-sm">Section réservée à la Commission Optimisation.</div>
   );
 
-  const items = data?.data ?? [];
+  const items = data?.plans ?? [];
   const toNum = (v: unknown) => Number(v ?? 0);
   const terminees = items.filter(p => p.statut === "TERMINE").length;
 
@@ -50,7 +50,7 @@ export default function InnovationsPage() {
 
       <div className="grid grid-cols-3 gap-4">
         <div className="bg-white border border-slate-200 rounded-xl p-4 text-center">
-          <p className="text-2xl font-bold text-slate-800">{data?.meta.total ?? 0}</p>
+          <p className="text-2xl font-bold text-slate-800">{items.length}</p>
           <p className="text-xs text-slate-500">Initiatives totales</p>
         </div>
         <div className="bg-white border border-slate-200 rounded-xl p-4 text-center">

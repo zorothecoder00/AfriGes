@@ -38,7 +38,8 @@ export default function PortefeuillesPage() {
   const config    = isAudit ? AUDIT_CONFIG : FINANCE_CONFIG;
 
   const { data: pfData, loading: pfLoading } = useApi<PfResponse>(`/api/admin/ria/portefeuilles?limit=50&_r=${refresh}`);
-  const { data: finData } = useApi<FinData>(`/api/admin/ria/dashboard?_r=${refresh}`);
+  const { data: finRes } = useApi<{ data: FinData }>(`/api/admin/ria/dashboard?_r=${refresh}`);
+  const finData = finRes?.data;
 
   if (!isFinance && !isAudit) return (
     <div className="p-6 text-center text-slate-400 text-sm">Section non disponible pour cette commission.</div>

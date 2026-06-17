@@ -13,7 +13,7 @@ interface Affectation {
     commune: string | null; secteurActivite: string | null;
     pointDeVente: { nom: string } | null;
   };
-  financements: { montant: number; statut: string; montantRembourse: number; taux: number }[];
+  financements: { montantFinance: number; statut: string; montantRembourse: number }[];
 }
 interface AffResponse { data: Affectation[]; meta: { total: number } }
 
@@ -111,7 +111,7 @@ export default function ClientsAuditPage() {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {filtered.map(a => {
-                  const montant  = a.financements.reduce((s, f) => s + toNum(f.montant), 0);
+                  const montant  = a.financements.reduce((s, f) => s + toNum(f.montantFinance), 0);
                   const recouvre = a.financements.reduce((s, f) => s + toNum(f.montantRembourse), 0);
                   const taux     = montant > 0 ? recouvre / montant * 100 : 0;
                   const enRetard = a.financements.some(f => f.statut === "EN_RETARD");

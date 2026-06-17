@@ -18,7 +18,8 @@ interface PfResponse  { data: unknown[]; meta: { total: number } }
 export default function ProductivitePage() {
   const { type } = useParams() as { type: string };
   const [refresh, setRefresh] = useState(0);
-  const { data: dash } = useApi<DashData>(`/api/admin/ria/dashboard?_r=${refresh}`);
+  const { data: dashRes } = useApi<{ data: DashData }>(`/api/admin/ria/dashboard?_r=${refresh}`);
+  const dash = dashRes?.data;
   const { data: invData } = useApi<InvResponse>(`/api/admin/ria/investisseurs?limit=1&_r=${refresh}`);
   const { data: pfData  } = useApi<PfResponse>(`/api/admin/ria/portefeuilles?limit=1&_r=${refresh}`);
 

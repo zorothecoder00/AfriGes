@@ -10,12 +10,10 @@ import { formatCurrency } from "@/lib/format";
 const TODAY_MS = Date.now();
 
 interface Financement {
-  id: number; reference: string; montant: number; taux: number;
+  id: number; reference: string; montantFinance: number; taux?: number;
   statut: string; dateEcheance: string | null; montantRembourse: number;
-  affectation: {
-    client: { nom: string; prenom: string; telephone: string | null; commune: string | null };
-    portefeuille: { reference: string };
-  };
+  client: { nom: string; prenom: string; telephone: string | null; commune?: string | null };
+  portefeuille: { reference: string };
 }
 interface FResponse { data: Financement[]; meta: { total: number } }
 interface EnrichedF extends Financement { jours: number }
@@ -46,7 +44,7 @@ export default function CreancesPage() {
     <div className="p-6 text-center text-slate-400 text-sm">Section réservée à la Commission Finance.</div>
   );
 
-  const totalCreance = items.reduce((s, f) => s + (toNum(f.montant) - toNum(f.montantRembourse)), 0);
+  const totalCreance = items.reduce((s, f) => s + (toNum(f.montantFinance) - toNum(f.montantRembourse)), 0);
   const retardMoyen  = items.length > 0
     ? Math.round(items.reduce((s, f) => s + f.jours, 0) / items.length)
     : 0;
@@ -88,7 +86,7 @@ export default function CreancesPage() {
         <div className="grid grid-cols-4 gap-3">
           {tranches.map(tr => {
             const group = items.filter(f => tr.filter(f.jours));
-            const amt   = group.reduce((s, f) => s + (toNum(f.montant) - toNum(f.montantRembourse)), 0);
+            const amt   = group.reduce((s, f) => s + (toNum(f.montantFinance) - toNum(f.montantRembourse)), 0);
             return (
               <div key={tr.label} className="border border-slate-200 rounded-xl p-4">
                 <div className={`w-3 h-3 rounded-full ${tr.color} mb-2`} />
@@ -132,25 +130,25 @@ export default function CreancesPage() {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {items.map(f => {
-                  const du = toNum(f.montant) - toNum(f.montantRembourse);
+                  const du = toNum(f.montantFinance) - toNum(f.montantRembourse);
                   return (
                     <tr key={f.id} className="hover:bg-rose-50/30">
                       <td className="px-4 py-3 font-mono text-xs text-slate-600">{f.reference}</td>
                       <td className="px-4 py-3 font-medium text-slate-800">
-                        {f.affectation.client.prenom} {f.affectation.client.nom}
-                        {f.affectation.client.telephone && (
-                          <span className="block text-xs text-slate-400">{f.affectation.client.telephone}</span>
+                        {f.client.prenom} {f.client.nom}
+                        {f.client.telephone && (
+                          <span className="block text-xs text-slate-400">{f.client.telephone}</span>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-slate-600">{f.affectation.client.commune ?? "—"}</td>
+                      <td className="px-4 py-3 text-slate-600">{f.client.commune ?? "—"}</td>
                       <td className="px-4 py-3 text-right font-bold text-rose-700">{formatCurrency(du)}</td>
-                      <td className="px-4 py-3 text-right text-slate-600">{formatCurrency(toNum(f.montant))}</td>
+                      <td className="px-4 py-3 text-right text-slate-600">{formatCurrency(toNum(f.montantFinance))}</td>
                       <td className="px-4 py-3 text-right">
                         <span className={`font-semibold ${f.jours > 90 ? "text-red-700" : f.jours > 30 ? "text-orange-600" : "text-yellow-700"}`}>
                           {f.jours}j
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-xs text-slate-500">{f.affectation.portefeuille.reference}</td>
+                      <td className="px-4 py-3 text-xs text-slate-500">{f.portefeuille.reference}</td>
                     </tr>
                   );
                 })}

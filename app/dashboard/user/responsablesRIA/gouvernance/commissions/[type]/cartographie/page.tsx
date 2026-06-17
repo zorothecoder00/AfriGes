@@ -9,7 +9,7 @@ import { formatCurrency } from "@/lib/format";
 interface Affectation {
   id: number; actif: boolean; classeRisque: string;
   client: { commune: string | null; region: string | null; secteurActivite: string | null };
-  financements: { montant: number; statut: string }[];
+  financements: { montantFinance: number; statut: string }[];
 }
 interface AffResponse { data: Affectation[] }
 
@@ -32,7 +32,7 @@ export default function CartographiePage() {
     const g = regionMap.get(key)!;
     g.count++;
     if (a.actif) g.actifs++;
-    a.financements.forEach(f => { g.montant += toNum(f.montant); });
+    a.financements.forEach(f => { g.montant += toNum(f.montantFinance); });
   });
   const byRegion = Array.from(regionMap.entries())
     .map(([label, v]) => ({ label, ...v }))
@@ -44,7 +44,7 @@ export default function CartographiePage() {
     if (!communeMap.has(key)) communeMap.set(key, { count: 0, montant: 0 });
     const g = communeMap.get(key)!;
     g.count++;
-    a.financements.forEach(f => { g.montant += toNum(f.montant); });
+    a.financements.forEach(f => { g.montant += toNum(f.montantFinance); });
   });
   const byCommune = Array.from(communeMap.entries())
     .map(([label, v]) => ({ label, ...v }))
