@@ -10,7 +10,7 @@ interface Affectation {
   id: number; actif: boolean; classeRisque: string;
   client: { nom: string; prenom: string; commune: string | null };
   portefeuille: { reference: string; profilRIA: { gestionnaire: { member: { nom: string; prenom: string } } } };
-  financements: { montant: number; statut: string; montantRembourse: number }[];
+  financements: { montantFinance: number; statut: string; montantRembourse: number }[];
 }
 interface AffResponse { data: Affectation[] }
 
@@ -59,7 +59,7 @@ export default function RisquesPage() {
       <div className="grid grid-cols-4 gap-4">
         {byRisque.map(({ key, items: grp }) => {
           const cfg = RISQUE_CONFIG[key] ?? RISQUE_CONFIG.MOYEN;
-          const montant = grp.flatMap(a => a.financements).reduce((s, f) => s + toNum(f.montant), 0);
+          const montant = grp.flatMap(a => a.financements).reduce((s, f) => s + toNum(f.montantFinance), 0);
           return (
             <div key={key} className={`${cfg.bg} border border-slate-200 rounded-xl p-4 text-center`}>
               <div className={`w-3 h-3 rounded-full ${cfg.dot} mx-auto mb-2`} />
@@ -120,7 +120,7 @@ export default function RisquesPage() {
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     {grp.map(a => {
-                      const montant  = a.financements.reduce((s, f) => s + toNum(f.montant), 0);
+                      const montant  = a.financements.reduce((s, f) => s + toNum(f.montantFinance), 0);
                       const recouvre = a.financements.reduce((s, f) => s + toNum(f.montantRembourse), 0);
                       const statuts  = [...new Set(a.financements.map(f => f.statut))];
                       return (

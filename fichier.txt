@@ -58,7 +58,7 @@ générer automatiquement des vignettes pour les produits( étiquettes )
 
 l'admin et les responsables (chefagence , rpv,admin  ) doivent pouvoir modifier et supprimer(uniquement les admins, les autres gestionnaires ne peuvent pas) les factures
 
-erreur d'application et Exception côté client sur quasiment toutes les actions(post ou patch surtoutet même get je crois) d'un de mes supérieurs sur l'app déployée (sur vercel) 
+erreur d'application et Exception côté client sur quasiment toutes les actions(post ou patch surtout et même get je crois) d'un de mes supérieurs sur l'app déployée (sur vercel) 
 
 pouvoir supprimer des factures et des ventes à crédit
 
@@ -85,17 +85,8 @@ Permettre aux caissiers dashboard/user/caissiers de pouvoir faire aussi le recou
   comment gérer ça sur l'app)
 
 
+Lorsque par exemple je suis admin/superadmin et je m'ajoute en tant que membre (président) sur /dashboard/admin/ria/gouvernance/commissions/optimisation , normalement les POST , PATCH de réunions , résolutions et plan d'actions devraient être automatiquement disponibles non ?? Ou bien ce n'est pas la bonne route ?
 
-Comment on fait pour accéder aux pages des différentes commissions ( on parle de rôle mais actu comment ça fonctionne actuellement ???)
-
-On dirait le dashboard/admin/ria/gouvernance/intelligence ne fonctionne pas
-
-Comment gérer les commissions ???
-
-En bref , Opération terrain créé un dossier , la Finance valide ( ou le Preséident finance ajuste) ensuite excécute ou rejette , l'Optimisation analyse les rapports et le centre d'intelligence remonte les alertes
-
-
-
-
+La page de détails des investisseurs dans dashboard/user/responsablesRIA
 
 Permettre au caissier et au responsable crédit de pouvoir aussi encaisser les crédits clients

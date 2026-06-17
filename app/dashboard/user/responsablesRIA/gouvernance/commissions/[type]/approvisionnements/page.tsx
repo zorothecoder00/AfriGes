@@ -8,8 +8,7 @@ import { formatCurrency } from "@/lib/format";
 
 interface Depot {
   id: number; montant: number; statut: string; createdAt: string;
-  investisseur: { gestionnaire: { member: { nom: string; prenom: string } } };
-  portefeuille: { reference: string };
+  portefeuille: { reference: string; profilRIA: { gestionnaire: { member: { nom: string; prenom: string } } } };
 }
 interface DepResponse { data: Depot[]; meta: { total: number } }
 
@@ -98,7 +97,7 @@ export default function ApprovisionnmentsPage() {
                       {new Date(d.createdAt).toLocaleDateString("fr")}
                     </td>
                     <td className="px-4 py-3 font-medium text-slate-800">
-                      {d.investisseur.gestionnaire.member.prenom} {d.investisseur.gestionnaire.member.nom}
+                      {d.portefeuille.profilRIA.gestionnaire.member.prenom} {d.portefeuille.profilRIA.gestionnaire.member.nom}
                     </td>
                     <td className="px-4 py-3 text-xs text-slate-500">{d.portefeuille.reference}</td>
                     <td className="px-4 py-3 text-right font-medium text-slate-800">{formatCurrency(toNum(d.montant))}</td>

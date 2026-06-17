@@ -15,7 +15,7 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
     const userId = parseInt(id);
 
     const gestionnaire = await prisma.gestionnaire.findFirst({
-      where: { memberId: userId, role: "INVESTISSEUR_RIA" },
+      where: { memberId: userId, OR: [{ role: "INVESTISSEUR_RIA" }, { profilRIA: { isNot: null } }] },
       include: {
         member: {
           select: { id: true, nom: true, prenom: true, email: true, telephone: true, photo: true, adresse: true, etat: true, dateAdhesion: true },
@@ -62,7 +62,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
     const { nom, prenom, telephone, adresse, profession, pays, pieceIdentiteUrl, notes } = body;
 
     const gestionnaire = await prisma.gestionnaire.findFirst({
-      where: { memberId: userId, role: "INVESTISSEUR_RIA" },
+      where: { memberId: userId, OR: [{ role: "INVESTISSEUR_RIA" }, { profilRIA: { isNot: null } }] },
       include: { profilRIA: true },
     });
     if (!gestionnaire) return NextResponse.json({ error: "Investisseur introuvable" }, { status: 404 });

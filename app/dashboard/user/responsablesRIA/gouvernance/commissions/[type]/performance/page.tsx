@@ -14,14 +14,15 @@ interface DashData {
 interface Affectation {
   id: number; actif: boolean; classeRisque: string;
   portefeuille: { reference: string; rendementMoyen: number; profilRIA: { gestionnaire: { member: { nom: string; prenom: string } } } };
-  financements: { montant: number; statut: string; montantRembourse: number }[];
+  financements: { montantFinance: number; statut: string; montantRembourse: number }[];
 }
 interface AffResponse { data: Affectation[] }
 
 export default function PerformancePage() {
   const { type } = useParams() as { type: string };
   const [refresh, setRefresh] = useState(0);
-  const { data: dash  } = useApi<DashData>(`/api/admin/ria/dashboard?_r=${refresh}`);
+  const { data: dashRes } = useApi<{ data: DashData }>(`/api/admin/ria/dashboard?_r=${refresh}`);
+  const dash = dashRes?.data;
   const { data: affData } = useApi<AffResponse>(`/api/admin/ria/affectations?limit=100&actif=true&_r=${refresh}`);
 
   if (type !== "operations-terrain") return (
@@ -39,7 +40,7 @@ export default function PerformancePage() {
     if (!byInv[key]) byInv[key] = { nom, clients: 0, montant: 0, recouvre: 0 };
     byInv[key].clients++;
     a.financements.forEach(f => {
-      byInv[key].montant   += toNum(f.montant);
+      byInv[key].montant   += toNum(f.montantFinance);
       byInv[key].recouvre  += toNum(f.montantRembourse);
     });
   });

@@ -43,7 +43,7 @@ export async function GET(req: NextRequest) {
           // Financements actifs liés à cette affectation pour calculer l'encours
           financements: {
             where:  { statut: { in: ["ACTIF", "EN_RETARD"] } },
-            select: { encours: true, dateFinancement: true },
+            select: { encours: true, dateFinancement: true, montantFinance: true, montantRembourse: true, statut: true },
           },
         },
       }),
@@ -60,9 +60,7 @@ export async function GET(req: NextRequest) {
       );
       const encoursActuel = finsPostAffectation.reduce((sum, f) => sum + Number(f.encours), 0);
       const disponible    = Math.max(0, Number(a.montantAlloue) - encoursActuel);
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { financements: _f, ...rest } = a;
-      return { ...rest, encoursActuel, disponible };
+      return { ...a, encoursActuel, disponible };
     });
 
     return NextResponse.json({

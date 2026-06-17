@@ -46,7 +46,8 @@ const PROCESSUS = [
 export default function ProcessusPage() {
   const { type } = useParams() as { type: string };
   const [refresh, setRefresh] = useState(0);
-  const { data } = useApi<KPIs>(`/api/admin/ria/dashboard?_r=${refresh}`);
+  const { data: res } = useApi<{ data: KPIs }>(`/api/admin/ria/dashboard?_r=${refresh}`);
+  const data = res?.data;
 
   if (type !== "optimisation") return (
     <div className="p-6 text-center text-slate-400 text-sm">Section réservée à la Commission Optimisation.</div>
@@ -68,15 +69,15 @@ export default function ProcessusPage() {
       {data && (
         <div className="grid grid-cols-3 gap-4">
           <div className="bg-white border border-slate-200 rounded-xl p-4 text-center">
-            <p className="text-xl font-bold text-violet-700">{data.scoreGlobalSante}/100</p>
+            <p className="text-xl font-bold text-violet-700">{data.scoreGlobalSante ?? 0}/100</p>
             <p className="text-xs text-slate-500">Score santé global</p>
           </div>
           <div className="bg-white border border-slate-200 rounded-xl p-4 text-center">
-            <p className="text-xl font-bold text-blue-700">{data.tauxRemboursement.toFixed(1)}%</p>
+            <p className="text-xl font-bold text-blue-700">{(data.tauxRemboursement ?? 0).toFixed(1)}%</p>
             <p className="text-xs text-slate-500">Taux remboursement</p>
           </div>
           <div className="bg-white border border-slate-200 rounded-xl p-4 text-center">
-            <p className="text-xl font-bold text-emerald-700">{data.rendementMoyen.toFixed(1)}%</p>
+            <p className="text-xl font-bold text-emerald-700">{(data.rendementMoyen ?? 0).toFixed(1)}%</p>
             <p className="text-xs text-slate-500">Rendement moyen</p>
           </div>
         </div>

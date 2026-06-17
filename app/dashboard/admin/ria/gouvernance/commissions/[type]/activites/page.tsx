@@ -10,7 +10,7 @@ interface Affectation {
   id: number; dateDebut: string; actif: boolean; classeRisque: string;
   client: { nom: string; prenom: string; commune: string | null; secteurActivite: string | null };
   portefeuille: { reference: string; profilRIA: { gestionnaire: { member: { nom: string; prenom: string } } } };
-  financements: { montant: number; statut: string }[];
+  financements: { montantFinance: number; statut: string }[];
 }
 interface AffResponse { data: Affectation[]; meta: { total: number } }
 
@@ -33,7 +33,7 @@ export default function ActivitesPage() {
     count: items.filter(a => a.client.commune === c).length,
     montant: items.filter(a => a.client.commune === c)
       .flatMap(a => a.financements)
-      .reduce((s, f) => s + toNum(f.montant), 0),
+      .reduce((s, f) => s + toNum(f.montantFinance), 0),
   })).sort((a, b) => b.count - a.count);
 
   return (
@@ -128,7 +128,7 @@ export default function ActivitesPage() {
                     </td>
                     <td className="px-4 py-3 text-right">
                       {a.financements.length > 0 && (
-                        <span className="text-xs text-slate-700">{a.financements.length} ({formatCurrency(a.financements.reduce((s, f) => s + toNum(f.montant), 0))})</span>
+                        <span className="text-xs text-slate-700">{a.financements.length} ({formatCurrency(a.financements.reduce((s, f) => s + toNum(f.montantFinance), 0))})</span>
                       )}
                     </td>
                     <td className="px-4 py-3 text-center">

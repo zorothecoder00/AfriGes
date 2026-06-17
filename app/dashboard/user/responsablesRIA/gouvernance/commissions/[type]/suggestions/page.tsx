@@ -10,7 +10,7 @@ interface Resolution {
   priorite: string; dateEcheance: string | null;
   responsable: { nom: string; prenom: string } | null;
 }
-interface ResResponse { data: Resolution[]; meta: { total: number } }
+interface ResResponse { resolutions: Resolution[] }
 
 const STATUT_STYLE: Record<string, string> = {
   EN_ATTENTE:     "bg-slate-50 text-slate-600",
@@ -37,7 +37,7 @@ export default function SuggestionsPage() {
     <div className="p-6 text-center text-slate-400 text-sm">Section réservée à la Commission Optimisation.</div>
   );
 
-  const items = data?.data ?? [];
+  const items = data?.resolutions ?? [];
   const implementees = items.filter(r => r.statut === "IMPLEMENTEE").length;
   const enCours      = items.filter(r => ["EN_COURS", "MISE_EN_OEUVRE"].includes(r.statut)).length;
 
@@ -56,7 +56,7 @@ export default function SuggestionsPage() {
 
       <div className="grid grid-cols-3 gap-4">
         <div className="bg-white border border-slate-200 rounded-xl p-4 text-center">
-          <p className="text-2xl font-bold text-slate-800">{data?.meta.total ?? 0}</p>
+          <p className="text-2xl font-bold text-slate-800">{items.length}</p>
           <p className="text-xs text-slate-500">Suggestions total</p>
         </div>
         <div className="bg-white border border-slate-200 rounded-xl p-4 text-center">
