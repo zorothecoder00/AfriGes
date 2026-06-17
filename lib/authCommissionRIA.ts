@@ -48,8 +48,13 @@ export async function getUserCommissions(userId: number) {
 }
 
 // Vérifie si un user est PRESIDENT d'une commission donnée
-export async function isPresident(userId: number, typeCommission: TypeCommissionRIA) {
-  const m = await prisma.membreCommissionRIA.findUnique({
+// `db` permet de passer un client de transaction pour rester cohérent avec le reste d'un $transaction
+export async function isPresident(
+  userId: number,
+  typeCommission: TypeCommissionRIA,
+  db: Pick<typeof prisma, "membreCommissionRIA"> = prisma
+) {
+  const m = await db.membreCommissionRIA.findUnique({
     where: { typeCommission_userId: { typeCommission, userId } },
     select: { role: true, actif: true },
   });

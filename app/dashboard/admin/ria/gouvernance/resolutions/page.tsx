@@ -223,9 +223,6 @@ export default function ResolutionsPage() {
                     </span>
                   </td>
                   <td className="px-4 py-3">
-                    <span className="text-xs text-slate-400">—</span>
-                  </td>
-                  <td className="px-4 py-3">
                     {r.dateEcheance
                       ? <span className={`text-xs ${new Date(r.dateEcheance) < new Date() ? "text-rose-600 font-medium" : "text-slate-600"}`}>
                           {new Date(r.dateEcheance).toLocaleDateString("fr-FR")}

@@ -8,8 +8,8 @@ import {
   Calendar, CreditCard, TrendingDown, DollarSign, Clock, Award, Percent, ClipboardCheck,
   UserCog, Banknote, GraduationCap, CalendarDays, MapPin, Star, Building2, Gift, FileWarning,
   Settings, Network, FileText, BookOpen, FolderOpen,
-  Brain, Gavel, ListChecks, GitBranch, BarChart3,
-} from 'lucide-react';      
+  Brain, Gavel, ListChecks, GitBranch, BarChart3, Lock,
+} from 'lucide-react';
 import Link from "next/link";     
 import { useSession } from 'next-auth/react';
 import { useT } from '@/contexts/AppSettingsContext';
@@ -402,6 +402,11 @@ export default function AfriGesDashboard() {
                   className="w-full flex items-center gap-3 px-4 py-3 text-violet-600 hover:bg-violet-50 rounded-xl transition-all font-medium border border-violet-100">
                   <Shield size={20} />
                   <span>{t('nav_superadmin')}</span>
+                </Link>
+                <Link href="/dashboard/admin/droits-acces"
+                  className="w-full flex items-center gap-3 px-4 py-2.5 text-slate-600 hover:bg-slate-50 rounded-xl transition-all text-sm">
+                  <Lock size={16} />
+                  <span>Droits d&apos;accès</span>
                 </Link>
               </nav>
             </div>

@@ -729,6 +729,8 @@ model User {
   rapportsCommRediges          RapportCommissionRIA[]   @relation("RapportsCommRediges")
   rapportsCommValides          RapportCommissionRIA[]   @relation("RapportsCommValides")
   anomaliesRIAResolues         AnomalieGouvRIA[]        @relation("AnomaliesRIAResolues")
+  missionsAuditRIA             MissionAuditRIA[]        @relation("MissionsAuditRIAAuditeur")
+  analysesOptimisationRIA      AnalyseOptimisationRIA[] @relation("AnalysesOptimisationRIAAnalyste")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -4126,6 +4128,7 @@ model PortefeuilleRIA {
   documents        DocumentInvestisseur[]
   rapports         RapportMensuelRIA[]
   documentsGeneres DocumentRIAGenere[]
+  dossiersICExecutes DossierInterCommission[] @relation("DossiersICPortefeuilleExecution")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -4259,6 +4262,7 @@ model OperationFinancementRIA {
   remboursements      RemboursementRIA[]
   mouvements          MouvementFondsRIA[]     @relation("MouvementsFinancement")
   actionsRecouvrement ActionRecouvrementRIA[]
+  missionsAudit       MissionAuditRIA[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -4629,6 +4633,7 @@ model ResolutionCommRIA {
   reunion        ReunionCommissionRIA? @relation(fields: [reunionId], references: [id])
   responsable    User?                 @relation("ResolutionsResponsable", fields: [responsableId], references: [id])
   plansAction    PlanActionCommRIA[]
+  analyseOptimisation AnalyseOptimisationRIA?
 
   createdAt      DateTime              @default(now())
   updatedAt      DateTime              @updatedAt
@@ -4758,6 +4763,10 @@ model DossierInterCommission {
   montantDemande  Decimal?
   montantApprouve Decimal?
 
+  // Portefeuille choisi par le Président Finance à l'approbation, utilisé par EXECUTER
+  portefeuilleExecutionId Int?
+  portefeuilleExecution   PortefeuilleRIA? @relation("DossiersICPortefeuilleExecution", fields: [portefeuilleExecutionId], references: [id])
+
   versionCourante Int @default(1)
 
   creeParId   Int
@@ -4769,6 +4778,7 @@ model DossierInterCommission {
 
   versions VersionDossierIC[]
   echanges EchangeInterCommission[]
+  missionsAudit MissionAuditRIA[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -4777,6 +4787,7 @@ model DossierInterCommission {
   @@index([commissionEmettrice])
   @@index([commissionReceptrice])
   @@index([type])
+  @@index([portefeuilleExecutionId])
 }
 
 // Historique versionné des modifications d'un dossier inter-commissions
@@ -4853,6 +4864,7 @@ model RapportCommissionRIA {
 
   redacteur User? @relation("RapportsCommRediges", fields: [redacteurId], references: [id])
   validePar User? @relation("RapportsCommValides", fields: [valideParId], references: [id])
+  analysesOptimisation AnalyseOptimisationRIA[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -4884,4 +4896,100 @@ model AnomalieGouvRIA {
   @@index([niveau])
   @@index([resolue])
   @@index([createdAt])
+}
+
+// ── Commission Audit & Contrôle — Mission d'audit (CDC) ───────────────────
+enum StatutMissionAuditRIA {
+  OUVERTE
+  EN_COURS
+  CLOTUREE
+}
+
+enum ResultatMissionAuditRIA {
+  CONFORME
+  NON_CONFORME
+}
+
+enum NiveauRisqueMissionAuditRIA {
+  RISQUE_MINEUR
+  RISQUE_MAJEUR
+  FRAUDE_SUSPECTEE
+}
+
+// "La Commission Audit ne valide pas. Elle contrôle." — pas de gating Président,
+// checklist libre en Json (contenu variable selon la cible auditée)
+model MissionAuditRIA {
+  id            Int                    @id @default(autoincrement())
+  reference     String                 @unique // AUD-2026-00001
+  objet         String
+  financementId Int?
+  dossierICId   Int?
+  statut        StatutMissionAuditRIA  @default(OUVERTE)
+  checklist     Json                   // [{ id, question, reponse: "OUI"|"NON"|null, commentaire }]
+  resultat      ResultatMissionAuditRIA?
+  niveauRisque  NiveauRisqueMissionAuditRIA?
+  conclusion    String?
+  auditeurId    Int
+  dateCloture   DateTime?
+
+  financement OperationFinancementRIA? @relation(fields: [financementId], references: [id])
+  dossierIC   DossierInterCommission?  @relation(fields: [dossierICId],   references: [id])
+  auditeur    User                     @relation("MissionsAuditRIAAuditeur", fields: [auditeurId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([statut])
+  @@index([financementId])
+  @@index([dossierICId])
+}
+
+// ── Commission Optimisation des Processus — Analyse d'optimisation (CDC) ──
+enum TypeConstatOptimisationRIA {
+  LENTEUR
+  DOUBLON
+  PERTE
+  SURCOUT
+  RISQUE
+  AUTRE
+}
+
+enum TypeRecommandationOptimisationRIA {
+  VALIDATION_NUMERIQUE
+  CIRCUIT_SIMPLIFIE
+  AUTOMATISATION_CONTROLES
+  AUTRE
+}
+
+enum StatutAnalyseOptimisationRIA {
+  OUVERTE
+  EN_COURS
+  TRAITEE
+}
+
+// "Identifier les lenteurs, doublons, pertes, surcoûts, risques" à partir des
+// rapports Finance/Audit/Terrain reçus automatiquement — pas de gating Président
+model AnalyseOptimisationRIA {
+  id               Int                         @id @default(autoincrement())
+  reference        String                      @unique // OPT-2026-00001
+  rapportId        Int?
+  constat          TypeConstatOptimisationRIA
+  analyse          String                      // ex: "Le délai moyen d'approbation est de 12 jours."
+  indicateurActuel String?                     // ex: "12 jours"
+  objectifCible    String?                     // ex: "3 jours"
+  recommandation       TypeRecommandationOptimisationRIA?
+  recommandationDetail String?
+  statut           StatutAnalyseOptimisationRIA @default(OUVERTE)
+  analysteId       Int
+  resolutionId     Int?                        @unique // lien si transformée en suggestion
+
+  rapport    RapportCommissionRIA? @relation(fields: [rapportId],    references: [id])
+  analyste   User                  @relation("AnalysesOptimisationRIAAnalyste", fields: [analysteId], references: [id])
+  resolution ResolutionCommRIA?    @relation(fields: [resolutionId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([statut])
+  @@index([rapportId])
 }

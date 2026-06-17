@@ -1,13 +1,14 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useApi } from "@/hooks/useApi";
 import { useMutation } from "@/hooks/useApi";
 import { toast } from "sonner";
 import {
-  FileText, Plus, Search, RefreshCw, ChevronDown, ChevronUp,
-  Send, CheckCircle2, XCircle, Clock, AlertCircle, Archive,
-  MessageSquare, GitBranch, Eye, ArrowRight,
+  FileText, Plus, Search, RefreshCw,
+  Send, CheckCircle2, XCircle, Clock, Archive, Inbox, Hourglass,
+  MessageSquare, GitBranch, Eye, ArrowRight, History,
 } from "lucide-react";
 
 interface DossierIC {
@@ -16,11 +17,10 @@ interface DossierIC {
   titre: string;
   type: string;
   statut: string;
-  priorite: string;
   commissionEmettrice: string;
   commissionReceptrice: string;
   creePar: { nom: string; prenom: string };
-  dateEcheance: string | null;
+  montantDemande: string | number | null;
   createdAt: string;
   _count: { echanges: number; versions: number };
 }
@@ -28,21 +28,29 @@ interface DossierIC {
 interface Data { dossiers: DossierIC[] }
 
 const STATUTS: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
-  BROUILLON:       { label: "Brouillon",        color: "bg-slate-100 text-slate-600",     icon: <FileText className="w-3.5 h-3.5" /> },
-  TRANSMIS:        { label: "Transmis",          color: "bg-blue-100 text-blue-700",       icon: <Send className="w-3.5 h-3.5" /> },
-  RECU:            { label: "Reçu",              color: "bg-indigo-100 text-indigo-700",   icon: <CheckCircle2 className="w-3.5 h-3.5" /> },
-  EN_ANALYSE:      { label: "En analyse",        color: "bg-amber-100 text-amber-700",     icon: <Clock className="w-3.5 h-3.5" /> },
-  APPROUVE:        { label: "Approuvé",          color: "bg-emerald-100 text-emerald-700", icon: <CheckCircle2 className="w-3.5 h-3.5" /> },
-  REJETE:          { label: "Rejeté",            color: "bg-rose-100 text-rose-700",       icon: <XCircle className="w-3.5 h-3.5" /> },
-  AJUSTEMENT:      { label: "Ajust. demandé",    color: "bg-orange-100 text-orange-700",   icon: <AlertCircle className="w-3.5 h-3.5" /> },
-  EXECUTE:         { label: "Exécuté",           color: "bg-teal-100 text-teal-700",       icon: <Archive className="w-3.5 h-3.5" /> },
+  EN_PREPARATION:      { label: "En préparation",       color: "bg-slate-100 text-slate-600",     icon: <FileText className="w-3.5 h-3.5" /> },
+  TRANSMIS:            { label: "Transmis",             color: "bg-blue-100 text-blue-700",       icon: <Send className="w-3.5 h-3.5" /> },
+  RECU:                { label: "Reçu",                 color: "bg-indigo-100 text-indigo-700",   icon: <Inbox className="w-3.5 h-3.5" /> },
+  EN_ANALYSE:          { label: "En analyse",           color: "bg-amber-100 text-amber-700",     icon: <Clock className="w-3.5 h-3.5" /> },
+  EN_ATTENTE_DECISION: { label: "En attente décision",  color: "bg-orange-100 text-orange-700",   icon: <Hourglass className="w-3.5 h-3.5" /> },
+  APPROUVE:            { label: "Approuvé",             color: "bg-emerald-100 text-emerald-700", icon: <CheckCircle2 className="w-3.5 h-3.5" /> },
+  REJETE:              { label: "Rejeté",                color: "bg-rose-100 text-rose-700",       icon: <XCircle className="w-3.5 h-3.5" /> },
+  EXECUTE:             { label: "Exécuté",               color: "bg-teal-100 text-teal-700",       icon: <Archive className="w-3.5 h-3.5" /> },
+};
+
+const TYPE_LABELS: Record<string, string> = {
+  DEMANDE_FINANCEMENT: "Demande de financement",
+  RAPPORT_AUDIT:       "Rapport d'audit",
+  RECOMMANDATION:      "Recommandation",
+  PLAN_ACTION:         "Plan d'action",
+  AUTRE:               "Autre",
 };
 
 const COMM_LABELS: Record<string, string> = {
   FINANCE:            "Finance",
   OPERATIONS_TERRAIN: "Opérations",
-  AUDIT_CONTROLE:     "Audit & Contrôle",
-  OPTIMISATION:       "Optimisation",
+  AUDIT:               "Audit & Contrôle",
+  OPTIMISATION:        "Optimisation",
 };
 
 function StatusBadge({ statut }: { statut: string }) {
@@ -56,9 +64,10 @@ function StatusBadge({ statut }: { statut: string }) {
 
 function CreateModal({ onClose, onDone }: { onClose: () => void; onDone: () => void }) {
   const [form, setForm] = useState({
-    titre: "", type: "DEMANDE_AVIS", priorite: "NORMALE",
-    commissionEmettrice: "FINANCE", commissionReceptrice: "AUDIT_CONTROLE",
-    description: "", dateEcheance: "",
+    titre: "", type: "DEMANDE_FINANCEMENT",
+    commissionEmettrice: "OPERATIONS_TERRAIN", commissionReceptrice: "FINANCE",
+    description: "", montantDemande: "",
+    region: "", agence: "", dureeCycleJours: "", risqueEstime: "MOYEN",
   });
   const { mutate, loading } = useMutation("/api/admin/ria/commissions/gouvernance/dossiers", "POST");
 
@@ -68,7 +77,25 @@ function CreateModal({ onClose, onDone }: { onClose: () => void; onDone: () => v
       toast.error("Les commissions émettrice et réceptrice doivent être différentes");
       return;
     }
-    const res = await mutate(form) as { id?: number; reference?: string; error?: string } | null;
+    const contenuInitial = form.type === "DEMANDE_FINANCEMENT"
+      ? {
+          region: form.region, agence: form.agence,
+          dureeCycleJours: form.dureeCycleJours ? Number(form.dureeCycleJours) : undefined,
+          risqueEstime: form.risqueEstime,
+          clients: [],
+          investisseursConcernes: [],
+        }
+      : undefined;
+
+    const res = await mutate({
+      titre: form.titre,
+      type: form.type,
+      commissionEmettrice: form.commissionEmettrice,
+      commissionReceptrice: form.commissionReceptrice,
+      description: form.description,
+      montantDemande: form.montantDemande || undefined,
+      contenuInitial,
+    }) as { id?: number; reference?: string; error?: string } | null;
     if (res?.id) { toast.success(`Dossier ${res.reference} créé`); onDone(); }
     else toast.error(res?.error || "Erreur");
   }
@@ -76,14 +103,14 @@ function CreateModal({ onClose, onDone }: { onClose: () => void; onDone: () => v
   const commissions = [
     { value: "FINANCE", label: "Finance" },
     { value: "OPERATIONS_TERRAIN", label: "Opérations Terrain" },
-    { value: "AUDIT_CONTROLE", label: "Audit & Contrôle" },
+    { value: "AUDIT", label: "Audit & Contrôle" },
     { value: "OPTIMISATION", label: "Optimisation" },
   ];
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg">
-        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between sticky top-0 bg-white">
           <h2 className="font-semibold text-slate-800 flex items-center gap-2">
             <GitBranch className="w-4 h-4 text-violet-500" /> Nouveau dossier inter-commission
           </h2>
@@ -96,29 +123,12 @@ function CreateModal({ onClose, onDone }: { onClose: () => void; onDone: () => v
               required className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400"
               placeholder="Objet du dossier" />
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">Type *</label>
-              <select value={form.type} onChange={e => setForm(f => ({ ...f, type: e.target.value }))}
-                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400">
-                <option value="DEMANDE_AVIS">Demande d&apos;avis</option>
-                <option value="SAISINE">Saisine</option>
-                <option value="RAPPORT_COMMUN">Rapport commun</option>
-                <option value="TRANSFERT_COMPETENCE">Transfert compétence</option>
-                <option value="ALERTE">Alerte</option>
-                <option value="DEMANDE_RESSOURCE">Demande ressource</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">Priorité</label>
-              <select value={form.priorite} onChange={e => setForm(f => ({ ...f, priorite: e.target.value }))}
-                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400">
-                <option value="BASSE">Basse</option>
-                <option value="NORMALE">Normale</option>
-                <option value="HAUTE">Haute</option>
-                <option value="CRITIQUE">Critique</option>
-              </select>
-            </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-1">Type *</label>
+            <select value={form.type} onChange={e => setForm(f => ({ ...f, type: e.target.value }))}
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400">
+              {Object.entries(TYPE_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+            </select>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -142,11 +152,47 @@ function CreateModal({ onClose, onDone }: { onClose: () => void; onDone: () => v
               rows={3} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400 resize-none"
               placeholder="Contexte et objectif..." />
           </div>
-          <div>
-            <label className="block text-xs font-medium text-slate-600 mb-1">Date d&apos;échéance</label>
-            <input type="date" value={form.dateEcheance} onChange={e => setForm(f => ({ ...f, dateEcheance: e.target.value }))}
-              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400" />
-          </div>
+
+          {form.type === "DEMANDE_FINANCEMENT" && (
+            <div className="space-y-3 bg-violet-50/50 border border-violet-100 rounded-xl p-4">
+              <p className="text-xs font-medium text-violet-700">Informations de la demande de financement</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">Montant demandé (FCFA)</label>
+                  <input type="number" value={form.montantDemande} onChange={e => setForm(f => ({ ...f, montantDemande: e.target.value }))}
+                    className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">Durée du cycle (jours)</label>
+                  <input type="number" value={form.dureeCycleJours} onChange={e => setForm(f => ({ ...f, dureeCycleJours: e.target.value }))}
+                    className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">Région</label>
+                  <input value={form.region} onChange={e => setForm(f => ({ ...f, region: e.target.value }))}
+                    className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">Agence</label>
+                  <input value={form.agence} onChange={e => setForm(f => ({ ...f, agence: e.target.value }))}
+                    className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Risque estimé</label>
+                <select value={form.risqueEstime} onChange={e => setForm(f => ({ ...f, risqueEstime: e.target.value }))}
+                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400">
+                  <option value="FAIBLE">Faible</option>
+                  <option value="MOYEN">Moyen</option>
+                  <option value="ELEVE">Élevé</option>
+                </select>
+              </div>
+              <p className="text-xs text-slate-500">
+                La liste des clients, produits et pièces jointes se complète depuis le détail du dossier, avant transmission.
+              </p>
+            </div>
+          )}
+
           <div className="flex justify-end gap-3 pt-2">
             <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 rounded-lg">Annuler</button>
             <button type="submit" disabled={loading}
@@ -195,13 +241,19 @@ export default function DossiersPage() {
           </h1>
           <p className="text-sm text-slate-500">Workflow de transmission et collaboration inter-commissions</p>
         </div>
-        <button onClick={() => setShowCreate(true)}
-          className="flex items-center gap-1.5 px-4 py-2 bg-violet-600 text-white text-sm font-medium rounded-lg hover:bg-violet-700">
-          <Plus className="w-4 h-4" /> Nouveau dossier
-        </button>
+        <div className="flex items-center gap-2">
+          <Link href="/dashboard/admin/ria/gouvernance/dossiers/echanges"
+            className="flex items-center gap-1.5 px-3 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50">
+            <History className="w-4 h-4" /> Historique des échanges
+          </Link>
+          <button onClick={() => setShowCreate(true)}
+            className="flex items-center gap-1.5 px-4 py-2 bg-violet-600 text-white text-sm font-medium rounded-lg hover:bg-violet-700">
+            <Plus className="w-4 h-4" /> Nouveau dossier
+          </button>
+        </div>
       </div>
 
-      {/* Kanban compteurs */}
+      {/* Sous-menu / compteurs par statut */}
       {!loading && (
         <div className="grid grid-cols-4 md:grid-cols-8 gap-2">
           {Object.entries(STATUTS).map(([k, s]) => (
@@ -225,10 +277,7 @@ export default function DossiersPage() {
         <select value={filterComm} onChange={e => setFilterComm(e.target.value)}
           className="border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-300">
           <option value="">Toutes commissions</option>
-          <option value="FINANCE">Finance</option>
-          <option value="OPERATIONS_TERRAIN">Opérations</option>
-          <option value="AUDIT_CONTROLE">Audit & Contrôle</option>
-          <option value="OPTIMISATION">Optimisation</option>
+          {Object.entries(COMM_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
         </select>
         <button onClick={() => setRefresh(r => r + 1)}
           className="p-2 text-slate-400 hover:text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50">
@@ -254,11 +303,8 @@ export default function DossiersPage() {
                   <div className="flex items-center gap-2 flex-wrap mb-1.5">
                     <span className="text-xs font-mono text-slate-400">{d.reference}</span>
                     <StatusBadge statut={d.statut} />
-                    <span className={`text-xs px-1.5 py-0.5 rounded ${
-                      d.priorite === "CRITIQUE" ? "bg-rose-50 text-rose-700" :
-                      d.priorite === "HAUTE" ? "bg-amber-50 text-amber-700" :
-                      "bg-slate-50 text-slate-500"}`}>
-                      {d.priorite}
+                    <span className="text-xs px-1.5 py-0.5 rounded bg-slate-50 text-slate-500">
+                      {TYPE_LABELS[d.type] || d.type}
                     </span>
                   </div>
                   <h3 className="text-sm font-semibold text-slate-800">{d.titre}</h3>
@@ -271,6 +317,7 @@ export default function DossiersPage() {
                     </span>
                     <span>{d.creePar.prenom} {d.creePar.nom}</span>
                     <span>{new Date(d.createdAt).toLocaleDateString("fr-FR")}</span>
+                    {d.montantDemande && <span className="font-medium text-slate-600">{Number(d.montantDemande).toLocaleString("fr-FR")} FCFA</span>}
                   </div>
                 </div>
                 <div className="flex items-center gap-3 shrink-0">
@@ -283,11 +330,6 @@ export default function DossiersPage() {
                         <GitBranch className="w-3.5 h-3.5" /> v{d._count.versions}
                       </span>
                     </div>
-                    {d.dateEcheance && (
-                      <p className={`text-xs mt-1 ${new Date(d.dateEcheance) < new Date() ? "text-rose-600 font-medium" : "text-slate-400"}`}>
-                        Échéance: {new Date(d.dateEcheance).toLocaleDateString("fr-FR")}
-                      </p>
-                    )}
                   </div>
                   <a href={`/dashboard/admin/ria/gouvernance/dossiers/${d.id}`}
                     className="flex items-center gap-1 px-3 py-1.5 text-xs text-violet-600 hover:bg-violet-50 rounded-lg transition-colors">

@@ -74,10 +74,218 @@ les stocks doivent avoir des prix d'achat et de vente par date ( par semaine , p
 
 
 Permettre aux caissiers dashboard/user/caissiers de pouvoir faire aussi le recouvrement des crédits (creditclient)
-  
+   
 
-Si tu finis , tu corriges aussi les modules réunions, résolutions et plans
-  d'actions puis les modules strucutres de commisions chez le
-  dashboard/user/responsablesRIA pour que ce soit exactement comme chez
-  l'admin
+ Workflow Inter-Commissions RIA — finaliser le cahier de charge
+
+ Contexte
+
+ Le module Gouvernance RIA a déjà son squelette de données pour les dossiers
+ inter-commissions (DossierInterCommission, VersionDossierIC,
+ EchangeInterCommission, enums StatutDossierInterCommission et
+ TypeDossierIC créés "CDC"), avec une API admin de base
+ (/api/admin/ria/commissions/gouvernance/dossiers + [id] + [id]/echanges).//
+ Mais en l'examinant pour implémenter les 4 scénarios du cahier de charge que
+ l'utilisateur vient de coller, plusieurs trous et incohérences bloquent le
+ workflow réel :
+
+ - Les pages dossiers/page.tsx (admin et portail responsablesRIA) ont été
+ écrites contre d'anciennes valeurs d'enum qui n'existent plus dans le schéma
+ (BROUILLON/AJUSTEMENT au lieu de EN_PREPARATION/EN_ATTENTE_DECISION,
+ types DEMANDE_AVIS/SAISINE/... au lieu de DEMANDE_FINANCEMENT/...) et
+ référencent des champs priorite/dateEcheance absents du modèle. Créer un
+ dossier ou filtrer par statut échoue silencieusement ou plante.
+ - Aucune page de détail ([id]/page.tsx) n'existe ni côté admin ni côté
+ portail — impossible d'ouvrir un dossier, de voir son historique de
+ versions/échanges, ou de déclencher une action de workflow depuis l'UI.
+ - Les membres de commission (Président, Rapporteurs) n'ont aucun moyen
+ d'agir : /api/membreCommission/dossiers n'a qu'un GET en lecture. Toutes
+ les actions de workflow (PATCH [id], POST [id]/echanges) sont
+ verrouillées derrière getRIASession (Admin/SuperAdmin/RESPONSABLE_RIA
+ uniquement) — donc dans la pratique, seule la Direction Générale peut faire
+ fonctionner le workflow, alors que le cahier de charge décrit explicitement
+ la Commission Opérations et la Commission Finance comme actrices.
+ - La transition DEMANDER_AJUSTEMENT ramène au statut TRANSMIS au lieu de
+ EN_PREPARATION — empêche la Commission Opérations de modifier le dossier
+ avant de le retransmettre (Scénario 3).
+ - Aucun calcul automatique (ROI, taux de risque, etc. — Scénario 2) ni
+ création automatique de financement à l'exécution (Scénario 4).
+ - Pas de vue "Historique des échanges" globale (item du sous-menu demandé).
+
+ Note : en explorant, j'ai aussi trouvé que la page de détail "Commission
+ Audit & Contrôle" plante partout dans le module (22 fichiers envoient
+ "AUDIT_CONTROLE" alors que l'enum réel est "AUDIT"). Hors scope ici —
+ sera traité comme tâche séparée plus tard.
+
+ Décisions actées avec l'utilisateur
+
+ - Le bug AUDIT_CONTROLE est hors scope de cette tâche.
+ - APPROUVE et EXECUTE restent deux statuts distincts (décision Finance,
+ puis décaissement effectif). La création du financement (autorisation de
+ décaissement + affectation portefeuille + mouvement de fonds) est
+ déclenchée par l'action EXECUTER, pas par APPROUVER.
+ - Les calculs automatiques (Scénario 2) utilisent les vraies données :
+ Client.scoreSolvabilite pour taux de risque / probabilité de
+ remboursement, PortefeuilleRIA.capitalDisponible pour l'impact
+ trésorerie.
+
+ Modèle de données — structure du contenu JSON
+
+ Les champs métier listés dans le Scénario 1 (région, agence, liste de
+ clients, produits, coûts, marge, etc.) ne deviennent pas des colonnes : ils
+ vivent dans VersionDossierIC.contenu (Json), qui existe déjà pour
+ versionner les révisions (Scénario 3 — Versions 1 à 4). Forme pour
+ type = DEMANDE_FINANCEMENT :
+
+ {
+   region: string; agence: string; responsableDemandeurId: number;
+   clients: { clientId: number; nom: string; montant: number;
+              produits: { nom: string; quantite: number; coutAchat: number;
+ prixRevente: number }[] }[];
+   dureeCycleJours: number;
+   risqueEstime: "FAIBLE" | "MOYEN" | "ELEVE"; // saisi par Opérations
+   investisseursConcernes: number[]; // ids PortefeuilleRIA candidats
+   piecesJointesUrls: string[];
+ }
+
+ Seul ajout de colonne nécessaire : portefeuilleExecutionId Int? sur
+ DossierInterCommission (+ relation vers PortefeuilleRIA) — le portefeuille
+ choisi par le Président Finance au moment d'APPROUVER, utilisé ensuite par
+ EXECUTER pour créer les financements.
+
+ Plan d'implémentation
+
+ 1. Schéma (prisma/schema.prisma)
+
+ Ajouter portefeuilleExecutionId Int? + relation portefeuilleExecution
+ PortefeuilleRIA? sur DossierInterCommission. L'utilisateur gère la
+ migration lui-même.
+
+ 2. Logique de workflow partagée (lib/dossierInterCommissionWorkflow.ts)
+
+ Extraire la logique actuelle de
+ app/api/admin/ria/commissions/gouvernance/dossiers/[id]/route.ts (PATCH)
+ dans une fonction appliquerActionDossier(tx, { dossierId, userId, action,
+ montantApprouve, portefeuilleExecutionId, contenuRevise, motifRevision,
+ commentaire, ... }) réutilisable par l'API admin et la nouvelle API
+ membreCommission. Corrections incluses :
+ - DEMANDER_AJUSTEMENT → statut EN_PREPARATION (au lieu de TRANSMIS).
+ - EXECUTER : si dossier.type === "DEMANDE_FINANCEMENT", lit
+ contenu.clients[] de la version courante + portefeuilleExecutionId,
+ puis pour chaque client crée un OperationFinancementRIA en réutilisant
+ exactement le pattern de app/api/admin/ria/financements/route.ts POST
+ (vérif. capitalDisponible, décrément/incrément portefeuille, création
+ MouvementFondsRIA, appel à ecritureFinancementRIA de
+ lib/riaComptable.ts). Rejette si capital insuffisant.
+ - Gating Président via isPresident() (déjà dans
+ lib/authCommissionRIA.ts) : TRANSMETTRE requiert président de
+ commissionEmettrice ; APPROUVER/REJETER/DEMANDER_AJUSTEMENT/
+ EXECUTER requièrent président de commissionReceptrice. Les autres
+ actions (VALIDER_RECEPTION, METTRE_EN_ANALYSE, METTRE_EN_ATTENTE)
+ sont ouvertes à tout membre actif de la commission concernée. Admin/
+ RESPONSABLE_RIA passent toujours.
+
+ 3. Calcul automatique (lib/riaAnalyseDossier.ts)
+
+ calculerAnalyseFinancement(contenu, portefeuille) retourne :
+ - roiEstime (%) = marge totale (Σ (prixRevente − coûtAchat) × quantité) / Σ
+ montant × 100
+ - tauxRisque (%) = 100 − moyenne(Client.scoreSolvabilite) des clients listés
+ - probabiliteRemboursement (%) = moyenne(Client.scoreSolvabilite)
+ - impactTresorerie (%) = Σ montant / portefeuille.capitalDisponible × 100
+ - rentabiliteAttendue (FCFA) = Σ montant × roiEstime / 100
+
+ Appelé depuis le GET détail (admin + membreCommission) dès que
+ statut ∈ {EN_ANALYSE, EN_ATTENTE_DECISION, APPROUVE, EXECUTE} et que le
+ dossier a un portefeuilleExecutionId ou au moins un investisseur concerné
+ défini.
+
+ 4. API membreCommission (nouveau, écriture)
+
+ - POST /api/membreCommission/dossiers — crée un dossier pour la commission
+ active de l'auteur (commissionEmettrice = sa commission, pas modifiable
+ côté client), statut EN_PREPARATION, version 1. Réutilise le pattern de
+ création déjà dans l'API admin.
+ - GET/PATCH /api/membreCommission/dossiers/[id] — GET inclut l'analyse
+ calculée ; PATCH appelle appliquerActionDossier avec le gating ci-dessus.
+ - POST /api/membreCommission/dossiers/[id]/echanges — même validation que
+ la route admin, auteur = utilisateur courant.
+
+ 5. Historique des échanges (vue globale)
+
+ - GET /api/admin/ria/commissions/gouvernance/dossiers/echanges et
+ GET /api/membreCommission/dossiers/echanges (scopé aux commissions du
+ membre) — liste paginée d'EchangeInterCommission avec dossier (référence,
+ titre, statut) inclus, filtrable par commission/type.
+ - Nouvelle page app/dashboard/admin/ria/gouvernance/dossiers/echanges/page.tsx
+ et app/dashboard/user/responsablesRIA/gouvernance/dossiers/echanges/page.tsx
+ (lien ajouté dans la page liste des dossiers, à côté des filtres de statut).
+
+ 6. Pages liste — corriger les enums (bug fix)
+
+ Dans app/dashboard/admin/ria/gouvernance/dossiers/page.tsx et
+ app/dashboard/user/.../gouvernance/dossiers/page.tsx :
+ - STATUTS : remplacer par les 8 valeurs réelles (EN_PREPARATION,
+ TRANSMIS, RECU, EN_ANALYSE, EN_ATTENTE_DECISION, APPROUVE,
+ REJETE, EXECUTE) — la grille md:grid-cols-8 existante leur correspond
+ déjà exactement (= le "sous-menu" demandé).
+ - type du CreateModal : remplacer les options par les vraies valeurs
+ (DEMANDE_FINANCEMENT, RAPPORT_AUDIT, RECOMMANDATION, PLAN_ACTION,
+ AUTRE) ; si DEMANDE_FINANCEMENT, afficher le formulaire structuré
+ (région, agence, clients, produits, etc.) au lieu du simple
+ titre/description.
+ - Retirer priorite/dateEcheance (absents du modèle).
+ - Portail responsablesRIA : basculer la création/actions sur
+ /api/membreCommission/dossiers au lieu de l'API admin.
+
+ 7. Pages de détail (nouveau)
+
+ - app/dashboard/admin/ria/gouvernance/dossiers/[id]/page.tsx
+ - app/dashboard/user/responsablesRIA/gouvernance/dossiers/[id]/page.tsx
+
+ Contenu commun : en-tête (référence/statut/commissions), formulaire structuré
+ en lecture ou édition selon le statut, panneau "Analyse automatique"
+ (résultats
+ de calculerAnalyseFinancement) visible dès EN_ANALYSE, timeline des
+ versions, fil des échanges (+ formulaire d'ajout), boutons d'action
+ contextuels (uniquement les transitions valides depuis le statut courant et
+ le rôle de l'utilisateur — réutilise les mêmes labels d'action que l'API).
+ Le formulaire d'APPROUVER demande montantApprouve + sélection
+ portefeuilleExecutionId parmi investisseursConcernes.
+
+ Fichiers clés
+
+ - prisma/schema.prisma (champ + relation)
+ - lib/dossierInterCommissionWorkflow.ts (nouveau)
+ - lib/riaAnalyseDossier.ts (nouveau)
+ - app/api/admin/ria/commissions/gouvernance/dossiers/[id]/route.ts (refactor →
+ appelle le helper)
+ - app/api/membreCommission/dossiers/route.ts (POST ajouté)
+ - app/api/membreCommission/dossiers/[id]/route.ts (nouveau)
+ - app/api/membreCommission/dossiers/[id]/echanges/route.ts (nouveau)
+ - app/api/.../dossiers/echanges/route.ts ×2 (nouveau, admin +
+ membreCommission)
+ - app/dashboard/admin/ria/gouvernance/dossiers/page.tsx + [id]/page.tsx
+ (nouveau) + echanges/page.tsx (nouveau)
+ - app/dashboard/user/responsablesRIA/gouvernance/dossiers/page.tsx +
+ [id]/page.tsx (nouveau) + echanges/page.tsx (nouveau)
+
+ Vérification
+
+ 1. npx tsc --noEmit ciblé sur les fichiers touchés (pas de build complet).
+ 2. Créer un dossier DEMANDE_FINANCEMENT via le portail responsablesRIA (en
+ tant que membre Commission Opérations), vérifier EN_PREPARATION.
+ 3. TRANSMETTRE en tant que Président Opérations → TRANSMIS ; vérifier
+ qu'un non-président reçoit 403.
+ 4. Côté Finance : VALIDER_RECEPTION → RECU, METTRE_EN_ANALYSE →
+ EN_ANALYSE, vérifier que le panneau d'analyse affiche des chiffres
+ cohérents avec les scoreSolvabilite des clients de test.
+ 5. DEMANDER_AJUSTEMENT → vérifier retour à EN_PREPARATION, modification
+ par Opérations, nouvelle version créée, retransmission → TRANSMIS.
+ 6. APPROUVER (Président Finance) avec choix de portefeuille → APPROUVE.
+ 7. EXECUTER → vérifier création des OperationFinancementRIA (un par
+ client), décrément capitalDisponible du portefeuille, écriture
+ comptable créée, statut EXECUTE.
+ 8. Vérifier la page "Historique des échanges" remonte bien les échanges
+ inter-commissions des dossiers de test.
 

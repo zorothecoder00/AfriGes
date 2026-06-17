@@ -8,6 +8,7 @@ import {
   Calendar, MapPin, Truck, AlertTriangle, ClipboardList,
   Users, UserCheck, CheckSquare, GitBranch, Zap, Lightbulb,
   Rocket, BarChart2, DollarSign, Home, ChevronRight, Map,
+  ShieldAlert, Inbox, Search,
 } from "lucide-react";
 
 type NavItem = { href: string; label: string; icon: React.ElementType };
@@ -55,6 +56,8 @@ const COMMISSIONS: Record<string, {
       { href: "/agents",           label: "Contrôle des Agents",         icon: UserCheck },
       { href: "/anomalies",        label: "Gestion des Anomalies",       icon: AlertTriangle },
       { href: "/recommandations",  label: "Recommandations d'Audit",     icon: CheckSquare },
+      { href: "/flux",             label: "Flux entrant",                icon: Inbox },
+      { href: "/missions",         label: "Missions d'Audit",            icon: ShieldAlert },
     ],
   },
   optimisation: {
@@ -68,6 +71,8 @@ const COMMISSIONS: Record<string, {
       { href: "/suggestions",   label: "Suggestions d'Amélioration", icon: Lightbulb },
       { href: "/innovations",   label: "Gestion des Innovations",    icon: Rocket },
       { href: "/productivite",  label: "Productivité",               icon: BarChart2 },
+      { href: "/rapports-recus",label: "Rapports reçus",             icon: Inbox },
+      { href: "/analyses",      label: "Analyses d'Optimisation",    icon: Search },
     ],
   },
 };
