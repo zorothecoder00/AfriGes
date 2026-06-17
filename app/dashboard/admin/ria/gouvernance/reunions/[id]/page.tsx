@@ -47,7 +47,7 @@ interface Reunion {
 /* ─── Constantes ─── */
 const COMM_LABEL: Record<string, string> = {
   FINANCE: "Finance", OPERATIONS_TERRAIN: "Opérations Terrain",
-  AUDIT_CONTROLE: "Audit & Contrôle", OPTIMISATION: "Optimisation",
+  AUDIT: "Audit & Contrôle", OPTIMISATION: "Optimisation",
 };
 const STATUT_REUNION: Record<string, { label: string; color: string }> = {
   PLANIFIEE: { label: "Planifiée",  color: "bg-blue-100 text-blue-700" },
@@ -365,7 +365,7 @@ function OngletResolutions({ r, onRefresh }: { r: Reunion; onRefresh: () => void
   const [showForm, setShowForm] = useState(false);
   const [refresh, setRefresh]   = useState(0);
   const { data, loading } = useApi<{ resolutions: Resolution[] }>(
-    `/api/admin/ria/commissions/gouvernance/resolutions?commissionType=${r.typeCommission}&_r=${refresh}`
+    `/api/admin/ria/commissions/gouvernance/resolutions?typeCommission=${r.typeCommission}&_r=${refresh}`
   );
   const { mutate: creer, loading: creating } = useMutation(
     `/api/admin/ria/commissions/gouvernance/resolutions`, "POST"
@@ -500,7 +500,7 @@ function OngletPlansAction({ r }: { r: Reunion }) {
   const [showForm, setShowForm] = useState(false);
   const [refresh, setRefresh] = useState(0);
   const { data, loading } = useApi<{ plans: PlanAction[] }>(
-    `/api/admin/ria/commissions/gouvernance/plans-actions?commissionType=${r.typeCommission}&_r=${refresh}`
+    `/api/admin/ria/commissions/gouvernance/plans-actions?typeCommission=${r.typeCommission}&_r=${refresh}`
   );
   const { mutate: creer, loading: creating } = useMutation(
     `/api/admin/ria/commissions/gouvernance/plans-actions`, "POST"

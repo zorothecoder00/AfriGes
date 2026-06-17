@@ -24,7 +24,7 @@ export default function InnovationsPage() {
   const { type } = useParams() as { type: string };
   const [refresh, setRefresh] = useState(0);
   const { data, loading } = useApi<PlanResponse>(
-    `/api/admin/ria/commissions/gouvernance/plans-actions?commissionType=OPTIMISATION&priorite=HAUTE&limit=20&_r=${refresh}`
+    `/api/admin/ria/commissions/gouvernance/plans-actions?typeCommission=OPTIMISATION&priorite=HAUTE&limit=20&_r=${refresh}`
   );
 
   if (type !== "optimisation") return (

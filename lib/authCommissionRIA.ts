@@ -47,6 +47,14 @@ export async function getUserCommissions(userId: number) {
   });
 }
 
+// Seul le SUPER_ADMIN peut outrepasser le gating de rôle du workflow inter-commissions
+// (soupape d'urgence documentée). ADMIN, RESPONSABLE_RIA et membres doivent réellement
+// détenir le siège/rôle requis pour transmettre, approuver, rejeter ou exécuter un dossier.
+// La lecture (GET) reste ouverte à la supervision (cf. getRIASession / getCommissionAdminSession).
+export function peutOutrepasserGating(role?: string | null): boolean {
+  return role === "SUPER_ADMIN";
+}
+
 // Vérifie si un user est PRESIDENT d'une commission donnée
 // `db` permet de passer un client de transaction pour rester cohérent avec le reste d'un $transaction
 export async function isPresident(

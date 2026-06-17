@@ -22,7 +22,7 @@ const STATUT_STYLE: Record<string, string> = {
 export default function ProgrammePage() {
   const { type } = useParams() as { type: string };
   const [refresh, setRefresh] = useState(0);
-  const { data, loading } = useApi<ReuResponse>(`/api/admin/ria/commissions/gouvernance/reunions?commissionType=AUDIT_CONTROLE&limit=30&_r=${refresh}`);
+  const { data, loading } = useApi<ReuResponse>(`/api/admin/ria/commissions/gouvernance/reunions?typeCommission=AUDIT&limit=30&_r=${refresh}`);
 
   if (type !== "audit-controle") return (
     <div className="p-6 text-center text-slate-400 text-sm">Section réservée à la Commission Audit & Contrôle.</div>

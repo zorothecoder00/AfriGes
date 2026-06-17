@@ -22,14 +22,14 @@ interface Data { commissions: MaCommission[] }
 const COMM_LABELS: Record<string, string> = {
   FINANCE:            "Commission Finance",
   OPERATIONS_TERRAIN: "Commission Opérations Terrain",
-  AUDIT_CONTROLE:     "Commission Audit & Contrôle",
+  AUDIT:     "Commission Audit & Contrôle",
   OPTIMISATION:       "Commission Optimisation",
 };
 
 const COMM_COLORS: Record<string, { bg: string; text: string; bar: string }> = {
   FINANCE:            { bg: "bg-blue-50",    text: "text-blue-700",    bar: "bg-blue-600" },
   OPERATIONS_TERRAIN: { bg: "bg-emerald-50", text: "text-emerald-700", bar: "bg-emerald-600" },
-  AUDIT_CONTROLE:     { bg: "bg-amber-50",   text: "text-amber-700",   bar: "bg-amber-600" },
+  AUDIT:     { bg: "bg-amber-50",   text: "text-amber-700",   bar: "bg-amber-600" },
   OPTIMISATION:       { bg: "bg-violet-50",  text: "text-violet-700",  bar: "bg-violet-600" },
 };
 

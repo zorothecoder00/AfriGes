@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getCommissionMembreSession } from "@/lib/authCommissionRIA";
+import { getCommissionMembreSession, peutOutrepasserGating } from "@/lib/authCommissionRIA";
 import { calculerAnalyseFinancement, type ContenuDemandeFinancement } from "@/lib/riaAnalyseDossier";
 import { appliquerActionDossier, DossierWorkflowError, type DossierAction } from "@/lib/dossierInterCommissionWorkflow";
 
@@ -101,7 +101,9 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
         titre: body.titre,
         description: body.description,
         montantDemande: body.montantDemande,
-        skipGating: isAdmin,
+        // Accès au dossier accordé (supervision) mais l'action reste gatée par le
+        // rôle réel dans la commission ; seul le SUPER_ADMIN peut outrepasser.
+        skipGating: peutOutrepasserGating(auth.session.user.role),
       })
     );
 

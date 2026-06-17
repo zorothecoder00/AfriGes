@@ -31,7 +31,7 @@ const STATUTS: Record<string, { label: string; color: string; icon: React.ReactN
 const COMM_LABELS: Record<string, string> = {
   FINANCE:            "Finance",
   OPERATIONS_TERRAIN: "Opérations",
-  AUDIT_CONTROLE:     "Audit & Contrôle",
+  AUDIT:     "Audit & Contrôle",
   OPTIMISATION:       "Optimisation",
 };
 
@@ -66,7 +66,7 @@ export default function MesResolutionsPage() {
             <option value="">Toutes commissions</option>
             <option value="FINANCE">Finance</option>
             <option value="OPERATIONS_TERRAIN">Opérations</option>
-            <option value="AUDIT_CONTROLE">Audit & Contrôle</option>
+            <option value="AUDIT">Audit & Contrôle</option>
             <option value="OPTIMISATION">Optimisation</option>
           </select>
           <select value={filterStatut} onChange={e => setFilterStatut(e.target.value)}

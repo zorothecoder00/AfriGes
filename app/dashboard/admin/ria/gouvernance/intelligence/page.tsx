@@ -11,11 +11,9 @@ import {
 interface IntelData {
   anomaliesActives: { id: number; titre: string; niveau: string; typeCommission: string; createdAt: string }[];
   portefeillesEnDanger: { id: number; reference: string; investisseur: string; risque: string; capitalDisponible: number }[];
-  investisseursARisque: { id: number; nom: string; prenom: string; scoreCredit: number | null; nbDefauts: number }[];
   clientsDefaillants: { id: number; nom: string; prenom: string; montantDu: number; joursRetard: number }[];
   agencesSousPerformantes: { id: number; nom: string; tauxRecouvrement: number; objectif: number }[];
   regionsRentables: { region: string; rendement: number; volume: number }[];
-  opportunites: { titre: string; description: string; potentiel: string }[];
   dossiersEnAttente: { id: number; reference: string; titre: string; commissionReceptrice: string; joursEnAttente: number }[];
   reunionsPlanifiees: { id: number; titre: string; typeCommission: string; dateHeure: string }[];
   plansEnRetard: { id: number; titre: string; typeCommission: string; dateEcheance: string; responsable: string | null }[];

@@ -2,7 +2,9 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getRIASession } from "@/lib/authRIA";
 
-// Centre d'Intelligence Décisionnelle — agrège automatiquement les alertes du système
+// Centre d'Intelligence Décisionnelle — agrège les signaux critiques.
+// La réponse est mise en forme pour correspondre exactement aux champs rendus
+// par la page (objets plats, pas de structures imbriquées).
 export async function GET() {
   try {
     const session = await getRIASession();
@@ -10,194 +12,162 @@ export async function GET() {
 
     const now = new Date();
     const il30jours = new Date(now.getTime() - 30 * 86_400_000);
+    const joursDepuis = (d: Date | string | null) =>
+      d ? Math.max(0, Math.floor((now.getTime() - new Date(d).getTime()) / 86_400_000)) : 0;
 
     const [
-      anomaliesActives,
-      portefeillesEnDanger,
-      investisseursARisque,
-      clientsDefaillants,
-      agencesSousPerformantes,
-      regionsRentables,
-      opportunites,
-      dossiersEnAttente,
-      reunionsPlanifiees,
-      plansEnRetard,
+      anomalies,
+      portefeuilles,
+      financementsRetard,
+      dossiers,
+      plans,
+      reunions,
+      agencesGroup,
+      financementsRegion,
     ] = await Promise.all([
-
-      // Anomalies gouvernance non résolues (critique et majeures)
       prisma.anomalieGouvRIA.findMany({
         where: { resolue: false, niveau: { in: ["CRITIQUE", "MAJEURE"] } },
         orderBy: [{ niveau: "asc" }, { createdAt: "desc" }],
         take: 20,
+        select: { id: true, titre: true, niveau: true, typeCommission: true, createdAt: true },
       }),
-
-      // Portefeuilles en danger (capital disponible < 10% du capital investi)
       prisma.portefeuilleRIA.findMany({
         where: { actif: true },
         select: {
-          id: true, reference: true, nom: true,
-          capitalInvesti: true, capitalDisponible: true, capitalEngage: true,
-          profilRIA: {
-            select: {
-              gestionnaire: {
-                select: { member: { select: { nom: true, prenom: true } } },
-              },
-            },
-          },
+          id: true, reference: true, capitalInvesti: true, capitalDisponible: true,
+          profilRIA: { select: { gestionnaire: { select: { member: { select: { nom: true, prenom: true } } } } } },
         },
-      }).then((pfs) =>
-        pfs.filter((pf) => {
-          const investi = Number(pf.capitalInvesti);
-          const dispo   = Number(pf.capitalDisponible);
-          return investi > 0 && dispo / investi < 0.1;
-        })
-      ),
-
-      // Investisseurs à risque (portefeuille avec engagements > 80% du capital investi)
-      prisma.portefeuilleRIA.findMany({
-        where: { actif: true },
-        select: {
-          id: true, reference: true,
-          capitalInvesti: true, capitalEngage: true,
-          profilRIA: {
-            select: {
-              gestionnaire: {
-                select: { member: { select: { id: true, nom: true, prenom: true } } },
-              },
-            },
-          },
-        },
-      }).then((pfs) =>
-        pfs.filter((pf) => {
-          const investi = Number(pf.capitalInvesti);
-          const engage  = Number(pf.capitalEngage);
-          return investi > 0 && engage / investi > 0.8;
-        }).slice(0, 10)
-      ),
-
-      // Clients défaillants (financements EN_RETARD)
+      }),
       prisma.operationFinancementRIA.findMany({
         where: { statut: "EN_RETARD" },
-        select: {
-          id: true, reference: true, encours: true, dateEcheance: true,
-          client: { select: { id: true, nom: true, prenom: true, telephone: true, ville: true } },
-        },
+        select: { id: true, encours: true, dateEcheance: true, client: { select: { nom: true, prenom: true } } },
         orderBy: { encours: "desc" },
         take: 20,
       }),
-
-      // Agences sous-performantes (taux de recouvrement < 50% sur 30j)
-      prisma.operationFinancementRIA.groupBy({
-        by:    ["clientId"],
-        where: { createdAt: { gte: il30jours } },
-        _sum:  { montantRembourse: true, montantFinance: true },
-      }).then(async (grouped) => {
-        const sousPerf = grouped.filter((g) => {
-          const finance   = Number(g._sum.montantFinance ?? 0);
-          const rembourse = Number(g._sum.montantRembourse ?? 0);
-          return finance > 0 && rembourse / finance < 0.5;
-        });
-        if (sousPerf.length === 0) return [];
-        const clientIds = sousPerf.map((g) => g.clientId);
-        return prisma.client.findMany({
-          where: { id: { in: clientIds } },
-          select: { id: true, nom: true, prenom: true, pointDeVente: { select: { nom: true } } },
-          take: 10,
-        });
-      }),
-
-      // Régions les plus rentables
-      prisma.operationFinancementRIA.findMany({
-        where: { statut: { in: ["ACTIF", "REMBOURSE"] } },
-        select: {
-          montantFinance: true, montantRembourse: true,
-          client: { select: { ville: true } },
-        },
-      }).then((fins) => {
-        const map: Record<string, { finance: number; rembourse: number; nb: number }> = {};
-        for (const f of fins) {
-          const ville = f.client?.ville ?? "Non renseigné";
-          if (!map[ville]) map[ville] = { finance: 0, rembourse: 0, nb: 0 };
-          map[ville].finance   += Number(f.montantFinance);
-          map[ville].rembourse += Number(f.montantRembourse);
-          map[ville].nb        += 1;
-        }
-        return Object.entries(map)
-          .filter(([, v]) => v.finance > 0)
-          .map(([ville, v]) => ({ ville, ...v, taux: (v.rembourse / v.finance) * 100 }))
-          .sort((a, b) => b.taux - a.taux)
-          .slice(0, 5);
-      }),
-
-      // Opportunités d'investissement (capital disponible élevé ≥ 500k)
-      prisma.portefeuilleRIA.findMany({
-        where: { actif: true, capitalDisponible: { gte: 500000 } },
-        select: {
-          id: true, reference: true, nom: true, capitalDisponible: true,
-          profilRIA: {
-            select: {
-              gestionnaire: {
-                select: { member: { select: { nom: true, prenom: true } } },
-              },
-            },
-          },
-        },
-        orderBy: { capitalDisponible: "desc" },
-        take: 10,
-      }),
-
-      // Dossiers inter-commissions en attente de décision
       prisma.dossierInterCommission.findMany({
         where: { statut: { in: ["EN_ANALYSE", "EN_ATTENTE_DECISION", "RECU"] } },
-        select: {
-          id: true, reference: true, titre: true, statut: true,
-          commissionEmettrice: true, commissionReceptrice: true,
-          montantDemande: true, createdAt: true,
-        },
+        select: { id: true, reference: true, titre: true, commissionReceptrice: true, createdAt: true },
         orderBy: { createdAt: "asc" },
         take: 10,
       }),
-
-      // Prochaines réunions planifiées
-      prisma.reunionCommissionRIA.findMany({
-        where: { statut: "PLANIFIEE", dateHeure: { gte: now } },
-        select: {
-          id: true, titre: true, typeCommission: true, dateHeure: true, lieu: true,
-        },
-        orderBy: { dateHeure: "asc" },
-        take: 5,
-      }),
-
-      // Plans d'action en retard
       prisma.planActionCommRIA.findMany({
-        where: {
-          statut: { notIn: ["TERMINE", "REALISE", "ABANDONNE"] },
-          dateEcheance: { lt: now },
-        },
+        where: { statut: { notIn: ["TERMINE", "REALISE", "ABANDONNE"] }, dateEcheance: { lt: now } },
         select: {
-          id: true, titre: true, typeCommission: true, dateEcheance: true, priorite: true,
-          responsable: { select: { id: true, nom: true, prenom: true } },
+          id: true, titre: true, typeCommission: true, dateEcheance: true,
+          responsable: { select: { nom: true, prenom: true } },
         },
         orderBy: { dateEcheance: "asc" },
         take: 20,
       }),
+      prisma.reunionCommissionRIA.findMany({
+        where: { statut: "PLANIFIEE", dateHeure: { gte: now } },
+        select: { id: true, titre: true, typeCommission: true, dateHeure: true },
+        orderBy: { dateHeure: "asc" },
+        take: 5,
+      }),
+      prisma.operationFinancementRIA.groupBy({
+        by: ["clientId"],
+        where: { createdAt: { gte: il30jours } },
+        _sum: { montantRembourse: true, montantFinance: true },
+      }),
+      prisma.operationFinancementRIA.findMany({
+        where: { statut: { in: ["ACTIF", "REMBOURSE"] } },
+        select: { montantFinance: true, montantRembourse: true, client: { select: { ville: true } } },
+      }),
     ]);
 
+    // Portefeuilles en danger : capital disponible < 10% du capital investi
+    const portefeillesEnDanger = portefeuilles
+      .map((pf) => {
+        const investi = Number(pf.capitalInvesti);
+        const dispo = Number(pf.capitalDisponible);
+        const pct = investi > 0 ? (dispo / investi) * 100 : 100;
+        const m = pf.profilRIA?.gestionnaire?.member;
+        return {
+          id: pf.id,
+          reference: pf.reference,
+          investisseur: m ? `${m.prenom} ${m.nom}` : "—",
+          risque: pct < 5 ? "Critique" : "Élevé",
+          capitalDisponible: dispo,
+          _pct: pct,
+        };
+      })
+      .filter((p) => p._pct < 10)
+      .map(({ _pct, ...p }) => p);
+
+    const clientsDefaillants = financementsRetard.map((f) => ({
+      id: f.id,
+      nom: f.client?.nom ?? "",
+      prenom: f.client?.prenom ?? "",
+      montantDu: Number(f.encours),
+      joursRetard: joursDepuis(f.dateEcheance),
+    }));
+
+    const dossiersEnAttente = dossiers.map((d) => ({
+      id: d.id,
+      reference: d.reference,
+      titre: d.titre,
+      commissionReceptrice: d.commissionReceptrice,
+      joursEnAttente: joursDepuis(d.createdAt),
+    }));
+
+    const plansEnRetard = plans.map((p) => ({
+      id: p.id,
+      titre: p.titre,
+      typeCommission: p.typeCommission,
+      dateEcheance: p.dateEcheance,
+      responsable: p.responsable ? `${p.responsable.prenom} ${p.responsable.nom}` : null,
+    }));
+
+    // Agences (clients) sous-performantes : taux de recouvrement < 50% sur 30j
+    const sousPerf = agencesGroup
+      .map((g) => ({
+        clientId: g.clientId,
+        finance: Number(g._sum.montantFinance ?? 0),
+        rembourse: Number(g._sum.montantRembourse ?? 0),
+      }))
+      .filter((g) => g.finance > 0 && g.rembourse / g.finance < 0.5)
+      .slice(0, 10);
+    const clientsAgences = sousPerf.length > 0
+      ? await prisma.client.findMany({
+          where: { id: { in: sousPerf.map((s) => s.clientId) } },
+          select: { id: true, nom: true, prenom: true, pointDeVente: { select: { nom: true } } },
+        })
+      : [];
+    const agencesSousPerformantes = sousPerf.map((s) => {
+      const c = clientsAgences.find((x) => x.id === s.clientId);
+      return {
+        id: s.clientId,
+        nom: c?.pointDeVente?.nom ?? (c ? `${c.prenom} ${c.nom}` : `Client #${s.clientId}`),
+        tauxRecouvrement: (s.rembourse / s.finance) * 100,
+        objectif: 50,
+      };
+    });
+
+    // Régions les plus rentables (par ville)
+    const regionMap: Record<string, { finance: number; rembourse: number }> = {};
+    for (const f of financementsRegion) {
+      const ville = f.client?.ville ?? "Non renseigné";
+      if (!regionMap[ville]) regionMap[ville] = { finance: 0, rembourse: 0 };
+      regionMap[ville].finance += Number(f.montantFinance);
+      regionMap[ville].rembourse += Number(f.montantRembourse);
+    }
+    const regionsRentables = Object.entries(regionMap)
+      .filter(([, v]) => v.finance > 0)
+      .map(([region, v]) => ({ region, rendement: (v.rembourse / v.finance) * 100, volume: v.finance }))
+      .sort((a, b) => b.rendement - a.rendement)
+      .slice(0, 5);
+
     return NextResponse.json({
-      anomaliesActives,
+      anomaliesActives: anomalies,
       portefeillesEnDanger,
-      investisseursARisque,
       clientsDefaillants,
+      dossiersEnAttente,
+      plansEnRetard,
+      reunionsPlanifiees: reunions,
       agencesSousPerformantes,
       regionsRentables,
-      opportunites,
-      dossiersEnAttente,
-      reunionsPlanifiees,
-      plansEnRetard,
-      meta: {
-        genereLe: now.toISOString(),
-        nbAlertesCritiques: anomaliesActives.filter((a) => a.niveau === "CRITIQUE").length,
-      },
+      genereLe: now.toISOString(),
     });
   } catch (e) {
     console.error(e);

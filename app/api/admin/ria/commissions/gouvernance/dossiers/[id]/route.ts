@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getRIASession } from "@/lib/authRIA";
+import { peutOutrepasserGating } from "@/lib/authCommissionRIA";
 import { calculerAnalyseFinancement, type ContenuDemandeFinancement } from "@/lib/riaAnalyseDossier";
 import { appliquerActionDossier, DossierWorkflowError, type DossierAction } from "@/lib/dossierInterCommissionWorkflow";
 
@@ -69,7 +70,10 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
         titre: body.titre,
         description: body.description,
         montantDemande: body.montantDemande,
-        skipGating: true, // route admin/RESPONSABLE_RIA — accès total
+        // Supervision globale en lecture, action via siège : un admin/RESPONSABLE_RIA
+        // n'agit dans le workflow que s'il détient le rôle requis dans la commission.
+        // Seul le SUPER_ADMIN conserve une soupape d'outrepassement.
+        skipGating: peutOutrepasserGating(session.user.role),
       })
     );
 

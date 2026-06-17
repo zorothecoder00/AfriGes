@@ -31,7 +31,7 @@ export default function RecommandationsAuditPage() {
   const { type } = useParams() as { type: string };
   const [refresh, setRefresh] = useState(0);
   const { data, loading } = useApi<ResResponse>(
-    `/api/admin/ria/commissions/gouvernance/resolutions?commissionType=AUDIT_CONTROLE&limit=30&_r=${refresh}`
+    `/api/admin/ria/commissions/gouvernance/resolutions?typeCommission=AUDIT&limit=30&_r=${refresh}`
   );
 
   if (type !== "audit-controle") return (

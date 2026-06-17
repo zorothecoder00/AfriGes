@@ -37,7 +37,7 @@ const COMMISSIONS = [
   { value: "", label: "Toutes commissions" },
   { value: "FINANCE", label: "Finance" },
   { value: "OPERATIONS_TERRAIN", label: "Opérations Terrain" },
-  { value: "AUDIT_CONTROLE", label: "Audit & Contrôle" },
+  { value: "AUDIT", label: "Audit & Contrôle" },
   { value: "OPTIMISATION", label: "Optimisation" },
 ];
 
@@ -82,7 +82,7 @@ function CreateModal({ onClose, onDone }: { onClose: () => void; onDone: () => v
                 className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
                 <option value="FINANCE">Finance</option>
                 <option value="OPERATIONS_TERRAIN">Opérations Terrain</option>
-                <option value="AUDIT_CONTROLE">Audit & Contrôle</option>
+                <option value="AUDIT">Audit & Contrôle</option>
                 <option value="OPTIMISATION">Optimisation</option>
               </select>
             </div>

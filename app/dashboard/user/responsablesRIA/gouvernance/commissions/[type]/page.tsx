@@ -23,7 +23,7 @@ const COMMISSION_META: Record<string, { label: string; color: string; bg: string
 const TYPE_MAP: Record<string, string> = {
   finance:             "FINANCE",
   "operations-terrain":"OPERATIONS_TERRAIN",
-  "audit-controle":    "AUDIT_CONTROLE",
+  "audit-controle":    "AUDIT",
   optimisation:        "OPTIMISATION",
 };
 

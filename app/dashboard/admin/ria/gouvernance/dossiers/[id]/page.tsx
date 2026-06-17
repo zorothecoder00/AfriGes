@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useApi, useMutation } from "@/hooks/useApi";
+import { ClientSearchSelect } from "@/components/ClientSearchSelect";
 import { toast } from "sonner";
 import {
   ChevronLeft, GitBranch, Send, Inbox, Clock, Hourglass,
@@ -276,12 +277,12 @@ function FormulaireFinancement({ dossier, editable, onSaved }: { dossier: Dossie
           {(contenu.clients ?? []).map((c, ci) => (
             <div key={ci} className="border border-slate-200 rounded-lg p-3 space-y-2">
               <div className="flex items-center gap-2">
-                <input type="number" placeholder="ID client" value={c.clientId || ""} disabled={!editable}
-                  onChange={e => updateClient(ci, { clientId: parseInt(e.target.value) || 0 })}
-                  className="w-24 border border-slate-200 rounded-lg px-2 py-1.5 text-sm disabled:bg-slate-50" />
-                <input placeholder="Nom" value={c.nom ?? ""} disabled={!editable}
-                  onChange={e => updateClient(ci, { nom: e.target.value })}
-                  className="flex-1 border border-slate-200 rounded-lg px-2 py-1.5 text-sm disabled:bg-slate-50" />
+                <ClientSearchSelect
+                  apiBase="/api/admin/clients"
+                  clientId={c.clientId}
+                  nom={c.nom ?? ""}
+                  disabled={!editable}
+                  onSelect={cl => updateClient(ci, { clientId: cl.id, nom: cl.nom })} />
                 <input type="number" placeholder="Montant" value={c.montant || ""} disabled={!editable}
                   onChange={e => updateClient(ci, { montant: Number(e.target.value) || 0 })}
                   className="w-32 border border-slate-200 rounded-lg px-2 py-1.5 text-sm disabled:bg-slate-50" />
@@ -444,6 +445,13 @@ export default function DossierDetailPage() {
               </button>
             ))}
           </div>
+        )}
+        {actions.length > 0 && (
+          <p className="text-xs text-slate-400 mt-3">
+            Supervision globale en lecture. Les actions du workflow (transmettre, approuver, rejeter, exécuter)
+            sont réservées au rôle requis dans la commission concernée — le serveur refusera la demande si vous
+            ne détenez pas ce siège (seul le SUPER_ADMIN peut outrepasser).
+          </p>
         )}
       </div>
 

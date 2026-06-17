@@ -1,6 +1,8 @@
 "use client";
 
 import { useApi } from "@/hooks/useApi";
+import { enumToSlug } from "@/lib/commissionsRIA";
+import type { TypeCommissionRIA } from "@prisma/client";
 import Link from "next/link";
 import {
   Users, Calendar, CheckSquare, ListChecks, FileText, AlertTriangle,
@@ -31,13 +33,13 @@ interface DashboardGouvData {
 const COMMISSION_COLORS: Record<string, string> = {
   FINANCE:            "from-blue-500 to-blue-700",
   OPERATIONS_TERRAIN: "from-emerald-500 to-emerald-700",
-  AUDIT_CONTROLE:     "from-amber-500 to-amber-700",
+  AUDIT:     "from-amber-500 to-amber-700",
   OPTIMISATION:       "from-violet-500 to-violet-700",
 };
 const COMMISSION_LABELS: Record<string, string> = {
   FINANCE:            "Commission Finance",
   OPERATIONS_TERRAIN: "Commission Opérations",
-  AUDIT_CONTROLE:     "Commission Audit & Contrôle",
+  AUDIT:     "Commission Audit & Contrôle",
   OPTIMISATION:       "Commission Optimisation",
 };
 
@@ -148,7 +150,7 @@ export default function GouvernanceDashboardPage() {
               {d.membresParCommission.map((c) => (
                 <Link
                   key={c.type}
-                  href={`/dashboard/admin/ria/gouvernance/commissions/${c.type.toLowerCase()}`}
+                  href={`/dashboard/admin/ria/gouvernance/commissions/${enumToSlug(c.type as TypeCommissionRIA)}`}
                   className="group bg-white rounded-xl border border-slate-200 overflow-hidden hover:border-emerald-300 hover:shadow-md transition-all"
                 >
                   <div className={`h-1.5 w-full bg-gradient-to-r ${COMMISSION_COLORS[c.type] || "from-slate-400 to-slate-600"}`} />

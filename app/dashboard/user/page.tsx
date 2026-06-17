@@ -17,8 +17,8 @@ const ROLE_ROUTES: Record<string, string> = {
   RESPONSABLE_RH:                       "/dashboard/user/responsablesRH",
   RESPONSABLE_RIA:                      "/dashboard/user/responsablesRIA",
   INVESTISSEUR_RIA:                     "/dashboard/user/investisseurs",
-  PRESIDENT_COMMISSION_RIA:             "/dashboard/user/responsablesRIA/gouvernance",
-  RAPPORTEUR_COMMISSION_RIA:            "/dashboard/user/responsablesRIA/gouvernance",
+  PRESIDENT_COMMISSION_RIA:             "/dashboard/user/gouvernance",
+  RAPPORTEUR_COMMISSION_RIA:            "/dashboard/user/gouvernance",
   COMMERCIAL:                           "/dashboard/user/revendeurs",
 };
 
@@ -35,11 +35,27 @@ export default function UserDashboardRouter() {
 
     if (dest) {
       router.replace(dest);
-    } else if (session.user.role === "ADMIN" || session.user.role === "SUPER_ADMIN") {
-      router.replace("/dashboard/admin");
-    } else {
-      router.replace("/dashboard/user/actionnaires");
+      return;
     }
+    if (session.user.role === "ADMIN" || session.user.role === "SUPER_ADMIN") {
+      router.replace("/dashboard/admin");
+      return;
+    }
+
+    // Pas de rôle gestionnaire dédié : un user peut tout de même siéger dans une
+    // commission de gouvernance. On vérifie son/ses siège(s) avant de retomber
+    // sur le portail actionnaire par défaut.
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/membreCommission/ma-commission");
+        const hasSeat = res.ok && (await res.json())?.commissions?.length > 0;
+        if (!cancelled) router.replace(hasSeat ? "/dashboard/user/gouvernance" : "/dashboard/user/actionnaires");
+      } catch {
+        if (!cancelled) router.replace("/dashboard/user/actionnaires");
+      }
+    })();
+    return () => { cancelled = true; };
   }, [session, status, router]);
 
   return (

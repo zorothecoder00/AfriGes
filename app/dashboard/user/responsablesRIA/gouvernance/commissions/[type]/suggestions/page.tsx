@@ -30,7 +30,7 @@ export default function SuggestionsPage() {
   const { type } = useParams() as { type: string };
   const [refresh, setRefresh] = useState(0);
   const { data, loading } = useApi<ResResponse>(
-    `/api/admin/ria/commissions/gouvernance/resolutions?commissionType=OPTIMISATION&limit=30&_r=${refresh}`
+    `/api/admin/ria/commissions/gouvernance/resolutions?typeCommission=OPTIMISATION&limit=30&_r=${refresh}`
   );
 
   if (type !== "optimisation") return (

@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import {
   Users, Calendar, Gavel, ListChecks, MessageSquare,
   Plus, RefreshCw, CheckCircle2, Clock, AlertTriangle,
-  Shield, ArrowLeft, UserPlus, Eye,
+  Shield, ArrowLeft, UserPlus, Eye, Pencil, Trash2, Check, X, Search,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -23,7 +23,7 @@ const COMMISSION_META: Record<string, { label: string; color: string; bg: string
 const TYPE_MAP: Record<string, string> = {
   finance:             "FINANCE",
   "operations-terrain":"OPERATIONS_TERRAIN",
-  "audit-controle":    "AUDIT_CONTROLE",
+  "audit-controle":    "AUDIT",
   optimisation:        "OPTIMISATION",
 };
 
@@ -97,26 +97,113 @@ const STATUTS_RESOLUTION: Record<string, string> = {
   EXECUTEE: "bg-teal-100 text-teal-700",
 };
 const ROLES_LABEL: Record<string, string> = {
-  PRESIDENT: "Président(e)", RAPPORTEUR_1: "Rapporteur 1", RAPPORTEUR_2: "Rapporteur 2",
+  PRESIDENT: "Président(e)", VICE_PRESIDENT: "Vice-Président(e)", SECRETAIRE: "Secrétaire",
+  TRESORIER: "Trésorier(ère)", RAPPORTEUR_1: "Rapporteur 1", RAPPORTEUR_2: "Rapporteur 2",
   MEMBRE: "Membre",
 };
+
+function MembreRow({ m, onDone }: { m: Membre; onDone: () => void }) {
+  const [editing, setEditing] = useState(false);
+  const [role, setRole] = useState(m.role);
+  const base = `/api/admin/ria/commissions/gouvernance/membres/${m.id}`;
+  const { mutate: patchMembre, loading: saving } = useMutation(base, "PATCH");
+  const { mutate: deleteMembre, loading: removing } = useMutation(base, "DELETE");
+
+  async function saveRole() {
+    if (role === m.role) { setEditing(false); return; }
+    const res = await patchMembre({ role }) as { id?: number; error?: string } | null;
+    if (res?.id) { toast.success("Rôle mis à jour"); setEditing(false); onDone(); }
+    else toast.error(res?.error || "Erreur");
+  }
+
+  async function retirer() {
+    if (!window.confirm(`Retirer ${m.user.prenom} ${m.user.nom} de la commission ?`)) return;
+    const res = await deleteMembre({}) as { success?: boolean; error?: string } | null;
+    if (res?.success) { toast.success("Membre retiré"); onDone(); }
+    else toast.error(res?.error || "Erreur");
+  }
+
+  return (
+    <div className={`flex items-center justify-between py-3 ${!m.actif ? "opacity-50" : ""}`}>
+      <div className="flex items-center gap-3">
+        <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-xs font-bold">
+          {m.user.prenom[0]}{m.user.nom[0]}
+        </div>
+        <div>
+          <p className="text-sm font-medium text-slate-800">{m.user.prenom} {m.user.nom}</p>
+          <p className="text-xs text-slate-400">Depuis {new Date(m.dateDebut).toLocaleDateString("fr-FR")}</p>
+        </div>
+      </div>
+      <div className="flex items-center gap-2">
+        {m.actif && editing ? (
+          <>
+            <select value={role} onChange={e => setRole(e.target.value)}
+              className="text-xs border border-slate-200 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-400">
+              {Object.entries(ROLES_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+            </select>
+            <button onClick={saveRole} disabled={saving} title="Enregistrer le rôle"
+              className="p-1 text-emerald-600 hover:bg-emerald-50 rounded disabled:opacity-50">
+              <Check className="w-4 h-4" />
+            </button>
+            <button onClick={() => { setRole(m.role); setEditing(false); }} title="Annuler"
+              className="p-1 text-slate-400 hover:bg-slate-100 rounded">
+              <X className="w-4 h-4" />
+            </button>
+          </>
+        ) : (
+          <>
+            <span className={`text-xs px-2 py-0.5 rounded-full ${m.role === "PRESIDENT" ? "bg-amber-100 text-amber-700" : m.role.startsWith("RAPPORTEUR") ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-600"}`}>
+              {ROLES_LABEL[m.role] || m.role}
+            </span>
+            {m.actif ? (
+              <>
+                <button onClick={() => setEditing(true)} title="Changer le rôle"
+                  className="p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded">
+                  <Pencil className="w-3.5 h-3.5" />
+                </button>
+                <button onClick={retirer} disabled={removing} title="Retirer le membre"
+                  className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded disabled:opacity-50">
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              </>
+            ) : (
+              <span className="text-xs text-slate-300">Inactif</span>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+interface UserLite { id: number; nom: string; prenom: string; email: string; role: string }
 
 function AddMembreModal({ typeCommission, onClose, onDone }: {
   typeCommission: string; onClose: () => void; onDone: () => void;
 }) {
-  const [form, setForm] = useState({ userId: "", role: "MEMBRE" });
+  const [search, setSearch] = useState("");
+  const [selected, setSelected] = useState<UserLite | null>(null);
+  const [role, setRole] = useState("MEMBRE");
   const { mutate, loading } = useMutation("/api/admin/ria/commissions/gouvernance/membres", "POST");
+
+  // Recherche d'utilisateurs par nom / prénom / email (min. 2 caractères).
+  const { data: results, loading: searching } = useApi<{ data: UserLite[] }>(
+    !selected && search.trim().length >= 2
+      ? `/api/admin/membres?search=${encodeURIComponent(search.trim())}&limit=8`
+      : null
+  );
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    const res = await mutate({ ...form, userId: parseInt(form.userId), typeCommission }) as { id?: number; error?: string } | null;
+    if (!selected) { toast.error("Sélectionnez un utilisateur"); return; }
+    const res = await mutate({ userId: selected.id, role, typeCommission }) as { id?: number; error?: string } | null;
     if (res?.id) { toast.success("Membre ajouté"); onDone(); }
     else toast.error(res?.error || "Erreur");
   }
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
         <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
           <h2 className="font-semibold text-slate-800 flex items-center gap-2">
             <UserPlus className="w-4 h-4" /> Ajouter un membre
@@ -125,21 +212,61 @@ function AddMembreModal({ typeCommission, onClose, onDone }: {
         </div>
         <form onSubmit={submit} className="p-6 space-y-4">
           <div>
-            <label className="block text-xs font-medium text-slate-600 mb-1">ID Utilisateur *</label>
-            <input type="number" value={form.userId} onChange={e => setForm(f => ({ ...f, userId: e.target.value }))}
-              required className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
-              placeholder="ID de l'utilisateur" />
+            <label className="block text-xs font-medium text-slate-600 mb-1">Utilisateur *</label>
+            {selected ? (
+              <div className="flex items-center gap-3 border border-blue-200 bg-blue-50/50 rounded-lg px-3 py-2">
+                <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-xs font-bold shrink-0">
+                  {selected.prenom[0]}{selected.nom[0]}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium text-slate-800 truncate">{selected.prenom} {selected.nom}</p>
+                  <p className="text-xs text-slate-400 truncate">{selected.email}</p>
+                </div>
+                <button type="button" onClick={() => { setSelected(null); setSearch(""); }}
+                  className="text-xs text-blue-600 hover:underline shrink-0">Changer</button>
+              </div>
+            ) : (
+              <div className="relative">
+                <div className="relative">
+                  <Search className="w-4 h-4 text-slate-300 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input autoFocus value={search} onChange={e => setSearch(e.target.value)}
+                    className="w-full border border-slate-200 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                    placeholder="Rechercher par nom, prénom ou email…" />
+                </div>
+                {search.trim().length >= 2 && (
+                  <div className="mt-1 border border-slate-200 rounded-lg max-h-56 overflow-y-auto divide-y divide-slate-50">
+                    {searching ? (
+                      <p className="px-3 py-3 text-xs text-slate-400">Recherche…</p>
+                    ) : (results?.data?.length ?? 0) === 0 ? (
+                      <p className="px-3 py-3 text-xs text-slate-400">Aucun utilisateur trouvé</p>
+                    ) : results!.data.map(u => (
+                      <button type="button" key={u.id} onClick={() => setSelected(u)}
+                        className="w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-slate-50">
+                        <div className="w-7 h-7 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center text-xs font-bold shrink-0">
+                          {u.prenom[0]}{u.nom[0]}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm text-slate-800 truncate">{u.prenom} {u.nom}</p>
+                          <p className="text-xs text-slate-400 truncate">{u.email}</p>
+                        </div>
+                        <span className="text-[10px] text-slate-400 shrink-0">{u.role}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
           <div>
             <label className="block text-xs font-medium text-slate-600 mb-1">Rôle</label>
-            <select value={form.role} onChange={e => setForm(f => ({ ...f, role: e.target.value }))}
+            <select value={role} onChange={e => setRole(e.target.value)}
               className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
               {Object.entries(ROLES_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
             </select>
           </div>
           <div className="flex justify-end gap-3 pt-2">
             <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 rounded-lg">Annuler</button>
-            <button type="submit" disabled={loading}
+            <button type="submit" disabled={loading || !selected}
               className="px-5 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50">
               {loading ? "Ajout..." : "Ajouter"}
             </button>
@@ -301,23 +428,7 @@ export default function CommissionTypePage({ params }: { params: Promise<PagePar
                   </div>
                   <div className="divide-y divide-slate-50">
                     {data.membres.map(m => (
-                      <div key={m.id} className={`flex items-center justify-between py-3 ${!m.actif ? "opacity-50" : ""}`}>
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-xs font-bold">
-                            {m.user.prenom[0]}{m.user.nom[0]}
-                          </div>
-                          <div>
-                            <p className="text-sm font-medium text-slate-800">{m.user.prenom} {m.user.nom}</p>
-                            <p className="text-xs text-slate-400">Depuis {new Date(m.dateDebut).toLocaleDateString("fr-FR")}</p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className={`text-xs px-2 py-0.5 rounded-full ${m.role === "PRESIDENT" ? "bg-amber-100 text-amber-700" : m.role.startsWith("RAPPORTEUR") ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-600"}`}>
-                            {ROLES_LABEL[m.role] || m.role}
-                          </span>
-                          {!m.actif && <span className="text-xs text-slate-300">Inactif</span>}
-                        </div>
-                      </div>
+                      <MembreRow key={m.id} m={m} onDone={done} />
                     ))}
                     {data.membres.length === 0 && (
                       <p className="text-center py-8 text-sm text-slate-400">Aucun membre dans cette commission</p>

@@ -15,12 +15,10 @@ interface Anomalie {
   description: string | null;
   typeCommission: string;
   niveau: string;
-  categorie: string;
+  donnees: { categorie?: string } | null;
   resolue: boolean;
   dateResolution: string | null;
   createdAt: string;
-  signalee: boolean;
-  signaledPar: { nom: string; prenom: string } | null;
   resolueParId: number | null;
 }
 
@@ -51,7 +49,8 @@ function CreateModal({ onClose, onDone }: { onClose: () => void; onDone: () => v
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    const res = await mutate(form) as { id?: number; error?: string } | null;
+    const { categorie, ...rest } = form;
+    const res = await mutate({ ...rest, donnees: { categorie } }) as { id?: number; error?: string } | null;
     if (res?.id) { toast.success("Anomalie signalée"); onDone(); }
     else toast.error(res?.error || "Erreur");
   }
@@ -85,7 +84,7 @@ function CreateModal({ onClose, onDone }: { onClose: () => void; onDone: () => v
                 className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-400">
                 <option value="FINANCE">Finance</option>
                 <option value="OPERATIONS_TERRAIN">Opérations</option>
-                <option value="AUDIT_CONTROLE">Audit & Contrôle</option>
+                <option value="AUDIT">Audit & Contrôle</option>
                 <option value="OPTIMISATION">Optimisation</option>
               </select>
             </div>
@@ -216,7 +215,7 @@ export default function AnomaliesPage() {
           <option value="">Toutes commissions</option>
           <option value="FINANCE">Finance</option>
           <option value="OPERATIONS_TERRAIN">Opérations</option>
-          <option value="AUDIT_CONTROLE">Audit & Contrôle</option>
+          <option value="AUDIT">Audit & Contrôle</option>
           <option value="OPTIMISATION">Optimisation</option>
         </select>
         <button onClick={() => setShowResolues(!showResolues)}
@@ -254,7 +253,7 @@ export default function AnomaliesPage() {
                         <Zap className="w-3 h-3" /> {NIVEAUX[a.niveau]?.label || a.niveau}
                       </span>
                     )}
-                    <span className="text-xs bg-slate-50 text-slate-500 px-2 py-0.5 rounded">{a.categorie}</span>
+                    {a.donnees?.categorie && <span className="text-xs bg-slate-50 text-slate-500 px-2 py-0.5 rounded">{a.donnees.categorie}</span>}
                     <span className="text-xs text-slate-400">
                       {a.typeCommission === "OPERATIONS_TERRAIN" ? "Opérations" : a.typeCommission.charAt(0) + a.typeCommission.slice(1).toLowerCase()}
                     </span>
@@ -262,7 +261,6 @@ export default function AnomaliesPage() {
                   <h3 className="text-sm font-semibold text-slate-800">{a.titre}</h3>
                   {a.description && <p className="text-xs text-slate-500 mt-1 line-clamp-2">{a.description}</p>}
                   <div className="flex items-center gap-3 mt-1.5 text-xs text-slate-400">
-                    {a.signaledPar && <span>Signalé par {a.signaledPar.prenom} {a.signaledPar.nom}</span>}
                     <span>{new Date(a.createdAt).toLocaleDateString("fr-FR")}</span>
                     {a.dateResolution && <span>Résolu le {new Date(a.dateResolution).toLocaleDateString("fr-FR")}</span>}
                   </div>

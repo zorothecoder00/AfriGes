@@ -1,8 +1,14 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getRIASession } from "@/lib/authRIA";
+import { TypeCommissionRIA } from "@prisma/client";
+import { commissionLabel } from "@/lib/commissionsRIA";
 
-// Tableau de bord DG — vision globale de toutes les commissions
+const TYPES: TypeCommissionRIA[] = ["FINANCE", "OPERATIONS_TERRAIN", "AUDIT", "OPTIMISATION"];
+const PLANS_NON_ACTIFS = ["TERMINE", "REALISE", "ABANDONNE"];
+
+// Tableau de bord DG — vision globale de toutes les commissions.
+// Remodèle les groupBy Prisma dans la structure attendue par la page.
 export async function GET() {
   try {
     const session = await getRIASession();
@@ -11,92 +17,117 @@ export async function GET() {
     const now = new Date();
 
     const [
-      membresParCommission,
-      reunionsStats,
-      resolutionsStats,
-      plansStats,
-      dossiersStats,
-      anomaliesStats,
-      rapportsStats,
-      prochainReunion,
+      membresGroup,
+      reunionsGroup,
+      resolutionsGroup,
+      plansGroup,
+      plansRetardGroup,
+      dossiersGroup,
+      anomaliesGroup,
+      anomaliesTotal,
+      rapportsGroup,
+      prochaineGlobale,
+      prochainesParType,
+      dossiersTerm,
     ] = await Promise.all([
-
-      // Membres actifs par commission
-      prisma.membreCommissionRIA.groupBy({
-        by: ["typeCommission"],
-        where: { actif: true },
-        _count: { id: true },
-      }),
-
-      // Réunions par statut
-      prisma.reunionCommissionRIA.groupBy({
-        by: ["typeCommission", "statut"],
-        _count: { id: true },
-      }),
-
-      // Résolutions par statut
-      prisma.resolutionCommRIA.groupBy({
-        by: ["typeCommission", "statut"],
-        _count: { id: true },
-      }),
-
-      // Plans d'action — en retard
+      prisma.membreCommissionRIA.groupBy({ by: ["typeCommission"], where: { actif: true }, _count: { id: true } }),
+      prisma.reunionCommissionRIA.groupBy({ by: ["typeCommission", "statut"], _count: { id: true } }),
+      prisma.resolutionCommRIA.groupBy({ by: ["typeCommission", "statut"], _count: { id: true } }),
+      prisma.planActionCommRIA.groupBy({ by: ["typeCommission", "statut"], _count: { id: true } }),
       prisma.planActionCommRIA.groupBy({
-        by: ["typeCommission", "statut"],
+        by: ["typeCommission"],
+        where: { dateEcheance: { lt: now }, statut: { notIn: PLANS_NON_ACTIFS as never } },
         _count: { id: true },
       }),
-
-      // Dossiers inter-commissions par statut
-      prisma.dossierInterCommission.groupBy({
-        by: ["statut"],
-        _count: { id: true },
-        _sum:  { montantDemande: true, montantApprouve: true },
-      }),
-
-      // Anomalies non résolues par niveau
-      prisma.anomalieGouvRIA.groupBy({
-        by: ["niveau"],
-        where: { resolue: false },
-        _count: { id: true },
-      }),
-
-      // Rapports par statut
-      prisma.rapportCommissionRIA.groupBy({
-        by: ["statut"],
-        _count: { id: true },
-      }),
-
-      // Prochain réunion planifiée
+      prisma.dossierInterCommission.groupBy({ by: ["statut"], _count: { id: true } }),
+      prisma.anomalieGouvRIA.groupBy({ by: ["niveau"], where: { resolue: false }, _count: { id: true } }),
+      prisma.anomalieGouvRIA.count(),
+      prisma.rapportCommissionRIA.groupBy({ by: ["statut"], _count: { id: true } }),
       prisma.reunionCommissionRIA.findFirst({
         where: { statut: "PLANIFIEE", dateHeure: { gte: now } },
         orderBy: { dateHeure: "asc" },
         select: { id: true, titre: true, typeCommission: true, dateHeure: true, lieu: true },
       }),
+      prisma.reunionCommissionRIA.findMany({
+        where: { statut: "PLANIFIEE", dateHeure: { gte: now } },
+        orderBy: { dateHeure: "asc" },
+        select: { typeCommission: true, dateHeure: true },
+      }),
+      prisma.dossierInterCommission.findMany({
+        where: { statut: { in: ["APPROUVE", "REJETE", "EXECUTE"] }, dateValidation: { not: null } },
+        select: { createdAt: true, dateValidation: true },
+      }),
     ]);
 
-    // Calcul du temps moyen de traitement des dossiers
-    const dossiersTerm = await prisma.dossierInterCommission.findMany({
-      where: { statut: { in: ["APPROUVE", "REJETE", "EXECUTE"] }, dateValidation: { not: null } },
-      select: { createdAt: true, dateValidation: true },
-    });
+    // Helpers de sommation sur les groupBy [typeCommission, statut]
+    type Grp = { typeCommission?: TypeCommissionRIA; statut?: string; niveau?: string; _count: { id: number } };
+    const sumByType = (arr: Grp[], type: TypeCommissionRIA, statut?: string) =>
+      arr.filter((g) => g.typeCommission === type && (statut === undefined || g.statut === statut))
+        .reduce((s, g) => s + g._count.id, 0);
+    const sumStatut = (arr: Grp[], match: (s: string) => boolean) =>
+      arr.filter((g) => match(g.statut ?? "")).reduce((s, g) => s + g._count.id, 0);
+
+    const membresParCommission = TYPES.map((type) => ({
+      type,
+      label: commissionLabel(type),
+      membresActifs: membresGroup.find((g) => g.typeCommission === type)?._count.id ?? 0,
+      prochainReunion: prochainesParType.find((r) => r.typeCommission === type)?.dateHeure ?? null,
+      reunionsStats: {
+        total:  sumByType(reunionsGroup, type),
+        tenues: sumByType(reunionsGroup, type, "TENUE"),
+      },
+      resolutionsStats: {
+        total:     sumByType(resolutionsGroup, type),
+        adoptees:  sumByType(resolutionsGroup, type, "ADOPTEE"),
+        executees: sumByType(resolutionsGroup, type, "EXECUTEE"),
+      },
+      plansStats: {
+        total:    sumByType(plansGroup, type),
+        enRetard: plansRetardGroup.find((g) => g.typeCommission === type)?._count.id ?? 0,
+      },
+    }));
+
     const tempsMoyen = dossiersTerm.length > 0
       ? Math.round(
-          dossiersTerm.reduce((s, d) => {
-            const diff = new Date(d.dateValidation!).getTime() - new Date(d.createdAt).getTime();
-            return s + diff / 86_400_000;
-          }, 0) / dossiersTerm.length
+          dossiersTerm.reduce((s, d) => s + (new Date(d.dateValidation!).getTime() - new Date(d.createdAt).getTime()) / 86_400_000, 0)
+            / dossiersTerm.length
         )
       : 0;
 
     return NextResponse.json({
       membresParCommission,
-      reunionsStats,
-      resolutionsStats,
-      plansStats,
-      dossiersStats,
-      anomaliesStats,
-      rapportsStats,
-      prochainReunion,
+      reunionsStats: {
+        total:      reunionsGroup.reduce((s, g) => s + g._count.id, 0),
+        planifiees: sumStatut(reunionsGroup, (s) => s === "PLANIFIEE"),
+        tenues:     sumStatut(reunionsGroup, (s) => s === "TENUE"),
+        annulees:   sumStatut(reunionsGroup, (s) => s === "ANNULEE"),
+      },
+      resolutionsStats: {
+        total:     resolutionsGroup.reduce((s, g) => s + g._count.id, 0),
+        adoptees:  sumStatut(resolutionsGroup, (s) => s === "ADOPTEE"),
+        executees: sumStatut(resolutionsGroup, (s) => s === "EXECUTEE"),
+        enAttente: sumStatut(resolutionsGroup, (s) => s === "EN_ATTENTE"),
+      },
+      plansStats: {
+        total:     plansGroup.reduce((s, g) => s + g._count.id, 0),
+        enRetard:  plansRetardGroup.reduce((s, g) => s + g._count.id, 0),
+        termines:  sumStatut(plansGroup, (s) => s === "TERMINE" || s === "REALISE"),
+      },
+      dossiersStats: {
+        total:     dossiersGroup.reduce((s, g) => s + g._count.id, 0),
+        enCours:   sumStatut(dossiersGroup, (s) => ["TRANSMIS", "RECU", "EN_ANALYSE"].includes(s)),
+        enAttente: sumStatut(dossiersGroup, (s) => s === "EN_ATTENTE_DECISION"),
+      },
+      anomaliesStats: {
+        total:    anomaliesTotal,
+        actives:  anomaliesGroup.reduce((s, g) => s + g._count.id, 0),
+        critique: anomaliesGroup.find((g) => g.niveau === "CRITIQUE")?._count.id ?? 0,
+      },
+      rapportsStats: {
+        total:   rapportsGroup.reduce((s, g) => s + g._count.id, 0),
+        valides: sumStatut(rapportsGroup, (s) => s === "VALIDE"),
+      },
+      prochainReunion: prochaineGlobale,
       tempsMoyenTraitementJours: tempsMoyen,
       genereLe: now.toISOString(),
     });

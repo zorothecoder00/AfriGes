@@ -35,7 +35,7 @@ const STATUTS: Record<string, string> = {
 const COMM_LABELS: Record<string, string> = {
   FINANCE:            "Finance",
   OPERATIONS_TERRAIN: "Opérations",
-  AUDIT_CONTROLE:     "Audit & Contrôle",
+  AUDIT:     "Audit & Contrôle",
   OPTIMISATION:      "Optimisation",
 };
 

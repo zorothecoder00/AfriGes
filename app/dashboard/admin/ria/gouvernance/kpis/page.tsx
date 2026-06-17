@@ -31,7 +31,7 @@ interface KpiGlobal {
 const COMM_COLORS: Record<string, string> = {
   FINANCE:            "blue",
   OPERATIONS_TERRAIN: "emerald",
-  AUDIT_CONTROLE:     "amber",
+  AUDIT:     "amber",
   OPTIMISATION:       "violet",
 };
 

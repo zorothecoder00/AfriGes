@@ -34,7 +34,7 @@ const TYPE_META: Record<string, { label: string; color: string; icon: React.Reac
 const COMM_LABELS: Record<string, string> = {
   FINANCE:            "Finance",
   OPERATIONS_TERRAIN: "Opérations",
-  AUDIT_CONTROLE:     "Audit & Contrôle",
+  AUDIT:     "Audit & Contrôle",
   OPTIMISATION:       "Optimisation",
 };
 
@@ -72,7 +72,7 @@ function AddForm({ onDone }: { onDone: () => void }) {
             className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300">
             <option value="FINANCE">Finance</option>
             <option value="OPERATIONS_TERRAIN">Opérations Terrain</option>
-            <option value="AUDIT_CONTROLE">Audit & Contrôle</option>
+            <option value="AUDIT">Audit & Contrôle</option>
             <option value="OPTIMISATION">Optimisation</option>
           </select>
         </div>
@@ -154,7 +154,7 @@ export default function ObservationsPage() {
           <option value="">Toutes commissions</option>
           <option value="FINANCE">Finance</option>
           <option value="OPERATIONS_TERRAIN">Opérations</option>
-          <option value="AUDIT_CONTROLE">Audit & Contrôle</option>
+          <option value="AUDIT">Audit & Contrôle</option>
           <option value="OPTIMISATION">Optimisation</option>
         </select>
         <select value={filterType} onChange={e => setFilterType(e.target.value)}

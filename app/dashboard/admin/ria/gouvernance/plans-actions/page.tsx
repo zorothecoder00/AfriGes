@@ -102,7 +102,7 @@ function CreateModal({ onClose, onDone }: { onClose: () => void; onDone: () => v
                 className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400">
                 <option value="FINANCE">Finance</option>
                 <option value="OPERATIONS_TERRAIN">Opérations Terrain</option>
-                <option value="AUDIT_CONTROLE">Audit & Contrôle</option>
+                <option value="AUDIT">Audit & Contrôle</option>
                 <option value="OPTIMISATION">Optimisation</option>
               </select>
             </div>
@@ -222,7 +222,7 @@ export default function PlansActionsPage() {
           <option value="">Toutes commissions</option>
           <option value="FINANCE">Finance</option>
           <option value="OPERATIONS_TERRAIN">Opérations</option>
-          <option value="AUDIT_CONTROLE">Audit & Contrôle</option>
+          <option value="AUDIT">Audit & Contrôle</option>
           <option value="OPTIMISATION">Optimisation</option>
         </select>
         <select value={filterStatut} onChange={e => setFilterStatut(e.target.value)}
