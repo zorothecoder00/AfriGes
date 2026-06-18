@@ -30,9 +30,10 @@ const STATUTS: Record<string, { label: string; color: string }> = {
   RECU:                { label: "Reçu",                color: "bg-indigo-100 text-indigo-700" },
   EN_ANALYSE:          { label: "En analyse",          color: "bg-amber-100 text-amber-700" },
   EN_ATTENTE_DECISION: { label: "En attente décision", color: "bg-orange-100 text-orange-700" },
-  APPROUVE:            { label: "Approuvé",            color: "bg-emerald-100 text-emerald-700" },
+  APPROUVE:            { label: "Financement autorisé", color: "bg-emerald-100 text-emerald-700" },
   REJETE:              { label: "Rejeté",              color: "bg-rose-100 text-rose-700" },
-  EXECUTE:             { label: "Exécuté",             color: "bg-teal-100 text-teal-700" },
+  EN_COURS_EXECUTION:  { label: "En cours d'exécution", color: "bg-cyan-100 text-cyan-700" },
+  EXECUTE:             { label: "Clôturé",             color: "bg-teal-100 text-teal-700" },
 };
 
 const TYPE_LABELS: Record<string, string> = {

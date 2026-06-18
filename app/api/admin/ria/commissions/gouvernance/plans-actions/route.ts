@@ -12,12 +12,14 @@ export async function GET(req: NextRequest) {
     const typeCommission = searchParams.get("typeCommission") as TypeCommissionRIA | null;
     const statut = searchParams.get("statut");
     const priorite = searchParams.get("priorite");
+    const reunionId = searchParams.get("reunionId");
 
     const plans = await prisma.planActionCommRIA.findMany({
       where: {
         ...(typeCommission ? { typeCommission } : {}),
         ...(statut ? { statut: statut as never } : {}),
         ...(priorite ? { priorite: priorite as PrioriteActionRIA } : {}),
+        ...(reunionId ? { reunionId: parseInt(reunionId) } : {}),
       },
       include: {
         resolution: { select: { id: true, numero: true, titre: true } },
@@ -39,7 +41,7 @@ export async function POST(req: NextRequest) {
     if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
 
     const body = await req.json();
-    const { typeCommission, resolutionId, titre, description, priorite, responsableId, dateDebut, dateEcheance } = body;
+    const { typeCommission, resolutionId, reunionId, titre, description, priorite, responsableId, dateDebut, dateEcheance } = body;
 
     if (!typeCommission || !titre) {
       return NextResponse.json({ error: "typeCommission et titre requis" }, { status: 400 });
@@ -49,6 +51,7 @@ export async function POST(req: NextRequest) {
       data: {
         typeCommission,
         resolutionId: resolutionId ? Number(resolutionId) : null,
+        reunionId: reunionId ? Number(reunionId) : null,
         titre,
         description,
         priorite: (priorite as PrioriteActionRIA) ?? "MOYENNE",

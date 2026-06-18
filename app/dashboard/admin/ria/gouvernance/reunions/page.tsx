@@ -20,7 +20,8 @@ interface Reunion {
   convocationEnvoyee: boolean;
   organisateur: { nom: string; prenom: string };
   compteRenduStr: { id: number; dateValidation: string | null } | null;
-  _count: { presences: number; resolutions: number };
+  presences: { id: number; present: boolean; procuration: boolean }[];
+  resolutions: { id: number; statut: string }[];
 }
 
 interface ReunionsData { reunions: Reunion[] }
@@ -240,13 +241,13 @@ export default function ReunionsPage() {
                   <td className="px-4 py-3 text-center">
                     <span className="flex items-center justify-center gap-1 text-sm text-slate-700">
                       <Users className="w-3.5 h-3.5 text-slate-400" />
-                      {r._count.presences}
+                      {r.presences.length}
                     </span>
                   </td>
                   <td className="px-4 py-3 text-center">
                     <span className="flex items-center justify-center gap-1 text-sm text-slate-700">
                       <CheckCircle2 className="w-3.5 h-3.5 text-slate-400" />
-                      {r._count.resolutions}
+                      {r.resolutions.length}
                     </span>
                   </td>
                   <td className="px-4 py-3 text-center">

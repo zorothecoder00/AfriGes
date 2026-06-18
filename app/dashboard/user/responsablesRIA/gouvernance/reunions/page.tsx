@@ -165,6 +165,10 @@ export default function MesReunionsPage() {
                         <CheckCircle2 className="w-3.5 h-3.5" /> Lire le CR
                       </a>
                     )}
+                    <a href={`/dashboard/user/responsablesRIA/gouvernance/reunions/${r.id}`}
+                      className="text-xs text-blue-600 hover:underline flex items-center gap-1">
+                      <Calendar className="w-3.5 h-3.5" /> Ouvrir le détail
+                    </a>
                   </div>
                 </div>
               </div>

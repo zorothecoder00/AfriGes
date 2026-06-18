@@ -33,9 +33,10 @@ const STATUTS: Record<string, { label: string; color: string; icon: React.ReactN
   RECU:                { label: "Reçu",                 color: "bg-indigo-100 text-indigo-700",   icon: <Inbox className="w-3.5 h-3.5" /> },
   EN_ANALYSE:          { label: "En analyse",           color: "bg-amber-100 text-amber-700",     icon: <Clock className="w-3.5 h-3.5" /> },
   EN_ATTENTE_DECISION: { label: "En attente décision",  color: "bg-orange-100 text-orange-700",   icon: <Hourglass className="w-3.5 h-3.5" /> },
-  APPROUVE:            { label: "Approuvé",             color: "bg-emerald-100 text-emerald-700", icon: <CheckCircle2 className="w-3.5 h-3.5" /> },
+  APPROUVE:            { label: "Financement autorisé",  color: "bg-emerald-100 text-emerald-700", icon: <CheckCircle2 className="w-3.5 h-3.5" /> },
   REJETE:              { label: "Rejeté",                color: "bg-rose-100 text-rose-700",       icon: <XCircle className="w-3.5 h-3.5" /> },
-  EXECUTE:             { label: "Exécuté",               color: "bg-teal-100 text-teal-700",       icon: <Archive className="w-3.5 h-3.5" /> },
+  EN_COURS_EXECUTION:  { label: "En cours d'exécution",  color: "bg-cyan-100 text-cyan-700",       icon: <RefreshCw className="w-3.5 h-3.5" /> },
+  EXECUTE:             { label: "Clôturé",               color: "bg-teal-100 text-teal-700",       icon: <Archive className="w-3.5 h-3.5" /> },
 };
 
 const TYPE_LABELS: Record<string, string> = {

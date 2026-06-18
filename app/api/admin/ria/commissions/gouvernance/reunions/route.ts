@@ -22,6 +22,7 @@ export async function GET(req: NextRequest) {
         organisateur: { select: { id: true, nom: true, prenom: true } },
         presences: { select: { id: true, present: true, procuration: true } },
         resolutions: { select: { id: true, statut: true } },
+        compteRenduStr: { select: { id: true, dateValidation: true } },
       },
       orderBy: { dateHeure: "desc" },
       take: limit,

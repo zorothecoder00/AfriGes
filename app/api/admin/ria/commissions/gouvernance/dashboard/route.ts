@@ -54,7 +54,7 @@ export async function GET() {
         select: { typeCommission: true, dateHeure: true },
       }),
       prisma.dossierInterCommission.findMany({
-        where: { statut: { in: ["APPROUVE", "REJETE", "EXECUTE"] }, dateValidation: { not: null } },
+        where: { statut: { in: ["APPROUVE", "REJETE", "EN_COURS_EXECUTION", "EXECUTE"] }, dateValidation: { not: null } },
         select: { createdAt: true, dateValidation: true },
       }),
     ]);

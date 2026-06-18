@@ -1,45 +1,48 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getRIASession } from "@/lib/authRIA";
+import {
+  getCommissionMembreSession, getRoleMembre, isPresident,
+  ROLES_PREPARATION_REUNION, peutOutrepasserGating,
+} from "@/lib/authCommissionRIA";
 import { StatutReunionCommissionRIA } from "@prisma/client";
 
 type Ctx = { params: Promise<{ id: string }> };
 
 export async function GET(_req: NextRequest, { params }: Ctx) {
   try {
-    const session = await getRIASession();
-    if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
+    const auth = await getCommissionMembreSession();
+    if (!auth) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
 
     const { id } = await params;
+    const userId = parseInt(auth.session.user.id);
+
     const reunion = await prisma.reunionCommissionRIA.findUnique({
       where: { id: parseInt(id) },
       include: {
         organisateur: { select: { id: true, nom: true, prenom: true } },
         presences: {
-          include: {
-            membre: {
-              include: {
-                user: { select: { id: true, nom: true, prenom: true } },
-              },
-            },
-          },
+          include: { membre: { include: { user: { select: { id: true, nom: true, prenom: true } } } } },
         },
         resolutions: {
-          include: {
-            responsable: { select: { id: true, nom: true, prenom: true } },
-            plansAction: true,
-          },
+          include: { responsable: { select: { id: true, nom: true, prenom: true } } },
           orderBy: { numero: "asc" },
         },
         plansAction: {
           include: { responsable: { select: { id: true, nom: true, prenom: true } } },
           orderBy: { createdAt: "asc" },
         },
+        compteRenduStr: { include: { validePar: { select: { id: true, nom: true, prenom: true } } } },
       },
     });
-
     if (!reunion) return NextResponse.json({ error: "Réunion introuvable" }, { status: 404 });
-    return NextResponse.json(reunion);
+
+    const isAdmin = auth.commission === null;
+    const monRole = isAdmin ? "ADMIN" : await getRoleMembre(userId, reunion.typeCommission);
+    if (!isAdmin && !monRole) {
+      return NextResponse.json({ error: "Vous n'êtes pas membre de cette commission" }, { status: 403 });
+    }
+
+    return NextResponse.json({ ...reunion, monRole });
   } catch (e) {
     console.error(e);
     return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
@@ -48,19 +51,44 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
 
 export async function PATCH(req: NextRequest, { params }: Ctx) {
   try {
-    const session = await getRIASession();
-    if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
+    const auth = await getCommissionMembreSession();
+    if (!auth) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
 
     const { id } = await params;
     const reunionId = parseInt(id);
+    const userId = parseInt(auth.session.user.id);
     const body = await req.json();
-    const { titre, dateHeure, lieu, ordreJour, statut, compteRendu, convoquer } = body;
+    const { titre, dateHeure, lieu, ordreJour, statut, convoquer } = body;
 
     const existante = await prisma.reunionCommissionRIA.findUnique({
       where: { id: reunionId },
-      select: { typeCommission: true },
+      select: { typeCommission: true, statut: true },
     });
     if (!existante) return NextResponse.json({ error: "Réunion introuvable" }, { status: 404 });
+
+    const skip = peutOutrepasserGating(auth.session.user.role) || auth.commission === null;
+    const role = skip ? null : await getRoleMembre(userId, existante.typeCommission);
+    if (!skip && !role) {
+      return NextResponse.json({ error: "Vous n'êtes pas membre de cette commission" }, { status: 403 });
+    }
+
+    const president = skip || (await isPresident(userId, existante.typeCommission));
+    const preparateur = skip || (role !== null && ROLES_PREPARATION_REUNION.includes(role));
+
+    // Convocation + changement de statut = pouvoirs du Président (CDC)
+    if ((convoquer === true || statut !== undefined) && !president) {
+      return NextResponse.json({ error: "Convocation et changement de statut réservés au Président" }, { status: 403 });
+    }
+    // Édition logistique (titre/date/lieu/ordre du jour) = préparateurs, et seulement en préparation
+    const editeLogistique = titre !== undefined || dateHeure !== undefined || lieu !== undefined || ordreJour !== undefined;
+    if (editeLogistique) {
+      if (!preparateur) {
+        return NextResponse.json({ error: "Préparation réservée au Président et au Rapporteur 1" }, { status: 403 });
+      }
+      if (existante.statut !== "PLANIFIEE") {
+        return NextResponse.json({ error: "La réunion ne peut être modifiée qu'au statut Planifiée" }, { status: 409 });
+      }
+    }
 
     const reunion = await prisma.$transaction(async (tx) => {
       const data: Record<string, unknown> = {
@@ -69,11 +97,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
         ...(lieu !== undefined ? { lieu } : {}),
         ...(ordreJour !== undefined ? { ordreJour } : {}),
         ...(statut !== undefined ? { statut: statut as StatutReunionCommissionRIA } : {}),
-        ...(compteRendu !== undefined ? { compteRendu } : {}),
       };
-
-      // Convocation (CDC) : marque l'envoi et matérialise la feuille de présence
-      // pour tous les membres actifs de la commission (rend la signature possible).
       if (convoquer === true) {
         data.convocationEnvoyee = true;
         data.dateConvocation = new Date();
@@ -103,23 +127,6 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
     });
 
     return NextResponse.json(reunion);
-  } catch (e) {
-    console.error(e);
-    return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
-  }
-}
-
-export async function DELETE(_req: NextRequest, { params }: Ctx) {
-  try {
-    const session = await getRIASession();
-    if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
-
-    const { id } = await params;
-    // Présences et compte rendu structuré sont supprimés en cascade ;
-    // les résolutions liées voient leur reunionId mis à null (relation optionnelle).
-    await prisma.reunionCommissionRIA.delete({ where: { id: parseInt(id) } });
-
-    return NextResponse.json({ success: true });
   } catch (e) {
     console.error(e);
     return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });

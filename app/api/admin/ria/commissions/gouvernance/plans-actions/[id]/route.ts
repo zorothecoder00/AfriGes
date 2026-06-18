@@ -20,7 +20,10 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
     if (priorite    !== undefined) data.priorite    = priorite as PrioriteActionRIA;
     if (statut      !== undefined) {
       data.statut = statut as StatutPlanActionCommRIA;
-      if (statut === "TERMINE") data.dateTermine = new Date();
+      if (statut === "TERMINE" || statut === "REALISE") {
+        data.dateTermine = new Date();
+        if (progression === undefined) data.progression = 100;
+      }
     }
     if (responsableId !== undefined) data.responsableId = responsableId ? Number(responsableId) : null;
     if (dateDebut     !== undefined) data.dateDebut     = dateDebut ? new Date(dateDebut) : null;

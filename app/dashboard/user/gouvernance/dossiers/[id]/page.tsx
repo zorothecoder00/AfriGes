@@ -50,9 +50,10 @@ const STATUT_META: Record<string, { label: string; color: string; icon: React.Re
   RECU:                { label: "Reçu",                color: "bg-indigo-100 text-indigo-700",   icon: <Inbox className="w-4 h-4" /> },
   EN_ANALYSE:          { label: "En analyse",          color: "bg-amber-100 text-amber-700",     icon: <Clock className="w-4 h-4" /> },
   EN_ATTENTE_DECISION: { label: "En attente décision", color: "bg-orange-100 text-orange-700",   icon: <Hourglass className="w-4 h-4" /> },
-  APPROUVE:            { label: "Approuvé",            color: "bg-emerald-100 text-emerald-700", icon: <CheckCircle2 className="w-4 h-4" /> },
+  APPROUVE:            { label: "Financement autorisé", color: "bg-emerald-100 text-emerald-700", icon: <CheckCircle2 className="w-4 h-4" /> },
   REJETE:              { label: "Rejeté",              color: "bg-rose-100 text-rose-700",       icon: <XCircle className="w-4 h-4" /> },
-  EXECUTE:             { label: "Exécuté",             color: "bg-teal-100 text-teal-700",       icon: <Archive className="w-4 h-4" /> },
+  EN_COURS_EXECUTION:  { label: "En cours d'exécution", color: "bg-cyan-100 text-cyan-700",      icon: <Wallet className="w-4 h-4" /> },
+  EXECUTE:             { label: "Clôturé",             color: "bg-teal-100 text-teal-700",       icon: <Archive className="w-4 h-4" /> },
 };
 const COMM_LABELS: Record<string, string> = {
   FINANCE: "Finance", OPERATIONS_TERRAIN: "Opérations", AUDIT: "Audit & Contrôle", OPTIMISATION: "Optimisation",
@@ -74,7 +75,8 @@ const ACTIONS_PAR_STATUT: Record<string, ActionDef[]> = {
     { action: "DEMANDER_AJUSTEMENT", label: "Demander un ajustement", needsComment: true },
     { action: "REJETER", label: "Rejeter", needsComment: true, isDanger: true },
   ],
-  APPROUVE: [{ action: "EXECUTER", label: "Exécuter (décaisser)" }],
+  APPROUVE: [{ action: "EXECUTER", label: "Décaisser & affecter les clients" }],
+  EN_COURS_EXECUTION: [{ action: "CLOTURER", label: "Clôturer le dossier" }],
 };
 
 function fmt(n: number | string | null | undefined) {

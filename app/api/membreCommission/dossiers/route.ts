@@ -63,14 +63,18 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Les commissions émettrice et réceptrice doivent être différentes" }, { status: 400 });
     }
 
-    // Un membre standard ne peut créer un dossier que pour une commission dont il est membre actif.
-    // (auth.commission === null → admin/RESPONSABLE_RIA, pas de restriction)
+    // Préparation d'un dossier (CDC) : réservée au Président / Rapporteurs de la
+    // commission émettrice. (auth.commission === null → admin/RESPONSABLE_RIA, pas de restriction)
     if (auth.commission !== null) {
-      const estMembre = await prisma.membreCommissionRIA.findFirst({
+      const membre = await prisma.membreCommissionRIA.findFirst({
         where: { userId, typeCommission: commissionEmettrice as TypeCommissionRIA, actif: true },
+        select: { role: true },
       });
-      if (!estMembre) {
+      if (!membre) {
         return NextResponse.json({ error: "Vous devez être membre actif de la commission émettrice" }, { status: 403 });
+      }
+      if (!["PRESIDENT", "RAPPORTEUR_1", "RAPPORTEUR_2"].includes(membre.role)) {
+        return NextResponse.json({ error: "Seuls le Président et les Rapporteurs peuvent préparer un dossier" }, { status: 403 });
       }
     }
 

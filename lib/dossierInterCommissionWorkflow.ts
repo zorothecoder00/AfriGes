@@ -1,4 +1,10 @@
-import type { Prisma, StatutDossierInterCommission, TypeCommissionRIA } from "@prisma/client";
+import type {
+  Prisma,
+  StatutDossierInterCommission,
+  TypeCommissionRIA,
+  RoleMembreCommissionRIA,
+  ClasseRisqueRIA,
+} from "@prisma/client";
 import { isPresident } from "@/lib/authCommissionRIA";
 import { ecritureFinancementRIA } from "@/lib/riaComptable";
 import type { ContenuDemandeFinancement } from "@/lib/riaAnalyseDossier";
@@ -21,7 +27,8 @@ export type DossierAction =
   | "APPROUVER"
   | "REJETER"
   | "DEMANDER_AJUSTEMENT"
-  | "EXECUTER";
+  | "EXECUTER"
+  | "CLOTURER";
 
 const TRANSITIONS: Record<DossierAction, StatutDossierInterCommission> = {
   TRANSMETTRE: "TRANSMIS",
@@ -32,15 +39,50 @@ const TRANSITIONS: Record<DossierAction, StatutDossierInterCommission> = {
   REJETER: "REJETE",
   // Retour à l'émettrice pour correction (Scénario 3) — pas un simple aller-retour TRANSMIS
   DEMANDER_AJUSTEMENT: "EN_PREPARATION",
-  EXECUTER: "EXECUTE",
+  // Décaissement + affectation client : le financement devient actif (Scénario 4)
+  EXECUTER: "EN_COURS_EXECUTION",
+  // Clôture du dossier une fois le cycle terminé
+  CLOTURER: "EXECUTE",
 };
 
-// Actions réservées au Président de la commission émettrice
+// Statuts source autorisés pour chaque action — garantit la séquence du CDC et
+// empêche, p.ex., d'approuver un dossier qui n'a pas été reçu/analysé.
+const PRECONDITIONS: Record<DossierAction, StatutDossierInterCommission[]> = {
+  TRANSMETTRE: ["EN_PREPARATION"],
+  VALIDER_RECEPTION: ["TRANSMIS"],
+  METTRE_EN_ANALYSE: ["RECU"],
+  METTRE_EN_ATTENTE: ["EN_ANALYSE"],
+  APPROUVER: ["EN_ANALYSE", "EN_ATTENTE_DECISION"],
+  REJETER: ["EN_ANALYSE", "EN_ATTENTE_DECISION"],
+  DEMANDER_AJUSTEMENT: ["EN_ANALYSE", "EN_ATTENTE_DECISION"],
+  EXECUTER: ["APPROUVE"],
+  CLOTURER: ["EN_COURS_EXECUTION"],
+};
+
+// ── Gating des rôles (cahier des charges) ─────────────────────────────────────
+// Seul le Président valide / transmet / décide ; les Rapporteurs préparent et
+// analysent mais ne valident jamais.
 const ACTIONS_PRESIDENT_EMETTRICE: DossierAction[] = ["TRANSMETTRE"];
-// Décisions réservées au Président de la commission réceptrice (Scénario 2 & 4)
-const ACTIONS_PRESIDENT_RECEPTRICE: DossierAction[] = ["APPROUVER", "REJETER", "DEMANDER_AJUSTEMENT", "EXECUTER"];
-// Étapes de traitement ouvertes à tout membre actif de la commission réceptrice
+const ACTIONS_PRESIDENT_RECEPTRICE: DossierAction[] = [
+  "APPROUVER", "REJETER", "DEMANDER_AJUSTEMENT", "EXECUTER", "CLOTURER",
+];
+// Étapes de traitement (réception, analyse) ouvertes à tout membre actif de la réceptrice
 const ACTIONS_MEMBRE_RECEPTRICE: DossierAction[] = ["VALIDER_RECEPTION", "METTRE_EN_ANALYSE", "METTRE_EN_ATTENTE"];
+
+// Postes habilités à préparer/rédiger un dossier (création + révision du contenu).
+// CDC : Rapporteur 1 (préparation), Rapporteur 2 (co-rédaction/vérification) ;
+// le Président de l'émettrice est inclus au titre de sa supervision.
+const ROLES_PREPARATION: RoleMembreCommissionRIA[] = ["PRESIDENT", "RAPPORTEUR_1", "RAPPORTEUR_2"];
+
+async function roleDansCommission(
+  tx: TX, userId: number, typeCommission: TypeCommissionRIA
+): Promise<RoleMembreCommissionRIA | null> {
+  const m = await tx.membreCommissionRIA.findUnique({
+    where: { typeCommission_userId: { typeCommission, userId } },
+    select: { role: true, actif: true },
+  });
+  return m?.actif ? m.role : null;
+}
 
 async function verifierDroitAction(
   tx: TX,
@@ -66,12 +108,37 @@ async function verifierDroitAction(
   }
 }
 
+// La préparation/révision du contenu est réservée aux préparateurs de l'émettrice.
+async function verifierDroitRevision(
+  tx: TX,
+  dossier: { commissionEmettrice: TypeCommissionRIA },
+  userId: number
+) {
+  const role = await roleDansCommission(tx, userId, dossier.commissionEmettrice);
+  if (!role || !ROLES_PREPARATION.includes(role)) {
+    throw new DossierWorkflowError(
+      "La préparation/révision du dossier est réservée au Président ou aux Rapporteurs de la commission émettrice",
+      403
+    );
+  }
+}
+
 function refFin(): string {
   return `FIN-${Date.now()}-${Math.floor(Math.random() * 9000) + 1000}`;
 }
 
+function mapClasseRisque(r?: string): ClasseRisqueRIA {
+  switch (r) {
+    case "FAIBLE": return "A";
+    case "MOYEN":  return "C";
+    case "ELEVE":  return "E";
+    default:       return "A";
+  }
+}
+
 // Scénario 4 — décaissement automatique : un OperationFinancementRIA par client,
-// décrément du capital disponible du portefeuille choisi, mouvement de fonds + écriture comptable.
+// création de l'affectation client → portefeuille si elle n'existe pas encore,
+// décrément du capital disponible, mouvement de fonds + écriture comptable.
 async function executerFinancement(
   tx: TX,
   params: { dossierId: number; reference: string; versionCourante: number; portefeuilleExecutionId: number; userId: number }
@@ -96,13 +163,33 @@ async function executerFinancement(
     );
   }
 
+  const capInvesti = Number(pf.capitalInvesti) || 0;
+
   for (const c of clients) {
     const montant = Number(c.montant || 0);
     if (montant <= 0) continue;
 
-    const affectationActive = await tx.affectationClientRIA.findFirst({
+    // Affectation client → portefeuille : on réutilise l'affectation active si
+    // elle existe, sinon on la crée (le financement n'est plus orphelin).
+    let affectationId = (await tx.affectationClientRIA.findFirst({
       where: { portefeuilleId: params.portefeuilleExecutionId, clientId: c.clientId, actif: true },
-    });
+      select: { id: true },
+    }))?.id ?? null;
+
+    if (!affectationId) {
+      const affectation = await tx.affectationClientRIA.create({
+        data: {
+          portefeuilleId: params.portefeuilleExecutionId,
+          clientId: c.clientId,
+          pourcentage: capInvesti > 0 ? (montant / capInvesti) * 100 : 0,
+          montantAlloue: montant,
+          classeRisque: mapClasseRisque(contenu.risqueEstime),
+          actif: true,
+          notes: `Affectation automatique — dossier ${params.reference}`,
+        },
+      });
+      affectationId = affectation.id;
+    }
 
     const fin = await tx.operationFinancementRIA.create({
       data: {
@@ -111,7 +198,7 @@ async function executerFinancement(
         clientId: c.clientId,
         montantFinance: montant,
         encours: montant,
-        affectationId: affectationActive?.id ?? null,
+        affectationId,
         notes: `Dossier inter-commission ${params.reference}`,
       },
     });
@@ -156,7 +243,8 @@ export interface AppliquerActionParams {
   titre?: string;
   description?: string;
   montantDemande?: number;
-  // true pour Admin/SuperAdmin/RESPONSABLE_RIA — court-circuite le gating Président/membre
+  // true pour Admin/SuperAdmin/RESPONSABLE_RIA — court-circuite le gating de rôle
+  // (mais PAS les préconditions de statut, qui garantissent l'intégrité du flux).
   skipGating?: boolean;
 }
 
@@ -166,6 +254,18 @@ export async function appliquerActionDossier(tx: TX, params: AppliquerActionPara
   const current = await tx.dossierInterCommission.findUnique({ where: { id: dossierId } });
   if (!current) throw new DossierWorkflowError("Dossier introuvable", 404);
 
+  // Préconditions de statut : appliquées à tous (intégrité du flux), même en skipGating.
+  if (action) {
+    const allowed = PRECONDITIONS[action];
+    if (allowed && !allowed.includes(current.statut)) {
+      throw new DossierWorkflowError(
+        `Action « ${action} » impossible depuis le statut « ${current.statut} »`,
+        409
+      );
+    }
+  }
+
+  // Gating de rôle (sauf SUPER_ADMIN / supervision)
   if (action && !params.skipGating) {
     await verifierDroitAction(tx, current, action, userId);
   }
@@ -187,6 +287,12 @@ export async function appliquerActionDossier(tx: TX, params: AppliquerActionPara
   if (params.montantDemande !== undefined) data.montantDemande = Number(params.montantDemande);
 
   if (params.contenuRevise !== undefined) {
+    // Le contenu n'est révisable qu'en préparation (brouillon), par un préparateur de l'émettrice.
+    if (current.statut !== "EN_PREPARATION") {
+      throw new DossierWorkflowError("Le dossier ne peut être révisé qu'en préparation (brouillon)", 409);
+    }
+    if (!params.skipGating) await verifierDroitRevision(tx, current, userId);
+
     const newVersion = (current.versionCourante ?? 1) + 1;
     data.versionCourante = newVersion;
     await tx.versionDossierIC.create({
@@ -205,7 +311,7 @@ export async function appliquerActionDossier(tx: TX, params: AppliquerActionPara
       data: {
         dossierId,
         auteurId: userId,
-        commission: current.commissionReceptrice,
+        commission: action === "TRANSMETTRE" ? current.commissionEmettrice : current.commissionReceptrice,
         type:
           action === "REJETER" ? "REJET"
           : action === "DEMANDER_AJUSTEMENT" ? "DEMANDE_AJUSTEMENT"
@@ -217,9 +323,6 @@ export async function appliquerActionDossier(tx: TX, params: AppliquerActionPara
   }
 
   if (action === "EXECUTER" && current.type === "DEMANDE_FINANCEMENT") {
-    if (current.statut !== "APPROUVE") {
-      throw new DossierWorkflowError("Le dossier doit être approuvé avant exécution", 400);
-    }
     const portefeuilleExecutionId = params.portefeuilleExecutionId ?? current.portefeuilleExecutionId;
     if (!portefeuilleExecutionId) {
       throw new DossierWorkflowError("Sélectionnez le portefeuille d'exécution avant de décaisser", 400);

@@ -11,7 +11,7 @@ export async function GET() {
 
     const [dossiersApprouves, financements, decaissements, recouvrements] = await Promise.all([
       prisma.dossierInterCommission.findMany({
-        where: { statut: { in: ["APPROUVE", "EXECUTE"] } },
+        where: { statut: { in: ["APPROUVE", "EN_COURS_EXECUTION", "EXECUTE"] } },
         select: {
           id: true, reference: true, titre: true, statut: true,
           montantApprouve: true, commissionEmettrice: true, commissionReceptrice: true,

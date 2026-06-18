@@ -38,10 +38,11 @@ interface CompteRendu {
 interface Reunion {
   id: number; titre: string; typeCommission: string; dateHeure: string;
   lieu: string | null; statut: string; ordreJour: string | null;
-  convocationEnvoyee: boolean; type: string;
+  convocationEnvoyee: boolean; dateConvocation: string | null; type: string;
   organisateur: { id: number; nom: string; prenom: string };
   presences: Presence[];
   resolutions: Resolution[];
+  plansAction: PlanAction[];
 }
 
 /* ─── Constantes ─── */
@@ -64,11 +65,17 @@ const STATUT_RES: Record<string, { label: string; color: string }> = {
   REJETEE:        { label: "Rejetée",        color: "bg-rose-100 text-rose-700" },
 };
 const STATUT_PLAN: Record<string, { label: string; color: string }> = {
-  A_FAIRE:   { label: "À faire",    color: "bg-slate-100 text-slate-600" },
-  EN_COURS:  { label: "En cours",   color: "bg-blue-100 text-blue-700" },
-  TERMINE:   { label: "Terminé",    color: "bg-emerald-100 text-emerald-700" },
-  ABANDONNE: { label: "Abandonné",  color: "bg-rose-100 text-rose-700" },
+  NON_DEMARRE: { label: "Non démarré", color: "bg-slate-100 text-slate-600" },
+  A_FAIRE:     { label: "Non démarré", color: "bg-slate-100 text-slate-600" },
+  EN_COURS:    { label: "En cours",    color: "bg-blue-100 text-blue-700" },
+  REALISE:     { label: "Réalisé",     color: "bg-emerald-100 text-emerald-700" },
+  TERMINE:     { label: "Réalisé",     color: "bg-emerald-100 text-emerald-700" },
+  EN_RETARD:   { label: "En retard",   color: "bg-rose-100 text-rose-700" },
+  ABANDONNE:   { label: "Abandonné",   color: "bg-slate-100 text-slate-400" },
 };
+// Statuts proposés comme boutons d'avancement (on n'affiche pas À_FAIRE/TERMINE
+// en doublon ni EN_RETARD qui est calculé sur l'échéance).
+const STATUT_PLAN_BOUTONS = ["NON_DEMARRE", "EN_COURS", "REALISE", "ABANDONNE"] as const;
 const PRIORITE_COLOR: Record<string, string> = {
   CRITIQUE: "text-rose-600",
   HAUTE:    "text-amber-600",
@@ -83,6 +90,12 @@ function OngletConvocation({ r, onRefresh }: { r: Reunion; onRefresh: () => void
   async function changerStatut(statut: string) {
     const res = await patcher({ statut }) as { id?: number; error?: string } | null;
     if (res?.id) { toast.success("Statut mis à jour"); onRefresh(); }
+    else toast.error(res?.error || "Erreur");
+  }
+
+  async function envoyerConvocation() {
+    const res = await patcher({ convoquer: true }) as { id?: number; error?: string } | null;
+    if (res?.id) { toast.success("Convocation envoyée — feuille de présence générée"); onRefresh(); }
     else toast.error(res?.error || "Erreur");
   }
 
@@ -128,6 +141,29 @@ function OngletConvocation({ r, onRefresh }: { r: Reunion; onRefresh: () => void
               <ClipboardList className="w-3.5 h-3.5" /> Ordre du jour
             </p>
             <p className="text-sm text-slate-700 whitespace-pre-line">{r.ordreJour}</p>
+          </div>
+        )}
+      </div>
+
+      {/* Convocation (pouvoir du Président) */}
+      <div className="bg-white border border-slate-200 rounded-xl p-5">
+        <p className="text-xs font-semibold text-slate-500 uppercase mb-3 flex items-center gap-1.5">
+          <Send className="w-3.5 h-3.5" /> Convocation
+        </p>
+        {r.convocationEnvoyee ? (
+          <div className="flex items-center gap-2 text-sm text-emerald-700">
+            <CheckCircle2 className="w-4 h-4" />
+            Convocation envoyée{r.dateConvocation ? ` le ${new Date(r.dateConvocation).toLocaleDateString("fr-FR")}` : ""} — feuille de présence générée.
+          </div>
+        ) : (
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <p className="text-sm text-slate-500">
+              Aucune convocation envoyée. L&apos;envoi génère la feuille de présence des membres (signature possible depuis leur portail).
+            </p>
+            <button onClick={envoyerConvocation} disabled={loading}
+              className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50">
+              <Send className="w-3.5 h-3.5" /> Envoyer la convocation
+            </button>
           </div>
         )}
       </div>
@@ -498,26 +534,30 @@ function OngletResolutions({ r, onRefresh }: { r: Reunion; onRefresh: () => void
 function OngletPlansAction({ r }: { r: Reunion }) {
   const [showForm, setShowForm] = useState(false);
   const [refresh, setRefresh] = useState(0);
+  // Tâches issues de cette réunion (CDC : création automatique de tâches après réunion)
   const { data, loading } = useApi<{ plans: PlanAction[] }>(
-    `/api/admin/ria/commissions/gouvernance/plans-actions?typeCommission=${r.typeCommission}&_r=${refresh}`
+    `/api/admin/ria/commissions/gouvernance/plans-actions?reunionId=${r.id}&_r=${refresh}`
   );
   const { mutate: creer, loading: creating } = useMutation(
     `/api/admin/ria/commissions/gouvernance/plans-actions`, "POST"
   );
 
-  const [form, setForm] = useState({ titre: "", description: "", priorite: "MOYENNE", dateEcheance: "", progression: "0" });
+  const membresAssignables = r.presences.map(p => p.membre.user);
+  const [form, setForm] = useState({ titre: "", description: "", priorite: "MOYENNE", responsableId: "", dateEcheance: "", progression: "0" });
 
   async function soumettre(e: React.FormEvent) {
     e.preventDefault();
     const res = await creer({
       typeCommission: r.typeCommission,
+      reunionId: r.id,
       titre: form.titre,
       description: form.description,
       priorite: form.priorite,
+      responsableId: form.responsableId || null,
       dateEcheance: form.dateEcheance || null,
       progression: Number(form.progression),
     }) as { id?: number; error?: string } | null;
-    if (res?.id) { toast.success("Plan d\'action créé"); setShowForm(false); setRefresh(x => x + 1); setForm({ titre: "", description: "", priorite: "MOYENNE", dateEcheance: "", progression: "0" }); }
+    if (res?.id) { toast.success("Tâche créée"); setShowForm(false); setRefresh(x => x + 1); setForm({ titre: "", description: "", priorite: "MOYENNE", responsableId: "", dateEcheance: "", progression: "0" }); }
     else toast.error(res?.error || "Erreur");
   }
 
@@ -538,28 +578,29 @@ function OngletPlansAction({ r }: { r: Reunion }) {
   }
 
   const plans = data?.plans ?? [];
-  const termines = plans.filter(p => p.statut === "TERMINE").length;
-  const enRetard = plans.filter(p => p.dateEcheance && new Date(p.dateEcheance) < new Date() && p.statut !== "TERMINE" && p.statut !== "ABANDONNE").length;
+  const estFini = (s: string) => ["TERMINE", "REALISE", "ABANDONNE"].includes(s);
+  const termines = plans.filter(p => p.statut === "TERMINE" || p.statut === "REALISE").length;
+  const enRetard = plans.filter(p => p.dateEcheance && new Date(p.dateEcheance) < new Date() && !estFini(p.statut)).length;
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div className="flex gap-3 text-sm text-slate-500">
-          <span>{plans.length} plan(s)</span>
-          <span className="text-emerald-600">{termines} réalisé(s)</span>
+          <span>{plans.length} tâche(s) issue(s) de la réunion</span>
+          <span className="text-emerald-600">{termines} réalisée(s)</span>
           {enRetard > 0 && <span className="text-rose-600">{enRetard} en retard</span>}
         </div>
         <button onClick={() => setShowForm(s => !s)}
           className="flex items-center gap-1.5 px-3 py-1.5 bg-violet-600 text-white text-sm rounded-lg hover:bg-violet-700">
-          <Plus className="w-3.5 h-3.5" /> Nouveau plan d&apos;action
+          <Plus className="w-3.5 h-3.5" /> Nouvelle tâche
         </button>
       </div>
 
       {showForm && (
         <form onSubmit={soumettre} className="bg-white border border-violet-200 rounded-xl p-5 space-y-4">
-          <h3 className="font-semibold text-slate-800 text-sm">Nouveau plan d&apos;action</h3>
+          <h3 className="font-semibold text-slate-800 text-sm">Nouvelle tâche issue de la réunion</h3>
           <div>
-            <label className="block text-xs font-medium text-slate-600 mb-1">Titre *</label>
+            <label className="block text-xs font-medium text-slate-600 mb-1">Action *</label>
             <input value={form.titre} onChange={e => setForm(f => ({ ...f, titre: e.target.value }))}
               required className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-300"
               placeholder='Ex. Réduire les impayés de 15%' />
@@ -569,7 +610,15 @@ function OngletPlansAction({ r }: { r: Reunion }) {
             <textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
               rows={2} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-300 resize-none" />
           </div>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Responsable</label>
+              <select value={form.responsableId} onChange={e => setForm(f => ({ ...f, responsableId: e.target.value }))}
+                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none">
+                <option value="">— Non assigné —</option>
+                {membresAssignables.map(u => <option key={u.id} value={u.id}>{u.prenom} {u.nom}</option>)}
+              </select>
+            </div>
             <div>
               <label className="block text-xs font-medium text-slate-600 mb-1">Priorité</label>
               <select value={form.priorite} onChange={e => setForm(f => ({ ...f, priorite: e.target.value }))}
@@ -607,14 +656,14 @@ function OngletPlansAction({ r }: { r: Reunion }) {
       ) : plans.length === 0 ? (
         <div className="flex flex-col items-center justify-center h-32 gap-2 bg-white border border-slate-200 rounded-xl">
           <ListChecks className="w-8 h-8 text-slate-200" />
-          <p className="text-slate-400 text-sm">Aucun plan d&apos;action défini</p>
+          <p className="text-slate-400 text-sm">Aucune tâche définie pour cette réunion</p>
         </div>
       ) : (
         <div className="space-y-3">
           {plans.map(p => {
-            const s = STATUT_PLAN[p.statut] ?? { label: p.statut, color: "bg-slate-100 text-slate-600" };
             const pct = Math.min(100, Math.max(0, Number(p.progression ?? 0)));
-            const isLate = p.dateEcheance && new Date(p.dateEcheance) < new Date() && p.statut !== "TERMINE";
+            const isLate = !!p.dateEcheance && new Date(p.dateEcheance) < new Date() && !estFini(p.statut);
+            const s = isLate ? STATUT_PLAN.EN_RETARD : (STATUT_PLAN[p.statut] ?? { label: p.statut, color: "bg-slate-100 text-slate-600" });
             return (
               <div key={p.id} className={`bg-white border rounded-xl p-5 ${isLate ? "border-rose-200" : "border-slate-200"}`}>
                 <div className="flex items-start justify-between gap-3 mb-3">
@@ -651,15 +700,18 @@ function OngletPlansAction({ r }: { r: Reunion }) {
 
                 {/* Contrôles */}
                 <div className="flex items-center gap-2 flex-wrap">
-                  {Object.entries(STATUT_PLAN).map(([val, cfg]) => (
-                    <button key={val} onClick={() => changerStatut(p.id, val)}
-                      disabled={p.statut === val}
-                      className={`text-xs px-2.5 py-1 rounded-lg border font-medium transition-colors ${
-                        p.statut === val ? `${cfg.color} border-current cursor-default` : "border-slate-200 text-slate-500 hover:bg-slate-50"
-                      }`}>
-                      {cfg.label}
-                    </button>
-                  ))}
+                  {STATUT_PLAN_BOUTONS.map(val => {
+                    const cfg = STATUT_PLAN[val];
+                    return (
+                      <button key={val} onClick={() => changerStatut(p.id, val)}
+                        disabled={p.statut === val}
+                        className={`text-xs px-2.5 py-1 rounded-lg border font-medium transition-colors ${
+                          p.statut === val ? `${cfg.color} border-current cursor-default` : "border-slate-200 text-slate-500 hover:bg-slate-50"
+                        }`}>
+                        {cfg.label}
+                      </button>
+                    );
+                  })}
                   <div className="ml-auto flex items-center gap-1.5">
                     <span className="text-xs text-slate-400">Avancement :</span>
                     <input type="number" min={0} max={100} defaultValue={pct}
@@ -746,6 +798,11 @@ export default function ReunionDetailPage() {
                 {t.id === "resolutions" && (
                   <span className="ml-1 text-xs bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded-full">
                     {reunion.resolutions.length}
+                  </span>
+                )}
+                {t.id === "plans" && reunion.plansAction.length > 0 && (
+                  <span className="ml-1 text-xs bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded-full">
+                    {reunion.plansAction.length}
                   </span>
                 )}
               </button>

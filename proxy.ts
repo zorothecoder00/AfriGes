@@ -110,8 +110,17 @@ export async function proxy(request: NextRequest) {
       return NextResponse.next()
     }
 
-    // Pages communes accessibles à tous les gestionnaires
-    const commonPaths = ["/dashboard/user/notifications"];
+    // Pages communes accessibles à tous les gestionnaires.
+    // Les portails RIA (investisseur & gouvernance) sont ouverts à n'importe quel
+    // gestionnaire à double casquette : un caissier/comptable… peut aussi détenir
+    // un profil investisseur ou siéger dans une commission. L'autorisation réelle
+    // est appliquée en aval (authInvestisseurRIA exige un profilRIA, authCommissionRIA
+    // un siège actif) — sans accès, les pages/API renvoient simplement vide.
+    const commonPaths = [
+      "/dashboard/user/notifications",
+      "/dashboard/user/investisseurs",
+      "/dashboard/user/gouvernance",
+    ];
     const isCommonPath = commonPaths.some(p => pathname.startsWith(p));
 
     // Si le user tente d'accéder à un dashboard qui n'est pas le sien → redirection

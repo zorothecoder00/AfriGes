@@ -4588,6 +4588,7 @@ model ReunionCommissionRIA {
   organisateur   User                       @relation("ReunionsOrganisees", fields: [organisateurId], references: [id])
   presences      PresenceReunionRIA[]
   resolutions    ResolutionCommRIA[]
+  plansAction    PlanActionCommRIA[]        // tâches issues de la réunion (CDC)
   compteRenduStr CompteRenduReunionRIA?     // compte rendu structuré
 
   createdAt      DateTime                   @default(now())
@@ -4645,6 +4646,7 @@ model ResolutionCommRIA {
 model PlanActionCommRIA {
   id             Int                     @id @default(autoincrement())
   resolutionId   Int?
+  reunionId      Int?                    // réunion d'origine — tâche créée à l'issue de la réunion (CDC)
   typeCommission TypeCommissionRIA
   titre          String
   description    String?
@@ -4658,6 +4660,7 @@ model PlanActionCommRIA {
   notes          String?
 
   resolution     ResolutionCommRIA?      @relation(fields: [resolutionId], references: [id])
+  reunion        ReunionCommissionRIA?   @relation(fields: [reunionId], references: [id])
   responsable    User?                   @relation("PlansActionResponsable", fields: [responsableId], references: [id])
 
   createdAt      DateTime                @default(now())
@@ -4666,6 +4669,7 @@ model PlanActionCommRIA {
   @@index([typeCommission])
   @@index([statut])
   @@index([priorite])
+  @@index([reunionId])
 }
 
 // ── Gouvernance RIA — Nouveaux enums (CDC) ────────────────────────────────────
@@ -4676,9 +4680,10 @@ enum StatutDossierInterCommission {
   RECU
   EN_ANALYSE
   EN_ATTENTE_DECISION
-  APPROUVE
+  APPROUVE            // « Financement autorisé » — décision du Président réceptrice
   REJETE
-  EXECUTE
+  EN_COURS_EXECUTION  // décaissé + clients affectés, financement actif
+  EXECUTE             // dossier clôturé/terminé
 }
 
 enum TypeDossierIC {

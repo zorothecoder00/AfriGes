@@ -74,42 +74,46 @@ les stocks doivent avoir des prix d'achat et de vente par date ( par semaine , p
 
 
 Permettre aux caissiers dashboard/user/caissiers de pouvoir faire aussi le recouvrement des crédits (creditclient)
-   
 
- Je veux que tu m'expliques en détails le workflow  total de la gouvernance
-  RIA ; A quoi ça sert , quelles sont les actions , les post , les get ,
-  explique moi chaque point( tous les modules , toutes les vues ) de la
-  gouvernance RIA implémenté sur l'app. La structure des commissions , la
-  mission de chaque commission( sur l'app), LE WORKflow entre commissions avec
-  les 4 scénarioset le rôle de chaque commission ( pour tout tu peux montres
-  comment gérer ça sur l'app)
-
- Explique moi le fonctionnement des onglets CARTOGRAPHIE DES PROCESSUS , GOULOTS D'ETRANGLEMENT, SUGGESTIONS D'AMELIORATIONS, GESTION DES INNOVATIONS , PRODUCTIVITE, RAPPORT RECU ET ANALYSES D'OPTIMISATION de la page dashboard/admin/ria/gouvernance/commissions/optimisation (qui est identique à celle du dashboard/user/responsablesRIA d'ailleurs) et surtout dis moi pourquoi ces onglets sont très lents à se charger quand on clique dessus ; et même quand ça vient , les données aussi ont du mal à s'actualiser
+Explique moi le fonctionnement des onglets CARTOGRAPHIE DES PROCESSUS , GOULOTS D'ETRANGLEMENT, SUGGESTIONS D'AMELIORATIONS, GESTION DES INNOVATIONS , PRODUCTIVITE, RAPPORT RECU ET ANALYSES D'OPTIMISATION de la page dashboard/admin/ria/gouvernance/commissions/optimisation (qui est identique à celle du dashboard/user/responsablesRIA d'ailleurs) et surtout dis moi pourquoi ces onglets sont très lents à se charger quand on clique dessus ; et même quand ça vient , les données aussi ont du mal à s'actualiser
    
 Permettre au caissier et au responsable crédit de pouvoir aussi encaisser les crédits clients
 
 Toutes les pages de commissions par type ont des onglet trop lents ( bon j'ai déjà corrigé pour la commission Optimisation qui utilisait une api trop lourde et des données non bornées)
 
+Tu es sûr que les affichages et les actions sont bien différentes et bien implémentées pour chaque rôle de membre de commissions ( président , rapporteur 1 et rapporteur 2 comme l'indique le cahier de charge Président
+Pouvoirs :
+Convocation
+Validation des rapports
+Validation des recommandations
+Validation des résolutions
+Attribution des tâches
+Signature électronique
+Rapporteur 1
+Pouvoirs :
+Préparation des dossiers
+Analyse
+Rédaction des rapports
+Préparation des réunions
+Rapporteur 2
+Pouvoirs :
+Vérification des analyses
+Contrôle documentaire
+Co-rédaction des rapports
+Suivi des actions
+) sur les dashboards de l'admin , chez le responsablesRIA et chez les membres gestionnaires ???
 
-Je n'arrive pas à accéder sur les portails investisseur et gouvernance RIA sur mes dashboard/user/..... qui sont des gestionnaires mais aussi ont soit un profil investisseur , soit membre d'une commission.
 
-Maintenant chez l'admin ou superadmin (bon je crois que ça ne concerne que l'admin), comment on fait pour lire et faire les actions de la commission dont il est membre ?? Parce que là je vois qu'il peut accéder à toutes les commissions sans filtre et ce n'est même pas possible de savoir à quelles commissions il appartient 
+Maintenant chez l'admin ou superadmin (bon je crois que ça ne concerne que l'admin), comment on fait pour lire et faire les actions de la commission dont il est membre ?? Parce que là je vois qu'il peut accéder à toutes les commissions sans filtre et ce n'est même pas possible de savoir à quelles commissions il appartient
 
-Je veux mieux comprendre le processus de fonctionnement : comment la Commissions Opérations fait la Demande de Financement ( vérifie si les infos sont envoyées Référence dossier
-Date
-Région
-Agence
-Responsable demandeur
-Nombre de clients
-Liste des clients
-Produits concernés
-Quantités
-Coût d'achat
-Prix de revente
-Marge prévisionnelle
-Durée du cycle
-Risque estimé
-Retour sur investissement attendu
-Investisseurs concernés
-Pièces jointes
-) avec statut brouillon et statut Transmis à la commission finance après validation du Président de la COmmission Opérations , comment la Commission Finance reçoit la demande et la traite ( refus ou acceptation, demande d'ajustements ), comment ça repart chez la commission Opérations qui modifie puis renvoie et comment la Commission finance valide définitivement ( avec statut Financement autorisé ) avec décaissement et affectation client (puis le dossier passe en cours d'excécution)
+
+
+Aussi pour le moment on a oublié de gérer les utilisateurs qui seront strictement des membres de commission ( président , 1er rapporteur et 2ieme rapporteur) . Ils auront aussi un dashboard(avec mot de passe , identifiant et tout) avec l'espace de la commission dont ils sont membres uniquement avec toutes les actions de leur rôle de membre 
+
+PERMETTRE de modifier un retrait ou un dépôt des investisseurs
+
+donner la main à chaque président de commission aussi de pouvoir créer et gérer les membres de sa commission
+
+Comment accéder à gouvernance/dossiers  pour les envois de dossiers ( chez les admin/superadmin et chez les memmbres de commissions président et les deux rapporteurs )de financement de commission opération , puis du côté de commission finances , où et comment y répondre ansi de suite ??? Montre moi les chemins et façon de faire tout ça dans mon app.
+
+Êxplique moi comment fonctionne la réunion , la convocation et les présences entre président( superadmin aussi évidemment) et membres d'une commission 
