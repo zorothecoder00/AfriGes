@@ -112,7 +112,7 @@ export default function ResolutionDetailPage() {
     <div className="p-6 space-y-6 max-w-4xl mx-auto">
       {/* Breadcrumb */}
       <div className="flex items-center gap-2 text-sm text-slate-500">
-        <button onClick={() => router.push("/dashboard/admin/ria/gouvernance/resolutions")}
+        <button onClick={() => router.push("/dashboard/user/responsablesRIA/gouvernance/resolutions")}
           className="flex items-center gap-1 hover:text-emerald-600">
           <ChevronLeft className="w-4 h-4" /> Résolutions
         </button>

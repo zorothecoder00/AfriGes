@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { use, useState } from "react";
 import { useApi } from "@/hooks/useApi";
@@ -41,6 +41,8 @@ interface Reunion {
   titre: string;
   dateHeure: string;
   statut: string;
+  lieu: string | null;
+  ordreJour: string | null;
   _count: { presences: number; resolutions: number };
 }
 
@@ -51,6 +53,10 @@ interface Resolution {
   statut: string;
   priorite: string;
   dateAdoption: string | null;
+  description: string | null;
+  dateEcheance: string | null;
+  responsableId: number | null;
+  reunionId: number | null;
 }
 
 interface PlanAction {
@@ -61,6 +67,12 @@ interface PlanAction {
   dateEcheance: string | null;
   enRetard?: boolean;
   responsable: { nom: string; prenom: string } | null;
+  description: string | null;
+  priorite: string;
+  responsableId: number | null;
+  resolutionId: number | null;
+  dateDebut: string | null;
+  notes: string | null;
 }
 
 interface Observation {
@@ -90,13 +102,51 @@ const TABS = [
 
 const STATUTS_REUNION: Record<string, string> = {
   PLANIFIEE: "bg-blue-100 text-blue-700", EN_COURS: "bg-emerald-100 text-emerald-700",
-  TERMINEE: "bg-slate-100 text-slate-600", ANNULEE: "bg-rose-100 text-rose-700",
+  TENUE: "bg-slate-100 text-slate-600", ANNULEE: "bg-rose-100 text-rose-700",
+  REPORTEE: "bg-amber-100 text-amber-700",
 };
 const STATUTS_RESOLUTION: Record<string, string> = {
+  EN_ATTENTE: "bg-slate-100 text-slate-600", APPROUVEE: "bg-emerald-100 text-emerald-700",
+  EN_APPLICATION: "bg-blue-100 text-blue-700", APPLIQUEE: "bg-teal-100 text-teal-700",
+  REJETEE: "bg-rose-100 text-rose-700",
+  // Variantes CDC (lecture seule pour rétro-compatibilité)
   EN_PREPARATION: "bg-slate-100 text-slate-600", SOUMISE: "bg-blue-100 text-blue-700",
-  ADOPTEE: "bg-emerald-100 text-emerald-700", REJETEE: "bg-rose-100 text-rose-700",
-  EXECUTEE: "bg-teal-100 text-teal-700",
+  ADOPTEE: "bg-emerald-100 text-emerald-700", EXECUTEE: "bg-teal-100 text-teal-700",
 };
+const STATUTS_PLAN: Record<string, string> = {
+  A_FAIRE: "bg-slate-100 text-slate-600", EN_COURS: "bg-blue-100 text-blue-700",
+  TERMINE: "bg-emerald-100 text-emerald-700", ABANDONNE: "bg-rose-100 text-rose-700",
+};
+
+// Options des selects (édition)
+const REUNION_STATUT_OPTS: [string, string][] = [
+  ["PLANIFIEE", "Planifiée"], ["EN_COURS", "En cours"], ["TENUE", "Tenue"],
+  ["ANNULEE", "Annulée"], ["REPORTEE", "Reportée"],
+];
+const RESOLUTION_STATUT_OPTS: [string, string][] = [
+  ["EN_ATTENTE", "En attente"], ["APPROUVEE", "Approuvée"], ["EN_APPLICATION", "En application"],
+  ["APPLIQUEE", "Appliquée"], ["REJETEE", "Rejetée"],
+];
+const PLAN_STATUT_OPTS: [string, string][] = [
+  ["A_FAIRE", "À faire"], ["EN_COURS", "En cours"], ["TERMINE", "Terminé"], ["ABANDONNE", "Abandonné"],
+];
+const PRIORITE_OPTS: [string, string][] = [
+  ["CRITIQUE", "Critique"], ["HAUTE", "Haute"], ["MOYENNE", "Moyenne"], ["BASSE", "Basse"],
+];
+
+// Helpers de formatage pour les inputs date / datetime-local
+function toLocalInput(iso?: string | null) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
+  return local.toISOString().slice(0, 16);
+}
+function toDateInput(iso?: string | null) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
+  return local.toISOString().slice(0, 10);
+}
 
 function MembreRow({ m, onDone }: { m: Membre; onDone: () => void }) {
   const [editing, setEditing] = useState(false);
@@ -182,6 +232,7 @@ function AddMembreModal({ typeCommission, onClose, onDone }: {
   const [role, setRole] = useState<string>("RAPPORTEUR_2");
   const { mutate, loading } = useMutation("/api/admin/ria/commissions/gouvernance/membres", "POST");
 
+  // Recherche d'utilisateurs par nom / prénom / email (min. 2 caractères).
   const { data: results, loading: searching } = useApi<{ data: UserLite[] }>(
     !selected && search.trim().length >= 2
       ? `/api/admin/membres?search=${encodeURIComponent(search.trim())}&limit=8`
@@ -341,11 +392,339 @@ function AddObservationModal({ typeCommission, onClose, onDone }: {
   );
 }
 
+// Bouton de suppression réutilisable (DELETE + confirmation)
+function DeleteButton({ url, label, onDone }: { url: string; label: string; onDone: () => void }) {
+  const { mutate, loading } = useMutation(url, "DELETE");
+  async function del() {
+    if (!window.confirm(`Supprimer « ${label} » ? Cette action est irréversible.`)) return;
+    const res = await mutate({}) as { success?: boolean; error?: string } | null;
+    if (res?.success) { toast.success("Supprimé"); onDone(); }
+    else toast.error(res?.error || "Erreur");
+  }
+  return (
+    <button onClick={del} disabled={loading} title="Supprimer"
+      className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded disabled:opacity-50">
+      <Trash2 className="w-3.5 h-3.5" />
+    </button>
+  );
+}
+
+// ── Modal Réunion (création / édition) ──────────────────────────────────────────
+function ReunionModal({ typeEnum, initial, onClose, onDone }: {
+  typeEnum: string; initial: Reunion | null; onClose: () => void; onDone: () => void;
+}) {
+  const isEdit = !!initial;
+  const [form, setForm] = useState({
+    titre: initial?.titre ?? "",
+    dateHeure: toLocalInput(initial?.dateHeure),
+    lieu: initial?.lieu ?? "",
+    ordreJour: initial?.ordreJour ?? "",
+    statut: initial?.statut ?? "PLANIFIEE",
+  });
+  const base = "/api/admin/ria/commissions/gouvernance/reunions";
+  const { mutate, loading } = useMutation(isEdit ? `${base}/${initial!.id}` : base, isEdit ? "PATCH" : "POST");
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    const payload = isEdit
+      ? { titre: form.titre, dateHeure: form.dateHeure, lieu: form.lieu, ordreJour: form.ordreJour, statut: form.statut }
+      : { typeCommission: typeEnum, titre: form.titre, dateHeure: form.dateHeure, lieu: form.lieu, ordreJour: form.ordreJour };
+    const res = await mutate(payload) as { id?: number; error?: string } | null;
+    if (res?.id) { toast.success(isEdit ? "Réunion modifiée" : "Réunion créée"); onDone(); }
+    else toast.error(res?.error || "Erreur");
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg">
+        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+          <h2 className="font-semibold text-slate-800 flex items-center gap-2">
+            <Calendar className="w-4 h-4 text-blue-500" /> {isEdit ? "Modifier la réunion" : "Planifier une réunion"}
+          </h2>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 text-xl leading-none">&times;</button>
+        </div>
+        <form onSubmit={submit} className="p-6 space-y-4">
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-1">Titre *</label>
+            <input value={form.titre} onChange={e => setForm(f => ({ ...f, titre: e.target.value }))}
+              required className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+              placeholder="Ex. Réunion mensuelle" />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Date & heure *</label>
+              <input type="datetime-local" value={form.dateHeure} onChange={e => setForm(f => ({ ...f, dateHeure: e.target.value }))}
+                required className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Lieu</label>
+              <input value={form.lieu} onChange={e => setForm(f => ({ ...f, lieu: e.target.value }))}
+                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                placeholder="Salle de réunion" />
+            </div>
+          </div>
+          {isEdit && (
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Statut</label>
+              <select value={form.statut} onChange={e => setForm(f => ({ ...f, statut: e.target.value }))}
+                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
+                {REUNION_STATUT_OPTS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+              </select>
+            </div>
+          )}
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-1">Ordre du jour</label>
+            <textarea value={form.ordreJour} onChange={e => setForm(f => ({ ...f, ordreJour: e.target.value }))}
+              rows={3} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none"
+              placeholder="Points à traiter..." />
+          </div>
+          <div className="flex justify-end gap-3 pt-2">
+            <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 rounded-lg">Annuler</button>
+            <button type="submit" disabled={loading}
+              className="px-5 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50">
+              {loading ? "Enregistrement..." : isEdit ? "Enregistrer" : "Créer"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ── Modal Résolution (création / édition) ───────────────────────────────────────
+function ResolutionModal({ typeEnum, initial, membres, reunions, onClose, onDone }: {
+  typeEnum: string; initial: Resolution | null; membres: Membre[]; reunions: Reunion[];
+  onClose: () => void; onDone: () => void;
+}) {
+  const isEdit = !!initial;
+  const [form, setForm] = useState({
+    titre: initial?.titre ?? "",
+    description: initial?.description ?? "",
+    dateEcheance: toDateInput(initial?.dateEcheance),
+    responsableId: initial?.responsableId ? String(initial.responsableId) : "",
+    reunionId: initial?.reunionId ? String(initial.reunionId) : "",
+    statut: initial?.statut ?? "EN_ATTENTE",
+  });
+  const base = "/api/admin/ria/commissions/gouvernance/resolutions";
+  const { mutate, loading } = useMutation(isEdit ? `${base}/${initial!.id}` : base, isEdit ? "PATCH" : "POST");
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    const payload = isEdit
+      ? { titre: form.titre, description: form.description, dateEcheance: form.dateEcheance || null,
+          responsableId: form.responsableId || null, statut: form.statut }
+      : { typeCommission: typeEnum, titre: form.titre, description: form.description,
+          dateEcheance: form.dateEcheance || null, responsableId: form.responsableId || null,
+          reunionId: form.reunionId || null };
+    const res = await mutate(payload) as { id?: number; error?: string } | null;
+    if (res?.id) { toast.success(isEdit ? "Résolution modifiée" : "Résolution créée"); onDone(); }
+    else toast.error(res?.error || "Erreur");
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+          <h2 className="font-semibold text-slate-800 flex items-center gap-2">
+            <Gavel className="w-4 h-4 text-emerald-500" /> {isEdit ? "Modifier la résolution" : "Nouvelle résolution"}
+          </h2>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 text-xl leading-none">&times;</button>
+        </div>
+        <form onSubmit={submit} className="p-6 space-y-4">
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-1">Titre *</label>
+            <input value={form.titre} onChange={e => setForm(f => ({ ...f, titre: e.target.value }))}
+              required className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400"
+              placeholder="Intitulé de la résolution" />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-1">Description</label>
+            <textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
+              rows={3} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 resize-none"
+              placeholder="Contexte et détails..." />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Date d&apos;échéance</label>
+              <input type="date" value={form.dateEcheance} onChange={e => setForm(f => ({ ...f, dateEcheance: e.target.value }))}
+                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Responsable</label>
+              <select value={form.responsableId} onChange={e => setForm(f => ({ ...f, responsableId: e.target.value }))}
+                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400">
+                <option value="">—</option>
+                {membres.filter(m => m.actif).map(m => (
+                  <option key={m.user.id} value={m.user.id}>{m.user.prenom} {m.user.nom}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+          {isEdit ? (
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Statut</label>
+              <select value={form.statut} onChange={e => setForm(f => ({ ...f, statut: e.target.value }))}
+                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400">
+                {RESOLUTION_STATUT_OPTS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+              </select>
+            </div>
+          ) : (
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Réunion liée (optionnel)</label>
+              <select value={form.reunionId} onChange={e => setForm(f => ({ ...f, reunionId: e.target.value }))}
+                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400">
+                <option value="">—</option>
+                {reunions.map(r => <option key={r.id} value={r.id}>{r.titre}</option>)}
+              </select>
+            </div>
+          )}
+          <div className="flex justify-end gap-3 pt-2">
+            <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 rounded-lg">Annuler</button>
+            <button type="submit" disabled={loading}
+              className="px-5 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 disabled:opacity-50">
+              {loading ? "Enregistrement..." : isEdit ? "Enregistrer" : "Créer"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ── Modal Plan d'action (création / édition) ────────────────────────────────────
+function PlanModal({ typeEnum, initial, membres, resolutions, onClose, onDone }: {
+  typeEnum: string; initial: PlanAction | null; membres: Membre[]; resolutions: Resolution[];
+  onClose: () => void; onDone: () => void;
+}) {
+  const isEdit = !!initial;
+  const [form, setForm] = useState({
+    titre: initial?.titre ?? "",
+    description: initial?.description ?? "",
+    priorite: initial?.priorite ?? "MOYENNE",
+    dateDebut: toDateInput(initial?.dateDebut),
+    dateEcheance: toDateInput(initial?.dateEcheance),
+    responsableId: initial?.responsableId ? String(initial.responsableId) : "",
+    resolutionId: initial?.resolutionId ? String(initial.resolutionId) : "",
+    statut: initial?.statut ?? "A_FAIRE",
+    progression: initial?.progression ?? 0,
+  });
+  const base = "/api/admin/ria/commissions/gouvernance/plans-actions";
+  const { mutate, loading } = useMutation(isEdit ? `${base}/${initial!.id}` : base, isEdit ? "PATCH" : "POST");
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    const payload = isEdit
+      ? { titre: form.titre, description: form.description, priorite: form.priorite,
+          dateDebut: form.dateDebut || null, dateEcheance: form.dateEcheance || null,
+          responsableId: form.responsableId || null, statut: form.statut, progression: form.progression }
+      : { typeCommission: typeEnum, titre: form.titre, description: form.description, priorite: form.priorite,
+          dateDebut: form.dateDebut || null, dateEcheance: form.dateEcheance || null,
+          responsableId: form.responsableId || null, resolutionId: form.resolutionId || null };
+    const res = await mutate(payload) as { id?: number; error?: string } | null;
+    if (res?.id) { toast.success(isEdit ? "Plan modifié" : "Plan créé"); onDone(); }
+    else toast.error(res?.error || "Erreur");
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+          <h2 className="font-semibold text-slate-800 flex items-center gap-2">
+            <ListChecks className="w-4 h-4 text-teal-500" /> {isEdit ? "Modifier le plan d'action" : "Nouveau plan d'action"}
+          </h2>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 text-xl leading-none">&times;</button>
+        </div>
+        <form onSubmit={submit} className="p-6 space-y-4">
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-1">Titre *</label>
+            <input value={form.titre} onChange={e => setForm(f => ({ ...f, titre: e.target.value }))}
+              required className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400"
+              placeholder="Intitulé de l'action" />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-1">Description</label>
+            <textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
+              rows={2} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400 resize-none"
+              placeholder="Détails de l'action..." />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Priorité</label>
+              <select value={form.priorite} onChange={e => setForm(f => ({ ...f, priorite: e.target.value }))}
+                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400">
+                {PRIORITE_OPTS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Responsable</label>
+              <select value={form.responsableId} onChange={e => setForm(f => ({ ...f, responsableId: e.target.value }))}
+                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400">
+                <option value="">—</option>
+                {membres.filter(m => m.actif).map(m => (
+                  <option key={m.user.id} value={m.user.id}>{m.user.prenom} {m.user.nom}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Date de début</label>
+              <input type="date" value={form.dateDebut} onChange={e => setForm(f => ({ ...f, dateDebut: e.target.value }))}
+                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Échéance</label>
+              <input type="date" value={form.dateEcheance} onChange={e => setForm(f => ({ ...f, dateEcheance: e.target.value }))}
+                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400" />
+            </div>
+          </div>
+          {isEdit ? (
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Statut</label>
+                <select value={form.statut} onChange={e => setForm(f => ({ ...f, statut: e.target.value }))}
+                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400">
+                  {PLAN_STATUT_OPTS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Progression ({form.progression}%)</label>
+                <input type="range" min={0} max={100} step={5} value={form.progression}
+                  onChange={e => setForm(f => ({ ...f, progression: Number(e.target.value) }))}
+                  className="w-full accent-teal-600 mt-2" />
+              </div>
+            </div>
+          ) : (
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Résolution liée (optionnel)</label>
+              <select value={form.resolutionId} onChange={e => setForm(f => ({ ...f, resolutionId: e.target.value }))}
+                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400">
+                <option value="">—</option>
+                {resolutions.map(r => <option key={r.id} value={r.id}>{r.numero} · {r.titre}</option>)}
+              </select>
+            </div>
+          )}
+          <div className="flex justify-end gap-3 pt-2">
+            <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 rounded-lg">Annuler</button>
+            <button type="submit" disabled={loading}
+              className="px-5 py-2 bg-teal-600 text-white text-sm font-medium rounded-lg hover:bg-teal-700 disabled:opacity-50">
+              {loading ? "Enregistrement..." : isEdit ? "Enregistrer" : "Créer"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 export default function CommissionTypePage({ params }: { params: Promise<PageParams> }) {
   const { type } = use(params);
   const [tab, setTab] = useState("membres");
   const [showAddMembre, setShowAddMembre] = useState(false);
   const [showAddObs, setShowAddObs] = useState(false);
+  const [reunionModal, setReunionModal] = useState<{ open: boolean; edit: Reunion | null }>({ open: false, edit: null });
+  const [resolutionModal, setResolutionModal] = useState<{ open: boolean; edit: Resolution | null }>({ open: false, edit: null });
+  const [planModal, setPlanModal] = useState<{ open: boolean; edit: PlanAction | null }>({ open: false, edit: null });
   const [refresh, setRefresh] = useState(0);
 
   const typeEnum = TYPE_MAP[type] || type.toUpperCase();
@@ -358,6 +737,9 @@ export default function CommissionTypePage({ params }: { params: Promise<PagePar
   function done() {
     setShowAddMembre(false);
     setShowAddObs(false);
+    setReunionModal({ open: false, edit: null });
+    setResolutionModal({ open: false, edit: null });
+    setPlanModal({ open: false, edit: null });
     setRefresh(r => r + 1);
   }
 
@@ -381,7 +763,7 @@ export default function CommissionTypePage({ params }: { params: Promise<PagePar
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
           {[
             { label: "Membres actifs",     v: data.membres.filter(m => m.actif).length,                                  icon: Users },
-            { label: "Réunions tenues",    v: data.reunions.filter(r => r.statut === "TERMINEE").length,                  icon: Calendar },
+            { label: "Réunions tenues",    v: data.reunions.filter(r => r.statut === "TENUE").length,                     icon: Calendar },
             { label: "Résolutions",        v: data.resolutions.length,                                                     icon: Gavel },
             { label: "Plans en cours",     v: data.plansAction.filter(p => p.statut === "EN_COURS").length,               icon: ListChecks },
             { label: "En retard",          v: data.plansAction.filter(p => p.enRetard).length,                            icon: AlertTriangle },
@@ -442,6 +824,13 @@ export default function CommissionTypePage({ params }: { params: Promise<PagePar
               {/* Réunions */}
               {tab === "reunions" && (
                 <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <p className="text-sm text-slate-500">{data.reunions.length} réunion(s)</p>
+                    <button onClick={() => setReunionModal({ open: true, edit: null })}
+                      className="flex items-center gap-1 px-3 py-1.5 text-xs bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                      <Plus className="w-3.5 h-3.5" /> Planifier
+                    </button>
+                  </div>
                   {data.reunions.length === 0 ? (
                     <p className="text-center py-8 text-sm text-slate-400">Aucune réunion planifiée</p>
                   ) : data.reunions.map(r => (
@@ -453,7 +842,18 @@ export default function CommissionTypePage({ params }: { params: Promise<PagePar
                           {" · "}{r._count.presences} présences · {r._count.resolutions} résolutions
                         </p>
                       </div>
-                      <span className={`text-xs px-2 py-0.5 rounded-full ${STATUTS_REUNION[r.statut] || "bg-slate-100 text-slate-600"}`}>{r.statut}</span>
+                      <div className="flex items-center gap-1">
+                        <span className={`text-xs px-2 py-0.5 rounded-full mr-1 ${STATUTS_REUNION[r.statut] || "bg-slate-100 text-slate-600"}`}>{r.statut}</span>
+                        <Link href={`/dashboard/user/responsablesRIA/gouvernance/reunions/${r.id}`} title="Détail"
+                          className="p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded">
+                          <Eye className="w-3.5 h-3.5" />
+                        </Link>
+                        <button onClick={() => setReunionModal({ open: true, edit: r })} title="Modifier"
+                          className="p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded">
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                        <DeleteButton url={`/api/admin/ria/commissions/gouvernance/reunions/${r.id}`} label={r.titre} onDone={done} />
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -462,6 +862,13 @@ export default function CommissionTypePage({ params }: { params: Promise<PagePar
               {/* Résolutions */}
               {tab === "resolutions" && (
                 <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <p className="text-sm text-slate-500">{data.resolutions.length} résolution(s)</p>
+                    <button onClick={() => setResolutionModal({ open: true, edit: null })}
+                      className="flex items-center gap-1 px-3 py-1.5 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700">
+                      <Plus className="w-3.5 h-3.5" /> Nouvelle résolution
+                    </button>
+                  </div>
                   {data.resolutions.length === 0 ? (
                     <p className="text-center py-8 text-sm text-slate-400">Aucune résolution</p>
                   ) : data.resolutions.map(r => (
@@ -474,9 +881,20 @@ export default function CommissionTypePage({ params }: { params: Promise<PagePar
                         <p className="text-sm font-medium text-slate-800">{r.titre}</p>
                         {r.dateAdoption && <p className="text-xs text-slate-400">Adoptée le {new Date(r.dateAdoption).toLocaleDateString("fr-FR")}</p>}
                       </div>
-                      <span className={`text-xs ${r.priorite === "CRITIQUE" ? "text-rose-600 font-medium" : r.priorite === "HAUTE" ? "text-amber-600" : "text-slate-400"}`}>
-                        {r.priorite}
-                      </span>
+                      <div className="flex items-center gap-1">
+                        <span className={`text-xs mr-1 ${r.priorite === "CRITIQUE" ? "text-rose-600 font-medium" : r.priorite === "HAUTE" ? "text-amber-600" : "text-slate-400"}`}>
+                          {r.priorite}
+                        </span>
+                        <Link href={`/dashboard/user/responsablesRIA/gouvernance/resolutions/${r.id}`} title="Détail"
+                          className="p-1 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded">
+                          <Eye className="w-3.5 h-3.5" />
+                        </Link>
+                        <button onClick={() => setResolutionModal({ open: true, edit: r })} title="Modifier"
+                          className="p-1 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded">
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                        <DeleteButton url={`/api/admin/ria/commissions/gouvernance/resolutions/${r.id}`} label={r.titre} onDone={done} />
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -485,6 +903,13 @@ export default function CommissionTypePage({ params }: { params: Promise<PagePar
               {/* Plans d'action */}
               {tab === "plans" && (
                 <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <p className="text-sm text-slate-500">{data.plansAction.length} plan(s) d&apos;action</p>
+                    <button onClick={() => setPlanModal({ open: true, edit: null })}
+                      className="flex items-center gap-1 px-3 py-1.5 text-xs bg-teal-600 text-white rounded-lg hover:bg-teal-700">
+                      <Plus className="w-3.5 h-3.5" /> Nouveau plan
+                    </button>
+                  </div>
                   {data.plansAction.length === 0 ? (
                     <p className="text-center py-8 text-sm text-slate-400">Aucun plan d&apos;action</p>
                   ) : data.plansAction.map(p => (
@@ -493,15 +918,23 @@ export default function CommissionTypePage({ params }: { params: Promise<PagePar
                         <div>
                           <div className="flex items-center gap-2">
                             <p className="text-sm font-medium text-slate-800">{p.titre}</p>
+                            <span className={`text-xs px-1.5 py-0.5 rounded ${STATUTS_PLAN[p.statut] || "bg-slate-100 text-slate-600"}`}>{p.statut}</span>
                             {p.enRetard && <span className="text-xs text-rose-600 flex items-center gap-0.5"><AlertTriangle className="w-3 h-3" />Retard</span>}
                           </div>
                           {p.responsable && <p className="text-xs text-slate-400">{p.responsable.prenom} {p.responsable.nom}</p>}
                         </div>
-                        {p.dateEcheance && (
-                          <p className={`text-xs ${p.enRetard ? "text-rose-600 font-medium" : "text-slate-400"}`}>
-                            {new Date(p.dateEcheance).toLocaleDateString("fr-FR")}
-                          </p>
-                        )}
+                        <div className="flex items-center gap-1">
+                          {p.dateEcheance && (
+                            <p className={`text-xs mr-1 ${p.enRetard ? "text-rose-600 font-medium" : "text-slate-400"}`}>
+                              {new Date(p.dateEcheance).toLocaleDateString("fr-FR")}
+                            </p>
+                          )}
+                          <button onClick={() => setPlanModal({ open: true, edit: p })} title="Modifier"
+                            className="p-1 text-slate-400 hover:text-teal-600 hover:bg-teal-50 rounded">
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                          <DeleteButton url={`/api/admin/ria/commissions/gouvernance/plans-actions/${p.id}`} label={p.titre} onDone={done} />
+                        </div>
                       </div>
                       <div className="flex items-center gap-2">
                         <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
@@ -549,6 +982,20 @@ export default function CommissionTypePage({ params }: { params: Promise<PagePar
 
       {showAddMembre && <AddMembreModal typeCommission={typeEnum} onClose={() => setShowAddMembre(false)} onDone={done} />}
       {showAddObs && <AddObservationModal typeCommission={typeEnum} onClose={() => setShowAddObs(false)} onDone={done} />}
+      {reunionModal.open && (
+        <ReunionModal typeEnum={typeEnum} initial={reunionModal.edit}
+          onClose={() => setReunionModal({ open: false, edit: null })} onDone={done} />
+      )}
+      {resolutionModal.open && (
+        <ResolutionModal typeEnum={typeEnum} initial={resolutionModal.edit}
+          membres={data?.membres ?? []} reunions={data?.reunions ?? []}
+          onClose={() => setResolutionModal({ open: false, edit: null })} onDone={done} />
+      )}
+      {planModal.open && (
+        <PlanModal typeEnum={typeEnum} initial={planModal.edit}
+          membres={data?.membres ?? []} resolutions={data?.resolutions ?? []}
+          onClose={() => setPlanModal({ open: false, edit: null })} onDone={done} />
+      )}
     </div>
   );
 }

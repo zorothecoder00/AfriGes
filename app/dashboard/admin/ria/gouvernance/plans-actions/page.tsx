@@ -28,11 +28,10 @@ interface PlanAction {
 interface Data { plans: PlanAction[] }
 
 const STATUTS: Record<string, { label: string; color: string }> = {
-  A_FAIRE:   { label: "Non démarré", color: "bg-slate-100 text-slate-600" },
-  EN_COURS:  { label: "En cours",    color: "bg-blue-100 text-blue-700" },
-  EN_RETARD: { label: "En retard",   color: "bg-rose-100 text-rose-700" },
-  TERMINE:   { label: "Réalisé",     color: "bg-emerald-100 text-emerald-700" },
-  ABANDONNE: { label: "Abandonné",   color: "bg-rose-50 text-rose-400" },
+  A_FAIRE:   { label: "À faire",    color: "bg-slate-100 text-slate-600" },
+  EN_COURS:  { label: "En cours",   color: "bg-blue-100 text-blue-700" },
+  TERMINE:   { label: "Terminé",    color: "bg-emerald-100 text-emerald-700" },
+  ABANDONNE: { label: "Abandonné",  color: "bg-rose-50 text-rose-400" },
 };
 
 const PRIOS = ["BASSE", "MOYENNE", "HAUTE", "CRITIQUE"];

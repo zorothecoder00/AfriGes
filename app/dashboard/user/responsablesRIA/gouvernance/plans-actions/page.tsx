@@ -24,12 +24,11 @@ interface PlanAction {
 
 interface Data { plans: (PlanAction & { enRetard: boolean })[] }
 
-const STATUTS: Record<string, string> = {
-  A_FAIRE:   "bg-slate-100 text-slate-600",
-  EN_COURS:  "bg-blue-100 text-blue-700",
-  TERMINE:   "bg-emerald-100 text-emerald-700",
-  EN_RETARD: "bg-rose-100 text-rose-700",
-  ABANDONNE: "bg-slate-100 text-slate-400",
+const STATUTS: Record<string, { label: string; color: string }> = {
+  A_FAIRE:   { label: "À faire",    color: "bg-slate-100 text-slate-600" },
+  EN_COURS:  { label: "En cours",   color: "bg-blue-100 text-blue-700" },
+  TERMINE:   { label: "Terminé",    color: "bg-emerald-100 text-emerald-700" },
+  ABANDONNE: { label: "Abandonné",  color: "bg-slate-100 text-slate-400" },
 };
 
 const COMM_LABELS: Record<string, string> = {
@@ -88,7 +87,7 @@ export default function MesPlansActionsPage() {
           <select value={filterStatut} onChange={e => setFilterStatut(e.target.value)}
             className="border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none">
             <option value="">Tous statuts</option>
-            {Object.keys(STATUTS).map(v => <option key={v} value={v}>{v}</option>)}
+            {Object.entries(STATUTS).map(([v, s]) => <option key={v} value={v}>{s.label}</option>)}
           </select>
           <button onClick={() => setRefresh(r => r + 1)} className="p-2 border border-slate-200 rounded-lg hover:bg-slate-50">
             <RefreshCw className="w-4 h-4 text-slate-400" />
@@ -132,8 +131,8 @@ export default function MesPlansActionsPage() {
               <div className="flex items-start justify-between gap-4 mb-3">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap mb-1">
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUTS[p.statut] || "bg-slate-100 text-slate-600"}`}>
-                      {p.statut}
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUTS[p.statut]?.color || "bg-slate-100 text-slate-600"}`}>
+                      {STATUTS[p.statut]?.label || p.statut}
                     </span>
                     <span className="text-xs text-slate-400">{COMM_LABELS[p.typeCommission] || p.typeCommission}</span>
                     {p.enRetard && (

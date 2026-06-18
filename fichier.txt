@@ -84,9 +84,6 @@ Permettre aux caissiers dashboard/user/caissiers de pouvoir faire aussi le recou
   les 4 scénarioset le rôle de chaque commission ( pour tout tu peux montres
   comment gérer ça sur l'app)
 
-
-Lorsque par exemple je suis admin/superadmin et je m'ajoute en tant que membre (président) sur /dashboard/admin/ria/gouvernance/commissions/optimisation , normalement les POST , PATCH de réunions , résolutions et plan d'actions devraient être automatiquement disponibles non ?? Ou bien ce n'est pas la bonne route ?
-
-La page de détails des investisseurs dans dashboard/user/responsablesRIA
+ Explique moi le fonctionnement des onglets CARTOGRAPHIE DES PROCESSUS , GOULOTS D'ETRANGLEMENT, SUGGESTIONS D'AMELIORATIONS, GESTION DES INNOVATIONS , PRODUCTIVITE, RAPPORT RECU ET ANALYSES D'OPTIMISATION de la page dashboard/admin/ria/gouvernance/commissions/optimisation (qui est identique à celle du dashboard/user/responsablesRIA d'ailleurs) et surtout dis moi pourquoi ces onglets sont très lents à se charger quand on clique dessus ; et même quand ça vient , les données aussi ont du mal à s'actualiser
 
 Permettre au caissier et au responsable crédit de pouvoir aussi encaisser les crédits clients

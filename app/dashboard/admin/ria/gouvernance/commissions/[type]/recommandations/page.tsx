@@ -15,16 +15,16 @@ interface ResResponse { resolutions: Resolution[] }
 
 const STATUT_STYLE: Record<string, string> = {
   EN_ATTENTE:     "bg-slate-50 text-slate-600",
-  EN_COURS:       "bg-blue-50 text-blue-700",
-  MISE_EN_OEUVRE: "bg-amber-50 text-amber-700",
-  IMPLEMENTEE:    "bg-emerald-50 text-emerald-700",
-  ABANDONNEE:     "bg-red-50 text-red-700",
+  APPROUVEE:      "bg-emerald-50 text-emerald-700",
+  EN_APPLICATION: "bg-blue-50 text-blue-700",
+  APPLIQUEE:      "bg-teal-50 text-teal-700",
+  REJETEE:        "bg-red-50 text-red-700",
 };
 const PRIORITE_STYLE: Record<string, string> = {
-  BASSE:   "bg-slate-100 text-slate-600",
-  NORMALE: "bg-blue-50 text-blue-700",
-  HAUTE:   "bg-amber-50 text-amber-700",
-  URGENTE: "bg-rose-50 text-rose-700",
+  CRITIQUE: "bg-rose-50 text-rose-700",
+  HAUTE:    "bg-amber-50 text-amber-700",
+  MOYENNE:  "bg-blue-50 text-blue-700",
+  BASSE:    "bg-slate-100 text-slate-600",
 };
 
 export default function RecommandationsAuditPage() {
@@ -39,8 +39,8 @@ export default function RecommandationsAuditPage() {
   );
 
   const items = data?.resolutions ?? [];
-  const implementees = items.filter(r => r.statut === "IMPLEMENTEE").length;
-  const enCours      = items.filter(r => ["EN_COURS", "MISE_EN_OEUVRE"].includes(r.statut)).length;
+  const implementees = items.filter(r => r.statut === "APPLIQUEE").length;
+  const enCours      = items.filter(r => ["APPROUVEE", "EN_APPLICATION"].includes(r.statut)).length;
 
   return (
     <div className="p-6 space-y-6 max-w-7xl mx-auto">

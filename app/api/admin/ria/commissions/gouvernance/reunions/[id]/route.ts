@@ -72,3 +72,20 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
     return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
   }
 }
+
+export async function DELETE(_req: NextRequest, { params }: Ctx) {
+  try {
+    const session = await getRIASession();
+    if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
+
+    const { id } = await params;
+    // Présences et compte rendu structuré sont supprimés en cascade ;
+    // les résolutions liées voient leur reunionId mis à null (relation optionnelle).
+    await prisma.reunionCommissionRIA.delete({ where: { id: parseInt(id) } });
+
+    return NextResponse.json({ success: true });
+  } catch (e) {
+    console.error(e);
+    return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
+  }
+}

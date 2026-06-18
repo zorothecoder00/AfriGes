@@ -6,8 +6,8 @@ import { useState } from "react";
 import { toast } from "sonner";
 import {
   Calendar, MapPin, Clock, Users, FileText, CheckCircle2, XCircle,
-  ChevronLeft, RefreshCw, Plus, Pen, Send, Archive,
-  ClipboardList, Gavel, ListChecks, CheckSquare,
+  ChevronLeft, RefreshCw, Plus, Send, Archive,
+  ClipboardList, Gavel, ListChecks,
 } from "lucide-react";
 
 /* ─── Types ─── */
@@ -271,7 +271,7 @@ function OngletPresences({ r, onRefresh }: { r: Reunion; onRefresh: () => void }
 }
 
 /* ─── Onglet Compte Rendu ─── */
-function OngletCompteRendu({ reunionId, typeCommission }: { reunionId: number; typeCommission: string }) {
+function OngletCompteRendu({ reunionId }: { reunionId: number }) {
   const [refresh, setRefresh] = useState(0);
   const { data, loading } = useApi<{ compteRendu: CompteRendu | null }>(
     `/api/admin/ria/commissions/gouvernance/reunions/${reunionId}/compte-rendu?_r=${refresh}`
@@ -360,7 +360,7 @@ function OngletCompteRendu({ reunionId, typeCommission }: { reunionId: number; t
 }
 
 /* ─── Onglet Résolutions ─── */
-function OngletResolutions({ r, onRefresh }: { r: Reunion; onRefresh: () => void }) {
+function OngletResolutions({ r }: { r: Reunion }) {
   const [showForm, setShowForm] = useState(false);
   const [refresh, setRefresh]   = useState(0);
   const { data, loading } = useApi<{ resolutions: Resolution[] }>(
@@ -369,7 +369,6 @@ function OngletResolutions({ r, onRefresh }: { r: Reunion; onRefresh: () => void
   const { mutate: creer, loading: creating } = useMutation(
     `/api/admin/ria/commissions/gouvernance/resolutions`, "POST"
   );
-  const { mutate: patcher } = useMutation("", "PATCH");
 
   const [form, setForm] = useState({ titre: "", description: "", dateEcheance: "" });
 
@@ -715,7 +714,7 @@ export default function ReunionDetailPage() {
     <div className="max-w-5xl mx-auto p-6 space-y-5">
       {/* Breadcrumb */}
       <div className="flex items-center gap-2 text-sm text-slate-500">
-        <button onClick={() => router.push("/dashboard/admin/ria/gouvernance/reunions")}
+        <button onClick={() => router.push("/dashboard/user/responsablesRIA/gouvernance/reunions")}
           className="flex items-center gap-1 hover:text-blue-600">
           <ChevronLeft className="w-4 h-4" /> Réunions
         </button>
@@ -758,8 +757,8 @@ export default function ReunionDetailPage() {
       <div>
         {tab === "convocation" && <OngletConvocation r={reunion} onRefresh={onRefresh} />}
         {tab === "presences"   && <OngletPresences   r={reunion} onRefresh={onRefresh} />}
-        {tab === "cr"          && <OngletCompteRendu reunionId={reunion.id} typeCommission={reunion.typeCommission} />}
-        {tab === "resolutions" && <OngletResolutions r={reunion} onRefresh={onRefresh} />}
+        {tab === "cr"          && <OngletCompteRendu reunionId={reunion.id} />}
+        {tab === "resolutions" && <OngletResolutions r={reunion} />}
         {tab === "plans"       && <OngletPlansAction r={reunion} />}
       </div>
     </div>
