@@ -91,8 +91,25 @@ Permettre au caissier et au responsable crédit de pouvoir aussi encaisser les c
 Toutes les pages de commissions par type ont des onglet trop lents ( bon j'ai déjà corrigé pour la commission Optimisation qui utilisait une api trop lourde et des données non bornées)
 
 
-Invalid Date sur /ria/gouvernance/commissions/optimisation au niveau des membres ( chez l'admin et aussi surement chez le user/responsablesRIA)
-
 Je n'arrive pas à accéder sur les portails investisseur et gouvernance RIA sur mes dashboard/user/..... qui sont des gestionnaires mais aussi ont soit un profil investisseur , soit membre d'une commission.
 
-Maintenant chez l'admin ou superadmin (bon je crois que ça ne concerne que l'admin), comment on fait pour juste lire et faire les actions de la commission dont il est membre ?? Parce que là je vois qu'il peut accéder à toutes les commissions sans filtre et ce n'est même pas possible de savoir à quelles commissions il appartient 
+Maintenant chez l'admin ou superadmin (bon je crois que ça ne concerne que l'admin), comment on fait pour lire et faire les actions de la commission dont il est membre ?? Parce que là je vois qu'il peut accéder à toutes les commissions sans filtre et ce n'est même pas possible de savoir à quelles commissions il appartient 
+
+Je veux mieux comprendre le processus de fonctionnement : comment la Commissions Opérations fait la Demande de Financement ( vérifie si les infos sont envoyées Référence dossier
+Date
+Région
+Agence
+Responsable demandeur
+Nombre de clients
+Liste des clients
+Produits concernés
+Quantités
+Coût d'achat
+Prix de revente
+Marge prévisionnelle
+Durée du cycle
+Risque estimé
+Retour sur investissement attendu
+Investisseurs concernés
+Pièces jointes
+) avec statut brouillon et statut Transmis à la commission finance après validation du Président de la COmmission Opérations , comment la Commission Finance reçoit la demande et la traite ( refus ou acceptation, demande d'ajustements ), comment ça repart chez la commission Opérations qui modifie puis renvoie et comment la Commission finance valide définitivement ( avec statut Financement autorisé ) avec décaissement et affectation client (puis le dossier passe en cours d'excécution)

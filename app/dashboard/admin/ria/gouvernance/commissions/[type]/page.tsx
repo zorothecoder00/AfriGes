@@ -33,7 +33,7 @@ interface Membre {
   role: string;
   actif: boolean;
   user: { id: number; nom: string; prenom: string };
-  dateDebut: string;
+  dateEntree: string;
 }
 
 interface Reunion {
@@ -177,7 +177,7 @@ function MembreRow({ m, onDone }: { m: Membre; onDone: () => void }) {
         </div>
         <div>
           <p className="text-sm font-medium text-slate-800">{m.user.prenom} {m.user.nom}</p>
-          <p className="text-xs text-slate-400">Depuis {new Date(m.dateDebut).toLocaleDateString("fr-FR")}</p>
+          <p className="text-xs text-slate-400">Depuis {new Date(m.dateEntree).toLocaleDateString("fr-FR")}</p>
         </div>
       </div>
       <div className="flex items-center gap-2">
