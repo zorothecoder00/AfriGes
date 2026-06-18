@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCommissionMembreSession } from "@/lib/authCommissionRIA";
+import { DOSSIER_ROUTAGE_FIXE, commissionLabel } from "@/lib/commissionsRIA";
 import { TypeCommissionRIA, TypeDossierIC } from "@prisma/client";
 
 // Dossiers inter-commissions liés aux commissions du membre connecté
@@ -52,22 +53,47 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const {
       type, titre, description,
-      commissionEmettrice, commissionReceptrice,
       montantDemande, contenuInitial,
     } = body;
 
-    if (!type || !titre || !commissionEmettrice || !commissionReceptrice) {
-      return NextResponse.json({ error: "type, titre, commissionEmettrice et commissionReceptrice requis" }, { status: 400 });
+    if (!type || !titre) {
+      return NextResponse.json({ error: "type et titre requis" }, { status: 400 });
+    }
+
+    // ── Routage CDC ──────────────────────────────────────────────────────────
+    // Si le type a une trajectoire imposée (ex. DEMANDE_FINANCEMENT : Opérations
+    // → Finance), on force les commissions à cette route quel que soit l'input
+    // client : un membre ne peut PAS émettre un financement au nom d'une autre
+    // commission ni le router ailleurs que vers Finance.
+    const routageFixe = DOSSIER_ROUTAGE_FIXE[type as TypeDossierIC];
+    const commissionEmettrice: TypeCommissionRIA = routageFixe?.emettrice ?? body.commissionEmettrice;
+    const commissionReceptrice: TypeCommissionRIA = routageFixe?.receptrice ?? body.commissionReceptrice;
+
+    if (!commissionEmettrice || !commissionReceptrice) {
+      return NextResponse.json({ error: "commissionEmettrice et commissionReceptrice requis" }, { status: 400 });
     }
     if (commissionEmettrice === commissionReceptrice) {
       return NextResponse.json({ error: "Les commissions émettrice et réceptrice doivent être différentes" }, { status: 400 });
+    }
+    // Si un routage non conforme a été demandé explicitement, on le signale clairement.
+    if (
+      routageFixe &&
+      ((body.commissionEmettrice && body.commissionEmettrice !== routageFixe.emettrice) ||
+        (body.commissionReceptrice && body.commissionReceptrice !== routageFixe.receptrice))
+    ) {
+      return NextResponse.json(
+        {
+          error: `Un dossier « ${type} » doit obligatoirement être émis par ${commissionLabel(routageFixe.emettrice)} vers ${commissionLabel(routageFixe.receptrice)} (cahier des charges).`,
+        },
+        { status: 400 }
+      );
     }
 
     // Préparation d'un dossier (CDC) : réservée au Président / Rapporteurs de la
     // commission émettrice. (auth.commission === null → admin/RESPONSABLE_RIA, pas de restriction)
     if (auth.commission !== null) {
       const membre = await prisma.membreCommissionRIA.findFirst({
-        where: { userId, typeCommission: commissionEmettrice as TypeCommissionRIA, actif: true },
+        where: { userId, typeCommission: commissionEmettrice, actif: true },
         select: { role: true },
       });
       if (!membre) {
@@ -89,8 +115,8 @@ export async function POST(req: NextRequest) {
           type: type as TypeDossierIC,
           titre,
           description,
-          commissionEmettrice:  commissionEmettrice  as TypeCommissionRIA,
-          commissionReceptrice: commissionReceptrice as TypeCommissionRIA,
+          commissionEmettrice,
+          commissionReceptrice,
           montantDemande:       montantDemande ? Number(montantDemande) : null,
           creeParId:            userId,
           statut:               "EN_PREPARATION",

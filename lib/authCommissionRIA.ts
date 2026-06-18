@@ -47,12 +47,12 @@ export async function getUserCommissions(userId: number) {
   });
 }
 
-// Seul le SUPER_ADMIN peut outrepasser le gating de rôle du workflow inter-commissions
-// (soupape d'urgence documentée). ADMIN, RESPONSABLE_RIA et membres doivent réellement
-// détenir le siège/rôle requis pour transmettre, approuver, rejeter ou exécuter un dossier.
+// ADMIN et SUPER_ADMIN outrepassent le gating de rôle du workflow inter-commissions
+// (supervision totale : ils transmettent/approuvent/exécutent sans détenir de siège).
+// Les membres de commission (et RESPONSABLE_RIA via siège) restent soumis au gating CDC.
 // La lecture (GET) reste ouverte à la supervision (cf. getRIASession / getCommissionAdminSession).
 export function peutOutrepasserGating(role?: string | null): boolean {
-  return role === "SUPER_ADMIN";
+  return role === "ADMIN" || role === "SUPER_ADMIN";
 }
 
 // Rôle actif d'un user dans une commission donnée (null s'il n'en est pas membre actif).

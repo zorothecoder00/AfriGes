@@ -5,9 +5,10 @@ import { useApi } from "@/hooks/useApi";
 import { useMutation } from "@/hooks/useApi";
 import { toast } from "sonner";
 import {
-  GitBranch, RefreshCw, ArrowRight, ArrowLeft, Plus, History,
+  GitBranch, RefreshCw, ArrowRight, ArrowLeft, Plus, History, Lock, AlertTriangle,
 } from "lucide-react";
 import Link from "next/link";
+import { DOSSIER_ROUTAGE_FIXE } from "@/lib/commissionsRIA";
 
 interface DossierIC {
   id: number;
@@ -51,39 +52,66 @@ const COMM_LABELS: Record<string, string> = {
   OPTIMISATION:        "Optimisation",
 };
 
+const COMMISSIONS_LISTE: { value: string; label: string }[] = [
+  { value: "FINANCE",            label: "Finance" },
+  { value: "OPERATIONS_TERRAIN", label: "Opérations Terrain" },
+  { value: "AUDIT",              label: "Audit & Contrôle" },
+  { value: "OPTIMISATION",       label: "Optimisation" },
+];
+
+interface MaCommission { typeCommission: string; role: string }
+
 function CreateModal({ onClose, onDone }: { onClose: () => void; onDone: () => void }) {
+  // Commissions du membre connecté : l'émettrice doit en faire partie.
+  const { data: mc, loading: loadingMc } = useApi<{ commissions: MaCommission[] }>("/api/membreCommission/ma-commission");
+  const mesCommissions = mc?.commissions ?? [];
+  const mesTypes = mesCommissions.map(c => c.typeCommission);
+
   const [form, setForm] = useState({
     titre: "", type: "DEMANDE_FINANCEMENT",
-    commissionEmettrice: "OPERATIONS_TERRAIN", commissionReceptrice: "FINANCE",
+    commissionEmettrice: "", commissionReceptrice: "",
     description: "", montantDemande: "",
   });
   const { mutate, loading } = useMutation("/api/membreCommission/dossiers", "POST");
 
+  // Routage imposé par le CDC pour le type sélectionné (ex. financement : Opérations → Finance).
+  const routage = DOSSIER_ROUTAGE_FIXE[form.type as keyof typeof DOSSIER_ROUTAGE_FIXE];
+
+  // Émettrice / réceptrice effectives : forcées si le type a un routage fixe,
+  // sinon issues du formulaire (émettrice limitée aux commissions du membre).
+  const emettrice = routage ? routage.emettrice : form.commissionEmettrice;
+  const receptrice = routage ? routage.receptrice : form.commissionReceptrice;
+
+  // Le membre doit appartenir à la commission émettrice (CDC).
+  const estMembreEmettrice = !!emettrice && mesTypes.includes(emettrice);
+  const receptricesPossibles = COMMISSIONS_LISTE.filter(c => c.value !== emettrice);
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (form.commissionEmettrice === form.commissionReceptrice) {
+    if (!emettrice || !receptrice) { toast.error("Renseignez les commissions émettrice et réceptrice"); return; }
+    if (emettrice === receptrice) {
       toast.error("Les commissions émettrice et réceptrice doivent être différentes");
+      return;
+    }
+    if (!estMembreEmettrice) {
+      toast.error(`Vous n'êtes pas membre de ${COMM_LABELS[emettrice] || emettrice} — vous ne pouvez pas émettre ce dossier en son nom`);
       return;
     }
     const contenuInitial = form.type === "DEMANDE_FINANCEMENT"
       ? { clients: [], investisseursConcernes: [] }
       : undefined;
-    const res = await mutate({ ...form, montantDemande: form.montantDemande || undefined, contenuInitial }) as
-      { id?: number; reference?: string; error?: string } | null;
+    const res = await mutate({
+      titre: form.titre, type: form.type, description: form.description,
+      commissionEmettrice: emettrice, commissionReceptrice: receptrice,
+      montantDemande: form.montantDemande || undefined, contenuInitial,
+    }) as { id?: number; reference?: string; error?: string } | null;
     if (res?.id) { toast.success(`Dossier ${res.reference} créé`); onDone(); }
     else toast.error(res?.error || "Erreur");
   }
 
-  const commissions = [
-    { value: "FINANCE", label: "Finance" },
-    { value: "OPERATIONS_TERRAIN", label: "Opérations Terrain" },
-    { value: "AUDIT", label: "Audit & Contrôle" },
-    { value: "OPTIMISATION", label: "Optimisation" },
-  ];
-
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
         <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
           <h2 className="font-semibold text-slate-800 flex items-center gap-2">
             <GitBranch className="w-4 h-4 text-violet-500" /> Nouveau dossier inter-commission
@@ -99,27 +127,57 @@ function CreateModal({ onClose, onDone }: { onClose: () => void; onDone: () => v
           </div>
           <div>
             <label className="block text-xs font-medium text-slate-600 mb-1">Type *</label>
-            <select value={form.type} onChange={e => setForm(f => ({ ...f, type: e.target.value }))}
+            <select value={form.type} onChange={e => setForm(f => ({ ...f, type: e.target.value, commissionEmettrice: "", commissionReceptrice: "" }))}
               className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400">
               {Object.entries(TYPE_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
             </select>
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">Commission émettrice *</label>
-              <select value={form.commissionEmettrice} onChange={e => setForm(f => ({ ...f, commissionEmettrice: e.target.value }))}
-                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400">
-                {commissions.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
-              </select>
+
+          {/* Routage : verrouillé (CDC) ou choix limité aux commissions du membre */}
+          {routage ? (
+            <div className="rounded-lg border border-violet-100 bg-violet-50/50 p-3">
+              <div className="flex items-center gap-1.5 text-xs font-medium text-violet-700 mb-2">
+                <Lock className="w-3.5 h-3.5" /> Circuit imposé par le cahier des charges
+              </div>
+              <div className="flex items-center gap-2 text-sm font-medium text-slate-700">
+                <span className="px-2 py-1 rounded-lg bg-white border border-slate-200">{COMM_LABELS[routage.emettrice]}</span>
+                <ArrowRight className="w-4 h-4 text-violet-400" />
+                <span className="px-2 py-1 rounded-lg bg-white border border-slate-200">{COMM_LABELS[routage.receptrice]}</span>
+              </div>
             </div>
-            <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">Commission réceptrice *</label>
-              <select value={form.commissionReceptrice} onChange={e => setForm(f => ({ ...f, commissionReceptrice: e.target.value }))}
-                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400">
-                {commissions.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
-              </select>
+          ) : (
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Commission émettrice *</label>
+                <select value={form.commissionEmettrice} onChange={e => setForm(f => ({ ...f, commissionEmettrice: e.target.value, commissionReceptrice: "" }))}
+                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400">
+                  <option value="">— Ma commission —</option>
+                  {COMMISSIONS_LISTE.filter(c => mesTypes.includes(c.value)).map(c => (
+                    <option key={c.value} value={c.value}>{c.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Commission réceptrice *</label>
+                <select value={form.commissionReceptrice} onChange={e => setForm(f => ({ ...f, commissionReceptrice: e.target.value }))}
+                  disabled={!emettrice}
+                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400 disabled:bg-slate-50">
+                  <option value="">— Destinataire —</option>
+                  {receptricesPossibles.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+                </select>
+              </div>
             </div>
-          </div>
+          )}
+
+          {/* Avertissement si le membre n'appartient pas à la commission émettrice */}
+          {!loadingMc && emettrice && !estMembreEmettrice && (
+            <p className="flex items-start gap-1.5 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-3">
+              <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+              Vous n&apos;êtes pas membre de {COMM_LABELS[emettrice] || emettrice}. Seul un membre de cette
+              commission peut émettre ce dossier en son nom.
+            </p>
+          )}
+
           <div>
             <label className="block text-xs font-medium text-slate-600 mb-1">Montant demandé (FCFA)</label>
             <input type="number" value={form.montantDemande} onChange={e => setForm(f => ({ ...f, montantDemande: e.target.value }))}
@@ -133,12 +191,14 @@ function CreateModal({ onClose, onDone }: { onClose: () => void; onDone: () => v
           </div>
           {form.type === "DEMANDE_FINANCEMENT" && (
             <p className="text-xs text-slate-500 bg-violet-50/50 border border-violet-100 rounded-lg p-3">
-              La liste des clients, produits et pièces jointes se complète depuis le détail du dossier, avant transmission au Président.
+              Les informations détaillées (région, agence, liste des clients, produits, quantités, coûts,
+              durée du cycle, risque, investisseurs, pièces jointes) se complètent depuis le détail du dossier,
+              avant transmission au Président pour validation.
             </p>
           )}
           <div className="flex justify-end gap-3 pt-2">
             <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 rounded-lg">Annuler</button>
-            <button type="submit" disabled={loading}
+            <button type="submit" disabled={loading || loadingMc || !estMembreEmettrice}
               className="px-5 py-2 bg-violet-600 text-white text-sm font-medium rounded-lg hover:bg-violet-700 disabled:opacity-50">
               {loading ? "Création..." : "Créer le dossier"}
             </button>

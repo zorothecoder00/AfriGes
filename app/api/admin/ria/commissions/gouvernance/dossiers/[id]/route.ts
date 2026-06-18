@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getRIASession } from "@/lib/authRIA";
 import { peutOutrepasserGating } from "@/lib/authCommissionRIA";
-import { calculerAnalyseFinancement, type ContenuDemandeFinancement } from "@/lib/riaAnalyseDossier";
+import { calculerAnalyseFinancement, construireConsultation, type ContenuDemandeFinancement } from "@/lib/riaAnalyseDossier";
 import { appliquerActionDossier, DossierWorkflowError, type DossierAction } from "@/lib/dossierInterCommissionWorkflow";
 
 type Ctx = { params: Promise<{ id: string }> };
@@ -33,14 +33,30 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
     if (!dossier) return NextResponse.json({ error: "Dossier introuvable" }, { status: 404 });
 
     let analyse = null;
+    let consultation = null;
     if (dossier.type === "DEMANDE_FINANCEMENT") {
       const versionCourante = dossier.versions.find((v) => v.version === dossier.versionCourante);
       const contenu = (versionCourante?.contenu ?? {}) as ContenuDemandeFinancement;
       const portefeuilleId = dossier.portefeuilleExecutionId ?? contenu.investisseursConcernes?.[0] ?? null;
       analyse = await calculerAnalyseFinancement(prisma, contenu, portefeuilleId);
+      consultation = await construireConsultation(prisma, contenu);
     }
 
-    return NextResponse.json({ ...dossier, analyse });
+    // Rôle de l'appelant dans les commissions du dossier (pour masquer les actions
+    // non autorisées côté UI). superviseur = override ADMIN/SUPER_ADMIN.
+    const userId = parseInt(session.user.id);
+    const sieges = await prisma.membreCommissionRIA.findMany({
+      where: {
+        userId, actif: true,
+        typeCommission: { in: [dossier.commissionEmettrice, dossier.commissionReceptrice] },
+      },
+      select: { typeCommission: true, role: true },
+    });
+    const monRoleEmettrice = sieges.find((s) => s.typeCommission === dossier.commissionEmettrice)?.role ?? null;
+    const monRoleReceptrice = sieges.find((s) => s.typeCommission === dossier.commissionReceptrice)?.role ?? null;
+    const superviseur = peutOutrepasserGating(session.user.role);
+
+    return NextResponse.json({ ...dossier, analyse, consultation, monRoleEmettrice, monRoleReceptrice, superviseur });
   } catch (e) {
     console.error(e);
     return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
@@ -70,9 +86,9 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
         titre: body.titre,
         description: body.description,
         montantDemande: body.montantDemande,
-        // Supervision globale en lecture, action via siège : un admin/RESPONSABLE_RIA
-        // n'agit dans le workflow que s'il détient le rôle requis dans la commission.
-        // Seul le SUPER_ADMIN conserve une soupape d'outrepassement.
+        // Supervision : ADMIN / SUPER_ADMIN outrepassent le gating de rôle et peuvent
+        // agir sur n'importe quel dossier. RESPONSABLE_RIA reste soumis au gating CDC
+        // (il doit détenir le siège requis dans la commission concernée).
         skipGating: peutOutrepasserGating(session.user.role),
       })
     );

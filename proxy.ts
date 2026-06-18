@@ -17,6 +17,9 @@ const gestionnaireDashboardMap: Record<string, string> = {
   AUDITEUR_INTERNE: "/dashboard/user/auditeursInterne",
   ACTIONNAIRE: "/dashboard/user/actionnaires",
   RESPONSABLE_VENTE_CREDIT: "/dashboard/user/responsablesVenteCredit",
+  // Membres stricts de commission de gouvernance → portail gouvernance uniquement
+  PRESIDENT_COMMISSION_RIA: "/dashboard/user/gouvernance",
+  RAPPORTEUR_COMMISSION_RIA: "/dashboard/user/gouvernance",
 }
 
 export async function proxy(request: NextRequest) {

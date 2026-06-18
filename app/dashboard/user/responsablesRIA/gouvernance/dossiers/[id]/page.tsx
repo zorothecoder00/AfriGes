@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import {
   ChevronLeft, GitBranch, Send, Inbox, Clock, Hourglass,
   CheckCircle2, XCircle, Archive, MessageSquare, Plus, Trash2,
-  Save, TrendingUp, AlertTriangle, Wallet, Percent, History,
+  Save, TrendingUp, AlertTriangle, Wallet, Percent, History, Paperclip, ExternalLink,
 } from "lucide-react";
 
 /* ─── Types ─── */
@@ -19,6 +19,7 @@ interface ContenuDF {
   dureeCycleJours?: number;
   risqueEstime?: "FAIBLE" | "MOYEN" | "ELEVE";
   investisseursConcernes?: number[];
+  piecesJointesUrls?: string[];
 }
 interface VersionIC { id: number; version: number; contenu: ContenuDF; motif: string | null; createdAt: string; modifiePar: { id: number; nom: string; prenom: string } }
 interface EchangeIC { id: number; commission: string; type: string; contenu: string; createdAt: string; auteur: { id: number; nom: string; prenom: string } }
@@ -40,8 +41,21 @@ interface DossierDetail {
   versions: VersionIC[];
   echanges: EchangeIC[];
   analyse: Analyse | null;
+  consultation: Consultation | null;
+  monRoleEmettrice: string | null;
+  monRoleReceptrice: string | null;
+  superviseur: boolean;
   createdAt: string;
 }
+interface ConsultationPortefeuille {
+  id: number; reference: string; nom: string | null; investisseur: string | null;
+  capitalDisponible: number; capitalEngage: number; capitalInvesti: number;
+}
+interface ConsultationClient {
+  clientId: number; nom: string; scoreSolvabilite: number | null;
+  nbFinancements: number; montantFinanceTotal: number; encoursTotal: number;
+}
+interface Consultation { portefeuilles: ConsultationPortefeuille[]; clients: ConsultationClient[] }
 
 const STATUT_META: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
   EN_PREPARATION:      { label: "En préparation",      color: "bg-slate-100 text-slate-600",     icon: <GitBranch className="w-4 h-4" /> },
@@ -58,25 +72,36 @@ const COMM_LABELS: Record<string, string> = {
   FINANCE: "Finance", OPERATIONS_TERRAIN: "Opérations", AUDIT: "Audit & Contrôle", OPTIMISATION: "Optimisation",
 };
 
-type ActionDef = { action: string; label: string; needsComment?: boolean; isApprouver?: boolean; isDanger?: boolean };
+// gate = rôle requis (CDC) pour afficher l'action : Président émettrice, Président
+// réceptrice, ou analyse réceptrice (Rapporteurs + Président).
+type Gate = "EMETTRICE_PRESIDENT" | "RECEPTRICE_PRESIDENT" | "RECEPTRICE_ANALYSE";
+type ActionDef = { action: string; label: string; gate: Gate; needsComment?: boolean; isApprouver?: boolean; isDanger?: boolean };
 const ACTIONS_PAR_STATUT: Record<string, ActionDef[]> = {
-  EN_PREPARATION: [{ action: "TRANSMETTRE", label: "Transmettre au Président" }],
-  TRANSMIS: [{ action: "VALIDER_RECEPTION", label: "Valider la réception" }],
-  RECU: [{ action: "METTRE_EN_ANALYSE", label: "Mettre en analyse" }],
+  EN_PREPARATION: [{ action: "TRANSMETTRE", label: "Transmettre au Président", gate: "EMETTRICE_PRESIDENT" }],
+  TRANSMIS: [{ action: "VALIDER_RECEPTION", label: "Valider la réception", gate: "RECEPTRICE_ANALYSE" }],
+  RECU: [{ action: "METTRE_EN_ANALYSE", label: "Mettre en analyse", gate: "RECEPTRICE_ANALYSE" }],
   EN_ANALYSE: [
-    { action: "METTRE_EN_ATTENTE", label: "Mettre en attente de décision" },
-    { action: "APPROUVER", label: "Approuver", isApprouver: true },
-    { action: "DEMANDER_AJUSTEMENT", label: "Demander un ajustement", needsComment: true },
-    { action: "REJETER", label: "Rejeter", needsComment: true, isDanger: true },
+    { action: "METTRE_EN_ATTENTE", label: "Mettre en attente de décision", gate: "RECEPTRICE_ANALYSE" },
+    { action: "APPROUVER", label: "Approuver", isApprouver: true, gate: "RECEPTRICE_PRESIDENT" },
+    { action: "DEMANDER_AJUSTEMENT", label: "Demander un ajustement", needsComment: true, gate: "RECEPTRICE_PRESIDENT" },
+    { action: "REJETER", label: "Rejeter", needsComment: true, isDanger: true, gate: "RECEPTRICE_PRESIDENT" },
   ],
   EN_ATTENTE_DECISION: [
-    { action: "APPROUVER", label: "Approuver", isApprouver: true },
-    { action: "DEMANDER_AJUSTEMENT", label: "Demander un ajustement", needsComment: true },
-    { action: "REJETER", label: "Rejeter", needsComment: true, isDanger: true },
+    { action: "APPROUVER", label: "Approuver", isApprouver: true, gate: "RECEPTRICE_PRESIDENT" },
+    { action: "DEMANDER_AJUSTEMENT", label: "Demander un ajustement", needsComment: true, gate: "RECEPTRICE_PRESIDENT" },
+    { action: "REJETER", label: "Rejeter", needsComment: true, isDanger: true, gate: "RECEPTRICE_PRESIDENT" },
   ],
-  APPROUVE: [{ action: "EXECUTER", label: "Décaisser & affecter les clients" }],
-  EN_COURS_EXECUTION: [{ action: "CLOTURER", label: "Clôturer le dossier" }],
+  APPROUVE: [{ action: "EXECUTER", label: "Décaisser & affecter les clients", gate: "RECEPTRICE_PRESIDENT" }],
+  EN_COURS_EXECUTION: [{ action: "CLOTURER", label: "Clôturer le dossier", gate: "RECEPTRICE_PRESIDENT" }],
 };
+const ROLES_ANALYSE_UI = ["PRESIDENT", "RAPPORTEUR_1", "RAPPORTEUR_2"];
+// L'appelant peut-il déclencher cette action (selon son rôle de siège) ?
+function peutAgir(def: ActionDef, ctx: { superviseur: boolean; monRoleEmettrice: string | null; monRoleReceptrice: string | null }): boolean {
+  if (ctx.superviseur) return true;
+  if (def.gate === "EMETTRICE_PRESIDENT") return ctx.monRoleEmettrice === "PRESIDENT";
+  if (def.gate === "RECEPTRICE_PRESIDENT") return ctx.monRoleReceptrice === "PRESIDENT";
+  return ROLES_ANALYSE_UI.includes(ctx.monRoleReceptrice ?? "");
+}
 
 function fmt(n: number | string | null | undefined) {
   if (n === null || n === undefined) return "—";
@@ -215,6 +240,15 @@ function FormulaireFinancement({ dossier, editable, onSaved }: { dossier: Dossie
       : c);
     updateField("clients", clients);
   }
+  function addPiece() {
+    updateField("piecesJointesUrls", [...(contenu.piecesJointesUrls ?? []), ""]);
+  }
+  function updatePiece(i: number, url: string) {
+    updateField("piecesJointesUrls", (contenu.piecesJointesUrls ?? []).map((u, idx) => idx === i ? url : u));
+  }
+  function removePiece(i: number) {
+    updateField("piecesJointesUrls", (contenu.piecesJointesUrls ?? []).filter((_, idx) => idx !== i));
+  }
 
   async function save() {
     const montantDemande = (contenu.clients ?? []).reduce((s, c) => s + Number(c.montant || 0), 0);
@@ -262,6 +296,44 @@ function FormulaireFinancement({ dossier, editable, onSaved }: { dossier: Dossie
             placeholder="Ex: 1, 4, 7" />
         ) : (
           <p className="text-sm text-slate-700">{(contenu.investisseursConcernes ?? []).map(id => `#${id}`).join(", ") || "—"}</p>
+        )}
+      </div>
+
+      {/* Pièces jointes (CDC — Scénario 1) */}
+      <div>
+        <div className="flex items-center justify-between mb-2">
+          <p className="text-xs font-medium text-slate-500 flex items-center gap-1.5">
+            <Paperclip className="w-3.5 h-3.5" /> Pièces jointes ({(contenu.piecesJointesUrls ?? []).length})
+          </p>
+          {editable && (
+            <button type="button" onClick={addPiece} className="flex items-center gap-1 text-xs text-violet-600 hover:text-violet-800">
+              <Plus className="w-3.5 h-3.5" /> Ajouter un lien
+            </button>
+          )}
+        </div>
+        {editable ? (
+          <div className="space-y-1.5">
+            {(contenu.piecesJointesUrls ?? []).map((url, i) => (
+              <div key={i} className="flex items-center gap-2">
+                <input value={url} onChange={e => updatePiece(i, e.target.value)} placeholder="https://… (lien du document)"
+                  className="flex-1 border border-slate-200 rounded-lg px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400" />
+                <button type="button" onClick={() => removePiece(i)} className="text-rose-500 hover:text-rose-700">
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+            ))}
+            {(contenu.piecesJointesUrls ?? []).length === 0 && <p className="text-xs text-slate-400">Aucune pièce jointe</p>}
+          </div>
+        ) : (
+          <div className="space-y-1">
+            {(contenu.piecesJointesUrls ?? []).filter(Boolean).map((url, i) => (
+              <a key={i} href={url} target="_blank" rel="noopener noreferrer"
+                className="flex items-center gap-1.5 text-sm text-violet-600 hover:underline truncate">
+                <ExternalLink className="w-3.5 h-3.5 shrink-0" /> {url}
+              </a>
+            ))}
+            {(contenu.piecesJointesUrls ?? []).filter(Boolean).length === 0 && <p className="text-sm text-slate-400">—</p>}
+          </div>
         )}
       </div>
 
@@ -371,6 +443,80 @@ function AnalysePanel({ analyse }: { analyse: Analyse }) {
   );
 }
 
+/* ─── Aides à la consultation (Scénario 2) ─── */
+function ConsultationPanel({ consultation }: { consultation: Consultation }) {
+  const { portefeuilles, clients } = consultation;
+  if (portefeuilles.length === 0 && clients.length === 0) return null;
+  const fondsTotal = portefeuilles.reduce((s, p) => s + p.capitalDisponible, 0);
+
+  return (
+    <div className="bg-white rounded-xl border border-slate-200 p-5 space-y-4">
+      <h3 className="text-sm font-semibold text-slate-700 flex items-center gap-2">
+        <Wallet className="w-4 h-4" /> Aide à la décision
+      </h3>
+
+      {portefeuilles.length > 0 && (
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-xs font-medium text-slate-500">Portefeuilles investisseurs ciblés</p>
+            <p className="text-xs text-slate-500">Fonds disponibles : <span className="font-semibold text-emerald-600">{fmt(fondsTotal)} FCFA</span></p>
+          </div>
+          <div className="space-y-2">
+            {portefeuilles.map(p => (
+              <div key={p.id} className="flex items-center justify-between border border-slate-100 rounded-lg px-3 py-2 text-xs">
+                <div className="min-w-0">
+                  <p className="font-medium text-slate-700">{p.reference}{p.nom ? ` · ${p.nom}` : ""}</p>
+                  {p.investisseur && <p className="text-slate-400">{p.investisseur}</p>}
+                </div>
+                <div className="flex gap-4 shrink-0 text-right">
+                  <div><p className="text-slate-400">Disponible</p><p className="font-semibold text-emerald-600">{fmt(p.capitalDisponible)}</p></div>
+                  <div><p className="text-slate-400">Engagé</p><p className="font-medium text-slate-600">{fmt(p.capitalEngage)}</p></div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {clients.length > 0 && (
+        <div>
+          <p className="text-xs font-medium text-slate-500 mb-2">Historique de financement des clients</p>
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="text-slate-400 text-left border-b border-slate-100">
+                  <th className="py-1.5 pr-2 font-medium">Client</th>
+                  <th className="py-1.5 px-2 font-medium">Solvabilité</th>
+                  <th className="py-1.5 px-2 font-medium text-right">Financements</th>
+                  <th className="py-1.5 px-2 font-medium text-right">Financé (cumul)</th>
+                  <th className="py-1.5 pl-2 font-medium text-right">Encours</th>
+                </tr>
+              </thead>
+              <tbody>
+                {clients.map(c => (
+                  <tr key={c.clientId} className="border-b border-slate-50">
+                    <td className="py-1.5 pr-2 text-slate-700">{c.nom}</td>
+                    <td className="py-1.5 px-2">
+                      {c.scoreSolvabilite != null ? (
+                        <span className={`px-1.5 py-0.5 rounded ${c.scoreSolvabilite >= 60 ? "bg-emerald-50 text-emerald-600" : "bg-rose-50 text-rose-600"}`}>
+                          {c.scoreSolvabilite}%
+                        </span>
+                      ) : <span className="text-slate-300">—</span>}
+                    </td>
+                    <td className="py-1.5 px-2 text-right text-slate-600">{c.nbFinancements}</td>
+                    <td className="py-1.5 px-2 text-right text-slate-600">{fmt(c.montantFinanceTotal)}</td>
+                    <td className="py-1.5 pl-2 text-right font-medium text-slate-700">{fmt(c.encoursTotal)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function DossierDetailPage() {
   const { id } = useParams() as { id: string };
   const router = useRouter();
@@ -400,7 +546,7 @@ export default function DossierDetailPage() {
   }
 
   const meta = STATUT_META[dossier.statut] || { label: dossier.statut, color: "bg-slate-100 text-slate-600", icon: null };
-  const actions = ACTIONS_PAR_STATUT[dossier.statut] ?? [];
+  const actions = (ACTIONS_PAR_STATUT[dossier.statut] ?? []).filter(def => peutAgir(def, dossier));
   const isFinancement = dossier.type === "DEMANDE_FINANCEMENT";
 
   return (
@@ -453,6 +599,8 @@ export default function DossierDetailPage() {
       </div>
 
       {dossier.analyse && <AnalysePanel analyse={dossier.analyse} />}
+
+      {dossier.consultation && <ConsultationPanel consultation={dossier.consultation} />}
 
       {isFinancement && (
         <FormulaireFinancement dossier={dossier} editable={dossier.statut === "EN_PREPARATION"} onSaved={refetch} />

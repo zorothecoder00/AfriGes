@@ -38,6 +38,88 @@ export interface AnalyseFinancement {
 }
 
 type DB = Pick<typeof prisma, "client" | "portefeuilleRIA">;
+type DBConsult = Pick<typeof prisma, "client" | "portefeuilleRIA" | "operationFinancementRIA">;
+
+export interface ConsultationPortefeuille {
+  id: number; reference: string; nom: string | null; investisseur: string | null;
+  capitalDisponible: number; capitalEngage: number; capitalInvesti: number;
+}
+export interface ConsultationClient {
+  clientId: number; nom: string; scoreSolvabilite: number | null;
+  nbFinancements: number; montantFinanceTotal: number; encoursTotal: number;
+}
+export interface ConsultationFinancement {
+  portefeuilles: ConsultationPortefeuille[];
+  clients: ConsultationClient[];
+}
+
+// Aides à la consultation pour la commission réceptrice (CDC — Scénario 2) :
+// fonds disponibles des portefeuilles investisseurs ciblés + historique de
+// financement des clients de la demande. Partagé par les portails membre/admin.
+export async function construireConsultation(
+  db: DBConsult,
+  contenu: ContenuDemandeFinancement
+): Promise<ConsultationFinancement> {
+  const pfIds = (contenu.investisseursConcernes ?? []).filter((n): n is number => typeof n === "number");
+  const clientIds = (contenu.clients ?? [])
+    .map((c) => c.clientId)
+    .filter((n): n is number => typeof n === "number" && n > 0);
+
+  const [portefeuilles, clientsInfo, financements] = await Promise.all([
+    pfIds.length
+      ? db.portefeuilleRIA.findMany({
+          where: { id: { in: pfIds } },
+          select: {
+            id: true, reference: true, nom: true,
+            capitalDisponible: true, capitalEngage: true, capitalInvesti: true,
+            profilRIA: { select: { gestionnaire: { select: { member: { select: { nom: true, prenom: true } } } } } },
+          },
+        })
+      : Promise.resolve([]),
+    clientIds.length
+      ? db.client.findMany({
+          where: { id: { in: clientIds } },
+          select: { id: true, nom: true, prenom: true, scoreSolvabilite: true },
+        })
+      : Promise.resolve([]),
+    clientIds.length
+      ? db.operationFinancementRIA.groupBy({
+          by: ["clientId"],
+          where: { clientId: { in: clientIds } },
+          _count: { _all: true },
+          _sum: { montantFinance: true, encours: true },
+        })
+      : Promise.resolve([] as Array<{ clientId: number; _count: { _all: number }; _sum: { montantFinance: unknown; encours: unknown } }>),
+  ]);
+
+  const finByClient = new Map(financements.map((f) => [f.clientId, f]));
+  const clients: ConsultationClient[] = clientsInfo.map((c) => {
+    const f = finByClient.get(c.id);
+    return {
+      clientId: c.id,
+      nom: `${c.prenom} ${c.nom}`,
+      scoreSolvabilite: c.scoreSolvabilite,
+      nbFinancements: f?._count._all ?? 0,
+      montantFinanceTotal: f?._sum.montantFinance ? Number(f._sum.montantFinance) : 0,
+      encoursTotal: f?._sum.encours ? Number(f._sum.encours) : 0,
+    };
+  });
+
+  return {
+    portefeuilles: portefeuilles.map((p) => ({
+      id: p.id,
+      reference: p.reference,
+      nom: p.nom,
+      investisseur: p.profilRIA?.gestionnaire?.member
+        ? `${p.profilRIA.gestionnaire.member.prenom} ${p.profilRIA.gestionnaire.member.nom}`
+        : null,
+      capitalDisponible: Number(p.capitalDisponible),
+      capitalEngage: Number(p.capitalEngage),
+      capitalInvesti: Number(p.capitalInvesti),
+    })),
+    clients,
+  };
+}
 
 // Calculs du Scénario 2 du CDC — basés sur les données réelles (score de
 // solvabilité client, capital disponible du portefeuille), pas de simulation.

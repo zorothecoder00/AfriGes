@@ -15,8 +15,10 @@ export async function GET() {
     if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
 
     const now = new Date();
+    const userId = parseInt(session.user.id);
 
     const [
+      mesSieges,
       membresGroup,
       reunionsGroup,
       resolutionsGroup,
@@ -30,6 +32,11 @@ export async function GET() {
       prochainesParType,
       dossiersTerm,
     ] = await Promise.all([
+      // Sièges réels de l'admin/superadmin connecté (il peut aussi être membre d'une commission)
+      prisma.membreCommissionRIA.findMany({
+        where: { userId, actif: true },
+        select: { typeCommission: true, role: true },
+      }),
       prisma.membreCommissionRIA.groupBy({ by: ["typeCommission"], where: { actif: true }, _count: { id: true } }),
       prisma.reunionCommissionRIA.groupBy({ by: ["typeCommission", "statut"], _count: { id: true } }),
       prisma.resolutionCommRIA.groupBy({ by: ["typeCommission", "statut"], _count: { id: true } }),
@@ -95,6 +102,11 @@ export async function GET() {
       : 0;
 
     return NextResponse.json({
+      mesCommissions: mesSieges.map((m) => ({
+        type: m.typeCommission,
+        label: commissionLabel(m.typeCommission),
+        role: m.role,
+      })),
       membresParCommission,
       reunionsStats: {
         total:      reunionsGroup.reduce((s, g) => s + g._count.id, 0),

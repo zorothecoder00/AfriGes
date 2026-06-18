@@ -8,6 +8,9 @@ import type {
 import { isPresident } from "@/lib/authCommissionRIA";
 import { ecritureFinancementRIA } from "@/lib/riaComptable";
 import type { ContenuDemandeFinancement } from "@/lib/riaAnalyseDossier";
+import { notify } from "@/lib/notifications";
+import { commissionLabel } from "@/lib/commissionsRIA";
+import type { PrioriteNotification } from "@prisma/client";
 
 type TX = Prisma.TransactionClient;
 
@@ -66,8 +69,11 @@ const ACTIONS_PRESIDENT_EMETTRICE: DossierAction[] = ["TRANSMETTRE"];
 const ACTIONS_PRESIDENT_RECEPTRICE: DossierAction[] = [
   "APPROUVER", "REJETER", "DEMANDER_AJUSTEMENT", "EXECUTER", "CLOTURER",
 ];
-// Étapes de traitement (réception, analyse) ouvertes à tout membre actif de la réceptrice
+// Étapes de traitement (réception, analyse) — CDC : « Analyse » (Rapporteur 1) /
+// « Vérification des analyses » (Rapporteur 2) ; le Président est inclus au titre de
+// sa supervision. Réservées donc aux Rapporteurs + Président de la réceptrice.
 const ACTIONS_MEMBRE_RECEPTRICE: DossierAction[] = ["VALIDER_RECEPTION", "METTRE_EN_ANALYSE", "METTRE_EN_ATTENTE"];
+const ROLES_ANALYSE_RECEPTRICE: RoleMembreCommissionRIA[] = ["PRESIDENT", "RAPPORTEUR_1", "RAPPORTEUR_2"];
 
 // Postes habilités à préparer/rédiger un dossier (création + révision du contenu).
 // CDC : Rapporteur 1 (préparation), Rapporteur 2 (co-rédaction/vérification) ;
@@ -101,10 +107,13 @@ async function verifierDroitAction(
     return;
   }
   if (ACTIONS_MEMBRE_RECEPTRICE.includes(action)) {
-    const membre = await tx.membreCommissionRIA.findFirst({
-      where: { userId, typeCommission: dossier.commissionReceptrice, actif: true },
-    });
-    if (!membre) throw new DossierWorkflowError("Réservé aux membres actifs de la commission réceptrice", 403);
+    const role = await roleDansCommission(tx, userId, dossier.commissionReceptrice);
+    if (!role || !ROLES_ANALYSE_RECEPTRICE.includes(role)) {
+      throw new DossierWorkflowError(
+        "L'analyse du dossier (réception, mise en analyse) est réservée aux Rapporteurs et au Président de la commission réceptrice",
+        403
+      );
+    }
   }
 }
 
@@ -320,6 +329,58 @@ export async function appliquerActionDossier(tx: TX, params: AppliquerActionPara
         contenu: params.commentaire,
       },
     });
+  }
+
+  // ── Notifications automatiques (CDC) ─────────────────────────────────────────
+  // Transmission → la commission réceptrice est prévenue (« Dossiers entrants ») ;
+  // décision / demande d'ajustement → la commission émettrice est prévenue.
+  if (action) {
+    type NotifConf = { cible: TypeCommissionRIA; titre: string; message: string; priorite: PrioriteNotification };
+    const NOTIFS: Partial<Record<DossierAction, NotifConf>> = {
+      TRANSMETTRE: {
+        cible: current.commissionReceptrice,
+        titre: "Nouveau dossier à analyser",
+        message: `Le dossier ${current.reference} « ${current.titre} » vous a été transmis par ${commissionLabel(current.commissionEmettrice)}.`,
+        priorite: "HAUTE",
+      },
+      DEMANDER_AJUSTEMENT: {
+        cible: current.commissionEmettrice,
+        titre: "Ajustement demandé",
+        message: `${commissionLabel(current.commissionReceptrice)} demande un réajustement du dossier ${current.reference} avant nouvelle transmission.`,
+        priorite: "HAUTE",
+      },
+      REJETER: {
+        cible: current.commissionEmettrice,
+        titre: "Dossier rejeté",
+        message: `Le dossier ${current.reference} a été rejeté par ${commissionLabel(current.commissionReceptrice)}.`,
+        priorite: "HAUTE",
+      },
+      APPROUVER: {
+        cible: current.commissionEmettrice,
+        titre: "Financement autorisé",
+        message: `Le dossier ${current.reference} a été approuvé par ${commissionLabel(current.commissionReceptrice)}.`,
+        priorite: "HAUTE",
+      },
+      EXECUTER: {
+        cible: current.commissionEmettrice,
+        titre: "Décaissement effectué",
+        message: `Le financement du dossier ${current.reference} est en cours d'exécution (clients affectés et fonds engagés).`,
+        priorite: "NORMAL",
+      },
+    };
+    const conf = NOTIFS[action];
+    if (conf) {
+      const membres = await tx.membreCommissionRIA.findMany({
+        where: { typeCommission: conf.cible, actif: true },
+        select: { userId: true },
+      });
+      await notify(tx, membres.map((m) => m.userId), {
+        titre: conf.titre,
+        message: conf.message,
+        priorite: conf.priorite,
+        actionUrl: `/dashboard/user/gouvernance/dossiers/${dossierId}`,
+      });
+    }
   }
 
   if (action === "EXECUTER" && current.type === "DEMANDE_FINANCEMENT") {

@@ -48,33 +48,60 @@ const ACTIONS_PRESIDENT: Record<string, ActDef[]> = {
   ADOPTEE: [{ action: "EXECUTER", label: "Marquer exécutée" }],
 };
 
+interface ReuLite { id: number; titre: string; dateHeure: string; typeCommission: string }
+
 function CreerResolutionModal({ commissions, onClose, onCreated }: {
   commissions: MaCommission[]; onClose: () => void; onCreated: () => void;
 }) {
   const { mutate, loading } = useMutation("/api/membreCommission/resolutions", "POST");
+  // Réunions des commissions du membre : une résolution doit en émaner (CDC).
+  const { data: reuData } = useApi<{ reunions: ReuLite[] }>("/api/membreCommission/reunions");
   const [form, setForm] = useState({
     typeCommission: commissions[0]?.typeCommission ?? "",
-    titre: "", description: "", dateEcheance: "",
+    reunionId: "", titre: "", description: "", dateEcheance: "",
   });
+
+  // Réunions de la commission sélectionnée (plus récentes d'abord)
+  const reunions = (reuData?.reunions ?? [])
+    .filter(r => r.typeCommission === form.typeCommission)
+    .sort((a, b) => +new Date(b.dateHeure) - +new Date(a.dateHeure));
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!form.typeCommission || !form.titre) { toast.error("Commission et titre requis"); return; }
-    const res = await mutate({ ...form, dateEcheance: form.dateEcheance || null });
+    if (!form.reunionId) { toast.error("Sélectionnez la réunion dont émane cette résolution"); return; }
+    const res = await mutate({ ...form, reunionId: Number(form.reunionId), dateEcheance: form.dateEcheance || null });
     if (res) { toast.success("Résolution créée (en préparation)"); onCreated(); onClose(); }
   }
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-      <form onSubmit={submit} className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+      <form onSubmit={submit} className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
         <div className="px-6 py-4 border-b border-slate-100"><h2 className="font-semibold text-slate-800">Nouvelle résolution</h2></div>
         <div className="p-6 space-y-4">
           <div>
             <label className="block text-xs font-medium text-slate-600 mb-1">Commission *</label>
-            <select value={form.typeCommission} onChange={e => setForm(f => ({ ...f, typeCommission: e.target.value }))}
+            <select value={form.typeCommission} onChange={e => setForm(f => ({ ...f, typeCommission: e.target.value, reunionId: "" }))}
               className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300">
               {commissions.map(c => <option key={c.typeCommission} value={c.typeCommission}>{commissionLabel(c.typeCommission)}</option>)}
             </select>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-1">Réunion d&apos;origine *</label>
+            <select value={form.reunionId} onChange={e => setForm(f => ({ ...f, reunionId: e.target.value }))}
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300">
+              <option value="">— Choisir la réunion —</option>
+              {reunions.map(r => (
+                <option key={r.id} value={r.id}>
+                  {r.titre} · {new Date(r.dateHeure).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" })}
+                </option>
+              ))}
+            </select>
+            {reunions.length === 0 && (
+              <p className="text-xs text-amber-600 mt-1 flex items-center gap-1">
+                <Calendar className="w-3 h-3" /> Aucune réunion pour cette commission — créez d&apos;abord une réunion.
+              </p>
+            )}
           </div>
           <div>
             <label className="block text-xs font-medium text-slate-600 mb-1">Titre *</label>
@@ -94,7 +121,7 @@ function CreerResolutionModal({ commissions, onClose, onCreated }: {
         </div>
         <div className="px-6 py-4 border-t border-slate-100 flex justify-end gap-3">
           <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 rounded-lg">Annuler</button>
-          <button type="submit" disabled={loading} className="px-5 py-2 text-sm font-medium rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-50">
+          <button type="submit" disabled={loading || reunions.length === 0} className="px-5 py-2 text-sm font-medium rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-50">
             {loading ? "Création..." : "Créer"}
           </button>
         </div>

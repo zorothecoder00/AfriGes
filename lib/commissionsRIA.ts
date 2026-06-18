@@ -1,4 +1,4 @@
-import type { TypeCommissionRIA } from "@prisma/client";
+import type { TypeCommissionRIA, TypeDossierIC } from "@prisma/client";
 
 /**
  * Source unique de vérité pour la correspondance entre :
@@ -95,3 +95,17 @@ export const COMMISSION_ROLE_POWERS: Record<CommissionRole, string[]> = {
 export function roleLabel(role: string): string {
   return COMMISSION_ROLE_LABELS[role] ?? role;
 }
+
+// ── Routage inter-commissions imposé par le cahier des charges ────────────────
+// Certains types de dossiers ont une trajectoire FIXE entre commissions et ne
+// peuvent emprunter aucun autre chemin (Scénario 1 du CDC) :
+//  - DEMANDE_FINANCEMENT : la Commission Opérations Terrain détecte le besoin et
+//    transmet OBLIGATOIREMENT à la Commission Finance qui analyse et décide.
+// Un type absent de cette table reste à routage libre (émettrice = une commission
+// du créateur, réceptrice = une autre commission).
+export const DOSSIER_ROUTAGE_FIXE: Partial<Record<TypeDossierIC, {
+  emettrice: TypeCommissionRIA;
+  receptrice: TypeCommissionRIA;
+}>> = {
+  DEMANDE_FINANCEMENT: { emettrice: "OPERATIONS_TERRAIN", receptrice: "FINANCE" },
+};

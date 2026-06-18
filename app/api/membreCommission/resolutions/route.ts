@@ -64,6 +64,22 @@ export async function POST(req: NextRequest) {
       if (!ROLES_REDACTION_CR.includes(role)) {
         return NextResponse.json({ error: "La rédaction d'une résolution est réservée au Président et aux Rapporteurs" }, { status: 403 });
       }
+      // CDC : une résolution émane d'une réunion → un membre doit la rattacher à une réunion.
+      // (Admin/RESPONSABLE_RIA en supervision, auth.commission === null, ne sont pas forcés.)
+      if (!reunionId) {
+        return NextResponse.json({ error: "Une résolution doit être rattachée à une réunion de la commission" }, { status: 400 });
+      }
+    }
+
+    // Cohérence : la réunion liée doit appartenir à la même commission.
+    if (reunionId) {
+      const reunion = await prisma.reunionCommissionRIA.findUnique({
+        where: { id: Number(reunionId) },
+        select: { typeCommission: true },
+      });
+      if (!reunion || reunion.typeCommission !== typeCommission) {
+        return NextResponse.json({ error: "Réunion invalide pour cette commission" }, { status: 400 });
+      }
     }
 
     const count = await prisma.resolutionCommRIA.count({ where: { typeCommission: typeCommission as TypeCommissionRIA } });

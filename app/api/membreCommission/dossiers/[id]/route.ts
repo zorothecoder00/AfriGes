@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCommissionMembreSession, peutOutrepasserGating } from "@/lib/authCommissionRIA";
-import { calculerAnalyseFinancement, type ContenuDemandeFinancement } from "@/lib/riaAnalyseDossier";
+import { calculerAnalyseFinancement, construireConsultation, type ContenuDemandeFinancement } from "@/lib/riaAnalyseDossier";
 import { appliquerActionDossier, DossierWorkflowError, type DossierAction } from "@/lib/dossierInterCommissionWorkflow";
 
 type Ctx = { params: Promise<{ id: string }> };
@@ -53,14 +53,29 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
     }
 
     let analyse = null;
+    let consultation = null;
     if (dossier.type === "DEMANDE_FINANCEMENT") {
       const versionCourante = dossier.versions.find((v) => v.version === dossier.versionCourante);
       const contenu = (versionCourante?.contenu ?? {}) as ContenuDemandeFinancement;
       const portefeuilleId = dossier.portefeuilleExecutionId ?? contenu.investisseursConcernes?.[0] ?? null;
       analyse = await calculerAnalyseFinancement(prisma, contenu, portefeuilleId);
+      consultation = await construireConsultation(prisma, contenu);
     }
 
-    return NextResponse.json({ ...dossier, analyse });
+    // Rôle de l'appelant dans les commissions du dossier (pour masquer les actions
+    // non autorisées côté UI). superviseur = override ADMIN/SUPER_ADMIN.
+    const sieges = await prisma.membreCommissionRIA.findMany({
+      where: {
+        userId, actif: true,
+        typeCommission: { in: [dossier.commissionEmettrice, dossier.commissionReceptrice] },
+      },
+      select: { typeCommission: true, role: true },
+    });
+    const monRoleEmettrice = sieges.find((s) => s.typeCommission === dossier.commissionEmettrice)?.role ?? null;
+    const monRoleReceptrice = sieges.find((s) => s.typeCommission === dossier.commissionReceptrice)?.role ?? null;
+    const superviseur = peutOutrepasserGating(auth.session.user.role);
+
+    return NextResponse.json({ ...dossier, analyse, consultation, monRoleEmettrice, monRoleReceptrice, superviseur });
   } catch (e) {
     console.error(e);
     return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });

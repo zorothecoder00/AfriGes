@@ -12,14 +12,50 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
     if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
 
     const { id } = await params;
-    const { action, notes } = await req.json();
+    const body = await req.json();
+    const { action, notes } = body; // VALIDER | PAYER | REJETER (absent => édition)
+
+    const retrait = await prisma.retraitInvestisseur.findUnique({ where: { id: parseInt(id) } });
+    if (!retrait) return NextResponse.json({ error: "Retrait introuvable" }, { status: 404 });
+
+    // ── Mode édition (pas d'action) : modifier un retrait encore en attente ────────
+    if (!action) {
+      if (retrait.statut !== "EN_ATTENTE") {
+        return NextResponse.json({ error: "Seul un retrait en attente peut être modifié" }, { status: 400 });
+      }
+      const { portefeuilleId, montant, motif, modePaiement } = body;
+      const cibleMontant = montant !== undefined ? Number(montant) : Number(retrait.montant);
+      const ciblePfId = portefeuilleId !== undefined ? Number(portefeuilleId) : retrait.portefeuilleId;
+
+      if (montant !== undefined && cibleMontant <= 0) {
+        return NextResponse.json({ error: "Le montant doit être supérieur à 0" }, { status: 400 });
+      }
+      // Vérifier que le portefeuille (nouveau ou actuel) peut couvrir le montant cible.
+      if (montant !== undefined || portefeuilleId !== undefined) {
+        const pf = await prisma.portefeuilleRIA.findUnique({ where: { id: ciblePfId } });
+        if (!pf) return NextResponse.json({ error: "Portefeuille introuvable" }, { status: 404 });
+        if (Number(pf.capitalDisponible) < cibleMontant) {
+          return NextResponse.json({ error: "Capital disponible insuffisant" }, { status: 400 });
+        }
+      }
+
+      const data: Record<string, unknown> = {};
+      if (montant !== undefined) data.montant = cibleMontant;
+      if (portefeuilleId !== undefined) data.portefeuilleId = ciblePfId;
+      if (motif !== undefined) data.motif = motif ?? null;
+      if (modePaiement !== undefined) data.modePaiement = modePaiement ?? null;
+      if (notes !== undefined) data.notes = notes ?? null;
+
+      if (Object.keys(data).length === 0) {
+        return NextResponse.json({ error: "Aucune modification" }, { status: 400 });
+      }
+      const updated = await prisma.retraitInvestisseur.update({ where: { id: retrait.id }, data });
+      return NextResponse.json({ data: updated });
+    }
 
     if (!["VALIDER", "PAYER", "REJETER"].includes(action)) {
       return NextResponse.json({ error: "action doit être VALIDER, PAYER ou REJETER" }, { status: 400 });
     }
-
-    const retrait = await prisma.retraitInvestisseur.findUnique({ where: { id: parseInt(id) } });
-    if (!retrait) return NextResponse.json({ error: "Retrait introuvable" }, { status: 404 });
 
     const adminId = parseInt(session.user.id);
     const now = new Date();

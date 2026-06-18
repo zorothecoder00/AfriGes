@@ -1,13 +1,13 @@
 "use client";
 
 import { useApi } from "@/hooks/useApi";
-import { enumToSlug } from "@/lib/commissionsRIA";
+import { enumToSlug, roleLabel } from "@/lib/commissionsRIA";
 import type { TypeCommissionRIA } from "@prisma/client";
 import Link from "next/link";
 import {
   Users, Calendar, CheckSquare, ListChecks, FileText, AlertTriangle,
   Brain, TrendingUp, Clock, ArrowRight, Shield, BarChart3,
-  Gavel, LayoutGrid, Activity,
+  Gavel, LayoutGrid, Activity, UserCheck, Crown,
 } from "lucide-react";
 
 interface CommissionStat {
@@ -18,7 +18,10 @@ interface CommissionStat {
   plansStats: { total: number; enRetard: number };
 }
 
+interface MonSiege { type: string; label: string; role: string }
+
 interface DashboardGouvData {
+  mesCommissions: MonSiege[];
   membresParCommission: CommissionStat[];
   reunionsStats: { total: number; planifiees: number; tenues: number; annulees: number };
   resolutionsStats: { total: number; adoptees: number; executees: number; enAttente: number };
@@ -67,6 +70,7 @@ export default function GouvernanceDashboardPage() {
   );
 
   const d = data;
+  const mesTypes = new Set((d?.mesCommissions ?? []).map((c) => c.type));
 
   return (
     <div className="p-6 space-y-8 max-w-7xl mx-auto">
@@ -95,6 +99,39 @@ export default function GouvernanceDashboardPage() {
 
       {d && (
         <>
+          {/* Mes sièges en commission (si l'admin/superadmin est lui-même membre) */}
+          {d.mesCommissions.length > 0 && (
+            <div className="bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 rounded-xl p-5">
+              <h2 className="text-sm font-semibold text-emerald-800 mb-3 flex items-center gap-2">
+                <UserCheck className="w-4 h-4" /> Mes sièges en commission
+              </h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {d.mesCommissions.map((c) => (
+                  <Link
+                    key={c.type}
+                    href={`/dashboard/admin/ria/gouvernance/commissions/${enumToSlug(c.type as TypeCommissionRIA)}`}
+                    className="group flex items-center gap-3 bg-white rounded-lg border border-emerald-200 p-3 hover:border-emerald-400 hover:shadow-sm transition-all"
+                  >
+                    <div className="w-9 h-9 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
+                      {c.role === "PRESIDENT" ? <Crown className="w-4.5 h-4.5" /> : <Shield className="w-4.5 h-4.5" />}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium text-slate-800 truncate">{COMMISSION_LABELS[c.type] || c.label}</p>
+                      <span className={`text-xs px-1.5 py-0.5 rounded-full ${c.role === "PRESIDENT" ? "bg-amber-100 text-amber-700" : c.role.startsWith("RAPPORTEUR") ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-600"}`}>
+                        {roleLabel(c.role)}
+                      </span>
+                    </div>
+                    <ArrowRight className="w-4 h-4 text-emerald-300 group-hover:text-emerald-500 transition-colors shrink-0" />
+                  </Link>
+                ))}
+              </div>
+              <p className="text-xs text-emerald-700/70 mt-3">
+                Vous y détenez un siège : la page de chaque commission vous permet de lire et d&apos;agir.
+                En tant qu&apos;administrateur, vous pouvez aussi superviser toutes les commissions ci-dessous.
+              </p>
+            </div>
+          )}
+
           {/* KPIs globaux */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <StatCard label="Réunions" value={d.reunionsStats.total}
@@ -157,7 +194,12 @@ export default function GouvernanceDashboardPage() {
                   <div className="p-5">
                     <div className="flex items-start justify-between mb-4">
                       <div>
-                        <h3 className="font-semibold text-slate-800">{COMMISSION_LABELS[c.type] || c.type}</h3>
+                        <h3 className="font-semibold text-slate-800 flex items-center gap-1.5">
+                          {COMMISSION_LABELS[c.type] || c.type}
+                          {mesTypes.has(c.type) && (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-medium">Mon siège</span>
+                          )}
+                        </h3>
                         {c.prochainReunion && (
                           <p className="text-xs text-slate-400 mt-0.5">
                             Prochaine: {new Date(c.prochainReunion).toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}

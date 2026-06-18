@@ -11,14 +11,42 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
     if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
 
     const { id } = await params;
-    const { action, notes } = await req.json(); // action: VALIDER | REJETER
+    const body = await req.json();
+    const { action, notes } = body; // action: VALIDER | REJETER (absent => édition)
+
+    const depot = await prisma.depotInvestisseur.findUnique({ where: { id: parseInt(id) } });
+    if (!depot) return NextResponse.json({ error: "Dépôt introuvable" }, { status: 404 });
+
+    // ── Mode édition (pas d'action) : modifier un dépôt encore en attente ──────────
+    if (!action) {
+      if (depot.statut !== "EN_ATTENTE") {
+        return NextResponse.json({ error: "Seul un dépôt en attente peut être modifié" }, { status: 400 });
+      }
+      const { portefeuilleId, montant, modePaiement, justificatifUrl } = body;
+      const data: Record<string, unknown> = {};
+      if (montant !== undefined) {
+        if (Number(montant) <= 0) return NextResponse.json({ error: "Le montant doit être supérieur à 0" }, { status: 400 });
+        data.montant = Number(montant);
+      }
+      if (portefeuilleId !== undefined) {
+        const pf = await prisma.portefeuilleRIA.findUnique({ where: { id: Number(portefeuilleId) } });
+        if (!pf) return NextResponse.json({ error: "Portefeuille introuvable" }, { status: 404 });
+        data.portefeuilleId = Number(portefeuilleId);
+      }
+      if (modePaiement !== undefined) data.modePaiement = modePaiement ?? null;
+      if (justificatifUrl !== undefined) data.justificatifUrl = justificatifUrl ?? null;
+      if (notes !== undefined) data.notes = notes ?? null;
+
+      if (Object.keys(data).length === 0) {
+        return NextResponse.json({ error: "Aucune modification" }, { status: 400 });
+      }
+      const updated = await prisma.depotInvestisseur.update({ where: { id: depot.id }, data });
+      return NextResponse.json({ data: updated });
+    }
 
     if (!["VALIDER", "REJETER"].includes(action)) {
       return NextResponse.json({ error: "action doit être VALIDER ou REJETER" }, { status: 400 });
     }
-
-    const depot = await prisma.depotInvestisseur.findUnique({ where: { id: parseInt(id) } });
-    if (!depot) return NextResponse.json({ error: "Dépôt introuvable" }, { status: 404 });
     if (depot.statut !== "EN_ATTENTE") {
       return NextResponse.json({ error: "Ce dépôt a déjà été traité" }, { status: 400 });
     }

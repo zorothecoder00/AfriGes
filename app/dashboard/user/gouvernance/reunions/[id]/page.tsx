@@ -73,6 +73,10 @@ export default function MembreReunionDetailPage() {
   const { data: crData, refetch: refetchCr } = useApi<{ compteRendu: CompteRendu | null }>(
     `/api/membreCommission/reunions/${id}/compte-rendu`
   );
+  // Résolutions de la commission (pour rattacher une tâche à la résolution dont elle découle)
+  const { data: resData } = useApi<{ resolutions: { id: number; numero: string; titre: string; reunion: { id: number } | null }[] }>(
+    "/api/membreCommission/resolutions"
+  );
 
   const { mutate: patcher, loading: patching } = useMutation(`/api/membreCommission/reunions/${id}`, "PATCH");
   const { mutate: signer, loading: signing } = useMutation(
@@ -83,7 +87,7 @@ export default function MembreReunionDetailPage() {
 
   const [crForm, setCrForm] = useState<Record<string, string> | null>(null);
   const [showTacheForm, setShowTacheForm] = useState(false);
-  const [tacheForm, setTacheForm] = useState({ titre: "", responsableId: "", dateEcheance: "", priorite: "MOYENNE" });
+  const [tacheForm, setTacheForm] = useState({ titre: "", responsableId: "", dateEcheance: "", priorite: "MOYENNE", resolutionId: "" });
   const [busyTache, setBusyTache] = useState<number | null>(null);
 
   if (loading || !reunion) {
@@ -104,6 +108,8 @@ export default function MembreReunionDetailPage() {
   // Membres assignables (depuis la feuille de présence de la réunion)
   const membresAssignables = reunion.presences.map(p => p.membre.user);
   const taches = reunion.plansAction ?? [];
+  // Résolutions issues de cette réunion (pour rattacher la tâche à sa résolution d'origine)
+  const resolutionsReunion = (resData?.resolutions ?? []).filter(r => r.reunion?.id === reunion.id);
 
   const maPresence = reunion.presences.find(p => p.membre.user.id === monUserId);
   const cr = crData?.compteRendu;
@@ -135,6 +141,7 @@ export default function MembreReunionDetailPage() {
     const res = await creerTache({
       typeCommission: reunion!.typeCommission,
       reunionId: reunion!.id,
+      resolutionId: tacheForm.resolutionId || null,
       titre: tacheForm.titre.trim(),
       responsableId: tacheForm.responsableId || null,
       dateEcheance: tacheForm.dateEcheance || null,
@@ -142,7 +149,7 @@ export default function MembreReunionDetailPage() {
     });
     if (res) {
       toast.success("Tâche créée");
-      setTacheForm({ titre: "", responsableId: "", dateEcheance: "", priorite: "MOYENNE" });
+      setTacheForm({ titre: "", responsableId: "", dateEcheance: "", priorite: "MOYENNE", resolutionId: "" });
       setShowTacheForm(false);
       refetch();
     }
@@ -352,6 +359,14 @@ export default function MembreReunionDetailPage() {
               <input value={tacheForm.titre} onChange={e => setTacheForm(f => ({ ...f, titre: e.target.value }))}
                 placeholder="Ex. Réduire les impayés de 15 %"
                 className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-300" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Résolution d&apos;origine</label>
+              <select value={tacheForm.resolutionId} onChange={e => setTacheForm(f => ({ ...f, resolutionId: e.target.value }))}
+                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-300">
+                <option value="">— Aucune (tâche libre de la réunion) —</option>
+                {resolutionsReunion.map(r => <option key={r.id} value={r.id}>{r.numero} — {r.titre}</option>)}
+              </select>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
