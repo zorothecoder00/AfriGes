@@ -85,5 +85,10 @@ Permettre aux caissiers dashboard/user/caissiers de pouvoir faire aussi le recou
   comment gérer ça sur l'app)
 
  Explique moi le fonctionnement des onglets CARTOGRAPHIE DES PROCESSUS , GOULOTS D'ETRANGLEMENT, SUGGESTIONS D'AMELIORATIONS, GESTION DES INNOVATIONS , PRODUCTIVITE, RAPPORT RECU ET ANALYSES D'OPTIMISATION de la page dashboard/admin/ria/gouvernance/commissions/optimisation (qui est identique à celle du dashboard/user/responsablesRIA d'ailleurs) et surtout dis moi pourquoi ces onglets sont très lents à se charger quand on clique dessus ; et même quand ça vient , les données aussi ont du mal à s'actualiser
-
+   
 Permettre au caissier et au responsable crédit de pouvoir aussi encaisser les crédits clients
+
+Toutes les pages de commissions par type ont des onglet trop lents ( bon j'ai déjà corrigé pour la commission Optimisation qui utilisait une api trop lourde et des données non bornées)
+
+
+Invalid Date sur /ria/gouvernance/commissions/optimisation au niveau des membres

@@ -25,7 +25,6 @@ export async function GET() {
       creancesEchues,
       repartitionRisque,
       financementsDetail,
-      remboursementsMeta,
     ] = await Promise.all([
       prisma.profilInvestisseurRIA.count(),
 
@@ -119,11 +118,6 @@ export async function GET() {
             },
           },
         },
-      }),
-
-      // Premier + dernier remboursement par financement (pour DSO)
-      prisma.remboursementRIA.findMany({
-        select: { montant: true, createdAt: true },
       }),
     ]);
 

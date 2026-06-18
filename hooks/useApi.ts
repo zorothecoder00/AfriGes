@@ -21,17 +21,18 @@ function injectViewAs(url: string | null, viewAsUserId: number | undefined): str
   return `${url}${separator}viewAs=${viewAsUserId}`;
 }
 
+// Cache mémoire partagé (stale-while-revalidate) + déduplication des requêtes
+// en vol, partagés entre tous les composants. Vit le temps de la session de
+// l'onglet navigateur ; vidé au rechargement complet de la page.
+const apiCache = new Map<string, unknown>();
+const inflight = new Map<string, Promise<unknown>>();
+
 export function useApi<T>(
   url: string | null,
   options?: RequestInit,
   { refreshInterval }: { refreshInterval?: number } = {}
 ): UseApiResult<T> {
   const { viewAs } = useViewAs();
-  const [data, setData] = useState<T | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const optionsRef = useRef(options);
-  optionsRef.current = options;
 
   // Injection automatique de ?viewAs= sur tous les GETs
   const effectiveUrl = useMemo(
@@ -40,40 +41,84 @@ export function useApi<T>(
     [url, viewAs?.userId]
   );
 
-  const fetchData = useCallback(async () => {
+  // Hydratation immédiate depuis le cache : pas de spinner si on a déjà la donnée
+  // (ex. retour sur un onglet déjà visité).
+  const [data, setData] = useState<T | null>(
+    () => (effectiveUrl && apiCache.has(effectiveUrl) ? (apiCache.get(effectiveUrl) as T) : null)
+  );
+  const [loading, setLoading] = useState(
+    () => !(effectiveUrl && apiCache.has(effectiveUrl))
+  );
+  const [error, setError] = useState<string | null>(null);
+
+  const optionsRef = useRef(options);
+  optionsRef.current = options;
+  const mountedRef = useRef(true);
+  const currentUrlRef = useRef(effectiveUrl);
+  currentUrlRef.current = effectiveUrl;
+
+  const fetchData = useCallback(async (force = false) => {
     if (!effectiveUrl) {
       setLoading(false);
       return;
     }
-    setLoading(true);
-    setError(null);
+
+    // Stale-while-revalidate : si on a une valeur en cache, on l'affiche tout de
+    // suite (sans spinner) puis on revalide en arrière-plan.
+    if (apiCache.has(effectiveUrl) && !force) {
+      setData(apiCache.get(effectiveUrl) as T);
+      setLoading(false);
+    } else {
+      setLoading(true);
+    }
+
     try {
-      const res = await fetch(effectiveUrl, optionsRef.current);
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error(body.message || body.error || `Erreur ${res.status}`);
+      // Déduplication : une seule requête réseau pour une même URL simultanée.
+      let promise = force ? undefined : inflight.get(effectiveUrl);
+      if (!promise) {
+        promise = fetch(effectiveUrl, optionsRef.current).then(async (res) => {
+          if (!res.ok) {
+            const body = await res.json().catch(() => ({}));
+            throw new Error(body.message || body.error || `Erreur ${res.status}`);
+          }
+          return res.json();
+        });
+        inflight.set(effectiveUrl, promise);
+        void promise.catch(() => {}).finally(() => {
+          if (inflight.get(effectiveUrl) === promise) inflight.delete(effectiveUrl);
+        });
       }
-      const json = await res.json();
-      setData(json);
+
+      const json = await promise;
+      apiCache.set(effectiveUrl, json);
+      // Ignore les réponses obsolètes (URL changée) ou après démontage.
+      if (!mountedRef.current || currentUrlRef.current !== effectiveUrl) return;
+      setData(json as T);
+      setError(null);
     } catch (err: unknown) {
+      if (!mountedRef.current || currentUrlRef.current !== effectiveUrl) return;
       setError(err instanceof Error ? err.message : "Erreur inconnue");
     } finally {
-      setLoading(false);
+      if (mountedRef.current && currentUrlRef.current === effectiveUrl) setLoading(false);
     }
   }, [effectiveUrl]);
 
   useEffect(() => {
+    mountedRef.current = true;
     fetchData();
+    return () => { mountedRef.current = false; };
   }, [fetchData]);
 
   // Auto-refresh par polling si refreshInterval est fourni
   useEffect(() => {
     if (!refreshInterval || refreshInterval <= 0) return;
-    const id = setInterval(fetchData, refreshInterval);
+    const id = setInterval(() => fetchData(), refreshInterval);
     return () => clearInterval(id);
   }, [fetchData, refreshInterval]);
 
-  return { data, loading, error, refetch: fetchData };
+  const refetch = useCallback(() => { fetchData(true); }, [fetchData]);
+
+  return { data, loading, error, refetch };
 }
 
 interface UseMutationResult<TData, TBody> {

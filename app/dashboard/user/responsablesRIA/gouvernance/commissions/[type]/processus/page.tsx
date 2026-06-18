@@ -46,7 +46,11 @@ const PROCESSUS = [
 export default function ProcessusPage() {
   const { type } = useParams() as { type: string };
   const [refresh, setRefresh] = useState(0);
-  const { data: res } = useApi<{ data: KPIs }>(`/api/admin/ria/dashboard?_r=${refresh}`);
+  const { data: res, loading } = useApi<{ data: KPIs }>(
+    `/api/admin/ria/commissions/gouvernance/optimisation-kpis?_r=${refresh}`,
+    undefined,
+    { refreshInterval: 60000 }
+  );
   const data = res?.data;
 
   if (type !== "optimisation") return (
@@ -65,6 +69,12 @@ export default function ProcessusPage() {
           <RefreshCw className="w-4 h-4" /> Actualiser
         </button>
       </div>
+
+      {loading && !data && (
+        <div className="flex items-center justify-center h-20">
+          <div className="w-6 h-6 border-4 border-violet-400 border-t-transparent rounded-full animate-spin" />
+        </div>
+      )}
 
       {data && (
         <div className="grid grid-cols-3 gap-4">

@@ -12,24 +12,23 @@ interface DashData {
   beneficesGeneres: number; scoreGlobalSante: number;
   nbInvestisseurs?: number; nbPortefeuilles?: number;
 }
-interface InvResponse { data: unknown[]; meta: { total: number } }
-interface PfResponse  { data: unknown[]; meta: { total: number } }
-
 export default function ProductivitePage() {
   const { type } = useParams() as { type: string };
   const [refresh, setRefresh] = useState(0);
-  const { data: dashRes } = useApi<{ data: DashData }>(`/api/admin/ria/dashboard?_r=${refresh}`);
+  const { data: dashRes, loading } = useApi<{ data: DashData }>(
+    `/api/admin/ria/commissions/gouvernance/optimisation-kpis?_r=${refresh}`,
+    undefined,
+    { refreshInterval: 60000 }
+  );
   const dash = dashRes?.data;
-  const { data: invData } = useApi<InvResponse>(`/api/admin/ria/investisseurs?limit=1&_r=${refresh}`);
-  const { data: pfData  } = useApi<PfResponse>(`/api/admin/ria/portefeuilles?limit=1&_r=${refresh}`);
 
   if (type !== "optimisation") return (
     <div className="p-6 text-center text-slate-400 text-sm">Section réservée à la Commission Optimisation.</div>
   );
 
   const toNum = (v: unknown) => Number(v ?? 0);
-  const nbInv = invData?.meta.total ?? 0;
-  const nbPf  = pfData?.meta.total  ?? 0;
+  const nbInv = toNum(dash?.nbInvestisseurs);
+  const nbPf  = toNum(dash?.nbPortefeuilles);
   const nbClients = toNum(dash?.nbClientsFinances);
 
   const kpis = dash ? [
@@ -92,6 +91,12 @@ export default function ProductivitePage() {
           <RefreshCw className="w-4 h-4" /> Actualiser
         </button>
       </div>
+
+      {loading && !dash && (
+        <div className="flex items-center justify-center h-24">
+          <div className="w-6 h-6 border-4 border-violet-400 border-t-transparent rounded-full animate-spin" />
+        </div>
+      )}
 
       {/* KPI productivité */}
       <div className="grid grid-cols-2 gap-4">
