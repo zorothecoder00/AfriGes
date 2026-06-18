@@ -91,4 +91,8 @@ Permettre au caissier et au responsable crédit de pouvoir aussi encaisser les c
 Toutes les pages de commissions par type ont des onglet trop lents ( bon j'ai déjà corrigé pour la commission Optimisation qui utilisait une api trop lourde et des données non bornées)
 
 
-Invalid Date sur /ria/gouvernance/commissions/optimisation au niveau des membres
+Invalid Date sur /ria/gouvernance/commissions/optimisation au niveau des membres ( chez l'admin et aussi surement chez le user/responsablesRIA)
+
+Je n'arrive pas à accéder sur les portails investisseur et gouvernance RIA sur mes dashboard/user/..... qui sont des gestionnaires mais aussi ont soit un profil investisseur , soit membre d'une commission.
+
+Maintenant chez l'admin ou superadmin (bon je crois que ça ne concerne que l'admin), comment on fait pour juste lire et faire les actions de la commission dont il est membre ?? Parce que là je vois qu'il peut accéder à toutes les commissions sans filtre et ce n'est même pas possible de savoir à quelles commissions il appartient 
