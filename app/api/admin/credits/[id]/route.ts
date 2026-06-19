@@ -177,3 +177,68 @@ export async function PATCH(req: Request, { params }: Ctx) {
     return NextResponse.json({ message: "Erreur lors de la modification du crédit" }, { status: 500 });
   }
 }
+
+/**
+ * ==========================
+ * DELETE /api/admin/credits/[id]
+ * ==========================
+ * Supprime un crédit (uniquement EN_ATTENTE_VALIDATION ou REJETE, sans opération liée).
+ * Les lignes, échéances et remboursements sont supprimés en cascade (schéma).
+ */
+const STATUTS_SUPPRIMABLES: StatutCredit[] = [
+  StatutCredit.EN_ATTENTE_VALIDATION,
+  StatutCredit.REJETE,
+];
+
+export async function DELETE(_req: Request, { params }: Ctx) {
+  try {
+    const session = await getRVCSession();
+    if (!session) return NextResponse.json({ message: "Accès refusé" }, { status: 403 });
+
+    const { id } = await params;
+    const creditId = Number(id);
+    if (isNaN(creditId)) return NextResponse.json({ message: "ID invalide" }, { status: 400 });
+
+    await prisma.$transaction(async (tx) => {
+      const credit = await tx.creditClient.findUnique({
+        where: { id: creditId },
+        select: {
+          statut: true,
+          _count: { select: { livraisons: true, facturesVente: true, financementsRIA: true } },
+        },
+      });
+      if (!credit) throw new Error("CREDIT_INTROUVABLE");
+      if (!STATUTS_SUPPRIMABLES.includes(credit.statut)) throw new Error("CREDIT_NON_SUPPRIMABLE");
+      if (credit._count.livraisons > 0 || credit._count.facturesVente > 0 || credit._count.financementsRIA > 0) {
+        throw new Error("CREDIT_LIE");
+      }
+
+      await tx.creditClient.delete({ where: { id: creditId } }); // cascade lignes/échéances/remboursements
+
+      await tx.auditLog.create({
+        data: {
+          action: "SUPPRESSION_CREDIT",
+          entite: "CreditClient",
+          entiteId: creditId,
+          userId: Number(session.user.id),
+        },
+      });
+    });
+
+    return NextResponse.json({ message: "Crédit supprimé" });
+  } catch (error: unknown) {
+    console.error("DELETE /api/admin/credits/[id]", error);
+    if (error instanceof Error) {
+      const map: Record<string, [string, number]> = {
+        CREDIT_INTROUVABLE:    ["Crédit introuvable", 404],
+        CREDIT_NON_SUPPRIMABLE: ["Seuls les crédits en attente de validation ou rejetés peuvent être supprimés", 422],
+        CREDIT_LIE:            ["Ce crédit est lié à des opérations (livraisons, factures ou financements) — suppression impossible", 422],
+      };
+      if (map[error.message]) {
+        const [msg, status] = map[error.message];
+        return NextResponse.json({ message: msg }, { status });
+      }
+    }
+    return NextResponse.json({ message: "Erreur lors de la suppression du crédit" }, { status: 500 });
+  }
+}

@@ -5,7 +5,7 @@ import {
   Search, RefreshCw, CreditCard, AlertCircle, CheckCircle2, XCircle,
   Wallet, ChevronLeft, ChevronRight, X, TrendingDown, Loader2,
   Eye, Ban, BadgeCheck, Banknote, Calendar, Clock, User, ChevronDown, ChevronUp,
-  Plus, Trash, Info, Receipt, PackageCheck, ArrowLeftRight,
+  Plus, Trash, Info, Receipt, PackageCheck, ArrowLeftRight, Pencil,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useApi } from '@/hooks/useApi';
@@ -207,6 +207,81 @@ export default function CreditsPage() {
   const [creditError,     setCreditError]     = useState('');
 
   const [convertLoading,  setConvertLoading]  = useState(false);
+
+  // ── Édition d'un crédit (EN_ATTENTE_VALIDATION) ───────────────────────────
+  const [editOpen,       setEditOpen]       = useState(false);
+  const [editCreditId,   setEditCreditId]   = useState<number | null>(null);
+  const [editRef,        setEditRef]        = useState('');
+  const [editForm,       setEditForm]       = useState({ dureeJours: '', dateDebut: '', tauxPenalite: '0', garantie: '', observations: '' });
+  const [editLoading,    setEditLoading]    = useState(false);
+  const [editError,      setEditError]      = useState('');
+
+  // ── Suppression d'un crédit ───────────────────────────────────────────────
+  const [deleteCredit,   setDeleteCredit]   = useState<CreditClient | null>(null);
+  const [deleteLoading,  setDeleteLoading]  = useState(false);
+
+  const openEdit = (credit: CreditClient) => {
+    setEditCreditId(credit.id);
+    setEditRef(credit.reference);
+    setEditForm({
+      dureeJours:   String(credit.dureeJours),
+      dateDebut:    credit.dateDebut ? credit.dateDebut.slice(0, 10) : '',
+      tauxPenalite: String(credit.tauxPenalite ?? '0'),
+      garantie:     credit.garantie ?? '',
+      observations: credit.observations ?? '',
+    });
+    setEditError('');
+    setEditOpen(true);
+  };
+
+  const handleEdit = async () => {
+    if (!editCreditId) return;
+    if (!editForm.dureeJours || Number(editForm.dureeJours) < 1) { setEditError('La durée doit être d\'au moins 1 jour'); return; }
+    if (!editForm.dateDebut) { setEditError('Date de début requise'); return; }
+    setEditLoading(true);
+    setEditError('');
+    try {
+      const r = await fetch(`/api/admin/credits/${editCreditId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          dureeJours:   Number(editForm.dureeJours),
+          dateDebut:    editForm.dateDebut,
+          tauxPenalite: Number(editForm.tauxPenalite || 0),
+          garantie:     editForm.garantie || undefined,
+          observations: editForm.observations || undefined,
+        }),
+      });
+      const j = await r.json();
+      if (r.ok) {
+        toast.success(`Crédit ${editRef} modifié`);
+        setEditOpen(false);
+        refetch();
+        if (detailCredit?.id === editCreditId) await openDetail(editCreditId);
+      } else {
+        setEditError(j.message ?? 'Erreur');
+      }
+    } catch { setEditError('Erreur réseau'); }
+    finally { setEditLoading(false); }
+  };
+
+  const handleDelete = async () => {
+    if (!deleteCredit) return;
+    setDeleteLoading(true);
+    try {
+      const r = await fetch(`/api/admin/credits/${deleteCredit.id}`, { method: 'DELETE' });
+      const j = await r.json();
+      if (r.ok) {
+        toast.success(`Crédit ${deleteCredit.reference} supprimé`);
+        if (detailCredit?.id === deleteCredit.id) setDetailCredit(null);
+        setDeleteCredit(null);
+        refetch();
+      } else {
+        toast.error(j.message ?? 'Erreur lors de la suppression');
+      }
+    } catch { toast.error('Erreur réseau'); }
+    finally { setDeleteLoading(false); }
+  };
 
   // ── Action sur une ligne de crédit ────────────────────────────────────────
   const [ligneActionOpen,        setLigneActionOpen]        = useState(false);
@@ -725,6 +800,14 @@ export default function CreditsPage() {
                                 <Receipt className="w-4 h-4" />
                               </button>
 
+                              {/* Modifier (uniquement en attente de validation) */}
+                              {credit.statut === 'EN_ATTENTE_VALIDATION' && (
+                                <button onClick={() => openEdit(credit)}
+                                  className="p-2 text-indigo-500 hover:bg-indigo-50 rounded-lg transition-colors" title="Modifier">
+                                  <Pencil className="w-4 h-4" />
+                                </button>
+                              )}
+
                               {/* Valider */}
                               {canValider && (
                                 <button onClick={() => openAction('valider', credit)}
@@ -754,6 +837,14 @@ export default function CreditsPage() {
                                 <button onClick={() => openAction('annuler', credit)}
                                   className="p-2 text-red-400 hover:bg-red-50 rounded-lg transition-colors" title="Annuler">
                                   <Ban className="w-4 h-4" />
+                                </button>
+                              )}
+
+                              {/* Supprimer (en attente de validation ou rejeté) */}
+                              {(credit.statut === 'EN_ATTENTE_VALIDATION' || credit.statut === 'REJETE') && (
+                                <button onClick={() => setDeleteCredit(credit)}
+                                  className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors" title="Supprimer">
+                                  <Trash className="w-4 h-4" />
                                 </button>
                               )}
                             </div>
@@ -1634,6 +1725,114 @@ export default function CreditsPage() {
                   ? <><Loader2 className="w-4 h-4 animate-spin" />Traitement…</>
                   : <>Confirmer</>
                 }
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════════════════════════════════
+          MODAL — Modifier un crédit (EN_ATTENTE_VALIDATION)
+      ══════════════════════════════════════════════════════════════════ */}
+      {editOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[170] p-4">
+          <div className="bg-white rounded-2xl w-full max-w-md shadow-xl">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+              <div className="flex items-center gap-2">
+                <Pencil className="w-5 h-5 text-indigo-600" />
+                <h3 className="text-base font-bold text-gray-900">Modifier le crédit {editRef}</h3>
+              </div>
+              <button onClick={() => setEditOpen(false)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+            </div>
+            <div className="px-6 py-5 space-y-4">
+              {editError && (
+                <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-lg px-3 py-2 text-red-700 text-sm">
+                  <AlertCircle className="w-4 h-4 flex-shrink-0" />{editError}
+                </div>
+              )}
+              <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-xs text-amber-700 flex items-start gap-2">
+                <Info className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
+                Les produits ne sont pas modifiables ici. L&apos;échéancier sera recalculé d&apos;après la nouvelle durée et date de début.
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Durée (jours) <span className="text-red-500">*</span></label>
+                  <input type="number" min={1} value={editForm.dureeJours}
+                    onChange={(e) => setEditForm(f => ({ ...f, dureeJours: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Date de début <span className="text-red-500">*</span></label>
+                  <input type="date" value={editForm.dateDebut}
+                    onChange={(e) => setEditForm(f => ({ ...f, dateDebut: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Taux de pénalité (% / jour de retard)</label>
+                <input type="number" min={0} step="0.1" value={editForm.tauxPenalite}
+                  onChange={(e) => setEditForm(f => ({ ...f, tauxPenalite: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Garantie</label>
+                <input type="text" value={editForm.garantie}
+                  onChange={(e) => setEditForm(f => ({ ...f, garantie: e.target.value }))}
+                  placeholder="Caution, gage…"
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Observations</label>
+                <textarea rows={2} value={editForm.observations}
+                  onChange={(e) => setEditForm(f => ({ ...f, observations: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-400 resize-none" />
+              </div>
+            </div>
+            <div className="flex justify-end gap-3 px-6 py-4 border-t border-gray-100">
+              <button onClick={() => setEditOpen(false)}
+                className="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">
+                Annuler
+              </button>
+              <button onClick={handleEdit} disabled={editLoading}
+                className="flex items-center gap-2 px-5 py-2 text-sm text-white rounded-lg font-medium bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50">
+                {editLoading ? <><Loader2 className="w-4 h-4 animate-spin" />Enregistrement…</> : <><Pencil className="w-4 h-4" />Enregistrer</>}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════════════════════════════════
+          MODAL — Supprimer un crédit
+      ══════════════════════════════════════════════════════════════════ */}
+      {deleteCredit && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[180] p-4">
+          <div className="bg-white rounded-2xl w-full max-w-md shadow-xl">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+              <div className="flex items-center gap-2">
+                <Trash className="w-5 h-5 text-red-600" />
+                <h3 className="text-base font-bold text-gray-900">Supprimer le crédit</h3>
+              </div>
+              <button onClick={() => setDeleteCredit(null)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+            </div>
+            <div className="px-6 py-5 space-y-3">
+              <p className="text-sm text-gray-600">
+                Supprimer définitivement <strong className="text-gray-800">{deleteCredit.reference}</strong>
+                {' '}({deleteCredit.client.prenom} {deleteCredit.client.nom}) ?
+              </p>
+              <div className="bg-red-50 border border-red-200 rounded-lg px-3 py-2 text-xs text-red-700 flex items-start gap-2">
+                <AlertCircle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
+                Cette action est irréversible. Les lignes de produits et l&apos;échéancier éventuel seront supprimés.
+              </div>
+            </div>
+            <div className="flex justify-end gap-3 px-6 py-4 border-t border-gray-100">
+              <button onClick={() => setDeleteCredit(null)}
+                className="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">
+                Annuler
+              </button>
+              <button onClick={handleDelete} disabled={deleteLoading}
+                className="flex items-center gap-2 px-5 py-2 text-sm text-white rounded-lg font-medium bg-red-600 hover:bg-red-700 disabled:opacity-50">
+                {deleteLoading ? <><Loader2 className="w-4 h-4 animate-spin" />Suppression…</> : <><Trash className="w-4 h-4" />Supprimer</>}
               </button>
             </div>
           </div>
