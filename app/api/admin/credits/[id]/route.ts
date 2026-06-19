@@ -79,7 +79,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
     const result = await prisma.$transaction(async (tx) => {
       const credit = await tx.creditClient.findUnique({ where: { id: creditId } });
       if (!credit) throw new Error("CREDIT_INTROUVABLE");
-      if (credit.statut !== StatutCredit.EN_ATTENTE_VALIDATION) throw new Error("CREDIT_NON_MODIFIABLE");
+      if (credit.statut !== StatutCredit.EN_ATTENTE_VALIDATION && credit.statut !== StatutCredit.ACTIF) throw new Error("CREDIT_NON_MODIFIABLE");
 
       // ── Recalcul si lignes fournies ───────────────────────────────────────
       let montantTotal = Number(credit.montantTotal);
@@ -153,7 +153,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
           userId: Number(session.user.id),
         },
       });
-
+ 
       return updated;
     });
 
@@ -163,7 +163,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
     if (error instanceof Error) {
       const map: Record<string, [string, number]> = {
         CREDIT_INTROUVABLE:   ["Crédit introuvable", 404],
-        CREDIT_NON_MODIFIABLE: ["Seuls les crédits EN_ATTENTE_VALIDATION peuvent être modifiés", 422],
+        CREDIT_NON_MODIFIABLE: ["Seuls les crédits en attente de validation ou actifs peuvent être modifiés", 422],
         LIGNES_INVALIDES:     ["Les lignes de produits sont invalides", 400],
         MONTANT_INVALIDE:     ["Le montant total doit être positif", 400],
         DUREE_INVALIDE:       ["La durée doit être d'au moins 1 jour", 400],
@@ -187,6 +187,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
  */
 const STATUTS_SUPPRIMABLES: StatutCredit[] = [
   StatutCredit.EN_ATTENTE_VALIDATION,
+  StatutCredit.ACTIF,
   StatutCredit.REJETE,
 ];
 
@@ -231,7 +232,7 @@ export async function DELETE(_req: Request, { params }: Ctx) {
     if (error instanceof Error) {
       const map: Record<string, [string, number]> = {
         CREDIT_INTROUVABLE:    ["Crédit introuvable", 404],
-        CREDIT_NON_SUPPRIMABLE: ["Seuls les crédits en attente de validation ou rejetés peuvent être supprimés", 422],
+        CREDIT_NON_SUPPRIMABLE: ["Seuls les crédits en attente de validation, actifs ou rejetés peuvent être supprimés", 422],
         CREDIT_LIE:            ["Ce crédit est lié à des opérations (livraisons, factures ou financements) — suppression impossible", 422],
       };
       if (map[error.message]) {

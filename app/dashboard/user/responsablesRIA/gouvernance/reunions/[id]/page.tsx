@@ -9,7 +9,7 @@ import {
   ChevronLeft, RefreshCw, Plus, Send, Archive,
   ClipboardList, Gavel, ListChecks,
 } from "lucide-react";
-import { parseActionsCR, serializeActionsCR, type ActionCR } from "@/lib/commissionsRIA";
+import { parseActionsCR, serializeActionsCR, type ActionCR, RESOLUTION_ACTIONS_PAR_STATUT } from "@/lib/commissionsRIA";
 import { ActionsCREditor } from "@/components/gouvernance/ActionsCompteRendu";
 
 /* ─── Types ─── */
@@ -418,12 +418,12 @@ function OngletResolutions({ r }: { r: Reunion }) {
     else toast.error(res?.error || "Erreur");
   }
 
-  async function changerStatut(id: number, statut: string) {
+  async function executerAction(id: number, action: string) {
     const res = await fetch(`/api/admin/ria/commissions/gouvernance/resolutions/${id}`, {
-      method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ statut }),
+      method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action }),
     });
     const json = await res.json();
-    if (json.id) { toast.success("Statut mis à jour"); setRefresh(x => x + 1); }
+    if (json.id) { toast.success("Résolution mise à jour"); setRefresh(x => x + 1); }
     else toast.error(json.error || "Erreur");
   }
 
@@ -505,17 +505,19 @@ function OngletResolutions({ r }: { r: Reunion }) {
                   )}
                 </div>
 
-                {/* Boutons statut */}
-                <div className="flex flex-wrap gap-1.5">
-                  {Object.entries(STATUT_RES).map(([val, cfg]) => (
-                    <button key={val} onClick={() => changerStatut(res.id, val)}
-                      disabled={res.statut === val}
-                      className={`text-xs px-2.5 py-1 rounded-lg border font-medium transition-colors ${
-                        res.statut === val ? `${cfg.color} border-current cursor-default` : "border-slate-200 text-slate-500 hover:bg-slate-50"
+                {/* Workflow de vote (CDC) */}
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {(RESOLUTION_ACTIONS_PAR_STATUT[res.statut] ?? []).map(a => (
+                    <button key={a.action} onClick={() => executerAction(res.id, a.action)}
+                      className={`text-xs px-2.5 py-1 rounded-lg font-medium transition-colors ${
+                        a.danger ? "bg-rose-50 text-rose-700 hover:bg-rose-100" : "bg-emerald-600 text-white hover:bg-emerald-700"
                       }`}>
-                      {cfg.label}
+                      {a.label}
                     </button>
                   ))}
+                  {(RESOLUTION_ACTIONS_PAR_STATUT[res.statut] ?? []).length === 0 && (
+                    <span className="text-xs text-slate-400">Aucune action — {s.label}</span>
+                  )}
                 </div>
               </div>
             );

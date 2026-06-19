@@ -86,6 +86,4 @@ Toutes les pages de commissions par type ont des onglet trop lents ( bon j'ai d�
 
 
 Êxplique moi comment fonctionne la réunion , la convocation et les présences entre président( superadmin aussi évidemment) et membres d'une commission 
-
-
-explique moi cpomment les résolutions sont soumises , votées , rejettées ou excécutées chez les membres de commission ou chez les responsablesRIA et admi 
+ 

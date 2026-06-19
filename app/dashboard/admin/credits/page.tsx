@@ -801,7 +801,7 @@ export default function CreditsPage() {
                               </button>
 
                               {/* Modifier (uniquement en attente de validation) */}
-                              {credit.statut === 'EN_ATTENTE_VALIDATION' && (
+                              {(credit.statut === 'EN_ATTENTE_VALIDATION' || credit.statut === 'ACTIF') && (
                                 <button onClick={() => openEdit(credit)}
                                   className="p-2 text-indigo-500 hover:bg-indigo-50 rounded-lg transition-colors" title="Modifier">
                                   <Pencil className="w-4 h-4" />
@@ -841,7 +841,7 @@ export default function CreditsPage() {
                               )}
 
                               {/* Supprimer (en attente de validation ou rejeté) */}
-                              {(credit.statut === 'EN_ATTENTE_VALIDATION' || credit.statut === 'REJETE') && (
+                              {(credit.statut === 'EN_ATTENTE_VALIDATION' || credit.statut === 'ACTIF' || credit.statut === 'REJETE') && (
                                 <button onClick={() => setDeleteCredit(credit)}
                                   className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors" title="Supprimer">
                                   <Trash className="w-4 h-4" />
