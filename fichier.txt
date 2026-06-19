@@ -80,10 +80,17 @@ Permettre au caissier et au responsable crédit de pouvoir aussi encaisser les c
 
 
 
-
+  
 Toutes les pages de commissions par type ont des onglet trop lents ( bon j'ai déjà corrigé pour la commission Optimisation qui utilisait une api trop lourde et des données non bornées)
 
 
 
 Êxplique moi comment fonctionne la réunion , la convocation et les présences entre président( superadmin aussi évidemment) et membres d'une commission 
+
+
+
+Sur 3000/dashboard/admin/credits , c'est impossible de supprimer ou modifier un créidt client déjà rejeté ; c'est normal ou tu proposes de permettre de le faire
+
+lORSQUe je fais la demande de financement depuis l'admin que je transmets au président des Commissions Opérations , ça va en effet chez le Président de la commission finance  mais les clients pourtant renseignés ne sont pas pris en compte ;et aussi dans la demande de financement il manque plusieurs champs comme responable demandeur, liste et nombrs clients, marge prévisionnelle , prix de vente , risque estimé , retour sur investisseur attendu , investisseurs concernés  ( voici la liste des champs à avoir dans la demande de financement : Référence dossier -Date -Région -Agence -Responsable demandeur -Nombre de clients -Liste des clients- Produits concernés -Quantités du produit -Prix de revente -Marge prévisionnelle -Duréé du cycle -Risque estimé -Retour sur investissement attendu- Investisseurs concernés -Pièces jointes
+ )
  

@@ -208,10 +208,8 @@ export default function CreditsPage() {
 
   const [convertLoading,  setConvertLoading]  = useState(false);
 
-  // ── Édition d'un crédit (EN_ATTENTE_VALIDATION) ───────────────────────────
-  const [editOpen,       setEditOpen]       = useState(false);
-  const [editCreditId,   setEditCreditId]   = useState<number | null>(null);
-  const [editRef,        setEditRef]        = useState('');
+  // ── Édition d'un crédit (EN_ATTENTE_VALIDATION ou ACTIF) ──────────────────
+  const [editCredit,     setEditCredit]     = useState<CreditClient | null>(null);
   const [editForm,       setEditForm]       = useState({ dureeJours: '', dateDebut: '', tauxPenalite: '0', garantie: '', observations: '' });
   const [editLoading,    setEditLoading]    = useState(false);
   const [editError,      setEditError]      = useState('');
@@ -220,9 +218,10 @@ export default function CreditsPage() {
   const [deleteCredit,   setDeleteCredit]   = useState<CreditClient | null>(null);
   const [deleteLoading,  setDeleteLoading]  = useState(false);
 
+  // Crédit actif avec remboursements : durée/date verrouillées (échéancier figé)
+  const editPlanningVerrou = editCredit?.statut === 'ACTIF' && (editCredit?._count.remboursements ?? 0) > 0;
+
   const openEdit = (credit: CreditClient) => {
-    setEditCreditId(credit.id);
-    setEditRef(credit.reference);
     setEditForm({
       dureeJours:   String(credit.dureeJours),
       dateDebut:    credit.dateDebut ? credit.dateDebut.slice(0, 10) : '',
@@ -231,33 +230,42 @@ export default function CreditsPage() {
       observations: credit.observations ?? '',
     });
     setEditError('');
-    setEditOpen(true);
+    setEditCredit(credit);
   };
 
   const handleEdit = async () => {
-    if (!editCreditId) return;
-    if (!editForm.dureeJours || Number(editForm.dureeJours) < 1) { setEditError('La durée doit être d\'au moins 1 jour'); return; }
-    if (!editForm.dateDebut) { setEditError('Date de début requise'); return; }
+    if (!editCredit) return;
+    // On ne transmet que les champs réellement modifiés (évite de toucher l'échéancier pour rien)
+    const payload: Record<string, unknown> = {};
+    if (editForm.dureeJours !== String(editCredit.dureeJours)) {
+      if (!editForm.dureeJours || Number(editForm.dureeJours) < 1) { setEditError('La durée doit être d\'au moins 1 jour'); return; }
+      payload.dureeJours = Number(editForm.dureeJours);
+    }
+    if (editForm.dateDebut !== (editCredit.dateDebut ? editCredit.dateDebut.slice(0, 10) : '')) {
+      if (!editForm.dateDebut) { setEditError('Date de début requise'); return; }
+      payload.dateDebut = editForm.dateDebut;
+    }
+    if (editForm.tauxPenalite !== String(editCredit.tauxPenalite ?? '0')) payload.tauxPenalite = Number(editForm.tauxPenalite || 0);
+    if (editForm.garantie !== (editCredit.garantie ?? '')) payload.garantie = editForm.garantie;
+    if (editForm.observations !== (editCredit.observations ?? '')) payload.observations = editForm.observations;
+
+    if (Object.keys(payload).length === 0) { setEditError('Aucune modification'); return; }
+
     setEditLoading(true);
     setEditError('');
     try {
-      const r = await fetch(`/api/admin/credits/${editCreditId}`, {
+      const r = await fetch(`/api/admin/credits/${editCredit.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          dureeJours:   Number(editForm.dureeJours),
-          dateDebut:    editForm.dateDebut,
-          tauxPenalite: Number(editForm.tauxPenalite || 0),
-          garantie:     editForm.garantie || undefined,
-          observations: editForm.observations || undefined,
-        }),
+        body: JSON.stringify(payload),
       });
       const j = await r.json();
       if (r.ok) {
-        toast.success(`Crédit ${editRef} modifié`);
-        setEditOpen(false);
+        toast.success(`Crédit ${editCredit.reference} modifié`);
+        const cid = editCredit.id;
+        setEditCredit(null);
         refetch();
-        if (detailCredit?.id === editCreditId) await openDetail(editCreditId);
+        if (detailCredit?.id === cid) await openDetail(cid);
       } else {
         setEditError(j.message ?? 'Erreur');
       }
@@ -1734,15 +1742,15 @@ export default function CreditsPage() {
       {/* ══════════════════════════════════════════════════════════════════
           MODAL — Modifier un crédit (EN_ATTENTE_VALIDATION)
       ══════════════════════════════════════════════════════════════════ */}
-      {editOpen && (
+      {editCredit && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[170] p-4">
           <div className="bg-white rounded-2xl w-full max-w-md shadow-xl">
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
               <div className="flex items-center gap-2">
                 <Pencil className="w-5 h-5 text-indigo-600" />
-                <h3 className="text-base font-bold text-gray-900">Modifier le crédit {editRef}</h3>
+                <h3 className="text-base font-bold text-gray-900">Modifier le crédit {editCredit.reference}</h3>
               </div>
-              <button onClick={() => setEditOpen(false)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+              <button onClick={() => setEditCredit(null)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
             </div>
             <div className="px-6 py-5 space-y-4">
               {editError && (
@@ -1750,22 +1758,32 @@ export default function CreditsPage() {
                   <AlertCircle className="w-4 h-4 flex-shrink-0" />{editError}
                 </div>
               )}
-              <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-xs text-amber-700 flex items-start gap-2">
-                <Info className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
-                Les produits ne sont pas modifiables ici. L&apos;échéancier sera recalculé d&apos;après la nouvelle durée et date de début.
-              </div>
+              {editCredit.statut === 'ACTIF' ? (
+                <div className="bg-orange-50 border border-orange-200 rounded-lg px-3 py-2 text-xs text-orange-700 flex items-start gap-2">
+                  <AlertCircle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
+                  Crédit <strong>actif</strong> : changer la durée ou la date régénère l&apos;échéancier et ajuste le solde du client.
+                  {editPlanningVerrou
+                    ? " Verrouillé ici car des remboursements existent — seuls pénalité, garantie et observations sont modifiables."
+                    : " Les produits ne sont pas modifiables ici."}
+                </div>
+              ) : (
+                <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-xs text-amber-700 flex items-start gap-2">
+                  <Info className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
+                  Les produits ne sont pas modifiables ici. L&apos;échéancier sera recalculé d&apos;après la nouvelle durée et date de début.
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-medium text-gray-600 mb-1">Durée (jours) <span className="text-red-500">*</span></label>
-                  <input type="number" min={1} value={editForm.dureeJours}
+                  <input type="number" min={1} value={editForm.dureeJours} disabled={editPlanningVerrou}
                     onChange={(e) => setEditForm(f => ({ ...f, dureeJours: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-400 disabled:opacity-60 disabled:cursor-not-allowed" />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-600 mb-1">Date de début <span className="text-red-500">*</span></label>
-                  <input type="date" value={editForm.dateDebut}
+                  <input type="date" value={editForm.dateDebut} disabled={editPlanningVerrou}
                     onChange={(e) => setEditForm(f => ({ ...f, dateDebut: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-400 disabled:opacity-60 disabled:cursor-not-allowed" />
                 </div>
               </div>
               <div>
@@ -1789,7 +1807,7 @@ export default function CreditsPage() {
               </div>
             </div>
             <div className="flex justify-end gap-3 px-6 py-4 border-t border-gray-100">
-              <button onClick={() => setEditOpen(false)}
+              <button onClick={() => setEditCredit(null)}
                 className="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">
                 Annuler
               </button>
@@ -1822,7 +1840,9 @@ export default function CreditsPage() {
               </p>
               <div className="bg-red-50 border border-red-200 rounded-lg px-3 py-2 text-xs text-red-700 flex items-start gap-2">
                 <AlertCircle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
-                Cette action est irréversible. Les lignes de produits et l&apos;échéancier éventuel seront supprimés.
+                {deleteCredit.statut === 'ACTIF'
+                  ? <span>Crédit <strong>actif</strong> : le stock réservé sera libéré et le solde du client corrigé du montant restant, puis le crédit et son échéancier supprimés. Irréversible. (Bloqué s&apos;il a déjà des remboursements ou des opérations liées.)</span>
+                  : <span>Cette action est irréversible. Les lignes de produits et l&apos;échéancier éventuel seront supprimés.</span>}
               </div>
             </div>
             <div className="flex justify-end gap-3 px-6 py-4 border-t border-gray-100">

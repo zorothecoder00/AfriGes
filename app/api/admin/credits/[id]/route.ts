@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { StatutCredit } from "@prisma/client";
+import { StatutCredit, TypeMouvement, TypeEntreeStock } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getRVCSession } from "@/lib/authRVC";
 
@@ -77,12 +77,31 @@ export async function PATCH(req: Request, { params }: Ctx) {
     const { lignes, dureeJours, dateDebut, tauxPenalite, garantie, observations } = body;
 
     const result = await prisma.$transaction(async (tx) => {
-      const credit = await tx.creditClient.findUnique({ where: { id: creditId } });
+      const credit = await tx.creditClient.findUnique({
+        where: { id: creditId },
+        include: {
+          lignes: { select: { produitId: true, quantite: true, statut: true } },
+          _count: { select: { financementsRIA: true } },
+        },
+      });
       if (!credit) throw new Error("CREDIT_INTROUVABLE");
-      if (credit.statut !== StatutCredit.EN_ATTENTE_VALIDATION && credit.statut !== StatutCredit.ACTIF) throw new Error("CREDIT_NON_MODIFIABLE");
 
-      // ── Recalcul si lignes fournies ───────────────────────────────────────
-      let montantTotal = Number(credit.montantTotal);
+      const estActif = credit.statut === StatutCredit.ACTIF;
+      if (credit.statut !== StatutCredit.EN_ATTENTE_VALIDATION && !estActif) throw new Error("CREDIT_NON_MODIFIABLE");
+
+      const toucheMontantOuPlanning = lignes !== undefined || dureeJours !== undefined || dateDebut !== undefined;
+
+      // Sur un crédit ACTIF, un changement de montant / échéancier impacte le solde client
+      // et la réservation stock : on ne l'autorise que s'il n'a aucun remboursement,
+      // aucune ligne déjà livrée et aucun financement RIA adossé.
+      if (estActif && toucheMontantOuPlanning) {
+        if (Number(credit.montantRembourse) > 0) throw new Error("ACTIF_AVEC_REMBOURSEMENT");
+        if (credit.lignes.some((l) => l.statut === "LIVRE")) throw new Error("ACTIF_LIGNE_LIVREE");
+        if (credit._count.financementsRIA > 0) throw new Error("ACTIF_FINANCE_RIA");
+      }
+
+      const ancienMontant = Number(credit.montantTotal);
+      let montantTotal = ancienMontant;
 
       if (lignes !== undefined) {
         if (!Array.isArray(lignes) || lignes.length === 0) throw new Error("LIGNES_INVALIDES");
@@ -103,6 +122,18 @@ export async function PATCH(req: Request, { params }: Ctx) {
         montantTotal = Number(lignesCalculees.reduce((s, l) => s + l.montantLigne, 0).toFixed(2));
         if (montantTotal <= 0) throw new Error("MONTANT_INVALIDE");
 
+        // Libère les réservations des anciennes lignes encore réservées (EN_ATTENTE)
+        if (credit.pointDeVenteId) {
+          for (const l of credit.lignes) {
+            if (l.produitId && l.statut === "EN_ATTENTE") {
+              await tx.stockSite.updateMany({
+                where: { produitId: l.produitId, pointDeVenteId: credit.pointDeVenteId },
+                data:  { quantiteReservee: { decrement: l.quantite } },
+              });
+            }
+          }
+        }
+
         await tx.ligneCreditClient.deleteMany({ where: { creditId } });
         await tx.ligneCreditClient.createMany({
           data: lignesCalculees.map((l) => ({
@@ -119,6 +150,18 @@ export async function PATCH(req: Request, { params }: Ctx) {
             pointDeVenteId:   credit.pointDeVenteId,
           })),
         });
+
+        // Réserve les nouvelles lignes
+        if (credit.pointDeVenteId) {
+          for (const l of lignesCalculees) {
+            if (!l.produitId) continue;
+            await tx.stockSite.upsert({
+              where: { produitId_pointDeVenteId: { produitId: Number(l.produitId), pointDeVenteId: credit.pointDeVenteId } },
+              update: { quantiteReservee: { increment: l.qte } },
+              create: { produitId: Number(l.produitId), pointDeVenteId: credit.pointDeVenteId, quantite: 0, quantiteReservee: l.qte },
+            });
+          }
+        }
       }
 
       // ── Recalcul de l'échéancier ──────────────────────────────────────────
@@ -130,11 +173,14 @@ export async function PATCH(req: Request, { params }: Ctx) {
       const dateEcheanceFin   = new Date(debut);
       dateEcheanceFin.setDate(dateEcheanceFin.getDate() + duree);
 
+      // soldeRestant = montant total − déjà remboursé (0 sur ACTIF modifiable / EN_ATTENTE)
+      const soldeRestant = Math.max(0, Number((montantTotal - Number(credit.montantRembourse)).toFixed(2)));
+
       const updated = await tx.creditClient.update({
         where: { id: creditId },
         data: {
           montantTotal,
-          soldeRestant: montantTotal,
+          soldeRestant,
           dureeJours: duree,
           dateDebut:  debut,
           dateEcheanceFin,
@@ -145,6 +191,30 @@ export async function PATCH(req: Request, { params }: Ctx) {
         },
       });
 
+      // ── Crédit ACTIF : répercuter le delta de montant + régénérer l'échéancier ──
+      if (estActif && toucheMontantOuPlanning) {
+        const delta = Number((montantTotal - ancienMontant).toFixed(2));
+        if (delta !== 0) {
+          await tx.client.update({
+            where: { id: credit.clientId },
+            data:  { soldeActuel: { increment: delta } },
+          });
+        }
+        // Aucun remboursement (vérifié plus haut) → on régénère tout l'échéancier
+        await tx.echeanceCredit.deleteMany({ where: { creditId } });
+        const residuel = Number((montantTotal - montantJournalier * duree).toFixed(2));
+        const echData = Array.from({ length: duree }, (_, idx) => {
+          const i = idx + 1;
+          const d = new Date(debut);
+          d.setDate(d.getDate() + idx);
+          return {
+            creditId, numeroEcheance: i, dateEcheance: d,
+            montantDu: i === duree ? Number((montantJournalier + residuel).toFixed(2)) : montantJournalier,
+          };
+        });
+        await tx.echeanceCredit.createMany({ data: echData });
+      }
+
       await tx.auditLog.create({
         data: {
           action: "MODIFICATION_CREDIT",
@@ -153,7 +223,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
           userId: Number(session.user.id),
         },
       });
- 
+
       return updated;
     });
 
@@ -164,6 +234,9 @@ export async function PATCH(req: Request, { params }: Ctx) {
       const map: Record<string, [string, number]> = {
         CREDIT_INTROUVABLE:   ["Crédit introuvable", 404],
         CREDIT_NON_MODIFIABLE: ["Seuls les crédits en attente de validation ou actifs peuvent être modifiés", 422],
+        ACTIF_AVEC_REMBOURSEMENT: ["Crédit actif avec remboursement(s) : montant et échéancier non modifiables. Supprimez-le et recréez-le, ou ne changez que garantie/observations/pénalité.", 422],
+        ACTIF_LIGNE_LIVREE:   ["Crédit actif avec produit(s) déjà livré(s) : modification du montant impossible.", 422],
+        ACTIF_FINANCE_RIA:    ["Crédit actif financé par un portefeuille RIA : montant non modifiable.", 422],
         LIGNES_INVALIDES:     ["Les lignes de produits sont invalides", 400],
         MONTANT_INVALIDE:     ["Le montant total doit être positif", 400],
         DUREE_INVALIDE:       ["La durée doit être d'au moins 1 jour", 400],
@@ -182,8 +255,13 @@ export async function PATCH(req: Request, { params }: Ctx) {
  * ==========================
  * DELETE /api/admin/credits/[id]
  * ==========================
- * Supprime un crédit (uniquement EN_ATTENTE_VALIDATION ou REJETE, sans opération liée).
- * Les lignes, échéances et remboursements sont supprimés en cascade (schéma).
+ * Supprime un crédit (EN_ATTENTE_VALIDATION, ACTIF ou REJETE).
+ * Réverse proprement les effets de la validation avant suppression :
+ *   - libère / restaure le stock réservé (par ligne)
+ *   - décrémente client.soldeActuel du solde restant (si ACTIF)
+ * Bloqué si le crédit porte des opérations liées (livraisons, factures, financements RIA)
+ * ou un remboursement déjà enregistré (utiliser « Annuler » à la place).
+ * Lignes / échéances / remboursements partent en cascade (schéma).
  */
 const STATUTS_SUPPRIMABLES: StatutCredit[] = [
   StatutCredit.EN_ATTENTE_VALIDATION,
@@ -203,15 +281,61 @@ export async function DELETE(_req: Request, { params }: Ctx) {
     await prisma.$transaction(async (tx) => {
       const credit = await tx.creditClient.findUnique({
         where: { id: creditId },
-        select: {
-          statut: true,
-          _count: { select: { livraisons: true, facturesVente: true, financementsRIA: true } },
+        include: {
+          lignes: { select: { produitId: true, quantite: true, prixUnitaire: true, statut: true } },
+          _count: { select: { livraisons: true, facturesVente: true, financementsRIA: true, remboursements: true } },
         },
       });
       if (!credit) throw new Error("CREDIT_INTROUVABLE");
       if (!STATUTS_SUPPRIMABLES.includes(credit.statut)) throw new Error("CREDIT_NON_SUPPRIMABLE");
       if (credit._count.livraisons > 0 || credit._count.facturesVente > 0 || credit._count.financementsRIA > 0) {
         throw new Error("CREDIT_LIE");
+      }
+      if (credit._count.remboursements > 0) throw new Error("CREDIT_AVEC_REMBOURSEMENT");
+
+      const estActif = credit.statut === StatutCredit.ACTIF;
+
+      // ── Réversion du stock réservé / livré (comme une annulation) ──────────
+      if (credit.pointDeVenteId) {
+        for (const ligne of credit.lignes) {
+          if (!ligne.produitId) continue;
+          if (ligne.statut === "LIVRE") {
+            // Restauration physique (le stock avait été décrémenté à la livraison)
+            const dateStr = new Date().toISOString().replace(/[-:T.Z]/g, "").slice(0, 14);
+            await tx.stockSite.updateMany({
+              where: { produitId: ligne.produitId, pointDeVenteId: credit.pointDeVenteId },
+              data:  { quantite: { increment: ligne.quantite } },
+            });
+            await tx.mouvementStock.create({
+              data: {
+                produitId:      ligne.produitId,
+                pointDeVenteId: credit.pointDeVenteId,
+                type:           TypeMouvement.ENTREE,
+                typeEntree:     TypeEntreeStock.RETOUR_CLIENT,
+                quantite:       ligne.quantite,
+                prixUnitaire:   ligne.prixUnitaire,
+                motif:          `Suppression crédit — ${credit.reference}`,
+                reference:      `MVT-SUP-${creditId}-P${ligne.produitId}-${dateStr}`,
+                operateurId:    Number(session.user.id),
+              },
+            });
+          } else if (ligne.statut === "EN_ATTENTE") {
+            // Réservation à libérer (créée à la création ou à la validation)
+            await tx.stockSite.updateMany({
+              where: { produitId: ligne.produitId, pointDeVenteId: credit.pointDeVenteId },
+              data:  { quantiteReservee: { decrement: ligne.quantite } },
+            });
+          }
+          // INDISPONIBLE / SUBSTITUE / ANNULE → réservation déjà libérée
+        }
+      }
+
+      // ── Réversion du solde client (le crédit actif l'avait incrémenté) ─────
+      if (estActif && Number(credit.soldeRestant) > 0) {
+        await tx.client.update({
+          where: { id: credit.clientId },
+          data:  { soldeActuel: { decrement: Number(credit.soldeRestant) } },
+        });
       }
 
       await tx.creditClient.delete({ where: { id: creditId } }); // cascade lignes/échéances/remboursements
@@ -234,6 +358,7 @@ export async function DELETE(_req: Request, { params }: Ctx) {
         CREDIT_INTROUVABLE:    ["Crédit introuvable", 404],
         CREDIT_NON_SUPPRIMABLE: ["Seuls les crédits en attente de validation, actifs ou rejetés peuvent être supprimés", 422],
         CREDIT_LIE:            ["Ce crédit est lié à des opérations (livraisons, factures ou financements) — suppression impossible", 422],
+        CREDIT_AVEC_REMBOURSEMENT: ["Ce crédit a déjà des remboursements — utilisez « Annuler » pour préserver l'historique", 422],
       };
       if (map[error.message]) {
         const [msg, status] = map[error.message];

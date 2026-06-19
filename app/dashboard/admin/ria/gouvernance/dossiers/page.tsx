@@ -11,6 +11,7 @@ import {
   MessageSquare, GitBranch, Eye, ArrowRight, History, Lock,
 } from "lucide-react";
 import { DOSSIER_ROUTAGE_FIXE } from "@/lib/commissionsRIA";
+import { DemandeFinancementEditor, type ContenuDF } from "@/components/gouvernance/DemandeFinancementEditor";
 
 interface DossierIC {
   id: number;
@@ -68,9 +69,10 @@ function CreateModal({ onClose, onDone }: { onClose: () => void; onDone: () => v
   const [form, setForm] = useState({
     titre: "", type: "DEMANDE_FINANCEMENT",
     commissionEmettrice: "OPERATIONS_TERRAIN", commissionReceptrice: "FINANCE",
-    description: "", montantDemande: "",
-    region: "", agence: "", dureeCycleJours: "", risqueEstime: "MOYEN",
+    description: "",
   });
+  // Données structurées de la demande de financement (clients, produits, investisseurs…)
+  const [contenu, setContenu] = useState<ContenuDF>({ risqueEstime: "MOYEN", clients: [], investisseursConcernes: [] });
   const { mutate, loading } = useMutation("/api/admin/ria/commissions/gouvernance/dossiers", "POST");
 
   // Routage imposé par le CDC pour le type sélectionné (ex. financement : Opérations → Finance).
@@ -78,30 +80,24 @@ function CreateModal({ onClose, onDone }: { onClose: () => void; onDone: () => v
   const emettrice = routage ? routage.emettrice : form.commissionEmettrice;
   const receptrice = routage ? routage.receptrice : form.commissionReceptrice;
 
+  // Montant demandé = somme des montants clients (CDC : dérivé de la demande)
+  const montantTotal = (contenu.clients ?? []).reduce((s, c) => s + Number(c.montant || 0), 0);
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (emettrice === receptrice) {
       toast.error("Les commissions émettrice et réceptrice doivent être différentes");
       return;
     }
-    const contenuInitial = form.type === "DEMANDE_FINANCEMENT"
-      ? {
-          region: form.region, agence: form.agence,
-          dureeCycleJours: form.dureeCycleJours ? Number(form.dureeCycleJours) : undefined,
-          risqueEstime: form.risqueEstime,
-          clients: [],
-          investisseursConcernes: [],
-        }
-      : undefined;
-
+    const estFinancement = form.type === "DEMANDE_FINANCEMENT";
     const res = await mutate({
       titre: form.titre,
       type: form.type,
       commissionEmettrice: emettrice,
       commissionReceptrice: receptrice,
       description: form.description,
-      montantDemande: form.montantDemande || undefined,
-      contenuInitial,
+      montantDemande: estFinancement ? (montantTotal || undefined) : undefined,
+      contenuInitial: estFinancement ? contenu : undefined,
     }) as { id?: number; reference?: string; error?: string } | null;
     if (res?.id) { toast.success(`Dossier ${res.reference} créé`); onDone(); }
     else toast.error(res?.error || "Erreur");
@@ -176,40 +172,7 @@ function CreateModal({ onClose, onDone }: { onClose: () => void; onDone: () => v
           {form.type === "DEMANDE_FINANCEMENT" && (
             <div className="space-y-3 bg-violet-50/50 border border-violet-100 rounded-xl p-4">
               <p className="text-xs font-medium text-violet-700">Informations de la demande de financement</p>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-medium text-slate-600 mb-1">Montant demandé (FCFA)</label>
-                  <input type="number" value={form.montantDemande} onChange={e => setForm(f => ({ ...f, montantDemande: e.target.value }))}
-                    className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400" />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-slate-600 mb-1">Durée du cycle (jours)</label>
-                  <input type="number" value={form.dureeCycleJours} onChange={e => setForm(f => ({ ...f, dureeCycleJours: e.target.value }))}
-                    className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400" />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-slate-600 mb-1">Région</label>
-                  <input value={form.region} onChange={e => setForm(f => ({ ...f, region: e.target.value }))}
-                    className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400" />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-slate-600 mb-1">Agence</label>
-                  <input value={form.agence} onChange={e => setForm(f => ({ ...f, agence: e.target.value }))}
-                    className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400" />
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1">Risque estimé</label>
-                <select value={form.risqueEstime} onChange={e => setForm(f => ({ ...f, risqueEstime: e.target.value }))}
-                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400">
-                  <option value="FAIBLE">Faible</option>
-                  <option value="MOYEN">Moyen</option>
-                  <option value="ELEVE">Élevé</option>
-                </select>
-              </div>
-              <p className="text-xs text-slate-500">
-                La liste des clients, produits et pièces jointes se complète depuis le détail du dossier, avant transmission.
-              </p>
+              <DemandeFinancementEditor value={contenu} onChange={setContenu} />
             </div>
           )}
 

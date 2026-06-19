@@ -3,13 +3,20 @@
 import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useApi, useMutation } from "@/hooks/useApi";
-import { ClientSearchSelect } from "@/components/ClientSearchSelect";
 import { toast } from "sonner";
 import {
   ChevronLeft, GitBranch, Send, Inbox, Clock, Hourglass,
-  CheckCircle2, XCircle, Archive, MessageSquare, Plus, Trash2,
-  Save, TrendingUp, AlertTriangle, Wallet, Percent, History, Paperclip, ExternalLink,
+  CheckCircle2, XCircle, Archive, MessageSquare,
+  Save, TrendingUp, AlertTriangle, Wallet, Percent, History,
 } from "lucide-react";
+import { DemandeFinancementEditor } from "@/components/gouvernance/DemandeFinancementEditor";
+
+const MEMBRE_API = {
+  clientsApiBase: "/api/membreCommission/clients",
+  portefeuillesApiBase: "/api/membreCommission/portefeuilles",
+  investisseursApiBase: "/api/membreCommission/investisseurs",
+  gestionnairesApiBase: "/api/membreCommission/gestionnaires",
+};
 
 /* ─── Types ─── */
 interface ProduitFinancement { nom: string; quantite: number; coutAchat: number; prixRevente: number }
@@ -207,48 +214,9 @@ function FormulaireFinancement({ dossier, editable, onSaved }: { dossier: Dossie
     setDirty(false);
   }
 
-  function updateField<K extends keyof ContenuDF>(key: K, value: ContenuDF[K]) {
-    setContenu(c => ({ ...c, [key]: value }));
+  function handleChange(v: ContenuDF) {
+    setContenu(v);
     setDirty(true);
-  }
-
-  function addClient() {
-    const clients = [...(contenu.clients ?? []), { clientId: 0, nom: "", montant: 0, produits: [] }];
-    updateField("clients", clients);
-  }
-  function updateClient(i: number, patch: Partial<ClientFinancement>) {
-    const clients = (contenu.clients ?? []).map((c, idx) => idx === i ? { ...c, ...patch } : c);
-    updateField("clients", clients);
-  }
-  function removeClient(i: number) {
-    updateField("clients", (contenu.clients ?? []).filter((_, idx) => idx !== i));
-  }
-  function addProduit(ci: number) {
-    const clients = (contenu.clients ?? []).map((c, idx) => idx === ci
-      ? { ...c, produits: [...(c.produits ?? []), { nom: "", quantite: 1, coutAchat: 0, prixRevente: 0 }] }
-      : c);
-    updateField("clients", clients);
-  }
-  function updateProduit(ci: number, pi: number, patch: Partial<ProduitFinancement>) {
-    const clients = (contenu.clients ?? []).map((c, idx) => idx === ci
-      ? { ...c, produits: (c.produits ?? []).map((p, j) => j === pi ? { ...p, ...patch } : p) }
-      : c);
-    updateField("clients", clients);
-  }
-  function removeProduit(ci: number, pi: number) {
-    const clients = (contenu.clients ?? []).map((c, idx) => idx === ci
-      ? { ...c, produits: (c.produits ?? []).filter((_, j) => j !== pi) }
-      : c);
-    updateField("clients", clients);
-  }
-  function addPiece() {
-    updateField("piecesJointesUrls", [...(contenu.piecesJointesUrls ?? []), ""]);
-  }
-  function updatePiece(i: number, url: string) {
-    updateField("piecesJointesUrls", (contenu.piecesJointesUrls ?? []).map((u, idx) => idx === i ? url : u));
-  }
-  function removePiece(i: number) {
-    updateField("piecesJointesUrls", (contenu.piecesJointesUrls ?? []).filter((_, idx) => idx !== i));
   }
 
   async function save() {
@@ -269,136 +237,7 @@ function FormulaireFinancement({ dossier, editable, onSaved }: { dossier: Dossie
         )}
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <Field label="Région" value={contenu.region ?? ""} editable={editable} onChange={v => updateField("region", v)} />
-        <Field label="Agence" value={contenu.agence ?? ""} editable={editable} onChange={v => updateField("agence", v)} />
-        <Field label="Durée cycle (jours)" type="number" value={String(contenu.dureeCycleJours ?? "")} editable={editable}
-          onChange={v => updateField("dureeCycleJours", v ? Number(v) : undefined)} />
-        <div>
-          <label className="block text-xs font-medium text-slate-500 mb-1">Risque estimé</label>
-          {editable ? (
-            <select value={contenu.risqueEstime ?? "MOYEN"} onChange={e => updateField("risqueEstime", e.target.value as ContenuDF["risqueEstime"])}
-              className="w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400">
-              <option value="FAIBLE">Faible</option>
-              <option value="MOYEN">Moyen</option>
-              <option value="ELEVE">Élevé</option>
-            </select>
-          ) : <p className="text-sm text-slate-700">{contenu.risqueEstime ?? "—"}</p>}
-        </div>
-      </div>
-
-      <div>
-        <label className="block text-xs font-medium text-slate-500 mb-1">Investisseurs concernés (IDs de portefeuille, séparés par virgule)</label>
-        {editable ? (
-          <input
-            value={(contenu.investisseursConcernes ?? []).join(", ")}
-            onChange={e => updateField("investisseursConcernes", e.target.value.split(",").map(s => parseInt(s.trim())).filter(n => !isNaN(n)))}
-            className="w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400"
-            placeholder="Ex: 1, 4, 7" />
-        ) : (
-          <p className="text-sm text-slate-700">{(contenu.investisseursConcernes ?? []).map(id => `#${id}`).join(", ") || "—"}</p>
-        )}
-      </div>
-
-      {/* Pièces jointes (CDC — Scénario 1) */}
-      <div>
-        <div className="flex items-center justify-between mb-2">
-          <p className="text-xs font-medium text-slate-500 flex items-center gap-1.5">
-            <Paperclip className="w-3.5 h-3.5" /> Pièces jointes ({(contenu.piecesJointesUrls ?? []).length})
-          </p>
-          {editable && (
-            <button type="button" onClick={addPiece} className="flex items-center gap-1 text-xs text-violet-600 hover:text-violet-800">
-              <Plus className="w-3.5 h-3.5" /> Ajouter un lien
-            </button>
-          )}
-        </div>
-        {editable ? (
-          <div className="space-y-1.5">
-            {(contenu.piecesJointesUrls ?? []).map((url, i) => (
-              <div key={i} className="flex items-center gap-2">
-                <input value={url} onChange={e => updatePiece(i, e.target.value)} placeholder="https://… (lien du document)"
-                  className="flex-1 border border-slate-200 rounded-lg px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400" />
-                <button type="button" onClick={() => removePiece(i)} className="text-rose-500 hover:text-rose-700">
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </div>
-            ))}
-            {(contenu.piecesJointesUrls ?? []).length === 0 && <p className="text-xs text-slate-400">Aucune pièce jointe</p>}
-          </div>
-        ) : (
-          <div className="space-y-1">
-            {(contenu.piecesJointesUrls ?? []).filter(Boolean).map((url, i) => (
-              <a key={i} href={url} target="_blank" rel="noopener noreferrer"
-                className="flex items-center gap-1.5 text-sm text-violet-600 hover:underline truncate">
-                <ExternalLink className="w-3.5 h-3.5 shrink-0" /> {url}
-              </a>
-            ))}
-            {(contenu.piecesJointesUrls ?? []).filter(Boolean).length === 0 && <p className="text-sm text-slate-400">—</p>}
-          </div>
-        )}
-      </div>
-
-      <div>
-        <div className="flex items-center justify-between mb-2">
-          <p className="text-xs font-medium text-slate-500">Clients ({(contenu.clients ?? []).length})</p>
-          {editable && (
-            <button onClick={addClient} className="flex items-center gap-1 text-xs text-violet-600 hover:text-violet-800">
-              <Plus className="w-3.5 h-3.5" /> Ajouter un client
-            </button>
-          )}
-        </div>
-        <div className="space-y-3">
-          {(contenu.clients ?? []).map((c, ci) => (
-            <div key={ci} className="border border-slate-200 rounded-lg p-3 space-y-2">
-              <div className="flex items-center gap-2">
-                <ClientSearchSelect
-                  apiBase="/api/membreCommission/clients"
-                  clientId={c.clientId}
-                  nom={c.nom ?? ""}
-                  disabled={!editable}
-                  onSelect={cl => updateClient(ci, { clientId: cl.id, nom: cl.nom })} />
-                <input type="number" placeholder="Montant" value={c.montant || ""} disabled={!editable}
-                  onChange={e => updateClient(ci, { montant: Number(e.target.value) || 0 })}
-                  className="w-32 border border-slate-200 rounded-lg px-2 py-1.5 text-sm disabled:bg-slate-50" />
-                {editable && (
-                  <button onClick={() => removeClient(ci)} className="text-rose-500 hover:text-rose-700">
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                )}
-              </div>
-              <div className="pl-4 space-y-1.5">
-                {(c.produits ?? []).map((p, pi) => (
-                  <div key={pi} className="flex items-center gap-2 text-xs">
-                    <input placeholder="Produit" value={p.nom} disabled={!editable}
-                      onChange={e => updateProduit(ci, pi, { nom: e.target.value })}
-                      className="flex-1 border border-slate-200 rounded px-2 py-1 disabled:bg-slate-50" />
-                    <input type="number" placeholder="Qté" value={p.quantite} disabled={!editable}
-                      onChange={e => updateProduit(ci, pi, { quantite: Number(e.target.value) || 0 })}
-                      className="w-16 border border-slate-200 rounded px-2 py-1 disabled:bg-slate-50" />
-                    <input type="number" placeholder="Coût achat" value={p.coutAchat} disabled={!editable}
-                      onChange={e => updateProduit(ci, pi, { coutAchat: Number(e.target.value) || 0 })}
-                      className="w-24 border border-slate-200 rounded px-2 py-1 disabled:bg-slate-50" />
-                    <input type="number" placeholder="Prix revente" value={p.prixRevente} disabled={!editable}
-                      onChange={e => updateProduit(ci, pi, { prixRevente: Number(e.target.value) || 0 })}
-                      className="w-24 border border-slate-200 rounded px-2 py-1 disabled:bg-slate-50" />
-                    {editable && (
-                      <button onClick={() => removeProduit(ci, pi)} className="text-rose-400 hover:text-rose-600">
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    )}
-                  </div>
-                ))}
-                {editable && (
-                  <button onClick={() => addProduit(ci)} className="flex items-center gap-1 text-xs text-slate-400 hover:text-violet-600">
-                    <Plus className="w-3 h-3" /> Produit
-                  </button>
-                )}
-              </div>
-            </div>
-          ))}
-          {(contenu.clients ?? []).length === 0 && <p className="text-xs text-slate-400">Aucun client renseigné</p>}
-        </div>
-      </div>
+      <DemandeFinancementEditor value={contenu} onChange={handleChange} disabled={!editable} {...MEMBRE_API} />
     </div>
   );
 }
