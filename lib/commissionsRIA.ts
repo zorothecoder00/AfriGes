@@ -108,6 +108,72 @@ export function reunionExploitable(statut: string): boolean {
   return (STATUTS_REUNION_EXPLOITABLE as readonly string[]).includes(statut);
 }
 
+// ── Résolutions : cycle de vote officiel (CDC) ────────────────────────────────
+// CDC Module Résolutions : En préparation → Soumise → Adoptée | Rejetée → Exécutée.
+// (Les anciens statuts EN_ATTENTE / APPROUVEE / EN_APPLICATION / APPLIQUEE sont
+//  dépréciés ; remapping : EN_ATTENTE→EN_PREPARATION, APPROUVEE & EN_APPLICATION→ADOPTEE,
+//  APPLIQUEE→EXECUTEE.)
+export const STATUTS_RESOLUTION = [
+  "EN_PREPARATION",
+  "SOUMISE",
+  "ADOPTEE",
+  "REJETEE",
+  "EXECUTEE",
+] as const;
+export type StatutResolution = (typeof STATUTS_RESOLUTION)[number];
+
+export const RESOLUTION_STATUT_META: Record<string, { label: string; color: string }> = {
+  EN_PREPARATION: { label: "En préparation", color: "bg-slate-100 text-slate-600" },
+  SOUMISE:        { label: "Soumise au vote", color: "bg-blue-100 text-blue-700" },
+  ADOPTEE:        { label: "Adoptée",         color: "bg-emerald-100 text-emerald-700" },
+  REJETEE:        { label: "Rejetée",         color: "bg-rose-100 text-rose-700" },
+  EXECUTEE:       { label: "Exécutée",        color: "bg-teal-100 text-teal-700" },
+};
+
+/** Libellé lisible d'un statut de résolution (gère aussi les anciens statuts). */
+export function resolutionStatutLabel(statut: string): string {
+  if (RESOLUTION_STATUT_META[statut]) return RESOLUTION_STATUT_META[statut].label;
+  // Repli pour d'anciennes données non encore migrées
+  const legacy: Record<string, string> = {
+    EN_ATTENTE: "En préparation", APPROUVEE: "Adoptée",
+    EN_APPLICATION: "Adoptée", APPLIQUEE: "Exécutée",
+  };
+  return legacy[statut] ?? statut;
+}
+
+// ── Résolutions : workflow de vote (CDC) ──────────────────────────────────────
+// Transitions autorisées et leurs préconditions. S'applique aussi bien au membre
+// (Président) qu'à l'admin/supervision : tous suivent l'ordre du vote, seule la
+// vérification « est Président » est outrepassée pour l'admin.
+export type ResolutionAction = "SOUMETTRE" | "ADOPTER" | "REJETER" | "EXECUTER" | "RETOUR_PREPARATION";
+
+export const RESOLUTION_TRANSITIONS: Record<ResolutionAction, StatutResolution> = {
+  SOUMETTRE: "SOUMISE",
+  ADOPTER: "ADOPTEE",
+  REJETER: "REJETEE",
+  EXECUTER: "EXECUTEE",
+  RETOUR_PREPARATION: "EN_PREPARATION",
+};
+
+export const RESOLUTION_PRECONDITIONS: Record<ResolutionAction, StatutResolution[]> = {
+  SOUMETTRE: ["EN_PREPARATION"],
+  ADOPTER: ["SOUMISE"],
+  REJETER: ["SOUMISE"],
+  EXECUTER: ["ADOPTEE"],
+  RETOUR_PREPARATION: ["SOUMISE"],
+};
+
+// Actions proposables dans l'UI selon le statut courant (libellés inclus).
+export const RESOLUTION_ACTIONS_PAR_STATUT: Record<string, { action: ResolutionAction; label: string; danger?: boolean }[]> = {
+  EN_PREPARATION: [{ action: "SOUMETTRE", label: "Soumettre au vote" }],
+  SOUMISE: [
+    { action: "ADOPTER", label: "Adopter" },
+    { action: "REJETER", label: "Rejeter", danger: true },
+    { action: "RETOUR_PREPARATION", label: "Renvoyer en préparation" },
+  ],
+  ADOPTEE: [{ action: "EXECUTER", label: "Marquer exécutée" }],
+};
+
 // ── Routage inter-commissions imposé par le cahier des charges ────────────────
 // Certains types de dossiers ont une trajectoire FIXE entre commissions et ne
 // peuvent emprunter aucun autre chemin (Scénario 1 du CDC) :

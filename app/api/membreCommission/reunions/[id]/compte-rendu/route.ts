@@ -4,6 +4,7 @@ import {
   getCommissionMembreSession, getRoleMembre, isPresident,
   ROLES_REDACTION_CR, peutOutrepasserGating,
 } from "@/lib/authCommissionRIA";
+import { genererTachesDepuisCompteRendu } from "@/lib/plansActionAuto";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -86,11 +87,24 @@ export async function PUT(req: NextRequest, { params }: Ctx) {
       data.dateValidation = new Date();
     }
 
-    const cr = await prisma.compteRenduReunionRIA.upsert({
-      where: { reunionId },
-      create: { reunionId, ...data },
-      update: data,
-      include: { validePar: { select: { id: true, nom: true, prenom: true } } },
+    const cr = await prisma.$transaction(async (tx) => {
+      const saved = await tx.compteRenduReunionRIA.upsert({
+        where: { reunionId },
+        create: { reunionId, ...data },
+        update: data,
+        include: { validePar: { select: { id: true, nom: true, prenom: true } } },
+      });
+
+      // CDC : à la validation du CR, les « actions définies » génèrent automatiquement les tâches.
+      if (valider === true) {
+        await genererTachesDepuisCompteRendu(tx, {
+          reunionId,
+          typeCommission: reunion.typeCommission,
+          actionsDefinies: saved.actionsDefinies,
+        });
+      }
+
+      return saved;
     });
 
     return NextResponse.json(cr);

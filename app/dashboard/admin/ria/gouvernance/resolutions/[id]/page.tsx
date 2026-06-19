@@ -8,6 +8,7 @@ import {
   Gavel, ChevronLeft, RefreshCw, Plus, CheckCircle2,
   XCircle, Clock, Circle, PlayCircle, ListChecks, Calendar, User,
 } from "lucide-react";
+import { RESOLUTION_ACTIONS_PAR_STATUT } from "@/lib/commissionsRIA";
 
 interface Resolution {
   id: number; numero: string; titre: string; description: string | null;
@@ -22,12 +23,13 @@ interface Resolution {
   }[];
 }
 
+// CDC : En préparation → Soumise → Adoptée | Rejetée → Exécutée
 const STATUT_RES: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
-  EN_ATTENTE:     { label: "En attente",     color: "bg-slate-100 text-slate-600",     icon: <Circle className="w-3.5 h-3.5" /> },
-  APPROUVEE:      { label: "Approuvée",      color: "bg-emerald-100 text-emerald-700", icon: <CheckCircle2 className="w-3.5 h-3.5" /> },
-  EN_APPLICATION: { label: "En application", color: "bg-blue-100 text-blue-700",       icon: <Clock className="w-3.5 h-3.5" /> },
-  APPLIQUEE:      { label: "Appliquée",      color: "bg-teal-100 text-teal-700",       icon: <PlayCircle className="w-3.5 h-3.5" /> },
+  EN_PREPARATION: { label: "En préparation", color: "bg-slate-100 text-slate-600",     icon: <Circle className="w-3.5 h-3.5" /> },
+  SOUMISE:        { label: "Soumise au vote", color: "bg-blue-100 text-blue-700",      icon: <Clock className="w-3.5 h-3.5" /> },
+  ADOPTEE:        { label: "Adoptée",        color: "bg-emerald-100 text-emerald-700", icon: <CheckCircle2 className="w-3.5 h-3.5" /> },
   REJETEE:        { label: "Rejetée",        color: "bg-rose-100 text-rose-700",       icon: <XCircle className="w-3.5 h-3.5" /> },
+  EXECUTEE:       { label: "Exécutée",       color: "bg-teal-100 text-teal-700",       icon: <PlayCircle className="w-3.5 h-3.5" /> },
 };
 const STATUT_PLAN: Record<string, { label: string; color: string }> = {
   A_FAIRE:   { label: "À faire",    color: "bg-slate-100 text-slate-600" },
@@ -56,9 +58,9 @@ export default function ResolutionDetailPage() {
     `/api/admin/ria/commissions/gouvernance/plans-actions`, "POST"
   );
 
-  async function changerStatut(statut: string) {
-    const r = await patchRes({ statut }) as { id?: number; error?: string } | null;
-    if (r?.id) { toast.success("Statut mis à jour"); setRefresh(x => x + 1); }
+  async function executerAction(action: string) {
+    const r = await patchRes({ action }) as { id?: number; error?: string } | null;
+    if (r?.id) { toast.success("Résolution mise à jour"); setRefresh(x => x + 1); }
     else toast.error(r?.error || "Erreur");
   }
 
@@ -154,7 +156,7 @@ export default function ResolutionDetailPage() {
               <Calendar className="w-4 h-4 text-amber-400" />
               <div>
                 <p className="text-xs text-slate-400">Échéance</p>
-                <p className={`font-medium ${new Date(res.dateEcheance) < new Date() && res.statut !== "APPLIQUEE" ? "text-rose-600" : ""}`}>
+                <p className={`font-medium ${new Date(res.dateEcheance) < new Date() && res.statut !== "EXECUTEE" ? "text-rose-600" : ""}`}>
                   {new Date(res.dateEcheance).toLocaleDateString("fr-FR")}
                 </p>
               </div>
@@ -178,21 +180,21 @@ export default function ResolutionDetailPage() {
           </div>
         )}
 
-        {/* Workflow statuts */}
+        {/* Workflow de vote (CDC) */}
         <div>
-          <p className="text-xs font-semibold text-slate-500 uppercase mb-2">Workflow — changer le statut</p>
-          <div className="flex flex-wrap gap-2">
-            {Object.entries(STATUT_RES).map(([val, cfg]) => (
-              <button key={val} onClick={() => changerStatut(val)}
-                disabled={res.statut === val}
-                className={`inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border font-medium transition-colors ${
-                  res.statut === val
-                    ? `${cfg.color} border-current cursor-default`
-                    : "border-slate-200 text-slate-500 hover:bg-slate-50 hover:border-slate-300"
+          <p className="text-xs font-semibold text-slate-500 uppercase mb-2">Workflow de vote</p>
+          <div className="flex flex-wrap items-center gap-2">
+            {(RESOLUTION_ACTIONS_PAR_STATUT[res.statut] ?? []).map(a => (
+              <button key={a.action} onClick={() => executerAction(a.action)}
+                className={`inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg font-medium transition-colors ${
+                  a.danger ? "bg-rose-50 text-rose-700 hover:bg-rose-100" : "bg-emerald-600 text-white hover:bg-emerald-700"
                 }`}>
-                {cfg.icon} {cfg.label}
+                {a.label}
               </button>
             ))}
+            {(RESOLUTION_ACTIONS_PAR_STATUT[res.statut] ?? []).length === 0 && (
+              <span className="text-xs text-slate-400">Aucune action disponible — statut « {s.label} »</span>
+            )}
           </div>
         </div>
       </div>

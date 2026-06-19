@@ -118,7 +118,8 @@ export async function GET() {
         total:     resolutionsGroup.reduce((s, g) => s + g._count.id, 0),
         adoptees:  sumStatut(resolutionsGroup, (s) => s === "ADOPTEE"),
         executees: sumStatut(resolutionsGroup, (s) => s === "EXECUTEE"),
-        enAttente: sumStatut(resolutionsGroup, (s) => s === "EN_ATTENTE"),
+        // CDC : résolutions pas encore décidées = en préparation ou soumises au vote
+        enAttente: sumStatut(resolutionsGroup, (s) => s === "EN_PREPARATION" || s === "SOUMISE"),
       },
       plansStats: {
         total:     plansGroup.reduce((s, g) => s + g._count.id, 0),

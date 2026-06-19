@@ -123,10 +123,6 @@ const REUNION_STATUT_OPTS: [string, string][] = [
   ["PLANIFIEE", "Planifiée"], ["EN_COURS", "En cours"], ["TENUE", "Tenue"],
   ["ANNULEE", "Annulée"], ["REPORTEE", "Reportée"],
 ];
-const RESOLUTION_STATUT_OPTS: [string, string][] = [
-  ["EN_ATTENTE", "En attente"], ["APPROUVEE", "Approuvée"], ["EN_APPLICATION", "En application"],
-  ["APPLIQUEE", "Appliquée"], ["REJETEE", "Rejetée"],
-];
 const PLAN_STATUT_OPTS: [string, string][] = [
   ["A_FAIRE", "À faire"], ["EN_COURS", "En cours"], ["TERMINE", "Terminé"], ["ABANDONNE", "Abandonné"],
 ];
@@ -619,16 +615,16 @@ function ResolutionModal({ typeEnum, initial, membres, reunions, onClose, onDone
     dateEcheance: toDateInput(initial?.dateEcheance),
     responsableId: initial?.responsableId ? String(initial.responsableId) : "",
     reunionId: initial?.reunionId ? String(initial.reunionId) : "",
-    statut: initial?.statut ?? "EN_ATTENTE",
   });
   const base = "/api/admin/ria/commissions/gouvernance/resolutions";
   const { mutate, loading } = useMutation(isEdit ? `${base}/${initial!.id}` : base, isEdit ? "PATCH" : "POST");
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
+    // Le statut n'est plus éditable ici : il suit le workflow de vote (CDC) depuis la page détail.
     const payload = isEdit
       ? { titre: form.titre, description: form.description, dateEcheance: form.dateEcheance || null,
-          responsableId: form.responsableId || null, statut: form.statut }
+          responsableId: form.responsableId || null }
       : { typeCommission: typeEnum, titre: form.titre, description: form.description,
           dateEcheance: form.dateEcheance || null, responsableId: form.responsableId || null,
           reunionId: form.reunionId || null };
@@ -677,13 +673,10 @@ function ResolutionModal({ typeEnum, initial, membres, reunions, onClose, onDone
             </div>
           </div>
           {isEdit ? (
-            <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">Statut</label>
-              <select value={form.statut} onChange={e => setForm(f => ({ ...f, statut: e.target.value }))}
-                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400">
-                {RESOLUTION_STATUT_OPTS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-              </select>
-            </div>
+            <p className="text-xs text-slate-400 bg-slate-50 rounded-lg px-3 py-2">
+              Le statut de la résolution évolue via le workflow de vote (Soumettre → Adopter/Rejeter → Exécuter)
+              depuis la page détail de la résolution.
+            </p>
           ) : (
             <div>
               <label className="block text-xs font-medium text-slate-600 mb-1">Réunion liée (optionnel)</label>

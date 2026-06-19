@@ -6,7 +6,7 @@ Ce code :
  const a = document.createElement("a");
  a.href = url;                    
  a.download = filename;                                             
- a.click();                                                               
+ a.click();                                                                  
  permet de créer un téléchargement via un clic sur une URL ( utile pour les exports)
 import { randomUUID } from "crypto";  permet de générer des UUID(sorte d'identifiant unique aléatoire) par exemple pour des factures ou des pièces justificatives
 Prisma 7 est une breaking change majeure : url dans schema.prisma n'est plus
@@ -86,3 +86,6 @@ Toutes les pages de commissions par type ont des onglet trop lents ( bon j'ai d�
 
 
 Êxplique moi comment fonctionne la réunion , la convocation et les présences entre président( superadmin aussi évidemment) et membres d'une commission 
+
+
+explique moi cpomment les résolutions sont soumises , votées , rejettées ou excécutées chez les membres de commission ou chez les responsablesRIA et admi 

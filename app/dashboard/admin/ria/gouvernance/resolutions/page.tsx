@@ -24,12 +24,13 @@ interface Resolution {
 
 interface Data { resolutions: Resolution[] }
 
+// CDC : En préparation → Soumise → Adoptée | Rejetée → Exécutée
 const STATUTS: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
-  EN_ATTENTE:     { label: "En attente",     color: "bg-slate-100 text-slate-600",     icon: <Circle className="w-3.5 h-3.5" /> },
-  APPROUVEE:      { label: "Approuvée",      color: "bg-emerald-100 text-emerald-700", icon: <CheckCircle2 className="w-3.5 h-3.5" /> },
-  EN_APPLICATION: { label: "En application", color: "bg-blue-100 text-blue-700",       icon: <Clock className="w-3.5 h-3.5" /> },
-  APPLIQUEE:      { label: "Appliquée",      color: "bg-teal-100 text-teal-700",       icon: <PlayCircle className="w-3.5 h-3.5" /> },
+  EN_PREPARATION: { label: "En préparation", color: "bg-slate-100 text-slate-600",     icon: <Circle className="w-3.5 h-3.5" /> },
+  SOUMISE:        { label: "Soumise au vote", color: "bg-blue-100 text-blue-700",      icon: <Clock className="w-3.5 h-3.5" /> },
+  ADOPTEE:        { label: "Adoptée",        color: "bg-emerald-100 text-emerald-700", icon: <CheckCircle2 className="w-3.5 h-3.5" /> },
   REJETEE:        { label: "Rejetée",        color: "bg-rose-100 text-rose-700",       icon: <XCircle className="w-3.5 h-3.5" /> },
+  EXECUTEE:       { label: "Exécutée",       color: "bg-teal-100 text-teal-700",       icon: <PlayCircle className="w-3.5 h-3.5" /> },
 };
 
 const COMMISSIONS = [

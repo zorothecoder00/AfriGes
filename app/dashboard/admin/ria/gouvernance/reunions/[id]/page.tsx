@@ -9,7 +9,7 @@ import {
   ChevronLeft, RefreshCw, Plus, Pen, Send, Archive,
   ClipboardList, Gavel, ListChecks, CheckSquare,
 } from "lucide-react";
-import { reunionExploitable } from "@/lib/commissionsRIA";
+import { reunionExploitable, RESOLUTION_ACTIONS_PAR_STATUT } from "@/lib/commissionsRIA";
 
 /* ─── Types ─── */
 interface Presence {
@@ -58,12 +58,13 @@ const STATUT_REUNION: Record<string, { label: string; color: string }> = {
   ANNULEE:   { label: "Annulée",    color: "bg-rose-100 text-rose-700" },
   REPORTEE:  { label: "Reportée",   color: "bg-amber-100 text-amber-700" },
 };
+// CDC : En préparation → Soumise → Adoptée | Rejetée → Exécutée
 const STATUT_RES: Record<string, { label: string; color: string }> = {
-  EN_ATTENTE:     { label: "En attente",     color: "bg-slate-100 text-slate-600" },
-  APPROUVEE:      { label: "Approuvée",      color: "bg-emerald-100 text-emerald-700" },
-  EN_APPLICATION: { label: "En application", color: "bg-blue-100 text-blue-700" },
-  APPLIQUEE:      { label: "Appliquée",      color: "bg-teal-100 text-teal-700" },
+  EN_PREPARATION: { label: "En préparation", color: "bg-slate-100 text-slate-600" },
+  SOUMISE:        { label: "Soumise au vote", color: "bg-blue-100 text-blue-700" },
+  ADOPTEE:        { label: "Adoptée",        color: "bg-emerald-100 text-emerald-700" },
   REJETEE:        { label: "Rejetée",        color: "bg-rose-100 text-rose-700" },
+  EXECUTEE:       { label: "Exécutée",       color: "bg-teal-100 text-teal-700" },
 };
 const STATUT_PLAN: Record<string, { label: string; color: string }> = {
   NON_DEMARRE: { label: "Non démarré", color: "bg-slate-100 text-slate-600" },
@@ -423,12 +424,12 @@ function OngletResolutions({ r, onRefresh }: { r: Reunion; onRefresh: () => void
     else toast.error(res?.error || "Erreur");
   }
 
-  async function changerStatut(id: number, statut: string) {
+  async function executerAction(id: number, action: string) {
     const res = await fetch(`/api/admin/ria/commissions/gouvernance/resolutions/${id}`, {
-      method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ statut }),
+      method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action }),
     });
     const json = await res.json();
-    if (json.id) { toast.success("Statut mis à jour"); setRefresh(x => x + 1); }
+    if (json.id) { toast.success("Résolution mise à jour"); setRefresh(x => x + 1); }
     else toast.error(json.error || "Erreur");
   }
 
@@ -521,17 +522,19 @@ function OngletResolutions({ r, onRefresh }: { r: Reunion; onRefresh: () => void
                   )}
                 </div>
 
-                {/* Boutons statut */}
-                <div className="flex flex-wrap gap-1.5">
-                  {Object.entries(STATUT_RES).map(([val, cfg]) => (
-                    <button key={val} onClick={() => changerStatut(res.id, val)}
-                      disabled={res.statut === val}
-                      className={`text-xs px-2.5 py-1 rounded-lg border font-medium transition-colors ${
-                        res.statut === val ? `${cfg.color} border-current cursor-default` : "border-slate-200 text-slate-500 hover:bg-slate-50"
+                {/* Workflow de vote (CDC) */}
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {(RESOLUTION_ACTIONS_PAR_STATUT[res.statut] ?? []).map(a => (
+                    <button key={a.action} onClick={() => executerAction(res.id, a.action)}
+                      className={`text-xs px-2.5 py-1 rounded-lg font-medium transition-colors ${
+                        a.danger ? "bg-rose-50 text-rose-700 hover:bg-rose-100" : "bg-emerald-600 text-white hover:bg-emerald-700"
                       }`}>
-                      {cfg.label}
+                      {a.label}
                     </button>
                   ))}
+                  {(RESOLUTION_ACTIONS_PAR_STATUT[res.statut] ?? []).length === 0 && (
+                    <span className="text-xs text-slate-400">Aucune action — {s.label}</span>
+                  )}
                 </div>
               </div>
             );
@@ -555,13 +558,17 @@ function OngletPlansAction({ r }: { r: Reunion }) {
   );
 
   const membresAssignables = r.presences.map(p => p.membre.user);
-  const [form, setForm] = useState({ titre: "", description: "", priorite: "MOYENNE", responsableId: "", dateEcheance: "", progression: "0" });
+  // Résolutions issues de cette réunion : une tâche peut décliner l'une d'elles (optionnel, CDC).
+  const resolutionsReunion = r.resolutions ?? [];
+  const formInit = { titre: "", description: "", priorite: "MOYENNE", responsableId: "", resolutionId: "", dateEcheance: "", progression: "0" };
+  const [form, setForm] = useState(formInit);
 
   async function soumettre(e: React.FormEvent) {
     e.preventDefault();
     const res = await creer({
       typeCommission: r.typeCommission,
       reunionId: r.id,
+      resolutionId: form.resolutionId || null,
       titre: form.titre,
       description: form.description,
       priorite: form.priorite,
@@ -569,7 +576,7 @@ function OngletPlansAction({ r }: { r: Reunion }) {
       dateEcheance: form.dateEcheance || null,
       progression: Number(form.progression),
     }) as { id?: number; error?: string } | null;
-    if (res?.id) { toast.success("Tâche créée"); setShowForm(false); setRefresh(x => x + 1); setForm({ titre: "", description: "", priorite: "MOYENNE", responsableId: "", dateEcheance: "", progression: "0" }); }
+    if (res?.id) { toast.success("Tâche créée"); setShowForm(false); setRefresh(x => x + 1); setForm(formInit); }
     else toast.error(res?.error || "Erreur");
   }
 
@@ -632,6 +639,14 @@ function OngletPlansAction({ r }: { r: Reunion }) {
             <label className="block text-xs font-medium text-slate-600 mb-1">Description</label>
             <textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
               rows={2} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-300 resize-none" />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-1">Résolution d&apos;origine (optionnel)</label>
+            <select value={form.resolutionId} onChange={e => setForm(f => ({ ...f, resolutionId: e.target.value }))}
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-300">
+              <option value="">— Aucune (tâche libre de la réunion) —</option>
+              {resolutionsReunion.map(res => <option key={res.id} value={res.id}>{res.numero} — {res.titre}</option>)}
+            </select>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <div>

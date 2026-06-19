@@ -44,8 +44,10 @@ export async function GET() {
         );
         const tauxPresence = totalPresences > 0 ? (presentCount / totalPresences) * 100 : 0;
 
+        // CDC : une résolution est « actée » une fois adoptée ou exécutée
+        // (anciens statuts APPROUVEE/EN_APPLICATION/APPLIQUEE conservés pour données non migrées)
         const resolutionsAdoptees = resolutions.filter(r =>
-          ["ADOPTEE", "APPROUVEE", "EN_APPLICATION", "APPLIQUEE", "EXECUTEE"].includes(r.statut)
+          ["ADOPTEE", "EXECUTEE", "APPROUVEE", "EN_APPLICATION", "APPLIQUEE"].includes(r.statut)
         ).length;
         const tauxAdoptionResolutions = resolutions.length > 0 ? (resolutionsAdoptees / resolutions.length) * 100 : 0;
 

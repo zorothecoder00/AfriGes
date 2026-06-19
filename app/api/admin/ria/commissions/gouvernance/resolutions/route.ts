@@ -65,7 +65,7 @@ export async function POST(req: NextRequest) {
         description,
         dateEcheance: dateEcheance ? new Date(dateEcheance) : null,
         responsableId: responsableId ? Number(responsableId) : null,
-        statut: "EN_ATTENTE",
+        statut: "EN_PREPARATION", // CDC : une résolution démarre en préparation
       },
       include: {
         responsable: { select: { id: true, nom: true, prenom: true } },

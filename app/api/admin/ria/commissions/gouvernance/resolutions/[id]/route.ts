@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getRIASession } from "@/lib/authRIA";
-import { StatutResolutionRIA } from "@prisma/client";
+import {
+  RESOLUTION_TRANSITIONS, RESOLUTION_PRECONDITIONS, type ResolutionAction,
+} from "@/lib/commissionsRIA";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -39,18 +41,41 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
     if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
 
     const { id } = await params;
+    const resolutionId = parseInt(id);
     const body = await req.json();
-    const { statut, titre, description, dateEcheance, responsableId } = body;
+    const { action, titre, description, dateEcheance, responsableId } = body as {
+      action?: ResolutionAction; titre?: string; description?: string;
+      dateEcheance?: string | null; responsableId?: number | null;
+    };
+
+    const data: Record<string, unknown> = {};
+    if (titre !== undefined) data.titre = titre;
+    if (description !== undefined) data.description = description;
+    if (dateEcheance !== undefined) data.dateEcheance = dateEcheance ? new Date(dateEcheance) : null;
+    if (responsableId !== undefined) data.responsableId = responsableId ? Number(responsableId) : null;
+
+    // Workflow de vote (CDC) : EN_PREPARATION → SOUMISE → ADOPTEE|REJETEE → EXECUTEE.
+    // L'admin supervise (pas de contrôle « est Président ») mais respecte l'ordre des transitions.
+    if (action) {
+      const allowed = RESOLUTION_PRECONDITIONS[action];
+      if (!allowed) return NextResponse.json({ error: "Action inconnue" }, { status: 400 });
+      const existante = await prisma.resolutionCommRIA.findUnique({
+        where: { id: resolutionId }, select: { statut: true },
+      });
+      if (!existante) return NextResponse.json({ error: "Résolution introuvable" }, { status: 404 });
+      if (!allowed.includes(existante.statut as never)) {
+        return NextResponse.json({ error: `Action « ${action} » impossible depuis le statut « ${existante.statut} »` }, { status: 409 });
+      }
+      data.statut = RESOLUTION_TRANSITIONS[action];
+    }
+
+    if (Object.keys(data).length === 0) {
+      return NextResponse.json({ error: "Aucune modification" }, { status: 400 });
+    }
 
     const resolution = await prisma.resolutionCommRIA.update({
-      where: { id: parseInt(id) },
-      data: {
-        ...(statut !== undefined ? { statut: statut as StatutResolutionRIA } : {}),
-        ...(titre !== undefined ? { titre } : {}),
-        ...(description !== undefined ? { description } : {}),
-        ...(dateEcheance !== undefined ? { dateEcheance: dateEcheance ? new Date(dateEcheance) : null } : {}),
-        ...(responsableId !== undefined ? { responsableId: responsableId ? Number(responsableId) : null } : {}),
-      },
+      where: { id: resolutionId },
+      data,
       include: {
         responsable: { select: { id: true, nom: true, prenom: true } },
         plansAction: true,
