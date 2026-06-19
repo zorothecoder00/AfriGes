@@ -18,6 +18,7 @@ export async function GET(req: NextRequest) {
       orderBy: { createdAt: "desc" },
       select: {
         id: true, reference: true, nom: true,
+        capitalDisponible: true, capitalEngage: true,
         profilRIA: {
           select: { gestionnaire: { select: { member: { select: { nom: true, prenom: true } } } } },
         },

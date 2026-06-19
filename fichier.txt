@@ -91,6 +91,27 @@ Toutes les pages de commissions par type ont des onglet trop lents ( bon j'ai d�
 
 Sur 3000/dashboard/admin/credits , c'est impossible de supprimer ou modifier un créidt client déjà rejeté ; c'est normal ou tu proposes de permettre de le faire
 
-lORSQUe je fais la demande de financement depuis l'admin que je transmets au président des Commissions Opérations , ça va en effet chez le Président de la commission finance  mais les clients pourtant renseignés ne sont pas pris en compte ;et aussi dans la demande de financement il manque plusieurs champs comme responable demandeur, liste et nombrs clients, marge prévisionnelle , prix de vente , risque estimé , retour sur investisseur attendu , investisseurs concernés  ( voici la liste des champs à avoir dans la demande de financement : Référence dossier -Date -Région -Agence -Responsable demandeur -Nombre de clients -Liste des clients- Produits concernés -Quantités du produit -Prix de revente -Marge prévisionnelle -Duréé du cycle -Risque estimé -Retour sur investissement attendu- Investisseurs concernés -Pièces jointes
- )
- 
+
+Quelle est la différence entre admin/droits-acces  et dashboard/admin/superadmin ( modules acces et accès section) ??? Parce que j'aimerais savoir si les deux sont complémentaires ou s'ils font les mêmes choses
+
+
+SessionGuard existe mais semble non utilisé dans le layout utilisateur
+
+Google OAuth crée automatiquement un utilisateur sans rôle
+
+Les erreurs de login sont redirigées vers la même page
+NextAuth configure error: "/auth/login". 
+Ce n’est pas un bug, mais il faut vérifier que la page login affiche clairement :
+identifiants invalides,
+session expirée,
+compte suspendu,
+mot de passe obligatoire à changer.
+Amélioration recommandée :
+Ajouter des messages explicites sans divulguer d’informations sensibles.
+Séparer sessionExpired=true, mustChangePassword=true, accessDenied=true.
+
+log: process.env.NODE_ENV === "development" ? ["query", "warn", "error"] : ["warn", "error"] pour empêcher qu'on voit les nombreux logs aussi en production ( failles )
+
+Le cache client useApi n’a pas d’invalidation globale
+
+Chercher comment utiliser l'authentification de google sans avoir besoin de payer

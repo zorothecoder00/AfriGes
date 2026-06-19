@@ -106,6 +106,12 @@ function CreateModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
   const montantSaisi = Number(form.montantFinance) || 0;
   const depasseLigne = ligne && ligne.montantAlloue > 0 && montantSaisi > ligne.disponible;
 
+  // Crédits du client sélectionné (pour rattacher le financement à un crédit existant)
+  const { data: creditRes } = useApi<{ data: { id: number; reference: string; statut: string; soldeRestant: string | number }[] }>(
+    form.clientId ? `/api/admin/credits?clientId=${form.clientId}&limit=20` : null
+  );
+  const credits = creditRes?.data ?? [];
+
   const submit = async () => {
     if (!form.portefeuilleId || !form.clientId || !form.montantFinance) {
       toast.error("Portefeuille, client et montant sont requis");
@@ -157,7 +163,7 @@ function CreateModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
             <input value={clientSearch} onChange={(e) => setClientSearch(e.target.value)} placeholder="Nom, prénom, téléphone…"
               className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 mb-1" />
             {clients.length > 0 && (
-              <select value={form.clientId} onChange={(e) => set("clientId", e.target.value)} size={3}
+              <select value={form.clientId} onChange={(e) => setForm((p) => ({ ...p, clientId: e.target.value, creditClientId: "" }))} size={3}
                 className="w-full border border-slate-200 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-emerald-500">
                 <option value="">— choisir —</option>
                 {clients.map((c) => (
@@ -220,10 +226,20 @@ function CreateModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">Crédit client associé (ID)</label>
-              <input type="number" value={form.creditClientId} onChange={(e) => set("creditClientId", e.target.value)}
-                placeholder="Optionnel"
-                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500" />
+              <label className="block text-xs font-medium text-slate-600 mb-1">Crédit client associé</label>
+              <select value={form.creditClientId} onChange={(e) => set("creditClientId", e.target.value)}
+                disabled={!form.clientId}
+                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 disabled:bg-slate-50">
+                <option value="">{form.clientId ? "— Aucun (optionnel) —" : "Choisissez d'abord un client"}</option>
+                {credits.map((cr) => (
+                  <option key={cr.id} value={cr.id}>
+                    {cr.reference} · {cr.statut.replace(/_/g, " ").toLowerCase()} · reste {fmt(toNum(cr.soldeRestant))} F
+                  </option>
+                ))}
+              </select>
+              {form.clientId && credits.length === 0 && (
+                <p className="text-xs text-slate-400 mt-1">Aucun crédit pour ce client</p>
+              )}
             </div>
             <div>
               <label className="block text-xs font-medium text-slate-600 mb-1">Date d&apos;échéance</label>

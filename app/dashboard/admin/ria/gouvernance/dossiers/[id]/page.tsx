@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useApi, useMutation } from "@/hooks/useApi";
 import { toast } from "sonner";
 import { DemandeFinancementEditor } from "@/components/gouvernance/DemandeFinancementEditor";
+import { PortefeuilleSelect } from "@/components/gouvernance/PortefeuilleSelect";
 import {
   ChevronLeft, GitBranch, Send, Inbox, Clock, Hourglass,
   CheckCircle2, XCircle, Archive, MessageSquare,
@@ -121,9 +122,6 @@ function ActionModal({ def, dossier, onClose, onSubmit }: {
   );
   const [submitting, setSubmitting] = useState(false);
 
-  const versionCourante = dossier.versions.find(v => v.version === dossier.versionCourante);
-  const candidats = versionCourante?.contenu?.investisseursConcernes ?? [];
-
   async function submit() {
     setSubmitting(true);
     const body: Record<string, unknown> = { action: def.action };
@@ -153,17 +151,8 @@ function ActionModal({ def, dossier, onClose, onSubmit }: {
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1">Portefeuille d&apos;exécution</label>
-                {candidats.length === 0 ? (
-                  <input value={portefeuilleExecutionId} onChange={e => setPortefeuilleExecutionId(e.target.value)}
-                    placeholder="ID du portefeuille"
-                    className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400" />
-                ) : (
-                  <select value={portefeuilleExecutionId} onChange={e => setPortefeuilleExecutionId(e.target.value)}
-                    className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400">
-                    <option value="">— Choisir —</option>
-                    {candidats.map(id => <option key={id} value={id}>Portefeuille #{id}</option>)}
-                  </select>
-                )}
+                <PortefeuilleSelect apiBase="/api/admin/ria/portefeuilles" value={portefeuilleExecutionId}
+                  onChange={setPortefeuilleExecutionId} montantRequis={Number(montantApprouve) || undefined} />
               </div>
             </>
           )}
@@ -368,6 +357,7 @@ export default function DossierDetailPage() {
   const meta = STATUT_META[dossier.statut] || { label: dossier.statut, color: "bg-slate-100 text-slate-600", icon: null };
   const actions = (ACTIONS_PAR_STATUT[dossier.statut] ?? []).filter(def => peutAgir(def, dossier));
   const isFinancement = dossier.type === "DEMANDE_FINANCEMENT";
+  const peutDecaisser = actions.some(d => d.action === "EXECUTER");
 
   return (
     <div className="p-6 space-y-6 max-w-5xl mx-auto">
@@ -421,6 +411,29 @@ export default function DossierDetailPage() {
           </p>
         )}
       </div>
+
+      {/* Bandeau : financement autorisé mais pas encore décaissé */}
+      {isFinancement && dossier.statut === "APPROUVE" && (
+        <div className="rounded-xl border border-emerald-300 bg-emerald-50 p-4 flex items-start gap-3">
+          <Wallet className="w-5 h-5 text-emerald-600 mt-0.5 shrink-0" />
+          <div className="flex-1">
+            <p className="text-sm font-semibold text-emerald-800">Financement autorisé — il reste à décaisser</p>
+            <p className="text-xs text-emerald-700 mt-0.5">
+              L&apos;approbation ne crée pas encore les financements. Lancez le décaissement pour créer les opérations de
+              financement, débiter le portefeuille{dossier.portefeuilleExecution ? ` ${dossier.portefeuilleExecution.reference}` : ""} et
+              affecter les clients — ils apparaîtront alors dans « Financements ».
+            </p>
+          </div>
+          {peutDecaisser ? (
+            <button onClick={() => runAction({ action: "EXECUTER" })}
+              className="shrink-0 flex items-center gap-1.5 px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700">
+              <Wallet className="w-4 h-4" /> Décaisser maintenant
+            </button>
+          ) : (
+            <span className="shrink-0 self-center text-xs text-emerald-700 italic">Réservé au Président de la commission réceptrice</span>
+          )}
+        </div>
+      )}
 
       {dossier.analyse && <AnalysePanel analyse={dossier.analyse} />}
 
