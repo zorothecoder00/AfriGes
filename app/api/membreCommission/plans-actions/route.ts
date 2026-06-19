@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getCommissionMembreSession, getRoleMembre, ROLES_SUIVI_ACTIONS } from "@/lib/authCommissionRIA";
+import {
+  getCommissionMembreSession,
+  getRoleMembre,
+  ROLES_SUIVI_ACTIONS,
+  verifierReunionExploitable,
+} from "@/lib/authCommissionRIA";
 import { TypeCommissionRIA, PrioriteActionRIA } from "@prisma/client";
 
 // Plans d'action / tâches.
@@ -90,17 +95,18 @@ export async function POST(req: NextRequest) {
       if (!ROLES_SUIVI_ACTIONS.includes(role)) {
         return NextResponse.json({ error: "L'attribution des tâches est réservée au Président et au Rapporteur 2" }, { status: 403 });
       }
+      // CDC : une tâche émane d'une réunion → un membre doit la rattacher à une réunion.
+      // (Admin/RESPONSABLE_RIA en supervision, auth.commission === null, ne sont pas forcés.)
+      if (!reunionId) {
+        return NextResponse.json({ error: "Un plan d'action doit être rattaché à une réunion de la commission" }, { status: 400 });
+      }
     }
 
     // Si la tâche est rattachée à une réunion, vérifier la cohérence de la commission
+    // et que la réunion est exploitable (EN_COURS / TENUE).
     if (reunionId) {
-      const reunion = await prisma.reunionCommissionRIA.findUnique({
-        where: { id: Number(reunionId) },
-        select: { typeCommission: true },
-      });
-      if (!reunion || reunion.typeCommission !== typeCommission) {
-        return NextResponse.json({ error: "Réunion invalide pour cette commission" }, { status: 400 });
-      }
+      const check = await verifierReunionExploitable(Number(reunionId), typeCommission as TypeCommissionRIA);
+      if (!check.ok) return NextResponse.json({ error: check.error }, { status: check.status });
     }
 
     const plan = await prisma.planActionCommRIA.create({

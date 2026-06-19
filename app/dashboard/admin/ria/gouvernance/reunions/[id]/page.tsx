@@ -9,6 +9,7 @@ import {
   ChevronLeft, RefreshCw, Plus, Pen, Send, Archive,
   ClipboardList, Gavel, ListChecks, CheckSquare,
 } from "lucide-react";
+import { reunionExploitable } from "@/lib/commissionsRIA";
 
 /* ─── Types ─── */
 interface Presence {
@@ -432,18 +433,29 @@ function OngletResolutions({ r, onRefresh }: { r: Reunion; onRefresh: () => void
   }
 
   const resolutions = data?.resolutions ?? [];
+  // Une résolution émane d'une réunion engagée : création possible seulement si EN_COURS / TENUE.
+  const peutCreer = reunionExploitable(r.statut);
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <p className="text-sm text-slate-500">{resolutions.length} résolution(s) pour cette commission</p>
-        <button onClick={() => setShowForm(s => !s)}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700">
-          <Plus className="w-3.5 h-3.5" /> Nouvelle résolution
-        </button>
+        {peutCreer ? (
+          <button onClick={() => setShowForm(s => !s)}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700">
+            <Plus className="w-3.5 h-3.5" /> Nouvelle résolution
+          </button>
+        ) : (
+          <span className="flex items-center gap-1 text-xs text-slate-400">
+            <Clock className="w-3.5 h-3.5" />
+            {r.statut === "PLANIFIEE"
+              ? "Démarrez la réunion pour créer une résolution"
+              : "Réunion close — création de résolution indisponible"}
+          </span>
+        )}
       </div>
 
-      {showForm && (
+      {peutCreer && showForm && (
         <form onSubmit={soumettre} className="bg-white border border-blue-200 rounded-xl p-5 space-y-4">
           <h3 className="font-semibold text-slate-800 text-sm">Nouvelle résolution</h3>
           <div>
@@ -581,6 +593,8 @@ function OngletPlansAction({ r }: { r: Reunion }) {
   const estFini = (s: string) => ["TERMINE", "REALISE", "ABANDONNE"].includes(s);
   const termines = plans.filter(p => p.statut === "TERMINE" || p.statut === "REALISE").length;
   const enRetard = plans.filter(p => p.dateEcheance && new Date(p.dateEcheance) < new Date() && !estFini(p.statut)).length;
+  // Une tâche émane d'une réunion engagée : création possible seulement si EN_COURS / TENUE.
+  const peutCreer = reunionExploitable(r.statut);
 
   return (
     <div className="space-y-4">
@@ -590,13 +604,22 @@ function OngletPlansAction({ r }: { r: Reunion }) {
           <span className="text-emerald-600">{termines} réalisée(s)</span>
           {enRetard > 0 && <span className="text-rose-600">{enRetard} en retard</span>}
         </div>
-        <button onClick={() => setShowForm(s => !s)}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-violet-600 text-white text-sm rounded-lg hover:bg-violet-700">
-          <Plus className="w-3.5 h-3.5" /> Nouvelle tâche
-        </button>
+        {peutCreer ? (
+          <button onClick={() => setShowForm(s => !s)}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-violet-600 text-white text-sm rounded-lg hover:bg-violet-700">
+            <Plus className="w-3.5 h-3.5" /> Nouvelle tâche
+          </button>
+        ) : (
+          <span className="flex items-center gap-1 text-xs text-slate-400">
+            <Clock className="w-3.5 h-3.5" />
+            {r.statut === "PLANIFIEE"
+              ? "Démarrez la réunion pour attribuer des tâches"
+              : "Réunion close — attribution des tâches indisponible"}
+          </span>
+        )}
       </div>
 
-      {showForm && (
+      {peutCreer && showForm && (
         <form onSubmit={soumettre} className="bg-white border border-violet-200 rounded-xl p-5 space-y-4">
           <h3 className="font-semibold text-slate-800 text-sm">Nouvelle tâche issue de la réunion</h3>
           <div>

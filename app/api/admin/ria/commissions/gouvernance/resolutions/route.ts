@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getRIASession } from "@/lib/authRIA";
+import { verifierReunionExploitable } from "@/lib/authCommissionRIA";
 import { TypeCommissionRIA } from "@prisma/client";
 
 export async function GET(req: NextRequest) {
@@ -42,6 +43,12 @@ export async function POST(req: NextRequest) {
 
     if (!typeCommission || !titre) {
       return NextResponse.json({ error: "typeCommission et titre requis" }, { status: 400 });
+    }
+
+    // Si rattachée à une réunion, elle doit être cohérente et exploitable (EN_COURS / TENUE).
+    if (reunionId) {
+      const check = await verifierReunionExploitable(Number(reunionId), typeCommission as TypeCommissionRIA);
+      if (!check.ok) return NextResponse.json({ error: check.error }, { status: check.status });
     }
 
     // Générer un numéro auto : RES-FINANCE-001, RES-AUDIT-012 …

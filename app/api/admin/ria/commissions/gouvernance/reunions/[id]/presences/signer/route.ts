@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getCommissionMembreSession } from "@/lib/authCommissionRIA";
+import { getCommissionMembreSession, STATUTS_SIGNATURE_PRESENCE } from "@/lib/authCommissionRIA";
 import crypto from "crypto";
 
 type Ctx = { params: Promise<{ id: string }> };
@@ -14,6 +14,20 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
     const { id } = await params;
     const reunionId = parseInt(id);
     const userId    = parseInt(auth.session.user.id);
+
+    // La signature n'est possible que pendant la séance (réunion EN_COURS) :
+    // pas avant l'ouverture (PLANIFIEE), ni une fois close (TENUE), annulée ou reportée.
+    const reunion = await prisma.reunionCommissionRIA.findUnique({
+      where: { id: reunionId },
+      select: { statut: true },
+    });
+    if (!reunion) return NextResponse.json({ error: "Réunion introuvable" }, { status: 404 });
+    if (!STATUTS_SIGNATURE_PRESENCE.includes(reunion.statut)) {
+      return NextResponse.json(
+        { error: "La signature de présence n'est ouverte que pour une réunion en cours (statut EN_COURS)" },
+        { status: 409 }
+      );
+    }
 
     // Trouver le membre correspondant
     const membre = await prisma.membreCommissionRIA.findFirst({

@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getCommissionMembreSession, getRoleMembre, ROLES_REDACTION_CR } from "@/lib/authCommissionRIA";
+import {
+  getCommissionMembreSession,
+  getRoleMembre,
+  ROLES_REDACTION_CR,
+  verifierReunionExploitable,
+} from "@/lib/authCommissionRIA";
 import { TypeCommissionRIA } from "@prisma/client";
 
 // Résolutions des commissions du membre connecté (lecture seule).
@@ -71,15 +76,12 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Cohérence : la réunion liée doit appartenir à la même commission.
+    // Cohérence : la réunion liée doit appartenir à la même commission et être
+    // exploitable (EN_COURS / TENUE) — une résolution ne peut émaner d'une réunion
+    // simplement planifiée, annulée ou reportée.
     if (reunionId) {
-      const reunion = await prisma.reunionCommissionRIA.findUnique({
-        where: { id: Number(reunionId) },
-        select: { typeCommission: true },
-      });
-      if (!reunion || reunion.typeCommission !== typeCommission) {
-        return NextResponse.json({ error: "Réunion invalide pour cette commission" }, { status: 400 });
-      }
+      const check = await verifierReunionExploitable(Number(reunionId), typeCommission as TypeCommissionRIA);
+      if (!check.ok) return NextResponse.json({ error: check.error }, { status: check.status });
     }
 
     const count = await prisma.resolutionCommRIA.count({ where: { typeCommission: typeCommission as TypeCommissionRIA } });

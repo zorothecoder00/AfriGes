@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useApi, useMutation } from "@/hooks/useApi";
 import { toast } from "sonner";
-import { commissionLabel } from "@/lib/commissionsRIA";
+import { commissionLabel, reunionExploitable } from "@/lib/commissionsRIA";
 import { Gavel, ListChecks, Calendar, Plus } from "lucide-react";
 
 interface Resolution {
@@ -48,7 +48,7 @@ const ACTIONS_PRESIDENT: Record<string, ActDef[]> = {
   ADOPTEE: [{ action: "EXECUTER", label: "Marquer exécutée" }],
 };
 
-interface ReuLite { id: number; titre: string; dateHeure: string; typeCommission: string }
+interface ReuLite { id: number; titre: string; dateHeure: string; typeCommission: string; statut: string }
 
 function CreerResolutionModal({ commissions, onClose, onCreated }: {
   commissions: MaCommission[]; onClose: () => void; onCreated: () => void;
@@ -61,9 +61,10 @@ function CreerResolutionModal({ commissions, onClose, onCreated }: {
     reunionId: "", titre: "", description: "", dateEcheance: "",
   });
 
-  // Réunions de la commission sélectionnée (plus récentes d'abord)
+  // Réunions de la commission sélectionnée, exploitables uniquement (EN_COURS / TENUE)
+  // — une résolution ne peut émaner d'une réunion planifiée, annulée ou reportée.
   const reunions = (reuData?.reunions ?? [])
-    .filter(r => r.typeCommission === form.typeCommission)
+    .filter(r => r.typeCommission === form.typeCommission && reunionExploitable(r.statut))
     .sort((a, b) => +new Date(b.dateHeure) - +new Date(a.dateHeure));
 
   async function submit(e: React.FormEvent) {
@@ -99,7 +100,7 @@ function CreerResolutionModal({ commissions, onClose, onCreated }: {
             </select>
             {reunions.length === 0 && (
               <p className="text-xs text-amber-600 mt-1 flex items-center gap-1">
-                <Calendar className="w-3 h-3" /> Aucune réunion pour cette commission — créez d&apos;abord une réunion.
+                <Calendar className="w-3 h-3" /> Aucune réunion en cours ou tenue pour cette commission — démarrez d&apos;abord une réunion.
               </p>
             )}
           </div>

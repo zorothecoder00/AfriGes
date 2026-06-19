@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useApi, useMutation } from "@/hooks/useApi";
 import { toast } from "sonner";
-import { commissionLabel, roleLabel } from "@/lib/commissionsRIA";
+import { commissionLabel, roleLabel, reunionExploitable } from "@/lib/commissionsRIA";
 import {
   ChevronLeft, Calendar, MapPin, Clock, Users, FileText, CheckCircle2,
   Send, Archive, ClipboardList, PenLine, ShieldCheck, ListChecks, Plus, AlertTriangle, Play,
@@ -103,6 +103,8 @@ export default function MembreReunionDetailPage() {
   const estRedacteur = role === "PRESIDENT" || role === "RAPPORTEUR_1" || role === "RAPPORTEUR_2" || role === "ADMIN";
   // CDC : attribution/suivi des tâches = Président + Rapporteur 2
   const estSuivi = role === "PRESIDENT" || role === "RAPPORTEUR_2" || role === "ADMIN";
+  // Une tâche émane d'une réunion engagée : création possible seulement si EN_COURS / TENUE.
+  const peutCreerTache = estSuivi && reunionExploitable(reunion.statut);
   const s = STATUT_REUNION[reunion.statut] ?? { label: reunion.statut, color: "bg-slate-100 text-slate-600" };
 
   // Membres assignables (depuis la feuille de présence de la réunion)
@@ -111,6 +113,8 @@ export default function MembreReunionDetailPage() {
   // Résolutions issues de cette réunion (pour rattacher la tâche à sa résolution d'origine)
   const resolutionsReunion = (resData?.resolutions ?? []).filter(r => r.reunion?.id === reunion.id);
 
+  // L'émargement n'est ouvert que pendant la séance (réunion EN_COURS) — cf. garde-fou API.
+  const peutSigner = reunion.statut === "EN_COURS";
   const maPresence = reunion.presences.find(p => p.membre.user.id === monUserId);
   const cr = crData?.compteRendu;
   const crValide = !!cr?.dateValidation;
@@ -249,11 +253,19 @@ export default function MembreReunionDetailPage() {
       <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
         <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
           <h3 className="font-semibold text-slate-800 text-sm flex items-center gap-2"><Users className="w-4 h-4" /> Feuille de présence</h3>
-          {maPresence && !maPresence.signatureNumerique && (
+          {maPresence && !maPresence.signatureNumerique && peutSigner && (
             <button onClick={signerPresence} disabled={signing}
               className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50">
               <PenLine className="w-3.5 h-3.5" /> Signer ma présence
             </button>
+          )}
+          {maPresence && !maPresence.signatureNumerique && !peutSigner && (
+            <span className="flex items-center gap-1 text-xs text-slate-400">
+              <Clock className="w-3.5 h-3.5" />
+              {reunion.statut === "PLANIFIEE"
+                ? "Signature ouverte au démarrage de la séance"
+                : "Signature close (séance non en cours)"}
+            </span>
           )}
           {maPresence?.signatureNumerique && (
             <span className="flex items-center gap-1 text-xs text-emerald-600 font-medium">
@@ -344,15 +356,23 @@ export default function MembreReunionDetailPage() {
           <h3 className="font-semibold text-slate-800 text-sm flex items-center gap-2">
             <ListChecks className="w-4 h-4" /> Tâches issues de la réunion
           </h3>
-          {estSuivi && !showTacheForm && (
+          {peutCreerTache && !showTacheForm && (
             <button onClick={() => setShowTacheForm(true)}
               className="flex items-center gap-1.5 px-3 py-1.5 bg-teal-600 text-white text-xs font-medium rounded-lg hover:bg-teal-700">
               <Plus className="w-3.5 h-3.5" /> Nouvelle tâche
             </button>
           )}
+          {estSuivi && !peutCreerTache && (
+            <span className="flex items-center gap-1 text-xs text-slate-400">
+              <Clock className="w-3.5 h-3.5" />
+              {reunion.statut === "PLANIFIEE"
+                ? "Démarrez la séance pour attribuer des tâches"
+                : "Séance close — attribution des tâches indisponible"}
+            </span>
+          )}
         </div>
 
-        {estSuivi && showTacheForm && (
+        {peutCreerTache && showTacheForm && (
           <form onSubmit={ajouterTache} className="bg-slate-50 rounded-lg border border-slate-100 p-4 space-y-3">
             <div>
               <label className="block text-xs font-medium text-slate-600 mb-1">Action *</label>

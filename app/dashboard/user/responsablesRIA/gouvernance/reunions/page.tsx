@@ -105,8 +105,8 @@ export default function MesReunionsPage() {
             const presence = r.presences[0];
             const isPresent = presence?.present;
             const isSigned = presence?.signatureNumerique;
-            const isFuture = new Date(r.dateHeure) > new Date();
-            const isOngoing = r.statut === "EN_COURS" || r.statut === "PLANIFIEE";
+            // L'émargement n'est ouvert que pendant la séance (réunion EN_COURS).
+            const peutSigner = r.statut === "EN_COURS";
 
             return (
               <div key={r.id} className="bg-white rounded-xl border border-slate-200 p-5">
@@ -147,7 +147,7 @@ export default function MesReunionsPage() {
                               <span className="text-xs text-blue-500 flex items-center gap-0.5">
                                 <PenLine className="w-3 h-3" /> Signé
                               </span>
-                            ) : !isFuture && isOngoing ? (
+                            ) : peutSigner ? (
                               <button onClick={() => handleSigner(r.id)}
                                 className="text-xs px-2 py-0.5 bg-blue-600 text-white rounded hover:bg-blue-700">
                                 Signer

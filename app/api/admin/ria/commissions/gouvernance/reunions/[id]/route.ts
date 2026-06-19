@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getRIASession } from "@/lib/authRIA";
-import { StatutReunionCommissionRIA } from "@prisma/client";
+import { notify } from "@/lib/notifications";
+import { StatutReunionCommissionRIA, PrioriteNotification } from "@prisma/client";
+
+const URL_PRESENCE_MEMBRE = (reunionId: number) => `/dashboard/user/gouvernance/reunions/${reunionId}`;
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -58,9 +61,13 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
 
     const existante = await prisma.reunionCommissionRIA.findUnique({
       where: { id: reunionId },
-      select: { typeCommission: true },
+      select: { typeCommission: true, statut: true },
     });
     if (!existante) return NextResponse.json({ error: "Réunion introuvable" }, { status: 404 });
+
+    // Détecte l'ouverture effective de la séance (transition vers EN_COURS) pour
+    // n'envoyer le rappel de signature qu'une seule fois.
+    const passageEnCours = statut === "EN_COURS" && existante.statut !== "EN_COURS";
 
     const reunion = await prisma.$transaction(async (tx) => {
       const data: Record<string, unknown> = {
@@ -85,11 +92,19 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
         include: { organisateur: { select: { id: true, nom: true, prenom: true } } },
       });
 
-      if (convoquer === true) {
-        const membres = await tx.membreCommissionRIA.findMany({
-          where: { typeCommission: existante.typeCommission, actif: true },
-          select: { id: true },
-        });
+      // Membres actifs de la commission : destinataires des feuilles de présence
+      // et des notifications de signature (chargés une seule fois si nécessaire).
+      const membres =
+        convoquer === true || passageEnCours
+          ? await tx.membreCommissionRIA.findMany({
+              where: { typeCommission: existante.typeCommission, actif: true },
+              select: { id: true, userId: true },
+            })
+          : [];
+
+      // Matérialise la feuille de présence dès la convocation OU à l'ouverture de séance,
+      // pour garantir que chaque membre notifié dispose d'une ligne à signer.
+      if (convoquer === true || passageEnCours) {
         for (const m of membres) {
           await tx.presenceReunionRIA.upsert({
             where: { reunionId_membreId: { reunionId, membreId: m.id } },
@@ -97,6 +112,25 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
             update: {},
           });
         }
+      }
+
+      if (convoquer === true) {
+        await notify(tx, membres.map((m) => m.userId), {
+          titre: "Convocation à une réunion de commission",
+          message: `Vous êtes convoqué(e) à la réunion « ${updated.titre} ». Préparez votre présence ; la signature sera ouverte au démarrage de la séance.`,
+          priorite: PrioriteNotification.NORMAL,
+          actionUrl: URL_PRESENCE_MEMBRE(reunionId),
+        });
+      }
+
+      // Séance ouverte → l'émargement devient possible : on invite les membres à signer.
+      if (passageEnCours) {
+        await notify(tx, membres.map((m) => m.userId), {
+          titre: "Séance ouverte : signez votre présence",
+          message: `La réunion « ${updated.titre} » a démarré. Signez votre présence dès maintenant.`,
+          priorite: PrioriteNotification.HAUTE,
+          actionUrl: URL_PRESENCE_MEMBRE(reunionId),
+        });
       }
 
       return updated;

@@ -96,6 +96,18 @@ export function roleLabel(role: string): string {
   return COMMISSION_ROLE_LABELS[role] ?? role;
 }
 
+// ── Réunions : statuts « exploitables » côté client ───────────────────────────
+// Doit rester aligné avec STATUTS_REUNION_EXPLOITABLE de lib/authCommissionRIA.ts
+// (constante serveur, non importable en client car elle charge Prisma).
+// Une résolution / un plan d'action ne peut être rattaché qu'à une réunion
+// EN_COURS ou TENUE ; l'émargement, lui, n'est ouvert que pour EN_COURS.
+export const STATUTS_REUNION_EXPLOITABLE = ["EN_COURS", "TENUE"] as const;
+
+/** Vrai si une réunion peut porter une résolution ou un plan d'action. */
+export function reunionExploitable(statut: string): boolean {
+  return (STATUTS_REUNION_EXPLOITABLE as readonly string[]).includes(statut);
+}
+
 // ── Routage inter-commissions imposé par le cahier des charges ────────────────
 // Certains types de dossiers ont une trajectoire FIXE entre commissions et ne
 // peuvent emprunter aucun autre chemin (Scénario 1 du CDC) :

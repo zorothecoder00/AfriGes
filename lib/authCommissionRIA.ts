@@ -1,6 +1,10 @@
 import { getAuthSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { TypeCommissionRIA, RoleMembreCommissionRIA } from "@prisma/client";
+import {
+  TypeCommissionRIA,
+  RoleMembreCommissionRIA,
+  StatutReunionCommissionRIA,
+} from "@prisma/client";
 
 // Accès total : Admin / SuperAdmin / ResponsableRIA
 export async function getCommissionAdminSession() {
@@ -74,6 +78,41 @@ export const ROLES_PREPARATION_REUNION: RoleMembreCommissionRIA[] = ["PRESIDENT"
 export const ROLES_REDACTION_CR: RoleMembreCommissionRIA[] = ["PRESIDENT", "RAPPORTEUR_1", "RAPPORTEUR_2"];
 // Suivi des tâches/plans d'action (CDC : Rapporteur 2 « Suivi des actions », Président « Attribution des tâches »).
 export const ROLES_SUIVI_ACTIONS: RoleMembreCommissionRIA[] = ["PRESIDENT", "RAPPORTEUR_2"];
+
+// Une résolution / un plan d'action émane d'une réunion effectivement engagée :
+// seules les réunions EN_COURS ou TENUE peuvent leur servir de rattachement
+// (on exclut PLANIFIEE — pas encore débutée, ANNULEE et REPORTEE).
+export const STATUTS_REUNION_EXPLOITABLE: StatutReunionCommissionRIA[] = ["EN_COURS", "TENUE"];
+
+// L'émargement (signature de présence) n'a de sens que pendant la séance :
+// uniquement EN_COURS (on exclut PLANIFIEE — pas encore ouverte, TENUE — close,
+// ANNULEE et REPORTEE). L'admin doit passer la réunion à EN_COURS pour ouvrir les signatures.
+export const STATUTS_SIGNATURE_PRESENCE: StatutReunionCommissionRIA[] = ["EN_COURS"];
+
+// Vérifie qu'une réunion existe, appartient bien à la commission visée et qu'elle est
+// exploitable (EN_COURS / TENUE) pour y rattacher une résolution ou un plan d'action.
+// `db` accepte un client de transaction.
+export async function verifierReunionExploitable(
+  reunionId: number,
+  typeCommission: TypeCommissionRIA,
+  db: Pick<typeof prisma, "reunionCommissionRIA"> = prisma
+): Promise<{ ok: true } | { ok: false; error: string; status: number }> {
+  const reunion = await db.reunionCommissionRIA.findUnique({
+    where: { id: reunionId },
+    select: { typeCommission: true, statut: true },
+  });
+  if (!reunion || reunion.typeCommission !== typeCommission) {
+    return { ok: false, error: "Réunion invalide pour cette commission", status: 400 };
+  }
+  if (!STATUTS_REUNION_EXPLOITABLE.includes(reunion.statut)) {
+    return {
+      ok: false,
+      error: "La réunion rattachée doit être en cours ou tenue (statut EN_COURS ou TENUE)",
+      status: 400,
+    };
+  }
+  return { ok: true };
+}
 
 // Vérifie si un user est PRESIDENT d'une commission donnée
 // `db` permet de passer un client de transaction pour rester cohérent avec le reste d'un $transaction
