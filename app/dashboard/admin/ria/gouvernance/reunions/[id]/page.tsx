@@ -9,7 +9,11 @@ import {
   ChevronLeft, RefreshCw, Plus, Pen, Send, Archive,
   ClipboardList, Gavel, ListChecks, CheckSquare,
 } from "lucide-react";
-import { reunionExploitable, RESOLUTION_ACTIONS_PAR_STATUT } from "@/lib/commissionsRIA";
+import {
+  reunionExploitable, RESOLUTION_ACTIONS_PAR_STATUT,
+  parseActionsCR, serializeActionsCR, type ActionCR,
+} from "@/lib/commissionsRIA";
+import { ActionsCREditor } from "@/components/gouvernance/ActionsCompteRendu";
 
 /* ─── Types ─── */
 interface Presence {
@@ -309,7 +313,9 @@ function OngletPresences({ r, onRefresh }: { r: Reunion; onRefresh: () => void }
 }
 
 /* ─── Onglet Compte Rendu ─── */
-function OngletCompteRendu({ reunionId, typeCommission }: { reunionId: number; typeCommission: string }) {
+function OngletCompteRendu({ reunionId, membres }: {
+  reunionId: number; membres: { id: number; nom: string; prenom: string }[];
+}) {
   const [refresh, setRefresh] = useState(0);
   const { data, loading } = useApi<{ compteRendu: CompteRendu | null }>(
     `/api/admin/ria/commissions/gouvernance/reunions/${reunionId}/compte-rendu?_r=${refresh}`
@@ -364,8 +370,6 @@ function OngletCompteRendu({ reunionId, typeCommission }: { reunionId: number; t
         {[
           { key: "decisions",       label: "Décisions prises",          placeholder: "Listez les décisions adoptées lors de cette réunion..." },
           { key: "recommandations", label: "Recommandations",           placeholder: "Recommandations formulées par la commission..." },
-          { key: "actionsDefinies", label: "Actions définies",          placeholder: "Actions à entreprendre suite à cette réunion (responsable, délai)..." },
-          { key: "observations",    label: "Observations & divers",     placeholder: "Autres points abordés, observations complémentaires..." },
         ].map(f => (
           <div key={f.key}>
             <label className="block text-xs font-semibold text-slate-600 uppercase mb-2">{f.label}</label>
@@ -379,6 +383,32 @@ function OngletCompteRendu({ reunionId, typeCommission }: { reunionId: number; t
             />
           </div>
         ))}
+
+        {/* Actions définies — structurées (CDC : deviennent des tâches à la validation) */}
+        <div>
+          <label className="block text-xs font-semibold text-slate-600 uppercase mb-2">Actions définies</label>
+          <ActionsCREditor
+            actions={parseActionsCR(form.actionsDefinies)}
+            onChange={(a: ActionCR[]) => setForm(p => ({ ...p, actionsDefinies: serializeActionsCR(a) }))}
+            membres={membres}
+            disabled={!!cr?.dateValidation}
+          />
+          <p className="text-xs text-slate-400 mt-1.5">
+            À la validation du compte rendu, chaque action devient automatiquement une tâche (plan d&apos;action).
+          </p>
+        </div>
+
+        <div>
+          <label className="block text-xs font-semibold text-slate-600 uppercase mb-2">Observations &amp; divers</label>
+          <textarea
+            value={form.observations}
+            onChange={e => setForm(p => ({ ...p, observations: e.target.value }))}
+            disabled={!!cr?.dateValidation}
+            rows={4}
+            placeholder="Autres points abordés, observations complémentaires..."
+            className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300 resize-none disabled:bg-slate-50 disabled:text-slate-500"
+          />
+        </div>
 
         {!cr?.dateValidation && (
           <div className="flex justify-end gap-3 pt-2">
@@ -853,7 +883,7 @@ export default function ReunionDetailPage() {
       <div>
         {tab === "convocation" && <OngletConvocation r={reunion} onRefresh={onRefresh} />}
         {tab === "presences"   && <OngletPresences   r={reunion} onRefresh={onRefresh} />}
-        {tab === "cr"          && <OngletCompteRendu reunionId={reunion.id} typeCommission={reunion.typeCommission} />}
+        {tab === "cr"          && <OngletCompteRendu reunionId={reunion.id} membres={reunion.presences.map(p => p.membre.user)} />}
         {tab === "resolutions" && <OngletResolutions r={reunion} onRefresh={onRefresh} />}
         {tab === "plans"       && <OngletPlansAction r={reunion} />}
       </div>

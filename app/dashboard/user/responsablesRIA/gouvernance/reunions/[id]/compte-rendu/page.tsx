@@ -3,6 +3,8 @@
 import { useParams, useRouter } from "next/navigation";
 import { useApi } from "@/hooks/useApi";
 import { ChevronLeft, FileText, CheckCircle2, Calendar, User } from "lucide-react";
+import { parseActionsCR } from "@/lib/commissionsRIA";
+import { ActionsCRView } from "@/components/gouvernance/ActionsCompteRendu";
 
 interface CompteRendu {
   id: number; decisions: string | null; recommandations: string | null;
@@ -84,7 +86,11 @@ export default function MembreCRPage() {
               return (
                 <div key={s.key} className={`bg-white border-l-4 ${s.color} border border-slate-200 rounded-xl p-5`}>
                   <h2 className="text-xs font-semibold text-slate-500 uppercase mb-3">{s.label}</h2>
-                  <p className="text-sm text-slate-700 whitespace-pre-line">{val}</p>
+                  {s.key === "actionsDefinies" ? (
+                    <ActionsCRView actions={parseActionsCR(val)} />
+                  ) : (
+                    <p className="text-sm text-slate-700 whitespace-pre-line">{val}</p>
+                  )}
                 </div>
               );
             })}

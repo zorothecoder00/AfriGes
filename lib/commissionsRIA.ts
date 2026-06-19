@@ -174,6 +174,54 @@ export const RESOLUTION_ACTIONS_PAR_STATUT: Record<string, { action: ResolutionA
   ADOPTEE: [{ action: "EXECUTER", label: "Marquer exécutée" }],
 };
 
+// ── Compte rendu : actions définies (structurées) ─────────────────────────────
+// CDC : le compte rendu liste les « Actions » ; chacune porte un responsable et une
+// échéance et devient une tâche (plan d'action) à la validation.
+// Stockées en JSON dans CompteRenduReunionRIA.actionsDefinies (rétro-compatible :
+// l'ancien texte libre — une action par ligne — reste lu correctement).
+export type ActionCR = {
+  titre: string;
+  responsableId?: number | null;
+  responsableNom?: string | null; // dénormalisé pour l'affichage sans rejointure
+  dateEcheance?: string | null;   // ISO court (yyyy-mm-dd)
+  priorite?: string | null;       // CRITIQUE | HAUTE | MOYENNE | BASSE
+};
+
+/** Parse le champ actionsDefinies : JSON structuré OU ancien texte (une action/ligne). */
+export function parseActionsCR(raw?: string | null): ActionCR[] {
+  if (!raw) return [];
+  const t = raw.trim();
+  if (t.startsWith("[")) {
+    try {
+      const arr = JSON.parse(t);
+      if (Array.isArray(arr)) {
+        return arr
+          .filter((a) => a && typeof a.titre === "string" && a.titre.trim())
+          .map((a) => ({
+            titre: String(a.titre).trim(),
+            responsableId: a.responsableId ?? null,
+            responsableNom: a.responsableNom ?? null,
+            dateEcheance: a.dateEcheance ?? null,
+            priorite: a.priorite ?? null,
+          }));
+      }
+    } catch {
+      /* repli texte ci-dessous */
+    }
+  }
+  return t
+    .split("\n")
+    .map((l) => l.replace(/^[\s•\-*\d.)]+/, "").trim())
+    .filter((l) => l.length > 0)
+    .map((titre) => ({ titre }));
+}
+
+/** Sérialise des actions structurées vers le champ actionsDefinies (JSON ou ""). */
+export function serializeActionsCR(actions: ActionCR[]): string {
+  const clean = actions.filter((a) => a.titre.trim());
+  return clean.length ? JSON.stringify(clean) : "";
+}
+
 // ── Routage inter-commissions imposé par le cahier des charges ────────────────
 // Certains types de dossiers ont une trajectoire FIXE entre commissions et ne
 // peuvent emprunter aucun autre chemin (Scénario 1 du CDC) :

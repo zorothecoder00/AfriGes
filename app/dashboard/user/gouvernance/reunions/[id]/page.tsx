@@ -5,7 +5,11 @@ import { useParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useApi, useMutation } from "@/hooks/useApi";
 import { toast } from "sonner";
-import { commissionLabel, roleLabel, reunionExploitable } from "@/lib/commissionsRIA";
+import {
+  commissionLabel, roleLabel, reunionExploitable,
+  parseActionsCR, serializeActionsCR, type ActionCR,
+} from "@/lib/commissionsRIA";
+import { ActionsCREditor, ActionsCRView } from "@/components/gouvernance/ActionsCompteRendu";
 import {
   ChevronLeft, Calendar, MapPin, Clock, Users, FileText, CheckCircle2,
   Send, Archive, ClipboardList, PenLine, ShieldCheck, ListChecks, Plus, AlertTriangle, Play,
@@ -320,7 +324,23 @@ export default function MembreReunionDetailPage() {
             {CR_CHAMPS.map(f => (
               <div key={f.key}>
                 <label className="block text-xs font-semibold text-slate-600 uppercase mb-1.5">{f.label}</label>
-                {crValide || !estRedacteur ? (
+                {f.key === "actionsDefinies" ? (
+                  // Actions structurées (CDC : deviennent des tâches à la validation)
+                  crValide || !estRedacteur ? (
+                    <ActionsCRView actions={parseActionsCR(form.actionsDefinies)} />
+                  ) : (
+                    <>
+                      <ActionsCREditor
+                        actions={parseActionsCR(form.actionsDefinies)}
+                        onChange={(a: ActionCR[]) => setCrForm({ ...form, actionsDefinies: serializeActionsCR(a) })}
+                        membres={membresAssignables}
+                      />
+                      <p className="text-xs text-slate-400 mt-1.5">
+                        À la validation, chaque action devient automatiquement une tâche.
+                      </p>
+                    </>
+                  )
+                ) : crValide || !estRedacteur ? (
                   <p className="text-sm text-slate-700 whitespace-pre-line bg-slate-50 rounded-lg p-3 min-h-[2.5rem]">
                     {form[f.key] || "—"}
                   </p>
