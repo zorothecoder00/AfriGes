@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getRIASession } from "@/lib/authRIA";
+import { dansFenetreAffectation } from "@/lib/riaAffectation";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -20,6 +21,8 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
           select: {
             id: true, montantFinance: true, montantRembourse: true,
             encours: true, statut: true, dateFinancement: true, clientId: true,
+            affectation:   { select: { dateDebut: true, dateFin: true } },
+            remboursements: { select: { montant: true, createdAt: true } },
           },
         },
         affectations: {
@@ -41,6 +44,17 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
     if (!pf) return NextResponse.json({ error: "Portefeuille introuvable" }, { status: 404 });
 
     const toN = (v: unknown) => Number(v ?? 0);
+
+    // Recouvré borné à la fenêtre d'affectation : montantRembourse et encours sont
+    // recalculés depuis les RemboursementRIA tombant dans [dateDebut, dateFin].
+    const fins = pf.financements.map((f) => {
+      const rembFenetre = f.remboursements.reduce(
+        (s, r) => (dansFenetreAffectation(f.affectation, r.createdAt) ? s + toN(r.montant) : s),
+        0,
+      );
+      const montantFinance = toN(f.montantFinance);
+      return { ...f, montantRembourse: rembFenetre, encours: Math.max(0, montantFinance - rembFenetre) };
+    });
 
     // ── Durée du portefeuille ──────────────────────────────────────────────────
     const dureeMs    = Date.now() - new Date(pf.createdAt).getTime();
@@ -80,7 +94,7 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
     const cashFlowNet = cashFlowEntrees - cashFlowSorties;
 
     // ── Performance Commerciale ────────────────────────────────────────────────
-    const clientsFinancesIds = new Set(pf.financements.map((f) => f.clientId));
+    const clientsFinancesIds = new Set(fins.map((f) => f.clientId));
     const nbClientsFinances  = clientsFinancesIds.size;
 
     const il30j = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
@@ -93,22 +107,22 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
 
     // "Perdus" = clients ayant au moins un financement en DEFAUT
     const clientsPerduIds = new Set(
-      pf.financements
+      fins
         .filter((f) => f.statut === "DEFAUT")
         .map((f) => f.clientId)
     );
     const clientsPerdus = clientsPerduIds.size;
 
     // ── Performance de Recouvrement ───────────────────────────────────────────
-    const montantAttendu   = pf.financements.reduce((s, f) => s + toN(f.montantFinance), 0);
-    const montantRecouvre  = pf.financements.reduce((s, f) => s + toN(f.montantRembourse), 0);
+    const montantAttendu   = fins.reduce((s, f) => s + toN(f.montantFinance), 0);
+    const montantRecouvre  = fins.reduce((s, f) => s + toN(f.montantRembourse), 0);
     const ecart            = montantAttendu - montantRecouvre;
     const tauxRecouvrement = montantAttendu > 0 ? (montantRecouvre / montantAttendu) * 100 : 0;
 
-    const encoursImpayes = pf.financements
+    const encoursImpayes = fins
       .filter((f) => f.statut === "EN_RETARD" || f.statut === "DEFAUT")
       .reduce((s, f) => s + toN(f.encours), 0);
-    const totalEncours  = pf.financements.reduce((s, f) => s + toN(f.encours), 0);
+    const totalEncours  = fins.reduce((s, f) => s + toN(f.encours), 0);
     const tauxImpayes   = totalEncours > 0 ? (encoursImpayes / totalEncours) * 100 : 0;
 
     // ── Évolution mensuelle du rendement (depuis les distributions) ───────────

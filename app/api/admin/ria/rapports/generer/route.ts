@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getRIASession } from "@/lib/authRIA";
+import { dansFenetreAffectation } from "@/lib/riaAffectation";
 
 const MOIS_FR = ["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
 
@@ -37,6 +38,8 @@ export async function POST(req: Request) {
             montantFinance: true, montantRembourse: true, encours: true,
             dateFinancement: true, dateEcheance: true, clientId: true,
             client: { select: { nom: true, prenom: true } },
+            affectation:   { select: { dateDebut: true, dateFin: true } },
+            remboursements: { select: { montant: true, createdAt: true } },
           },
         },
         depots: {
@@ -62,6 +65,17 @@ export async function POST(req: Request) {
 
     const toN = (v: unknown) => Number(v ?? 0);
 
+    // Recouvré borné à la fenêtre d'affectation : montantRembourse et encours sont
+    // recalculés depuis les RemboursementRIA tombant dans [dateDebut, dateFin].
+    const fins = pf.financements.map((f) => {
+      const rembFenetre = f.remboursements.reduce(
+        (s, r) => (dansFenetreAffectation(f.affectation, r.createdAt) ? s + toN(r.montant) : s),
+        0,
+      );
+      const montantFinance = toN(f.montantFinance);
+      return { ...f, montantRembourse: rembFenetre, encours: Math.max(0, montantFinance - rembFenetre) };
+    });
+
     // ── Métriques capital ──────────────────────────────────────────────────────
     const capitalInvesti   = toN(pf.capitalInvesti);
     const capitalEngage    = toN(pf.capitalEngage);
@@ -74,17 +88,17 @@ export async function POST(req: Request) {
     const rendementMois  = capitalInvesti > 0 ? (gainsRealises / capitalInvesti) * 100 : 0;
 
     // ── Clients financés ───────────────────────────────────────────────────────
-    const clientsIds = new Set(pf.financements.filter((f) => f.statut !== "ANNULE").map((f) => f.clientId));
+    const clientsIds = new Set(fins.filter((f) => f.statut !== "ANNULE").map((f) => f.clientId));
     const clientsFinances = clientsIds.size;
 
     // ── Encours & Recouvrement ─────────────────────────────────────────────────
-    const encours             = pf.financements.reduce((s, f) => s + toN(f.encours), 0);
-    const montantFinanceTotal  = pf.financements.reduce((s, f) => s + toN(f.montantFinance), 0);
-    const montantRecouvreTotal = pf.financements.reduce((s, f) => s + toN(f.montantRembourse), 0);
+    const encours             = fins.reduce((s, f) => s + toN(f.encours), 0);
+    const montantFinanceTotal  = fins.reduce((s, f) => s + toN(f.montantFinance), 0);
+    const montantRecouvreTotal = fins.reduce((s, f) => s + toN(f.montantRembourse), 0);
     const tauxRecouvrement     = montantFinanceTotal > 0 ? (montantRecouvreTotal / montantFinanceTotal) * 100 : 0;
 
     // ── Retards ────────────────────────────────────────────────────────────────
-    const fins_EN_RETARD = pf.financements.filter((f) => f.statut === "EN_RETARD");
+    const fins_EN_RETARD = fins.filter((f) => f.statut === "EN_RETARD");
     const retardsNb      = fins_EN_RETARD.length;
     const retardsMontant = fins_EN_RETARD.reduce((s, f) => s + toN(f.encours), 0);
 
@@ -98,12 +112,12 @@ export async function POST(req: Request) {
     const creancesDouteusesMontant = douteusesList.reduce((s, f) => s + toN(f.encours), 0);
 
     // ── Créances perdues : DEFAUT ──────────────────────────────────────────────
-    const fins_DEFAUT              = pf.financements.filter((f) => f.statut === "DEFAUT");
+    const fins_DEFAUT              = fins.filter((f) => f.statut === "DEFAUT");
     const creancesPerduseNb        = fins_DEFAUT.length;
     const creancesPerdusesMontant  = fins_DEFAUT.reduce((s, f) => s + toN(f.encours), 0);
 
     // ── Détail financements (actifs + en retard + défaut, max 50) ─────────────
-    const financementsDetail = pf.financements
+    const financementsDetail = fins
       .filter((f) => ["ACTIF", "EN_RETARD", "DEFAUT"].includes(f.statut))
       .slice(0, 50)
       .map((f) => ({

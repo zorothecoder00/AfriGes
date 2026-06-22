@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { StatutCredit } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getRIASession } from "@/lib/authRIA";
+import { dansFenetreAffectation } from "@/lib/riaAffectation";
 
 export async function GET(req: NextRequest) {
   try {
@@ -43,7 +44,8 @@ export async function GET(req: NextRequest) {
                 },
               },
             },
-            affectation: { select: { pourcentage: true } },
+            affectation:    { select: { pourcentage: true, dateDebut: true, dateFin: true } },
+            remboursements: { select: { montant: true, createdAt: true } },
           },
         },
       },
@@ -52,7 +54,16 @@ export async function GET(req: NextRequest) {
     });
 
     const items = credits.map((c) => {
-      const fins = c.financementsRIA;
+      // Recouvré borné à la fenêtre d'affectation : montantRembourse/encours recalculés
+      // depuis les RemboursementRIA tombant dans [dateDebut, dateFin].
+      const fins = c.financementsRIA.map((f) => {
+        const rembFenetre = f.remboursements.reduce(
+          (s, r) => (dansFenetreAffectation(f.affectation, r.createdAt) ? s + Number(r.montant) : s),
+          0,
+        );
+        const montantFinance = Number(f.montantFinance);
+        return { ...f, montantRembourse: rembFenetre, encours: Math.max(0, montantFinance - rembFenetre) };
+      });
       const totalFinanceRIA   = fins.reduce((s, f) => s + Number(f.montantFinance),   0);
       const totalRembourseRIA = fins.reduce((s, f) => s + Number(f.montantRembourse), 0);
       const totalEncoursRIA   = fins.reduce((s, f) => s + Number(f.encours),          0);
