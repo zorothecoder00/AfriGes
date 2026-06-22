@@ -242,9 +242,9 @@ export default function AfriGesDashboard() {
   // ── Loading ────────────────────────────────────────────────────────────────
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-orange-50/30 to-emerald-50/20 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-cream via-cream-100 to-brand-50 flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 border-4 border-emerald-200 border-t-emerald-600 rounded-full animate-spin" />
+          <div className="w-12 h-12 border-4 border-brand-200 border-t-brand-600 rounded-full animate-spin" />
           <p className="text-slate-500 font-medium">{t('loading_dashboard')}</p>
         </div>
       </div>
@@ -253,14 +253,14 @@ export default function AfriGesDashboard() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-orange-50/30 to-emerald-50/20 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-cream via-cream-100 to-brand-50 flex items-center justify-center">
         <div className="flex flex-col items-center gap-4 bg-white rounded-2xl p-8 shadow-sm border border-slate-200/60 max-w-md text-center">
           <div className="w-12 h-12 bg-red-50 rounded-full flex items-center justify-center">
             <span className="text-red-500 text-2xl">!</span>
           </div>
           <h3 className="text-lg font-bold text-slate-800">{t('loading_error')}</h3>
           <p className="text-slate-500 text-sm">{error}</p>
-          <button onClick={refetch} className="px-5 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-200 font-medium">
+          <button onClick={refetch} className="px-5 py-2.5 bg-brand-600 text-white rounded-xl hover:bg-brand-700 transition-all shadow-lg shadow-brand-200 font-medium">
             {t('retry')}
           </button>
         </div>
@@ -270,13 +270,13 @@ export default function AfriGesDashboard() {
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-orange-50/30 to-emerald-50/20">
+    <div className="min-h-screen bg-gradient-to-br from-cream via-cream-100 to-brand-50">
       
       {/* Header */}
       <header className="bg-white border-b border-slate-200 sticky top-0 z-50">
         <div className="max-w-[1600px] mx-auto px-8 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-emerald-600 rounded-lg flex items-center justify-center">
+            <div className="w-10 h-10 bg-brand-700 rounded-lg flex items-center justify-center">
               <span className="text-white font-bold">A</span>
             </div>
             <h1 className="text-xl font-bold text-slate-800">AfriGes</h1>
@@ -303,7 +303,7 @@ export default function AfriGesDashboard() {
             <div className="p-4 border-b border-slate-100">
               <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">{t('main')}</h3>
               <nav className="space-y-1">
-                <button className="w-full flex items-center gap-3 px-4 py-3 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-xl font-medium transition-all shadow-md shadow-emerald-200">
+                <button className="w-full flex items-center gap-3 px-4 py-3 bg-gradient-to-r from-brand-500 to-brand-700 text-white rounded-xl font-medium transition-all shadow-md shadow-brand-200">
                   <TrendingUp size={20} /><span>{t('nav_dashboard')}</span>
                 </button>
                 <Link href="/dashboard/admin/membres"       className="w-full flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-50 rounded-xl transition-all"><Users size={20} /><span>{t('nav_membres')}</span></Link>

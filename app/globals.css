@@ -18,6 +18,22 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+
+  /* ─── Identité visuelle AfriSime (dérivée du logo) ──────────────────────────
+     Verts forêt/feuille (#62B238 panier, #7ACB4E feuille, #195936 wordmark)
+     sur fond crème chaud (#F6F3EA). Génère bg-brand-*, text-brand-*, bg-cream… */
+  --color-brand-50:  #f3f8ec;
+  --color-brand-100: #e4f0d4;
+  --color-brand-200: #cbe3ad;
+  --color-brand-300: #aad07f;
+  --color-brand-400: #7acb4e; /* feuille claire */
+  --color-brand-500: #62b238; /* vert panier — primaire */
+  --color-brand-600: #4f8f30; /* nervure feuille */
+  --color-brand-700: #195936; /* wordmark */
+  --color-brand-800: #0f5132; /* « COMMUNAUTÉ » */
+  --color-brand-900: #0b3d26;
+  --color-cream:     #f6f3ea; /* fond du logo */
+  --color-cream-100: #fbf9f3;
 }
 
 body {
@@ -52,6 +68,18 @@ html[data-theme="dark"] .bg-slate-100      { background-color: #1e293b !importan
 html[data-theme="dark"] .bg-slate-200      { background-color: #334155 !important; }
 html[data-theme="dark"] .bg-gray-50        { background-color: #0f172a !important; }
 html[data-theme="dark"] .bg-gray-100       { background-color: #1e293b !important; }
+
+/* Surfaces de marque (crème) → fond sombre en dark mode */
+html[data-theme="dark"] .bg-cream          { background-color: #1e293b !important; }
+html[data-theme="dark"] .bg-cream-100      { background-color: #1e293b !important; }
+html[data-theme="dark"] .from-cream        {
+  --tw-gradient-from: #0f172a var(--tw-gradient-from-position);
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
+}
+html[data-theme="dark"] .via-cream-100     { --tw-gradient-via: #0f172a var(--tw-gradient-via-position); }
+html[data-theme="dark"] .to-brand-50       { --tw-gradient-to: #0f172a var(--tw-gradient-to-position); }
+html[data-theme="dark"] .border-brand-100  { border-color: #334155 !important; }
+html[data-theme="dark"] .border-brand-200  { border-color: #334155 !important; }
 
 /* Dégradés de fond des pages */
 html[data-theme="dark"] .bg-gradient-to-br { background: #0f172a !important; }

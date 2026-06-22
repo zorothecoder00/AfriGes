@@ -354,7 +354,7 @@ interface RecuOperationData {
 // HELPERS
 // ============================================================================
 
-type TabKey = "synthese" | "session" | "encaissement_caisse" | "decaissement" | "transferts" | "packs" | "historique" | "recus" | "cloture" | "a_confirmer" | "factures";
+type TabKey = "synthese" | "session" | "encaissement_caisse" | "credits_clients" | "decaissement" | "transferts" | "packs" | "historique" | "recus" | "cloture" | "a_confirmer" | "factures";
 
 function alertIcon(type: "danger" | "warning" | "info") {
   if (type === "danger")  return <XCircle      className="w-4 h-4 text-red-500 shrink-0"    />;
@@ -1338,6 +1338,7 @@ export default function CaissierPage() {
     { key: "a_confirmer",         label: "À confirmer",     icon: CheckCircle, badge: nbAConfirmer },
     { key: "session",             label: "Session",         icon: Power                          },
     { key: "encaissement_caisse", label: "Encaissements",   icon: ArrowUpCircle                  },
+    { key: "credits_clients",     label: "Crédits clients", icon: CreditCard                     },
     { key: "decaissement",        label: "Décaissements",   icon: ArrowDownCircle                },
     { key: "transferts",          label: "Transferts",      icon: ArrowLeftRight                 },
     { key: "packs",               label: "Packs & Factures de livraison", icon: Banknote          },
@@ -1724,7 +1725,7 @@ export default function CaissierPage() {
         )}
 
         {/* ── Tabs ── */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 p-1.5 flex gap-1 overflow-x-auto">
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 p-1.5 flex flex-wrap gap-1">
           {tabs.map(({ key, label, icon: Icon, badge }) => (
             <button
               key={key}
@@ -3500,12 +3501,19 @@ export default function CaissierPage() {
               )}
             </div>
 
-            {/* ── Crédits clients actifs ── */}
+          </div>
+        )}
+
+        {/* ============================================================
+            TAB : CRÉDITS CLIENTS — recouvrement / remboursement des crédits clients
+        ============================================================ */}
+        {activeTab === "credits_clients" && (
+          <div className="space-y-6">
             <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 overflow-hidden">
               <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between gap-3 flex-wrap">
                 <h3 className="font-bold text-slate-800 flex items-center gap-2">
                   <CreditCard size={20} className="text-indigo-600" />
-                  Crédits clients actifs
+                  Crédits clients — recouvrement
                 </h3>
                 <div className="flex items-center gap-2">
                   <div className="relative">

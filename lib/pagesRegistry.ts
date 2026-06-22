@@ -55,6 +55,7 @@ export const PAGES_REGISTRY: RoleRegistry[] = [
       { key: "synthese",            label: "Synthèse",              defaultAllowed: true, module: "caisse" },
       { key: "session",             label: "Session de caisse",     defaultAllowed: true, module: "caisse" },
       { key: "encaissement_caisse", label: "Encaissements",         defaultAllowed: true, module: "caisse" },
+      { key: "credits_clients",     label: "Crédits clients",       defaultAllowed: true, module: "caisse" },
       { key: "decaissement",        label: "Décaissements",         defaultAllowed: true, module: "caisse" },
       { key: "transferts",          label: "Transferts",            defaultAllowed: true, module: "caisse" },
       { key: "packs",               label: "Packs & Souscriptions", defaultAllowed: true, module: "packs"  },
