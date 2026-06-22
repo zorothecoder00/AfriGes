@@ -6,14 +6,16 @@ import { useState } from "react";
 import { RefreshCw, TrendingUp, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { formatCurrency } from "@/lib/format";
 
-interface Financement {
-  id: number; reference: string; montantFinance: number; taux?: number;
-  statut: string; dateDebut?: string | null; dateEcheance: string | null;
-  montantRembourse: number; nombreEcheances?: number; echeancesPayees?: number;
-  client: { nom: string; prenom: string };
-  portefeuille: { reference: string; profilRIA: { gestionnaire: { member: { nom: string; prenom: string } } } };
+interface Row {
+  id: number; reference: string; clientNom: string; clientPrenom: string;
+  portefeuilleRef: string; investisseur: string;
+  montant: number; rembourse: number; statut: string;
 }
-interface FResponse { data: Financement[]; meta: { total: number } }
+interface FinancementsStats {
+  total: number; totalFinance: number; totalRembourse: number; retardCount: number;
+  rows: Row[];
+}
+interface StatsResponse { data: FinancementsStats }
 
 const STATUT_STYLE: Record<string, string> = {
   ACTIF:      "bg-emerald-50 text-emerald-700",
@@ -26,17 +28,18 @@ const STATUT_STYLE: Record<string, string> = {
 export default function InvestissementsPage() {
   const { type } = useParams() as { type: string };
   const [refresh, setRefresh] = useState(0);
-  const { data, loading } = useApi<FResponse>(`/api/admin/ria/financements?limit=50&_r=${refresh}`);
+  const { data, loading } = useApi<StatsResponse>(`/api/admin/ria/gouvernance/financements-stats?_r=${refresh}`);
 
   if (type !== "finance") return (
     <div className="p-6 text-center text-slate-400 text-sm">Section réservée à la Commission Finance.</div>
   );
 
-  const items = data?.data ?? [];
-  const toNum = (v: unknown) => Number(v ?? 0);
-  const total  = items.reduce((s, f) => s + toNum(f.montantFinance), 0);
-  const rembourse = items.reduce((s, f) => s + toNum(f.montantRembourse), 0);
-  const retard = items.filter(f => f.statut === "EN_RETARD").length;
+  // Totaux calculés côté serveur sur l'ensemble des financements.
+  const stats     = data?.data;
+  const items     = stats?.rows ?? [];
+  const total     = stats?.totalFinance ?? 0;
+  const rembourse = stats?.totalRembourse ?? 0;
+  const retard    = stats?.retardCount ?? 0;
 
   return (
     <div className="p-6 space-y-6 max-w-7xl mx-auto">
@@ -53,7 +56,7 @@ export default function InvestissementsPage() {
 
       <div className="grid grid-cols-4 gap-4">
         <div className="bg-white border border-slate-200 rounded-xl p-4 text-center">
-          <p className="text-2xl font-bold text-slate-800">{data?.meta.total ?? 0}</p>
+          <p className="text-2xl font-bold text-slate-800">{stats?.total ?? 0}</p>
           <p className="text-xs text-slate-500">Financements total</p>
         </div>
         <div className="bg-white border border-slate-200 rounded-xl p-4 text-center">
@@ -96,40 +99,32 @@ export default function InvestissementsPage() {
                   <th className="px-4 py-3 text-left">Portefeuille</th>
                   <th className="px-4 py-3 text-right">Montant</th>
                   <th className="px-4 py-3 text-right">Remboursé</th>
-                  <th className="px-4 py-3 text-right">Taux</th>
                   <th className="px-4 py-3 text-right">Avancement</th>
                   <th className="px-4 py-3 text-center">Statut</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {items.map(f => {
-                  const montant = toNum(f.montantFinance);
-                  const remb    = toNum(f.montantRembourse);
-                  const pct     = montant > 0 ? (remb / montant * 100) : 0;
-                  const echs    = `${f.echeancesPayees ?? 0}/${f.nombreEcheances ?? 0}`;
+                  const pct = f.montant > 0 ? (f.rembourse / f.montant * 100) : 0;
                   return (
                     <tr key={f.id} className="hover:bg-slate-50">
                       <td className="px-4 py-3 font-mono text-xs text-slate-600">{f.reference}</td>
                       <td className="px-4 py-3 font-medium text-slate-800">
-                        {f.client.prenom} {f.client.nom}
+                        {f.clientPrenom} {f.clientNom}
                       </td>
                       <td className="px-4 py-3 text-xs text-slate-500">
-                        {f.portefeuille.reference}
-                        <span className="block text-slate-400">
-                          {f.portefeuille.profilRIA.gestionnaire.member.prenom} {f.portefeuille.profilRIA.gestionnaire.member.nom}
-                        </span>
+                        {f.portefeuilleRef}
+                        <span className="block text-slate-400">{f.investisseur}</span>
                       </td>
-                      <td className="px-4 py-3 text-right font-medium">{formatCurrency(montant)}</td>
-                      <td className="px-4 py-3 text-right text-emerald-600">{formatCurrency(remb)}</td>
-                      <td className="px-4 py-3 text-right text-blue-600">{toNum(f.taux).toFixed(1)}%</td>
+                      <td className="px-4 py-3 text-right font-medium">{formatCurrency(f.montant)}</td>
+                      <td className="px-4 py-3 text-right text-emerald-600">{formatCurrency(f.rembourse)}</td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
                           <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                            <div className="h-full bg-emerald-400 rounded-full" style={{ width: `${pct}%` }} />
+                            <div className="h-full bg-emerald-400 rounded-full" style={{ width: `${Math.min(100, pct)}%` }} />
                           </div>
                           <span className="text-xs text-slate-500 w-8">{pct.toFixed(0)}%</span>
                         </div>
-                        <p className="text-xs text-slate-400 mt-0.5">{echs} échéances</p>
                       </td>
                       <td className="px-4 py-3 text-center">
                         <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUT_STYLE[f.statut] ?? "bg-slate-50 text-slate-600"}`}>

@@ -6,58 +6,26 @@ import { useState } from "react";
 import { RefreshCw, Map as MapIcon, Users } from "lucide-react";
 import { formatCurrency } from "@/lib/format";
 
-interface Affectation {
-  id: number; actif: boolean; classeRisque: string;
-  client: { commune: string | null; region: string | null; secteurActivite: string | null };
-  financements: { montantFinance: number; statut: string }[];
+interface TerrainStats {
+  byRegion: { label: string; count: number; actifs: number; montant: number }[];
+  byCommune: { label: string; count: number; montant: number }[];
+  bySecteur: { label: string; count: number }[];
 }
-interface AffResponse { data: Affectation[] }
+interface StatsResponse { data: TerrainStats }
 
 export default function CartographiePage() {
   const { type } = useParams() as { type: string };
   const [refresh, setRefresh] = useState(0);
-  const { data, loading } = useApi<AffResponse>(`/api/admin/ria/affectations?limit=200&_r=${refresh}`);
+  const { data, loading } = useApi<StatsResponse>(`/api/admin/ria/gouvernance/terrain-stats?_r=${refresh}`);
 
   if (type !== "operations-terrain") return (
     <div className="p-6 text-center text-slate-400 text-sm">Section réservée à la Commission Opérations Terrain.</div>
   );
 
-  const toNum = (v: unknown) => Number(v ?? 0);
-  const items = data?.data ?? [];
-
-  const regionMap = new Map<string, { count: number; montant: number; actifs: number }>();
-  items.forEach(a => {
-    const key = a.client.region ?? "Inconnue";
-    if (!regionMap.has(key)) regionMap.set(key, { count: 0, montant: 0, actifs: 0 });
-    const g = regionMap.get(key)!;
-    g.count++;
-    if (a.actif) g.actifs++;
-    a.financements.forEach(f => { g.montant += toNum(f.montantFinance); });
-  });
-  const byRegion = Array.from(regionMap.entries())
-    .map(([label, v]) => ({ label, ...v }))
-    .sort((a, b) => b.count - a.count);
-
-  const communeMap = new Map<string, { count: number; montant: number }>();
-  items.forEach(a => {
-    const key = a.client.commune ?? "Inconnue";
-    if (!communeMap.has(key)) communeMap.set(key, { count: 0, montant: 0 });
-    const g = communeMap.get(key)!;
-    g.count++;
-    a.financements.forEach(f => { g.montant += toNum(f.montantFinance); });
-  });
-  const byCommune = Array.from(communeMap.entries())
-    .map(([label, v]) => ({ label, ...v }))
-    .sort((a, b) => b.count - a.count);
-
-  const secteurMap = new Map<string, number>();
-  items.forEach(a => {
-    const key = a.client.secteurActivite ?? "Non renseigné";
-    secteurMap.set(key, (secteurMap.get(key) ?? 0) + 1);
-  });
-  const bySecteur = Array.from(secteurMap.entries())
-    .map(([label, count]) => ({ label, count }))
-    .sort((a, b) => b.count - a.count);
+  const stats = data?.data;
+  const byRegion  = stats?.byRegion ?? [];
+  const byCommune = stats?.byCommune ?? [];
+  const bySecteur = stats?.bySecteur ?? [];
 
   const maxCommune = byCommune[0]?.count ?? 1;
 

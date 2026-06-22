@@ -2,52 +2,44 @@
 
 import { useParams } from "next/navigation";
 import { useApi } from "@/hooks/useApi";
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { RefreshCw, AlertTriangle, Clock, FileText } from "lucide-react";
 import { formatCurrency } from "@/lib/format";
 
-// Captured at module load — not during render, so no purity violation
-const TODAY_MS = Date.now();
-
-interface Financement {
-  id: number; reference: string; montantFinance: number; taux?: number;
-  statut: string; dateEcheance: string | null; montantRembourse: number;
-  client: { nom: string; prenom: string; telephone: string | null; commune?: string | null };
-  portefeuille: { reference: string };
+interface Creance {
+  id: number; reference: string; clientNom: string; clientPrenom: string;
+  telephone: string | null; commune: string | null;
+  du: number; montant: number; jours: number; portefeuilleRef: string;
 }
-interface FResponse { data: Financement[]; meta: { total: number } }
-interface EnrichedF extends Financement { jours: number }
+interface FinancementsStats {
+  creances: {
+    count: number; totalCreance: number; retardMoyen: number;
+    aging: { label: string; count: number; montant: number }[];
+    items: Creance[];
+  };
+}
+interface StatsResponse { data: FinancementsStats }
 
-const toNum = (v: unknown) => Number(v ?? 0);
-
-const tranches = [
-  { label: "1–30 jours",   filter: (j: number) => j >= 1  && j <= 30,  color: "bg-yellow-400" },
-  { label: "31–90 jours",  filter: (j: number) => j >= 31 && j <= 90,  color: "bg-orange-400" },
-  { label: "91–180 jours", filter: (j: number) => j >= 91 && j <= 180, color: "bg-red-400" },
-  { label: ">180 jours",   filter: (j: number) => j > 180,             color: "bg-red-700" },
-];
+const AGING_COLOR: Record<string, string> = {
+  "1–30 jours":   "bg-yellow-400",
+  "31–90 jours":  "bg-orange-400",
+  "91–180 jours": "bg-red-400",
+  ">180 jours":   "bg-red-700",
+};
 
 export default function CreancesPage() {
   const { type } = useParams() as { type: string };
   const [refresh, setRefresh] = useState(0);
-  const { data, loading } = useApi<FResponse>(`/api/admin/ria/financements?statut=EN_RETARD&limit=50&_r=${refresh}`);
-
-  const items = useMemo<EnrichedF[]>(() =>
-    (data?.data ?? []).map(f => ({
-      ...f,
-      jours: f.dateEcheance
-        ? Math.max(0, Math.floor((TODAY_MS - new Date(f.dateEcheance).getTime()) / 86_400_000))
-        : 0,
-    })), [data]);
+  const { data, loading } = useApi<StatsResponse>(`/api/admin/ria/gouvernance/financements-stats?_r=${refresh}`);
 
   if (type !== "finance") return (
     <div className="p-6 text-center text-slate-400 text-sm">Section réservée à la Commission Finance.</div>
   );
 
-  const totalCreance = items.reduce((s, f) => s + (toNum(f.montantFinance) - toNum(f.montantRembourse)), 0);
-  const retardMoyen  = items.length > 0
-    ? Math.round(items.reduce((s, f) => s + f.jours, 0) / items.length)
-    : 0;
+  // Aging et créances calculés côté serveur sur l'ensemble des financements en retard.
+  const creances = data?.data.creances;
+  const items    = creances?.items ?? [];
+  const aging    = creances?.aging ?? [];
 
   return (
     <div className="p-6 space-y-6 max-w-7xl mx-auto">
@@ -64,15 +56,15 @@ export default function CreancesPage() {
 
       <div className="grid grid-cols-3 gap-4">
         <div className="bg-rose-50 border border-rose-200 rounded-xl p-4 text-center">
-          <p className="text-2xl font-bold text-rose-700">{items.length}</p>
+          <p className="text-2xl font-bold text-rose-700">{creances?.count ?? 0}</p>
           <p className="text-xs text-rose-600">Créances en retard</p>
         </div>
         <div className="bg-white border border-slate-200 rounded-xl p-4 text-center">
-          <p className="text-2xl font-bold text-rose-700">{formatCurrency(totalCreance)}</p>
+          <p className="text-2xl font-bold text-rose-700">{formatCurrency(creances?.totalCreance ?? 0)}</p>
           <p className="text-xs text-slate-500">Capital restant dû</p>
         </div>
         <div className="bg-white border border-slate-200 rounded-xl p-4 text-center">
-          <p className="text-2xl font-bold text-slate-800">{retardMoyen}j</p>
+          <p className="text-2xl font-bold text-slate-800">{creances?.retardMoyen ?? 0}j</p>
           <p className="text-xs text-slate-500">Retard moyen</p>
         </div>
       </div>
@@ -84,18 +76,14 @@ export default function CreancesPage() {
           <h2 className="font-semibold text-slate-800">Analyse de l&apos;ancienneté (aging)</h2>
         </div>
         <div className="grid grid-cols-4 gap-3">
-          {tranches.map(tr => {
-            const group = items.filter(f => tr.filter(f.jours));
-            const amt   = group.reduce((s, f) => s + (toNum(f.montantFinance) - toNum(f.montantRembourse)), 0);
-            return (
-              <div key={tr.label} className="border border-slate-200 rounded-xl p-4">
-                <div className={`w-3 h-3 rounded-full ${tr.color} mb-2`} />
-                <p className="text-xs text-slate-500">{tr.label}</p>
-                <p className="text-lg font-bold text-slate-800 mt-1">{group.length}</p>
-                <p className="text-xs text-slate-500">{formatCurrency(amt)}</p>
-              </div>
-            );
-          })}
+          {aging.map(tr => (
+            <div key={tr.label} className="border border-slate-200 rounded-xl p-4">
+              <div className={`w-3 h-3 rounded-full ${AGING_COLOR[tr.label] ?? "bg-slate-300"} mb-2`} />
+              <p className="text-xs text-slate-500">{tr.label}</p>
+              <p className="text-lg font-bold text-slate-800 mt-1">{tr.count}</p>
+              <p className="text-xs text-slate-500">{formatCurrency(tr.montant)}</p>
+            </div>
+          ))}
         </div>
       </div>
 
@@ -129,29 +117,26 @@ export default function CreancesPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {items.map(f => {
-                  const du = toNum(f.montantFinance) - toNum(f.montantRembourse);
-                  return (
-                    <tr key={f.id} className="hover:bg-rose-50/30">
-                      <td className="px-4 py-3 font-mono text-xs text-slate-600">{f.reference}</td>
-                      <td className="px-4 py-3 font-medium text-slate-800">
-                        {f.client.prenom} {f.client.nom}
-                        {f.client.telephone && (
-                          <span className="block text-xs text-slate-400">{f.client.telephone}</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-slate-600">{f.client.commune ?? "—"}</td>
-                      <td className="px-4 py-3 text-right font-bold text-rose-700">{formatCurrency(du)}</td>
-                      <td className="px-4 py-3 text-right text-slate-600">{formatCurrency(toNum(f.montantFinance))}</td>
-                      <td className="px-4 py-3 text-right">
-                        <span className={`font-semibold ${f.jours > 90 ? "text-red-700" : f.jours > 30 ? "text-orange-600" : "text-yellow-700"}`}>
-                          {f.jours}j
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-xs text-slate-500">{f.portefeuille.reference}</td>
-                    </tr>
-                  );
-                })}
+                {items.map(f => (
+                  <tr key={f.id} className="hover:bg-rose-50/30">
+                    <td className="px-4 py-3 font-mono text-xs text-slate-600">{f.reference}</td>
+                    <td className="px-4 py-3 font-medium text-slate-800">
+                      {f.clientPrenom} {f.clientNom}
+                      {f.telephone && (
+                        <span className="block text-xs text-slate-400">{f.telephone}</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-slate-600">{f.commune ?? "—"}</td>
+                    <td className="px-4 py-3 text-right font-bold text-rose-700">{formatCurrency(f.du)}</td>
+                    <td className="px-4 py-3 text-right text-slate-600">{formatCurrency(f.montant)}</td>
+                    <td className="px-4 py-3 text-right">
+                      <span className={`font-semibold ${f.jours > 90 ? "text-red-700" : f.jours > 30 ? "text-orange-600" : "text-yellow-700"}`}>
+                        {f.jours}j
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-xs text-slate-500">{f.portefeuilleRef}</td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>

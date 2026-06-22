@@ -12,6 +12,10 @@ interface Depot {
 }
 interface DepResponse { data: Depot[]; meta: { total: number } }
 
+// Stats dépôts agrégées par statut (source de vérité : dashboard, calculé sur
+// l'ensemble des dépôts) — la liste ci-dessous n'est qu'un journal récent borné.
+interface DashData { depots: Record<string, { count: number; montant: number }> }
+
 const STATUT_STYLE: Record<string, string> = {
   EN_ATTENTE: "bg-yellow-50 text-yellow-700",
   VALIDE:     "bg-emerald-50 text-emerald-700",
@@ -21,6 +25,7 @@ const STATUT_STYLE: Record<string, string> = {
 export default function ApprovisionnmentsPage() {
   const { type } = useParams() as { type: string };
   const [refresh, setRefresh] = useState(0);
+  const { data: dashRes } = useApi<{ data: DashData }>(`/api/admin/ria/dashboard?kpis=1&_r=${refresh}`);
   const { data, loading } = useApi<DepResponse>(`/api/admin/ria/fonds/depots?limit=50&_r=${refresh}`);
 
   if (type !== "operations-terrain") return (
@@ -30,8 +35,10 @@ export default function ApprovisionnmentsPage() {
   const items = data?.data ?? [];
   const toNum = (v: unknown) => Number(v ?? 0);
 
-  const totalValide  = items.filter(d => d.statut === "VALIDE").reduce((s, d) => s + toNum(d.montant), 0);
-  const totalAttente = items.filter(d => d.statut === "EN_ATTENTE").reduce((s, d) => s + toNum(d.montant), 0);
+  const depotsStats  = dashRes?.data.depots ?? {};
+  const totalDepots  = Object.values(depotsStats).reduce((s, v) => s + v.count, 0);
+  const totalValide  = depotsStats.VALIDE?.montant ?? 0;
+  const totalAttente = depotsStats.EN_ATTENTE?.montant ?? 0;
 
   return (
     <div className="p-6 space-y-6 max-w-7xl mx-auto">
@@ -49,7 +56,7 @@ export default function ApprovisionnmentsPage() {
       <div className="grid grid-cols-4 gap-4">
         <div className="bg-white border border-slate-200 rounded-xl p-4 text-center">
           <Truck className="w-5 h-5 text-emerald-500 mx-auto mb-2" />
-          <p className="text-2xl font-bold text-slate-800">{data?.meta.total ?? 0}</p>
+          <p className="text-2xl font-bold text-slate-800">{totalDepots}</p>
           <p className="text-xs text-slate-500">Dépôts total</p>
         </div>
         <div className="bg-white border border-slate-200 rounded-xl p-4 text-center">

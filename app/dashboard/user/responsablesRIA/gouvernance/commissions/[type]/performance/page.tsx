@@ -11,42 +11,27 @@ interface DashData {
   rendementMoyen: number; beneficesGeneres: number; scoreGlobalSante: number;
   nbInvestisseurs?: number; nbPortefeuilles?: number;
 }
-interface Affectation {
-  id: number; actif: boolean; classeRisque: string;
-  portefeuille: { reference: string; rendementMoyen: number; profilRIA: { gestionnaire: { member: { nom: string; prenom: string } } } };
-  financements: { montantFinance: number; statut: string; montantRembourse: number }[];
+interface PortefeuilleRank {
+  reference: string; nom: string; clients: number; montant: number; recouvre: number; taux: number;
 }
-interface AffResponse { data: Affectation[] }
+interface TerrainStats { portefeuilles: PortefeuilleRank[] }
 
 export default function PerformancePage() {
   const { type } = useParams() as { type: string };
   const [refresh, setRefresh] = useState(0);
-  const { data: dashRes } = useApi<{ data: DashData }>(`/api/admin/ria/dashboard?_r=${refresh}`);
+  const { data: dashRes } = useApi<{ data: DashData }>(`/api/admin/ria/dashboard?kpis=1&_r=${refresh}`);
   const dash = dashRes?.data;
-  const { data: affData } = useApi<AffResponse>(`/api/admin/ria/affectations?limit=100&actif=true&_r=${refresh}`);
+  const { data: statsRes } = useApi<{ data: TerrainStats }>(`/api/admin/ria/gouvernance/terrain-stats?_r=${refresh}`);
 
   if (type !== "operations-terrain") return (
     <div className="p-6 text-center text-slate-400 text-sm">Section réservée à la Commission Opérations Terrain.</div>
   );
 
   const toNum = (v: unknown) => Number(v ?? 0);
-  const aff = affData?.data ?? [];
 
-  // Performance par investisseur
-  const byInv: Record<string, { nom: string; clients: number; montant: number; recouvre: number }> = {};
-  aff.forEach(a => {
-    const key = a.portefeuille.reference;
-    const nom = `${a.portefeuille.profilRIA.gestionnaire.member.prenom} ${a.portefeuille.profilRIA.gestionnaire.member.nom}`;
-    if (!byInv[key]) byInv[key] = { nom, clients: 0, montant: 0, recouvre: 0 };
-    byInv[key].clients++;
-    a.financements.forEach(f => {
-      byInv[key].montant   += toNum(f.montantFinance);
-      byInv[key].recouvre  += toNum(f.montantRembourse);
-    });
-  });
-  const ranking = Object.values(byInv)
-    .map(v => ({ ...v, taux: v.montant > 0 ? v.recouvre / v.montant * 100 : 0 }))
-    .sort((a, b) => b.taux - a.taux);
+  // Classement par portefeuille — calculé côté serveur sur l'ensemble des
+  // affectations actives (déjà trié par taux de recouvrement décroissant).
+  const ranking = statsRes?.data.portefeuilles ?? [];
 
   return (
     <div className="p-6 space-y-6 max-w-7xl mx-auto">

@@ -2,28 +2,19 @@
 
 import { useParams } from "next/navigation";
 import { useApi } from "@/hooks/useApi";
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { RefreshCw, AlertTriangle, ShieldAlert, CheckCircle2 } from "lucide-react";
 import { formatCurrency } from "@/lib/format";
 
-// Captured at module load — not during render, so no purity violation
-const TODAY_MS = Date.now();
-
-interface Financement {
-  id: number; reference: string; montantFinance: number; statut: string;
-  dateEcheance: string | null; montantRembourse: number; taux?: number;
-  client: { nom: string; prenom: string; commune?: string | null };
-  portefeuille: { reference: string; profilRIA: { gestionnaire: { member: { nom: string; prenom: string } } } };
-}
-interface FResponse { data: Financement[] }
-
-type AnomalieType = "EN_RETARD" | "TAUX_ELEVE" | "FAIBLE_RECOUVREMENT";
-
 interface Anomalie {
-  id: string; type: AnomalieType; severite: "CRITIQUE" | "HAUTE" | "MOYENNE";
+  id: string; type: "EN_RETARD" | "FAIBLE_RECOUVREMENT"; severite: "CRITIQUE" | "HAUTE" | "MOYENNE";
   description: string; client: string; investisseur: string;
   montant: number; ref: string;
 }
+interface FinancementsStats {
+  anomalies: { total: number; critiques: number; hautes: number; items: Anomalie[] };
+}
+interface StatsResponse { data: FinancementsStats }
 
 const SEV_STYLE: Record<string, string> = {
   CRITIQUE: "bg-rose-50 border-rose-200 text-rose-700",
@@ -31,60 +22,20 @@ const SEV_STYLE: Record<string, string> = {
   MOYENNE:  "bg-yellow-50 border-yellow-200 text-yellow-700",
 };
 
-const toNum = (v: unknown) => Number(v ?? 0);
-
 export default function AnomaliesPage() {
   const { type } = useParams() as { type: string };
   const [refresh, setRefresh] = useState(0);
-  const { data, loading } = useApi<FResponse>(`/api/admin/ria/financements?limit=100&_r=${refresh}`);
-
-  const anomalies = useMemo<Anomalie[]>(() => {
-    const result: Anomalie[] = [];
-    (data?.data ?? []).forEach(f => {
-      const montant = toNum(f.montantFinance);
-      const remb    = toNum(f.montantRembourse);
-      const taux    = toNum(f.taux);
-      const pct     = montant > 0 ? remb / montant * 100 : 100;
-      const client  = `${f.client.prenom} ${f.client.nom}`;
-      const inv     = `${f.portefeuille.profilRIA.gestionnaire.member.prenom} ${f.portefeuille.profilRIA.gestionnaire.member.nom}`;
-
-      if (f.statut === "EN_RETARD") {
-        const jours = f.dateEcheance
-          ? Math.floor((TODAY_MS - new Date(f.dateEcheance).getTime()) / 86_400_000)
-          : 0;
-        result.push({
-          id: `ret-${f.id}`, type: "EN_RETARD",
-          severite: jours > 90 ? "CRITIQUE" : jours > 30 ? "HAUTE" : "MOYENNE",
-          description: `Financement en retard de ${jours} jour(s)`,
-          client, investisseur: inv, montant: montant - remb, ref: f.reference,
-        });
-      }
-      if (taux > 25) {
-        result.push({
-          id: `taux-${f.id}`, type: "TAUX_ELEVE",
-          severite: taux > 40 ? "CRITIQUE" : taux > 30 ? "HAUTE" : "MOYENNE",
-          description: `Taux d'intérêt anormalement élevé : ${taux}%`,
-          client, investisseur: inv, montant, ref: f.reference,
-        });
-      }
-      if (pct < 20 && f.statut === "ACTIF" && montant > 0) {
-        result.push({
-          id: `low-${f.id}`, type: "FAIBLE_RECOUVREMENT",
-          severite: "HAUTE",
-          description: `Faible recouvrement : ${pct.toFixed(0)}% seulement remboursé`,
-          client, investisseur: inv, montant: montant - remb, ref: f.reference,
-        });
-      }
-    });
-    return result;
-  }, [data]);
+  const { data, loading } = useApi<StatsResponse>(`/api/admin/ria/gouvernance/financements-stats?_r=${refresh}`);
 
   if (type !== "audit-controle") return (
     <div className="p-6 text-center text-slate-400 text-sm">Section réservée à la Commission Audit & Contrôle.</div>
   );
 
-  const critiques = anomalies.filter(a => a.severite === "CRITIQUE").length;
-  const hautes    = anomalies.filter(a => a.severite === "HAUTE").length;
+  // Détection d'anomalies calculée côté serveur sur l'ensemble des financements.
+  const stats     = data?.data.anomalies;
+  const anomalies = stats?.items ?? [];
+  const critiques = stats?.critiques ?? 0;
+  const hautes    = stats?.hautes ?? 0;
 
   return (
     <div className="p-6 space-y-6 max-w-7xl mx-auto">
@@ -111,8 +62,8 @@ export default function AnomaliesPage() {
           <p className="text-xs text-slate-500">Hautes</p>
         </div>
         <div className="bg-white border border-slate-200 rounded-xl p-4 text-center">
-          <CheckCircle2 className={`w-5 h-5 mx-auto mb-1 ${anomalies.length === 0 ? "text-emerald-500" : "text-slate-300"}`} />
-          <p className={`text-2xl font-bold ${anomalies.length === 0 ? "text-emerald-600" : "text-slate-800"}`}>{anomalies.length}</p>
+          <CheckCircle2 className={`w-5 h-5 mx-auto mb-1 ${(stats?.total ?? 0) === 0 ? "text-emerald-500" : "text-slate-300"}`} />
+          <p className={`text-2xl font-bold ${(stats?.total ?? 0) === 0 ? "text-emerald-600" : "text-slate-800"}`}>{stats?.total ?? 0}</p>
           <p className="text-xs text-slate-500">Total anomalies</p>
         </div>
       </div>
