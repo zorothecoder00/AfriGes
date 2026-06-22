@@ -20,29 +20,43 @@ export const authOptions: NextAuthOptions = {
 				password: { label: "Password", type: "password" }
 			},
 			async authorize(credentials){
-				// Vérifie ton utilisateur dans la DB (via Prisma par ex.)
+				if (!credentials?.email || !credentials?.password) return null;
+
 				const user = await prisma.user.findUnique({
-					where: { email: credentials?.email },
+					where: { email: credentials.email },
 				})
-				if (user && credentials?.password && user.passwordHash) {
-					const validPassword = await bcrypt.compare(
-					   credentials.password,
-					   user.passwordHash
-					);
 
-					if (!validPassword) return null;
+				// Email inconnu ou compte sans mot de passe (ex. compte Google) →
+				// message générique « identifiants invalides » : on ne révèle jamais
+				// si l'email existe (anti-énumération).
+				if (!user || !user.passwordHash) return null;
 
-					return {  
-						id: String(user.id),
-						nom: user.nom,
-						prenom: user.prenom,
-						name: `${user.prenom}  ${user.nom}`,// NextAuth attend un champ name
-						email: user.email,
-						role: user.role,
-						photo: user.photo ?? undefined,
-					}
+				const validPassword = await bcrypt.compare(
+				   credentials.password,
+				   user.passwordHash
+				);
+				if (!validPassword) return null;
+
+				// Mot de passe correct : on peut désormais informer le titulaire légitime
+				// de l'état réel de son compte, sans rien divulguer à un tiers (la vérif
+				// d'état n'intervient qu'APRÈS la validation du mot de passe).
+				if (user.etat === "SUSPENDU" || user.etat === "BLOQUE") {
+					throw new Error("ACCOUNT_SUSPENDED");
 				}
-				return null
+				if (user.etat !== "ACTIF") {
+					// INACTIF, EN_ATTENTE_VALIDATION, REJETE…
+					throw new Error("ACCOUNT_INACTIVE");
+				}
+
+				return {
+					id: String(user.id),
+					nom: user.nom,
+					prenom: user.prenom,
+					name: `${user.prenom}  ${user.nom}`,// NextAuth attend un champ name
+					email: user.email,
+					role: user.role,
+					photo: user.photo ?? undefined,
+				}
 			}
 		})
 	], 

@@ -6,11 +6,27 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import AfriSimeLogo from '@/components/AfriSimeLogo'
       
-// Définition du type pour nos erreurs  
+// Définition du type pour nos erreurs
 type Errors = {
-  email?: string      
+  email?: string
   password?: string
-  general?: string             
+  general?: string
+}
+
+// Mapping des codes d'erreur (renvoyés par signIn ou via ?error= de NextAuth)
+// vers des messages clairs — sans divulguer d'information sensible.
+const AUTH_ERROR_MESSAGES: Record<string, string> = {
+  ACCOUNT_SUSPENDED:    'Votre compte est suspendu. Veuillez contacter l’administrateur.',
+  ACCOUNT_INACTIVE:     'Votre compte n’est pas actif. Veuillez contacter l’administrateur.',
+  CredentialsSignin:    'Identifiants invalides. Vérifiez votre email et votre mot de passe.',
+  AccessDenied:         'Accès refusé. Vous n’avez pas l’autorisation de vous connecter.',
+  OAuthAccountNotLinked:'Cet email est déjà associé à un autre mode de connexion.',
+  SessionRequired:      'Vous devez être connecté pour accéder à cette page.',
+}
+
+function messageErreurAuth(code: string | null | undefined): string {
+  if (!code) return 'Une erreur est survenue. Veuillez réessayer.'
+  return AUTH_ERROR_MESSAGES[code] ?? 'Identifiants invalides. Vérifiez votre email et votre mot de passe.'
 }
 
 export default function LoginPage() {  
@@ -33,6 +49,16 @@ export default function LoginPage() {
     const logout          = searchParams.get('logout')
     const changed         = searchParams.get('changed')
     const sessionExpired  = searchParams.get('sessionExpired')
+    const mustChange      = searchParams.get('mustChangePassword')
+    const accessDenied    = searchParams.get('accessDenied')
+    const error           = searchParams.get('error')
+
+    // Erreur remontée par NextAuth (pages.error = /auth/login) lors d'un flux à
+    // redirection (OAuth, accès refusé…) : on l'affiche au lieu de rester muet.
+    if (error) {
+      setErrors({ general: messageErreurAuth(error) })
+      return
+    }
 
     if (registered === 'success') {
       setInfoMessage({ text: 'Compte créé avec succès. Veuillez vous connecter.' })
@@ -41,7 +67,11 @@ export default function LoginPage() {
     } else if (changed === 'true') {
       setInfoMessage({ text: 'Mot de passe changé avec succès. Veuillez vous reconnecter.' })
     } else if (sessionExpired === 'true') {
-      setInfoMessage({ text: 'Votre session a été révoquée par un administrateur. Veuillez vous reconnecter.', warn: true })
+      setInfoMessage({ text: 'Votre session a expiré ou a été révoquée. Veuillez vous reconnecter.', warn: true })
+    } else if (mustChange === 'true') {
+      setInfoMessage({ text: 'Vous devez changer votre mot de passe avant de continuer.', warn: true })
+    } else if (accessDenied === 'true') {
+      setInfoMessage({ text: 'Accès refusé : vous n’avez pas les droits nécessaires pour cette page.', warn: true })
     }
   }, [searchParams])
 
@@ -66,8 +96,8 @@ export default function LoginPage() {
       });
 
       if (result?.error) {
-        setErrors({ general: 'Email ou mot de passe incorrect' })
-      } 
+        setErrors({ general: messageErreurAuth(result.error) })
+      }
 
       if(result?.ok){
         // Récupération session
