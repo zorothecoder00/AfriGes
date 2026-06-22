@@ -5,6 +5,39 @@ import { ecritureRetraitRIA } from "@/lib/riaComptable";
 
 type Ctx = { params: Promise<{ id: string }> };
 
+// Détail d'un retrait — utilisé par l'ordre de paiement
+export async function GET(_req: NextRequest, { params }: Ctx) {
+  try {
+    const session = await getRIASession();
+    if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
+
+    const { id } = await params;
+    const retrait = await prisma.retraitInvestisseur.findUnique({
+      where: { id: parseInt(id) },
+      include: {
+        portefeuille: {
+          include: {
+            profilRIA: {
+              include: {
+                gestionnaire: {
+                  include: { member: { select: { id: true, nom: true, prenom: true, email: true, telephone: true } } },
+                },
+              },
+            },
+          },
+        },
+        validePar: { select: { nom: true, prenom: true } },
+      },
+    });
+    if (!retrait) return NextResponse.json({ error: "Retrait introuvable" }, { status: 404 });
+
+    return NextResponse.json({ data: retrait });
+  } catch (error) {
+    console.error("GET /api/admin/ria/fonds/retraits/[id]", error);
+    return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
+  }
+}
+
 // action: VALIDER | PAYER | REJETER
 export async function PATCH(req: NextRequest, { params }: Ctx) {
   try {

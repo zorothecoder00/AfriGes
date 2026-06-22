@@ -1,12 +1,13 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useApi } from "@/hooks/useApi";
 import { useMutation } from "@/hooks/useApi";
 import { toast } from "sonner";
 import {
   RefreshCw, Plus, CheckCircle, XCircle, DollarSign,
-  ArrowDownCircle, ArrowUpCircle, Activity, Search, Pencil,
+  ArrowDownCircle, ArrowUpCircle, Activity, Search, Pencil, FileText,
 } from "lucide-react";
 
 type Tab = "depots" | "retraits" | "journal";
@@ -121,22 +122,66 @@ function DepotModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: ()
 
 // ── Modal — Nouveau retrait ───────────────────────────────────────────────────
 
+interface PortefeuilleSolde {
+  id: number; reference: string; nom: string | null;
+  capitalInvesti: number; capitalEngage: number; capitalDisponible: number;
+  encoursFinancements: number; montantRetirable: number;
+  profilRIA: { gestionnaire: { member: Investisseur } };
+}
+
+// Panneau de vérification de solvabilité avant retrait
+function VerificationRetrait({ pf, montant }: { pf: PortefeuilleSolde; montant: number }) {
+  const max = toNum(pf.montantRetirable);
+  const depasse = montant > max;
+  const lignes = [
+    { label: "Capital investi",          value: toNum(pf.capitalInvesti),      color: "text-slate-900" },
+    { label: "Fonds engagés",            value: toNum(pf.capitalEngage),       color: "text-amber-700" },
+    { label: "Encours / créances",       value: toNum(pf.encoursFinancements), color: "text-blue-700" },
+    { label: "Solde disponible",         value: toNum(pf.capitalDisponible),   color: "text-emerald-700" },
+  ];
+  return (
+    <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 space-y-1.5">
+      <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Vérification du portefeuille</p>
+      {lignes.map((l) => (
+        <div key={l.label} className="flex items-center justify-between text-sm">
+          <span className="text-slate-500">{l.label}</span>
+          <span className={`font-semibold tabular-nums ${l.color}`}>{fmt(l.value)} F</span>
+        </div>
+      ))}
+      <div className="flex items-center justify-between text-sm border-t border-slate-200 pt-1.5 mt-1.5">
+        <span className="font-medium text-slate-700">Montant maximum retirable</span>
+        <span className="font-bold tabular-nums text-rose-600">{fmt(max)} FCFA</span>
+      </div>
+      {montant > 0 && (
+        <p className={`text-xs mt-1 ${depasse ? "text-red-600 font-medium" : "text-emerald-600"}`}>
+          {depasse
+            ? `Dépassement : le montant excède le maximum retirable de ${fmt(montant - max)} F`
+            : `Solde après retrait : ${fmt(max - montant)} F`}
+        </p>
+      )}
+    </div>
+  );
+}
+
 function RetraitModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
-  const { data: pfRes } = useApi<{ data: { id: number; reference: string; nom: string | null; capitalDisponible: number; profilRIA: { gestionnaire: { member: Investisseur } } }[] }>("/api/admin/ria/portefeuilles?actif=true&limit=100");
+  const { data: pfRes } = useApi<{ data: PortefeuilleSolde[] }>("/api/admin/ria/portefeuilles?actif=true&limit=100");
   const pfs = pfRes?.data ?? [];
 
   const [form, setForm] = useState({ portefeuilleId: "", montant: "", motif: "", modePaiement: "", notes: "" });
   const set = (k: string, v: string) => setForm((p) => ({ ...p, [k]: v }));
   const mut = useMutation<{ data: unknown }, typeof form>("/api/admin/ria/fonds/retraits", "POST");
 
+  const pfSelected = pfs.find((p) => p.id === parseInt(form.portefeuilleId));
+  const montantNum = Number(form.montant) || 0;
+  const depasse = pfSelected ? montantNum > toNum(pfSelected.montantRetirable) : false;
+
   const submit = async () => {
     if (!form.portefeuilleId || !form.montant) { toast.error("Portefeuille et montant sont requis"); return; }
+    if (depasse) { toast.error("Le montant dépasse le maximum retirable"); return; }
     const res = await mut.mutate(form);
     if (res) { toast.success("Demande de retrait enregistrée"); onSuccess(); onClose(); }
     else toast.error(mut.error ?? "Erreur");
   };
-
-  const pfSelected = pfs.find((p) => p.id === parseInt(form.portefeuilleId));
 
   return (
     <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
@@ -157,24 +202,23 @@ function RetraitModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: 
                 </option>
               ))}
             </select>
-            {pfSelected && (
-              <p className="text-xs text-emerald-700 mt-1">Disponible : {fmt(toNum(pfSelected.capitalDisponible))} FCFA</p>
-            )}
           </div>
+          {pfSelected && <VerificationRetrait pf={pfSelected} montant={montantNum} />}
           <div>
             <label className="block text-xs font-medium text-slate-600 mb-1">Montant (FCFA) *</label>
-            <input type="number" min={0} value={form.montant} onChange={(e) => set("montant", e.target.value)}
-              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent" />
+            <input type="number" min={0} max={pfSelected ? toNum(pfSelected.montantRetirable) : undefined}
+              value={form.montant} onChange={(e) => set("montant", e.target.value)}
+              className={`w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:border-transparent ${depasse ? "border-red-300 focus:ring-red-500" : "border-slate-200 focus:ring-rose-500"}`} />
           </div>
           <div>
             <label className="block text-xs font-medium text-slate-600 mb-1">Motif</label>
             <input value={form.motif} onChange={(e) => set("motif", e.target.value)}
-              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent" />
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-rose-500 focus:border-transparent" />
           </div>
           <div>
             <label className="block text-xs font-medium text-slate-600 mb-1">Mode de paiement</label>
             <select value={form.modePaiement} onChange={(e) => set("modePaiement", e.target.value)}
-              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent">
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-rose-500 focus:border-transparent">
               <option value="">—</option>
               {["ESPECES", "VIREMENT", "MOBILE_MONEY", "CHEQUE"].map((m) => (
                 <option key={m} value={m}>{m.replace("_", " ")}</option>
@@ -184,7 +228,7 @@ function RetraitModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: 
         </div>
         <div className="px-6 py-4 border-t border-slate-200 flex justify-end gap-3">
           <button onClick={onClose} className="px-4 py-2 text-sm border border-slate-200 rounded-lg hover:bg-slate-50">Annuler</button>
-          <button onClick={submit} disabled={mut.loading}
+          <button onClick={submit} disabled={mut.loading || depasse}
             className="px-4 py-2 bg-rose-600 text-white text-sm font-medium rounded-lg hover:bg-rose-700 disabled:opacity-50">
             {mut.loading ? "Enregistrement…" : "Demander le retrait"}
           </button>
@@ -546,6 +590,12 @@ function RetraitsTab() {
                         <button onClick={() => action(r.id, "PAYER")} className="flex items-center gap-1 px-2 py-1 bg-blue-600 text-white text-xs rounded-lg hover:bg-blue-700">
                           <DollarSign className="w-3 h-3" /> Payer
                         </button>
+                      )}
+                      {(r.statut === "VALIDE" || r.statut === "PAYE") && (
+                        <Link href={`/dashboard/admin/ria/fonds/retraits/${r.id}/ordre`} target="_blank"
+                          className="flex items-center gap-1 px-2 py-1 border border-slate-200 text-slate-600 text-xs rounded-lg hover:bg-slate-50" title="Ordre de paiement">
+                          <FileText className="w-3 h-3" /> Ordre
+                        </Link>
                       )}
                     </div>
                   </td>

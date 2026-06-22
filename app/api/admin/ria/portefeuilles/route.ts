@@ -39,13 +39,31 @@ export async function GET(req: NextRequest) {
       prisma.portefeuilleRIA.count({ where }),
     ]);
 
+    // Encours réel = somme des financements non soldés (créances en cours) par portefeuille
+    const pfIds = portefeuilles.map((p) => p.id);
+    const encoursParPf = pfIds.length
+      ? await prisma.operationFinancementRIA.groupBy({
+          by: ["portefeuilleId"],
+          where: { portefeuilleId: { in: pfIds }, statut: { in: ["ACTIF", "EN_RETARD"] } },
+          _sum: { encours: true },
+        })
+      : [];
+    const encoursMap = new Map(encoursParPf.map((e) => [e.portefeuilleId, Number(e._sum.encours ?? 0)]));
+
     // rendementMoyen n'est pas stocké : calculé (bénéfices générés / capital investi)
-    const data = portefeuilles.map((p) => ({
-      ...p,
-      rendementMoyen: Number(p.capitalInvesti) > 0
-        ? (Number(p.beneficesGeneres) / Number(p.capitalInvesti)) * 100
-        : 0,
-    }));
+    const data = portefeuilles.map((p) => {
+      const encoursFinancements = encoursMap.get(p.id) ?? 0;
+      // Montant retirable = capital disponible (capital non engagé dans un financement)
+      const montantRetirable = Math.max(0, Number(p.capitalDisponible));
+      return {
+        ...p,
+        rendementMoyen: Number(p.capitalInvesti) > 0
+          ? (Number(p.beneficesGeneres) / Number(p.capitalInvesti)) * 100
+          : 0,
+        encoursFinancements,
+        montantRetirable,
+      };
+    });
 
     return NextResponse.json({
       data,
