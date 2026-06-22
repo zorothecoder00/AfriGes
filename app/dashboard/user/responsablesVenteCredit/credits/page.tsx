@@ -464,7 +464,8 @@ export default function RVCCreditsPage() {
   const [refuserLoading, setRefuserLoading] = useState(false);
 
   // ── Encaissement d'un remboursement de crédit ──────────────────────────────
-  const [rembOpen,    setRembOpen]    = useState(false);
+  // rembCredit ≠ null ⇒ modal ouverte. Utilisable depuis la liste comme depuis le détail.
+  const [rembCredit,  setRembCredit]  = useState<CreditClient | null>(null);
   const [rembMontant, setRembMontant] = useState("");
   const [rembMode,    setRembMode]    = useState("ESPECES");
   const [rembNotes,   setRembNotes]   = useState("");
@@ -536,21 +537,20 @@ export default function RVCCreditsPage() {
     finally { setRefuserLoading(false); }
   };
 
-  const openEncaisser = () => {
-    if (!detailCredit) return;
-    setRembMontant(String(Number(detailCredit.soldeRestant)));
+  const openEncaisser = (credit: CreditClient) => {
+    setRembCredit(credit);
+    setRembMontant(String(Number(credit.soldeRestant)));
     setRembMode("ESPECES");
     setRembNotes("");
-    setRembOpen(true);
   };
 
   const handleEncaisser = async () => {
-    if (!detailCredit) return;
+    if (!rembCredit) return;
     const montant = Number(rembMontant);
     if (!montant || montant <= 0) return toast.error("Montant invalide");
     setRembLoading(true);
     try {
-      const r = await fetch(`/api/rvc/credits/${detailCredit.id}/rembourser`, {
+      const r = await fetch(`/api/rvc/credits/${rembCredit.id}/rembourser`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ montant, modePaiement: rembMode, notes: rembNotes || undefined }),
@@ -558,9 +558,11 @@ export default function RVCCreditsPage() {
       const j = await r.json();
       if (r.ok) {
         toast.success("Encaissement enregistré ✓");
-        setRembOpen(false);
-        await openDetail(detailCredit.id);
+        const encaisseId = rembCredit.id;
+        setRembCredit(null);
         refetch();
+        // Rafraîchir le détail s'il est ouvert sur ce même crédit
+        if (detailCredit?.id === encaisseId) await openDetail(encaisseId);
       } else {
         toast.error(j.error ?? "Erreur lors de l'encaissement");
       }
@@ -871,7 +873,14 @@ export default function RVCCreditsPage() {
                             </span>
                           </td>
                           <td className="px-5 py-4 text-center">
-                            <div className="flex items-center justify-center gap-1">
+                            <div className="flex items-center justify-center gap-1.5">
+                              {(credit.statut === "ACTIF" || credit.statut === "EN_RETARD") && Number(credit.soldeRestant) > 0 && (
+                                <button onClick={() => openEncaisser(credit)}
+                                  className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors shadow-sm"
+                                  title="Encaisser un remboursement">
+                                  <Banknote className="w-4 h-4" /> Encaisser
+                                </button>
+                              )}
                               <button onClick={() => openDetail(credit.id)}
                                 className="p-2 text-indigo-500 hover:bg-indigo-50 rounded-lg transition-colors" title="Voir le détail">
                                 <Eye className="w-4 h-4" />
@@ -948,7 +957,7 @@ export default function RVCCreditsPage() {
                   </>
                 )}
                 {detailCredit && (detailCredit.statut === "ACTIF" || detailCredit.statut === "EN_RETARD") && Number(detailCredit.soldeRestant) > 0 && (
-                  <button onClick={openEncaisser}
+                  <button onClick={() => openEncaisser(detailCredit)}
                     className="flex items-center gap-1 px-2.5 py-1.5 text-xs bg-indigo-600 text-white hover:bg-indigo-700 rounded-lg font-medium">
                     <Banknote className="w-3.5 h-3.5" /> Encaisser
                   </button>
@@ -1326,7 +1335,7 @@ export default function RVCCreditsPage() {
       )}
 
       {/* ── Modal encaissement remboursement ───────────────────────────────────── */}
-      {rembOpen && detailCredit && (
+      {rembCredit && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[200] p-4">
           <div className="bg-white rounded-2xl w-full max-w-md shadow-xl">
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
@@ -1334,27 +1343,27 @@ export default function RVCCreditsPage() {
                 <Banknote className="w-5 h-5 text-indigo-600" />
                 <h3 className="text-base font-bold text-gray-900">Encaisser un remboursement</h3>
               </div>
-              <button onClick={() => setRembOpen(false)} className="text-gray-400 hover:text-gray-600">
+              <button onClick={() => setRembCredit(null)} className="text-gray-400 hover:text-gray-600">
                 <X className="w-5 h-5" />
               </button>
             </div>
             <div className="px-6 py-4 space-y-3">
               <div className="flex justify-between text-sm">
                 <span className="text-gray-500">Crédit</span>
-                <span className="font-semibold text-gray-900">{detailCredit.reference}</span>
+                <span className="font-semibold text-gray-900">{rembCredit.reference}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-gray-500">Client</span>
-                <span className="font-medium text-gray-900">{detailCredit.client.prenom} {detailCredit.client.nom}</span>
+                <span className="font-medium text-gray-900">{rembCredit.client.prenom} {rembCredit.client.nom}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-gray-500">Solde restant</span>
-                <span className="font-semibold text-rose-600">{formatCurrency(Number(detailCredit.soldeRestant))}</span>
+                <span className="font-semibold text-rose-600">{formatCurrency(Number(rembCredit.soldeRestant))}</span>
               </div>
               <div>
                 <label className="block text-xs font-medium text-gray-600 mb-1">Montant à encaisser (FCFA)</label>
                 <input
-                  type="number" min="1" max={Number(detailCredit.soldeRestant)}
+                  type="number" min="1" max={Number(rembCredit.soldeRestant)}
                   value={rembMontant}
                   onChange={(e) => setRembMontant(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-gray-50"
@@ -1385,7 +1394,7 @@ export default function RVCCreditsPage() {
               </div>
             </div>
             <div className="flex justify-end gap-3 px-6 py-4 border-t border-gray-100">
-              <button onClick={() => setRembOpen(false)}
+              <button onClick={() => setRembCredit(null)}
                 className="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">
                 Annuler
               </button>
