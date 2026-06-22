@@ -10,6 +10,7 @@ import {
   Layers, Clock, MapPin, Briefcase, Zap,
 } from "lucide-react";
 import Link from "next/link";
+import AnalyseMensuelleRIA from "@/components/ria/AnalyseMensuelleRIA";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -454,6 +455,9 @@ export default function ResponsableRIAPage() {
           </section>
         </>
       )}
+
+      {/* Scénario d'analyse mensuelle — clients / créances / portefeuille */}
+      <AnalyseMensuelleRIA />
     </div>
   );
 }

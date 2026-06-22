@@ -93,3 +93,117 @@ Chercher comment utiliser l'authentification de google sans avoir besoin de paye
   ⎿ Tip: Working with HTML/CSS? Install the frontend-design plugin:  /plugin install frontend-design@claude-plugins-official
 
 
+Pouvoir donner des communes à des clients et aussi les secteurs d'activité
+
+Pouvoir générer des documents sur les résolutions des réunions
+
+Pouvoir faire directement les réunions sur l'appli ( ou au dernier cas pouvoir lire des liens vers meet ou zoom)
+
+
+Le RVC va identifier les clients RIA ( et c'est juste eux les admins et les responsablesRIA peuvent affecter les investisseurs RIA)
+Étape 3 : Sélection des Clients à Financer
+Le responsable crédit identifie les clients éligibles.
+Critères :
+Ancienneté
+Historique d'achat
+Solvabilité
+Niveau de risque
+Rotation commerciale
+Exemple :
+Client A :
+Crédit demandé : 500 000
+Client B :
+Crédit demandé : 700 000
+Client C :
+Crédit demandé : 300 000
+Le système valide ou refuse automatiquement selon les règles définies.
+
+
+Recouvrement
+Journalier
+Hebdomadaire
+Mensuel
+Annuel
+
+Risques
+Taux d'impayés
+Créances douteuses
+Perte probable
+
+Investisseurs
+Top investisseurs
+Top rendements
+Portefeuilles à risque
+
+7. SCÉNARIO DE RETRAIT D'UN INVESTISSEUR
+L'investisseur demande un retrait.
+Le système vérifie :
+Fonds engagés
+Encours
+Créances en cours
+Solde disponible
+Exemple :
+Capital :
+10 000 000
+Engagé :
+4 000 000
+Disponible :
+6 000 000
+Montant maximum retirable :
+6 000 000 FCFA
+Après validation :
+Génération ordre de paiement
+Mise à jour portefeuille
+Historisation
+
+6. SCÉNARIO DE DÉFAILLANCE CLIENT
+Client :
+Retard supérieur à 60 jours.
+Le système :
+Niveau 1
+Relance automatique
+Niveau 2
+Alerte agent
+Niveau 3
+Alerte chef d'agence
+Niveau 4
+Alerte responsable régional
+Niveau 5
+Alerte Direction Générale
+Le dossier passe alors en :
+Précontentieux
+Contentieux
+Perte
+
+3. SCÉNARIO D'ANALYSE MENSUELLE
+Le dernier jour du mois.
+Le système exécute automatiquement :
+Analyse des clients
+Classement :
+Clients Sains
+Retard = 0
+Clients Sous Surveillance
+Retard < 7 jours
+Clients Risqués
+Retard entre 7 et 30 jours
+Clients Critiques
+Retard > 30 jours
+Analyse des Créances
+Montant :
+Créances saines
+Créances à risque
+Créances douteuses
+Créances perdues
+Analyse du Portefeuille
+Calcul :
+Rentabilité
+Bénéfices / Capital investi
+Rotation du Capital
+Nombre de cycles complets du capital
+Productivité
+Recouvrement / Fonds engagés
+Taux d'utilisation
+Capital engagé / Capital investi
+
+
+
