@@ -463,6 +463,13 @@ export default function RVCCreditsPage() {
   const [refuserMotif,   setRefuserMotif]   = useState("");
   const [refuserLoading, setRefuserLoading] = useState(false);
 
+  // ── Encaissement d'un remboursement de crédit ──────────────────────────────
+  const [rembOpen,    setRembOpen]    = useState(false);
+  const [rembMontant, setRembMontant] = useState("");
+  const [rembMode,    setRembMode]    = useState("ESPECES");
+  const [rembNotes,   setRembNotes]   = useState("");
+  const [rembLoading, setRembLoading] = useState(false);
+
   // ── Ajout / Modification d'une ligne (EN_ATTENTE_VALIDATION) ──────────────
   type LigneEditResults = { id: number; nom: string; reference: string | null; prixVente: string | null }[];
   const [ligneEditOpen,       setLigneEditOpen]       = useState(false);
@@ -527,6 +534,38 @@ export default function RVCCreditsPage() {
       }
     } catch { toast.error("Erreur réseau"); }
     finally { setRefuserLoading(false); }
+  };
+
+  const openEncaisser = () => {
+    if (!detailCredit) return;
+    setRembMontant(String(Number(detailCredit.soldeRestant)));
+    setRembMode("ESPECES");
+    setRembNotes("");
+    setRembOpen(true);
+  };
+
+  const handleEncaisser = async () => {
+    if (!detailCredit) return;
+    const montant = Number(rembMontant);
+    if (!montant || montant <= 0) return toast.error("Montant invalide");
+    setRembLoading(true);
+    try {
+      const r = await fetch(`/api/rvc/credits/${detailCredit.id}/rembourser`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ montant, modePaiement: rembMode, notes: rembNotes || undefined }),
+      });
+      const j = await r.json();
+      if (r.ok) {
+        toast.success("Encaissement enregistré ✓");
+        setRembOpen(false);
+        await openDetail(detailCredit.id);
+        refetch();
+      } else {
+        toast.error(j.error ?? "Erreur lors de l'encaissement");
+      }
+    } catch { toast.error("Erreur réseau"); }
+    finally { setRembLoading(false); }
   };
 
   const openLigneEdit = (ligneId: number | null, l?: LigneCreditDetail) => {
@@ -908,6 +947,12 @@ export default function RVCCreditsPage() {
                     </button>
                   </>
                 )}
+                {detailCredit && (detailCredit.statut === "ACTIF" || detailCredit.statut === "EN_RETARD") && Number(detailCredit.soldeRestant) > 0 && (
+                  <button onClick={openEncaisser}
+                    className="flex items-center gap-1 px-2.5 py-1.5 text-xs bg-indigo-600 text-white hover:bg-indigo-700 rounded-lg font-medium">
+                    <Banknote className="w-3.5 h-3.5" /> Encaisser
+                  </button>
+                )}
                 {detailCredit && detailCredit.statut !== "EN_ATTENTE_VALIDATION" && (
                   <button onClick={() => setFactureId(detailCredit.id)}
                     className="flex items-center gap-1 px-2.5 py-1.5 text-xs border border-emerald-200 text-emerald-700 hover:bg-emerald-50 rounded-lg">
@@ -1274,6 +1319,80 @@ export default function RVCCreditsPage() {
                 className="flex items-center gap-2 px-5 py-2 text-sm text-white bg-red-600 hover:bg-red-700 rounded-lg font-medium disabled:opacity-50">
                 {refuserLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4" />}
                 Confirmer le refus
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal encaissement remboursement ───────────────────────────────────── */}
+      {rembOpen && detailCredit && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[200] p-4">
+          <div className="bg-white rounded-2xl w-full max-w-md shadow-xl">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+              <div className="flex items-center gap-2">
+                <Banknote className="w-5 h-5 text-indigo-600" />
+                <h3 className="text-base font-bold text-gray-900">Encaisser un remboursement</h3>
+              </div>
+              <button onClick={() => setRembOpen(false)} className="text-gray-400 hover:text-gray-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="px-6 py-4 space-y-3">
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-500">Crédit</span>
+                <span className="font-semibold text-gray-900">{detailCredit.reference}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-500">Client</span>
+                <span className="font-medium text-gray-900">{detailCredit.client.prenom} {detailCredit.client.nom}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-500">Solde restant</span>
+                <span className="font-semibold text-rose-600">{formatCurrency(Number(detailCredit.soldeRestant))}</span>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Montant à encaisser (FCFA)</label>
+                <input
+                  type="number" min="1" max={Number(detailCredit.soldeRestant)}
+                  value={rembMontant}
+                  onChange={(e) => setRembMontant(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-gray-50"
+                />
+                <p className="text-xs text-gray-400 mt-1">Au-delà du solde, le surplus est ignoré (plafonné au solde restant).</p>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Mode de paiement</label>
+                <select
+                  value={rembMode}
+                  onChange={(e) => setRembMode(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-gray-50"
+                >
+                  <option value="ESPECES">Espèces</option>
+                  <option value="VIREMENT">Virement</option>
+                  <option value="MOBILE_MONEY">Mobile Money</option>
+                  <option value="CHEQUE">Chèque</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Notes (optionnel)</label>
+                <textarea
+                  rows={2}
+                  value={rembNotes}
+                  onChange={(e) => setRembNotes(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 resize-none bg-gray-50"
+                />
+              </div>
+            </div>
+            <div className="flex justify-end gap-3 px-6 py-4 border-t border-gray-100">
+              <button onClick={() => setRembOpen(false)}
+                className="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">
+                Annuler
+              </button>
+              <button onClick={handleEncaisser} disabled={rembLoading}
+                className="flex items-center gap-2 px-5 py-2 text-sm text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg font-medium disabled:opacity-50">
+                {rembLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Banknote className="w-4 h-4" />}
+                Encaisser
               </button>
             </div>
           </div>
