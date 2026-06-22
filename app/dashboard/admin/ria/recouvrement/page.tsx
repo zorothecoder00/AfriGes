@@ -6,7 +6,7 @@ import {
   RefreshCw, Search, ChevronDown, ChevronUp,
   AlertCircle, Activity, Plus, Phone, MapPin,
   FileText, HandshakeIcon, Shield, StickyNote, Zap,
-  X, Calendar,
+  X, Calendar, TrendingDown, Percent, CalendarDays, ShieldAlert,
 } from "lucide-react";
 import { useApi, useMutation } from "@/hooks/useApi";
 import { toast } from "sonner";
@@ -14,7 +14,16 @@ import { toast } from "sonner";
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 type NiveauAlerte = "AUCUN" | "J3" | "J7" | "J15" | "J30+";
-type TabType = "globale" | "clients" | "alertes" | "actions";
+type TabType = "globale" | "clients" | "alertes" | "actions" | "risques";
+
+interface Periodes { journalier: number; hebdomadaire: number; mensuel: number; annuel: number }
+interface Risques {
+  tauxImpayes: number;
+  encoursRetard: number;
+  creancesDouteuses: number;
+  perteProbable: number;
+  aging: { sain: number; j1_14: number; j15_29: number; j30_89: number; j90plus: number };
+}
 
 interface FinancementRecouvrement {
   id: number;
@@ -53,6 +62,8 @@ interface RecouvrementData {
     alertes: { j3: number; j7: number; j15: number; j30: number };
     nbFinancements: number;
   };
+  periodes: Periodes;
+  risques: Risques;
   statsParPortefeuille: StatsPF[];
   financements: FinancementRecouvrement[];
 }
@@ -425,7 +436,7 @@ export default function RecouvrementPage() {
 
       {/* ── Tabs ── */}
       <div className="flex gap-1 border-b border-slate-200">
-        {(["globale", "clients", "alertes", "actions"] as const).map((t) => (
+        {(["globale", "clients", "alertes", "actions", "risques"] as const).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -438,7 +449,8 @@ export default function RecouvrementPage() {
             {t === "globale"  ? "Vue globale"
             : t === "clients" ? "Détail clients"
             : t === "alertes" ? `Alertes (${totalAlertesActives})`
-            :                   `Actions (${actData?.data?.length ?? 0})`}
+            : t === "actions" ? `Actions (${actData?.data?.length ?? 0})`
+            :                   "Risques & périodes"}
           </button>
         ))}
       </div>
@@ -758,6 +770,11 @@ export default function RecouvrementPage() {
         </div>
       )}
 
+      {/* ── Risques & périodes ── */}
+      {tab === "risques" && (
+        <RisquesTab periodes={data.periodes} risques={data.risques} totalEncours={stats.totalEncours} />
+      )}
+
       {/* ── Modal action ── */}
       {modalFin && (
         <ModalAction
@@ -766,6 +783,118 @@ export default function RecouvrementPage() {
           onSaved={refetchActions}
         />
       )}
+    </div>
+  );
+}
+
+// ── Onglet Risques & périodes ──────────────────────────────────────────────────
+
+function RisquesTab({ periodes, risques, totalEncours }: { periodes: Periodes; risques: Risques; totalEncours: number }) {
+  const periodeCards = [
+    { label: "Journalier",   value: periodes.journalier,   sub: "Aujourd'hui",     icon: CalendarDays },
+    { label: "Hebdomadaire", value: periodes.hebdomadaire, sub: "Cette semaine",   icon: CalendarDays },
+    { label: "Mensuel",      value: periodes.mensuel,      sub: "Ce mois",         icon: CalendarDays },
+    { label: "Annuel",       value: periodes.annuel,       sub: "Cette année",     icon: CalendarDays },
+  ];
+
+  const agingRows = [
+    { label: "Sain (à jour)",     value: risques.aging.sain,    color: "bg-emerald-500", text: "text-emerald-700" },
+    { label: "Retard 1–14 j",     value: risques.aging.j1_14,   color: "bg-amber-500",   text: "text-amber-700" },
+    { label: "Retard 15–29 j",    value: risques.aging.j15_29,  color: "bg-orange-500",  text: "text-orange-700" },
+    { label: "Douteux 30–89 j",   value: risques.aging.j30_89,  color: "bg-red-500",     text: "text-red-700" },
+    { label: "Compromis 90 j +",  value: risques.aging.j90plus, color: "bg-red-900",     text: "text-red-900" },
+  ];
+
+  return (
+    <div className="space-y-6">
+      {/* Recouvrement par période */}
+      <div>
+        <div className="flex items-center gap-2 mb-3">
+          <Calendar className="w-4 h-4 text-emerald-600" />
+          <h2 className="text-sm font-semibold text-slate-700">Recouvrement par période</h2>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {periodeCards.map((c) => {
+            const Icon = c.icon;
+            return (
+              <div key={c.label} className="bg-white rounded-xl border border-slate-200 p-4">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-slate-500">{c.label}</p>
+                  <Icon className="w-4 h-4 text-slate-300" />
+                </div>
+                <p className="text-lg font-bold text-emerald-600 mt-1">{fmt(c.value)}</p>
+                <p className="text-xs text-slate-400 mt-0.5">{c.sub}</p>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Indicateurs de risque */}
+      <div>
+        <div className="flex items-center gap-2 mb-3">
+          <ShieldAlert className="w-4 h-4 text-red-600" />
+          <h2 className="text-sm font-semibold text-slate-700">Indicateurs de risque</h2>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="bg-white rounded-xl border border-slate-200 p-4">
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-slate-500">Taux d&apos;impayés</p>
+              <Percent className="w-4 h-4 text-amber-400" />
+            </div>
+            <p className="text-2xl font-bold text-amber-600 mt-1">{pct(risques.tauxImpayes)}</p>
+            <p className="text-xs text-slate-400 mt-0.5">{fmt(risques.encoursRetard)} en retard</p>
+            <div className="mt-2 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+              <div className="h-full bg-amber-500 rounded-full" style={{ width: `${Math.min(100, risques.tauxImpayes)}%` }} />
+            </div>
+          </div>
+          <div className="bg-white rounded-xl border border-slate-200 p-4">
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-slate-500">Créances douteuses</p>
+              <AlertTriangle className="w-4 h-4 text-red-400" />
+            </div>
+            <p className="text-2xl font-bold text-red-600 mt-1">{fmt(risques.creancesDouteuses)}</p>
+            <p className="text-xs text-slate-400 mt-0.5">
+              {totalEncours > 0 ? pct((risques.creancesDouteuses / totalEncours) * 100) : "0%"} de l&apos;encours · retard ≥ 30 j / défaut
+            </p>
+          </div>
+          <div className="bg-white rounded-xl border border-slate-200 p-4">
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-slate-500">Perte probable</p>
+              <TrendingDown className="w-4 h-4 text-red-400" />
+            </div>
+            <p className="text-2xl font-bold text-red-700 mt-1">{fmt(risques.perteProbable)}</p>
+            <p className="text-xs text-slate-400 mt-0.5">Provision pondérée par ancienneté</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Répartition de l'encours par ancienneté */}
+      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+        <div className="px-4 py-3 border-b border-slate-100 flex items-center gap-2">
+          <TrendingDown className="w-4 h-4 text-slate-500" />
+          <span className="font-medium text-slate-700 text-sm">Répartition de l&apos;encours par ancienneté</span>
+        </div>
+        <div className="p-4 space-y-3">
+          {agingRows.map((r) => {
+            const part = totalEncours > 0 ? (r.value / totalEncours) * 100 : 0;
+            return (
+              <div key={r.label}>
+                <div className="flex items-center justify-between text-xs mb-1">
+                  <span className="text-slate-600">{r.label}</span>
+                  <span className={`font-semibold ${r.text}`}>{fmt(r.value)} · {pct(part)}</span>
+                </div>
+                <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                  <div className={`h-full rounded-full ${r.color}`} style={{ width: `${Math.min(100, part)}%` }} />
+                </div>
+              </div>
+            );
+          })}
+          <p className="text-[11px] text-slate-400 pt-2 border-t border-slate-100">
+            Provisionnement : 25 % (15–29 j), 50 % (30–89 j), 100 % (90 j + / défaut).
+          </p>
+        </div>
+      </div>
     </div>
   );
 }

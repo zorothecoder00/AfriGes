@@ -126,6 +126,57 @@ export async function GET(req: Request) {
     const totalFinance    = enrichis.reduce((s, f) => s + f.montantFinance, 0);
     const tauxRecouvrement = totalFinance > 0 ? (totalRembourse / totalFinance) * 100 : 0;
 
+    // ── Recouvrement par période (montants recouvrés, cumul période à date) ──────
+    // Bornes calendaires : aujourd'hui, semaine (lundi), mois, année.
+    const startOfDay = new Date(now); startOfDay.setHours(0, 0, 0, 0);
+    const startOfWeek = new Date(startOfDay);
+    const jour = (startOfWeek.getDay() + 6) % 7; // lundi = 0
+    startOfWeek.setDate(startOfWeek.getDate() - jour);
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const startOfYear  = new Date(now.getFullYear(), 0, 1);
+
+    const periodes = { journalier: 0, hebdomadaire: 0, mensuel: 0, annuel: 0 };
+    for (const fin of financements) {
+      if (fin.affectation == null) continue;
+      for (const r of fin.remboursements) {
+        if (!dansFenetreAffectation(fin.affectation, r.createdAt)) continue;
+        const d = new Date(r.createdAt);
+        const m = Number(r.montant);
+        if (d >= startOfYear)  periodes.annuel       += m;
+        if (d >= startOfMonth) periodes.mensuel      += m;
+        if (d >= startOfWeek)  periodes.hebdomadaire += m;
+        if (d >= startOfDay)   periodes.journalier   += m;
+      }
+    }
+
+    // ── Indicateurs de risque ────────────────────────────────────────────────────
+    // Taux de provisionnement par ancienneté de retard (échelle prudentielle).
+    const tauxProvision = (f: { joursRetard: number; statut: string }) => {
+      if (f.statut === "DEFAUT" || f.joursRetard >= 90) return 1;
+      if (f.joursRetard >= 30) return 0.5;
+      if (f.joursRetard >= 15) return 0.25;
+      return 0;
+    };
+
+    const encoursRetard      = enrichis.filter((f) => f.joursRetard > 0).reduce((s, f) => s + f.encours, 0);
+    const creancesDouteuses  = enrichis
+      .filter((f) => f.joursRetard >= 30 || f.statut === "DEFAUT")
+      .reduce((s, f) => s + f.encours, 0);
+    const perteProbable      = enrichis.reduce((s, f) => s + f.encours * tauxProvision(f), 0);
+    const tauxImpayes        = totalEncours > 0 ? (encoursRetard / totalEncours) * 100 : 0;
+
+    // Répartition de l'encours par tranche d'ancienneté (aging)
+    const aging = { sain: 0, j1_14: 0, j15_29: 0, j30_89: 0, j90plus: 0 };
+    for (const f of enrichis) {
+      if (f.statut === "DEFAUT" || f.joursRetard >= 90) aging.j90plus += f.encours;
+      else if (f.joursRetard >= 30) aging.j30_89 += f.encours;
+      else if (f.joursRetard >= 15) aging.j15_29 += f.encours;
+      else if (f.joursRetard >= 1)  aging.j1_14  += f.encours;
+      else aging.sain += f.encours;
+    }
+
+    const risques = { tauxImpayes, encoursRetard, creancesDouteuses, perteProbable, aging };
+
     const alertes = {
       j3:  enrichis.filter((f) => f.niveauAlerte === "J3").length,
       j7:  enrichis.filter((f) => f.niveauAlerte === "J7").length,
@@ -161,6 +212,8 @@ export async function GET(req: Request) {
 
     return NextResponse.json({
       stats: { totalEncours, totalRembourse, totalFinance, tauxRecouvrement, alertes, nbFinancements: enrichis.length },
+      periodes,
+      risques,
       statsParPortefeuille,
       financements: enrichis,
     });

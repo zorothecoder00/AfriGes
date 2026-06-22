@@ -119,22 +119,6 @@ Crédit demandé : 300 000
 Le système valide ou refuse automatiquement selon les règles définies.
 
 
-Recouvrement
-Journalier
-Hebdomadaire
-Mensuel
-Annuel
-
-Risques
-Taux d'impayés
-Créances douteuses
-Perte probable
-
-Investisseurs
-Top investisseurs
-Top rendements
-Portefeuilles à risque
-
 6. SCÉNARIO DE DÉFAILLANCE CLIENT
 Client :
 Retard supérieur à 60 jours.
