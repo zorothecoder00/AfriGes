@@ -711,6 +711,7 @@ model User {
   depotsRIAValides             DepotInvestisseur[]      @relation("DepotsValides")
   retraitsRIAValides           RetraitInvestisseur[]    @relation("RetraitsValides")
   actionsRIAEffectuees         ActionRecouvrementRIA[]  @relation("ActionsRIAEffectuees")
+  eligibilitesRIAIdentifiees   EligibiliteClientRIA[]   @relation("EligibilitesRIAIdentifiees")
   commissionsRIA               CommissionAgentRIA[]     @relation("CommissionsAgent")
   commissionsApprouvees        CommissionAgentRIA[]     @relation("CommissionsApprob")
   documentsRIAGeneres          DocumentRIAGenere[]      @relation("DocumentsRIAGeneres")
@@ -911,6 +912,7 @@ model Client {
   // RIA
   affectationsRIA  AffectationClientRIA[]
   financementsRIA  OperationFinancementRIA[] @relation("FinancementsRIAClient")
+  eligibiliteRIA   EligibiliteClientRIA?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -4051,6 +4053,15 @@ enum ClasseRisqueRIA {
   E
 }
 
+// Étape 3 — Sélection des clients à financer (identification RVC)
+enum StatutEligibiliteRIA {
+  EN_ATTENTE // évalué, en attente de confirmation RVC
+  ELIGIBLE   // validé automatiquement par les règles
+  REFUSE     // refusé automatiquement par les règles
+  VALIDE     // confirmé par le RVC (affectable par admin/responsableRIA)
+  RETIRE     // retiré du vivier RIA
+}
+
 enum TypeMouvementRIA {
   DEPOT
   RETRAIT
@@ -4159,6 +4170,45 @@ model AffectationClientRIA {
   @@index([portefeuilleId])
   @@index([clientId])
   @@index([clientId, actif])
+}
+
+// Étape 3 — Vivier des clients identifiés par le RVC comme finançables par le RIA.
+// Un seul enregistrement courant par client (upsert à chaque réévaluation).
+model EligibiliteClientRIA {
+  id       Int @id @default(autoincrement())
+  clientId Int @unique
+
+  // Montant de crédit sollicité (le « crédit demandé »)
+  montantDemande Decimal @default(0)
+
+  // Snapshot des critères au moment de l'évaluation
+  ancienneteJours     Int?
+  nbAchats            Int?
+  volumeAchats        Decimal?
+  scoreSolvabilite    Float?
+  niveauRisque        NiveauRisque?
+  rotationCommerciale Float?
+
+  // Résultat de l'évaluation automatique
+  scoreEligibilite Float?              @default(0)
+  classeRisque     ClasseRisqueRIA     @default(A)
+  statut           StatutEligibiliteRIA @default(EN_ATTENTE)
+  motifs           String[]            // raisons de refus / alertes
+  decisionAuto     Boolean             @default(true)
+
+  // Traçabilité RVC
+  identifieParId Int?
+  dateDecision   DateTime?
+  notes          String?
+
+  client       Client @relation(fields: [clientId], references: [id])
+  identifiePar User?  @relation("EligibilitesRIAIdentifiees", fields: [identifieParId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([statut])
+  @@index([identifieParId])
 }
 
 model DepotInvestisseur {

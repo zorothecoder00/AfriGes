@@ -5,7 +5,7 @@ import {
   Users, Search, RefreshCw, CheckCircle, XCircle, Clock,
   AlertCircle, User, Phone, MapPin, Briefcase,
   Loader2, Eye, Shield, TrendingUp, Wallet, Edit3,
-  CreditCard, FileText,
+  CreditCard, FileText, Network,
 } from "lucide-react";
 import Link from "next/link";
 import SignOutButton from "@/components/SignOutButton";
@@ -610,6 +610,25 @@ export default function RVCPage() {
             <div>
               <p className="font-bold text-base">Crédits Clients</p>
               <p className="text-indigo-100 text-sm">Créer, valider et suivre tous les dossiers de crédit</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 text-sm font-semibold bg-white/20 px-4 py-2 rounded-xl group-hover:bg-white/30 transition-colors shrink-0">
+            Ouvrir <span className="ml-1">→</span>
+          </div>
+        </Link>
+
+        {/* Bannière éligibilité RIA */}
+        <Link
+          href="/dashboard/user/responsablesVenteCredit/ria-eligibilite"
+          className="flex items-center justify-between w-full bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-2xl px-6 py-4 hover:from-emerald-700 hover:to-teal-700 transition-all shadow-md group"
+        >
+          <div className="flex items-center gap-4">
+            <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center shrink-0">
+              <Network size={20} />
+            </div>
+            <div>
+              <p className="font-bold text-base">Sélection des clients à financer (RIA)</p>
+              <p className="text-emerald-100 text-sm">Identifier les clients finançables par le réseau des investisseurs</p>
             </div>
           </div>
           <div className="flex items-center gap-2 text-sm font-semibold bg-white/20 px-4 py-2 rounded-xl group-hover:bg-white/30 transition-colors shrink-0">

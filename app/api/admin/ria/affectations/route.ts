@@ -101,10 +101,21 @@ export async function POST(req: NextRequest) {
 
     const [pf, client] = await Promise.all([
       prisma.portefeuilleRIA.findUnique({ where: { id: parseInt(portefeuilleId) } }),
-      prisma.client.findUnique({ where: { id: parseInt(clientId) } }),
+      prisma.client.findUnique({
+        where: { id: parseInt(clientId) },
+        include: { eligibiliteRIA: { select: { statut: true } } },
+      }),
     ]);
     if (!pf)     return NextResponse.json({ error: "Portefeuille introuvable" }, { status: 404 });
     if (!client) return NextResponse.json({ error: "Client introuvable" }, { status: 404 });
+
+    // Étape 3 — verrou : seuls les clients identifiés (VALIDE) par le RVC sont affectables
+    if (client.eligibiliteRIA?.statut !== "VALIDE") {
+      return NextResponse.json(
+        { error: "Ce client n'est pas éligible RIA. Le responsable vente crédit doit l'identifier et le valider avant affectation." },
+        { status: 409 },
+      );
+    }
 
     // montantAlloue est toujours dérivé du pourcentage × capitalInvesti côté serveur
     // pour garantir la cohérence — la valeur envoyée par le client est ignorée

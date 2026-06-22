@@ -26,7 +26,12 @@ interface PortefeuilleOpt {
   id: number; reference: string; nom: string | null; capitalInvesti: number;
   profilRIA: { gestionnaire: { member: { nom: string; prenom: string } } };
 }
-interface ClientOpt { id: number; nom: string; prenom: string; telephone: string | null }
+interface ClientOpt {
+  id: number; nom: string; prenom: string; telephone: string | null;
+  niveauRisque?: string | null; scoreSolvabilite?: number | null;
+  pointDeVente?: { nom: string } | null;
+  eligibiliteRIA?: { montantDemande: number; classeRisque: string; scoreEligibilite: number | null } | null;
+}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -49,10 +54,11 @@ function CreateModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
   const [clientSearch, setClientSearch] = useState("");
   const [selectedClient, setSelectedClient] = useState<ClientOpt | null>(null);
 
+  // Seuls les clients identifiés (VALIDE) par le RVC sont affectables — Étape 3
   const { data: clientRes } = useApi<{ data: ClientOpt[] }>(
     clientSearch.length >= 1
-      ? `/api/admin/clients?limit=100&search=${encodeURIComponent(clientSearch)}`
-      : `/api/admin/clients?limit=50`
+      ? `/api/admin/ria/clients-eligibles?search=${encodeURIComponent(clientSearch)}`
+      : `/api/admin/ria/clients-eligibles`
   );
   const clients = clientRes?.data ?? [];
 
@@ -204,7 +210,7 @@ function CreateModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
 
           {/* Client */}
           <div>
-            <label className="block text-xs font-medium text-slate-600 mb-1">Client *</label>
+            <label className="block text-xs font-medium text-slate-600 mb-1">Client * <span className="text-slate-400 font-normal">(identifiés RIA par le RVC)</span></label>
 
             {/* Chip client sélectionné */}
             {selectedClient && (
@@ -232,13 +238,22 @@ function CreateModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
                   const isSel = form.clientId === String(c.id);
                   return (
                     <button key={c.id} type="button"
-                      onClick={() => { set("clientId", String(c.id)); setSelectedClient(c); setClientSearch(""); }}
+                      onClick={() => {
+                        set("clientId", String(c.id));
+                        if (c.eligibiliteRIA?.classeRisque) set("classeRisque", c.eligibiliteRIA.classeRisque);
+                        setSelectedClient(c); setClientSearch("");
+                      }}
                       className={`w-full px-3 py-2.5 text-sm flex items-center justify-between gap-3 transition-colors text-left ${
                         isSel ? "bg-emerald-50 text-emerald-900" : "hover:bg-slate-50 text-slate-700"
                       }`}>
                       <span>
                         <span className={`font-medium ${isSel ? "text-emerald-800" : ""}`}>{c.prenom} {c.nom}</span>
                         {c.telephone && <span className="text-xs text-slate-400 ml-2">{c.telephone}</span>}
+                        {c.eligibiliteRIA && (
+                          <span className="text-xs text-slate-400 ml-2">
+                            · classe {c.eligibiliteRIA.classeRisque} · demande {fmt(toNum(c.eligibiliteRIA.montantDemande))} F
+                          </span>
+                        )}
                       </span>
                       {isSel && <CheckCircle className="w-4 h-4 text-emerald-500 flex-shrink-0" />}
                     </button>
@@ -246,8 +261,10 @@ function CreateModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
                 })}
               </div>
             )}
-            {clientSearch.length >= 1 && clients.length === 0 && (
-              <p className="mt-1 text-xs text-slate-400 px-1">Aucun résultat pour « {clientSearch} »</p>
+            {clients.length === 0 && (
+              <p className="mt-1 text-xs text-slate-400 px-1">
+                {clientSearch.length >= 1 ? `Aucun client éligible pour « ${clientSearch} ».` : "Aucun client validé RIA."} Le RVC doit d&apos;abord identifier et valider le client.
+              </p>
             )}
           </div>
 
