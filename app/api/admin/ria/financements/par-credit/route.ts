@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
 
     const credits = await prisma.creditClient.findMany({
       where: {
-        financementsRIA: { some: { statut: { not: "ANNULE" } } },
+        financementsRIA: { some: { statut: { not: "ANNULE" }, affectationId: { not: null } } },
         ...(statut ? { statut: statut as StatutCredit } : {}),
         ...(search
           ? {
@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
       include: {
         client: { select: { id: true, nom: true, prenom: true, telephone: true } },
         financementsRIA: {
-          where: { statut: { not: "ANNULE" } },
+          where: { statut: { not: "ANNULE" }, affectationId: { not: null } },
           include: {
             portefeuille: {
               select: {

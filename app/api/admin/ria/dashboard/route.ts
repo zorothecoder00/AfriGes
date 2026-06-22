@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getRIASession } from "@/lib/authRIA";
+import { dansFenetreAffectation } from "@/lib/riaAffectation";
 
 export async function GET() {
   try {
@@ -57,6 +58,7 @@ export async function GET() {
 
       prisma.operationFinancementRIA.groupBy({
         by: ["statut"],
+        where: { affectationId: { not: null } },
         _sum: { encours: true, montantFinance: true, montantRembourse: true },
         _count: { id: true },
       }),
@@ -67,27 +69,29 @@ export async function GET() {
         select: { clientId: true },
       }).then((r) => r.length),
 
-      prisma.operationFinancementRIA.count({ where: { statut: "ACTIF" } }),
+      prisma.operationFinancementRIA.count({ where: { statut: "ACTIF", affectationId: { not: null } } }),
 
-      prisma.remboursementRIA.aggregate({
-        _sum: { montant: true },
+      // Recouvré du jour — borné à la fenêtre d'affectation
+      prisma.remboursementRIA.findMany({
         where: { createdAt: { gte: debutJour } },
+        select: { montant: true, createdAt: true, financement: { select: { affectation: { select: { dateDebut: true, dateFin: true } } } } },
       }),
 
-      prisma.remboursementRIA.aggregate({
-        _sum: { montant: true },
+      // Recouvré du mois — borné à la fenêtre d'affectation
+      prisma.remboursementRIA.findMany({
         where: { createdAt: { gte: debutMois } },
+        select: { montant: true, createdAt: true, financement: { select: { affectation: { select: { dateDebut: true, dateFin: true } } } } },
       }),
 
       prisma.operationFinancementRIA.aggregate({
         _sum: { encours: true },
-        where: { statut: { in: ["ACTIF", "EN_RETARD"] } },
+        where: { statut: { in: ["ACTIF", "EN_RETARD"] }, affectationId: { not: null } },
       }),
 
       prisma.operationFinancementRIA.aggregate({
         _sum: { encours: true },
         _count: { id: true },
-        where: { statut: "EN_RETARD" },
+        where: { statut: "EN_RETARD", affectationId: { not: null } },
       }),
 
       prisma.affectationClientRIA.groupBy({
@@ -96,8 +100,9 @@ export async function GET() {
         where: { actif: true },
       }),
 
-      // Détail complet pour indicateurs stratégiques
+      // Détail complet pour indicateurs stratégiques — financements affectés uniquement
       prisma.operationFinancementRIA.findMany({
+        where: { affectationId: { not: null } },
         select: {
           statut: true,
           montantFinance: true,
@@ -122,6 +127,13 @@ export async function GET() {
     ]);
 
     const toNum = (v: unknown) => Number(v ?? 0);
+
+    // Recouvré jour/mois borné à la fenêtre d'affectation (les remboursements hors période
+    // d'affectation à l'investisseur ne comptent pas dans le recouvrement RIA).
+    const sommeRecouvreFenetre = (rows: { montant: unknown; createdAt: Date; financement: { affectation: { dateDebut: Date; dateFin: Date | null } | null } }[]) =>
+      rows.reduce((s, r) => (dansFenetreAffectation(r.financement.affectation, r.createdAt) ? s + toNum(r.montant) : s), 0);
+    const montantRecouvreJour = sommeRecouvreFenetre(recouvrementJour);
+    const montantRecouvreMois = sommeRecouvreFenetre(recouvrementMois);
 
     // ── KPIs de base ──────────────────────────────────────────────────────────
     const capitalInvesti      = toNum(portefeuilles._sum.capitalInvesti);
@@ -294,8 +306,8 @@ export async function GET() {
         fondSecurite,
 
         // ── Recouvrement temps réel
-        montantRecouvreDuJour: toNum(recouvrementJour._sum.montant),
-        montantRecouvreDuMois: toNum(recouvrementMois._sum.montant),
+        montantRecouvreDuJour: montantRecouvreJour,
+        montantRecouvreDuMois: montantRecouvreMois,
         encoursGlobal,
         nbCreancesEchues:      creancesEchues._count.id,
         montantCreancesEchues: toNum(creancesEchues._sum.encours),

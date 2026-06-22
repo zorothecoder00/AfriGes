@@ -41,6 +41,7 @@ export async function GET() {
 
       prisma.operationFinancementRIA.groupBy({
         by: ["statut"],
+        where: { affectationId: { not: null } },
         _sum: { encours: true, montantFinance: true, montantRembourse: true },
         _count: { id: true },
       }),
@@ -56,12 +57,13 @@ export async function GET() {
       // Créances douteuses : EN_RETARD avec échéance dépassée de plus de 30 jours
       prisma.operationFinancementRIA.aggregate({
         _sum: { encours: true },
-        where: { statut: "EN_RETARD", dateEcheance: { lt: ilya30j } },
+        where: { statut: "EN_RETARD", dateEcheance: { lt: ilya30j }, affectationId: { not: null } },
       }),
 
       // Nombre de financements par client (pour le taux de fidélisation) — agrégé en SQL
       prisma.operationFinancementRIA.groupBy({
         by: ["clientId"],
+        where: { affectationId: { not: null } },
         _count: { id: true },
       }),
 

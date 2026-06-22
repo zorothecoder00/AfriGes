@@ -177,12 +177,17 @@ export async function POST(req: Request, { params }: Ctx) {
       }
 
       // 6. Hook RIA — cascade vers RemboursementRIA si ce crédit finance des portefeuilles
+      // La part recouvrée RIA est proportionnelle à l'encours de chaque financement
+      // (et non au crédit global), pour rester cohérente avec le financement et ne pas
+      // imputer au RIA des montants liés au crédit hors de son périmètre.
       const financementsRIA = await tx.operationFinancementRIA.findMany({
         where: { creditClientId: credit.id, statut: { in: ["ACTIF", "EN_RETARD"] } },
       });
+      const totalEncoursRIA = financementsRIA.reduce((s, f) => s + Number(f.encours), 0);
 
       for (const fin of financementsRIA) {
-        const part = montantNum * (Number(fin.montantFinance) / Number(credit.montantTotal));
+        const partProportion = totalEncoursRIA > 0 ? Number(fin.encours) / totalEncoursRIA : 0;
+        const part = Math.min(montantNum * partProportion, Number(fin.encours));
         if (part <= 0) continue;
 
         await tx.remboursementRIA.create({

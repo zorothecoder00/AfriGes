@@ -31,6 +31,7 @@ export async function POST(req: Request) {
           },
         },
         financements: {
+          where: { affectationId: { not: null } },
           select: {
             id: true, reference: true, statut: true,
             montantFinance: true, montantRembourse: true, encours: true,

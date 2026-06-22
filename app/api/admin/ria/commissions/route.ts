@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getRIASession } from "@/lib/authRIA";
+import { dansFenetreAffectation } from "@/lib/riaAffectation";
 
 // ── GET — liste des commissions sauvegardées ───────────────────────────────────
 
@@ -78,6 +79,7 @@ export async function POST(req: NextRequest) {
       include: {
         financement: {
           include: {
+            affectation: { select: { dateDebut: true, dateFin: true } },
             client: { select: { id: true, agentTerrainId: true, pointDeVenteId: true } },
           },
         },
@@ -85,8 +87,13 @@ export async function POST(req: NextRequest) {
     });
 
     // ── Agrégation par agent terrain ───────────────────────────────────────────
+    // IMPORTANT : seuls les remboursements rattachés à une affectation active et tombant
+    // dans la fenêtre [dateDebut, dateFin] de l'affectation sont retenus — les versements
+    // hors période d'affectation à l'investisseur ne génèrent pas de commission RIA.
     const parAgent: Record<number, { totalRecouvre: number; nbOps: number; pdvIds: Set<number> }> = {};
     for (const r of remboursements) {
+      if (!dansFenetreAffectation(r.financement.affectation, r.createdAt)) continue;
+
       const agentId = r.financement.client?.agentTerrainId;
       if (!agentId) continue;
       if (!parAgent[agentId]) parAgent[agentId] = { totalRecouvre: 0, nbOps: 0, pdvIds: new Set() };
@@ -97,6 +104,8 @@ export async function POST(req: NextRequest) {
     }
 
     // ── Taux de succès par agent ───────────────────────────────────────────────
+    // Bornage affectation : seuls les financements rattachés à une affectation et créés
+    // dans la fenêtre [dateDebut, dateFin] comptent dans nbDossiers / tauxSucces.
     const agentIds = Object.keys(parAgent).map(Number);
     const dossiersParAgent: Record<number, { total: number; remb: number }> = {};
     if (agentIds.length > 0) {
@@ -104,12 +113,20 @@ export async function POST(req: NextRequest) {
         where: {
           client: { agentTerrainId: { in: agentIds } },
           statut: { not: "ANNULE" },
+          affectationId: { not: null },
         },
-        select: { clientId: true, statut: true, client: { select: { agentTerrainId: true } } },
+        select: {
+          clientId: true,
+          statut: true,
+          dateFinancement: true,
+          affectation: { select: { dateDebut: true, dateFin: true } },
+          client: { select: { agentTerrainId: true } },
+        },
       });
       for (const f of financements) {
         const aId = f.client?.agentTerrainId;
         if (!aId) continue;
+        if (!dansFenetreAffectation(f.affectation, f.dateFinancement)) continue;
         if (!dossiersParAgent[aId]) dossiersParAgent[aId] = { total: 0, remb: 0 };
         dossiersParAgent[aId].total++;
         if (f.statut === "REMBOURSE") dossiersParAgent[aId].remb++;

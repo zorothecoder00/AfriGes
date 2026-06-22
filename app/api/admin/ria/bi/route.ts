@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getRIASession } from "@/lib/authRIA";
+import { dansFenetreAffectation } from "@/lib/riaAffectation";
 
 export async function GET() {
   try {
@@ -37,9 +38,9 @@ export async function GET() {
         take: 10,
       }),
 
-      // Financements actifs (trésorerie)
+      // Financements actifs (trésorerie) — rattachés à une affectation uniquement
       prisma.operationFinancementRIA.findMany({
-        where: { statut: { in: ["ACTIF", "EN_RETARD"] } },
+        where: { statut: { in: ["ACTIF", "EN_RETARD"] }, affectationId: { not: null } },
         select: { encours: true, dateEcheance: true, statut: true },
       }),
 
@@ -68,9 +69,10 @@ export async function GET() {
         },
       }),
 
-      // Top 10 clients par volume (groupBy clientId)
+      // Top 10 clients par volume (groupBy clientId) — financements affectés uniquement
       prisma.operationFinancementRIA.groupBy({
         by: ["clientId"],
+        where: { affectationId: { not: null } },
         _sum: { montantFinance: true },
         _count: true,
         orderBy: { _sum: { montantFinance: "desc" } },
@@ -85,12 +87,14 @@ export async function GET() {
         take: 10,
       }),
 
-      // Remboursements avec info agent (pour top agents)
+      // Remboursements avec info agent (pour top agents) — bornés à la fenêtre d'affectation
       prisma.remboursementRIA.findMany({
         select: {
           montant: true,
+          createdAt: true,
           financement: {
             select: {
+              affectation: { select: { dateDebut: true, dateFin: true } },
               client: {
                 select: {
                   agentTerrainId: true,
@@ -102,14 +106,24 @@ export async function GET() {
         },
       }),
 
-      // Financements avec ville (pour top régions)
+      // Financements avec ville (pour top régions) — financements affectés uniquement
       prisma.operationFinancementRIA.findMany({
+        where: { affectationId: { not: null } },
         select: { montantFinance: true, client: { select: { ville: true } } },
       }),
 
-      // Remboursements avec ville (pour top régions)
+      // Remboursements avec ville (pour top régions) — bornés à la fenêtre d'affectation
       prisma.remboursementRIA.findMany({
-        select: { montant: true, financement: { select: { client: { select: { ville: true } } } } },
+        select: {
+          montant: true,
+          createdAt: true,
+          financement: {
+            select: {
+              affectation: { select: { dateDebut: true, dateFin: true } },
+              client: { select: { ville: true } },
+            },
+          },
+        },
       }),
     ]);
 
@@ -199,6 +213,7 @@ export async function GET() {
     // ── Top agents par recouvrement ────────────────────────────────────────────
     const agentMap: Record<number, { id: number; nom: string; prenom: string; totalRecouvre: number; nbRemboursements: number }> = {};
     for (const r of remboursementsRaw) {
+      if (!dansFenetreAffectation(r.financement?.affectation, r.createdAt)) continue;
       const agent = r.financement?.client?.agentTerrain;
       if (!agent) continue;
       if (!agentMap[agent.id]) {
@@ -221,6 +236,7 @@ export async function GET() {
       regionMap[ville].totalFinance += Number(f.montantFinance);
     }
     for (const r of remboursementsAvecVille) {
+      if (!dansFenetreAffectation(r.financement?.affectation, r.createdAt)) continue;
       const ville = r.financement?.client?.ville?.trim() || "Non renseignée";
       if (!regionMap[ville]) regionMap[ville] = { nbFinancements: 0, totalFinance: 0, totalRecouvre: 0 };
       regionMap[ville].totalRecouvre += Number(r.montant);

@@ -16,6 +16,7 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
       where: { id: pfId },
       include: {
         financements: {
+          where: { affectationId: { not: null } },
           select: {
             id: true, montantFinance: true, montantRembourse: true,
             encours: true, statut: true, dateFinancement: true, clientId: true,

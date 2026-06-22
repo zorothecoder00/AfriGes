@@ -67,11 +67,11 @@ export async function GET() {
       }),
       prisma.operationFinancementRIA.groupBy({
         by: ["clientId"],
-        where: { createdAt: { gte: il30jours } },
+        where: { createdAt: { gte: il30jours }, affectationId: { not: null } },
         _sum: { montantRembourse: true, montantFinance: true },
       }),
       prisma.operationFinancementRIA.findMany({
-        where: { statut: { in: ["ACTIF", "REMBOURSE"] } },
+        where: { statut: { in: ["ACTIF", "REMBOURSE"] }, affectationId: { not: null } },
         select: { montantFinance: true, montantRembourse: true, client: { select: { ville: true } } },
       }),
     ]);

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getRIASession } from "@/lib/authRIA";
+import { dansFenetreAffectation } from "@/lib/riaAffectation";
 
 /**
  * GET /api/admin/ria/recouvrement
@@ -35,7 +36,8 @@ export async function GET(req: Request) {
             profilRIA: { select: { gestionnaire: { select: { member: { select: { nom: true, prenom: true } } } } } },
           },
         },
-        affectation: { select: { id: true, classeRisque: true } },
+        affectation: { select: { id: true, classeRisque: true, dateDebut: true, dateFin: true } },
+        remboursements: { select: { montant: true, createdAt: true } },
         client: {
           select: {
             id: true, nom: true, prenom: true, telephone: true,
@@ -59,8 +61,13 @@ export async function GET(req: Request) {
       orderBy: { dateEcheance: "asc" },
     });
 
-    // Enrichissement : calcul jours de retard par financement
-    const enrichis = financements.map((fin) => {
+    // Enrichissement : calcul jours de retard par financement.
+    // IMPORTANT : seuls les financements rattachés à une affectation client→investisseur
+    // sont pris en compte, et le montant recouvré est borné à la fenêtre d'affectation
+    // [dateDebut, dateFin] — les remboursements hors de cette période ne concernent pas le RIA.
+    const enrichis = financements
+      .filter((fin) => fin.affectation != null)
+      .map((fin) => {
       const echeanceProchaine = fin.creditClient?.echeances?.[0];
       let joursRetard = 0;
       let niveauAlerte: "AUCUN" | "J3" | "J7" | "J15" | "J30+" = "AUCUN";
@@ -73,12 +80,21 @@ export async function GET(req: Request) {
         else if (joursRetard >= seuils.j3) niveauAlerte = "J3";
       }
 
+      // Montant recouvré pendant l'affectation : somme des RemboursementRIA dont la date
+      // tombe dans la fenêtre [dateDebut, dateFin] de l'affectation.
+      const montantRembourseFenetre = fin.remboursements.reduce(
+        (s, r) => (dansFenetreAffectation(fin.affectation, r.createdAt) ? s + Number(r.montant) : s),
+        0,
+      );
+      const montantFinance = Number(fin.montantFinance);
+      const encoursFenetre = Math.max(0, montantFinance - montantRembourseFenetre);
+
       return {
         id: fin.id,
         reference: fin.reference,
-        montantFinance: Number(fin.montantFinance),
-        montantRembourse: Number(fin.montantRembourse),
-        encours: Number(fin.encours),
+        montantFinance,
+        montantRembourse: montantRembourseFenetre,
+        encours: encoursFenetre,
         statut: fin.statut,
         dateEcheance: fin.dateEcheance,
         joursRetard,
