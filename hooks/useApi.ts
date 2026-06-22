@@ -27,6 +27,55 @@ function injectViewAs(url: string | null, viewAsUserId: number | undefined): str
 const apiCache = new Map<string, unknown>();
 const inflight = new Map<string, Promise<unknown>>();
 
+// Abonnés montés par URL effective : permet de notifier les hooks `useApi`
+// actifs lors d'une invalidation globale, pour qu'ils refetchent immédiatement.
+const subscribers = new Map<string, Set<() => void>>();
+
+/**
+ * Sélecteur de clés de cache :
+ *  - `string`    → match exact OU par préfixe (pratique avec les query params,
+ *                   ex. "/api/admin/ria/commissions" cible toutes ses variantes)
+ *  - `RegExp`    → test sur la clé complète
+ *  - `fn(key)`   → prédicat arbitraire
+ *  - `undefined` → tout le cache
+ */
+export type ApiCacheMatcher = string | RegExp | ((key: string) => boolean);
+
+function keyMatches(key: string, matcher?: ApiCacheMatcher): boolean {
+  if (matcher === undefined) return true;
+  if (typeof matcher === "string") return key === matcher || key.startsWith(matcher);
+  if (matcher instanceof RegExp) return matcher.test(key);
+  return matcher(key);
+}
+
+/**
+ * Invalidation globale du cache client `useApi`.
+ *
+ * Purge les entrées (et requêtes en vol) correspondant au sélecteur, puis force
+ * un refetch de tous les hooks `useApi` montés dont l'URL correspond. Sans
+ * argument, vide intégralement le cache (utile au logout / changement d'identité).
+ *
+ * Exemples :
+ *   invalidateApiCache("/api/admin/ria/commissions");   // toutes ses variantes
+ *   invalidateApiCache(/\/api\/admin\/ria\//);           // tout le module RIA
+ *   invalidateApiCache();                                 // tout
+ */
+export function invalidateApiCache(matcher?: ApiCacheMatcher): void {
+  for (const key of Array.from(apiCache.keys())) {
+    if (keyMatches(key, matcher)) apiCache.delete(key);
+  }
+  // On retire les promesses en vol correspondantes pour garantir un appel réseau
+  // frais (postérieur à la mutation) plutôt que de réutiliser une réponse obsolète.
+  for (const key of Array.from(inflight.keys())) {
+    if (keyMatches(key, matcher)) inflight.delete(key);
+  }
+  for (const [key, set] of subscribers) {
+    if (keyMatches(key, matcher)) {
+      for (const cb of set) cb();
+    }
+  }
+}
+
 export function useApi<T>(
   url: string | null,
   options?: RequestInit,
@@ -74,7 +123,10 @@ export function useApi<T>(
 
     try {
       // Déduplication : une seule requête réseau pour une même URL simultanée.
-      let promise = force ? undefined : inflight.get(effectiveUrl);
+      // (Sur un refetch forcé / une invalidation, `inflight` a déjà été vidé en
+      // amont, donc on crée bien une requête fraîche ; les appels forcés
+      // concurrents pour la même URL la partagent au lieu de la dupliquer.)
+      let promise = inflight.get(effectiveUrl);
       if (!promise) {
         promise = fetch(effectiveUrl, optionsRef.current).then(async (res) => {
           if (!res.ok) {
@@ -109,6 +161,20 @@ export function useApi<T>(
     return () => { mountedRef.current = false; };
   }, [fetchData]);
 
+  // Abonnement aux invalidations globales : un appel à invalidateApiCache ciblant
+  // cette URL déclenche un refetch immédiat de ce hook.
+  useEffect(() => {
+    if (!effectiveUrl) return;
+    const cb = () => { fetchData(true); };
+    let set = subscribers.get(effectiveUrl);
+    if (!set) { set = new Set(); subscribers.set(effectiveUrl, set); }
+    set.add(cb);
+    return () => {
+      set!.delete(cb);
+      if (set!.size === 0) subscribers.delete(effectiveUrl);
+    };
+  }, [effectiveUrl, fetchData]);
+
   // Auto-refresh par polling si refreshInterval est fourni
   useEffect(() => {
     if (!refreshInterval || refreshInterval <= 0) return;
@@ -131,7 +197,13 @@ interface UseMutationResult<TData, TBody> {
 export function useMutation<TData = unknown, TBody = unknown>(
   url: string | (() => string),
   method: "POST" | "PUT" | "PATCH" | "DELETE" = "POST",
-  options?: { successMessage?: string; errorMessage?: string }
+  options?: {
+    successMessage?: string;
+    errorMessage?: string;
+    // Clé(s) de cache à invalider après une mutation réussie : les hooks `useApi`
+    // concernés refetchent automatiquement (plus besoin de refetch() manuel).
+    invalidate?: ApiCacheMatcher | ApiCacheMatcher[];
+  }
 ): UseMutationResult<TData, TBody> {
   const { viewAs } = useViewAs();
   const [data, setData] = useState<TData | null>(null);
@@ -171,6 +243,12 @@ export function useMutation<TData = unknown, TBody = unknown>(
         const result = json.data ?? json;
         setData(result);
         if (optionsRef.current?.successMessage) toast.success(optionsRef.current.successMessage);
+        // Invalidation du cache client après mutation réussie → refetch auto des GET liés.
+        const inv = optionsRef.current?.invalidate;
+        if (inv !== undefined) {
+          const matchers = Array.isArray(inv) ? inv : [inv];
+          for (const m of matchers) invalidateApiCache(m);
+        }
         return result;
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : "Erreur inconnue";

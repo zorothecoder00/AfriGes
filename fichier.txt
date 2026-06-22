@@ -5,7 +5,7 @@ On peut aussi utiliser du SVG pour les graphiques ( sans forcément dépendance 
 Ce code :      
  const a = document.createElement("a");
  a.href = url;                    
- a.download = filename;                                             
+ a.download = filename;                                                
  a.click();                                                                  
  permet de créer un téléchargement via un clic sur une URL ( utile pour les exports)
 import { randomUUID } from "crypto";  permet de générer des UUID(sorte d'identifiant unique aléatoire) par exemple pour des factures ou des pièces justificatives
@@ -98,17 +98,6 @@ Quelle est la différence entre admin/droits-acces  et dashboard/admin/superadmi
 SessionGuard existe mais semble non utilisé dans le layout utilisateur
 
 Google OAuth crée automatiquement un utilisateur sans rôle
-
-Les erreurs de login sont redirigées vers la même page
-NextAuth configure error: "/auth/login". 
-Ce n’est pas un bug, mais il faut vérifier que la page login affiche clairement :
-identifiants invalides,
-session expirée,
-compte suspendu,
-mot de passe obligatoire à changer.
-Amélioration recommandée :
-Ajouter des messages explicites sans divulguer d’informations sensibles.
-Séparer sessionExpired=true, mustChangePassword=true, accessDenied=true.
 
 log: process.env.NODE_ENV === "development" ? ["query", "warn", "error"] : ["warn", "error"] pour empêcher qu'on voit les nombreux logs aussi en production ( failles )
 
