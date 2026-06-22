@@ -6,35 +6,30 @@ import { useState } from "react";
 import { RefreshCw, MapPin, Users, Activity } from "lucide-react";
 import { formatCurrency } from "@/lib/format";
 
-interface Affectation {
-  id: number; dateDebut: string; actif: boolean; classeRisque: string;
-  client: { nom: string; prenom: string; commune: string | null; secteurActivite: string | null };
-  portefeuille: { reference: string; profilRIA: { gestionnaire: { member: { nom: string; prenom: string } } } };
-  financements: { montantFinance: number; statut: string }[];
+interface Row {
+  id: number; actif: boolean; classeRisque: string;
+  clientNom: string; clientPrenom: string; commune: string | null; secteur: string | null;
+  investisseur: string; montant: number; nbFinancements: number;
 }
-interface AffResponse { data: Affectation[]; meta: { total: number } }
+interface TerrainStats {
+  total: number; actifs: number;
+  byCommune: { label: string; count: number; montant: number }[];
+  rows: Row[];
+}
+interface StatsResponse { data: TerrainStats }
 
 export default function ActivitesPage() {
   const { type } = useParams() as { type: string };
   const [refresh, setRefresh] = useState(0);
-  const { data, loading } = useApi<AffResponse>(`/api/admin/ria/affectations?limit=100&_r=${refresh}`);
+  const { data, loading } = useApi<StatsResponse>(`/api/admin/ria/gouvernance/terrain-stats?_r=${refresh}`);
 
   if (type !== "operations-terrain") return (
     <div className="p-6 text-center text-slate-400 text-sm">Section réservée à la Commission Opérations Terrain.</div>
   );
 
-  const items = data?.data ?? [];
-  const actifs = items.filter(a => a.actif);
-  const toNum  = (v: unknown) => Number(v ?? 0);
-
-  const communes = [...new Set(items.map(a => a.client.commune).filter(Boolean))];
-  const byCommune = communes.map(c => ({
-    label: c!,
-    count: items.filter(a => a.client.commune === c).length,
-    montant: items.filter(a => a.client.commune === c)
-      .flatMap(a => a.financements)
-      .reduce((s, f) => s + toNum(f.montantFinance), 0),
-  })).sort((a, b) => b.count - a.count);
+  const stats = data?.data;
+  const items = stats?.rows ?? [];
+  const byCommune = stats?.byCommune ?? [];
 
   return (
     <div className="p-6 space-y-6 max-w-7xl mx-auto">
@@ -51,15 +46,15 @@ export default function ActivitesPage() {
 
       <div className="grid grid-cols-3 gap-4">
         <div className="bg-white border border-slate-200 rounded-xl p-4 text-center">
-          <p className="text-2xl font-bold text-slate-800">{data?.meta.total ?? 0}</p>
+          <p className="text-2xl font-bold text-slate-800">{stats?.total ?? 0}</p>
           <p className="text-xs text-slate-500">Affectations totales</p>
         </div>
         <div className="bg-white border border-slate-200 rounded-xl p-4 text-center">
-          <p className="text-2xl font-bold text-emerald-600">{actifs.length}</p>
+          <p className="text-2xl font-bold text-emerald-600">{stats?.actifs ?? 0}</p>
           <p className="text-xs text-slate-500">Actives</p>
         </div>
         <div className="bg-white border border-slate-200 rounded-xl p-4 text-center">
-          <p className="text-2xl font-bold text-blue-600">{communes.length}</p>
+          <p className="text-2xl font-bold text-blue-600">{byCommune.length}</p>
           <p className="text-xs text-slate-500">Communes couvertes</p>
         </div>
       </div>
@@ -119,20 +114,20 @@ export default function ActivitesPage() {
                 {items.map(a => (
                   <tr key={a.id} className="hover:bg-slate-50">
                     <td className="px-4 py-3 font-medium text-slate-800">
-                      {a.client.prenom} {a.client.nom}
+                      {a.clientPrenom} {a.clientNom}
                     </td>
-                    <td className="px-4 py-3 text-slate-600">{a.client.commune ?? "—"}</td>
-                    <td className="px-4 py-3 text-slate-500 text-xs">{a.client.secteurActivite ?? "—"}</td>
+                    <td className="px-4 py-3 text-slate-600">{a.commune ?? "—"}</td>
+                    <td className="px-4 py-3 text-slate-500 text-xs">{a.secteur ?? "—"}</td>
                     <td className="px-4 py-3 text-slate-600 text-xs">
-                      {a.portefeuille.profilRIA.gestionnaire.member.prenom} {a.portefeuille.profilRIA.gestionnaire.member.nom}
+                      {a.investisseur}
                     </td>
                     <td className="px-4 py-3 text-right">
-                      {a.financements.length > 0 && (
-                        <span className="text-xs text-slate-700">{a.financements.length} ({formatCurrency(a.financements.reduce((s, f) => s + toNum(f.montantFinance), 0))})</span>
+                      {a.nbFinancements > 0 && (
+                        <span className="text-xs text-slate-700">{a.nbFinancements} ({formatCurrency(a.montant)})</span>
                       )}
                     </td>
                     <td className="px-4 py-3 text-center">
-                      <Activity className={`w-3.5 h-3.5 mx-auto ${a.classeRisque === "FAIBLE" ? "text-emerald-500" : a.classeRisque === "MOYEN" ? "text-amber-500" : "text-rose-500"}`} />
+                      <Activity className={`w-3.5 h-3.5 mx-auto ${a.classeRisque <= "B" ? "text-emerald-500" : a.classeRisque === "C" ? "text-amber-500" : "text-rose-500"}`} />
                       <span className="text-xs text-slate-500 block">{a.classeRisque}</span>
                     </td>
                     <td className="px-4 py-3 text-center">

@@ -3,10 +3,35 @@ import { prisma } from "@/lib/prisma";
 import { getRIASession } from "@/lib/authRIA";
 import { dansFenetreAffectation } from "@/lib/riaAffectation";
 
-export async function GET() {
+// Détail financement utilisé pour les indicateurs stratégiques. En mode léger
+// (?kpis=1) le client n'est pas joint → on évite les jointures imbriquées coûteuses.
+type FinDetailRow = {
+  statut: string;
+  montantFinance: unknown;
+  montantRembourse: unknown;
+  encours: unknown;
+  dateFinancement: Date;
+  dateEcheance: Date | null;
+  clientId: number;
+  client?: {
+    ville: string | null;
+    quartier: string | null;
+    activite: string | null;
+    agentTerrainId: number | null;
+    pointDeVenteId: number | null;
+    agentTerrain: { nom: string; prenom: string } | null;
+    pointDeVente: { nom: string } | null;
+  } | null;
+};
+
+export async function GET(req: Request) {
   try {
     const session = await getRIASession();
     if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
+
+    // Mode léger : seulement les KPIs scalaires (pas de rendements segmentés ni de
+    // jointures client). Utilisé par les onglets commissions qui n'affichent que des KPIs.
+    const light = new URL(req.url).searchParams.get("kpis") === "1";
 
     const now       = new Date();
     const debutJour = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -100,7 +125,9 @@ export async function GET() {
         where: { actif: true },
       }),
 
-      // Détail complet pour indicateurs stratégiques — financements affectés uniquement
+      // Détail pour indicateurs stratégiques — financements affectés uniquement.
+      // En mode léger, on ne sélectionne que les champs scalaires (pas de jointure
+      // client) : on supprime l'essentiel du coût de cette requête.
       prisma.operationFinancementRIA.findMany({
         where: { affectationId: { not: null } },
         select: {
@@ -111,20 +138,27 @@ export async function GET() {
           dateFinancement: true,
           dateEcheance: true,
           clientId: true,
-          client: {
-            select: {
-              ville: true,
-              quartier: true,
-              activite: true,
-              agentTerrainId: true,
-              pointDeVenteId: true,
-              agentTerrain: { select: { nom: true, prenom: true } },
-              pointDeVente: { select: { nom: true } },
+          ...(light ? {} : {
+            client: {
+              select: {
+                ville: true,
+                quartier: true,
+                activite: true,
+                agentTerrainId: true,
+                pointDeVenteId: true,
+                agentTerrain: { select: { nom: true, prenom: true } },
+                pointDeVente: { select: { nom: true } },
+              },
             },
-          },
+          }),
         },
       }),
     ]);
+
+    // Type uniforme (le client est optionnel : absent en mode léger). Le spread
+    // conditionnel sur le select élargit le type inféré par Prisma, mais le select
+    // narrow est bien appliqué au runtime → on réaffirme la forme réelle.
+    const finRows = financementsDetail as unknown as FinDetailRow[];
 
     const toNum = (v: unknown) => Number(v ?? 0);
 
@@ -173,14 +207,14 @@ export async function GET() {
     const ratioEncoursFonds     = capitalInvesti   > 0 ? (encoursGlobal / capitalInvesti) * 100 : 0;
 
     // Défauts
-    const finsDefaut     = financementsDetail.filter((f) => f.statut === "DEFAUT");
+    const finsDefaut     = finRows.filter((f) => f.statut === "DEFAUT");
     const nbDefauts      = finsDefaut.length;
     const montantDefaut  = finsDefaut.reduce((s, f) => s + toNum(f.encours), 0);
-    const totalFins      = financementsDetail.length;
+    const totalFins      = finRows.length;
     const tauxDefaut     = totalFins > 0 ? (nbDefauts / totalFins) * 100 : 0;
 
     // Créances douteuses (EN_RETARD > 30 jours)
-    const finsRetard30 = financementsDetail.filter((f) => {
+    const finsRetard30 = finRows.filter((f) => {
       if (f.statut !== "EN_RETARD" || !f.dateEcheance) return false;
       return Math.floor((now.getTime() - new Date(f.dateEcheance).getTime()) / 86400000) > 30;
     });
@@ -189,7 +223,7 @@ export async function GET() {
 
     // DSO — average collection days = encours / (totalRembourse/nbJours)
     // nbJours = depuis la première opération
-    const finsAvecDate = financementsDetail.filter((f) => f.dateFinancement);
+    const finsAvecDate = finRows.filter((f) => f.dateFinancement);
     let dso = 0;
     if (finsAvecDate.length > 0 && totalRembourse > 0) {
       const oldest = Math.min(...finsAvecDate.map((f) => new Date(f.dateFinancement).getTime()));
@@ -199,7 +233,7 @@ export async function GET() {
     }
 
     // Durée moyenne de remboursement (dateEcheance - dateFinancement)
-    const finsAvecEcheance = financementsDetail.filter((f) => f.dateFinancement && f.dateEcheance);
+    const finsAvecEcheance = finRows.filter((f) => f.dateFinancement && f.dateEcheance);
     let dureeMoyenneRemboursement = 0;
     if (finsAvecEcheance.length > 0) {
       const totalJours = finsAvecEcheance.reduce((s, f) => {
@@ -214,7 +248,7 @@ export async function GET() {
 
     // Taux de fidélisation — clients avec ≥ 2 financements
     const clientCounts: Record<number, number> = {};
-    for (const f of financementsDetail) clientCounts[f.clientId] = (clientCounts[f.clientId] ?? 0) + 1;
+    for (const f of finRows) clientCounts[f.clientId] = (clientCounts[f.clientId] ?? 0) + 1;
     const totalClientsDistincts = Object.keys(clientCounts).length;
     const clientsFideles        = Object.values(clientCounts).filter((c) => c >= 2).length;
     const tauxFidelisation      = totalClientsDistincts > 0 ? (clientsFideles / totalClientsDistincts) * 100 : 0;
@@ -224,9 +258,9 @@ export async function GET() {
 
     // ── Rendements segmentés ──────────────────────────────────────────────────
 
-    function computeRendements(groupKey: (f: typeof financementsDetail[0]) => string | null) {
+    function computeRendements(groupKey: (f: FinDetailRow) => string | null) {
       const map: Record<string, { totalFinance: number; totalRecouvre: number; nbFins: number }> = {};
-      for (const f of financementsDetail) {
+      for (const f of finRows) {
         const key = groupKey(f) ?? "Non renseigné";
         if (!map[key]) map[key] = { totalFinance: 0, totalRecouvre: 0, nbFins: 0 };
         map[key].totalFinance   += toNum(f.montantFinance);
@@ -246,11 +280,12 @@ export async function GET() {
         .slice(0, 5);
     }
 
-    const rendementParRegion   = computeRendements((f) => f.client?.ville ?? null);
-    const rendementParQuartier = computeRendements((f) => f.client?.quartier ?? null);
-    const rendementParActivite = computeRendements((f) => f.client?.activite ?? null);
-    const rendementParPDV      = computeRendements((f) => f.client?.pointDeVente?.nom ?? null);
-    const rendementParAgent    = computeRendements((f) =>
+    // Rendements segmentés : nécessitent la jointure client → seulement en mode complet.
+    const rendementParRegion   = light ? [] : computeRendements((f) => f.client?.ville ?? null);
+    const rendementParQuartier = light ? [] : computeRendements((f) => f.client?.quartier ?? null);
+    const rendementParActivite = light ? [] : computeRendements((f) => f.client?.activite ?? null);
+    const rendementParPDV      = light ? [] : computeRendements((f) => f.client?.pointDeVente?.nom ?? null);
+    const rendementParAgent    = light ? [] : computeRendements((f) =>
       f.client?.agentTerrain
         ? `${f.client.agentTerrain.prenom} ${f.client.agentTerrain.nom}`
         : null
@@ -260,7 +295,7 @@ export async function GET() {
     const horizons = [30, 60, 90, 120, 150, 180, 360];
     const previsionsTresorerie = horizons.map((jours) => {
       const limite   = new Date(now.getTime() + jours * 86_400_000);
-      const attendu  = financementsDetail
+      const attendu  = finRows
         .filter((f) => ["ACTIF", "EN_RETARD"].includes(f.statut) && f.dateEcheance && new Date(f.dateEcheance) <= limite)
         .reduce((s, f) => s + toNum(f.encours), 0);
       return { jours, montantAttendu: attendu };

@@ -32,7 +32,7 @@ function KpiCard({ label, value, sub, color = "text-slate-800", icon: Icon }: {
 export default function TableauBordFinancePage() {
   const { type } = useParams() as { type: string };
   const [refresh, setRefresh] = useState(0);
-  const { data: res, loading } = useApi<{ data: DashData }>(`/api/admin/ria/dashboard?_r=${refresh}`);
+  const { data: res, loading } = useApi<{ data: DashData }>(`/api/admin/ria/dashboard?kpis=1&_r=${refresh}`);
 
   if (type !== "finance") return (
     <div className="p-6 text-center text-slate-400 text-sm">Cette section est réservée à la Commission Finance.</div>

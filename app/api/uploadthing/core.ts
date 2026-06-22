@@ -7,7 +7,10 @@ export const ourFileRouter = {
   // Endpoint existant — images de propriétés
   proprieteImage: f({ image: { maxFileSize: "4MB", maxFileCount: 5 } })
     .onUploadComplete(async ({ file }) => {
-      console.log("✅ Fichier uploadé avec succès :", file.url);
+      // Ne pas exposer les URLs de fichiers dans les logs de production.
+      if (process.env.NODE_ENV === "development") {
+        console.log("✅ Fichier uploadé avec succès :", file.url);
+      }
       return { url: file.url };
     }),
 

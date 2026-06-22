@@ -79,28 +79,15 @@ Permettre aux caissiers dashboard/user/caissiers de pouvoir faire aussi le recou
 Permettre au caissier et au responsable crédit de pouvoir aussi encaisser les crédits clients
 
 
-
-  
-Toutes les pages de commissions par type ont des onglet trop lents ( bon j'ai déjà corrigé pour la commission Optimisation qui utilisait une api trop lourde et des données non bornées)
-
-
-
 Êxplique moi comment fonctionne la réunion , la convocation et les présences entre président( superadmin aussi évidemment) et membres d'une commission 
 
 
-
 Sur 3000/dashboard/admin/credits , c'est impossible de supprimer ou modifier un créidt client déjà rejeté ; c'est normal ou tu proposes de permettre de le faire
-
-
-Quelle est la différence entre admin/droits-acces  et dashboard/admin/superadmin ( modules acces et accès section) ??? Parce que j'aimerais savoir si les deux sont complémentaires ou s'ils font les mêmes choses
 
 
 SessionGuard existe mais semble non utilisé dans le layout utilisateur
 
 Google OAuth crée automatiquement un utilisateur sans rôle
 
-log: process.env.NODE_ENV === "development" ? ["query", "warn", "error"] : ["warn", "error"] pour empêcher qu'on voit les nombreux logs aussi en production ( failles )
-
-Le cache client useApi n’a pas d’invalidation globale
 
 Chercher comment utiliser l'authentification de google sans avoir besoin de payer

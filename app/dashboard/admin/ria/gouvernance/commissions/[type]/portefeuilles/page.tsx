@@ -38,7 +38,10 @@ export default function PortefeuillesPage() {
   const config    = isAudit ? AUDIT_CONFIG : FINANCE_CONFIG;
 
   const { data: pfData, loading: pfLoading } = useApi<PfResponse>(`/api/admin/ria/portefeuilles?limit=50&_r=${refresh}`);
-  const { data: finRes } = useApi<{ data: FinData }>(`/api/admin/ria/dashboard?_r=${refresh}`);
+  // Rendements segmentés (région/PDV) : nécessitent le mode complet du dashboard
+  // (jointure client coûteuse). On ne le charge donc que pour la commission Finance
+  // qui les affiche ; l'audit n'en a pas besoin → on évite cette requête lourde.
+  const { data: finRes } = useApi<{ data: FinData }>(isFinance ? `/api/admin/ria/dashboard?_r=${refresh}` : null);
   const finData = finRes?.data;
 
   if (!isFinance && !isAudit) return (
