@@ -7,6 +7,7 @@ export default function Page() {
       collecteursApi="/api/rvc/collecteurs"
       accent="indigo"
       noteConfirmation="Les encaissements sont confirmés immédiatement."
+      backHref="/dashboard/user/responsablesVenteCredit/credits"
     />
   );
 }

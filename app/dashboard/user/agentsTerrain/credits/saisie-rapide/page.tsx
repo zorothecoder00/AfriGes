@@ -6,6 +6,7 @@ export default function Page() {
       apiBase="/api/agentTerrain/credits/saisie-rapide"
       accent="emerald"
       noteConfirmation="Les encaissements partent en attente de confirmation du caissier."
+      backHref="/dashboard/user/agentsTerrain/credits"
     />
   );
 }

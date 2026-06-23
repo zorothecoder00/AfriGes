@@ -7,6 +7,7 @@ export default function Page() {
       collecteursApi="/api/caissier/collecteurs"
       accent="emerald"
       noteConfirmation="Les encaissements sont confirmés immédiatement (comptoir)."
+      backHref="/dashboard/user/caissiers"
     />
   );
 }

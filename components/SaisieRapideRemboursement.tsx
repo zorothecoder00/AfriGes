@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useApi } from "@/hooks/useApi";
 import { toast } from "sonner";
-import { Banknote, RefreshCw, Loader2, Users, Calendar, Wand2, Search, CheckCircle2, XCircle, MinusCircle, X } from "lucide-react";
+import { Banknote, RefreshCw, Loader2, Users, Calendar, Wand2, Search, CheckCircle2, XCircle, MinusCircle, X, ArrowLeft } from "lucide-react";
 
 interface CreditAEncaisser {
   clientId: number; clientNom: string; clientPrenom: string; telephone: string;
@@ -46,9 +46,11 @@ interface Props {
   accent?: AccentKey;
   /** Texte d'aide sur le mode de confirmation. */
   noteConfirmation?: string;
+  /** Lien de retour vers la page des crédits (encaissement individuel). */
+  backHref?: string;
 }
 
-export default function SaisieRapideRemboursement({ apiBase, collecteursApi, accent = "emerald", noteConfirmation }: Props) {
+export default function SaisieRapideRemboursement({ apiBase, collecteursApi, accent = "emerald", noteConfirmation, backHref }: Props) {
   const a = ACCENTS[accent] ?? ACCENTS.emerald;
   const [refresh, setRefresh] = useState(0);
   const { data, loading } = useApi<{ data: CreditAEncaisser[] }>(`${apiBase}?_r=${refresh}`);
@@ -155,6 +157,11 @@ export default function SaisieRapideRemboursement({ apiBase, collecteursApi, acc
       {/* En-tête */}
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div>
+          {backHref && (
+            <a href={backHref} className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700 mb-1">
+              <ArrowLeft className="w-4 h-4" /> Retour aux crédits
+            </a>
+          )}
           <h1 className="text-xl font-bold text-slate-900 flex items-center gap-2">
             <Banknote className={`w-5 h-5 ${a.text}`} /> Saisie rapide des remboursements
           </h1>

@@ -7,6 +7,7 @@ export default function Page() {
       collecteursApi="/api/admin/collecteurs"
       accent="blue"
       noteConfirmation="Les encaissements sont confirmés immédiatement."
+      backHref="/dashboard/admin/credits"
     />
   );
 }
