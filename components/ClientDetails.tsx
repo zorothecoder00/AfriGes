@@ -839,8 +839,11 @@ export default function ClientDetails({
                           <tr>
                             <th className="text-left px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase">Date</th>
                             <th className="text-left px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase">Jour</th>
-                            <th className="text-right px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase">Montant</th>
+                            <th className="text-right px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase">Attendu</th>
+                            <th className="text-right px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase">Reçu</th>
+                            <th className="text-left px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase">Mode</th>
                             <th className="text-left px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase">Agent</th>
+                            <th className="text-left px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase">Observation</th>
                             <th className="text-center px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase">Statut</th>
                           </tr>
                         </thead>
@@ -849,12 +852,15 @@ export default function ClientDetails({
                             <tr key={r.id} className="hover:bg-gray-50/50">
                               <td className="px-4 py-2.5 text-gray-600 text-xs">{formatDate(r.dateRemboursement)}</td>
                               <td className="px-4 py-2.5 text-gray-500 text-xs">{r.numeroJour != null ? `J${r.numeroJour}` : '—'}</td>
+                              <td className="px-4 py-2.5 text-right text-gray-500 text-xs">{r.montantAttendu != null ? formatCurrency(Number(r.montantAttendu)) : '—'}</td>
                               <td className="px-4 py-2.5 text-right font-semibold text-emerald-700">{formatCurrency(Number(r.montant))}</td>
+                              <td className="px-4 py-2.5 text-gray-500 text-xs">{r.modePaiement ? r.modePaiement.replace(/_/g, ' ') : '—'}</td>
                               <td className="px-4 py-2.5 text-gray-600 text-xs">
                                 {r.agentCollecteur
                                   ? `${r.agentCollecteur.prenom} ${r.agentCollecteur.nom}`
                                   : `${r.enregistrePar.prenom} ${r.enregistrePar.nom}`}
                               </td>
+                              <td className="px-4 py-2.5 text-gray-500 text-xs max-w-[14rem] truncate" title={r.notes ?? ''}>{r.notes || '—'}</td>
                               <td className="px-4 py-2.5 text-center">
                                 <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${REMB_STATUT_STYLE[r.statut] ?? 'bg-gray-100 text-gray-600'}`}>
                                   {REMB_STATUT_LABEL[r.statut] ?? r.statut}
