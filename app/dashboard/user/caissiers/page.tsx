@@ -254,7 +254,8 @@ interface VersementEnAttente {
 }
 interface RemboursementEnAttente {
   id: number; typeOperation: "REMBOURSEMENT_CREDIT"; montant: number; date: string;
-  collectePar: string; notes: string | null; creditReference: string; soldeRestant: number; client: string; creditId: number;
+  collectePar: string; agentCollecteur: string | null; numeroJour: number | null; montantAttendu: number | null;
+  notes: string | null; creditReference: string; soldeRestant: number; client: string; creditId: number;
 }
 interface VenteEnAttente {
   id: number; typeOperation: "VENTE_DIRECTE"; reference: string; montant: number; date: string;
@@ -813,8 +814,12 @@ export default function CaissierPage() {
   const [vcSearch,             setVcSearch]             = useState("");
   const [vcSearchDebounced,    setVcSearchDebounced]    = useState("");
   const [rembCreditId,         setRembCreditId]         = useState<number | null>(null);
+  const [rembCredit,           setRembCredit]           = useState<{ montantTotal: number; montantJournalier: number | null } | null>(null);
   const [rembMontant,          setRembMontant]          = useState("");
   const [rembNotes,            setRembNotes]            = useState("");
+  const [rembDate,             setRembDate]             = useState("");  // date de collecte
+  const [rembJour,             setRembJour]             = useState("");  // N° de jour
+  const [rembAgent,            setRembAgent]            = useState("");  // agent collecteur (User.id)
   const [notesClotureInput,    setNotesCloture]         = useState("");
   const [soldeReel,         setSoldeReel]    = useState("");
 
@@ -991,8 +996,11 @@ export default function CaissierPage() {
       { successMessage: "Transfert enregistré ✓" }
     );
 
+  const { data: collecteursRes } = useApi<{ data: { id: number; nom: string; prenom: string }[] }>("/api/caissier/collecteurs");
+  const collecteurs = collecteursRes?.data ?? [];
+
   const { mutate: rembourserCredit, loading: rembLoading } =
-    useMutation<unknown, { montant: number; notes?: string }>(
+    useMutation<unknown, { montant: number; observation?: string; numeroJour?: string; dateCollecte?: string; agentCollecteurId?: string }>(
       () => `/api/caissier/credits/${rembCreditId ?? 0}/rembourser`,
       "POST",
       { successMessage: "Remboursement enregistré ✓" }
@@ -1000,12 +1008,22 @@ export default function CaissierPage() {
 
   const handleRembourserCredit = async () => {
     if (!rembCreditId || !rembMontant || Number(rembMontant) <= 0) return;
-    const result = await rembourserCredit({ montant: Number(rembMontant), notes: rembNotes || undefined });
+    const result = await rembourserCredit({
+      montant: Number(rembMontant),
+      observation: rembNotes || undefined,
+      numeroJour: rembJour || undefined,
+      dateCollecte: rembDate || undefined,
+      agentCollecteurId: rembAgent || undefined,
+    });
     if (result !== null) {
       setRembCreditId(null);
       refetchCredits();
     }
   };
+
+  // Nombre de jours dérivé + montant attendu indicatif (montant journalier du crédit)
+  const rembNbJours = rembCredit && rembCredit.montantJournalier && rembCredit.montantJournalier > 0
+    ? Math.round(rembCredit.montantTotal / rembCredit.montantJournalier) : 0;
 
   // ── Confirmation terrain ─────────────────────────────────────────────────
   const [confirmTarget, setConfirmTarget] = useState<{ type: "versement" | "remboursement" | "vente"; id: number; label: string; montant: number } | null>(null);
@@ -1382,9 +1400,43 @@ export default function CaissierPage() {
               </button>
             </div>
             <div className="px-5 py-4 space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Date de collecte</label>
+                  <input type="date" value={rembDate} onChange={(e) => setRembDate(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">N° de jour</label>
+                  <select value={rembJour} onChange={(e) => setRembJour(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                    <option value="">—</option>
+                    {Array.from({ length: rembNbJours }, (_, i) => i + 1).map((j) => (
+                      <option key={j} value={j}>Jour {j}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Agent collecteur</label>
+                <select value={rembAgent} onChange={(e) => setRembAgent(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                  <option value="">— Moi-même —</option>
+                  {collecteurs.map((a) => (
+                    <option key={a.id} value={a.id}>{a.prenom} {a.nom}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Montant attendu</label>
+                <input type="text" readOnly
+                  value={rembCredit?.montantJournalier ? formatCurrency(rembCredit.montantJournalier) : "—"}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-100 text-gray-500" />
+                <p className="text-[11px] text-gray-400 mt-1">Montant journalier indicatif — l&apos;échéance exacte du jour est recalculée à l&apos;enregistrement.</p>
+              </div>
               <div>
                 <label className="block text-xs font-medium text-gray-600 mb-1">
-                  Montant (FCFA) <span className="text-red-500">*</span>
+                  Montant encaissé (FCFA) <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="number" min="1" value={rembMontant}
@@ -1394,9 +1446,9 @@ export default function CaissierPage() {
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Notes (optionnel)</label>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Observation (optionnel)</label>
                 <textarea rows={2} value={rembNotes} onChange={(e) => setRembNotes(e.target.value)}
-                  placeholder="Remarques…"
+                  placeholder="Commentaire…"
                   className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none"
                 />
               </div>
@@ -3579,7 +3631,7 @@ export default function CaissierPage() {
                             <td className="px-4 py-3">
                               <div className="flex items-center gap-1">
                                 <button
-                                  onClick={() => { setRembCreditId(c.id); setRembMontant(""); setRembNotes(""); }}
+                                  onClick={() => { setRembCreditId(c.id); setRembCredit({ montantTotal: c.montantTotal, montantJournalier: c.montantJournalier }); setRembMontant(""); setRembNotes(""); setRembDate(new Date().toISOString().slice(0, 10)); setRembJour(""); setRembAgent(""); }}
                                   className="flex items-center gap-1 px-2.5 py-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg text-xs font-semibold hover:bg-emerald-100 transition-colors"
                                 >
                                   <Banknote size={12} /> Rembourser
@@ -4257,9 +4309,10 @@ export default function CaissierPage() {
                       <tr className="border-b border-slate-100">
                         <th className="text-left py-3 text-slate-500 font-semibold text-xs uppercase">Client</th>
                         <th className="text-left py-3 text-slate-500 font-semibold text-xs uppercase">Crédit</th>
-                        <th className="text-left py-3 text-slate-500 font-semibold text-xs uppercase">Collecté par</th>
+                        <th className="text-left py-3 text-slate-500 font-semibold text-xs uppercase">Agent collecteur</th>
                         <th className="text-left py-3 text-slate-500 font-semibold text-xs uppercase">Date</th>
-                        <th className="text-right py-3 text-slate-500 font-semibold text-xs uppercase">Montant</th>
+                        <th className="text-right py-3 text-slate-500 font-semibold text-xs uppercase">Attendu</th>
+                        <th className="text-right py-3 text-slate-500 font-semibold text-xs uppercase">Encaissé</th>
                         <th className="text-right py-3 text-slate-500 font-semibold text-xs uppercase">Solde restant</th>
                         <th className="text-center py-3 text-slate-500 font-semibold text-xs uppercase">Actions</th>
                       </tr>
@@ -4269,8 +4322,12 @@ export default function CaissierPage() {
                         <tr key={r.id} className="border-b border-slate-50 hover:bg-slate-50/50">
                           <td className="py-3 font-medium text-slate-800">{r.client}</td>
                           <td className="py-3 text-slate-600 text-xs font-mono">{r.creditReference}</td>
-                          <td className="py-3 text-slate-500 text-xs">{r.collectePar}</td>
+                          <td className="py-3 text-slate-500 text-xs">
+                            {r.agentCollecteur ?? r.collectePar}
+                            {r.numeroJour != null && <span className="ml-1.5 text-slate-400">· J{r.numeroJour}</span>}
+                          </td>
                           <td className="py-3 text-slate-500 text-xs">{formatDateTime(r.date)}</td>
+                          <td className="py-3 text-right text-slate-500 text-xs">{r.montantAttendu != null ? formatCurrency(r.montantAttendu) : "—"}</td>
                           <td className="py-3 text-right font-bold text-slate-800">{formatCurrency(r.montant)}</td>
                           <td className="py-3 text-right text-slate-500 text-xs">{formatCurrency(r.soldeRestant)}</td>
                           <td className="py-3">

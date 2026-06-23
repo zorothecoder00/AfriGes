@@ -117,6 +117,16 @@ const ECHEANCE_STATUT_STYLE: Record<string, string> = {
   PAYE:       'bg-emerald-50 text-emerald-600',
   EN_RETARD:  'bg-red-50 text-red-600',
 };
+const REMB_STATUT_STYLE: Record<string, string> = {
+  CONFIRME:           'bg-emerald-100 text-emerald-700',
+  EN_ATTENTE_CAISSIER:'bg-amber-100 text-amber-700',
+  REJETE:             'bg-red-100 text-red-700',
+};
+const REMB_STATUT_LABEL: Record<string, string> = {
+  CONFIRME:           'Confirmé',
+  EN_ATTENTE_CAISSIER:'En attente',
+  REJETE:             'Rejeté',
+};
 
 function Field({ label, value, icon }: { label: string; value: React.ReactNode; icon?: React.ReactNode }) {
   return (
@@ -171,7 +181,11 @@ interface RemboursementItem {
   dateRemboursement: string;
   modePaiement: string;
   notes: string | null;
+  statut: string;
+  numeroJour: number | null;
+  montantAttendu: number | string | null;
   enregistrePar: { id: number; nom: string; prenom: string };
+  agentCollecteur: { id: number; nom: string; prenom: string } | null;
 }
 
 interface CreditItem {
@@ -207,7 +221,9 @@ interface CreditsClientResponse {
     montantTotalEmprunte: number;
     montantTotalRembourse: number;
     soldeRestantTotal: number;
+    montantEnCours: number;
     echeancesEnRetard: number;
+    prochaineEcheance: string | null;
   };
 }
 
@@ -227,23 +243,37 @@ const TIMELINE_COLOR: Record<TimelineItem['type'], string> = {
 
 // ─── Composant ────────────────────────────────────────────────────────────────
 
-export default function ClientDetails({ clientId }: { clientId: string }) {
+interface ClientDetailsProps {
+  clientId: string;
+  /** Préfixe des routes API (défaut : admin). Ex. /api/rvc/clients */
+  apiBase?: string;
+  /** Préfixe des routes dashboard pour retour/édition (défaut : admin). */
+  basePath?: string;
+  /** Affiche les actions Modifier / Supprimer (réservé admin). */
+  canModify?: boolean;
+}
+
+export default function ClientDetails({
+  clientId,
+  apiBase = '/api/admin/clients',
+  basePath = '/dashboard/admin/clients',
+  canModify = true,
+}: ClientDetailsProps) {
   const router = useRouter();
-  const { data: response, loading, error, refetch } = useApi<{ data: Client }>(`/api/admin/clients/${clientId}`);
-  const { mutate: deleteClient, loading: deleting } = useMutation(`/api/admin/clients/${clientId}`, 'DELETE', { successMessage: 'Client supprimé avec succès' });
+  const { data: response, loading, error, refetch } = useApi<{ data: Client }>(`${apiBase}/${clientId}`);
+  const { mutate: deleteClient, loading: deleting } = useMutation(`${apiBase}/${clientId}`, 'DELETE', { successMessage: 'Client supprimé avec succès' });
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [timelinePage, setTimelinePage] = useState(1);
-  const [showTimeline, setShowTimeline] = useState(true);
   const { data: histRes, loading: histLoading, refetch: histRefetch } =
-    useApi<HistoriqueResponse>(`/api/admin/clients/${clientId}/historique?page=${timelinePage}&limit=20`);
+    useApi<HistoriqueResponse>(`${apiBase}/${clientId}/historique?page=${timelinePage}&limit=20`);
 
   // ── Onglets bas de page ────────────────────────────────────────────────────
-  type TabId = 'versements' | 'credits' | 'ventes' | 'historique';
+  type TabId = 'versements' | 'credits' | 'histo-credit' | 'ventes' | 'historique';
   const [activeTab, setActiveTab] = useState<TabId>('versements');
   const [expandedCredits, setExpandedCredits] = useState<Set<number>>(new Set());
   const { data: creditsRes, loading: creditsLoading, refetch: creditsRefetch } =
-    useApi<CreditsClientResponse>(`/api/admin/clients/${clientId}/credits`);
+    useApi<CreditsClientResponse>(`${apiBase}/${clientId}/credits`);
 
   const toggleCredit = (id: number) =>
     setExpandedCredits((prev) => {
@@ -257,7 +287,7 @@ export default function ClientDetails({ clientId }: { clientId: string }) {
   const handleDelete = async () => {
     setDeleteError(null);
     const result = await deleteClient({});
-    if (result) router.push('/dashboard/admin/clients');
+    if (result) router.push(basePath);
     else setDeleteError("Impossible de supprimer ce client. Il a peut-être des activités associées.");
   };
 
@@ -300,7 +330,7 @@ export default function ClientDetails({ clientId }: { clientId: string }) {
         {/* En-tête */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Link href="/dashboard/admin/clients" className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+            <Link href={basePath} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
               <ArrowLeft className="w-5 h-5 text-gray-600" />
             </Link>
             <div>
@@ -308,16 +338,18 @@ export default function ClientDetails({ clientId }: { clientId: string }) {
               {client.codeClient && <p className="text-sm text-gray-400 font-mono mt-0.5">{client.codeClient}</p>}
             </div>
           </div>
-          <div className="flex items-center gap-3">
-            <button onClick={() => setShowDeleteConfirm(true)}
-              className="flex items-center gap-2 text-red-600 bg-red-50 border border-red-200 px-4 py-2 rounded-lg hover:bg-red-100 text-sm">
-              <Trash2 className="w-4 h-4" /> Supprimer
-            </button>
-            <Link href={`/dashboard/admin/clients/${clientId}/edit`}
-              className="flex items-center gap-2 bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 text-sm">
-              <Edit className="w-4 h-4" /> Modifier
-            </Link>
-          </div>
+          {canModify && (
+            <div className="flex items-center gap-3">
+              <button onClick={() => setShowDeleteConfirm(true)}
+                className="flex items-center gap-2 text-red-600 bg-red-50 border border-red-200 px-4 py-2 rounded-lg hover:bg-red-100 text-sm">
+                <Trash2 className="w-4 h-4" /> Supprimer
+              </button>
+              <Link href={`${basePath}/${clientId}/edit`}
+                className="flex items-center gap-2 bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 text-sm">
+                <Edit className="w-4 h-4" /> Modifier
+              </Link>
+            </div>
+          )}
         </div>
 
         {/* Modal suppression */}
@@ -505,6 +537,7 @@ export default function ClientDetails({ clientId }: { clientId: string }) {
               [
                 { id: 'versements' as TabId, label: 'Versements & Créances', icon: <Activity className="w-4 h-4" />, count: client.souscriptionsPacks?.length },
                 { id: 'credits'    as TabId, label: 'Crédits',               icon: <CreditCard className="w-4 h-4" />, count: creditsRes?.data.length, alert: (creditsRes?.stats.enRetard ?? 0) > 0 },
+                { id: 'histo-credit' as TabId, label: 'Historique crédit',    icon: <Banknote className="w-4 h-4" /> },
                 { id: 'ventes'     as TabId, label: 'Ventes',                 icon: <ShoppingBag className="w-4 h-4" />, count: client.ventesDirectes?.length },
                 { id: 'historique' as TabId, label: 'Historique',             icon: <Clock className="w-4 h-4" />, count: histRes?.meta.total },
               ] as { id: TabId; label: string; icon: React.ReactNode; count?: number; alert?: boolean }[]
@@ -755,6 +788,88 @@ export default function ClientDetails({ clientId }: { clientId: string }) {
             </div>
           </div>
           )}
+
+          {/* ── Tab: HISTORIQUE CRÉDIT ─────────────────────────────────── */}
+          {activeTab === 'histo-credit' && (() => {
+            const remboursements = (creditsRes?.data ?? [])
+              .flatMap((c) => c.remboursements.map((r) => ({ ...r, creditRef: c.reference })))
+              .sort((a, b) => new Date(b.dateRemboursement).getTime() - new Date(a.dateRemboursement).getTime());
+            const st = creditsRes?.stats;
+            return (
+              <div className="p-6 space-y-6">
+                {/* Informations générales */}
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-2 uppercase tracking-wide mb-3">
+                    <UserCheck className="w-4 h-4 text-emerald-600" /> Informations générales
+                  </h3>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4 bg-gray-50 rounded-xl p-4">
+                    <Field label="Nom"               value={`${client.prenom} ${client.nom}`} icon={<Hash className="w-3 h-3" />} />
+                    <Field label="Téléphone"         value={client.telephone} icon={<Phone className="w-3 h-3" />} />
+                    <Field label="Adresse"           value={client.adresse} icon={<MapPin className="w-3 h-3" />} />
+                    <Field label="Date d'inscription" value={formatDate(client.createdAt)} icon={<Calendar className="w-3 h-3" />} />
+                    <Field label="Agent responsable"  value={client.agentTerrain ? `${client.agentTerrain.prenom} ${client.agentTerrain.nom}` : null} icon={<UserCheck className="w-3 h-3" />} />
+                    <Field label="Crédits actifs"     value={st ? `${st.actifs + st.enRetard}` : '—'} icon={<CreditCard className="w-3 h-3" />} />
+                    <Field label="Crédit en cours"    value={st ? formatCurrency(st.montantEnCours) : '—'} icon={<Wallet className="w-3 h-3" />} />
+                    <Field label="Solde restant"      value={st ? formatCurrency(st.soldeRestantTotal) : '—'} icon={<TrendingDown className="w-3 h-3" />} />
+                    <Field label="Prochaine échéance"  value={st?.prochaineEcheance ? formatDate(st.prochaineEcheance) : 'Aucune'} icon={<Clock className="w-3 h-3" />} />
+                  </div>
+                </div>
+
+                {/* Historique des remboursements (complet, non modifiable) */}
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-2 uppercase tracking-wide">
+                      <Banknote className="w-4 h-4 text-emerald-600" /> Historique des remboursements ({remboursements.length})
+                    </h3>
+                    <button onClick={creditsRefetch} className="text-xs text-gray-400 hover:text-gray-600 flex items-center gap-1">
+                      <RefreshCw className={`w-3 h-3 ${creditsLoading ? 'animate-spin' : ''}`} /> Actualiser
+                    </button>
+                  </div>
+                  <p className="text-xs text-gray-400 mb-2">Historique complet et non modifiable.</p>
+                  {creditsLoading && !creditsRes ? (
+                    <div className="flex items-center justify-center py-8 text-gray-400">
+                      <RefreshCw className="w-4 h-4 animate-spin mr-2" /> Chargement…
+                    </div>
+                  ) : remboursements.length === 0 ? (
+                    <p className="text-sm text-gray-400 italic text-center py-6">Aucun remboursement enregistré</p>
+                  ) : (
+                    <div className="overflow-x-auto border border-gray-100 rounded-xl">
+                      <table className="w-full text-sm">
+                        <thead className="bg-gray-50 border-b border-gray-100">
+                          <tr>
+                            <th className="text-left px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase">Date</th>
+                            <th className="text-left px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase">Jour</th>
+                            <th className="text-right px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase">Montant</th>
+                            <th className="text-left px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase">Agent</th>
+                            <th className="text-center px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase">Statut</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-50">
+                          {remboursements.map((r) => (
+                            <tr key={r.id} className="hover:bg-gray-50/50">
+                              <td className="px-4 py-2.5 text-gray-600 text-xs">{formatDate(r.dateRemboursement)}</td>
+                              <td className="px-4 py-2.5 text-gray-500 text-xs">{r.numeroJour != null ? `J${r.numeroJour}` : '—'}</td>
+                              <td className="px-4 py-2.5 text-right font-semibold text-emerald-700">{formatCurrency(Number(r.montant))}</td>
+                              <td className="px-4 py-2.5 text-gray-600 text-xs">
+                                {r.agentCollecteur
+                                  ? `${r.agentCollecteur.prenom} ${r.agentCollecteur.nom}`
+                                  : `${r.enregistrePar.prenom} ${r.enregistrePar.nom}`}
+                              </td>
+                              <td className="px-4 py-2.5 text-center">
+                                <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${REMB_STATUT_STYLE[r.statut] ?? 'bg-gray-100 text-gray-600'}`}>
+                                  {REMB_STATUT_LABEL[r.statut] ?? r.statut}
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
 
           {/* ── Tab: VENTES ────────────────────────────────────────────── */}
           {activeTab === 'ventes' && (

@@ -102,25 +102,6 @@ Pouvoir générer des documents sur les résolutions des réunions
 Pouvoir faire directement les réunions sur l'appli ( ou au dernier cas pouvoir lire des liens vers meet ou zoom)
 
 
-Le RVC va identifier les clients RIA ( et c'est juste eux les admins et les responsablesRIA peuvent affecter les investisseurs RIA)
-Étape 3 : Sélection des Clients à Financer
-Le responsable crédit identifie les clients éligibles.
-Critères :
-Ancienneté
-Historique d'achat
-Solvabilité
-Niveau de risque
-Rotation commerciale
-Exemple :
-Client A :
-Crédit demandé : 500 000
-Client B :
-Crédit demandé : 700 000
-Client C :
-Crédit demandé : 300 000
-Le système valide ou refuse automatiquement selon les règles définies.
-
-
 6. SCÉNARIO DE DÉFAILLANCE CLIENT
 Client :
 Retard supérieur à 60 jours.
@@ -139,6 +120,9 @@ Le dossier passe alors en :
 Précontentieux
 Contentieux
 Perte
+
+
+Classer les crédits clients par mois ( chez l'admin , chez l'agent terrain , chez le caissier et chez le RVC)
 
 
 

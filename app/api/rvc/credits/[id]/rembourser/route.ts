@@ -3,6 +3,7 @@ import { PrioriteNotification, StatutCredit, StatutEcheanceCredit, TypePaiement 
 import { prisma } from "@/lib/prisma";
 import { getRVCSession } from "@/lib/authRVC";
 import { notifyAdmins, auditLog } from "@/lib/notifications";
+import { validerNumeroJour, montantAttenduDuJour, parseDateCollecte } from "@/lib/remboursementCredit";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -24,11 +25,15 @@ export async function POST(req: Request, { params }: Ctx) {
     if (isNaN(creditId)) return NextResponse.json({ error: "ID invalide" }, { status: 400 });
 
     const body = await req.json();
-    const { montant, modePaiement, notes } = body;
+    // montant = « montant encaissé » ; observation/notes = « observation »
+    const { montant, modePaiement, notes, observation, numeroJour, agentCollecteurId, dateCollecte } = body;
 
     if (!montant || Number(montant) <= 0) {
       return NextResponse.json({ error: "Le montant doit être positif" }, { status: 400 });
     }
+
+    const numeroJourNum = numeroJour != null && numeroJour !== "" ? parseInt(String(numeroJour)) : null;
+    const observationTxt = (observation ?? notes) || null;
 
     const userId  = parseInt(session.user.id);
     const isAdmin = session.user.role === "ADMIN" || session.user.role === "SUPER_ADMIN";
@@ -61,6 +66,9 @@ export async function POST(req: Request, { params }: Ctx) {
     if (!statutsAutorisés.includes(credit.statut)) {
       return NextResponse.json({ error: "Seuls les crédits ACTIF ou EN_RETARD peuvent être remboursés" }, { status: 422 });
     }
+
+    const erreurJour = validerNumeroJour(numeroJourNum, credit.dureeJours);
+    if (erreurJour) return NextResponse.json({ error: erreurJour }, { status: 400 });
 
     const montantVerse    = Number(montant);
     const montantEffectif = Math.min(montantVerse, Number(credit.soldeRestant));
@@ -100,13 +108,19 @@ export async function POST(req: Request, { params }: Ctx) {
       }
 
       // ── Créer le remboursement ────────────────────────────────────────────
+      const montantAttendu = await montantAttenduDuJour(tx, creditId, numeroJourNum);
       const remboursement = await tx.remboursementCredit.create({
         data: {
           creditId,
           montant:          montantEffectif,
           modePaiement:     (modePaiement as TypePaiement) ?? TypePaiement.ESPECES,
-          notes:            notes || null,
+          notes:            observationTxt,
           enregistreParId:  userId,
+          // Agent collecteur = celui indiqué, sinon l'utilisateur qui encaisse
+          agentCollecteurId: agentCollecteurId ? parseInt(String(agentCollecteurId)) : userId,
+          numeroJour:       numeroJourNum,
+          montantAttendu,
+          dateRemboursement: parseDateCollecte(dateCollecte) ?? new Date(),
           statut:           "CONFIRME", // encaissement direct par le RVC — effets financiers déjà appliqués
         },
       });

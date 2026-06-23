@@ -61,7 +61,7 @@ interface CreditDetail extends CreditClient {
   observations: string | null;
   lignes: LigneCreditDetail[];
   echeances: { id: number; numeroEcheance: number; dateEcheance: string; montantDu: number; montantPaye: number; statut: string }[];
-  remboursements: { id: number; montant: number; dateRemboursement: string; modePaiement: string; enregistrePar: { id: number; nom: string; prenom: string } }[];
+  remboursements: { id: number; montant: number; dateRemboursement: string; modePaiement: string; numeroJour: number | null; enregistrePar: { id: number; nom: string; prenom: string }; agentCollecteur: { id: number; nom: string; prenom: string } | null }[];
 }
 
 interface CreditsResponse {
@@ -469,6 +469,9 @@ export default function RVCCreditsPage() {
   const [rembMontant, setRembMontant] = useState("");
   const [rembMode,    setRembMode]    = useState("ESPECES");
   const [rembNotes,   setRembNotes]   = useState("");
+  const [rembDate,    setRembDate]    = useState("");  // date de collecte
+  const [rembJour,    setRembJour]    = useState("");  // N° de jour
+  const [rembAgent,   setRembAgent]   = useState("");  // agent collecteur (User.id)
   const [rembLoading, setRembLoading] = useState(false);
 
   // ── Ajout / Modification d'une ligne (EN_ATTENTE_VALIDATION) ──────────────
@@ -497,6 +500,9 @@ export default function RVCCreditsPage() {
   const { data: res, loading, refetch } = useApi<CreditsResponse>(`/api/rvc/credits?${query}`);
   const credits = res?.data ?? [];
   const meta    = res?.meta;
+
+  const { data: collecteursRes } = useApi<{ data: { id: number; nom: string; prenom: string }[] }>("/api/rvc/collecteurs");
+  const collecteurs = collecteursRes?.data ?? [];
 
   const handleValiderCredit = async (creditId: number) => {
     setValidationLoading(true);
@@ -542,6 +548,9 @@ export default function RVCCreditsPage() {
     setRembMontant(String(Number(credit.soldeRestant)));
     setRembMode("ESPECES");
     setRembNotes("");
+    setRembDate(new Date().toISOString().slice(0, 10));
+    setRembJour("");
+    setRembAgent("");
   };
 
   const handleEncaisser = async () => {
@@ -553,7 +562,13 @@ export default function RVCCreditsPage() {
       const r = await fetch(`/api/rvc/credits/${rembCredit.id}/rembourser`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ montant, modePaiement: rembMode, notes: rembNotes || undefined }),
+        body: JSON.stringify({
+          montant, modePaiement: rembMode,
+          observation: rembNotes || undefined,
+          numeroJour: rembJour || undefined,
+          dateCollecte: rembDate || undefined,
+          agentCollecteurId: rembAgent || undefined,
+        }),
       });
       const j = await r.json();
       if (r.ok) {
@@ -1006,6 +1021,10 @@ export default function RVCCreditsPage() {
                   <p className="text-sm font-semibold text-gray-800">{detailCredit.client.prenom} {detailCredit.client.nom}</p>
                   <p className="text-xs text-gray-500 mt-0.5">{detailCredit.client.telephone}</p>
                   {detailCredit.client.codeClient && <p className="text-xs text-gray-400 font-mono">{detailCredit.client.codeClient}</p>}
+                  <a href={`/dashboard/user/responsablesVenteCredit/clients/${detailCredit.client.id}`}
+                    className="inline-flex items-center gap-1 mt-2 text-xs text-indigo-600 hover:underline">
+                    <User className="w-3 h-3" /> Voir la fiche client
+                  </a>
                 </div>
 
                 {/* Lignes produits */}
@@ -1163,7 +1182,11 @@ export default function RVCCreditsPage() {
                     <div className="space-y-1">
                       {detailCredit.remboursements.map((r) => (
                         <div key={r.id} className="flex items-center gap-3 bg-emerald-50 rounded-lg px-3 py-2 text-xs">
-                          <span className="text-gray-500 flex-1">{formatDate(r.dateRemboursement)}</span>
+                          <span className="text-gray-500">{formatDate(r.dateRemboursement)}</span>
+                          {r.numeroJour != null && <span className="text-gray-400">J{r.numeroJour}</span>}
+                          <span className="flex-1 text-gray-600 truncate">
+                            {r.agentCollecteur ? `${r.agentCollecteur.prenom} ${r.agentCollecteur.nom}` : "—"}
+                          </span>
                           <span className="text-gray-400">{r.modePaiement.replace("_", " ")}</span>
                           <span className="font-bold text-emerald-700">{formatCurrency(Number(r.montant))}</span>
                         </div>
@@ -1360,8 +1383,41 @@ export default function RVCCreditsPage() {
                 <span className="text-gray-500">Solde restant</span>
                 <span className="font-semibold text-rose-600">{formatCurrency(Number(rembCredit.soldeRestant))}</span>
               </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Date de collecte</label>
+                  <input type="date" value={rembDate} onChange={(e) => setRembDate(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-gray-50" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">N° de jour</label>
+                  <select value={rembJour} onChange={(e) => setRembJour(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-400">
+                    <option value="">—</option>
+                    {Array.from({ length: rembCredit.dureeJours }, (_, i) => i + 1).map((j) => (
+                      <option key={j} value={j}>Jour {j}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Montant à encaisser (FCFA)</label>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Agent collecteur</label>
+                <select value={rembAgent} onChange={(e) => setRembAgent(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-400">
+                  <option value="">— Moi-même —</option>
+                  {collecteurs.map((a) => (
+                    <option key={a.id} value={a.id}>{a.prenom} {a.nom}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Montant attendu</label>
+                <input type="text" readOnly value={formatCurrency(Number(rembCredit.montantJournalier))}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-100 text-gray-500" />
+                <p className="text-[11px] text-gray-400 mt-1">Montant journalier indicatif — l&apos;échéance exacte du jour est recalculée à l&apos;enregistrement.</p>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Montant encaissé (FCFA)</label>
                 <input
                   type="number" min="1" max={Number(rembCredit.soldeRestant)}
                   value={rembMontant}
@@ -1384,11 +1440,12 @@ export default function RVCCreditsPage() {
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Notes (optionnel)</label>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Observation (optionnel)</label>
                 <textarea
                   rows={2}
                   value={rembNotes}
                   onChange={(e) => setRembNotes(e.target.value)}
+                  placeholder="Commentaire…"
                   className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 resize-none bg-gray-50"
                 />
               </div>

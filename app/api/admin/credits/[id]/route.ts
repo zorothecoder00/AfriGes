@@ -39,7 +39,10 @@ export async function GET(_req: Request, { params }: Ctx) {
         },
         remboursements: {
           orderBy: { dateRemboursement: "desc" },
-          include: { enregistrePar: { select: { id: true, nom: true, prenom: true } } },
+          include: {
+            enregistrePar:   { select: { id: true, nom: true, prenom: true } },
+            agentCollecteur: { select: { id: true, nom: true, prenom: true } },
+          },
         },
       },
     });

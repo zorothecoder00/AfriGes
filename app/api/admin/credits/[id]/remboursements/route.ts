@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { PrioriteNotification, Role, StatutCredit, StatutEcheanceCredit, TypePaiement } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getRVCSession } from "@/lib/authRVC";
+import { validerNumeroJour, montantAttenduDuJour, parseDateCollecte } from "@/lib/remboursementCredit";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -30,11 +31,13 @@ export async function POST(req: Request, { params }: Ctx) {
     if (isNaN(creditId)) return NextResponse.json({ message: "ID invalide" }, { status: 400 });
 
     const body = await req.json();
-    const { montant, modePaiement, notes } = body;
+    const { montant, modePaiement, notes, observation, numeroJour, agentCollecteurId, dateCollecte } = body;
 
     if (!montant || Number(montant) <= 0) {
       return NextResponse.json({ message: "Le montant doit être positif" }, { status: 400 });
     }
+
+    const numeroJourNum = numeroJour != null && numeroJour !== "" ? parseInt(String(numeroJour)) : null;
 
     const result = await prisma.$transaction(async (tx) => {
       const credit = await tx.creditClient.findUnique({
@@ -45,6 +48,9 @@ export async function POST(req: Request, { params }: Ctx) {
 
       const statutsAutorisés = [StatutCredit.ACTIF, StatutCredit.EN_RETARD];
       if (!(statutsAutorisés as StatutCredit[]).includes(credit.statut)) throw new Error("CREDIT_NON_REMBOURSABLE");
+
+      const erreurJour = validerNumeroJour(numeroJourNum, credit.dureeJours);
+      if (erreurJour) throw new Error("JOUR:" + erreurJour);
 
       const montantVerse = Number(montant);
       const now = new Date();
@@ -108,13 +114,19 @@ export async function POST(req: Request, { params }: Ctx) {
       );
 
       // ── Création du remboursement ─────────────────────────────────────────
+      const montantAttendu = await montantAttenduDuJour(tx, creditId, numeroJourNum);
       const remboursement = await tx.remboursementCredit.create({
         data: {
           creditId,
           montant: montantEffectif,
           modePaiement: (modePaiement as TypePaiement) ?? TypePaiement.ESPECES,
-          notes: notes || null,
+          notes: (observation ?? notes) || null,
           enregistreParId: Number(session.user.id),
+          // Agent collecteur = celui indiqué, sinon l'utilisateur qui encaisse
+          agentCollecteurId: agentCollecteurId ? parseInt(String(agentCollecteurId)) : Number(session.user.id),
+          numeroJour: numeroJourNum,
+          montantAttendu,
+          dateRemboursement: parseDateCollecte(dateCollecte) ?? new Date(),
           statut: "CONFIRME", // enregistrement direct admin/RVC — effets financiers déjà appliqués
         },
       });
@@ -241,6 +253,9 @@ export async function POST(req: Request, { params }: Ctx) {
   } catch (error: unknown) {
     console.error("POST /api/admin/credits/[id]/remboursements", error);
     if (error instanceof Error) {
+      if (error.message.startsWith("JOUR:")) {
+        return NextResponse.json({ message: error.message.slice(5) }, { status: 400 });
+      }
       const map: Record<string, [string, number]> = {
         CREDIT_INTROUVABLE:      ["Crédit introuvable", 404],
         CREDIT_NON_REMBOURSABLE: ["Seuls les crédits ACTIF ou EN_RETARD peuvent être remboursés", 422],

@@ -132,7 +132,10 @@ function CreditCard_({
           </div>
           <div className="flex items-center gap-1 text-xs text-gray-500">
             <User size={11} />
-            <span>{credit.client.prenom} {credit.client.nom}</span>
+            <a href={`/dashboard/user/agentsTerrain/clients/${credit.client.id}`}
+              className="text-emerald-600 hover:underline font-medium">
+              {credit.client.prenom} {credit.client.nom}
+            </a>
             <span className="text-gray-300 mx-1">·</span>
             <span>{credit.client.telephone}</span>
           </div>
@@ -269,9 +272,13 @@ function RembourserModal({
   const [montant,       setMontant]       = useState("");
   const [modePaiement,  setModePaiement]  = useState("ESPECES");
   const [notes,         setNotes]         = useState("");
+  const [dateCollecte,  setDateCollecte]  = useState(new Date().toISOString().slice(0, 10));
+  const [numeroJour,    setNumeroJour]    = useState("");
   const [loading,       setLoading]       = useState(false);
 
   const solde = credit.soldeRestant;
+  // Nombre de jours dérivé (montantJournalier = montantTotal / dureeJours)
+  const nbJours = credit.montantJournalier > 0 ? Math.round(credit.montantTotal / credit.montantJournalier) : 0;
 
   const handleSubmit = async () => {
     const m = parseFloat(montant);
@@ -283,7 +290,12 @@ function RembourserModal({
       const res = await fetch(`/api/agentTerrain/credits/${credit.id}/rembourser`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ montant: m, modePaiement, notes: notes || undefined }),
+        body: JSON.stringify({
+          montant: m, modePaiement,
+          observation: notes || undefined,
+          numeroJour: numeroJour || undefined,
+          dateCollecte: dateCollecte || undefined,
+        }),
       });
       const json = await res.json();
       if (res.ok) {
@@ -315,9 +327,36 @@ function RembourserModal({
             <span className="font-bold text-red-600">{formatCurrency(solde)}</span>
           </div>
 
-          {/* Montant */}
+          {/* Date de collecte + N° de jour */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Date de collecte</label>
+              <input type="date" value={dateCollecte} onChange={(e) => setDateCollecte(e.target.value)}
+                className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">N° de jour</label>
+              <select value={numeroJour} onChange={(e) => setNumeroJour(e.target.value)}
+                className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                <option value="">—</option>
+                {Array.from({ length: nbJours }, (_, i) => i + 1).map((j) => (
+                  <option key={j} value={j}>Jour {j}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Montant attendu */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">Montant collecté *</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">Montant attendu</label>
+            <input type="text" readOnly value={formatCurrency(credit.montantJournalier)}
+              className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm bg-gray-100 text-gray-500" />
+            <p className="text-[11px] text-gray-400 mt-1">Montant journalier indicatif — l&apos;échéance exacte du jour est recalculée à l&apos;enregistrement.</p>
+          </div>
+
+          {/* Montant encaissé */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">Montant encaissé *</label>
             <input
               type="number" min={1} max={solde} placeholder="0"
               value={montant} onChange={(e) => setMontant(e.target.value)}
@@ -340,12 +379,12 @@ function RembourserModal({
             </select>
           </div>
 
-          {/* Notes */}
+          {/* Observation */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">Notes (optionnel)</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">Observation (optionnel)</label>
             <input
               type="text" value={notes} onChange={(e) => setNotes(e.target.value)}
-              placeholder="Remarque sur le remboursement…"
+              placeholder="Commentaire sur la collecte…"
               className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
             />
           </div>

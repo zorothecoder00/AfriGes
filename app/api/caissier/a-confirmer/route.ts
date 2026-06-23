@@ -55,7 +55,8 @@ export async function GET(req: NextRequest) {
               client: { select: { nom: true, prenom: true } },
             },
           },
-          enregistrePar: { select: { nom: true, prenom: true } },
+          enregistrePar:   { select: { nom: true, prenom: true } },
+          agentCollecteur: { select: { nom: true, prenom: true } },
         },
       }),
       // Ventes terrain PAID : stock sorti, espèces pas encore comptabilisées
@@ -100,6 +101,11 @@ export async function GET(req: NextRequest) {
           collectePar:     r.enregistrePar
                              ? `${r.enregistrePar.prenom} ${r.enregistrePar.nom}`
                              : "—",
+          agentCollecteur: r.agentCollecteur
+                             ? `${r.agentCollecteur.prenom} ${r.agentCollecteur.nom}`
+                             : null,
+          numeroJour:      r.numeroJour,
+          montantAttendu:  r.montantAttendu != null ? Number(r.montantAttendu) : null,
           notes:           r.notes,
           creditReference: r.credit.reference,
           soldeRestant:    Number(r.credit.soldeRestant),

@@ -49,8 +49,10 @@ export async function GET(_req: Request, { params }: Ctx) {
           orderBy: { dateRemboursement: "desc" },
           select: {
             id: true, montant: true, dateRemboursement: true,
-            modePaiement: true, notes: true,
-            enregistrePar: { select: { id: true, nom: true, prenom: true } },
+            modePaiement: true, notes: true, statut: true,
+            numeroJour: true, montantAttendu: true,
+            enregistrePar:   { select: { id: true, nom: true, prenom: true } },
+            agentCollecteur: { select: { id: true, nom: true, prenom: true } },
           },
         },
       },
@@ -72,11 +74,21 @@ export async function GET(_req: Request, { params }: Ctx) {
       soldeRestantTotal: credits
         .filter((c) => c.statut === StatutCredit.ACTIF || c.statut === StatutCredit.EN_RETARD)
         .reduce((s, c) => s + Number(c.soldeRestant), 0),
+      // Crédit en cours = montant total emprunté des crédits encore actifs
+      montantEnCours: credits
+        .filter((c) => c.statut === StatutCredit.ACTIF || c.statut === StatutCredit.EN_RETARD)
+        .reduce((s, c) => s + Number(c.montantTotal), 0),
       echeancesEnRetard: credits.flatMap((c) =>
         c.echeances.filter(
           (e) => e.statut !== "PAYE" && new Date(e.dateEcheance) < now
         )
       ).length,
+      // Prochaine échéance non soldée (toutes échéances actives confondues), la plus proche
+      prochaineEcheance: credits
+        .filter((c) => c.statut === StatutCredit.ACTIF || c.statut === StatutCredit.EN_RETARD)
+        .flatMap((c) => c.echeances.filter((e) => e.statut !== "PAYE"))
+        .map((e) => e.dateEcheance)
+        .sort((a, b) => new Date(a).getTime() - new Date(b).getTime())[0] ?? null,
     };
 
     return NextResponse.json({ data: credits, stats, client });

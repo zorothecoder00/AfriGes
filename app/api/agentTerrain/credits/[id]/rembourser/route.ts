@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAgentTerrainSession } from "@/lib/authAgentTerrain";
 import { notifyAdmins } from "@/lib/notifications";
+import { validerNumeroJour, montantAttenduDuJour, parseDateCollecte } from "@/lib/remboursementCredit";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -21,11 +22,13 @@ export async function POST(req: Request, { params }: Ctx) {
     const agentNom = `${session.user.prenom ?? ""} ${session.user.nom ?? ""}`.trim();
 
     const body = await req.json();
-    const { montant, modePaiement = "ESPECES", notes } = body;
+    const { montant, modePaiement = "ESPECES", notes, observation, numeroJour, agentCollecteurId, dateCollecte } = body;
 
     if (!montant || parseFloat(montant) <= 0) {
       return NextResponse.json({ error: "Montant requis > 0" }, { status: 400 });
     }
+
+    const numeroJourNum = numeroJour != null && numeroJour !== "" ? parseInt(String(numeroJour)) : null;
 
     const credit = await prisma.creditClient.findUnique({
       where: { id: creditId },
@@ -42,6 +45,9 @@ export async function POST(req: Request, { params }: Ctx) {
       return NextResponse.json({ error: "Crédit non actif" }, { status: 400 });
     }
 
+    const erreurJour = validerNumeroJour(numeroJourNum, credit.dureeJours);
+    if (erreurJour) return NextResponse.json({ error: erreurJour }, { status: 400 });
+
     const montantNum = parseFloat(montant);
     if (montantNum > Number(credit.soldeRestant) + 0.01) {
       return NextResponse.json(
@@ -52,6 +58,7 @@ export async function POST(req: Request, { params }: Ctx) {
 
     const result = await prisma.$transaction(async (tx) => {
       // 1. Créer le remboursement EN_ATTENTE_CAISSIER — effet financier appliqué par le caissier
+      const montantAttendu = await montantAttenduDuJour(tx, creditId, numeroJourNum);
       const remboursement = await tx.remboursementCredit.create({
         data: {
           creditId,
@@ -59,7 +66,12 @@ export async function POST(req: Request, { params }: Ctx) {
           modePaiement: modePaiement as "ESPECES" | "MOBILE_MONEY" | "VIREMENT" | "CHEQUE",
           statut: "EN_ATTENTE_CAISSIER",
           enregistreParId: agentId,
-          notes: notes ?? `Remboursement terrain — ${agentNom}`,
+          // Agent collecteur = l'agent de terrain lui-même par défaut
+          agentCollecteurId: agentCollecteurId ? parseInt(String(agentCollecteurId)) : agentId,
+          numeroJour: numeroJourNum,
+          montantAttendu,
+          dateRemboursement: parseDateCollecte(dateCollecte) ?? new Date(),
+          notes: (observation ?? notes) || `Remboursement terrain — ${agentNom}`,
         },
       });
 

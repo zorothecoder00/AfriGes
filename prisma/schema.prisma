@@ -691,7 +691,8 @@ model User {
   creditsCreees                CreditClient[]       @relation("CreditCreateur")
   creditsValides               CreditClient[]       @relation("CreditValidateur")
   facturesVenteEmises          FactureVente[]       @relation("FacturesVenteEmises")
-  remboursementsEnregistres    RemboursementCredit[]
+  remboursementsEnregistres    RemboursementCredit[]      @relation("RemboursementEnregistrePar")
+  remboursementsCollectes      RemboursementCredit[]      @relation("RemboursementAgentCollecteur")
   lignesSouscriptionTraitees   LigneSouscriptionProduit[] @relation("LignesTraitees")
   lignesCreditTraitees         LigneCreditClient[]        @relation("LignesCreditTraitees")
 
@@ -1222,17 +1223,23 @@ model EcheanceCredit {
 model RemboursementCredit {
   id                Int          @id @default(autoincrement())
   creditId          Int
-  montant           Decimal
-  dateRemboursement DateTime     @default(now())
+  montant           Decimal      // montant encaissé (saisi par l'utilisateur)
+  dateRemboursement DateTime     @default(now()) // date de collecte (date réelle)
   modePaiement      TypePaiement @default(ESPECES)
-  notes             String?
+  notes             String?      // observation / commentaire
   // EN_ATTENTE_CAISSIER = enregistré par agent/admin, en attente confirmation caissier
   // CONFIRME           = caissier a encaissé physiquement (effet financier appliqué)
   // REJETE             = caissier a rejeté (erreur de saisie, fraude, etc.)
   statut            String       @default("EN_ATTENTE_CAISSIER")
 
+  // Encaissement journalier (nullable — données existantes non impactées)
+  numeroJour        Int?         // N° de jour de la collecte (1..dureeJours)
+  montantAttendu    Decimal?     // montant attendu = échéance du jour (calcul auto)
+  agentCollecteurId Int?         // agent ayant physiquement collecté
+  agentCollecteur   User?        @relation("RemboursementAgentCollecteur", fields: [agentCollecteurId], references: [id])
+
   enregistreParId   Int
-  enregistrePar     User         @relation(fields: [enregistreParId], references: [id])
+  enregistrePar     User         @relation("RemboursementEnregistrePar", fields: [enregistreParId], references: [id])
 
   credit CreditClient @relation(fields: [creditId], references: [id], onDelete: Cascade)
 
@@ -1241,6 +1248,7 @@ model RemboursementCredit {
   @@index([creditId])
   @@index([statut])
   @@index([dateRemboursement])
+  @@index([agentCollecteurId])
 }
 
 // ============================================================
