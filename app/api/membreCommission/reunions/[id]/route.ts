@@ -4,6 +4,7 @@ import {
   getCommissionMembreSession, getRoleMembre, isPresident,
   ROLES_PREPARATION_REUNION, peutOutrepasserGating,
 } from "@/lib/authCommissionRIA";
+import { genererSalleVisio } from "@/lib/visioReunion";
 import { StatutReunionCommissionRIA } from "@prisma/client";
 
 type Ctx = { params: Promise<{ id: string }> };
@@ -58,11 +59,11 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
     const reunionId = parseInt(id);
     const userId = parseInt(auth.session.user.id);
     const body = await req.json();
-    const { titre, dateHeure, lieu, ordreJour, statut, convoquer } = body;
+    const { titre, dateHeure, lieu, ordreJour, statut, convoquer, lienVisio, activerVisio } = body;
 
     const existante = await prisma.reunionCommissionRIA.findUnique({
       where: { id: reunionId },
-      select: { typeCommission: true, statut: true },
+      select: { typeCommission: true, statut: true, salleVisio: true },
     });
     if (!existante) return NextResponse.json({ error: "Réunion introuvable" }, { status: 404 });
 
@@ -79,8 +80,9 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
     if ((convoquer === true || statut !== undefined) && !president) {
       return NextResponse.json({ error: "Convocation et changement de statut réservés au Président" }, { status: 403 });
     }
-    // Édition logistique (titre/date/lieu/ordre du jour) = préparateurs, et seulement en préparation
-    const editeLogistique = titre !== undefined || dateHeure !== undefined || lieu !== undefined || ordreJour !== undefined;
+    // Édition logistique (titre/date/lieu/ordre du jour/visio) = préparateurs, et seulement en préparation
+    const editeLogistique = titre !== undefined || dateHeure !== undefined || lieu !== undefined
+      || ordreJour !== undefined || lienVisio !== undefined || activerVisio === true;
     if (editeLogistique) {
       if (!preparateur) {
         return NextResponse.json({ error: "Préparation réservée au Président et au Rapporteur 1" }, { status: 403 });
@@ -97,6 +99,8 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
         ...(lieu !== undefined ? { lieu } : {}),
         ...(ordreJour !== undefined ? { ordreJour } : {}),
         ...(statut !== undefined ? { statut: statut as StatutReunionCommissionRIA } : {}),
+        ...(lienVisio !== undefined ? { lienVisio: lienVisio?.trim() || null } : {}),
+        ...(activerVisio === true && !existante.salleVisio ? { salleVisio: genererSalleVisio() } : {}),
       };
       if (convoquer === true) {
         data.convocationEnvoyee = true;

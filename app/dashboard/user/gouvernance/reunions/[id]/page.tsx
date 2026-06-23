@@ -10,6 +10,7 @@ import {
   parseActionsCR, serializeActionsCR, type ActionCR,
 } from "@/lib/commissionsRIA";
 import { ActionsCREditor, ActionsCRView } from "@/components/gouvernance/ActionsCompteRendu";
+import VisioReunion from "@/components/gouvernance/VisioReunion";
 import {
   ChevronLeft, Calendar, MapPin, Clock, Users, FileText, CheckCircle2,
   Send, Archive, ClipboardList, PenLine, ShieldCheck, ListChecks, Plus, AlertTriangle, Play,
@@ -32,7 +33,8 @@ interface Tache {
 }
 interface Reunion {
   id: number; titre: string; typeCommission: string; dateHeure: string;
-  lieu: string | null; statut: string; ordreJour: string | null;
+  lieu: string | null; salleVisio: string | null; lienVisio: string | null;
+  statut: string; ordreJour: string | null;
   convocationEnvoyee: boolean; dateConvocation: string | null;
   organisateur: { id: number; nom: string; prenom: string };
   presences: Presence[];
@@ -109,6 +111,9 @@ export default function MembreReunionDetailPage() {
   const estSuivi = role === "PRESIDENT" || role === "RAPPORTEUR_2" || role === "ADMIN";
   // Une tâche émane d'une réunion engagée : création possible seulement si EN_COURS / TENUE.
   const peutCreerTache = estSuivi && reunionExploitable(reunion.statut);
+  const monNom = session?.user ? `${session.user.prenom ?? ""} ${session.user.nom ?? ""}`.trim() : undefined;
+  // Édition visio = préparateurs (Président / Rapporteur 1) et seulement en préparation (cf. garde-fou API).
+  const peutEditerVisio = (estPresident || role === "RAPPORTEUR_1") && reunion.statut === "PLANIFIEE";
   const s = STATUT_REUNION[reunion.statut] ?? { label: reunion.statut, color: "bg-slate-100 text-slate-600" };
 
   // Membres assignables (depuis la feuille de présence de la réunion)
@@ -138,6 +143,12 @@ export default function MembreReunionDetailPage() {
   async function signerPresence() {
     const res = await signer({});
     if (res) { toast.success("Présence signée"); refetch(); }
+  }
+  async function patchVisio(payload: { lienVisio?: string | null; activerVisio?: boolean }) {
+    const res = await patcher(payload);
+    if (res) { refetch(); return true; }
+    toast.error("Erreur lors de la mise à jour de la visio");
+    return false;
   }
   async function sauverCr(valider: boolean) {
     const res = await saveCr({ ...form, valider });
@@ -212,6 +223,16 @@ export default function MembreReunionDetailPage() {
           </div>
         )}
       </div>
+
+      {/* Visioconférence */}
+      <VisioReunion
+        salle={reunion.salleVisio}
+        lienExterne={reunion.lienVisio}
+        titre={reunion.titre}
+        displayName={monNom}
+        editable={peutEditerVisio}
+        onPatch={patchVisio}
+      />
 
       {/* Convocation + statut (Président) */}
       {estPresident && (

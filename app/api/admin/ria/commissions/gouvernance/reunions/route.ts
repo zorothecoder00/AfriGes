@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getRIASession } from "@/lib/authRIA";
+import { genererSalleVisio } from "@/lib/visioReunion";
 import { TypeCommissionRIA } from "@prisma/client";
 
 export async function GET(req: NextRequest) {
@@ -41,7 +42,7 @@ export async function POST(req: NextRequest) {
     if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
 
     const body = await req.json();
-    const { typeCommission, titre, dateHeure, lieu, ordreJour } = body;
+    const { typeCommission, titre, dateHeure, lieu, ordreJour, lienVisio } = body;
 
     if (!typeCommission || !titre || !dateHeure) {
       return NextResponse.json({ error: "typeCommission, titre et dateHeure requis" }, { status: 400 });
@@ -54,6 +55,9 @@ export async function POST(req: NextRequest) {
         dateHeure: new Date(dateHeure),
         lieu,
         ordreJour,
+        // Salle visio intégrée générée d'office : chaque réunion est joignable à distance.
+        salleVisio: genererSalleVisio(),
+        lienVisio: lienVisio?.trim() || null,
         statut: "PLANIFIEE",
         organisateurId: parseInt(session.user.id),
       },

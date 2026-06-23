@@ -4629,6 +4629,10 @@ model ReunionCommissionRIA {
   statut         StatutReunionCommissionRIA @default(PLANIFIEE)
   compteRendu    String?
 
+  // Visioconférence (réunion à distance)
+  salleVisio     String?                    // Salle Jitsi intégrée (générée à la création) — réunion DANS l'appli
+  lienVisio      String?                    // Lien externe optionnel (Google Meet / Zoom / Teams)
+
   // Convocation (CDC)
   convocationEnvoyee Boolean   @default(false)
   dateConvocation    DateTime?

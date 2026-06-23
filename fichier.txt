@@ -4,7 +4,7 @@
 On peut aussi utiliser du SVG pour les graphiques ( sans forcément dépendance externe)  
 Ce code :      
  const a = document.createElement("a");
- a.href = url;                    
+ a.href = url;                      
  a.download = filename;                                                
  a.click();                                                                  
  permet de créer un téléchargement via un clic sur une URL ( utile pour les exports)
@@ -21,6 +21,11 @@ netsh wlan show profile name="NomDuWifi" key=clear affiche toutes les propriét�
 -curl -fsSL https://claude.ai/install.cmd -o install.cmd && install.cmd && del install.cmd pour installer claude via le terminal cmd   
 
 -BQuerry pour extraire les données et faire des analyses
+
+-Jitsi Meet (gratuit, intégrable
+  en iframe, salle générée par réunion, aucun backend à héberger) — ce qui donne
+  une vraie réunion dans l'application — tout en gardant la possibilité de
+  coller un lien Meet/Zoom externe.
 
 
  Voilà. Ce que tu dois remplir obligatoirement pour activer les alertes :
@@ -87,10 +92,7 @@ Google OAuth crée automatiquement un utilisateur sans rôle
 Chercher comment utiliser l'authentification de google sans avoir besoin de payer
 
 
-
-
-✢ Twisting… (19s · ↓ 995 tokens)
-  ⎿ Tip: Working with HTML/CSS? Install the frontend-design plugin:  /plugin install frontend-design@claude-plugins-official
+⎿ Tip: Working with HTML/CSS? Install the frontend-design plugin:  /plugin install frontend-design@claude-plugins-official
 
 
 Pouvoir donner des communes à des clients et aussi les secteurs d'activité

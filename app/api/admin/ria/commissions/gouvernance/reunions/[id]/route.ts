@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getRIASession } from "@/lib/authRIA";
+import { genererSalleVisio } from "@/lib/visioReunion";
 import { notify } from "@/lib/notifications";
 import { StatutReunionCommissionRIA, PrioriteNotification } from "@prisma/client";
 
@@ -57,11 +58,11 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
     const { id } = await params;
     const reunionId = parseInt(id);
     const body = await req.json();
-    const { titre, dateHeure, lieu, ordreJour, statut, compteRendu, convoquer } = body;
+    const { titre, dateHeure, lieu, ordreJour, statut, compteRendu, convoquer, lienVisio, activerVisio } = body;
 
     const existante = await prisma.reunionCommissionRIA.findUnique({
       where: { id: reunionId },
-      select: { typeCommission: true, statut: true },
+      select: { typeCommission: true, statut: true, salleVisio: true },
     });
     if (!existante) return NextResponse.json({ error: "Réunion introuvable" }, { status: 404 });
 
@@ -77,6 +78,9 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
         ...(ordreJour !== undefined ? { ordreJour } : {}),
         ...(statut !== undefined ? { statut: statut as StatutReunionCommissionRIA } : {}),
         ...(compteRendu !== undefined ? { compteRendu } : {}),
+        ...(lienVisio !== undefined ? { lienVisio: lienVisio?.trim() || null } : {}),
+        // Génère une salle Jitsi à la demande si la réunion n'en a pas (réunions anciennes).
+        ...(activerVisio === true && !existante.salleVisio ? { salleVisio: genererSalleVisio() } : {}),
       };
 
       // Convocation (CDC) : marque l'envoi et matérialise la feuille de présence

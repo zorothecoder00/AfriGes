@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import {
   Calendar, Plus, Search, Filter, ChevronDown, Users, FileText,
   CheckCircle2, XCircle, Clock, PlayCircle, Eye, Pen, Send,
-  MapPin, RefreshCw,
+  MapPin, RefreshCw, Video,
 } from "lucide-react";
 
 interface Reunion {
@@ -16,6 +16,8 @@ interface Reunion {
   typeCommission: string;
   dateHeure: string;
   lieu: string | null;
+  salleVisio: string | null;
+  lienVisio: string | null;
   statut: string;
   convocationEnvoyee: boolean;
   organisateur: { nom: string; prenom: string };
@@ -49,7 +51,7 @@ function StatutBadge({ statut }: { statut: string }) {
 
 function CreateModal({ onClose, onDone }: { onClose: () => void; onDone: () => void }) {
   const [form, setForm] = useState({
-    titre: "", typeCommission: "FINANCE", dateHeure: "", lieu: "", ordreJour: "", type: "ORDINAIRE",
+    titre: "", typeCommission: "FINANCE", dateHeure: "", lieu: "", ordreJour: "", type: "ORDINAIRE", lienVisio: "",
   });
   const { mutate, loading } = useMutation("/api/admin/ria/commissions/gouvernance/reunions", "POST");
 
@@ -115,6 +117,15 @@ function CreateModal({ onClose, onDone }: { onClose: () => void; onDone: () => v
             <textarea value={form.ordreJour} onChange={e => setForm(f => ({ ...f, ordreJour: e.target.value }))}
               rows={3} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none"
               placeholder="Points à traiter..." />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-1 flex items-center gap-1.5">
+              <Video className="w-3.5 h-3.5 text-violet-500" /> Lien visio externe (optionnel)
+            </label>
+            <input value={form.lienVisio} onChange={e => setForm(f => ({ ...f, lienVisio: e.target.value }))}
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400"
+              placeholder="https://meet.google.com/… ou https://zoom.us/…" />
+            <p className="text-xs text-slate-400 mt-1">Une salle visio intégrée à l&apos;appli est créée automatiquement. Ce lien externe est facultatif.</p>
           </div>
           <div className="flex justify-end gap-3 pt-2">
             <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 rounded-lg">Annuler</button>
@@ -236,6 +247,11 @@ export default function ReunionsPage() {
                       <Clock className="w-3 h-3" />
                       {new Date(r.dateHeure).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
                       {r.lieu && <><MapPin className="w-3 h-3 ml-1" />{r.lieu}</>}
+                      {(r.salleVisio || r.lienVisio) && (
+                        <span className="flex items-center gap-0.5 ml-1 text-violet-500" title="Visioconférence disponible">
+                          <Video className="w-3 h-3" /> Visio
+                        </span>
+                      )}
                     </p>
                   </td>
                   <td className="px-4 py-3 text-center">

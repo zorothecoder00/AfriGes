@@ -1,9 +1,11 @@
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { useApi, useMutation } from "@/hooks/useApi";
 import { useState } from "react";
 import { toast } from "sonner";
+import VisioReunion from "@/components/gouvernance/VisioReunion";
 import {
   Calendar, MapPin, Clock, Users, FileText, CheckCircle2, XCircle,
   ChevronLeft, RefreshCw, Plus, Send, Archive,
@@ -39,7 +41,8 @@ interface CompteRendu {
 }
 interface Reunion {
   id: number; titre: string; typeCommission: string; dateHeure: string;
-  lieu: string | null; statut: string; ordreJour: string | null;
+  lieu: string | null; salleVisio: string | null; lienVisio: string | null;
+  statut: string; ordreJour: string | null;
   convocationEnvoyee: boolean; type: string;
   organisateur: { id: number; nom: string; prenom: string };
   presences: Presence[];
@@ -86,6 +89,15 @@ const PRIORITE_COLOR: Record<string, string> = {
 /* ─── Onglet Convocation ─── */
 function OngletConvocation({ r, onRefresh }: { r: Reunion; onRefresh: () => void }) {
   const { mutate: patcher, loading } = useMutation(`/api/admin/ria/commissions/gouvernance/reunions/${r.id}`, "PATCH");
+  const { data: session } = useSession();
+  const monNom = session?.user ? `${session.user.prenom ?? ""} ${session.user.nom ?? ""}`.trim() : undefined;
+
+  async function patchVisio(payload: { lienVisio?: string | null; activerVisio?: boolean }) {
+    const res = await patcher(payload) as { id?: number } | null;
+    if (res?.id) { onRefresh(); return true; }
+    toast.error("Erreur lors de la mise à jour de la visio");
+    return false;
+  }
 
   async function changerStatut(statut: string) {
     const res = await patcher({ statut }) as { id?: number; error?: string } | null;
@@ -138,6 +150,16 @@ function OngletConvocation({ r, onRefresh }: { r: Reunion; onRefresh: () => void
           </div>
         )}
       </div>
+
+      {/* Visioconférence */}
+      <VisioReunion
+        salle={r.salleVisio}
+        lienExterne={r.lienVisio}
+        titre={r.titre}
+        displayName={monNom}
+        editable
+        onPatch={patchVisio}
+      />
 
       {/* Actions statut */}
       <div className="bg-white border border-slate-200 rounded-xl p-5">

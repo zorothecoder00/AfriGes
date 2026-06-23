@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCommissionMembreSession, getRoleMembre, ROLES_PREPARATION_REUNION } from "@/lib/authCommissionRIA";
+import { genererSalleVisio } from "@/lib/visioReunion";
 import { TypeCommissionRIA } from "@prisma/client";
 
 export async function GET(req: NextRequest) {
@@ -52,7 +53,7 @@ export async function POST(req: NextRequest) {
 
     const userId = parseInt(auth.session.user.id);
     const body = await req.json();
-    const { typeCommission, titre, dateHeure, lieu, ordreJour } = body;
+    const { typeCommission, titre, dateHeure, lieu, ordreJour, lienVisio } = body;
 
     if (!typeCommission || !titre || !dateHeure) {
       return NextResponse.json({ error: "typeCommission, titre et dateHeure requis" }, { status: 400 });
@@ -76,6 +77,8 @@ export async function POST(req: NextRequest) {
         dateHeure: new Date(dateHeure),
         lieu: lieu ?? null,
         ordreJour: ordreJour ?? null,
+        salleVisio: genererSalleVisio(),
+        lienVisio: lienVisio?.trim() || null,
         statut: "PLANIFIEE",
         organisateurId: userId,
       },
