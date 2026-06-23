@@ -9,7 +9,7 @@ interface CreditAEncaisser {
   clientId: number; clientNom: string; clientPrenom: string; telephone: string;
   creditId: number; reference: string; soldeRestant: number;
   dureeJours: number; numeroJour: number | null; montantAttendu: number;
-  montantTotal: number; montantRembourse: number; tauxPaye: number; dateDebut: string;
+  montantTotal: number; montantRembourse: number; montantJournalier: number; tauxPaye: number; dateDebut: string;
 }
 interface ResultatBatch {
   enregistres: number; ignores: number; montantTotal: number;
@@ -17,7 +17,7 @@ interface ResultatBatch {
 }
 interface Collecteur { id: number; nom: string; prenom: string }
 
-type Ligne = { jour: string; recu: string; obs: string };
+type Ligne = { jour: string; nbJours: string; recu: string; obs: string };
 
 interface RecapLigne {
   client: string; reference: string; jour: string | null; montant: number; observation: string | null; error: string | null;
@@ -77,7 +77,7 @@ export default function SaisieRapideRemboursement({ apiBase, collecteursApi, acc
     const key = items.map((i) => i.creditId).join(",");
     if (key !== seededKey) {
       const init: Record<number, Ligne> = {};
-      items.forEach((it) => { init[it.creditId] = { jour: it.numeroJour ? String(it.numeroJour) : "", recu: "", obs: "" }; });
+      items.forEach((it) => { init[it.creditId] = { jour: it.numeroJour ? String(it.numeroJour) : "", nbJours: "1", recu: "", obs: "" }; });
       setRows(init);
       setSeededKey(key);
     }
@@ -86,13 +86,28 @@ export default function SaisieRapideRemboursement({ apiBase, collecteursApi, acc
   const setRow = (creditId: number, patch: Partial<Ligne>) =>
     setRows((p) => ({ ...p, [creditId]: { ...p[creditId], ...patch } }));
 
-  // Pré-remplit Reçu = Attendu pour toutes les lignes encore vides.
+  // Nombre de jours payés en une fois (borné par les jours restants du crédit).
+  const nbJoursDe = (it: CreditAEncaisser, row?: Ligne) => {
+    const start = parseInt(row?.jour ?? "") || it.numeroJour || 1;
+    const max = Math.max(1, it.dureeJours - start + 1);
+    return Math.max(1, Math.min(parseInt(row?.nbJours ?? "1") || 1, max));
+  };
+  // Montant attendu = échéance du jour de départ + montant journalier × jours suppl.,
+  // plafonné au solde restant.
+  const attenduRow = (it: CreditAEncaisser, row?: Ligne) => {
+    const nb = nbJoursDe(it, row);
+    return Math.min(it.montantAttendu + it.montantJournalier * (nb - 1), it.soldeRestant);
+  };
+
+  // Pré-remplit Reçu = Attendu (multi-jours) pour toutes les lignes encore vides.
   const remplirAttendu = () =>
     setRows((p) => {
       const next = { ...p };
       items.forEach((it) => {
-        if (!next[it.creditId]?.recu && it.montantAttendu > 0) {
-          next[it.creditId] = { ...next[it.creditId], recu: String(Math.round(it.montantAttendu)) };
+        const row = next[it.creditId];
+        if (!row?.recu) {
+          const att = attenduRow(it, row);
+          if (att > 0) next[it.creditId] = { ...row, recu: String(Math.round(att)) };
         }
       });
       return next;
@@ -112,12 +127,20 @@ export default function SaisieRapideRemboursement({ apiBase, collecteursApi, acc
   async function enregistrer() {
     const lignes = items
       .filter((it) => Number(rows[it.creditId]?.recu) > 0)
-      .map((it) => ({
-        creditId: it.creditId,
-        numeroJour: rows[it.creditId].jour || null,
-        montant: Number(rows[it.creditId].recu),
-        observation: rows[it.creditId].obs || null,
-      }));
+      .map((it) => {
+        const row = rows[it.creditId];
+        const nb = nbJoursDe(it, row);
+        const startJ = parseInt(row.jour || "") || it.numeroJour || null;
+        // Trace le paiement multi-jours dans l'observation (J début → J fin).
+        const note = nb > 1 && startJ ? `Paiement ${nb} jours (J${startJ}–J${startJ + nb - 1})` : "";
+        const observation = [row.obs, note].filter(Boolean).join(" · ") || null;
+        return {
+          creditId: it.creditId,
+          numeroJour: row.jour || null,
+          montant: Number(row.recu),
+          observation,
+        };
+      });
     if (lignes.length === 0) { toast.error("Aucun montant reçu saisi"); return; }
 
     setSaving(true);
@@ -215,7 +238,7 @@ export default function SaisieRapideRemboursement({ apiBase, collecteursApi, acc
             <thead className="bg-slate-50 border-b border-slate-200">
               <tr>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase">Client</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase">Jour</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase">Jour(s)</th>
                 <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase">Attendu</th>
                 <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase">Reçu</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase">Observation</th>
@@ -227,7 +250,7 @@ export default function SaisieRapideRemboursement({ apiBase, collecteursApi, acc
               ) : filtered.length === 0 ? (
                 <tr><td colSpan={5} className="px-4 py-10 text-center text-slate-400">Aucun crédit à encaisser</td></tr>
               ) : filtered.map((it) => {
-                const row = rows[it.creditId] ?? { jour: "", recu: "", obs: "" };
+                const row = rows[it.creditId] ?? { jour: "", nbJours: "1", recu: "", obs: "" };
                 return (
                   <tr key={it.creditId} className="hover:bg-slate-50/60">
                     <td className="px-4 py-2.5">
@@ -247,13 +270,22 @@ export default function SaisieRapideRemboursement({ apiBase, collecteursApi, acc
                       </div>
                     </td>
                     <td className="px-4 py-2.5">
-                      <select value={row.jour} onChange={(e) => setRow(it.creditId, { jour: e.target.value })}
-                        className="w-20 border border-slate-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300">
-                        <option value="">—</option>
-                        {Array.from({ length: it.dureeJours }, (_, i) => i + 1).map((j) => <option key={j} value={j}>J{j}</option>)}
-                      </select>
+                      <div className="flex items-center gap-1">
+                        <select value={row.jour} onChange={(e) => setRow(it.creditId, { jour: e.target.value })}
+                          title="Jour de départ"
+                          className="w-16 border border-slate-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300">
+                          <option value="">—</option>
+                          {Array.from({ length: it.dureeJours }, (_, i) => i + 1).map((j) => <option key={j} value={j}>J{j}</option>)}
+                        </select>
+                        <span className="text-xs text-slate-400">×</span>
+                        <input type="number" min={1} max={it.dureeJours} value={row.nbJours}
+                          onChange={(e) => setRow(it.creditId, { nbJours: e.target.value })}
+                          title="Nombre de jours payés en une fois"
+                          className="w-12 border border-slate-200 rounded-lg px-1.5 py-1.5 text-sm text-center focus:outline-none focus:ring-2 focus:ring-slate-300" />
+                        <span className="text-[10px] text-slate-400">j</span>
+                      </div>
                     </td>
-                    <td className="px-4 py-2.5 text-right text-slate-500">{it.montantAttendu > 0 ? fmt(it.montantAttendu) : "—"}</td>
+                    <td className="px-4 py-2.5 text-right text-slate-500">{attenduRow(it, row) > 0 ? fmt(attenduRow(it, row)) : "—"}</td>
                     <td className="px-4 py-2.5 text-right">
                       <input type="number" min={0} value={row.recu} onChange={(e) => setRow(it.creditId, { recu: e.target.value })}
                         placeholder="0"
