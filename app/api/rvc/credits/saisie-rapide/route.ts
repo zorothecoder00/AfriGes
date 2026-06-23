@@ -2,11 +2,12 @@ import { NextResponse } from "next/server";
 import { chargerCreditsAEncaisser, traiterBatchRemboursement, parseDateCollecte } from "@/lib/remboursementCredit";
 import { scopeRVC } from "@/lib/remboursementScope";
 
-/** GET — clients/crédits à encaisser du périmètre RVC. */
-export async function GET() {
+/** GET — crédits à encaisser du périmètre RVC. ?agentId= filtre sur ses clients affectés. */
+export async function GET(req: Request) {
   const s = await scopeRVC();
   if (!s.ok) return s.response;
-  const data = await chargerCreditsAEncaisser(s.scope.where);
+  const agentId = new URL(req.url).searchParams.get("agentId");
+  const data = await chargerCreditsAEncaisser(s.scope.where, agentId ? parseInt(agentId) : null);
   return NextResponse.json({ data });
 }
 

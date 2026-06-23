@@ -55,7 +55,11 @@ interface Props {
 export default function SaisieRapideRemboursement({ apiBase, collecteursApi, accent = "emerald", noteConfirmation, backHref }: Props) {
   const a = ACCENTS[accent] ?? ACCENTS.emerald;
   const [refresh, setRefresh] = useState(0);
-  const { data, loading } = useApi<{ data: CreditAEncaisser[] }>(`${apiBase}?_r=${refresh}`);
+  const [agent, setAgent] = useState("");
+  // Le choix de l'agent collecteur filtre la liste sur SES clients affectés.
+  const { data, loading } = useApi<{ data: CreditAEncaisser[] }>(
+    `${apiBase}?_r=${refresh}${agent ? `&agentId=${agent}` : ""}`,
+  );
   const items = data?.data ?? [];
 
   const { data: collData } = useApi<{ data: Collecteur[] }>(collecteursApi ?? null);
@@ -63,7 +67,6 @@ export default function SaisieRapideRemboursement({ apiBase, collecteursApi, acc
 
   const [rows, setRows] = useState<Record<number, Ligne>>({});
   const [seededKey, setSeededKey] = useState<string>("");
-  const [agent, setAgent] = useState("");
   const [dateCollecte, setDateCollecte] = useState(new Date().toISOString().slice(0, 10));
   const [search, setSearch] = useState("");
   const [saving, setSaving] = useState(false);
@@ -186,7 +189,7 @@ export default function SaisieRapideRemboursement({ apiBase, collecteursApi, acc
         </div>
         {collecteursApi && (
           <div>
-            <label className="block text-xs font-medium text-slate-600 mb-1 flex items-center gap-1"><Users className="w-3 h-3" /> Agent collecteur (toute la tournée)</label>
+            <label className="block text-xs font-medium text-slate-600 mb-1 flex items-center gap-1"><Users className="w-3 h-3" /> Agent collecteur — filtre ses clients</label>
             <select value={agent} onChange={(e) => setAgent(e.target.value)}
               className="border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300 min-w-48">
               <option value="">— Moi-même —</option>

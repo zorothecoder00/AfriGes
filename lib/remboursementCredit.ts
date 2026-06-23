@@ -70,9 +70,20 @@ export interface CreditAEncaisser {
  */
 export async function chargerCreditsAEncaisser(
   where: Prisma.CreditClientWhereInput,
+  agentId?: number | null,
 ): Promise<CreditAEncaisser[]> {
+  // Filtre optionnel par agent de terrain affecté au client, intersecté avec le
+  // périmètre du rôle (ex. PDV du RVC/caissier) sur la même clé `client`.
+  const clientWhere: Prisma.ClientWhereInput = {
+    ...(where.client && typeof where.client === "object" ? (where.client as Prisma.ClientWhereInput) : {}),
+    ...(agentId ? { agentTerrainId: agentId } : {}),
+  };
   const credits = await prisma.creditClient.findMany({
-    where: { ...where, statut: { in: [StatutCredit.ACTIF, StatutCredit.EN_RETARD] } },
+    where: {
+      ...where,
+      statut: { in: [StatutCredit.ACTIF, StatutCredit.EN_RETARD] },
+      ...(Object.keys(clientWhere).length ? { client: clientWhere } : {}),
+    },
     select: {
       id: true, reference: true, soldeRestant: true, dureeJours: true,
       montantTotal: true, montantRembourse: true, dateDebut: true,

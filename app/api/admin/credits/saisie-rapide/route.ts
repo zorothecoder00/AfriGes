@@ -2,11 +2,12 @@ import { NextResponse } from "next/server";
 import { chargerCreditsAEncaisser, traiterBatchRemboursement, parseDateCollecte } from "@/lib/remboursementCredit";
 import { scopeAdmin } from "@/lib/remboursementScope";
 
-/** GET — tous les crédits à encaisser. */
-export async function GET() {
+/** GET — crédits à encaisser. ?agentId= filtre sur les clients affectés à cet agent. */
+export async function GET(req: Request) {
   const s = await scopeAdmin();
   if (!s.ok) return s.response;
-  const data = await chargerCreditsAEncaisser(s.scope.where);
+  const agentId = new URL(req.url).searchParams.get("agentId");
+  const data = await chargerCreditsAEncaisser(s.scope.where, agentId ? parseInt(agentId) : null);
   return NextResponse.json({ data });
 }
 
