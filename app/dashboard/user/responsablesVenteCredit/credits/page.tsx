@@ -799,6 +799,10 @@ export default function RVCCreditsPage() {
             )}
           </div>
           <div className="flex items-center gap-2">
+            <a href="/dashboard/user/responsablesVenteCredit/credits/saisie-rapide"
+              className="flex items-center gap-2 px-3 py-2 bg-white border border-indigo-200 text-indigo-700 rounded-lg hover:bg-indigo-50 text-sm font-medium">
+              <Banknote className="w-4 h-4" /> Saisie rapide
+            </a>
             <select value={statut} onChange={(e) => { setStatut(e.target.value); setPage(1); }}
               className="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
               <option value="">Tous les statuts</option>

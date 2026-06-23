@@ -634,6 +634,10 @@ export default function CreditsPage() {
             <p className="text-sm text-gray-500 mt-0.5">Ventes à crédit · validation · remboursements journaliers</p>
           </div>
           <div className="flex items-center gap-3">
+            <a href="/dashboard/admin/credits/saisie-rapide"
+              className="flex items-center gap-2 px-4 py-2.5 bg-white border border-blue-200 text-blue-700 rounded-xl hover:bg-blue-50 text-sm font-medium">
+              <Banknote className="w-4 h-4" /> Saisie rapide
+            </a>
             <button onClick={() => { resetNewCredit(); setNewCreditOpen(true); }}
               className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 shadow-lg shadow-blue-200 text-sm font-medium">
               <Plus className="w-4 h-4" /> Nouvelle vente à crédit

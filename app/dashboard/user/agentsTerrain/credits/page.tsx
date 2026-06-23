@@ -727,6 +727,10 @@ export default function AgentTerrainCreditsPage() {
               </div>
             </div>
             <div className="flex items-center gap-3">
+              <a href="/dashboard/user/agentsTerrain/credits/saisie-rapide"
+                className="flex items-center gap-1.5 px-3 py-2 bg-white border border-emerald-200 text-emerald-700 rounded-lg text-sm font-medium hover:bg-emerald-50">
+                <Banknote size={15} /> Saisie rapide
+              </a>
               <button
                 onClick={() => setShowModal(true)}
                 className="flex items-center gap-1.5 px-3 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700"

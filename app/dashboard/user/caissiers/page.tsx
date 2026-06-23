@@ -3568,6 +3568,10 @@ export default function CaissierPage() {
                   Crédits clients — recouvrement
                 </h3>
                 <div className="flex items-center gap-2">
+                  <a href="/dashboard/user/caissiers/saisie-rapide"
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700">
+                    <Banknote size={14} /> Saisie rapide
+                  </a>
                   <div className="relative">
                     <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
                     <input
