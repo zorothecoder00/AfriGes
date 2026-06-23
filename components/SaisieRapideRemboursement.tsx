@@ -9,6 +9,7 @@ interface CreditAEncaisser {
   clientId: number; clientNom: string; clientPrenom: string; telephone: string;
   creditId: number; reference: string; soldeRestant: number;
   dureeJours: number; numeroJour: number | null; montantAttendu: number;
+  montantTotal: number; montantRembourse: number; tauxPaye: number; dateDebut: string;
 }
 interface ResultatBatch {
   enregistres: number; ignores: number; montantTotal: number;
@@ -27,6 +28,7 @@ interface Recap extends ResultatBatch {
 }
 
 const fmt = (n: number) => new Intl.NumberFormat("fr-FR").format(Math.round(n));
+const moisDe = (iso: string) => new Date(iso).toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
 
 // Classes Tailwind complètes (le JIT ne détecte pas l'interpolation dynamique).
 const ACCENTS = {
@@ -227,7 +229,19 @@ export default function SaisieRapideRemboursement({ apiBase, collecteursApi, acc
                   <tr key={it.creditId} className="hover:bg-slate-50/60">
                     <td className="px-4 py-2.5">
                       <p className="font-medium text-slate-800">{it.clientPrenom} {it.clientNom}</p>
-                      <p className="text-xs text-slate-400">{it.reference} · reste {fmt(it.soldeRestant)}</p>
+                      <p className="text-xs text-slate-400">{it.reference} · {moisDe(it.dateDebut)}</p>
+                      <div className="flex items-center gap-2 mt-1 text-[11px] text-slate-500">
+                        <span>Total {fmt(it.montantTotal)}</span>
+                        <span className="text-slate-300">·</span>
+                        <span className="inline-flex items-center gap-1">
+                          <span className="w-12 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                            <span className={`block h-full rounded-full ${it.tauxPaye >= 100 ? "bg-emerald-500" : it.tauxPaye >= 50 ? "bg-blue-500" : "bg-amber-500"}`} style={{ width: `${Math.min(100, it.tauxPaye)}%` }} />
+                          </span>
+                          {it.tauxPaye}% payé
+                        </span>
+                        <span className="text-slate-300">·</span>
+                        <span className="text-rose-600 font-medium">reste {fmt(it.soldeRestant)}</span>
+                      </div>
                     </td>
                     <td className="px-4 py-2.5">
                       <select value={row.jour} onChange={(e) => setRow(it.creditId, { jour: e.target.value })}

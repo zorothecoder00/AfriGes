@@ -1,6 +1,7 @@
 "use client";   
 
 import React, { useState, useEffect, useCallback, useMemo } from "react";
+import { toast } from "sonner";
 import {
   ShoppingCart, Receipt, TrendingUp, Search, RefreshCw,
   Plus, X, CheckCircle, Clock, Banknote, Printer, BarChart3,
@@ -81,6 +82,25 @@ interface OperationCaisse {
   montant: number; motif: string; reference: string;
   operateurNom: string; createdAt: string;
 }
+
+interface HistoEncItem {
+  key: string;
+  type: "REMBOURSEMENT_CREDIT" | "VERSEMENT_PACK" | "VENTE_DIRECTE" | "OPERATION_CAISSE";
+  typeLabel: string; sourceId: number; client: string; libelle: string;
+  reference: string; mode: string | null; montant: number; date: string;
+  editable?: boolean; numeroJour?: number | null; observation?: string | null; agentCollecteurId?: number | null; montantMax?: number;
+}
+interface HistoEncResponse {
+  data: HistoEncItem[];
+  stats: { total: number; montantTotal: number; parType: { REMBOURSEMENT_CREDIT: number; VERSEMENT_PACK: number; VENTE_DIRECTE: number; OPERATION_CAISSE: number } };
+  meta: { total: number; page: number; limit: number; totalPages: number };
+}
+const HISTO_TYPE_STYLE: Record<string, string> = {
+  REMBOURSEMENT_CREDIT: "bg-emerald-100 text-emerald-700",
+  VERSEMENT_PACK:       "bg-sky-100 text-sky-700",
+  VENTE_DIRECTE:        "bg-indigo-100 text-indigo-700",
+  OPERATION_CAISSE:     "bg-violet-100 text-violet-700",
+};
 
 interface TransfertCaisse {
   id: number; sessionId: number;
@@ -912,6 +932,51 @@ export default function CaissierPage() {
     meta: { total: number; page: number; limit: number; totalPages: number };
   }>(operationsUrl);
 
+  // Historique unifié de TOUS les encaissements (remb. crédit, versements packs,
+  // ventes directes, opérations de caisse manuelles), filtrable par période.
+  const histoEncUrl = useMemo(() => {
+    const p = new URLSearchParams({ page: String(versementsPage), limit: "30" });
+    if (searchQuery) p.set("search", searchQuery);
+    if (filtreAujourdHui) p.set("aujourdHui", "true");
+    else { if (dateDebut) p.set("from", dateDebut); if (dateFin) p.set("to", dateFin); }
+    return `/api/caissier/historique-encaissements?${p.toString()}`;
+  }, [versementsPage, searchQuery, filtreAujourdHui, dateDebut, dateFin]);
+  const { data: histoEncRes, loading: histoEncLoading, refetch: refetchHistoEnc } = useApi<HistoEncResponse>(histoEncUrl);
+  const histoEncStats = histoEncRes?.stats;
+
+  // Édition d'un remboursement crédit depuis l'historique (champs non financiers)
+  const [editRemb, setEditRemb] = useState<HistoEncItem | null>(null);
+  const [editRembForm, setEditRembForm] = useState({ dateCollecte: "", numeroJour: "", agentCollecteurId: "", observation: "" });
+  const [editRembSaving, setEditRembSaving] = useState(false);
+  const openEditRemb = (it: HistoEncItem) => {
+    setEditRemb(it);
+    setEditRembForm({
+      dateCollecte: it.date ? it.date.slice(0, 10) : "",
+      numeroJour: it.numeroJour != null ? String(it.numeroJour) : "",
+      agentCollecteurId: it.agentCollecteurId != null ? String(it.agentCollecteurId) : "",
+      observation: it.observation ?? "",
+    });
+  };
+  const saveEditRemb = async () => {
+    if (!editRemb) return;
+    setEditRembSaving(true);
+    try {
+      const r = await fetch(`/api/caissier/remboursements/${editRemb.sourceId}`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          dateCollecte: editRembForm.dateCollecte || undefined,
+          numeroJour: editRembForm.numeroJour || undefined,
+          agentCollecteurId: editRembForm.agentCollecteurId || undefined,
+          observation: editRembForm.observation,
+        }),
+      });
+      const j = await r.json();
+      if (r.ok) { toast.success("Remboursement corrigé"); setEditRemb(null); refetchHistoEnc(); }
+      else toast.error(j.error ?? "Erreur");
+    } catch { toast.error("Erreur réseau"); }
+    finally { setEditRembSaving(false); }
+  };
+
   const { data: transfertsRes, refetch: refetchTransferts  } = useApi<{
     success: boolean;
     data: TransfertCaisse[];
@@ -1133,7 +1198,18 @@ export default function CaissierPage() {
       refetchVersements();
       refetchDashboard();
       refetchPacks();
+      refetchHistoEnc();
     }
+  };
+
+  // Ouvre le modal de correction d'un versement pack depuis la vue unifiée.
+  const openEditPack = (it: HistoEncItem) => {
+    setEditDateVersementId(it.sourceId);
+    setEditDateValue(it.date.slice(0, 10));
+    setEditMontantValue(String(it.montant));
+    setEditNotesValue(it.observation ?? "");
+    setEditMontantMax(it.montantMax ?? 0);
+    setEditDateModal(true);
   };
 
   const handleVoirRecu = useCallback(async (versementId: number) => {
@@ -1385,6 +1461,56 @@ export default function CaissierPage() {
       {factureVenteId     && <FactureModal venteDirecteId={factureVenteId}       onClose={() => setFactureVenteId(null)} />}
       {factureReceptionId && <FactureModal receptionPackId={factureReceptionId} onClose={() => setFactureReceptionId(null)} />}
       {factureCreditId    && <FactureModal creditClientId={factureCreditId}      onClose={() => setFactureCreditId(null)} />}
+
+      {/* ── Modal correction d'un remboursement crédit (depuis l'historique) ── */}
+      {editRemb && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[200] p-4">
+          <div className="bg-white rounded-2xl w-full max-w-md shadow-xl">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+              <h3 className="font-bold text-gray-900 flex items-center gap-2"><Pencil size={18} className="text-amber-600" /> Corriger le remboursement</h3>
+              <button onClick={() => setEditRemb(null)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+            </div>
+            <div className="px-5 py-4 space-y-3">
+              <div className="text-xs text-gray-500 bg-gray-50 border border-gray-100 rounded-lg px-3 py-2">
+                {editRemb.client} · {editRemb.libelle} · <span className="font-semibold text-gray-700">{formatCurrency(editRemb.montant)}</span>
+                <span className="block text-[11px] text-gray-400 mt-0.5">Le montant encaissé n&apos;est pas modifiable ici (effet financier).</span>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Date de collecte</label>
+                  <input type="date" value={editRembForm.dateCollecte} onChange={(e) => setEditRembForm((f) => ({ ...f, dateCollecte: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-amber-500" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">N° de jour</label>
+                  <input type="number" min={1} value={editRembForm.numeroJour} onChange={(e) => setEditRembForm((f) => ({ ...f, numeroJour: e.target.value }))}
+                    placeholder="—" className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-amber-500" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Agent collecteur</label>
+                <select value={editRembForm.agentCollecteurId} onChange={(e) => setEditRembForm((f) => ({ ...f, agentCollecteurId: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-amber-500">
+                  <option value="">— Inchangé / aucun —</option>
+                  {collecteurs.map((c) => <option key={c.id} value={c.id}>{c.prenom} {c.nom}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Observation</label>
+                <textarea rows={2} value={editRembForm.observation} onChange={(e) => setEditRembForm((f) => ({ ...f, observation: e.target.value }))}
+                  placeholder="Commentaire…" className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-amber-500 resize-none" />
+              </div>
+            </div>
+            <div className="flex justify-end gap-3 px-5 py-4 border-t border-gray-100">
+              <button onClick={() => setEditRemb(null)} className="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">Annuler</button>
+              <button onClick={saveEditRemb} disabled={editRembSaving}
+                className="flex items-center gap-2 px-5 py-2 text-sm text-white bg-amber-600 hover:bg-amber-700 rounded-lg font-medium disabled:opacity-50">
+                {editRembSaving ? <><Loader2 className="w-4 h-4 animate-spin" />Enregistrement…</> : <>Enregistrer</>}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Modal remboursement crédit au comptoir ── */}
       {rembCreditId !== null && (
@@ -2859,238 +2985,73 @@ export default function CaissierPage() {
               </div>
             </div>
 
-            {/* Stats période */}
-            {versementsStats && (
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                {[
-                  { label: "Versements",     value: String(versementsStats.totalVentes),            color: "text-sky-600"     },
-                  { label: "Total encaissé", value: formatCurrency(versementsStats.montantTotal),    color: "text-emerald-600" },
-                  { label: "Moy. versement", value: formatCurrency(versementsStats.panierMoyen),     color: "text-violet-600"  },
-                  { label: "Nb total",       value: String(versementsStats.quantiteTotale ?? "—"),   color: "text-amber-600"   },
-                ].map((s) => (
-                  <div key={s.label} className="bg-white rounded-xl p-4 shadow-sm border border-slate-200/60">
-                    <p className="text-xs text-slate-500">{s.label}</p>
-                    <p className={`text-xl font-bold ${s.color} mt-1`}>{s.value}</p>
+            {/* ── Vue unifiée : tous les encaissements ── */}
+            {histoEncStats && (
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                {([
+                  ["Total encaissé", histoEncStats.montantTotal, "text-slate-800"],
+                  ["Remb. crédit", histoEncStats.parType.REMBOURSEMENT_CREDIT, "text-emerald-600"],
+                  ["Versements pack", histoEncStats.parType.VERSEMENT_PACK, "text-sky-600"],
+                  ["Ventes directes", histoEncStats.parType.VENTE_DIRECTE, "text-indigo-600"],
+                  ["Encaiss. caisse", histoEncStats.parType.OPERATION_CAISSE, "text-violet-600"],
+                ] as [string, number, string][]).map(([label, val, color]) => (
+                  <div key={label} className="bg-white rounded-xl p-4 shadow-sm border border-slate-200/60">
+                    <p className="text-xs text-slate-500">{label}</p>
+                    <p className={`text-lg font-bold ${color} mt-1`}>{formatCurrency(val)}</p>
                   </div>
                 ))}
               </div>
             )}
 
-            {/* Tableau versements */}
             <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 overflow-hidden">
-              {versementsLoading ? (
-                <div className="flex items-center justify-center py-16">
-                  <div className="w-8 h-8 border-2 border-emerald-200 border-t-emerald-600 rounded-full animate-spin" />
-                </div>
+              {histoEncLoading && !histoEncRes ? (
+                <div className="flex items-center justify-center py-16"><div className="w-8 h-8 border-2 border-emerald-200 border-t-emerald-600 rounded-full animate-spin" /></div>
               ) : (
-                <>
-                  <div className="overflow-x-auto">
-                    <table className="w-full">
-                      <thead className="bg-slate-50 border-b border-slate-200">
-                        <tr>
-                          {["N°", "Pack", "Client", "Type", "Montant", "Date/Heure", ""].map((h) => (
-                            <th key={h} className="px-5 py-3.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">{h}</th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100">
-                        {versements.map((v) => {
-                          const person = v.souscription?.client ?? v.souscription?.user;
-                          return (
-                            <tr key={v.id} className="hover:bg-slate-50 transition-colors">
-                              <td className="px-5 py-3.5 text-xs font-mono text-slate-400 flex items-center gap-1">
-                                <Hash size={12} />{v.id}
-                              </td>
-                              <td className="px-5 py-3.5">
-                                <p className="font-semibold text-slate-800 text-sm">{v.souscription?.pack?.nom}</p>
-                                <div className="mt-0.5">{packTypeBadge(v.souscription?.pack?.type)}</div>
-                              </td>
-                              <td className="px-5 py-3.5 text-sm text-slate-600">
-                                {person ? `${person.prenom} ${person.nom}` : "—"}
-                              </td>
-                              <td className="px-5 py-3.5">
-                                <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full text-xs font-medium">
-                                  {versementTypeLabel(v.type)}
-                                </span>
-                              </td>
-                              <td className="px-5 py-3.5 font-bold text-emerald-600">{formatCurrency(Number(v.montant))}</td>
-                              <td className="px-5 py-3.5 text-xs text-slate-500">{formatDateTime(v.datePaiement)}</td>
-                              <td className="px-5 py-3.5">
-                                <div className="flex items-center gap-1">
-                                  <button
-                                    onClick={() => handleVoirRecu(v.id)}
-                                    className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
-                                    title="Voir le reçu"
-                                  >
-                                    <Eye size={15} />
-                                  </button>
-                                  <button
-                                    onClick={() => handleOpenEditDate(v)}
-                                    className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
-                                    title="Corriger le versement"
-                                  >
-                                    <Pencil size={14} />
-                                  </button>
-                                </div>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                        {versements.length === 0 && (
-                          <tr>
-                            <td colSpan={7} className="px-5 py-12 text-center text-slate-400 text-sm">
-                              Aucun versement trouvé pour cette période
-                            </td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                  {/* Pagination */}
-                  {versementsMeta && versementsMeta.totalPages > 1 && (
-                    <div className="px-5 py-4 border-t border-slate-100 flex items-center justify-between">
-                      <p className="text-sm text-slate-500">
-                        Page <span className="font-semibold">{versementsMeta.page}</span> / <span className="font-semibold">{versementsMeta.totalPages}</span>
-                        <span className="text-slate-400"> ({versementsMeta.total} versements)</span>
-                      </p>
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => setVersementsPage((p) => Math.max(1, p - 1))}
-                          disabled={versementsPage <= 1}
-                          className="p-2 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 disabled:opacity-40"
-                        >
-                          <ChevronLeft size={16} />
-                        </button>
-                        <span className="px-3 py-1 bg-emerald-600 text-white rounded-lg text-sm font-medium">{versementsPage}</span>
-                        <button
-                          onClick={() => setVersementsPage((p) => Math.min(versementsMeta.totalPages, p + 1))}
-                          disabled={versementsPage >= versementsMeta.totalPages}
-                          className="p-2 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 disabled:opacity-40"
-                        >
-                          <ChevronRight size={16} />
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
-
-            {/* Ventes directes */}
-            {ventesDir.length > 0 && (
-              <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 overflow-hidden">
-                <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
-                  <h3 className="font-bold text-slate-800 flex items-center gap-2">
-                    <ShoppingBag size={18} className="text-indigo-600" />
-                    Ventes directes
-                  </h3>
-                  <div className="flex items-center gap-3">
-                    <button
-                      onClick={() => setShowProForma(true)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 rounded-lg text-xs font-medium transition-colors"
-                    >
-                      <FileText size={13} /> Pro-forma
-                    </button>
-                    <span className="text-sm font-bold text-indigo-600">
-                      {formatCurrency(ventesDir.reduce((s, v) => s + Number(v.montantPaye), 0))}
-                    </span>
-                  </div>
-                </div>
                 <div className="overflow-x-auto">
                   <table className="w-full">
                     <thead className="bg-slate-50 border-b border-slate-200">
-                      <tr>
-                        {["Référence", "Client", "Mode", "Montant payé", "Date/Heure", ""].map((h) => (
-                          <th key={h} className="px-5 py-3.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">{h}</th>
-                        ))}
-                      </tr>
+                      <tr>{["Type", "Client / Émetteur", "Libellé", "Mode", "Montant", "Date/Heure", ""].map((h) => (
+                        <th key={h} className="px-5 py-3.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">{h}</th>
+                      ))}</tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {ventesDir.map((v) => {
-                        const client = v.client ? `${v.client.prenom} ${v.client.nom}` : v.clientNom ?? "—";
-                        return (
-                          <tr key={v.id} className="hover:bg-slate-50 transition-colors">
-                            <td className="px-5 py-3.5 font-mono text-xs text-slate-400">{v.reference}</td>
-                            <td className="px-5 py-3.5 text-sm text-slate-700">{client}</td>
-                            <td className="px-5 py-3.5">
-                              <span className="bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full text-xs font-medium">{modePaiementLabel(v.modePaiement)}</span>
-                            </td>
-                            <td className="px-5 py-3.5 font-bold text-indigo-600">{formatCurrency(Number(v.montantPaye))}</td>
-                            <td className="px-5 py-3.5 text-xs text-slate-500">{formatDateTime(v.createdAt)}</td>
-                            <td className="px-5 py-3.5">
-                              <div className="flex items-center gap-1">
-                                <button
-                                  onClick={() => handleVoirRecuVente(v.id)}
-                                  className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
-                                  title="Voir le reçu"
-                                >
-                                  <Eye size={15} />
-                                </button>
-                                <button
-                                  onClick={() => setFactureVenteId(v.id)}
-                                  className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
-                                  title="Générer la facture"
-                                >
-                                  <Receipt size={15} />
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
-
-            {/* Encaissements financiers de la session */}
-            {operations.filter(o => o.type === "ENCAISSEMENT").length > 0 && (
-              <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 overflow-hidden">
-                <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
-                  <h3 className="font-bold text-slate-800 flex items-center gap-2">
-                    <ArrowUpCircle size={18} className="text-emerald-600" />
-                    Encaissements financiers
-                  </h3>
-                  <span className="text-sm font-bold text-emerald-600">
-                    {formatCurrency(operations.filter(o => o.type === "ENCAISSEMENT").reduce((s, o) => s + o.montant, 0))}
-                  </span>
-                </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead className="bg-slate-50 border-b border-slate-200">
-                      <tr>
-                        {["Référence", "Motif", "Mode", "Montant", "Date/Heure", ""].map((h) => (
-                          <th key={h} className="px-5 py-3.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">{h}</th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {operations.filter(o => o.type === "ENCAISSEMENT").map((op) => (
-                        <tr key={op.id} className="hover:bg-slate-50 transition-colors">
-                          <td className="px-5 py-3.5 font-mono text-xs text-slate-400">{op.reference}</td>
-                          <td className="px-5 py-3.5 text-sm text-slate-700">{op.motif}</td>
+                      {(histoEncRes?.data ?? []).map((it) => (
+                        <tr key={it.key} className="hover:bg-slate-50 transition-colors">
+                          <td className="px-5 py-3.5"><span className={`px-2 py-0.5 rounded-full text-xs font-medium ${HISTO_TYPE_STYLE[it.type] ?? "bg-slate-100 text-slate-600"}`}>{it.typeLabel}</span></td>
+                          <td className="px-5 py-3.5 text-sm text-slate-700">{it.client}</td>
+                          <td className="px-5 py-3.5 text-sm text-slate-600">{it.libelle}{it.reference && <span className="block text-xs text-slate-400 font-mono">{it.reference}</span>}</td>
+                          <td className="px-5 py-3.5">{it.mode ? <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full text-xs font-medium">{modePaiementLabel(it.mode)}</span> : <span className="text-slate-300">—</span>}</td>
+                          <td className="px-5 py-3.5 font-bold text-emerald-600">{formatCurrency(it.montant)}</td>
+                          <td className="px-5 py-3.5 text-xs text-slate-500">{formatDateTime(it.date)}</td>
                           <td className="px-5 py-3.5">
-                            <span className="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full text-xs font-medium">{modePaiementLabel(op.mode)}</span>
-                          </td>
-                          <td className="px-5 py-3.5 font-bold text-emerald-600">{formatCurrency(op.montant)}</td>
-                          <td className="px-5 py-3.5 text-xs text-slate-500">{formatDateTime(op.createdAt)}</td>
-                          <td className="px-5 py-3.5">
-                            <button
-                              onClick={() => handleVoirRecuOp(op.id)}
-                              className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
-                              title="Voir le reçu"
-                            >
-                              <Eye size={15} />
-                            </button>
+                            <div className="flex items-center gap-1">
+                              {it.type === "VERSEMENT_PACK" && <button onClick={() => handleVoirRecu(it.sourceId)} className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg" title="Voir le reçu"><Eye size={15} /></button>}
+                              {it.type === "VERSEMENT_PACK" && <button onClick={() => openEditPack(it)} className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg" title="Corriger le versement"><Pencil size={14} /></button>}
+                              {it.type === "VENTE_DIRECTE" && <button onClick={() => handleVoirRecuVente(it.sourceId)} className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg" title="Voir le reçu"><Eye size={15} /></button>}
+                              {it.type === "OPERATION_CAISSE" && <button onClick={() => handleVoirRecuOp(it.sourceId)} className="p-1.5 text-slate-400 hover:text-violet-600 hover:bg-violet-50 rounded-lg" title="Voir le reçu"><Eye size={15} /></button>}
+                              {it.editable && <button onClick={() => openEditRemb(it)} className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg" title="Corriger le remboursement"><Pencil size={14} /></button>}
+                            </div>
                           </td>
                         </tr>
                       ))}
+                      {(histoEncRes?.data?.length ?? 0) === 0 && (
+                        <tr><td colSpan={7} className="px-5 py-12 text-center text-slate-400 text-sm">Aucun encaissement pour cette période</td></tr>
+                      )}
                     </tbody>
                   </table>
                 </div>
-              </div>
-            )}
+              )}
+              {histoEncRes?.meta && histoEncRes.meta.totalPages > 1 && (
+                <div className="px-5 py-4 border-t border-slate-100 flex items-center justify-between">
+                  <p className="text-sm text-slate-500">Page <span className="font-semibold">{histoEncRes.meta.page}</span> / <span className="font-semibold">{histoEncRes.meta.totalPages}</span> <span className="text-slate-400">({histoEncRes.meta.total} encaissements)</span></p>
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => setVersementsPage((p) => Math.max(1, p - 1))} disabled={versementsPage <= 1} className="p-2 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 disabled:opacity-40"><ChevronLeft size={16} /></button>
+                    <span className="px-3 py-1 bg-emerald-600 text-white rounded-lg text-sm font-medium">{versementsPage}</span>
+                    <button onClick={() => setVersementsPage((p) => Math.min(histoEncRes.meta.totalPages, p + 1))} disabled={versementsPage >= histoEncRes.meta.totalPages} className="p-2 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 disabled:opacity-40"><ChevronRight size={16} /></button>
+                  </div>
+                </div>
+              )}
+            </div>
 
             {/* Décaissements de la session */}
             {operations.filter(o => o.type === "DECAISSEMENT").length > 0 && (

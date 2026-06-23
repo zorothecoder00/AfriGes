@@ -125,5 +125,15 @@ Perte
 Classer les crédits clients par mois ( chez l'admin , chez l'agent terrain , chez le caissier et chez le RVC)
 
 
+Normalement pour les saisies rapides de plusieurs remboursements en même temps ( sur la page admin credits/saisie-rapide ) j'aimerais que quand je choisi un agent de terrain ( agent collecteur), rien que ses clients n'apparaissent (filtre automatique) comme ça ce sera facile de par exemple collecter les remboursements de credit client par agent . Le choix de l'agent doit être vraiment effectif ( pas juste un choix sans incidence) et puis ça doit marquer
+
+Pour les archivages , je veux le montant total des impayés et des autres status
+
+Au niveau des enregistrements rapides de crédits chez les agents, admin , rvc, caissiers , au niveau du choix des crédits ,on veut avoir certaines infos ( comme le mois du crédit , le total crédit , le taux payé surtout en cas où y'a plusierus crédits pour un même client)
+
+Aussi revoir l'affichage de l'historique des remboursements de crédits ( sous forme de tableau exactement comme dans le cahier de charges) au niveau de l'admin et du responsable credit rvc
+
+On va revoir aussi les reçus dans les dashboards
+
 
 

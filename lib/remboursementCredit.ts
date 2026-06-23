@@ -54,6 +54,11 @@ export interface CreditAEncaisser {
   reference: string;
   soldeRestant: number;
   dureeJours: number;
+  // Infos crédit (utiles quand un client a plusieurs crédits)
+  montantTotal: number;
+  montantRembourse: number;
+  tauxPaye: number;      // % remboursé (0–100)
+  dateDebut: string;     // ISO — sert à afficher le mois du crédit
   // Prochaine échéance non soldée (défaut du « Jour » et de l'« Attendu »)
   numeroJour: number | null;
   montantAttendu: number;
@@ -70,6 +75,7 @@ export async function chargerCreditsAEncaisser(
     where: { ...where, statut: { in: [StatutCredit.ACTIF, StatutCredit.EN_RETARD] } },
     select: {
       id: true, reference: true, soldeRestant: true, dureeJours: true,
+      montantTotal: true, montantRembourse: true, dateDebut: true,
       client: { select: { id: true, nom: true, prenom: true, telephone: true } },
       echeances: {
         where: { statut: { not: StatutEcheanceCredit.PAYE } },
@@ -78,11 +84,13 @@ export async function chargerCreditsAEncaisser(
         select: { numeroEcheance: true, montantDu: true, montantPaye: true },
       },
     },
-    orderBy: { dateDebut: "asc" },
+    orderBy: [{ client: { nom: "asc" } }, { dateDebut: "asc" }],
   });
 
   return credits.map((c) => {
     const ech = c.echeances[0];
+    const total = Number(c.montantTotal);
+    const rembourse = Number(c.montantRembourse);
     return {
       clientId:     c.client.id,
       clientNom:    c.client.nom,
@@ -92,6 +100,10 @@ export async function chargerCreditsAEncaisser(
       reference:    c.reference,
       soldeRestant: Number(c.soldeRestant),
       dureeJours:   c.dureeJours,
+      montantTotal: total,
+      montantRembourse: rembourse,
+      tauxPaye:     total > 0 ? Math.round((rembourse / total) * 100) : 0,
+      dateDebut:    c.dateDebut.toISOString(),
       numeroJour:   ech?.numeroEcheance ?? null,
       montantAttendu: ech ? Math.max(0, Number(ech.montantDu) - Number(ech.montantPaye)) : 0,
     };
