@@ -5,7 +5,7 @@ import {
   CreditCard, Search, RefreshCw, Loader2, Plus, X, Eye,
   CheckCircle2, AlertCircle, TrendingDown, Calendar, Banknote,
   ChevronLeft, ChevronRight, ChevronDown, ChevronUp, User,
-  PackageCheck, ArrowLeftRight, XCircle, Receipt, Edit3, Trash2,
+  PackageCheck, ArrowLeftRight, XCircle, Receipt, Edit3, Trash2, FolderTree,
 } from "lucide-react";
 import Link from "next/link";
 import SignOutButton from "@/components/SignOutButton";
@@ -802,6 +802,10 @@ export default function RVCCreditsPage() {
             <a href="/dashboard/user/responsablesVenteCredit/credits/saisie-rapide"
               className="flex items-center gap-2 px-3 py-2 bg-white border border-indigo-200 text-indigo-700 rounded-lg hover:bg-indigo-50 text-sm font-medium">
               <Banknote className="w-4 h-4" /> Saisie rapide
+            </a>
+            <a href="/dashboard/user/responsablesVenteCredit/archivage"
+              className="flex items-center gap-2 px-3 py-2 bg-white border border-slate-200 text-slate-700 rounded-lg hover:bg-slate-50 text-sm font-medium">
+              <FolderTree className="w-4 h-4" /> Archivage
             </a>
             <select value={statut} onChange={(e) => { setStatut(e.target.value); setPage(1); }}
               className="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">

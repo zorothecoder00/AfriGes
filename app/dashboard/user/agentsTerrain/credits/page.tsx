@@ -5,7 +5,7 @@ import {
   CreditCard, RefreshCw, AlertCircle, Loader2, Package,
   Plus, Trash2, ChevronDown, ChevronUp, User, Calendar,
   Clock, CheckCircle, AlertTriangle, X, Search, Receipt,
-  PackageCheck, Banknote,
+  PackageCheck, Banknote, FolderTree,
 } from "lucide-react";
 import SignOutButton from "@/components/SignOutButton";
 import NotificationBell from "@/components/NotificationBell";
@@ -730,6 +730,10 @@ export default function AgentTerrainCreditsPage() {
               <a href="/dashboard/user/agentsTerrain/credits/saisie-rapide"
                 className="flex items-center gap-1.5 px-3 py-2 bg-white border border-emerald-200 text-emerald-700 rounded-lg text-sm font-medium hover:bg-emerald-50">
                 <Banknote size={15} /> Saisie rapide
+              </a>
+              <a href="/dashboard/user/agentsTerrain/archivage"
+                className="flex items-center gap-1.5 px-3 py-2 bg-white border border-slate-200 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-50">
+                <FolderTree size={15} /> Archivage
               </a>
               <button
                 onClick={() => setShowModal(true)}

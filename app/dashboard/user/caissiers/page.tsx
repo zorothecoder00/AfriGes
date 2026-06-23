@@ -7,7 +7,7 @@ import {
   Users, Hash, AlertTriangle, AlertCircle, Info, ChevronLeft, ChevronRight,
   Lock, Calendar, FileText, Filter, Layers, Eye, XCircle, Package,
   Wallet, Power, Pause, Play, ArrowDownCircle, ArrowUpCircle,
-  ArrowLeftRight, CreditCard, Building2, Send, ShoppingBag, Pencil, Loader2,
+  ArrowLeftRight, CreditCard, Building2, Send, ShoppingBag, Pencil, Loader2, FolderTree,
 } from "lucide-react";     
 import SignOutButton from "@/components/SignOutButton";
 import NotificationBell from "@/components/NotificationBell";
@@ -3571,6 +3571,10 @@ export default function CaissierPage() {
                   <a href="/dashboard/user/caissiers/saisie-rapide"
                     className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700">
                     <Banknote size={14} /> Saisie rapide
+                  </a>
+                  <a href="/dashboard/user/caissiers/archivage"
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-50">
+                    <FolderTree size={14} /> Archivage
                   </a>
                   <div className="relative">
                     <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
