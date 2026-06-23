@@ -6,17 +6,21 @@ import { toast } from "sonner";
 import {
   RefreshCw, Search, Network, CheckCircle2, XCircle,
   ShieldCheck, Calculator, Trash2, AlertTriangle, Info,
+  ShoppingCart, CreditCard, Package,
 } from "lucide-react";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 interface Eligibilite {
   id: number;
-  montantDemande: number;
   ancienneteJours: number | null;
   nbAchats: number | null;
   volumeAchats: number | null;
   rotationCommerciale: number | null;
+  nbCredits: number | null;
+  nbCreditsRetard: number | null;
+  volumeCredits: number | null;
+  nbPacks: number | null;
   scoreEligibilite: number | null;
   classeRisque: string;
   statut: "EN_ATTENTE" | "ELIGIBLE" | "REFUSE" | "VALIDE" | "RETIRE";
@@ -29,10 +33,13 @@ interface Eligibilite {
 interface ClientRow {
   id: number; codeClient: string | null; nom: string; prenom: string; telephone: string;
   activite: string | null; ville: string | null;
-  niveauRisque: string | null; scoreSolvabilite: number | null;
   createdAt: string;
   pointDeVente: { nom: string; code: string } | null;
   eligibiliteRIA: Eligibilite | null;
+  // Indicateurs live calculés par l'API (sur ventes + crédits + packs)
+  niveauRisque: string | null;   // risque recalculé
+  solvabilite: number | null;    // solvabilité 0–100 recalculée
+  nbVentes: number; nbPacks: number; nbCredits: number; nbCreditsRetard: number; encoursCredit: number;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -66,7 +73,6 @@ const TABS = ["", "EN_ATTENTE", "ELIGIBLE", "REFUSE", "VALIDE", "RETIRE"] as con
 export default function RiaEligibilitePage() {
   const [statut, setStatut] = useState<string>("");
   const [search, setSearch] = useState("");
-  const [montants, setMontants] = useState<Record<number, string>>({});
   const [busy, setBusy] = useState<number | null>(null);
 
   const { data: res, loading, refetch } = useApi<{ data: ClientRow[]; meta: { total: number } }>(
@@ -74,16 +80,13 @@ export default function RiaEligibilitePage() {
   );
   const clients = res?.data ?? [];
 
-  const setMontant = (id: number, v: string) => setMontants((p) => ({ ...p, [id]: v }));
-
   const evaluer = async (c: ClientRow) => {
-    const montant = Number(montants[c.id] ?? c.eligibiliteRIA?.montantDemande ?? 0);
     setBusy(c.id);
     try {
       const r = await fetch("/api/rvc/ria/eligibilite", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ clientId: c.id, montantDemande: montant }),
+        body: JSON.stringify({ clientId: c.id }),
       });
       const json = await r.json();
       if (r.ok) {
@@ -169,7 +172,7 @@ export default function RiaEligibilitePage() {
           <table className="w-full text-sm">
             <thead className="bg-slate-50 border-b border-slate-200">
               <tr>
-                {["Client", "Ancienneté", "Risque", "Solvabilité", "Crédit demandé", "Décision", "Actions"].map((h) => (
+                {["Client", "Ancienneté", "Risque", "Solvabilité", "Activité", "Décision", "Actions"].map((h) => (
                   <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">{h}</th>
                 ))}
               </tr>
@@ -195,13 +198,33 @@ export default function RiaEligibilitePage() {
                     <td className="px-4 py-3">
                       <span className={`text-xs font-semibold ${RISQUE_COLOR[c.niveauRisque ?? ""] ?? "text-slate-400"}`}>{c.niveauRisque ?? "—"}</span>
                     </td>
-                    <td className="px-4 py-3 text-slate-700">{c.scoreSolvabilite != null ? `${Math.round(c.scoreSolvabilite)}/100` : "—"}</td>
                     <td className="px-4 py-3">
-                      <input type="number" min={0}
-                        value={montants[c.id] ?? (e?.montantDemande ? String(Math.round(Number(e.montantDemande))) : "")}
-                        onChange={(ev) => setMontant(c.id, ev.target.value)}
-                        placeholder="0"
-                        className="w-28 border border-slate-200 rounded-lg px-2 py-1.5 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent" />
+                      {c.solvabilite != null ? (
+                        <span className={`font-semibold ${c.solvabilite >= 60 ? "text-emerald-600" : c.solvabilite >= 40 ? "text-amber-600" : "text-red-600"}`}>
+                          {c.solvabilite}/100
+                        </span>
+                      ) : <span className="text-slate-400">—</span>}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex flex-col gap-1 text-xs text-slate-600">
+                        <span className="flex items-center gap-1.5" title="Ventes directes">
+                          <ShoppingCart className="w-3.5 h-3.5 text-slate-400" /> {c.nbVentes} vente{c.nbVentes > 1 ? "s" : ""}
+                        </span>
+                        <span className="flex items-center gap-1.5" title="Crédits accordés">
+                          <CreditCard className="w-3.5 h-3.5 text-slate-400" /> {c.nbCredits} crédit{c.nbCredits > 1 ? "s" : ""}
+                          {c.nbCreditsRetard > 0 && (
+                            <span className="text-red-600 font-medium flex items-center gap-0.5">
+                              <AlertTriangle className="w-3 h-3" /> {c.nbCreditsRetard} en retard
+                            </span>
+                          )}
+                        </span>
+                        {c.encoursCredit > 0 && (
+                          <span className="text-[11px] text-slate-400 pl-5">Encours : {fmt(c.encoursCredit)} FCFA</span>
+                        )}
+                        <span className="flex items-center gap-1.5" title="Souscriptions packs">
+                          <Package className="w-3.5 h-3.5 text-slate-400" /> {c.nbPacks} pack{c.nbPacks > 1 ? "s" : ""}
+                        </span>
+                      </div>
                     </td>
                     <td className="px-4 py-3">
                       {e ? (
@@ -262,7 +285,7 @@ export default function RiaEligibilitePage() {
       </div>
 
       <p className="text-xs text-slate-400">
-        Règles : refus auto si risque CRITIQUE, ancienneté &lt; 90 j, solvabilité &lt; 50, crédit en retard, ou montant demandé &gt; limite disponible. Seuls les clients <b>VALIDÉS</b> deviennent affectables aux investisseurs par l&apos;admin / responsable RIA.
+        Règles : refus auto si client non actif, risque CRITIQUE, ancienneté &lt; 90 j, solvabilité &lt; 50, crédit en retard en cours, ou aucun historique (ni vente, ni crédit, ni pack). Le score combine solvabilité, ancienneté, historique d&apos;achat/packs, comportement crédit et niveau de risque. Seuls les clients <b>VALIDÉS</b> deviennent affectables aux investisseurs par l&apos;admin / responsable RIA.
       </p>
     </div>
   );

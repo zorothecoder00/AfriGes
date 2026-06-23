@@ -4189,6 +4189,12 @@ model EligibiliteClientRIA {
   niveauRisque        NiveauRisque?
   rotationCommerciale Float?
 
+  // Historique crédits & packs (snapshot — nullable, données existantes non impactées)
+  nbCredits        Int?      // nombre total de crédits accordés (hors annulés/rejetés)
+  nbCreditsRetard  Int?      // crédits actuellement en retard
+  volumeCredits    Decimal?  // montant total des crédits accordés
+  nbPacks          Int?      // nombre de souscriptions à des packs
+
   // Résultat de l'évaluation automatique
   scoreEligibilite Float?              @default(0)
   classeRisque     ClasseRisqueRIA     @default(A)

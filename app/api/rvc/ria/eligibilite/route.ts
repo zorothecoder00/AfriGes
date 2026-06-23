@@ -2,7 +2,11 @@ import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getRVCSession } from "@/lib/authRVC";
-import { evaluerEligibiliteClientRIA } from "@/lib/riaEligibilite";
+import { evaluerEligibiliteClientRIA, calculerSolvabiliteEligibilite } from "@/lib/riaEligibilite";
+
+// Crédits comptés (hors annulés/rejetés) et crédits « en cours » (encours non soldé).
+const CREDIT_STATUTS_COMPTES  = ["EN_ATTENTE_VALIDATION", "VALIDE", "ACTIF", "EN_RETARD", "SOLDE"] as const;
+const CREDIT_STATUTS_EN_COURS = ["EN_ATTENTE_VALIDATION", "VALIDE", "ACTIF", "EN_RETARD"] as const;
 
 async function resoudrePdv(session: Awaited<ReturnType<typeof getRVCSession>>) {
   if (!session) return { error: "Accès refusé" as const, status: 403 };
@@ -54,19 +58,77 @@ export async function GET(req: Request) {
         select: {
           id: true, codeClient: true, nom: true, prenom: true, telephone: true,
           activite: true, ville: true, quartier: true,
-          niveauRisque: true, scoreSolvabilite: true, limiteCredit: true, soldeActuel: true,
           createdAt: true,
           pointDeVente: { select: { nom: true, code: true } },
           eligibiliteRIA: {
             include: { identifiePar: { select: { nom: true, prenom: true } } },
+          },
+          // Historique réel (l'écran est un filtre fondé sur ventes + crédits + packs).
+          creditsClients: {
+            where: { statut: { in: [...CREDIT_STATUTS_COMPTES] } },
+            select: { statut: true, montantTotal: true, soldeRestant: true },
+          },
+          souscriptionsPacks: {
+            where: { statut: { not: "ANNULE" } },
+            select: { montantTotal: true, montantVerse: true },
           },
         },
       }),
       prisma.client.count({ where }),
     ]);
 
+    // Ventes directes agrégées en une seule requête (volume non disponible via _count).
+    const ids = clients.map((c) => c.id);
+    const ventesParClient = ids.length
+      ? await prisma.venteDirecte.groupBy({
+          by: ["clientId"],
+          where: { clientId: { in: ids }, statut: { notIn: ["ANNULEE", "BROUILLON"] } },
+          _count: { _all: true },
+          _sum: { montantTotal: true },
+        })
+      : [];
+    const ventesMap = new Map(ventesParClient.map((v) => [v.clientId, v]));
+
+    // Calcule par client les agrégats + la solvabilité/risque sur l'historique réel.
+    const data = clients.map((c) => {
+      const credits = c.creditsClients ?? [];
+      const nbCredits        = credits.length;
+      const nbCreditsSoldes  = credits.filter((x) => x.statut === "SOLDE").length;
+      const nbCreditsRetard  = credits.filter((x) => x.statut === "EN_RETARD").length;
+      const nbCreditsEnCours = credits.filter((x) => (CREDIT_STATUTS_EN_COURS as readonly string[]).includes(x.statut)).length;
+      const volumeCredits    = credits.reduce((s, x) => s + Number(x.montantTotal ?? 0), 0);
+      const encoursCredit    = credits
+        .filter((x) => (CREDIT_STATUTS_EN_COURS as readonly string[]).includes(x.statut))
+        .reduce((s, x) => s + Number(x.soldeRestant ?? 0), 0);
+
+      const packs = c.souscriptionsPacks ?? [];
+      const nbPacks           = packs.length;
+      const volumePacks       = packs.reduce((s, x) => s + Number(x.montantTotal ?? 0), 0);
+      const montantVersePacks = packs.reduce((s, x) => s + Number(x.montantVerse ?? 0), 0);
+
+      const v = ventesMap.get(c.id);
+      const nbVentes     = v?._count._all ?? 0;
+      const volumeAchats = Number(v?._sum.montantTotal ?? 0);
+
+      const solva = calculerSolvabiliteEligibilite({
+        nbAchats: nbVentes, volumeAchats,
+        nbCredits, nbCreditsSoldes, nbCreditsEnCours, nbCreditsRetard, volumeCredits,
+        nbPacks, volumePacks, montantVersePacks,
+      });
+
+      const { creditsClients: _c, souscriptionsPacks: _p, ...rest } = c;
+      void _c; void _p;
+      return {
+        ...rest,
+        nbVentes, nbCredits, nbCreditsRetard, encoursCredit, nbPacks,
+        // Solvabilité & risque recalculés sur l'historique commercial réel.
+        solvabilite: solva.score,
+        niveauRisque: solva.niveauRisque,
+      };
+    });
+
     return NextResponse.json({
-      data: clients,
+      data,
       pdvId: r.pdvId,
       meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
     });
@@ -78,8 +140,9 @@ export async function GET(req: Request) {
 
 /**
  * POST /api/rvc/ria/eligibilite
- * Évalue un client et enregistre la décision automatique (upsert).
- * Body: { clientId, montantDemande }
+ * Évalue un client sur son historique (ventes, crédits, packs, retards, risque,
+ * solvabilité) et enregistre la décision automatique (upsert).
+ * Body: { clientId }
  */
 export async function POST(req: Request) {
   try {
@@ -87,9 +150,8 @@ export async function POST(req: Request) {
     const r = await resoudrePdv(session);
     if ("error" in r) return NextResponse.json({ error: r.error }, { status: r.status });
 
-    const { clientId, montantDemande } = await req.json();
+    const { clientId } = await req.json();
     if (!clientId) return NextResponse.json({ error: "clientId est obligatoire" }, { status: 400 });
-    const montant = Math.max(0, Number(montantDemande) || 0);
 
     const client = await prisma.client.findUnique({
       where: { id: parseInt(clientId) },
@@ -101,15 +163,18 @@ export async function POST(req: Request) {
     }
 
     const eligibilite = await prisma.$transaction(async (tx) => {
-      const res = await evaluerEligibiliteClientRIA(tx, client.id, montant);
+      const res = await evaluerEligibiliteClientRIA(tx, client.id);
       const data = {
-        montantDemande:      montant,
         ancienneteJours:     res.criteres.ancienneteJours,
         nbAchats:            res.criteres.nbAchats,
         volumeAchats:        res.criteres.volumeAchats,
         scoreSolvabilite:    res.criteres.scoreSolvabilite,
         niveauRisque:        res.criteres.niveauRisque,
         rotationCommerciale: res.criteres.rotationCommerciale,
+        nbCredits:           res.criteres.nbCredits,
+        nbCreditsRetard:     res.criteres.nbCreditsRetard,
+        volumeCredits:       res.criteres.volumeCredits,
+        nbPacks:             res.criteres.nbPacks,
         scoreEligibilite:    res.scoreEligibilite,
         classeRisque:        res.classeRisque,
         statut:              res.statut,

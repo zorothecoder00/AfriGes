@@ -30,7 +30,7 @@ interface ClientOpt {
   id: number; nom: string; prenom: string; telephone: string | null;
   niveauRisque?: string | null; scoreSolvabilite?: number | null;
   pointDeVente?: { nom: string } | null;
-  eligibiliteRIA?: { montantDemande: number; classeRisque: string; scoreEligibilite: number | null } | null;
+  eligibiliteRIA?: { classeRisque: string; scoreEligibilite: number | null } | null;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -251,7 +251,8 @@ function CreateModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
                         {c.telephone && <span className="text-xs text-slate-400 ml-2">{c.telephone}</span>}
                         {c.eligibiliteRIA && (
                           <span className="text-xs text-slate-400 ml-2">
-                            · classe {c.eligibiliteRIA.classeRisque} · demande {fmt(toNum(c.eligibiliteRIA.montantDemande))} F
+                            · classe {c.eligibiliteRIA.classeRisque}
+                            {c.eligibiliteRIA.scoreEligibilite != null && ` · score ${Math.round(c.eligibiliteRIA.scoreEligibilite)}`}
                           </span>
                         )}
                       </span>

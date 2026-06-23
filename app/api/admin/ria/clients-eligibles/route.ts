@@ -36,7 +36,7 @@ export async function GET(req: NextRequest) {
         activite: true, ville: true, niveauRisque: true, scoreSolvabilite: true,
         pointDeVente: { select: { nom: true } },
         eligibiliteRIA: {
-          select: { montantDemande: true, classeRisque: true, scoreEligibilite: true, dateDecision: true },
+          select: { classeRisque: true, scoreEligibilite: true, dateDecision: true },
         },
       },
     });
