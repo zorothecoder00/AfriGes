@@ -944,6 +944,18 @@ export default function CaissierPage() {
   const { data: histoEncRes, loading: histoEncLoading, refetch: refetchHistoEnc } = useApi<HistoEncResponse>(histoEncUrl);
   const histoEncStats = histoEncRes?.stats;
 
+  // Libellé clair de la période affichée dans l'historique.
+  const histoPeriodeLabel = useMemo(() => {
+    const jour = (d: Date) => d.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+    const court = (s: string) => new Date(s).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" });
+    if (!filtreAujourdHui && (dateDebut || dateFin)) {
+      if (dateDebut && dateFin) return `Du ${court(dateDebut)} au ${court(dateFin)}`;
+      if (dateDebut) return `Depuis le ${court(dateDebut)}`;
+      return `Jusqu'au ${court(dateFin)}`;
+    }
+    return `Aujourd'hui · ${jour(new Date())}`;
+  }, [filtreAujourdHui, dateDebut, dateFin]);
+
   // Édition d'un remboursement crédit depuis l'historique (champs non financiers)
   const [editRemb, setEditRemb] = useState<HistoEncItem | null>(null);
   const [editRembForm, setEditRembForm] = useState({ dateCollecte: "", numeroJour: "", agentCollecteurId: "", observation: "" });
@@ -2932,6 +2944,16 @@ export default function CaissierPage() {
         ============================================================ */}
         {activeTab === "historique" && (
           <div className="space-y-4">
+            {/* En-tête : titre + période affichée */}
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                <Clock size={20} className="text-emerald-600" /> Historique des encaissements
+              </h2>
+              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-50 text-emerald-700 text-sm font-semibold border border-emerald-100">
+                <Calendar size={15} /> {histoPeriodeLabel}
+              </span>
+            </div>
+
             {/* Filtres */}
             <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60">
               <div className="flex flex-wrap gap-3 items-end">
@@ -2940,7 +2962,7 @@ export default function CaissierPage() {
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                     <input
                       type="text"
-                      placeholder="Pack, client..."
+                      placeholder="Client, libellé, référence…"
                       value={searchQuery}
                       onChange={(e) => { setSearchQuery(e.target.value); setVersementsPage(1); }}
                       className="w-full pl-9 pr-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50 text-sm"
