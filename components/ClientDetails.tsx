@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useApi, useMutation } from '@/hooks/useApi';
 import { formatDate, formatDateTime, formatCurrency } from '@/lib/format';
+import CreditEcheancier from '@/components/CreditEcheancier';
 import {
   Phone, MapPin, Calendar, Activity, ArrowLeft, Edit, Trash2,
   AlertTriangle, Hash, Briefcase, Store,
@@ -110,12 +111,6 @@ const CREDIT_STATUT_LABEL: Record<string, string> = {
   SOLDE:    'Soldé',
   ANNULE:   'Annulé',
   REJETE:   'Rejeté',
-};
-const ECHEANCE_STATUT_STYLE: Record<string, string> = {
-  EN_ATTENTE: 'bg-amber-50 text-amber-600',
-  PARTIEL:    'bg-blue-50 text-blue-600',
-  PAYE:       'bg-emerald-50 text-emerald-600',
-  EN_RETARD:  'bg-red-50 text-red-600',
 };
 const REMB_STATUT_STYLE: Record<string, string> = {
   CONFIRME:           'bg-emerald-100 text-emerald-700',
@@ -726,29 +721,13 @@ export default function ClientDetails({
                             </div>
                           )}
 
-                          {/* Échéances (10 premières) */}
-                          {credit.echeances.length > 0 && (
-                            <div>
-                              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
-                                Échéancier ({credit.echeances.length} jours)
-                              </p>
-                              <div className="grid grid-cols-1 gap-1 max-h-52 overflow-y-auto">
-                                {credit.echeances.slice(0, 30).map((e) => (
-                                  <div key={e.id} className="flex items-center justify-between text-xs bg-white rounded-lg px-3 py-1.5">
-                                    <span className="text-gray-500 w-6">#{e.numeroEcheance}</span>
-                                    <span className="text-gray-600 flex-1 ml-2">{formatDate(e.dateEcheance)}</span>
-                                    <span className="text-gray-700 font-medium">{formatCurrency(Number(e.montantDu))}</span>
-                                    <span className={`ml-2 px-1.5 py-0.5 rounded-full font-semibold ${ECHEANCE_STATUT_STYLE[e.statut] ?? 'bg-gray-50 text-gray-500'}`}>
-                                      {e.statut === 'EN_ATTENTE' ? 'Att.' : e.statut === 'PAYE' ? 'Payé' : e.statut === 'PARTIEL' ? 'Part.' : 'Retard'}
-                                    </span>
-                                  </div>
-                                ))}
-                                {credit.echeances.length > 30 && (
-                                  <p className="text-xs text-gray-400 text-center py-1">+ {credit.echeances.length - 30} autres échéances…</p>
-                                )}
-                              </div>
-                            </div>
-                          )}
+                          {/* Échéancier complet (tableau coloré) */}
+                          <div>
+                            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+                              Échéancier ({credit.dureeJours} jours)
+                            </p>
+                            <CreditEcheancier credit={credit} defaultVisible={7} />
+                          </div>
 
                           {/* Remboursements */}
                           {credit.remboursements.length > 0 && (
