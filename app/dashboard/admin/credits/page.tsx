@@ -15,6 +15,8 @@ import { useT } from '@/contexts/AppSettingsContext';
 import ClienteleTabBar from '@/components/ClienteleTabBar';
 import { useTagModal } from '@/contexts/TagModalContext';
 import FactureModal from '@/components/FactureModal';
+import { groupByMonth } from '@/lib/groupByMonth';
+import { MonthGroupHeaderRow, useCollapsedMonths } from '@/components/MonthGroupHeaderRow';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -483,6 +485,10 @@ export default function CreditsPage() {
   const credits = res?.data ?? [];
   const meta    = res?.meta;
 
+  // Pliage des regroupements mensuels (liste des crédits + remboursements du détail)
+  const credMonths = useCollapsedMonths();
+  const rembMonths = useCollapsedMonths();
+
   // ── Ouvrir le détail ───────────────────────────────────────────────────────
   const openDetail = async (id: number) => {
     setDetailLoading(true);
@@ -748,7 +754,13 @@ export default function CreditsPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-50">
-                    {credits.map((credit) => {
+                    {groupByMonth(credits, (c) => c.createdAt, (c) => Number(c.montantTotal)).map((grp) => (
+                      <React.Fragment key={grp.key}>
+                        <MonthGroupHeaderRow
+                          label={grp.label} total={grp.total} count={grp.count} colSpan={8}
+                          open={credMonths.isOpen(grp.key)} onToggle={() => credMonths.toggle(grp.key)}
+                        />
+                        {credMonths.isOpen(grp.key) && grp.items.map((credit) => {
                       const pct = Number(credit.montantTotal) > 0
                         ? Math.min(100, Math.round((Number(credit.montantRembourse) / Number(credit.montantTotal)) * 100))
                         : 0;
@@ -896,7 +908,9 @@ export default function CreditsPage() {
                           </td>
                         </tr>
                       );
-                    })}
+                        })}
+                      </React.Fragment>
+                    ))}
                   </tbody>
                 </table>
               </div>
@@ -1173,8 +1187,18 @@ export default function CreditsPage() {
                       <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
                         Remboursements ({detailCredit.remboursements.length})
                       </p>
-                      <div className="space-y-1">
-                        {detailCredit.remboursements.map((r) => (
+                      <div className="space-y-1.5">
+                        {groupByMonth(detailCredit.remboursements, (r) => r.dateRemboursement, (r) => Number(r.montant)).map((grp) => (
+                          <div key={grp.key} className="space-y-1">
+                            <button type="button" onClick={() => rembMonths.toggle(grp.key)}
+                              className="w-full flex items-center justify-between gap-2 px-3 py-1.5 bg-slate-100 rounded-lg text-xs font-semibold text-slate-600 capitalize hover:bg-slate-200 transition-colors">
+                              <span className="flex items-center gap-1.5">
+                                {rembMonths.isOpen(grp.key) ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                                {grp.label} <span className="font-normal text-slate-400">· {grp.count}</span>
+                              </span>
+                              <span className="text-emerald-700">{formatCurrency(grp.total)}</span>
+                            </button>
+                            {rembMonths.isOpen(grp.key) && grp.items.map((r) => (
                           <div key={r.id} className="flex items-center gap-3 bg-emerald-50 rounded-lg px-3 py-2 text-xs">
                             <span className="text-gray-500">{formatDate(r.dateRemboursement)}</span>
                             {r.numeroJour != null && <span className="text-gray-400">J{r.numeroJour}</span>}
@@ -1183,6 +1207,8 @@ export default function CreditsPage() {
                             </span>
                             <span className="text-gray-400">{r.modePaiement.replace('_', ' ')}</span>
                             <span className="font-bold text-emerald-700">{formatCurrency(Number(r.montant))}</span>
+                          </div>
+                            ))}
                           </div>
                         ))}
                       </div>

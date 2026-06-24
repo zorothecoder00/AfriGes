@@ -82,6 +82,7 @@ export async function GET(req: NextRequest) {
         soldeRestant: true,
         montantJournalier: true,
         dateEcheanceFin: true,
+        createdAt: true,
         client: { select: { id: true, nom: true, prenom: true, telephone: true } },
         echeances: {
           where: { statut: { in: ["EN_ATTENTE", "EN_RETARD"] } },

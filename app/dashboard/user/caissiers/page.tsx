@@ -20,6 +20,8 @@ import { useApi, useMutation } from "@/hooks/useApi";
 import { formatCurrency, formatDate, formatDateTime } from "@/lib/format";
 import { useT } from "@/contexts/AppSettingsContext";
 import { usePageAccess } from "@/hooks/usePageAccess";
+import { groupByMonth } from "@/lib/groupByMonth";
+import { MonthGroupHeaderRow, useCollapsedMonths } from "@/components/MonthGroupHeaderRow";
 
 // ============================================================================
 // TYPES
@@ -1028,6 +1030,10 @@ export default function CaissierPage() {
     }[];
     meta: { total: number; page: number; limit: number; totalPages: number };
   }>(`/api/caissier/credits?${vcParams}`);
+
+  // ── Pliage des regroupements mensuels ────────────────────────────────────
+  const credMonths  = useCollapsedMonths();
+  const histoMonths = useCollapsedMonths();
 
   // ── Mutations ────────────────────────────────────────────────────────────
   const { mutate: collecterVersement, loading: collectant, error: erreurVersement } =
@@ -3037,7 +3043,13 @@ export default function CaissierPage() {
                       ))}</tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {(histoEncRes?.data ?? []).map((it) => (
+                      {groupByMonth(histoEncRes?.data ?? [], (it) => it.date, (it) => it.montant).map((grp) => (
+                        <React.Fragment key={grp.key}>
+                          <MonthGroupHeaderRow
+                            label={grp.label} total={grp.total} count={grp.count} colSpan={7}
+                            open={histoMonths.isOpen(grp.key)} onToggle={() => histoMonths.toggle(grp.key)}
+                          />
+                          {histoMonths.isOpen(grp.key) && grp.items.map((it) => (
                         <tr key={it.key} className="hover:bg-slate-50 transition-colors">
                           <td className="px-5 py-3.5"><span className={`px-2 py-0.5 rounded-full text-xs font-medium ${HISTO_TYPE_STYLE[it.type] ?? "bg-slate-100 text-slate-600"}`}>{it.typeLabel}</span></td>
                           <td className="px-5 py-3.5 text-sm text-slate-700">{it.client}</td>
@@ -3055,6 +3067,8 @@ export default function CaissierPage() {
                             </div>
                           </td>
                         </tr>
+                          ))}
+                        </React.Fragment>
                       ))}
                       {(histoEncRes?.data?.length ?? 0) === 0 && (
                         <tr><td colSpan={7} className="px-5 py-12 text-center text-slate-400 text-sm">Aucun encaissement pour cette période</td></tr>
@@ -3591,7 +3605,13 @@ export default function CaissierPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {creditsRes!.data.map((c) => {
+                      {groupByMonth(creditsRes!.data, (c) => c.dateDebut, (c) => c.montantTotal).map((grp) => (
+                        <React.Fragment key={grp.key}>
+                          <MonthGroupHeaderRow
+                            label={grp.label} total={grp.total} count={grp.count} colSpan={7}
+                            open={credMonths.isOpen(grp.key)} onToggle={() => credMonths.toggle(grp.key)}
+                          />
+                          {credMonths.isOpen(grp.key) && grp.items.map((c) => {
                         const enRetard = c.statut === "EN_RETARD";
                         return (
                           <tr key={c.id} className="hover:bg-slate-50 transition-colors">
@@ -3638,7 +3658,9 @@ export default function CaissierPage() {
                             </td>
                           </tr>
                         );
-                      })}
+                          })}
+                        </React.Fragment>
+                      ))}
                     </tbody>
                   </table>
                 </div>

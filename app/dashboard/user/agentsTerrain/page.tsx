@@ -19,6 +19,8 @@ import ClientSegmentTags from "@/components/ClientSegmentTags";
 import { useApi, useMutation } from "@/hooks/useApi";
 import FactureModal from "@/components/FactureModal";
 import { formatCurrency, formatDate } from "@/lib/format";
+import { groupByMonth } from "@/lib/groupByMonth";
+import { useCollapsedMonths } from "@/components/MonthGroupHeaderRow";
 import { getStatusStyle, getStatusLabel } from "@/lib/status";
 import { useT } from "@/contexts/AppSettingsContext";
 import { usePageAccess } from "@/hooks/usePageAccess";
@@ -102,6 +104,7 @@ interface CreditItem {
   soldeRestant: string;
   montantJournalier: string;
   dateEcheanceFin: string;
+  createdAt: string;
   client: { id: number; nom: string; prenom: string; telephone: string };
   echeances: { id: number; montantDu: string; montantPaye: string; dateEcheance: string; statut: string }[];
   remboursements: { id: number; montant: string; dateRemboursement: string }[];
@@ -1501,6 +1504,7 @@ export default function AgentTerrainPage() {
     useApi<CollecteJourResponse>(activeTab === "collecteJour" ? "/api/agentTerrain/collecteJour" : null);
   const { data: creditsData, loading: creditsLoading, refetch: refetchCredits } =
     useApi<CreditsResponse>(activeTab === "credits" ? "/api/agentTerrain/credits" : null);
+  const credMonths = useCollapsedMonths();
 
   const { mutate: demarrerSession, loading: demarrantSession } = useMutation<unknown, object>(
     "/api/agentTerrain/collecteJour", "POST",
@@ -2091,8 +2095,18 @@ export default function AgentTerrainPage() {
                     <p className="text-slate-500">Aucun crédit actif dans votre portefeuille</p>
                   </div>
                 ) : (
-                  <div className="space-y-3">
-                    {creditsData!.credits.map((credit) => {
+                  <div className="space-y-4">
+                    {groupByMonth(creditsData!.credits, (c) => c.createdAt, (c) => Number(c.montantTotal)).map((grp) => (
+                      <div key={grp.key} className="space-y-3">
+                        <button type="button" onClick={() => credMonths.toggle(grp.key)}
+                          className="w-full flex items-center justify-between gap-2 px-4 py-2.5 bg-slate-100 rounded-xl text-sm font-semibold text-slate-700 capitalize hover:bg-slate-200 transition-colors">
+                          <span className="flex items-center gap-2">
+                            {credMonths.isOpen(grp.key) ? <ChevronUp size={16} className="text-slate-500" /> : <ChevronDown size={16} className="text-slate-500" />}
+                            {grp.label} <span className="font-normal text-slate-400">· {grp.count} crédit(s)</span>
+                          </span>
+                          <span className="text-emerald-700">{formatCurrency(grp.total)}</span>
+                        </button>
+                        {credMonths.isOpen(grp.key) && grp.items.map((credit) => {
                       const prochaine = credit.echeances[0];
                       const retard = credit.statut === "EN_RETARD";
                       const pctRembourse = Number(credit.montantTotal) > 0
@@ -2165,7 +2179,9 @@ export default function AgentTerrainPage() {
                           </div>
                         </div>
                       );
-                    })}
+                        })}
+                      </div>
+                    ))}
                   </div>
                 )}
               </>

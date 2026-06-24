@@ -13,7 +13,7 @@ Prisma 7 est une breaking change majeure : url dans schema.prisma n'est plus
   supporté. La connexion doit passer par prisma.config.ts + un driver adapter.
 netsh wlan show profiles permet d'afficher les réseaux wifi enregistrés sur un pc
 netsh wlan show profile name="NomDuWifi" key=clear affiche toutes les propriétés du wifi sélectionné (NomDuWifi par exemple) notamment le mot de passe  
-    
+      
 -npm i -g @openai/codex permet d'installer le CLI de codex (agent ia d'openai qui permet d'interagir depuis le terminal)
 -Tip: Run /install-github-app to tag @claude right from your Github issues and PRs
 -Tip: Use /permissions to pre-approve and pre-deny bash, edit, and MCP tools
@@ -122,13 +122,9 @@ Contentieux
 Perte
 
 
-Classer les crédits clients par mois ( chez l'admin , chez l'agent terrain , chez le caissier et chez le RVC)
+Classer les crédits clients par mois ( chez l'admin dans l'onglet encaissement, chez l'agent terrain dans l'onglet encaissement, chez le caissier dans l'onglet d'encaissement et chez le RVC dans l'onglet encaissement)
 
 Pour les archivages , je veux le montant total des impayés et des autres status
-
-Au niveau des enregistrements rapides de crédits chez les agents, admin , rvc, caissiers , au niveau du choix des crédits ,on veut avoir certaines infos ( comme le mois du crédit , le total crédit , le taux payé surtout en cas où y'a plusierus crédits pour un même client)
-
-Aussi revoir l'affichage de l'historique des remboursements de crédits ( sous forme de tableau exactement comme dans le cahier de charges) au niveau de l'admin et du responsable credit rvc
 
 On va revoir aussi les reçus dans les dashboards
 
