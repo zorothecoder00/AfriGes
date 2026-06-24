@@ -38,7 +38,18 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
     const resolution = await prisma.resolutionCommRIA.findUnique({
       where: { id: parseInt(id) },
       include: {
-        reunion: { select: { id: true, titre: true, dateHeure: true } },
+        reunion: {
+          select: {
+            id: true, titre: true, dateHeure: true, lieu: true,
+            organisateur: { select: { nom: true, prenom: true } },
+            presences: {
+              select: {
+                present: true, procuration: true,
+                membre: { select: { role: true, user: { select: { nom: true, prenom: true } } } },
+              },
+            },
+          },
+        },
         responsable: { select: { id: true, nom: true, prenom: true } },
         plansAction: {
           include: { responsable: { select: { id: true, nom: true, prenom: true } } },

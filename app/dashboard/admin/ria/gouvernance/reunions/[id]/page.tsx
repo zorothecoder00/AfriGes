@@ -16,6 +16,7 @@ import {
   parseActionsCR, serializeActionsCR, type ActionCR,
 } from "@/lib/commissionsRIA";
 import { ActionsCREditor } from "@/components/gouvernance/ActionsCompteRendu";
+import { ActeResolutionButton } from "@/components/gouvernance/ActeResolutionButton";
 
 /* ─── Types ─── */
 interface Presence {
@@ -587,6 +588,7 @@ function OngletResolutions({ r, onRefresh }: { r: Reunion; onRefresh: () => void
                   {(RESOLUTION_ACTIONS_PAR_STATUT[res.statut] ?? []).length === 0 && (
                     <span className="text-xs text-slate-400">Aucune action — {s.label}</span>
                   )}
+                  <ActeResolutionButton resolutionId={res.id} label="Acte de résolution" className="ml-auto flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg font-medium bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors disabled:opacity-50" />
                 </div>
               </div>
             );

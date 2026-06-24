@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useApi, useMutation } from "@/hooks/useApi";
 import { toast } from "sonner";
 import { commissionLabel, reunionExploitable } from "@/lib/commissionsRIA";
+import { ActeResolutionButton } from "@/components/gouvernance/ActeResolutionButton";
 import { Gavel, ListChecks, Calendar, Plus } from "lucide-react";
 
 interface Resolution {
@@ -213,18 +214,17 @@ export default function MesResolutionsPage() {
                   )}
                 </div>
 
-                {actions.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-slate-100">
-                    {actions.map(a => (
-                      <button key={a.action} onClick={() => runAction(r, a.action)} disabled={busy === r.id}
-                        className={`px-3 py-1.5 text-sm font-medium rounded-lg disabled:opacity-50 ${
-                          a.danger ? "bg-rose-50 text-rose-700 hover:bg-rose-100" : "bg-emerald-600 text-white hover:bg-emerald-700"
-                        }`}>
-                        {a.label}
-                      </button>
-                    ))}
-                  </div>
-                )}
+                <div className="flex flex-wrap items-center gap-2 mt-4 pt-4 border-t border-slate-100">
+                  {actions.map(a => (
+                    <button key={a.action} onClick={() => runAction(r, a.action)} disabled={busy === r.id}
+                      className={`px-3 py-1.5 text-sm font-medium rounded-lg disabled:opacity-50 ${
+                        a.danger ? "bg-rose-50 text-rose-700 hover:bg-rose-100" : "bg-emerald-600 text-white hover:bg-emerald-700"
+                      }`}>
+                      {a.label}
+                    </button>
+                  ))}
+                  <ActeResolutionButton resolutionId={r.id} label="Acte de résolution" className="ml-auto flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg font-medium bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors disabled:opacity-50" />
+                </div>
               </div>
             );
           })}
