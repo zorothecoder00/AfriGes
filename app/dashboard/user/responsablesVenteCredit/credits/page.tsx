@@ -863,7 +863,7 @@ export default function RVCCreditsPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-50">
-                    {groupByMonth(credits, (c) => c.createdAt, (c) => Number(c.montantTotal)).map((grp) => (
+                    {groupByMonth(credits, (c) => c.dateDebut, (c) => Number(c.montantTotal)).map((grp) => (
                       <React.Fragment key={grp.key}>
                         <MonthGroupHeaderRow
                           label={grp.label} total={grp.total} count={grp.count} colSpan={7}
@@ -877,7 +877,7 @@ export default function RVCCreditsPage() {
                         <tr key={credit.id} className="hover:bg-gray-50/60 transition-colors">
                           <td className="px-5 py-4">
                             <p className="font-mono text-xs font-semibold text-gray-700">{credit.reference}</p>
-                            <p className="text-xs text-gray-400 mt-0.5">{formatDate(credit.createdAt)}</p>
+                            <p className="text-xs text-gray-400 mt-0.5">{formatDate(credit.dateDebut)}</p>
                           </td>
                           <td className="px-5 py-4">
                             <p className="font-medium text-gray-800">{credit.client.prenom} {credit.client.nom}</p>

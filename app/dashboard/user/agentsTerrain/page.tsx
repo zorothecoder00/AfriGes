@@ -106,7 +106,6 @@ interface CreditItem {
   montantJournalier: string;
   dateDebut: string;
   dateEcheanceFin: string;
-  createdAt: string;
   client: { id: number; nom: string; prenom: string; telephone: string };
   echeances: { id: number; montantDu: string; montantPaye: string; dateEcheance: string; statut: string }[];
   remboursements: { id: number; montant: string; dateRemboursement: string }[];
@@ -2107,7 +2106,7 @@ export default function AgentTerrainPage() {
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {groupByMonth(creditsData!.credits, (c) => c.createdAt, (c) => Number(c.montantTotal)).map((grp) => (
+                    {groupByMonth(creditsData!.credits, (c) => c.dateDebut, (c) => Number(c.montantTotal)).map((grp) => (
                       <div key={grp.key} className="space-y-3">
                         <button type="button" onClick={() => credMonths.toggle(grp.key)}
                           className="w-full flex items-center justify-between gap-2 px-4 py-2.5 bg-slate-100 rounded-xl text-sm font-semibold text-slate-700 capitalize hover:bg-slate-200 transition-colors">
