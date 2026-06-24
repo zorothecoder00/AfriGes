@@ -832,6 +832,12 @@ export default function CaissierPage() {
   const [factureReceptionId,   setFactureReceptionId]   = useState<number | null>(null);
   const [factureCreditId,      setFactureCreditId]      = useState<number | null>(null);
   const [showProForma,         setShowProForma]         = useState(false);
+
+  // ── Modification durée / date d'un crédit ─────────────────────────────────
+  const [dureeCredit,  setDureeCredit]  = useState<{ id: number; reference: string; clientNom: string; statut: string; montantTotal: number; montantRembourse: number; soldeRestant: number; dureeJours: number; dateDebut: string } | null>(null);
+  const [dureeForm,    setDureeForm]    = useState({ dureeJours: "", dateDebut: "" });
+  const [dureeLoading, setDureeLoading] = useState(false);
+  const [dureeError,   setDureeError]   = useState("");
   const [facturesPage,         setFacturesPage]         = useState(1);
   const [vcPage,               setVcPage]               = useState(1);
   const [vcSearch,             setVcSearch]             = useState("");
@@ -1022,7 +1028,7 @@ export default function CaissierPage() {
     data: {
       id: number; reference: string; statut: string;
       montantTotal: number; montantRembourse: number; soldeRestant: number;
-      montantJournalier: number | null; dateDebut: string; dateEcheanceFin: string | null;
+      montantJournalier: number | null; dureeJours: number; dateDebut: string; dateEcheanceFin: string | null;
       client: { id: number; nom: string; prenom: string; telephone: string; codeClient: string | null };
       prochaineEcheance: {
         id: number; montantDu: number; montantPaye: number;
@@ -1103,6 +1109,42 @@ export default function CaissierPage() {
       setRembCreditId(null);
       refetchCredits();
     }
+  };
+
+  // ── Édition durée / date du crédit ──────────────────────────────────────────
+  const openDureeEdit = (c: NonNullable<typeof creditsRes>["data"][number]) => {
+    setDureeForm({ dureeJours: String(c.dureeJours), dateDebut: c.dateDebut ? c.dateDebut.slice(0, 10) : "" });
+    setDureeError("");
+    setDureeCredit({
+      id: c.id, reference: c.reference, clientNom: `${c.client.prenom} ${c.client.nom}`, statut: c.statut,
+      montantTotal: c.montantTotal, montantRembourse: c.montantRembourse, soldeRestant: c.soldeRestant,
+      dureeJours: c.dureeJours, dateDebut: c.dateDebut,
+    });
+  };
+
+  const saveDuree = async () => {
+    if (!dureeCredit) return;
+    const payload: Record<string, unknown> = {};
+    if (dureeForm.dureeJours !== String(dureeCredit.dureeJours)) {
+      if (!dureeForm.dureeJours || Number(dureeForm.dureeJours) < 1) { setDureeError("La durée doit être d'au moins 1 jour"); return; }
+      payload.dureeJours = Number(dureeForm.dureeJours);
+    }
+    if (dureeForm.dateDebut !== (dureeCredit.dateDebut ? dureeCredit.dateDebut.slice(0, 10) : "")) {
+      if (!dureeForm.dateDebut) { setDureeError("Date de début requise"); return; }
+      payload.dateDebut = dureeForm.dateDebut;
+    }
+    if (Object.keys(payload).length === 0) { setDureeError("Aucune modification"); return; }
+    setDureeLoading(true);
+    setDureeError("");
+    try {
+      const r = await fetch(`/api/caissier/credits/${dureeCredit.id}`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
+      });
+      const j = await r.json();
+      if (r.ok) { toast.success("Durée du crédit mise à jour"); setDureeCredit(null); refetchCredits(); }
+      else setDureeError(j.error || "Erreur");
+    } catch { setDureeError("Erreur réseau"); }
+    finally { setDureeLoading(false); }
   };
 
   // Nombre de jours dérivé + montant attendu indicatif (montant journalier du crédit)
@@ -1480,6 +1522,62 @@ export default function CaissierPage() {
       {factureVenteId     && <FactureModal venteDirecteId={factureVenteId}       onClose={() => setFactureVenteId(null)} />}
       {factureReceptionId && <FactureModal receptionPackId={factureReceptionId} onClose={() => setFactureReceptionId(null)} />}
       {factureCreditId    && <FactureModal creditClientId={factureCreditId}      onClose={() => setFactureCreditId(null)} />}
+
+      {/* ── Modal : modifier la durée / date du crédit ─────────────────────────── */}
+      {dureeCredit && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[200] p-4">
+          <div className="bg-white rounded-2xl w-full max-w-md shadow-xl">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+              <h3 className="font-bold text-gray-900 flex items-center gap-2">
+                <Pencil className="w-5 h-5 text-amber-600" /> Modifier la durée du crédit
+              </h3>
+              <button onClick={() => setDureeCredit(null)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+            </div>
+            <div className="px-5 py-4 space-y-3">
+              {dureeError && (
+                <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-lg px-3 py-2 text-red-700 text-sm">
+                  <AlertCircle className="w-4 h-4 flex-shrink-0" />{dureeError}
+                </div>
+              )}
+              <CreditRappelInfo
+                reference={dureeCredit.reference}
+                clientNom={dureeCredit.clientNom}
+                dateDebut={dureeCredit.dateDebut}
+                montantTotal={dureeCredit.montantTotal}
+                montantRembourse={dureeCredit.montantRembourse}
+                soldeRestant={dureeCredit.soldeRestant}
+              />
+              {dureeCredit.montantRembourse > 0 && (
+                <div className="bg-orange-50 border border-orange-200 rounded-lg px-3 py-2 text-xs text-orange-700 flex items-start gap-2">
+                  <AlertCircle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
+                  Ce crédit a déjà des remboursements : l&apos;échéancier sera régénéré et le déjà-payé réimputé (montant total et solde restant inchangés).
+                </div>
+              )}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Durée (jours) <span className="text-red-500">*</span></label>
+                  <input type="number" min={1} value={dureeForm.dureeJours}
+                    onChange={(e) => setDureeForm(f => ({ ...f, dureeJours: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-amber-400" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Date de début <span className="text-red-500">*</span></label>
+                  <input type="date" value={dureeForm.dateDebut}
+                    onChange={(e) => setDureeForm(f => ({ ...f, dateDebut: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-amber-400" />
+                </div>
+              </div>
+            </div>
+            <div className="flex justify-end gap-3 px-5 py-4 border-t border-gray-100">
+              <button onClick={() => setDureeCredit(null)} className="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">Annuler</button>
+              <button onClick={saveDuree} disabled={dureeLoading}
+                className="flex items-center gap-2 px-5 py-2 text-sm text-white bg-amber-600 hover:bg-amber-700 rounded-lg font-medium disabled:opacity-50">
+                {dureeLoading ? <><Loader2 className="w-4 h-4 animate-spin" />Traitement…</> : "Enregistrer"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Modal correction d'un remboursement crédit (depuis l'historique) ── */}
       {editRemb && (
@@ -3657,6 +3755,13 @@ export default function CaissierPage() {
                                   className="flex items-center gap-1 px-2.5 py-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg text-xs font-semibold hover:bg-emerald-100 transition-colors"
                                 >
                                   <Banknote size={12} /> Rembourser
+                                </button>
+                                <button
+                                  onClick={() => openDureeEdit(c)}
+                                  className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
+                                  title="Modifier la durée"
+                                >
+                                  <Pencil size={13} />
                                 </button>
                                 <button
                                   onClick={() => setFactureCreditId(c.id)}

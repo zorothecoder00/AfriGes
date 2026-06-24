@@ -7,7 +7,7 @@ import {
   Banknote, Calendar, LucideIcon, Layers, Plus,
   Loader2, Truck, Package, ShoppingCart, X, Send, XCircle,
   ClipboardList, CreditCard, Navigation, PlayCircle, ChevronDown, ChevronUp,
-  Wallet, TrendingDown, UserPlus, Receipt, FileText,
+  Wallet, TrendingDown, UserPlus, Receipt, FileText, Pencil,
 } from "lucide-react";
 import Link from "next/link";      
 import SignOutButton from "@/components/SignOutButton";
@@ -104,6 +104,7 @@ interface CreditItem {
   montantRembourse: string;
   soldeRestant: string;
   montantJournalier: string;
+  dureeJours: number;
   dateDebut: string;
   dateEcheanceFin: string;
   client: { id: number; nom: string; prenom: string; telephone: string };
@@ -1491,6 +1492,12 @@ export default function AgentTerrainPage() {
   // ── Crédits ──
   const [rembourserCredit, setRembourserCredit] = useState<CreditItem | null>(null);
 
+  // ── Modification durée / date d'un crédit ─────────────────────────────────
+  const [dureeCredit,  setDureeCredit]  = useState<CreditItem | null>(null);
+  const [dureeForm,    setDureeForm]    = useState({ dureeJours: "", dateDebut: "" });
+  const [dureeLoading, setDureeLoading] = useState(false);
+  const [dureeError,   setDureeError]   = useState("");
+
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(searchQuery), 400);
     return () => clearTimeout(t);
@@ -1515,6 +1522,37 @@ export default function AgentTerrainPage() {
   const { data: creditsData, loading: creditsLoading, refetch: refetchCredits } =
     useApi<CreditsResponse>(activeTab === "credits" ? "/api/agentTerrain/credits" : null);
   const credMonths = useCollapsedMonths();
+
+  // ── Édition durée / date du crédit ──────────────────────────────────────────
+  const openDureeEdit = (c: CreditItem) => {
+    setDureeForm({ dureeJours: String(c.dureeJours), dateDebut: c.dateDebut ? c.dateDebut.slice(0, 10) : "" });
+    setDureeError("");
+    setDureeCredit(c);
+  };
+  const saveDuree = async () => {
+    if (!dureeCredit) return;
+    const payload: Record<string, unknown> = {};
+    if (dureeForm.dureeJours !== String(dureeCredit.dureeJours)) {
+      if (!dureeForm.dureeJours || Number(dureeForm.dureeJours) < 1) { setDureeError("La durée doit être d'au moins 1 jour"); return; }
+      payload.dureeJours = Number(dureeForm.dureeJours);
+    }
+    if (dureeForm.dateDebut !== (dureeCredit.dateDebut ? dureeCredit.dateDebut.slice(0, 10) : "")) {
+      if (!dureeForm.dateDebut) { setDureeError("Date de début requise"); return; }
+      payload.dateDebut = dureeForm.dateDebut;
+    }
+    if (Object.keys(payload).length === 0) { setDureeError("Aucune modification"); return; }
+    setDureeLoading(true);
+    setDureeError("");
+    try {
+      const r = await fetch(`/api/agentTerrain/credits/${dureeCredit.id}`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
+      });
+      const j = await r.json();
+      if (r.ok) { toast.success("Durée du crédit mise à jour"); setDureeCredit(null); refetchCredits(); }
+      else setDureeError(j.error || "Erreur");
+    } catch { setDureeError("Erreur réseau"); }
+    finally { setDureeLoading(false); }
+  };
 
   const { mutate: demarrerSession, loading: demarrantSession } = useMutation<unknown, object>(
     "/api/agentTerrain/collecteJour", "POST",
@@ -2184,6 +2222,12 @@ export default function AgentTerrainPage() {
                                 className="flex items-center gap-1.5 px-4 py-2 bg-white border border-indigo-200 text-indigo-700 rounded-xl hover:bg-indigo-50 text-sm font-medium"
                               >
                                 <Receipt size={14} /> Facture
+                              </button>
+                              <button
+                                onClick={() => openDureeEdit(credit)}
+                                className="flex items-center gap-1.5 px-4 py-2 bg-white border border-amber-200 text-amber-700 rounded-xl hover:bg-amber-50 text-sm font-medium"
+                              >
+                                <Pencil size={14} /> Durée
                               </button>
                             </div>
                           </div>
@@ -3092,6 +3136,63 @@ export default function AgentTerrainPage() {
           onClose={() => setRembourserCredit(null)}
           onSuccess={() => { refetchCredits(); setRembourserCredit(null); }}
         />
+      )}
+
+      {/* ── Modal : modifier la durée / date du crédit ─────────────────────────── */}
+      {dureeCredit && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                <Pencil className="w-5 h-5 text-amber-600" /> Modifier la durée du crédit
+              </h2>
+              <button onClick={() => setDureeCredit(null)} className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg font-bold text-lg">×</button>
+            </div>
+            <div className="space-y-3">
+              {dureeError && (
+                <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-lg px-3 py-2 text-red-700 text-sm">
+                  <AlertCircle className="w-4 h-4 flex-shrink-0" />{dureeError}
+                </div>
+              )}
+              <CreditRappelInfo
+                reference={dureeCredit.reference}
+                clientNom={`${dureeCredit.client.prenom} ${dureeCredit.client.nom}`}
+                dateDebut={dureeCredit.dateDebut}
+                montantTotal={Number(dureeCredit.montantTotal)}
+                montantRembourse={Number(dureeCredit.montantRembourse)}
+                soldeRestant={Number(dureeCredit.soldeRestant)}
+              />
+              {Number(dureeCredit.montantRembourse) > 0 && (
+                <div className="bg-orange-50 border border-orange-200 rounded-lg px-3 py-2 text-xs text-orange-700 flex items-start gap-2">
+                  <AlertCircle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
+                  Ce crédit a déjà des remboursements : l&apos;échéancier sera régénéré et le déjà-payé réimputé (montant total et solde restant inchangés).
+                </div>
+              )}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Durée (jours) *</label>
+                  <input type="number" min={1} value={dureeForm.dureeJours}
+                    onChange={(e) => setDureeForm(f => ({ ...f, dureeJours: e.target.value }))}
+                    className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Date de début *</label>
+                  <input type="date" value={dureeForm.dateDebut}
+                    onChange={(e) => setDureeForm(f => ({ ...f, dateDebut: e.target.value }))}
+                    className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500" />
+                </div>
+              </div>
+              <div className="flex gap-3 pt-1">
+                <button onClick={() => setDureeCredit(null)}
+                  className="flex-1 py-2.5 border border-slate-200 text-slate-700 rounded-xl hover:bg-slate-50 text-sm font-medium">Annuler</button>
+                <button onClick={saveDuree} disabled={dureeLoading}
+                  className="flex-1 py-2.5 bg-amber-600 text-white rounded-xl hover:bg-amber-700 disabled:opacity-50 text-sm font-medium flex items-center justify-center gap-2">
+                  {dureeLoading ? <><Loader2 size={14} className="animate-spin" /> Enregistrement…</> : "Enregistrer"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Modal ajout client enrichi */}

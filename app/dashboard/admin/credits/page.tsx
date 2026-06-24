@@ -225,8 +225,10 @@ export default function CreditsPage() {
   const [deleteCredit,   setDeleteCredit]   = useState<CreditClient | null>(null);
   const [deleteLoading,  setDeleteLoading]  = useState(false);
 
-  // Crédit actif avec remboursements : durée/date verrouillées (échéancier figé)
-  const editPlanningVerrou = editCredit?.statut === 'ACTIF' && (editCredit?._count.remboursements ?? 0) > 0;
+  // Crédit actif avec remboursements : la durée/date restent modifiables — l'échéancier
+  // est régénéré et le déjà-payé réimputé côté serveur (on affiche juste un avertissement).
+  const editEnRemboursement = editCredit?.statut === 'ACTIF' || editCredit?.statut === 'EN_RETARD';
+  const editAvecRemboursements = editEnRemboursement && (editCredit?._count.remboursements ?? 0) > 0;
 
   const openEdit = (credit: CreditClient) => {
     setEditForm({
@@ -858,8 +860,8 @@ export default function CreditsPage() {
                                 <Receipt className="w-4 h-4" />
                               </button>
 
-                              {/* Modifier (uniquement en attente de validation) */}
-                              {(credit.statut === 'EN_ATTENTE_VALIDATION' || credit.statut === 'ACTIF') && (
+                              {/* Modifier (en attente de validation, actif ou en retard) */}
+                              {(credit.statut === 'EN_ATTENTE_VALIDATION' || credit.statut === 'ACTIF' || credit.statut === 'EN_RETARD') && (
                                 <button onClick={() => openEdit(credit)}
                                   className="p-2 text-indigo-500 hover:bg-indigo-50 rounded-lg transition-colors" title="Modifier">
                                   <Pencil className="w-4 h-4" />
@@ -1870,12 +1872,12 @@ export default function CreditsPage() {
                   <AlertCircle className="w-4 h-4 flex-shrink-0" />{editError}
                 </div>
               )}
-              {editCredit.statut === 'ACTIF' ? (
+              {editEnRemboursement ? (
                 <div className="bg-orange-50 border border-orange-200 rounded-lg px-3 py-2 text-xs text-orange-700 flex items-start gap-2">
                   <AlertCircle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
-                  Crédit <strong>actif</strong> : changer la durée ou la date régénère l&apos;échéancier et ajuste le solde du client.
-                  {editPlanningVerrou
-                    ? " Verrouillé ici car des remboursements existent — seuls pénalité, garantie et observations sont modifiables."
+                  Crédit <strong>en cours de remboursement</strong> : changer la durée ou la date régénère l&apos;échéancier et ajuste le solde du client.
+                  {editAvecRemboursements
+                    ? " Ce crédit a déjà des remboursements : le déjà-payé sera réimputé sur le nouvel échéancier (montant total et solde restant inchangés)."
                     : " Les produits ne sont pas modifiables ici."}
                 </div>
               ) : (
@@ -1887,13 +1889,13 @@ export default function CreditsPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-medium text-gray-600 mb-1">Durée (jours) <span className="text-red-500">*</span></label>
-                  <input type="number" min={1} value={editForm.dureeJours} disabled={editPlanningVerrou}
+                  <input type="number" min={1} value={editForm.dureeJours}
                     onChange={(e) => setEditForm(f => ({ ...f, dureeJours: e.target.value }))}
                     className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-400 disabled:opacity-60 disabled:cursor-not-allowed" />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-600 mb-1">Date de début <span className="text-red-500">*</span></label>
-                  <input type="date" value={editForm.dateDebut} disabled={editPlanningVerrou}
+                  <input type="date" value={editForm.dateDebut}
                     onChange={(e) => setEditForm(f => ({ ...f, dateDebut: e.target.value }))}
                     className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-400 disabled:opacity-60 disabled:cursor-not-allowed" />
                 </div>

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { StatutCredit, TypeMouvement, TypeEntreeStock } from "@prisma/client";
+import { StatutCredit, StatutEcheanceCredit, TypeMouvement, TypeEntreeStock } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getRVCSession } from "@/lib/authRVC";
 
@@ -89,16 +89,23 @@ export async function PATCH(req: Request, { params }: Ctx) {
       });
       if (!credit) throw new Error("CREDIT_INTROUVABLE");
 
-      const estActif = credit.statut === StatutCredit.ACTIF;
+      // « En remboursement » = ACTIF ou EN_RETARD : dans les deux cas l'échéancier existe
+      // et peut être régénéré (avec réimputation du déjà-payé).
+      const estActif = credit.statut === StatutCredit.ACTIF || credit.statut === StatutCredit.EN_RETARD;
       if (credit.statut !== StatutCredit.EN_ATTENTE_VALIDATION && !estActif) throw new Error("CREDIT_NON_MODIFIABLE");
 
-      const toucheMontantOuPlanning = lignes !== undefined || dureeJours !== undefined || dateDebut !== undefined;
+      const toucheMontant  = lignes !== undefined;
+      const touchePlanning = dureeJours !== undefined || dateDebut !== undefined;
+      const dejaRembourse  = Number(credit.montantRembourse);
 
-      // Sur un crédit ACTIF, un changement de montant / échéancier impacte le solde client
-      // et la réservation stock : on ne l'autorise que s'il n'a aucun remboursement,
-      // aucune ligne déjà livrée et aucun financement RIA adossé.
-      if (estActif && toucheMontantOuPlanning) {
-        if (Number(credit.montantRembourse) > 0) throw new Error("ACTIF_AVEC_REMBOURSEMENT");
+      // Sur un crédit ACTIF, un changement de MONTANT (lignes) impacte le solde client,
+      // la réservation stock et un éventuel financement RIA : on ne l'autorise que s'il
+      // n'a aucun remboursement, aucune ligne livrée et aucun financement RIA.
+      // En revanche, un changement de PLANNING seul (durée / date de début, montant
+      // inchangé) reste autorisé même avec des remboursements : on régénère l'échéancier
+      // en réimputant le déjà-payé (voir plus bas).
+      if (estActif && toucheMontant) {
+        if (dejaRembourse > 0) throw new Error("ACTIF_AVEC_REMBOURSEMENT");
         if (credit.lignes.some((l) => l.statut === "LIVRE")) throw new Error("ACTIF_LIGNE_LIVREE");
         if (credit._count.financementsRIA > 0) throw new Error("ACTIF_FINANCE_RIA");
       }
@@ -176,8 +183,8 @@ export async function PATCH(req: Request, { params }: Ctx) {
       const dateEcheanceFin   = new Date(debut);
       dateEcheanceFin.setDate(dateEcheanceFin.getDate() + duree);
 
-      // soldeRestant = montant total − déjà remboursé (0 sur ACTIF modifiable / EN_ATTENTE)
-      const soldeRestant = Math.max(0, Number((montantTotal - Number(credit.montantRembourse)).toFixed(2)));
+      // soldeRestant = montant total − déjà remboursé (le déjà-payé est préservé)
+      const soldeRestant = Math.max(0, Number((montantTotal - dejaRembourse).toFixed(2)));
 
       const updated = await tx.creditClient.update({
         where: { id: creditId },
@@ -195,7 +202,8 @@ export async function PATCH(req: Request, { params }: Ctx) {
       });
 
       // ── Crédit ACTIF : répercuter le delta de montant + régénérer l'échéancier ──
-      if (estActif && toucheMontantOuPlanning) {
+      if (estActif && (toucheMontant || touchePlanning)) {
+        // Répercussion d'un éventuel changement de montant sur le solde client
         const delta = Number((montantTotal - ancienMontant).toFixed(2));
         if (delta !== 0) {
           await tx.client.update({
@@ -203,19 +211,40 @@ export async function PATCH(req: Request, { params }: Ctx) {
             data:  { soldeActuel: { increment: delta } },
           });
         }
-        // Aucun remboursement (vérifié plus haut) → on régénère tout l'échéancier
+
+        // Régénération complète : on réimpute le déjà-remboursé sur le nouvel échéancier
+        // (depuis la 1re échéance), pour rester cohérent même si le crédit a des paiements.
         await tx.echeanceCredit.deleteMany({ where: { creditId } });
         const residuel = Number((montantTotal - montantJournalier * duree).toFixed(2));
+        const now = new Date();
+        let budget = dejaRembourse;     // total déjà payé à réimputer
+        let resteEnRetard = false;
         const echData = Array.from({ length: duree }, (_, idx) => {
           const i = idx + 1;
           const d = new Date(debut);
           d.setDate(d.getDate() + idx);
-          return {
-            creditId, numeroEcheance: i, dateEcheance: d,
-            montantDu: i === duree ? Number((montantJournalier + residuel).toFixed(2)) : montantJournalier,
-          };
+          const montantDu = i === duree
+            ? Number((montantJournalier + residuel).toFixed(2))
+            : montantJournalier;
+          const paye = Math.min(budget, montantDu);
+          budget = Number((budget - paye).toFixed(2));
+          // On ne marque jamais EN_RETARD ici : une échéance EN_RETARD serait exclue de
+          // l'imputation des futurs remboursements. Le retard est porté par le crédit.
+          const statut = paye >= montantDu
+            ? StatutEcheanceCredit.PAYE
+            : paye > 0 ? StatutEcheanceCredit.PARTIEL : StatutEcheanceCredit.EN_ATTENTE;
+          if (paye < montantDu && d < now) resteEnRetard = true;
+          return { creditId, numeroEcheance: i, dateEcheance: d, montantDu, montantPaye: paye, statut };
         });
         await tx.echeanceCredit.createMany({ data: echData });
+
+        // Statut crédit recalculé : SOLDE si tout payé, sinon EN_RETARD / ACTIF
+        const nouveauStatut = soldeRestant <= 0
+          ? StatutCredit.SOLDE
+          : resteEnRetard ? StatutCredit.EN_RETARD : StatutCredit.ACTIF;
+        if (nouveauStatut !== credit.statut) {
+          await tx.creditClient.update({ where: { id: creditId }, data: { statut: nouveauStatut } });
+        }
       }
 
       await tx.auditLog.create({

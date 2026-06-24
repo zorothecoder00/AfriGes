@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
+import { StatutCredit } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getRVCSession } from "@/lib/authRVC";
+import { appliquerNouvelleDureeCredit } from "@/lib/dureeCredit";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -70,8 +72,10 @@ export async function GET(_req: Request, { params }: Ctx) {
 /**
  * PATCH /api/rvc/credits/[id]
  *
- * Modifie les métadonnées d'un crédit EN_ATTENTE_VALIDATION (durée, date début, garantie, observations).
- * Recalcule montantJournalier et dateEcheanceFin.
+ * Modifie les métadonnées d'un crédit (durée, date début, garantie, observations).
+ * Autorisé sur EN_ATTENTE_VALIDATION, ACTIF et EN_RETARD. Recalcule montantJournalier,
+ * dateEcheanceFin et — pour un crédit en remboursement — régénère l'échéancier en
+ * réimputant le déjà-payé (montant total et solde restant inchangés).
  */
 export async function PATCH(req: Request, { params }: Ctx) {
   try {
@@ -105,31 +109,16 @@ export async function PATCH(req: Request, { params }: Ctx) {
     const result = await prisma.$transaction(async (tx) => {
       const credit = await tx.creditClient.findUnique({
         where: { id: creditId },
-        select: { id: true, statut: true, pointDeVenteId: true, montantTotal: true, dureeJours: true, dateDebut: true },
+        select: { id: true, statut: true, pointDeVenteId: true, montantTotal: true, montantRembourse: true, dureeJours: true, dateDebut: true },
       });
       if (!credit) throw new Error("CREDIT_INTROUVABLE");
-      if (credit.statut !== "EN_ATTENTE_VALIDATION") throw new Error("CREDIT_NON_MODIFIABLE");
+      // « En remboursement » = ACTIF ou EN_RETARD : l'échéancier existe et est régénéré
+      // (avec réimputation du déjà-payé). EN_ATTENTE_VALIDATION reste éditable aussi.
+      const estEnRemboursement = credit.statut === StatutCredit.ACTIF || credit.statut === StatutCredit.EN_RETARD;
+      if (credit.statut !== StatutCredit.EN_ATTENTE_VALIDATION && !estEnRemboursement) throw new Error("CREDIT_NON_MODIFIABLE");
       if (rvcPdvId !== null && credit.pointDeVenteId !== rvcPdvId) throw new Error("ACCES_REFUSE");
 
-      const duree = body.dureeJours != null ? Number(body.dureeJours) : credit.dureeJours;
-      if (duree < 1) throw new Error("DUREE_INVALIDE");
-      const debut = body.dateDebut ? new Date(body.dateDebut) : credit.dateDebut;
-
-      const montantJournalier = Number((Number(credit.montantTotal) / duree).toFixed(2));
-      const dateEcheanceFin   = new Date(debut);
-      dateEcheanceFin.setDate(dateEcheanceFin.getDate() + duree);
-
-      return tx.creditClient.update({
-        where: { id: creditId },
-        data: {
-          dureeJours:      duree,
-          dateDebut:       debut,
-          montantJournalier,
-          dateEcheanceFin,
-          ...(body.garantie     !== undefined && { garantie:     body.garantie }),
-          ...(body.observations !== undefined && { observations: body.observations }),
-        },
-      });
+      return appliquerNouvelleDureeCredit(tx, credit, body);
     });
 
     return NextResponse.json({ data: result });
@@ -137,7 +126,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
     if (error instanceof Error) {
       const map: Record<string, [string, number]> = {
         CREDIT_INTROUVABLE:    ["Crédit introuvable", 404],
-        CREDIT_NON_MODIFIABLE: ["Seuls les crédits EN_ATTENTE_VALIDATION peuvent être modifiés", 422],
+        CREDIT_NON_MODIFIABLE: ["Seuls les crédits en attente de validation, actifs ou en retard peuvent être modifiés", 422],
         ACCES_REFUSE:          ["Accès refusé — PDV non autorisé", 403],
         DUREE_INVALIDE:        ["La durée doit être ≥ 1 jour", 400],
       };

@@ -63,6 +63,7 @@ export async function GET(req: Request) {
           montantRembourse: true,
           soldeRestant: true,
           montantJournalier: true,
+          dureeJours: true,
           dateDebut: true,
           dateEcheanceFin: true,
           client: {

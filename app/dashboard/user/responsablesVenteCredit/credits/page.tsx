@@ -477,6 +477,12 @@ export default function RVCCreditsPage() {
   const [rembAgent,   setRembAgent]   = useState("");  // agent collecteur (User.id)
   const [rembLoading, setRembLoading] = useState(false);
 
+  // ── Modification durée / date de début d'un crédit ─────────────────────────
+  const [dureeCredit,  setDureeCredit]  = useState<CreditClient | null>(null);
+  const [dureeForm,    setDureeForm]    = useState({ dureeJours: "", dateDebut: "" });
+  const [dureeLoading, setDureeLoading] = useState(false);
+  const [dureeError,   setDureeError]   = useState("");
+
   // ── Ajout / Modification d'une ligne (EN_ATTENTE_VALIDATION) ──────────────
   type LigneEditResults = { id: number; nom: string; reference: string | null; prixVente: string | null }[];
   const [ligneEditOpen,       setLigneEditOpen]       = useState(false);
@@ -507,6 +513,43 @@ export default function RVCCreditsPage() {
   // Pliage des regroupements mensuels (liste des crédits + remboursements du détail)
   const credMonths = useCollapsedMonths();
   const rembMonths = useCollapsedMonths();
+
+  // ── Édition durée / date du crédit ──────────────────────────────────────────
+  const openDureeEdit = (credit: CreditClient) => {
+    setDureeForm({
+      dureeJours: String(credit.dureeJours),
+      dateDebut:  credit.dateDebut ? credit.dateDebut.slice(0, 10) : "",
+    });
+    setDureeError("");
+    setDureeCredit(credit);
+  };
+
+  const saveDuree = async () => {
+    if (!dureeCredit) return;
+    const payload: Record<string, unknown> = {};
+    if (dureeForm.dureeJours !== String(dureeCredit.dureeJours)) {
+      if (!dureeForm.dureeJours || Number(dureeForm.dureeJours) < 1) { setDureeError("La durée doit être d'au moins 1 jour"); return; }
+      payload.dureeJours = Number(dureeForm.dureeJours);
+    }
+    if (dureeForm.dateDebut !== (dureeCredit.dateDebut ? dureeCredit.dateDebut.slice(0, 10) : "")) {
+      if (!dureeForm.dateDebut) { setDureeError("Date de début requise"); return; }
+      payload.dateDebut = dureeForm.dateDebut;
+    }
+    if (Object.keys(payload).length === 0) { setDureeError("Aucune modification"); return; }
+    setDureeLoading(true);
+    setDureeError("");
+    try {
+      const r = await fetch(`/api/rvc/credits/${dureeCredit.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const j = await r.json();
+      if (r.ok) { toast.success("Durée du crédit mise à jour"); setDureeCredit(null); refetch(); }
+      else setDureeError(j.error || "Erreur");
+    } catch { setDureeError("Erreur réseau"); }
+    finally { setDureeLoading(false); }
+  };
 
   const { data: collecteursRes } = useApi<{ data: { id: number; nom: string; prenom: string }[] }>("/api/rvc/collecteurs");
   const collecteurs = collecteursRes?.data ?? [];
@@ -921,6 +964,12 @@ export default function RVCCreditsPage() {
                                 className="p-2 text-indigo-500 hover:bg-indigo-50 rounded-lg transition-colors" title="Voir le détail">
                                 <Eye className="w-4 h-4" />
                               </button>
+                              {(credit.statut === "EN_ATTENTE_VALIDATION" || credit.statut === "ACTIF" || credit.statut === "EN_RETARD") && (
+                                <button onClick={() => openDureeEdit(credit)}
+                                  className="p-2 text-amber-600 hover:bg-amber-50 rounded-lg transition-colors" title="Modifier la durée">
+                                  <Edit3 className="w-4 h-4" />
+                                </button>
+                              )}
                               <button onClick={() => setFactureId(credit.id)}
                                 className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors" title="Facture crédit">
                                 <Receipt className="w-4 h-4" />
@@ -1340,6 +1389,68 @@ export default function RVCCreditsPage() {
 
       {factureId !== null && (
         <FactureModal creditClientId={factureId} onClose={() => setFactureId(null)} />
+      )}
+
+      {/* ── Modal : modifier la durée / date du crédit ─────────────────────────── */}
+      {dureeCredit && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[200] p-4">
+          <div className="bg-white rounded-2xl w-full max-w-md shadow-xl">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+              <div className="flex items-center gap-2">
+                <Edit3 className="w-5 h-5 text-amber-600" />
+                <h3 className="text-base font-bold text-gray-900">Modifier la durée du crédit</h3>
+              </div>
+              <button onClick={() => setDureeCredit(null)} className="text-gray-400 hover:text-gray-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="px-6 py-4 space-y-4">
+              {dureeError && (
+                <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-lg px-3 py-2 text-red-700 text-sm">
+                  <AlertCircle className="w-4 h-4 flex-shrink-0" />{dureeError}
+                </div>
+              )}
+              <CreditRappelInfo
+                reference={dureeCredit.reference}
+                clientNom={`${dureeCredit.client.prenom} ${dureeCredit.client.nom}`}
+                dateDebut={dureeCredit.dateDebut}
+                montantTotal={Number(dureeCredit.montantTotal)}
+                montantRembourse={Number(dureeCredit.montantRembourse)}
+                soldeRestant={Number(dureeCredit.soldeRestant)}
+              />
+              {(dureeCredit.statut === "ACTIF" || dureeCredit.statut === "EN_RETARD") && dureeCredit._count.remboursements > 0 && (
+                <div className="bg-orange-50 border border-orange-200 rounded-lg px-3 py-2 text-xs text-orange-700 flex items-start gap-2">
+                  <AlertCircle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
+                  Ce crédit a déjà des remboursements : l&apos;échéancier sera régénéré et le déjà-payé réimputé (montant total et solde restant inchangés).
+                </div>
+              )}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Durée (jours) <span className="text-red-500">*</span></label>
+                  <input type="number" min={1} value={dureeForm.dureeJours}
+                    onChange={(e) => setDureeForm(f => ({ ...f, dureeJours: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-amber-400" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Date de début <span className="text-red-500">*</span></label>
+                  <input type="date" value={dureeForm.dateDebut}
+                    onChange={(e) => setDureeForm(f => ({ ...f, dateDebut: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-amber-400" />
+                </div>
+              </div>
+            </div>
+            <div className="flex justify-end gap-3 px-6 py-4 border-t border-gray-100">
+              <button onClick={() => setDureeCredit(null)}
+                className="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">
+                Annuler
+              </button>
+              <button onClick={saveDuree} disabled={dureeLoading}
+                className="flex items-center gap-2 px-5 py-2 text-sm text-white bg-amber-600 hover:bg-amber-700 rounded-lg font-medium disabled:opacity-50">
+                {dureeLoading ? <><Loader2 className="w-4 h-4 animate-spin" />Traitement…</> : "Enregistrer"}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {showNouveauCredit && (
