@@ -10,6 +10,7 @@ import {
   MapPin,
 } from "lucide-react";
 import { useApi } from "@/hooks/useApi";
+import { usePageAccess } from "@/hooks/usePageAccess";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -76,6 +77,7 @@ const NOTE_COLOR = (n: number) =>
 
 export default function DashboardRHPage() {
   const { data, loading, refetch } = useApi<DashboardRH>("/api/responsableRH/dashboard");
+  const { isAllowed } = usePageAccess();
 
   const d = data;
 
@@ -122,20 +124,24 @@ export default function DashboardRHPage() {
             >
               <MessageSquare size={16} />
             </Link>
-            <Link
-              href="/dashboard/user/responsablesRH/audit"
-              className="p-2.5 rounded-xl border border-slate-200 bg-white text-slate-500 hover:text-slate-700 transition-all"
-              title="Audit & Traçabilité"
-            >
-              <ShieldCheck size={16} />
-            </Link>
-            <Link
-              href="/dashboard/user/responsablesRH/preferences"
-              className="p-2.5 rounded-xl border border-slate-200 bg-white text-slate-500 hover:text-slate-700 transition-all"
-              title="Préférences de notifications"
-            >
-              <Bell size={16} />
-            </Link>
+            {isAllowed("audit") && (
+              <Link
+                href="/dashboard/user/responsablesRH/audit"
+                className="p-2.5 rounded-xl border border-slate-200 bg-white text-slate-500 hover:text-slate-700 transition-all"
+                title="Audit & Traçabilité"
+              >
+                <ShieldCheck size={16} />
+              </Link>
+            )}
+            {isAllowed("preferences") && (
+              <Link
+                href="/dashboard/user/responsablesRH/preferences"
+                className="p-2.5 rounded-xl border border-slate-200 bg-white text-slate-500 hover:text-slate-700 transition-all"
+                title="Préférences de notifications"
+              >
+                <Bell size={16} />
+              </Link>
+            )}
             <button
               onClick={refetch}
               className={`p-2.5 rounded-xl border border-slate-200 bg-white text-slate-500 hover:text-slate-700 transition-all ${loading ? "animate-spin" : ""}`}
@@ -156,7 +162,7 @@ export default function DashboardRHPage() {
             {/* ── Alertes ── */}
             {(d.alertes.congesEnAttente > 0 || d.alertes.cddExpirant > 0) && (
               <div className="flex gap-3 flex-wrap">
-                {d.alertes.congesEnAttente > 0 && (
+                {d.alertes.congesEnAttente > 0 && isAllowed("conges") && (
                   <Link
                     href="/dashboard/user/responsablesRH/conges"
                     className="flex items-center gap-2 px-4 py-2.5 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-800 hover:bg-amber-100 transition-all"
@@ -166,7 +172,7 @@ export default function DashboardRHPage() {
                     <ChevronRight className="w-3.5 h-3.5 text-amber-500" />
                   </Link>
                 )}
-                {d.alertes.cddExpirant > 0 && (
+                {d.alertes.cddExpirant > 0 && isAllowed("collaborateurs") && (
                   <Link
                     href="/dashboard/user/responsablesRH/collaborateurs?typeContrat=CDD"
                     className="flex items-center gap-2 px-4 py-2.5 bg-red-50 border border-red-200 rounded-xl text-sm text-red-800 hover:bg-red-100 transition-all"
@@ -497,20 +503,22 @@ export default function DashboardRHPage() {
             <div className="bg-white rounded-2xl border border-slate-200 p-5">
               <h3 className="text-sm font-semibold text-slate-700 mb-4">Accès rapide</h3>
               <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-2">
-                {[
-                  { href: "/dashboard/user/responsablesRH/collaborateurs", icon: <Users size={15} />, label: "Collaborateurs" },
-                  { href: "/dashboard/user/responsablesRH/pointages",  icon: <CheckCircle2  size={15} />, label: "Pointages"   },
-                  { href: "/dashboard/user/responsablesRH/conges",    icon: <Calendar      size={15} />, label: "Congés"      },
-                  { href: "/dashboard/user/responsablesRH/missions",  icon: <MapPin        size={15} />, label: "Missions"    },
-                  { href: "/dashboard/user/responsablesRH/recrutement", icon: <UserCheck   size={15} />, label: "Recrutement" },
+                {([
+                  { href: "/dashboard/user/responsablesRH/collaborateurs", icon: <Users size={15} />, label: "Collaborateurs", accessKey: "collaborateurs" },
+                  { href: "/dashboard/user/responsablesRH/pointages",  icon: <CheckCircle2  size={15} />, label: "Pointages",   accessKey: "pointages" },
+                  { href: "/dashboard/user/responsablesRH/conges",    icon: <Calendar      size={15} />, label: "Congés",      accessKey: "conges" },
+                  { href: "/dashboard/user/responsablesRH/missions",  icon: <MapPin        size={15} />, label: "Missions",    accessKey: "missions" },
+                  { href: "/dashboard/user/responsablesRH/recrutement", icon: <UserCheck   size={15} />, label: "Recrutement", accessKey: "recrutement" },
                   { href: "/dashboard/admin/rh/evaluations",          icon: <Star          size={15} />, label: "Évaluations" },
                   { href: "/dashboard/admin/rh/formations",           icon: <GraduationCap size={15} />, label: "Formations"  },
                   { href: "/dashboard/admin/rh/documents-rh",         icon: <FileText      size={15} />, label: "Documents RH"},
                   { href: "/dashboard/admin/rh/organigramme",         icon: <Building2     size={15} />, label: "Organigramme"},
                   { href: "/dashboard/admin/rh/disciplinaire",        icon: <FileWarning   size={15} />, label: "Disciplinaire"},
-                  { href: "/dashboard/user/responsablesRH/paie",      icon: <DollarSign    size={15} />, label: "Paie"        },
-                  { href: "/dashboard/user/responsablesRH/onboarding",icon: <ClipboardList size={15} />, label: "Onboarding"  },
-                ].map(({ href, icon, label }) => (
+                  { href: "/dashboard/user/responsablesRH/paie",      icon: <DollarSign    size={15} />, label: "Paie",        accessKey: "paie" },
+                  { href: "/dashboard/user/responsablesRH/onboarding",icon: <ClipboardList size={15} />, label: "Onboarding",  accessKey: "onboarding" },
+                ] as { href: string; icon: React.ReactNode; label: string; accessKey?: string }[])
+                  .filter((item) => !item.accessKey || isAllowed(item.accessKey))
+                  .map(({ href, icon, label }) => (
                   <Link
                     key={href}
                     href={href}

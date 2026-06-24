@@ -53,6 +53,7 @@ export const PAGES_REGISTRY: RoleRegistry[] = [
     label: "Caissier",
     sections: [
       { key: "synthese",            label: "Synthèse",              defaultAllowed: true, module: "caisse" },
+      { key: "a_confirmer",         label: "À confirmer",           defaultAllowed: true, module: "caisse" },
       { key: "session",             label: "Session de caisse",     defaultAllowed: true, module: "caisse" },
       { key: "encaissement_caisse", label: "Encaissements",         defaultAllowed: true, module: "caisse" },
       { key: "credits_clients",     label: "Crédits clients",       defaultAllowed: true, module: "caisse" },
@@ -61,6 +62,7 @@ export const PAGES_REGISTRY: RoleRegistry[] = [
       { key: "packs",               label: "Packs & Souscriptions", defaultAllowed: true, module: "packs"  },
       { key: "historique",          label: "Historique",            defaultAllowed: true, module: "caisse" },
       { key: "recus",               label: "Reçus",                 defaultAllowed: true, module: "caisse" },
+      { key: "factures",            label: "Factures",              defaultAllowed: true, module: "caisse" },
       { key: "cloture",             label: "Clôture",               defaultAllowed: true, module: "caisse" },
     ],
   },
@@ -81,10 +83,11 @@ export const PAGES_REGISTRY: RoleRegistry[] = [
     role: "AGENT_LOGISTIQUE_APPROVISIONNEMENT",
     label: "Agent Logistique",
     sections: [
-      { key: "reception",   label: "Réceptions",        defaultAllowed: true, module: "logistique" },
-      { key: "affectation", label: "Affectation stock",  defaultAllowed: true, module: "logistique" },
-      { key: "livraisons",  label: "Livraisons",        defaultAllowed: true, module: "logistique" },
-      { key: "journal",     label: "Journal",           defaultAllowed: true, module: "logistique" },
+      { key: "reception",   label: "Réceptions",          defaultAllowed: true, module: "logistique" },
+      { key: "affectation", label: "Affectation stock",   defaultAllowed: true, module: "logistique" },
+      { key: "livraisons",  label: "Livraisons",          defaultAllowed: true, module: "logistique" },
+      { key: "journal",     label: "Journal",             defaultAllowed: true, module: "logistique" },
+      { key: "anomalies",   label: "Anomalies & Inventaire", defaultAllowed: true, module: "logistique" },
     ],
   },
   {
@@ -108,57 +111,37 @@ export const PAGES_REGISTRY: RoleRegistry[] = [
     role: "AGENT_TERRAIN",
     label: "Agent Terrain",
     sections: [
-      { key: "prospects",  label: "Prospects",  defaultAllowed: true, module: "terrain" },
-      { key: "packs",      label: "Packs",      defaultAllowed: true, module: "packs"   },
-      { key: "livraisons", label: "Livraisons", defaultAllowed: true, module: "packs"   },
-      { key: "ventes",     label: "Ventes",     defaultAllowed: true, module: "terrain" },
+      { key: "collecteJour",       label: "Collecte du Jour",   defaultAllowed: true, module: "terrain" },
+      { key: "credits",            label: "Crédits",            defaultAllowed: true, module: "terrain" },
+      { key: "packs",              label: "Packs",              defaultAllowed: true, module: "packs"   },
+      { key: "livraisons",         label: "Livraisons",         defaultAllowed: true, module: "packs"   },
+      { key: "ventes",             label: "Ventes",             defaultAllowed: true, module: "terrain" },
+      { key: "prospects",          label: "Prospects",          defaultAllowed: true, module: "terrain" },
+      { key: "portefeuilleCredit", label: "Portefeuille Crédit", defaultAllowed: true, module: "terrain" },
     ],
   },
   {
     role: "RESPONSABLE_RH",
     label: "Responsable RH",
+    // Sections alignées sur les sous-pages réelles de /dashboard/user/responsablesRH.
+    // module: null → l'accès est piloté par la config rôle/utilisateur (pas par un toggle
+    // de module), ce qui évite de verrouiller tout le RH si le module était inactif —
+    // important car ces sections sont désormais réellement gardées (layout de garde).
     sections: [
-      { key: "dashboard",    label: "Tableau de bord",          defaultAllowed: true, module: "rh" },
-      { key: "effectif",     label: "Effectif & Collaborateurs", defaultAllowed: true, module: "rh" },
-      { key: "presence",     label: "Présence & Pointages",     defaultAllowed: true, module: "rh" },
-      { key: "conges",       label: "Congés",                   defaultAllowed: true, module: "rh" },
-      { key: "recrutement",  label: "Recrutement",              defaultAllowed: true, module: "rh" },
-      { key: "formations",   label: "Formations",               defaultAllowed: true, module: "rh" },
-      { key: "evaluations",  label: "Évaluations",              defaultAllowed: true, module: "rh" },
-      { key: "documents",    label: "Documents RH",             defaultAllowed: true, module: "rh" },
-      { key: "audit",        label: "Audit & Traçabilité",      defaultAllowed: true, module: "rh" },
-      { key: "preferences",  label: "Préférences notifications", defaultAllowed: true, module: "rh" },
+      { key: "dashboard",      label: "Tableau de bord",           defaultAllowed: true, module: null },
+      { key: "collaborateurs", label: "Collaborateurs",            defaultAllowed: true, module: null },
+      { key: "pointages",      label: "Pointages & Présence",      defaultAllowed: true, module: null },
+      { key: "conges",         label: "Congés",                    defaultAllowed: true, module: null },
+      { key: "recrutement",    label: "Recrutement",               defaultAllowed: true, module: null },
+      { key: "missions",       label: "Missions",                  defaultAllowed: true, module: null },
+      { key: "paie",           label: "Paie",                      defaultAllowed: true, module: null },
+      { key: "onboarding",     label: "Onboarding",                defaultAllowed: true, module: null },
+      { key: "audit",          label: "Audit & Traçabilité",       defaultAllowed: true, module: null },
+      { key: "preferences",    label: "Préférences notifications", defaultAllowed: true, module: null },
     ],
   },
-  {
-    role: "PRESIDENT_COMMISSION_RIA",
-    label: "Président de Commission RIA",
-    sections: [
-      { key: "gouvernance",       label: "Tableau de bord commission", defaultAllowed: true,  module: null },
-      { key: "reunions",          label: "Réunions (créer/animer)",    defaultAllowed: true,  module: null },
-      { key: "resolutions",       label: "Résolutions (créer/valider)",defaultAllowed: true,  module: null },
-      { key: "plans_actions",     label: "Plans d'action (créer/affecter)", defaultAllowed: true, module: null },
-      { key: "membres",           label: "Gestion des membres",        defaultAllowed: true,  module: null },
-      { key: "observations",      label: "Observations & collaboration",defaultAllowed: true,  module: null },
-      { key: "rapports_valider",  label: "Valider rapports",           defaultAllowed: true,  module: null },
-      { key: "comptes_rendus",    label: "Comptes rendus & PV",        defaultAllowed: true,  module: null },
-      { key: "presences",         label: "Gérer les présences",        defaultAllowed: true,  module: null },
-    ],
-  },
-  {
-    role: "RAPPORTEUR_COMMISSION_RIA",
-    label: "Rapporteur Commission RIA",
-    sections: [
-      { key: "gouvernance",       label: "Tableau de bord commission", defaultAllowed: true,  module: null },
-      { key: "reunions",          label: "Réunions (consultation)",    defaultAllowed: true,  module: null },
-      { key: "resolutions",       label: "Résolutions (brouillon)",    defaultAllowed: true,  module: null },
-      { key: "plans_actions",     label: "Plans d'action (lecture)",   defaultAllowed: true,  module: null },
-      { key: "observations",      label: "Observations & collaboration",defaultAllowed: true,  module: null },
-      { key: "analyses",          label: "Préparer analyses",          defaultAllowed: true,  module: null },
-      { key: "rapports_generer",  label: "Générer rapports",           defaultAllowed: true,  module: null },
-      { key: "comptes_rendus",    label: "Rédiger comptes rendus",     defaultAllowed: true,  module: null },
-      { key: "presences",         label: "Consulter les présences",    defaultAllowed: true,  module: null },
-      { key: "rapports_valider",  label: "Valider définitivement",     defaultAllowed: false, module: null },
-    ],
-  },
+  // NB : PRESIDENT_COMMISSION_RIA / RAPPORTEUR_COMMISSION_RIA ne sont pas dans ce registre :
+  // leur portail (/dashboard/user/gouvernance) est accessible aux membres de commission
+  // tous rôles confondus → l'accès s'y gère par appartenance à une commission, pas par le
+  // contrôle d'accès aux pages basé sur le rôle gestionnaire.
 ];
