@@ -1409,8 +1409,7 @@ export default function RVCCreditsPage() {
               <CreditRappelInfo
                 reference={rembCredit.reference}
                 clientNom={`${rembCredit.client.prenom} ${rembCredit.client.nom}`}
-                dateRef={rembCredit.dateDebut}
-                dateCreation={rembCredit.createdAt}
+                dateDebut={rembCredit.dateDebut}
                 montantTotal={Number(rembCredit.montantTotal)}
                 montantRembourse={Number(rembCredit.montantRembourse)}
                 soldeRestant={Number(rembCredit.soldeRestant)}

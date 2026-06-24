@@ -2,9 +2,11 @@
 
 // components/CreditRappelInfo.tsx
 // Bloc d'identification d'un crédit, affiché dans les modales de remboursement
-// (unique) pour distinguer les crédits d'un même client : référence, mois,
-// montant total, déjà remboursé, solde restant + barre de progression.
+// (unique) pour distinguer les crédits d'un même client : référence, date de
+// début (mois + jour), montant total, déjà remboursé, solde restant + barre.
 // Reprend les mêmes repères que la saisie rapide multiple.
+// NB : on utilise la date de DÉBUT du crédit (pas la date de création) car elle
+// reflète le vrai jour du crédit, même si l'enregistrement est saisi plus tard.
 
 import { formatCurrency, formatDate } from "@/lib/format";
 
@@ -22,18 +24,15 @@ function moisLabel(value: string | Date): string | null {
 export function CreditRappelInfo({
   reference,
   clientNom,
-  dateRef,
-  dateCreation,
+  dateDebut,
   montantTotal,
   montantRembourse,
   soldeRestant,
 }: {
   reference: string;
   clientNom?: string;
-  /** Date de référence du crédit (début ou création) → sert à afficher le mois. */
-  dateRef?: string | Date | null;
-  /** Date de création du crédit → affichée en clair (jour) pour départager les crédits du même mois. */
-  dateCreation?: string | Date | null;
+  /** Date de début du crédit → mois (badge) + jour (« Début le … »). */
+  dateDebut?: string | Date | null;
   montantTotal: number;
   /** Si absent, déduit de montantTotal - soldeRestant. */
   montantRembourse?: number;
@@ -42,8 +41,9 @@ export function CreditRappelInfo({
   const total = Number(montantTotal) || 0;
   const remb = montantRembourse != null ? Number(montantRembourse) : Math.max(0, total - Number(soldeRestant));
   const pct = total > 0 ? Math.min(100, Math.round((remb / total) * 100)) : 0;
-  const mois = dateRef ? moisLabel(dateRef) : null;
-  const creeLe = dateCreation && !isNaN(new Date(dateCreation).getTime()) ? formatDate(dateCreation as string) : null;
+  const valide = dateDebut != null && !isNaN(new Date(dateDebut).getTime());
+  const mois = valide ? moisLabel(dateDebut as string) : null;
+  const debutLe = valide ? formatDate(dateDebut as string) : null;
 
   return (
     <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 space-y-2">
@@ -51,7 +51,7 @@ export function CreditRappelInfo({
         <div className="min-w-0">
           {clientNom && <p className="text-sm font-semibold text-slate-800 truncate">{clientNom}</p>}
           <p className="text-xs font-mono text-slate-500">{reference}</p>
-          {creeLe && <p className="text-[11px] text-slate-400 mt-0.5">Créé le {creeLe}</p>}
+          {debutLe && <p className="text-[11px] text-slate-400 mt-0.5">Début le {debutLe}</p>}
         </div>
         {mois && (
           <span className="shrink-0 text-[11px] font-medium px-2 py-0.5 rounded-full bg-white border border-slate-200 text-slate-500">

@@ -81,6 +81,7 @@ export async function GET(req: NextRequest) {
         montantRembourse: true,
         soldeRestant: true,
         montantJournalier: true,
+        dateDebut: true,
         dateEcheanceFin: true,
         createdAt: true,
         client: { select: { id: true, nom: true, prenom: true, telephone: true } },

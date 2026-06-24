@@ -59,8 +59,7 @@ export interface CreditAEncaisser {
   montantRembourse: number;
   montantJournalier: number; // sert au calcul du montant attendu multi-jours
   tauxPaye: number;      // % remboursé (0–100)
-  dateDebut: string;     // ISO — sert à afficher le mois du crédit
-  createdAt: string;     // ISO — date de création (jour) pour départager les crédits du même mois
+  dateDebut: string;     // ISO — date de début du crédit (mois + jour) pour identifier le crédit
   // Prochaine échéance non soldée (défaut du « Jour » et de l'« Attendu »)
   numeroJour: number | null;
   montantAttendu: number;
@@ -88,7 +87,7 @@ export async function chargerCreditsAEncaisser(
     },
     select: {
       id: true, reference: true, soldeRestant: true, dureeJours: true,
-      montantTotal: true, montantRembourse: true, montantJournalier: true, dateDebut: true, createdAt: true,
+      montantTotal: true, montantRembourse: true, montantJournalier: true, dateDebut: true,
       client: { select: { id: true, nom: true, prenom: true, telephone: true } },
       echeances: {
         where: { statut: { not: StatutEcheanceCredit.PAYE } },
@@ -118,7 +117,6 @@ export async function chargerCreditsAEncaisser(
       montantJournalier: Number(c.montantJournalier),
       tauxPaye:     total > 0 ? Math.round((rembourse / total) * 100) : 0,
       dateDebut:    c.dateDebut.toISOString(),
-      createdAt:    c.createdAt.toISOString(),
       numeroJour:   ech?.numeroEcheance ?? null,
       montantAttendu: ech ? Math.max(0, Number(ech.montantDu) - Number(ech.montantPaye)) : 0,
     };

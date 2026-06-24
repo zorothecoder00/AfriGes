@@ -104,6 +104,7 @@ interface CreditItem {
   montantRembourse: string;
   soldeRestant: string;
   montantJournalier: string;
+  dateDebut: string;
   dateEcheanceFin: string;
   createdAt: string;
   client: { id: number; nom: string; prenom: string; telephone: string };
@@ -645,8 +646,7 @@ function ModalRembourserCredit({
           <CreditRappelInfo
             reference={credit.reference}
             clientNom={clientNom}
-            dateRef={credit.createdAt}
-            dateCreation={credit.createdAt}
+            dateDebut={credit.dateDebut}
             montantTotal={Number(credit.montantTotal)}
             montantRembourse={Number(credit.montantRembourse)}
             soldeRestant={max}

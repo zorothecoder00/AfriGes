@@ -837,7 +837,7 @@ export default function CaissierPage() {
   const [vcSearch,             setVcSearch]             = useState("");
   const [vcSearchDebounced,    setVcSearchDebounced]    = useState("");
   const [rembCreditId,         setRembCreditId]         = useState<number | null>(null);
-  const [rembCredit,           setRembCredit]           = useState<{ reference: string; clientNom: string; montantTotal: number; montantRembourse: number; soldeRestant: number; montantJournalier: number | null; dateDebut: string; createdAt: string } | null>(null);
+  const [rembCredit,           setRembCredit]           = useState<{ reference: string; clientNom: string; montantTotal: number; montantRembourse: number; soldeRestant: number; montantJournalier: number | null; dateDebut: string } | null>(null);
   const [rembMontant,          setRembMontant]          = useState("");
   const [rembNotes,            setRembNotes]            = useState("");
   const [rembDate,             setRembDate]             = useState("");  // date de collecte
@@ -1022,7 +1022,7 @@ export default function CaissierPage() {
     data: {
       id: number; reference: string; statut: string;
       montantTotal: number; montantRembourse: number; soldeRestant: number;
-      montantJournalier: number | null; dateDebut: string; dateEcheanceFin: string | null; createdAt: string;
+      montantJournalier: number | null; dateDebut: string; dateEcheanceFin: string | null;
       client: { id: number; nom: string; prenom: string; telephone: string; codeClient: string | null };
       prochaineEcheance: {
         id: number; montantDu: number; montantPaye: number;
@@ -1549,8 +1549,7 @@ export default function CaissierPage() {
                 <CreditRappelInfo
                   reference={rembCredit.reference}
                   clientNom={rembCredit.clientNom}
-                  dateRef={rembCredit.dateDebut}
-                  dateCreation={rembCredit.createdAt}
+                  dateDebut={rembCredit.dateDebut}
                   montantTotal={rembCredit.montantTotal}
                   montantRembourse={rembCredit.montantRembourse}
                   soldeRestant={rembCredit.soldeRestant}
@@ -3654,7 +3653,7 @@ export default function CaissierPage() {
                             <td className="px-4 py-3">
                               <div className="flex items-center gap-1">
                                 <button
-                                  onClick={() => { setRembCreditId(c.id); setRembCredit({ reference: c.reference, clientNom: `${c.client.prenom} ${c.client.nom}`, montantTotal: c.montantTotal, montantRembourse: c.montantRembourse, soldeRestant: c.soldeRestant, montantJournalier: c.montantJournalier, dateDebut: c.dateDebut, createdAt: c.createdAt }); setRembMontant(""); setRembNotes(""); setRembDate(new Date().toISOString().slice(0, 10)); setRembJour(""); setRembAgent(""); }}
+                                  onClick={() => { setRembCreditId(c.id); setRembCredit({ reference: c.reference, clientNom: `${c.client.prenom} ${c.client.nom}`, montantTotal: c.montantTotal, montantRembourse: c.montantRembourse, soldeRestant: c.soldeRestant, montantJournalier: c.montantJournalier, dateDebut: c.dateDebut }); setRembMontant(""); setRembNotes(""); setRembDate(new Date().toISOString().slice(0, 10)); setRembJour(""); setRembAgent(""); }}
                                   className="flex items-center gap-1 px-2.5 py-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg text-xs font-semibold hover:bg-emerald-100 transition-colors"
                                 >
                                   <Banknote size={12} /> Rembourser
