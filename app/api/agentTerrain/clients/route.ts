@@ -62,7 +62,7 @@ export async function GET(req: NextRequest) {
         orderBy: { createdAt: "desc" },
         select: {
           id: true, nom: true, prenom: true, telephone: true,
-          adresse: true, quartier: true, ville: true, activite: true, etat: true,
+          adresse: true, quartier: true, ville: true, commune: true, activite: true, etat: true,
           typeClient: true, limiteCredit: true, soldeActuel: true,
           niveauRisque: true, codeClient: true, segment: true,
           latitude: true, longitude: true,
@@ -105,7 +105,7 @@ export async function POST(req: Request) {
     const {
       nom, prenom, telephone,
       adresse, sexe, dateNaissance, telephoneSecondaire,
-      quartier, ville, numeroCNI,
+      quartier, ville, commune, numeroCNI,
       activite, nomCommerce,
       latitude, longitude,
     } = body;
@@ -141,6 +141,7 @@ export async function POST(req: Request) {
           telephoneSecondaire:  telephoneSecondaire  || null,
           quartier:             quartier             || null,
           ville:                ville                || null,
+          commune:              commune              || null,
           numeroCNI:            numeroCNI            || null,
           activite:             activite             || null,
           nomCommerce:          nomCommerce          || null,

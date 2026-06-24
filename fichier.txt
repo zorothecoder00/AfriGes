@@ -94,12 +94,7 @@ Chercher comment utiliser l'authentification de google sans avoir besoin de paye
 
 ⎿ Tip: Working with HTML/CSS? Install the frontend-design plugin:  /plugin install frontend-design@claude-plugins-official
 
-
-Pouvoir donner des communes à des clients et aussi les secteurs d'activité
-
 Pouvoir générer des documents sur les résolutions des réunions
-
-Pouvoir faire directement les réunions sur l'appli ( ou au dernier cas pouvoir lire des liens vers meet ou zoom)
 
 
 6. SCÉNARIO DE DÉFAILLANCE CLIENT
@@ -121,8 +116,6 @@ Précontentieux
 Contentieux
 Perte
 
-
-Classer les crédits clients par mois ( chez l'admin dans l'onglet encaissement, chez l'agent terrain dans l'onglet encaissement, chez le caissier dans l'onglet d'encaissement et chez le RVC dans l'onglet encaissement)
 
 Pour les archivages , je veux le montant total des impayés et des autres status
 

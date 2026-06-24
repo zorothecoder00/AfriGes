@@ -21,6 +21,7 @@ import FactureModal from "@/components/FactureModal";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { groupByMonth } from "@/lib/groupByMonth";
 import { useCollapsedMonths } from "@/components/MonthGroupHeaderRow";
+import { CreditRappelInfo } from "@/components/CreditRappelInfo";
 import { getStatusStyle, getStatusLabel } from "@/lib/status";
 import { useT } from "@/contexts/AppSettingsContext";
 import { usePageAccess } from "@/hooks/usePageAccess";
@@ -162,6 +163,7 @@ interface Client {
   adresse: string | null;
   quartier: string | null;
   ville: string | null;
+  commune: string | null;
   activite: string | null;
   etat: string;
   typeClient: string | null;
@@ -639,15 +641,18 @@ function ModalRembourserCredit({
           <button onClick={onClose} className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg font-bold text-lg">×</button>
         </div>
 
-        <div className="p-4 rounded-xl bg-blue-50 border border-blue-200 mb-5 space-y-1">
-          <p className="text-sm font-semibold text-slate-800">{clientNom}</p>
-          <p className="text-xs font-mono text-slate-500">{credit.reference}</p>
-          <div className="flex justify-between text-sm pt-1 border-t border-blue-100">
-            <span className="text-slate-500">Solde restant</span>
-            <span className="font-bold text-red-600">{formatCurrency(max)}</span>
-          </div>
+        <div className="mb-5 space-y-2">
+          <CreditRappelInfo
+            reference={credit.reference}
+            clientNom={clientNom}
+            dateRef={credit.createdAt}
+            dateCreation={credit.createdAt}
+            montantTotal={Number(credit.montantTotal)}
+            montantRembourse={Number(credit.montantRembourse)}
+            soldeRestant={max}
+          />
           {prochaine && (
-            <div className="flex justify-between text-xs">
+            <div className="flex justify-between text-xs px-1">
               <span className="text-slate-400">Échéance courante ({formatDate(prochaine.dateEcheance)})</span>
               <span className={`font-medium ${prochaine.statut === "EN_RETARD" ? "text-red-600" : "text-slate-600"}`}>
                 {formatCurrency(Number(prochaine.montantDu) - Number(prochaine.montantPaye))} FCFA
@@ -695,7 +700,7 @@ function ModalRembourserCredit({
 const EMPTY_CLIENT_FORM = {
   nom: "", prenom: "", telephone: "",
   sexe: "", dateNaissance: "", telephoneSecondaire: "",
-  adresse: "", quartier: "", ville: "", numeroCNI: "",
+  adresse: "", quartier: "", ville: "", commune: "", numeroCNI: "",
   activite: "", nomCommerce: "",
   latitude: "", longitude: "",
 };
@@ -742,6 +747,7 @@ function ModalAddClientRiche({
       adresse: form.adresse || undefined,
       quartier: form.quartier || undefined,
       ville: form.ville || undefined,
+      commune: form.commune || undefined,
       numeroCNI: form.numeroCNI || undefined,
       activite: form.activite || undefined,
       nomCommerce: form.nomCommerce || undefined,
@@ -834,6 +840,11 @@ function ModalAddClientRiche({
                 <label className="block text-xs font-medium text-slate-600 mb-1">Ville</label>
                 <input value={form.ville} onChange={set("ville")}
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-teal-500" placeholder="Ville" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Commune</label>
+                <input value={form.commune} onChange={set("commune")}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-teal-500" placeholder="Commune" />
               </div>
               <div className="col-span-2">
                 <label className="block text-xs font-medium text-slate-600 mb-1 flex items-center gap-1">

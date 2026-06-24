@@ -115,7 +115,7 @@ export async function PATCH(
     const {
       nom, prenom, telephone, adresse, etat, pointDeVenteId, pointsDeVenteIds, agentTerrainId,
       // Nouveaux champs
-      sexe, dateNaissance, telephoneSecondaire, quartier, ville,
+      sexe, dateNaissance, telephoneSecondaire, quartier, ville, commune,
       photoUrl, pieceIdentiteUrl, numeroCNI,
       activite, nomCommerce,
       latitude, longitude,
@@ -207,6 +207,7 @@ export async function PATCH(
           ...(telephoneSecondaire !== undefined && { telephoneSecondaire: telephoneSecondaire || null }),
           ...(quartier           !== undefined && { quartier: quartier || null }),
           ...(ville              !== undefined && { ville: ville || null }),
+          ...(commune            !== undefined && { commune: commune || null }),
           ...(photoUrl           !== undefined && { photoUrl: photoUrl || null }),
           ...(pieceIdentiteUrl   !== undefined && { pieceIdentiteUrl: pieceIdentiteUrl || null }),
           ...(numeroCNI          !== undefined && { numeroCNI: numeroCNI || null }),

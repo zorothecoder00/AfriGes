@@ -77,6 +77,7 @@ export async function GET(req: Request) {
             { codeClient: { contains: search, mode: "insensitive" } },
             { quartier:   { contains: search, mode: "insensitive" } },
             { ville:      { contains: search, mode: "insensitive" } },
+            { commune:    { contains: search, mode: "insensitive" } },
             { numeroCNI:  { contains: search, mode: "insensitive" } },
           ];
           const parts = search.split(/\s+/);
@@ -113,7 +114,7 @@ export async function GET(req: Request) {
         orderBy,
         select: {
           id: true, nom: true, prenom: true, telephone: true, adresse: true,
-          etat: true, createdAt: true, codeClient: true, quartier: true, ville: true,
+          etat: true, createdAt: true, codeClient: true, quartier: true, ville: true, commune: true,
           niveauRisque: true, typeClient: true, limiteCredit: true, soldeActuel: true,
           segment: true,
           _count: { select: { souscriptionsPacks: true, ventesDirectes: true } },
@@ -159,7 +160,7 @@ export async function POST(req: Request) {
     const {
       nom, prenom, telephone, adresse, pointDeVenteId, pointsDeVenteIds, agentTerrainId,
       // Nouveaux champs identité
-      sexe, dateNaissance, telephoneSecondaire, quartier, ville,
+      sexe, dateNaissance, telephoneSecondaire, quartier, ville, commune,
       photoUrl, pieceIdentiteUrl, numeroCNI,
       // Activité & commerce
       activite, nomCommerce,
@@ -227,6 +228,7 @@ export async function POST(req: Request) {
           telephoneSecondaire: telephoneSecondaire || null,
           quartier:           quartier            || null,
           ville:              ville               || null,
+          commune:            commune             || null,
           photoUrl:           photoUrl            || null,
           pieceIdentiteUrl:   pieceIdentiteUrl    || null,
           numeroCNI:          numeroCNI           || null,

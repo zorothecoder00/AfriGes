@@ -17,6 +17,7 @@ import { useApi } from "@/hooks/useApi";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { groupByMonth } from "@/lib/groupByMonth";
 import { MonthGroupHeaderRow, useCollapsedMonths } from "@/components/MonthGroupHeaderRow";
+import { CreditRappelInfo } from "@/components/CreditRappelInfo";
 import { toast } from "sonner";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
@@ -1405,18 +1406,15 @@ export default function RVCCreditsPage() {
               </button>
             </div>
             <div className="px-6 py-4 space-y-3">
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-500">Crédit</span>
-                <span className="font-semibold text-gray-900">{rembCredit.reference}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-500">Client</span>
-                <span className="font-medium text-gray-900">{rembCredit.client.prenom} {rembCredit.client.nom}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-500">Solde restant</span>
-                <span className="font-semibold text-rose-600">{formatCurrency(Number(rembCredit.soldeRestant))}</span>
-              </div>
+              <CreditRappelInfo
+                reference={rembCredit.reference}
+                clientNom={`${rembCredit.client.prenom} ${rembCredit.client.nom}`}
+                dateRef={rembCredit.dateDebut}
+                dateCreation={rembCredit.createdAt}
+                montantTotal={Number(rembCredit.montantTotal)}
+                montantRembourse={Number(rembCredit.montantRembourse)}
+                soldeRestant={Number(rembCredit.soldeRestant)}
+              />
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-medium text-gray-600 mb-1">Date de collecte</label>

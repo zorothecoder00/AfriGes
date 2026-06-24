@@ -73,6 +73,7 @@ export async function GET(req: Request) {
       adresse: true,
       quartier: true,
       ville: true,
+      commune: true,
       activite: true,
       nomCommerce: true,
       sexe: true,

@@ -38,6 +38,7 @@ interface Client {
   codeClient: string | null;
   quartier: string | null;
   ville: string | null;
+  commune: string | null;
   niveauRisque: string | null;
   typeClient: string | null;
   limiteCredit: string | number | null;
@@ -226,7 +227,7 @@ export default function ClientsPage() {
     nom: '', prenom: '', telephone: '', adresse: '', pointsDeVenteIds: [] as number[],
     // Identité
     sexe: '', dateNaissance: '', telephoneSecondaire: '',
-    quartier: '', ville: '',
+    quartier: '', ville: '', commune: '',
     photoUrl: '', pieceIdentiteUrl: '', numeroCNI: '',
     // Activité
     activite: '', nomCommerce: '',
@@ -428,6 +429,7 @@ export default function ClientsPage() {
       telephoneSecondaire: formData.telephoneSecondaire || null,
       quartier:            formData.quartier            || null,
       ville:               formData.ville               || null,
+      commune:             formData.commune             || null,
       photoUrl:            formData.photoUrl            || null,
       pieceIdentiteUrl:    formData.pieceIdentiteUrl    || null,
       numeroCNI:           formData.numeroCNI           || null,
@@ -443,7 +445,7 @@ export default function ClientsPage() {
     });
     if (result) {
       setModalOpen(false);
-      setFormData({ nom: '', prenom: '', telephone: '', adresse: '', pointsDeVenteIds: [], sexe: '', dateNaissance: '', telephoneSecondaire: '', quartier: '', ville: '', photoUrl: '', pieceIdentiteUrl: '', numeroCNI: '', activite: '', nomCommerce: '', latitude: '', longitude: '', segment: 'ORDINAIRE', typeClient: '', limiteCredit: '', etat: 'ACTIF', agentTerrainId: '' });
+      setFormData({ nom: '', prenom: '', telephone: '', adresse: '', pointsDeVenteIds: [], sexe: '', dateNaissance: '', telephoneSecondaire: '', quartier: '', ville: '', commune: '', photoUrl: '', pieceIdentiteUrl: '', numeroCNI: '', activite: '', nomCommerce: '', latitude: '', longitude: '', segment: 'ORDINAIRE', typeClient: '', limiteCredit: '', etat: 'ACTIF', agentTerrainId: '' });
       refetch();
     }
   };
@@ -767,6 +769,11 @@ export default function ClientsPage() {
                       <label className="block text-xs font-medium text-slate-600 mb-1">Ville</label>
                       <input type="text" value={formData.ville} onChange={e => setFormData({...formData, ville: e.target.value})}
                         className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="Ville" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600 mb-1">Commune</label>
+                      <input type="text" value={formData.commune} onChange={e => setFormData({...formData, commune: e.target.value})}
+                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="Commune" />
                     </div>
                     <div className="col-span-2">
                       <label className="block text-xs font-medium text-slate-600 mb-1 flex items-center gap-1">
@@ -1278,8 +1285,8 @@ export default function ClientsPage() {
                     </td>
                     <td className="px-6 py-4">
                       <div className="text-sm text-slate-600">
-                        {client.quartier || client.ville ? (
-                          <span className="flex items-center gap-1"><MapPin size={13} className="text-slate-400 shrink-0" />{[client.quartier, client.ville].filter(Boolean).join(', ')}</span>
+                        {client.quartier || client.ville || client.commune ? (
+                          <span className="flex items-center gap-1"><MapPin size={13} className="text-slate-400 shrink-0" />{[client.quartier, client.commune, client.ville].filter(Boolean).join(', ')}</span>
                         ) : client.adresse ? (
                           <span className="flex items-center gap-1"><MapPin size={13} className="text-slate-400 shrink-0" />{client.adresse}</span>
                         ) : <span className="text-slate-400">—</span>}

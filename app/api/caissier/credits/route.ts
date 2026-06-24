@@ -65,6 +65,7 @@ export async function GET(req: Request) {
           montantJournalier: true,
           dateDebut: true,
           dateEcheanceFin: true,
+          createdAt: true,
           client: {
             select: {
               id: true, nom: true, prenom: true,
@@ -90,6 +91,7 @@ export async function GET(req: Request) {
       montantJournalier: c.montantJournalier ? Number(c.montantJournalier) : null,
       dateDebut:         c.dateDebut.toISOString(),
       dateEcheanceFin:   c.dateEcheanceFin?.toISOString() ?? null,
+      createdAt:         c.createdAt.toISOString(),
       prochaineEcheance: c.echeances[0]
         ? {
             id:          c.echeances[0].id,

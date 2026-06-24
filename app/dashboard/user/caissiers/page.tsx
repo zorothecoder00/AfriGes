@@ -22,6 +22,7 @@ import { useT } from "@/contexts/AppSettingsContext";
 import { usePageAccess } from "@/hooks/usePageAccess";
 import { groupByMonth } from "@/lib/groupByMonth";
 import { MonthGroupHeaderRow, useCollapsedMonths } from "@/components/MonthGroupHeaderRow";
+import { CreditRappelInfo } from "@/components/CreditRappelInfo";
 
 // ============================================================================
 // TYPES
@@ -836,7 +837,7 @@ export default function CaissierPage() {
   const [vcSearch,             setVcSearch]             = useState("");
   const [vcSearchDebounced,    setVcSearchDebounced]    = useState("");
   const [rembCreditId,         setRembCreditId]         = useState<number | null>(null);
-  const [rembCredit,           setRembCredit]           = useState<{ montantTotal: number; montantJournalier: number | null } | null>(null);
+  const [rembCredit,           setRembCredit]           = useState<{ reference: string; clientNom: string; montantTotal: number; montantRembourse: number; soldeRestant: number; montantJournalier: number | null; dateDebut: string; createdAt: string } | null>(null);
   const [rembMontant,          setRembMontant]          = useState("");
   const [rembNotes,            setRembNotes]            = useState("");
   const [rembDate,             setRembDate]             = useState("");  // date de collecte
@@ -1021,7 +1022,7 @@ export default function CaissierPage() {
     data: {
       id: number; reference: string; statut: string;
       montantTotal: number; montantRembourse: number; soldeRestant: number;
-      montantJournalier: number | null; dateDebut: string; dateEcheanceFin: string | null;
+      montantJournalier: number | null; dateDebut: string; dateEcheanceFin: string | null; createdAt: string;
       client: { id: number; nom: string; prenom: string; telephone: string; codeClient: string | null };
       prochaineEcheance: {
         id: number; montantDu: number; montantPaye: number;
@@ -1544,6 +1545,17 @@ export default function CaissierPage() {
               </button>
             </div>
             <div className="px-5 py-4 space-y-3">
+              {rembCredit && (
+                <CreditRappelInfo
+                  reference={rembCredit.reference}
+                  clientNom={rembCredit.clientNom}
+                  dateRef={rembCredit.dateDebut}
+                  dateCreation={rembCredit.createdAt}
+                  montantTotal={rembCredit.montantTotal}
+                  montantRembourse={rembCredit.montantRembourse}
+                  soldeRestant={rembCredit.soldeRestant}
+                />
+              )}
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-medium text-gray-600 mb-1">Date de collecte</label>
@@ -3642,7 +3654,7 @@ export default function CaissierPage() {
                             <td className="px-4 py-3">
                               <div className="flex items-center gap-1">
                                 <button
-                                  onClick={() => { setRembCreditId(c.id); setRembCredit({ montantTotal: c.montantTotal, montantJournalier: c.montantJournalier }); setRembMontant(""); setRembNotes(""); setRembDate(new Date().toISOString().slice(0, 10)); setRembJour(""); setRembAgent(""); }}
+                                  onClick={() => { setRembCreditId(c.id); setRembCredit({ reference: c.reference, clientNom: `${c.client.prenom} ${c.client.nom}`, montantTotal: c.montantTotal, montantRembourse: c.montantRembourse, soldeRestant: c.soldeRestant, montantJournalier: c.montantJournalier, dateDebut: c.dateDebut, createdAt: c.createdAt }); setRembMontant(""); setRembNotes(""); setRembDate(new Date().toISOString().slice(0, 10)); setRembJour(""); setRembAgent(""); }}
                                   className="flex items-center gap-1 px-2.5 py-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg text-xs font-semibold hover:bg-emerald-100 transition-colors"
                                 >
                                   <Banknote size={12} /> Rembourser

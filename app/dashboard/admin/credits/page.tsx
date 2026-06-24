@@ -17,6 +17,7 @@ import { useTagModal } from '@/contexts/TagModalContext';
 import FactureModal from '@/components/FactureModal';
 import { groupByMonth } from '@/lib/groupByMonth';
 import { MonthGroupHeaderRow, useCollapsedMonths } from '@/components/MonthGroupHeaderRow';
+import { CreditRappelInfo } from '@/components/CreditRappelInfo';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -1240,11 +1241,17 @@ export default function CreditsPage() {
                   <AlertCircle className="w-4 h-4 flex-shrink-0" />{rembError}
                 </div>
               )}
-              {/* Client (contextuel) */}
+              {/* Crédit (contextuel — pour distinguer les crédits multiples d'un client) */}
               {rembCredit && (
-                <div className="text-xs text-gray-500 bg-gray-50 border border-gray-100 rounded-lg px-3 py-2">
-                  Client : <span className="font-medium text-gray-700">{rembCredit.client.prenom} {rembCredit.client.nom}</span> · Crédit {rembCredit.reference} · {rembCredit.dureeJours} jours
-                </div>
+                <CreditRappelInfo
+                  reference={rembCredit.reference}
+                  clientNom={`${rembCredit.client.prenom} ${rembCredit.client.nom}`}
+                  dateRef={rembCredit.dateDebut}
+                  dateCreation={rembCredit.createdAt}
+                  montantTotal={Number(rembCredit.montantTotal)}
+                  montantRembourse={Number(rembCredit.montantRembourse)}
+                  soldeRestant={Number(rembCredit.soldeRestant)}
+                />
               )}
               <div className="grid grid-cols-2 gap-3">
                 <div>

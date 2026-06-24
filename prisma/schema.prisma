@@ -860,6 +860,7 @@ model Client {
   telephoneSecondaire String?
   quartier           String?
   ville              String?
+  commune            String?           // commune de rattachement (texte libre)
   photoUrl           String?           // URL stockage photo client
   pieceIdentiteUrl   String?           // URL scan pièce d'identité
   numeroCNI          String?           @unique  // numéro CNI (unique si renseigné)
@@ -922,6 +923,7 @@ model Client {
   @@index([segment])
   @@index([niveauRisque])
   @@index([ville])
+  @@index([commune])
 }
 
 // ============================================================
