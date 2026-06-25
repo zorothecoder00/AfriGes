@@ -21,6 +21,11 @@ export async function GET(req: Request, { params }: Ctx) {
     const page  = Math.max(1, Number(searchParams.get('page')  ?? '1'));
     const limit = Math.min(50, Number(searchParams.get('limit') ?? '30'));
 
+    // ── Vue "detail" : payload structuré pour le drawer historique de la liste clients ──
+    if (searchParams.get('view') === 'detail') {
+      return await getDetailHistorique(clientId);
+    }
+
     const [lignesCollecte, versements, ventes, auditLogs] = await Promise.all([
 
       prisma.ligneCollecte.findMany({
@@ -146,6 +151,88 @@ export async function GET(req: Request, { params }: Ctx) {
     console.error(error);
     return NextResponse.json({ message: 'Erreur historique client' }, { status: 500 });
   }
+}
+
+/**
+ * Payload structuré attendu par le drawer "Historique" de /dashboard/admin/clients :
+ * cartes de totaux + souscriptions (avec versements) + ventes directes (avec lignes).
+ */
+async function getDetailHistorique(clientId: number) {
+  const [client, souscriptionsRaw, ventesRaw] = await Promise.all([
+    prisma.client.findUnique({
+      where: { id: clientId },
+      select: {
+        id: true, nom: true, prenom: true, telephone: true,
+        pointsDeVente: { select: { pointDeVente: { select: { id: true, nom: true, code: true } } } },
+      },
+    }),
+
+    prisma.souscriptionPack.findMany({
+      where: { clientId },
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true, statut: true,
+        montantTotal: true, montantVerse: true, montantRestant: true,
+        dateDebut: true, dateFin: true, dateCloture: true, createdAt: true,
+        pack: { select: { id: true, nom: true, type: true } },
+        versements: {
+          orderBy: { datePaiement: 'desc' },
+          select: { id: true, montant: true, type: true, datePaiement: true, encaisseParNom: true, notes: true },
+        },
+      },
+    }),
+
+    prisma.venteDirecte.findMany({
+      where: { clientId },
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true, reference: true, montantTotal: true, montantPaye: true,
+        modePaiement: true, statut: true, notes: true, createdAt: true,
+        pointDeVente: { select: { nom: true, code: true } },
+        lignes: {
+          select: {
+            quantite: true, prixUnitaire: true, montant: true, produitNom: true,
+            produit: { select: { nom: true } },
+          },
+        },
+      },
+    }),
+  ]);
+
+  if (!client) return NextResponse.json({ message: 'Client introuvable' }, { status: 404 });
+
+  // Normalisation des lignes de vente (produit catalogue ou nom libre)
+  const ventesDirectes = ventesRaw.map((v) => ({
+    ...v,
+    lignes: v.lignes.map((l) => ({
+      quantite:     l.quantite,
+      prixUnitaire: l.prixUnitaire,
+      montant:      l.montant,
+      produit:      { nom: l.produit?.nom ?? l.produitNom ?? '—' },
+    })),
+  }));
+
+  // Totaux
+  const totalVersementsPacks = souscriptionsRaw.reduce((s, x) => s + Number(x.montantVerse), 0);
+  const totalAchatsDirects   = ventesRaw.reduce((s, x) => s + Number(x.montantPaye), 0);
+  const totalDu = souscriptionsRaw
+    .filter((x) => x.statut !== 'ANNULE' && x.statut !== 'COMPLETE')
+    .reduce((s, x) => s + Number(x.montantRestant), 0);
+
+  return NextResponse.json({
+    success: true,
+    client,
+    souscriptions: souscriptionsRaw,
+    ventesDirectes,
+    totaux: {
+      totalVersementsPacks,
+      totalAchatsDirects,
+      totalPaye: totalVersementsPacks + totalAchatsDirects,
+      totalDu,
+      nbSouscriptions: souscriptionsRaw.length,
+      nbAchats: ventesRaw.length,
+    },
+  });
 }
 
 function auditLabel(action: string) {

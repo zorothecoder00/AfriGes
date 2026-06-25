@@ -610,7 +610,7 @@ export default function ClientsPage() {
     setExpandedSouscriptions(new Set());
     setExpandedVentes(new Set());
     try {
-      const res = await fetch(`/api/admin/clients/${client.id}/historique`);
+      const res = await fetch(`/api/admin/clients/${client.id}/historique?view=detail`);
       const json: HistoriqueData = await res.json();
       if (json.success) setHistoData(json);
     } catch { /* ignore */ }
@@ -1820,6 +1820,17 @@ export default function ClientsPage() {
                     )}
                   </div>
                 </>
+              )}
+
+              {!histoLoading && !histoData && (
+                <div className="flex flex-col items-center justify-center py-20 gap-3 text-center">
+                  <AlertTriangle size={28} className="text-amber-400" />
+                  <p className="text-slate-500 text-sm font-medium">Impossible de charger l&apos;historique de ce client.</p>
+                  <button onClick={() => openHistorique(histoClient)}
+                    className="px-4 py-2 text-sm bg-amber-50 text-amber-700 border border-amber-200 rounded-xl hover:bg-amber-100 font-medium">
+                    Réessayer
+                  </button>
+                </div>
               )}
             </div>
 
