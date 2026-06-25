@@ -7,7 +7,7 @@ import { useSession } from 'next-auth/react';
 import { useApi, useMutation } from '@/hooks/useApi';
 import { formatDate } from '@/lib/format';
 import { getStatusStyle, getStatusLabel } from '@/lib/status';
-import { exportToCsv } from '@/lib/exportCsv';
+import { exportToXlsx } from '@/lib/exportXlsx';
 import { useT } from '@/contexts/AppSettingsContext';
 
 interface Member {
@@ -57,17 +57,18 @@ export default function MembresPage() {
   const membres = response?.data ?? [];
   const meta = response?.meta;
 
-  const handleExport = () => exportToCsv(
+  const handleExport = () => exportToXlsx(
     membres,
     [
-      { label: "ID",       key: "id" },
+      { label: "ID",       key: "id", type: "number" },
       { label: t('label_prenom'),   key: "prenom" },
       { label: t('label_nom'),      key: "nom" },
       { label: t('label_email'),    key: "email" },
       { label: t('label_role'),     key: "role" },
-      { label: t('membres_col_inscription'), key: "createdAt", format: (v) => formatDate(String(v)) },
+      { label: t('membres_col_inscription'), key: "createdAt", type: "date", format: (v) => (v ? new Date(String(v)) : null) },
     ],
-    "membres.csv"
+    "membres.xlsx",
+    { sheetName: "Membres" }
   );
 
   const { mutate: addMember, loading: adding, error: addError } = useMutation('/api/admin/membres', 'POST', { successMessage: 'Membre ajouté avec succès', errorMessage: 'Erreur lors de l\'ajout du membre' });

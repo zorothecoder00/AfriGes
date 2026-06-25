@@ -10,7 +10,7 @@ import {
 import Link from 'next/link';
 import { useApi, useMutation } from '@/hooks/useApi';
 import { formatCurrency, formatDate } from '@/lib/format';
-import { exportToCsv } from '@/lib/exportCsv';
+import { exportToXlsx } from '@/lib/exportXlsx';
 import { useT } from '@/contexts/AppSettingsContext';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -338,27 +338,28 @@ export default function GestionStockPage() {
 
   const handleExport = () => {
     if (vue === 'grand') {
-      exportToCsv(
+      exportToXlsx(
         grandStockItems.map(p => ({
           id: p.id, nom: p.nom, ref: p.reference ?? '', cat: p.categorie ?? '',
-          prix: p.prixUnitaire, totalStock: p.totalStock, alerte: p.alerteStock,
+          prix: Number(p.prixUnitaire), totalStock: p.totalStock, alerte: p.alerteStock,
         })),
         [
-          { label: 'ID', key: 'id' },
+          { label: 'ID', key: 'id', type: 'number' },
           { label: 'Nom', key: 'nom' },
           { label: 'Référence', key: 'ref' },
           { label: 'Catégorie', key: 'cat' },
-          { label: 'Prix unitaire', key: 'prix', format: v => formatCurrency(Number(v)) },
-          { label: 'Stock total', key: 'totalStock' },
-          { label: 'Seuil alerte', key: 'alerte' },
+          { label: 'Prix unitaire', key: 'prix', type: 'currency' },
+          { label: 'Stock total', key: 'totalStock', type: 'number' },
+          { label: 'Seuil alerte', key: 'alerte', type: 'number' },
         ],
-        'grand-stock.csv'
+        'grand-stock.xlsx',
+        { sheetName: 'Grand stock' }
       );
     } else {
-      exportToCsv(
+      exportToXlsx(
         stockItems.map(s => ({
           produit: s.produit.nom, ref: s.produit.reference ?? '', pdv: s.pointDeVente.nom,
-          code: s.pointDeVente.code, quantite: s.quantite, prix: s.produit.prixUnitaire,
+          code: s.pointDeVente.code, quantite: s.quantite, prix: Number(s.produit.prixUnitaire),
           valeur: s.quantite * Number(s.produit.prixAchat ?? s.produit.prixUnitaire),
         })),
         [
@@ -366,11 +367,12 @@ export default function GestionStockPage() {
           { label: 'Référence', key: 'ref' },
           { label: 'PDV', key: 'pdv' },
           { label: 'Code PDV', key: 'code' },
-          { label: 'Quantité', key: 'quantite' },
-          { label: 'Prix', key: 'prix', format: v => formatCurrency(Number(v)) },
-          { label: 'Valeur', key: 'valeur', format: v => formatCurrency(Number(v)) },
+          { label: 'Quantité', key: 'quantite', type: 'number' },
+          { label: 'Prix', key: 'prix', type: 'currency' },
+          { label: 'Valeur', key: 'valeur', type: 'currency' },
         ],
-        'stock-par-pdv.csv'
+        'stock-par-pdv.xlsx',
+        { sheetName: 'Stock par PDV' }
       );
     }
   };

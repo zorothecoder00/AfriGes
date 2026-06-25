@@ -8,7 +8,7 @@ import {
 import { useApi } from '@/hooks/useApi';
 import { useT } from '@/contexts/AppSettingsContext';
 import { formatCurrency, formatDate } from '@/lib/format';
-import { exportToCsv } from '@/lib/exportCsv';
+import { exportToXlsx } from '@/lib/exportXlsx';
 import { exportToXls } from '@/lib/exportXls';
 import { printToPdf } from '@/lib/exportPdf';
 import ClienteleTabBar from '@/components/ClienteleTabBar';
@@ -474,19 +474,19 @@ export default function RapportsPage() {
 
   // ─── Export legacy (pour compatibilité si appelé directement) ─────────────
   const exportAgentsCsv = () => {
-    exportToCsv(agents.data?.data ?? [], [
+    exportToXlsx(agents.data?.data ?? [], [
       { label: 'Agent',             key: 'nom' },
       { label: 'Téléphone',         key: 'telephone', format: (v) => String(v ?? '—') },
       { label: 'Actif',             key: 'actif',     format: (v) => (v ? 'Oui' : 'Non') },
-      { label: 'Clients',           key: 'nbClients' },
-      { label: 'Souscriptions',     key: 'nbSouscriptions' },
-      { label: 'Total packs',       key: 'totalPacks',      format: (v) => String(v) },
-      { label: 'Total versé',       key: 'totalVerse',      format: (v) => String(v) },
-      { label: 'Total restant',     key: 'totalRestant',    format: (v) => String(v) },
+      { label: 'Clients',           key: 'nbClients',       type: 'number' },
+      { label: 'Souscriptions',     key: 'nbSouscriptions', type: 'number' },
+      { label: 'Total packs',       key: 'totalPacks',      type: 'currency' },
+      { label: 'Total versé',       key: 'totalVerse',      type: 'currency' },
+      { label: 'Total restant',     key: 'totalRestant',    type: 'currency' },
       { label: 'Taux recouvrement', key: 'tauxRecouvrement', format: (v) => `${v}%` },
-      { label: 'Sessions collecte', key: 'nbCollectes' },
-      { label: 'CA réel (FCFA)',    key: 'caTotal',          format: (v) => String(v) },
-    ], `rapport-agents-${new Date().toISOString().slice(0, 10)}.csv`);
+      { label: 'Sessions collecte', key: 'nbCollectes',     type: 'number' },
+      { label: 'CA réel (FCFA)',    key: 'caTotal',          type: 'currency' },
+    ], `rapport-agents-${new Date().toISOString().slice(0, 10)}.xlsx`, { sheetName: 'Agents' });
   };
   void exportAgentsCsv; // evite le warning unused
 

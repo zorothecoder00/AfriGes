@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import { useApi } from '@/hooks/useApi';
 import { formatDate, formatCurrency } from '@/lib/format';
-import { exportToCsv } from '@/lib/exportCsv';
+import { exportToXlsx } from '@/lib/exportXlsx';
 import ClienteleTabBar from '@/components/ClienteleTabBar';
 import { useTagModal } from '@/contexts/TagModalContext';
 
@@ -109,7 +109,7 @@ export default function RemboursementsPage() {
   const handleExport = () => {
     if (!res?.data.length) return;
     const rows = res.data.map((v) => ({
-      Date:       formatDate(v.datePaiement),
+      Date:       v.datePaiement ? new Date(v.datePaiement) : null,
       Client:     `${v.souscription.client.prenom} ${v.souscription.client.nom}`,
       Telephone:  v.souscription.client.telephone,
       Pack:       v.souscription.pack.nom,
@@ -121,20 +121,21 @@ export default function RemboursementsPage() {
       Collecte:   v.ligneCollecte?.collecte.reference ?? '',
       Reference:  v.reference ?? '',
     }));
-    exportToCsv(
+    exportToXlsx(
       rows,
       [
-        { label: 'Date',       key: 'Date' },
+        { label: 'Date',       key: 'Date', type: 'date' },
         { label: 'Client',     key: 'Client' },
         { label: 'Téléphone',  key: 'Telephone' },
         { label: 'Pack',       key: 'Pack' },
         { label: 'Type',       key: 'Type' },
-        { label: 'Montant',    key: 'Montant' },
+        { label: 'Montant',    key: 'Montant', type: 'currency' },
         { label: 'Agent',      key: 'Agent' },
         { label: 'Collecte',   key: 'Collecte' },
         { label: 'Référence',  key: 'Reference' },
       ],
-      `remboursements_${new Date().toISOString().slice(0, 10)}`
+      `remboursements_${new Date().toISOString().slice(0, 10)}.xlsx`,
+      { sheetName: 'Remboursements' }
     );
   };
 

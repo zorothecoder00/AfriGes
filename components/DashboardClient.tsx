@@ -18,7 +18,7 @@ import SignOutButton from '@/components/SignOutButton';
 import MessageModal from '@/components/MessageModal';   
 import { useApi } from '@/hooks/useApi';     
 import { formatCurrency } from '@/lib/format';
-import { exportToCsv } from '@/lib/exportCsv';
+import { exportToXlsx } from '@/lib/exportXlsx';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -193,13 +193,14 @@ export default function AfriGesDashboard() {
 
   const handleExport = () => {
     const points = d?.evolutionVersements ?? [];
-    exportToCsv(
+    exportToXlsx(
       points,
       [
-        { label: "Date",    key: "date",    format: (v) => new Date(String(v)).toLocaleDateString("fr-FR") },
-        { label: "Montant", key: "montant", format: (v) => formatCurrency(Number(v)) },
+        { label: "Date",    key: "date",    type: "date", format: (v) => (v ? new Date(String(v)) : null) },
+        { label: "Montant", key: "montant", type: "currency", format: (v) => Number(v) },
       ],
-      `dashboard-versements-${selectedPeriod}.csv`
+      `dashboard-versements-${selectedPeriod}.xlsx`,
+      { sheetName: "Versements" }
     );
   };
 

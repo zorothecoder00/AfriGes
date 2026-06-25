@@ -5,7 +5,7 @@ import { Shield, Search, RefreshCw, Download, Filter, User, Calendar } from 'luc
 import { useApi } from '@/hooks/useApi';
 import { useT } from '@/contexts/AppSettingsContext';
 import { formatDateTime } from '@/lib/format';
-import { exportToCsv } from '@/lib/exportCsv';
+import { exportToXlsx } from '@/lib/exportXlsx';
 import ClienteleTabBar from '@/components/ClienteleTabBar';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -82,16 +82,17 @@ export default function AuditPage() {
 
   const handleExport = () => {
     if (!res?.data.length) return;
-    exportToCsv(
+    exportToXlsx(
       res.data,
       [
-        { label: 'Date',        key: 'createdAt', format: (v) => formatDateTime(String(v)) },
+        { label: 'Date',        key: 'createdAt', type: 'datetime', format: (v) => (v ? new Date(String(v)) : null) },
         { label: 'Action',      key: 'actionLabel' },
         { label: 'Entité',      key: 'entite' },
         { label: 'ID entité',   key: 'entiteId', format: (v) => String(v ?? '') },
         { label: 'Utilisateur', key: 'user', format: (v) => (v as AuditEntry['user'])?.nom ?? 'Système' },
       ],
-      `audit-clientele-${new Date().toISOString().slice(0, 10)}.csv`
+      `audit-clientele-${new Date().toISOString().slice(0, 10)}.xlsx`,
+      { sheetName: 'Audit' }
     );
   };
 

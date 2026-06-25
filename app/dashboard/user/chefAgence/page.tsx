@@ -17,7 +17,7 @@ import ClientSegmentTags from "@/components/ClientSegmentTags";
 import { useApi } from "@/hooks/useApi";
 import { useMutation } from "@/hooks/useApi";
 import { formatCurrency, formatDate } from "@/lib/format";
-import { exportToCsv } from "@/lib/exportCsv";
+import { exportToXlsx } from "@/lib/exportXlsx";
 import { useT } from "@/contexts/AppSettingsContext";
 import { usePageAccess } from "@/hooks/usePageAccess";
 
@@ -430,25 +430,26 @@ export default function ChefAgenceDashboard() {
   // ── CSV Exports ──────────────────────────────────────────────────────────
   function exportVentesCsv() {
     if (!ventesData?.ventes.length) return;
-    exportToCsv(
+    exportToXlsx(
       ventesData.ventes,
       [
         { label: "Référence",    key: "reference" },
         { label: "Type",         key: "source" },
-        { label: "Date",         key: "date",    format: (v) => formatDate(v as string) },
+        { label: "Date",         key: "date",    type: "date", format: (v) => (v ? new Date(v as string) : null) },
         { label: "PDV",          key: "pdvNom" },
         { label: "Agent",        key: "agentNom" },
         { label: "Client",       key: "clientNom" },
-        { label: "Montant (XAF)",key: "montant", format: (v) => String(v) },
+        { label: "Montant",      key: "montant", type: "currency", format: (v) => Number(v) },
         { label: "Paiement",     key: "modePaiement", format: (v) => (v as string | null) ?? "" },
       ],
-      `ventes_zone_${new Date().toISOString().slice(0, 10)}.csv`
+      `ventes_zone_${new Date().toISOString().slice(0, 10)}.xlsx`,
+      { sheetName: "Ventes" }
     );
   }
 
   function exportClientsCsv() {
     if (!clientsData?.data.length) return;
-    exportToCsv(
+    exportToXlsx(
       clientsData.data,
       [
         { label: "Nom",       key: "nom" },
@@ -456,27 +457,29 @@ export default function ChefAgenceDashboard() {
         { label: "Téléphone", key: "telephone", format: (v) => (v as string | null) ?? "" },
         { label: "PDV",       key: "pdv", format: (_v, row) => (row.pdv as ClientItem["pdv"])?.nom ?? "" },
         { label: "État",      key: "etat" },
-        { label: "Nb Ventes", key: "nbVentes", format: (v) => String(v) },
-        { label: "Nb Souscriptions", key: "nbSouscriptions", format: (v) => String(v) },
-        { label: "Inscrit le", key: "createdAt", format: (v) => formatDate(v as string) },
+        { label: "Nb Ventes", key: "nbVentes", type: "number" },
+        { label: "Nb Souscriptions", key: "nbSouscriptions", type: "number" },
+        { label: "Inscrit le", key: "createdAt", type: "date", format: (v) => (v ? new Date(v as string) : null) },
       ],
-      `clients_zone_${new Date().toISOString().slice(0, 10)}.csv`
+      `clients_zone_${new Date().toISOString().slice(0, 10)}.xlsx`,
+      { sheetName: "Clients" }
     );
   }
 
   function exportEquipeCsv() {
     if (!equipeData?.data.length) return;
-    exportToCsv(
+    exportToXlsx(
       equipeData.data,
       [
         { label: "Nom",       key: "agent", format: (_v, row) => `${(row as Agent).agent.prenom} ${(row as Agent).agent.nom}` },
         { label: "Rôle",      key: "agent", format: (_v, row) => (row as Agent).agent.role },
         { label: "PDV",       key: "pdv",   format: (_v, row) => (row as Agent).pdv.nom },
         { label: "Téléphone", key: "agent", format: (_v, row) => (row as Agent).agent.telephone ?? "" },
-        { label: "CA 30j",    key: "performance", format: (_v, row) => String((row as Agent).performance.totalCA) },
-        { label: "Nb Ops 30j",key: "performance", format: (_v, row) => String((row as Agent).performance.totalOps) },
+        { label: "CA 30j",    key: "performance", type: "currency", format: (_v, row) => Number((row as Agent).performance.totalCA) },
+        { label: "Nb Ops 30j",key: "performance", type: "number",   format: (_v, row) => Number((row as Agent).performance.totalOps) },
       ],
-      `equipe_zone_${new Date().toISOString().slice(0, 10)}.csv`
+      `equipe_zone_${new Date().toISOString().slice(0, 10)}.xlsx`,
+      { sheetName: "Équipe" }
     );
   }
 

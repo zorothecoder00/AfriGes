@@ -10,7 +10,7 @@ import Link from 'next/link';
 import FactureModal from '@/components/FactureModal';
 import { useApi, useMutation } from '@/hooks/useApi';
 import { formatCurrency, formatDateTime } from '@/lib/format';
-import { exportToCsv } from '@/lib/exportCsv';
+import { exportToXlsx } from '@/lib/exportXlsx';
 import { useT } from '@/contexts/AppSettingsContext';
 import { useTagModal } from '@/contexts/TagModalContext';
 
@@ -539,7 +539,7 @@ export default function VentesPage() {
 
   // ── Export ventes ─────────────────────────────────────────────────────────
   const handleExportVentes = () => {
-    exportToCsv(
+    exportToXlsx(
       ventes.map(v => ({
         ref:     v.reference,
         pdv:     v.pointDeVente.nom,
@@ -550,21 +550,22 @@ export default function VentesPage() {
         mode:    MODE_PAIEMENT_LABELS[v.modePaiement] ?? v.modePaiement,
         statut:  v.statut,
         vendeur: `${v.vendeur.prenom} ${v.vendeur.nom}`,
-        date:    v.createdAt,
+        date:    v.createdAt ? new Date(v.createdAt) : null,
       })),
       [
         { label: 'Référence',    key: 'ref' },
         { label: 'PDV',          key: 'pdv' },
         { label: 'Client',       key: 'client' },
         { label: 'Téléphone',    key: 'tel' },
-        { label: 'Montant',      key: 'montant', format: (v) => formatCurrency(Number(v)) },
-        { label: 'Payé',         key: 'paye',    format: (v) => formatCurrency(Number(v)) },
+        { label: 'Montant',      key: 'montant', type: 'currency' },
+        { label: 'Payé',         key: 'paye',    type: 'currency' },
         { label: 'Mode paiement',key: 'mode' },
         { label: 'Statut',       key: 'statut' },
         { label: 'Vendeur',      key: 'vendeur' },
-        { label: 'Date',         key: 'date',    format: (v) => formatDateTime(String(v)) },
+        { label: 'Date',         key: 'date',    type: 'datetime' },
       ],
-      'ventes-directes.csv'
+      'ventes-directes.xlsx',
+      { sheetName: 'Ventes directes' }
     );
   };
 

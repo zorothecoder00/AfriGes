@@ -17,7 +17,7 @@ import UserPdvBadge from "@/components/UserPdvBadge";
 import DashboardBackButton from "@/components/DashboardBackButton";
 import { useApi, useMutation } from "@/hooks/useApi";
 import { formatCurrency, formatDateShort, formatDateTime } from "@/lib/format";
-import { exportToCsv } from "@/lib/exportCsv";
+import { exportToXlsx } from "@/lib/exportXlsx";
 import { generateUploadButton } from "@uploadthing/react";
 import type { OurFileRouter } from "@/app/api/uploadthing/core";
 import { useT } from "@/contexts/AppSettingsContext";
@@ -821,17 +821,18 @@ export default function ComptablePage() {
   const handleExport = () => {
     const entries = journalData?.data ?? [];
     if (entries.length === 0) return;
-    exportToCsv(
+    exportToXlsx(
       entries,
       [
         { label: "Référence",  key: "reference" },
-        { label: "Date",       key: "date",      format: (v) => formatDateTime(String(v)) },
+        { label: "Date",       key: "date",      type: "datetime", format: (v) => (v ? new Date(String(v)) : null) },
         { label: "Type",       key: "type",      format: (v) => v === "ENCAISSEMENT" ? "Encaissement" : "Décaissement" },
         { label: "Catégorie",  key: "categorie" },
         { label: "Libellé",    key: "libelle" },
-        { label: "Montant",    key: "montant",   format: (v) => formatCurrency(Number(v)) },
+        { label: "Montant",    key: "montant",   type: "currency", format: (v) => Number(v) },
       ],
-      `journal-comptable-${selectedPeriod}.csv`
+      `journal-comptable-${selectedPeriod}.xlsx`,
+      { sheetName: "Journal" }
     );
   };
 
@@ -1690,12 +1691,12 @@ export default function ComptablePage() {
                     { compte: "604", libelle: "Paiements fournisseurs",               debit: dec?.fournisseurs.montant ?? 0,          credit: 0 },
                     { compte: "658", libelle: "Autres charges diverses",              debit: dec?.autres_caisse.montant ?? 0,         credit: 0 },
                   ].filter((r) => r.debit > 0 || r.credit > 0);
-                  exportToCsv(rows, [
+                  exportToXlsx(rows, [
                     { label: "N° Compte", key: "compte" },
                     { label: "Libellé", key: "libelle" },
-                    { label: "Débit", key: "debit", format: (v) => formatCurrency(Number(v)) },
-                    { label: "Crédit", key: "credit", format: (v) => formatCurrency(Number(v)) },
-                  ], `balance-comptable-${selectedPeriod}j.csv`);
+                    { label: "Débit", key: "debit", type: "currency", format: (v) => Number(v) },
+                    { label: "Crédit", key: "credit", type: "currency", format: (v) => Number(v) },
+                  ], `balance-comptable-${selectedPeriod}j.xlsx`, { sheetName: "Balance" });
                 }}
                 className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-slate-700 hover:bg-slate-50 text-sm font-medium shadow-sm"
               >
@@ -2847,7 +2848,7 @@ export default function ComptablePage() {
                 className="px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500" placeholder="Du" />
               <input type="date" value={ecrituresDateMax} onChange={(e) => { setEcrituresDateMax(e.target.value); setEcrituresPage(1); }}
                 className="px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500" placeholder="Au" />
-              <button onClick={() => exportToCsv(ecrituresData?.data?.flatMap(e => e.lignes.map(l => ({ ref: e.reference, date: e.date.slice(0,10), journal: e.journal, libelle: l.libelle, compte: l.compte.numero, debit: l.debit, credit: l.credit }))) ?? [], [{ label: "Référence", key: "ref" }, { label: "Date", key: "date" }, { label: "Journal", key: "journal" }, { label: "Libellé", key: "libelle" }, { label: "Compte", key: "compte" }, { label: "Débit", key: "debit" }, { label: "Crédit", key: "credit" }], "ecritures.csv")}
+              <button onClick={() => exportToXlsx(ecrituresData?.data?.flatMap(e => e.lignes.map(l => ({ ref: e.reference, date: e.date.slice(0,10), journal: e.journal, libelle: l.libelle, compte: l.compte.numero, debit: Number(l.debit), credit: Number(l.credit) }))) ?? [], [{ label: "Référence", key: "ref" }, { label: "Date", key: "date" }, { label: "Journal", key: "journal" }, { label: "Libellé", key: "libelle" }, { label: "Compte", key: "compte" }, { label: "Débit", key: "debit", type: "currency" }, { label: "Crédit", key: "credit", type: "currency" }], "ecritures.xlsx", { sheetName: "Écritures" })}
                 className="flex items-center gap-2 px-3 py-2 border border-slate-200 rounded-xl text-sm text-slate-600 hover:bg-slate-50">
                 <Download size={14} /> CSV
               </button>

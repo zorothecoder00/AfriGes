@@ -4,9 +4,10 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Search, Plus, Phone, MapPin, Eye, Edit, Trash2, Store, Building2, Link2, Link2Off, X,
   TrendingUp, TrendingDown, CreditCard, ShoppingBag, ChevronDown, ChevronRight, Banknote, Hash,
   AlertTriangle, Package, UserCheck, Navigation, Loader2, Tag,
-  Archive, PauseCircle, Ban, CheckCircle, Filter, SlidersHorizontal } from 'lucide-react';
+  Archive, PauseCircle, Ban, CheckCircle, Filter, SlidersHorizontal, FileDown } from 'lucide-react';
 import Link from 'next/link';
 import { useApi, useMutation } from '@/hooks/useApi';
+import { exportToXlsx } from '@/lib/exportXlsx';
 import { formatDate, formatDateTime, formatCurrency } from '@/lib/format';
 import { useT } from '@/contexts/AppSettingsContext';
 import ClienteleTabBar from '@/components/ClienteleTabBar';
@@ -413,6 +414,85 @@ export default function ClientsPage() {
     list.includes(id) ? list.filter((x) => x !== id) : [...list, id];
 
     
+  // ── Export CSV (tous les clients correspondant aux filtres actifs) ──────────
+  const [exporting, setExporting] = useState(false);
+
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      // Reprend les filtres actifs mais sans pagination (limite large pour tout récupérer)
+      const exportParams = new URLSearchParams({ page: '1', limit: '100000' });
+      if (debouncedSearch) exportParams.set('search', debouncedSearch);
+      if (filterPdvId)     exportParams.set('pdvId', filterPdvId);
+      if (filterAgentId)   exportParams.set('agentTerrainId', filterAgentId);
+      if (filterEtat)      exportParams.set('etat', filterEtat);
+      if (filterAvance)    exportParams.set('filtre', filterAvance);
+      if (filterSegment)   exportParams.set('segment', filterSegment);
+      if (filterTagId)     exportParams.set('tagId', filterTagId);
+
+      const res = await fetch(`/api/admin/clients?${exportParams}`);
+      const json: ClientsResponse = await res.json();
+      const rows = json?.data ?? [];
+
+      if (rows.length === 0) {
+        const { toast } = await import('sonner');
+        toast.info('Aucun client à exporter');
+        return;
+      }
+
+      await exportToXlsx(
+        rows.map((c) => {
+          const pdvs = getClientPdvs(c);
+          return {
+            code:      c.codeClient ?? '',
+            nom:       c.nom,
+            prenom:    c.prenom,
+            telephone: c.telephone,
+            adresse:   [c.quartier, c.commune, c.ville].filter(Boolean).join(', ') || c.adresse || '',
+            segment:   c.segment === 'RIA' ? 'RIA' : 'Ordinaire',
+            etat:      c.etat === 'INACTIF' ? 'Archivé' : c.etat.charAt(0) + c.etat.slice(1).toLowerCase(),
+            typeClient: c.typeClient ?? '',
+            limiteCredit: c.limiteCredit != null ? Number(c.limiteCredit) : null,
+            soldeActuel:  c.soldeActuel  != null ? Number(c.soldeActuel)  : null,
+            niveauRisque: c.niveauRisque ?? '',
+            pdv:       pdvs.map((p) => `${p.nom} (${p.code})`).join(' | ') || '',
+            agent:     c.agentTerrain ? `${c.agentTerrain.prenom} ${c.agentTerrain.nom}` : '',
+            tags:      (c.tags ?? []).map((t) => t.tag.nom).join(', '),
+            nbPacks:   c._count.souscriptionsPacks,
+            nbVentes:  c._count.ventesDirectes,
+            createdAt: c.createdAt ? new Date(c.createdAt) : null,
+          };
+        }),
+        [
+          { label: 'Code client',    key: 'code' },
+          { label: 'Nom',            key: 'nom' },
+          { label: 'Prénom',         key: 'prenom' },
+          { label: 'Téléphone',      key: 'telephone' },
+          { label: 'Adresse',        key: 'adresse' },
+          { label: 'Segment',        key: 'segment' },
+          { label: 'Statut',         key: 'etat' },
+          { label: 'Type client',    key: 'typeClient' },
+          { label: 'Limite crédit',  key: 'limiteCredit', type: 'currency' },
+          { label: 'Solde actuel',   key: 'soldeActuel',  type: 'currency' },
+          { label: 'Niveau risque',  key: 'niveauRisque' },
+          { label: 'PDV',            key: 'pdv' },
+          { label: 'Agent terrain',  key: 'agent' },
+          { label: 'Tags',           key: 'tags' },
+          { label: 'Nb packs',       key: 'nbPacks',  type: 'number' },
+          { label: 'Nb ventes',      key: 'nbVentes', type: 'number' },
+          { label: 'Date création',  key: 'createdAt', type: 'date' },
+        ],
+        `clients-${new Date().toISOString().slice(0, 10)}.xlsx`,
+        { sheetName: 'Clients', title: `Liste des clients — ${formatDate(new Date().toISOString())}` }
+      );
+    } catch {
+      const { toast } = await import('sonner');
+      toast.error('Erreur lors de l\'export');
+    } finally {
+      setExporting(false);
+    }
+  };
+
   // ── Handlers ────────────────────────────────────────────────────────────────
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -589,6 +669,12 @@ export default function ClientsPage() {
             <p className="text-slate-500 text-sm mt-0.5">{t('clients_subtitle')}</p>
           </div>
           <div className="flex items-center gap-3">
+            <button onClick={handleExport} disabled={exporting}
+              className="px-5 py-3 bg-white text-slate-700 border border-slate-200 rounded-xl hover:bg-slate-50 transition-all flex items-center gap-2 font-medium disabled:opacity-60">
+              {exporting
+                ? <><Loader2 size={18} className="animate-spin" /> Export…</>
+                : <><FileDown size={18} /> Exporter</>}
+            </button>
             <button onClick={() => setModalOpen(true)}
               className="px-6 py-3 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-200 flex items-center gap-2 font-medium">
               <Plus size={20} /> {t('clients_add_btn')}

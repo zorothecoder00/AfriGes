@@ -16,7 +16,7 @@ import UserPdvBadge from "@/components/UserPdvBadge";
 import DashboardBackButton from "@/components/DashboardBackButton";
 import { useApi } from "@/hooks/useApi";
 import { formatCurrency, formatDate, formatDateTime } from "@/lib/format";
-import { exportToCsv } from "@/lib/exportCsv";
+import { exportToXlsx } from "@/lib/exportXlsx";
 import { useT } from "@/contexts/AppSettingsContext";
 
 // ============================================================================
@@ -601,9 +601,9 @@ export default function AuditeurInternePage() {
   // ── Export CSV logs ─────────────────────────────────────────────────────────
   const handleExportLogs = () => {
     if (!logs.length) return;
-    exportToCsv(
+    exportToXlsx(
       logs.map((l) => ({
-        date: formatDateTime(l.createdAt),
+        date: l.createdAt ? new Date(l.createdAt) : null,
         utilisateur: l.user ? `${l.user.prenom} ${l.user.nom}` : "Système",
         email: l.user?.email ?? "",
         action: l.action,
@@ -611,14 +611,15 @@ export default function AuditeurInternePage() {
         entiteId: l.entiteId ?? "",
       })),
       [
-        { label: "Date & Heure",  key: "date" },
+        { label: "Date & Heure",  key: "date", type: "datetime" },
         { label: "Utilisateur",   key: "utilisateur" },
         { label: "Email",         key: "email" },
         { label: "Action",        key: "action" },
         { label: "Entité",        key: "entite" },
         { label: "ID Entité",     key: "entiteId" },
       ],
-      "journal-audit.csv"
+      "journal-audit.xlsx",
+      { sheetName: "Journal audit" }
     );
   };
 
@@ -626,9 +627,9 @@ export default function AuditeurInternePage() {
   const handleExportMouvements = () => {
     const data = mouvResponse?.data ?? [];
     if (!data.length) return;
-    exportToCsv(
+    exportToXlsx(
       data.map((m) => ({
-        date: formatDateTime(m.dateMouvement),
+        date: m.dateMouvement ? new Date(m.dateMouvement) : null,
         reference: m.reference,
         type: m.type,
         produit: m.produit.nom,
@@ -636,14 +637,15 @@ export default function AuditeurInternePage() {
         motif: m.motif ?? "",
       })),
       [
-        { label: "Date",       key: "date" },
+        { label: "Date",       key: "date", type: "datetime" },
         { label: "Référence",  key: "reference" },
         { label: "Type",       key: "type" },
         { label: "Produit",    key: "produit" },
-        { label: "Quantité",   key: "quantite" },
+        { label: "Quantité",   key: "quantite", type: "number" },
         { label: "Motif",      key: "motif" },
       ],
-      "mouvements-stock.csv"
+      "mouvements-stock.xlsx",
+      { sheetName: "Mouvements stock" }
     );
   };
 
@@ -1921,10 +1923,11 @@ export default function AuditeurInternePage() {
                         onClick={() => {
                           const data = ventesStatsRes?.data.dernieresVentes ?? [];
                           if (!data.length) return;
-                          exportToCsv(
-                            data.map((v) => ({ date: formatDateTime(v.date), type: v.type, reference: v.reference, montant: v.montant, client: v.clientNom, agent: v.agentNom, pdv: v.pdvNom, pack: v.packNom })),
-                            [{ label: "Date", key: "date" }, { label: "Type", key: "type" }, { label: "Référence", key: "reference" }, { label: "Montant", key: "montant" }, { label: "Client", key: "client" }, { label: "Agent", key: "agent" }, { label: "PDV", key: "pdv" }, { label: "Pack", key: "pack" }],
-                            "ventes-detail.csv"
+                          exportToXlsx(
+                            data.map((v) => ({ date: v.date ? new Date(v.date) : null, type: v.type, reference: v.reference, montant: Number(v.montant), client: v.clientNom, agent: v.agentNom, pdv: v.pdvNom, pack: v.packNom })),
+                            [{ label: "Date", key: "date", type: "datetime" }, { label: "Type", key: "type" }, { label: "Référence", key: "reference" }, { label: "Montant", key: "montant", type: "currency" }, { label: "Client", key: "client" }, { label: "Agent", key: "agent" }, { label: "PDV", key: "pdv" }, { label: "Pack", key: "pack" }],
+                            "ventes-detail.xlsx",
+                            { sheetName: "Ventes" }
                           );
                         }}
                         className="flex items-center gap-2 px-4 py-2 bg-amber-50 text-amber-700 border border-amber-200 rounded-xl text-sm font-semibold hover:bg-amber-100 transition-all"
@@ -2381,10 +2384,11 @@ export default function AuditeurInternePage() {
                 onClick={() => {
                   const data = logsSystemeRes?.data ?? [];
                   if (!data.length) return;
-                  exportToCsv(
-                    data.map((l) => ({ date: formatDateTime(l.createdAt), source: l.source, action: l.action, utilisateur: l.utilisateur, email: l.userEmail ?? "", entite: l.entite, ip: l.ipAddress ?? "" })),
-                    [{ label: "Date", key: "date" }, { label: "Source", key: "source" }, { label: "Action", key: "action" }, { label: "Utilisateur", key: "utilisateur" }, { label: "Email", key: "email" }, { label: "Entité", key: "entite" }, { label: "IP", key: "ip" }],
-                    "logs-systeme.csv"
+                  exportToXlsx(
+                    data.map((l) => ({ date: l.createdAt ? new Date(l.createdAt) : null, source: l.source, action: l.action, utilisateur: l.utilisateur, email: l.userEmail ?? "", entite: l.entite, ip: l.ipAddress ?? "" })),
+                    [{ label: "Date", key: "date", type: "datetime" }, { label: "Source", key: "source" }, { label: "Action", key: "action" }, { label: "Utilisateur", key: "utilisateur" }, { label: "Email", key: "email" }, { label: "Entité", key: "entite" }, { label: "IP", key: "ip" }],
+                    "logs-systeme.xlsx",
+                    { sheetName: "Logs système" }
                   );
                 }}
                 className="flex items-center gap-2 px-4 py-2 bg-amber-50 text-amber-700 border border-amber-200 rounded-xl text-sm font-semibold hover:bg-amber-100 transition-all"

@@ -19,6 +19,7 @@ import DashboardBackButton from "@/components/DashboardBackButton";
 import ClientSegmentTags from "@/components/ClientSegmentTags";
 import FactureModal from "@/components/FactureModal";
 import { useApi, useMutation } from "@/hooks/useApi";
+import { exportRowsToXlsx, type XlsxColumnType } from "@/lib/exportXlsx";
 import { formatCurrency, formatDate, formatDateTime } from "@/lib/format";
 import { useT } from "@/contexts/AppSettingsContext";
 import { usePageAccess } from "@/hooks/usePageAccess";
@@ -680,13 +681,14 @@ export default function ResponsablePDVPage() {
   };
 
   // ── Helper export CSV ─────────────────────────────────────────────────────
-  const exportCsv = (rows: string[][], filename: string) => {
-    const content = rows.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(";")).join("\n");
-    const blob = new Blob(["\uFEFF" + content], { type: "text/csv;charset=utf-8;" });
-    const url  = URL.createObjectURL(blob);
-    const a    = document.createElement("a");
-    a.href = url; a.download = filename; a.click();
-    URL.revokeObjectURL(url);
+  // `columnTypes` (optionnel, aligné sur les colonnes) active les formats natifs
+  // (monétaire / nombre / date). Le nom .csv hérité est converti en .xlsx.
+  const exportCsv = (
+    rows: (string | number | Date | null)[][],
+    filename: string,
+    columnTypes?: (XlsxColumnType | undefined)[],
+  ) => {
+    void exportRowsToXlsx(rows, filename.replace(/\.csv$/i, "") + ".xlsx", { columnTypes });
   };
 
   // ── Handlers livraisons packs ─────────────────────────────────────────────
@@ -729,22 +731,23 @@ export default function ResponsablePDVPage() {
   };
 
   const handleExportRecPacks = () => {
-    const rows = [
+    const rows: (string | number | Date | null)[][] = [
       ["ID", "Pack", "Client", "Statut", "Lignes", "Date prévisionnelle", "Date livraison"],
       ...recPacks.map((r) => {
         const person = r.souscription.user ?? r.souscription.client;
         return [
-          String(r.id),
+          r.id,
           r.souscription.pack.nom,
           person ? `${person.prenom} ${person.nom}` : "—",
           r.statut,
           r.lignes.map((l) => `${l.produit.nom}×${l.quantite}`).join(" | "),
-          new Date(r.datePrevisionnelle).toLocaleDateString("fr-FR"),
-          r.dateLivraison ? new Date(r.dateLivraison).toLocaleDateString("fr-FR") : "—",
+          new Date(r.datePrevisionnelle),
+          r.dateLivraison ? new Date(r.dateLivraison) : null,
         ];
       }),
     ];
-    exportCsv(rows, `livraisons-clients-${new Date().toISOString().slice(0,10)}.csv`);
+    exportCsv(rows, `livraisons-clients-${new Date().toISOString().slice(0,10)}.csv`,
+      ["number", undefined, undefined, undefined, undefined, "date", "date"]);
   };
 
   // ── Handlers réapprovisionnement ─────────────────────────────────────────
@@ -809,19 +812,20 @@ export default function ResponsablePDVPage() {
   };
 
   const handleExportVentes = () => {
-    const rows = [
+    const rows: (string | number | Date | null)[][] = [
       ["Ref", "Vendeur", "Client", "Mode paiement", "Montant", "Statut", "Date"],
       ...ventesRPV.map(v => [
         v.reference,
         `${v.vendeur.prenom} ${v.vendeur.nom}`,
         v.client ? `${v.client.prenom} ${v.client.nom}` : v.clientNom ?? "—",
         v.modePaiement,
-        String(Number(v.montantTotal)),
+        Number(v.montantTotal),
         v.statut,
-        new Date(v.createdAt).toLocaleDateString("fr-FR"),
+        new Date(v.createdAt),
       ]),
     ];
-    exportCsv(rows, `ventes-pdv-${new Date().toISOString().slice(0,10)}.csv`);
+    exportCsv(rows, `ventes-pdv-${new Date().toISOString().slice(0,10)}.csv`,
+      [undefined, undefined, undefined, undefined, "currency", undefined, "date"]);
   };
 
   // ── Handlers Caisse PDV ──────────────────────────────────────────────────
@@ -843,13 +847,14 @@ export default function ResponsablePDVPage() {
   };
 
   const handleExportClients = () => {
-    const rows = [
+    const rows: (string | number | Date | null)[][] = [
       ["ID", "Nom", "Prénom", "Téléphone", "Adresse", "Souscriptions", "État"],
       ...clients.map((c) => [
-        String(c.id), c.nom, c.prenom, c.telephone, c.adresse ?? "", String(c._count.souscriptionsPacks), c.etat,
+        c.id, c.nom, c.prenom, c.telephone, c.adresse ?? "", c._count.souscriptionsPacks, c.etat,
       ]),
     ];
-    exportCsv(rows, `clients-${new Date().toISOString().slice(0,10)}.csv`);
+    exportCsv(rows, `clients-${new Date().toISOString().slice(0,10)}.csv`,
+      ["number", undefined, undefined, undefined, undefined, "number", undefined]);
   };
 
   // ── Handlers livraison ────────────────────────────────────────────────────
@@ -3542,17 +3547,18 @@ export default function ResponsablePDVPage() {
                   <p>En rupture : <strong>{produitsRes?.stats.enRupture ?? 0}</strong></p>
                 </div>
                 <button onClick={() => {
-                  const rows = [
+                  const rows: (string | number | Date | null)[][] = [
                     ["Produit", "Stock actuel", "Seuil alerte", "Statut", "Valeur"],
                     ...produits.map(p => [
                       p.nom,
-                      String(p.stock),
-                      String(p.alerteStock),
+                      p.stock,
+                      p.alerteStock,
                       p.stock === 0 ? "Rupture" : p.stock <= p.alerteStock ? "Stock faible" : "En stock",
-                      String(p.stock * (p.prixAchat ?? p.prixUnitaire)),
+                      p.stock * (p.prixAchat ?? p.prixUnitaire),
                     ]),
                   ];
-                  exportCsv(rows, `stock-pdv-${new Date().toISOString().slice(0,10)}.csv`);
+                  exportCsv(rows, `stock-pdv-${new Date().toISOString().slice(0,10)}.csv`,
+                    [undefined, "number", "number", undefined, "currency"]);
                 }}
                   className="w-full flex items-center justify-center gap-2 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-semibold transition-colors">
                   <Download size={15} />Exporter le stock (CSV)
@@ -3576,14 +3582,15 @@ export default function ResponsablePDVPage() {
                   <p>Sorties 30j : <strong>{mvtRes?.stats.sorties30j.count ?? 0}</strong> ({mvtRes?.stats.sorties30j.quantite ?? 0} unités)</p>
                 </div>
                 <button onClick={() => {
-                  const rows = [
+                  const rows: (string | number | Date | null)[][] = [
                     ["Type", "Produit", "Quantité", "Motif", "Référence", "Date"],
                     ...mvts.map(m => [
-                      m.type, m.produit.nom, String(m.quantite), m.motif ?? "", m.reference,
-                      new Date(m.dateMouvement).toLocaleDateString("fr-FR"),
+                      m.type, m.produit.nom, m.quantite, m.motif ?? "", m.reference,
+                      new Date(m.dateMouvement),
                     ]),
                   ];
-                  exportCsv(rows, `mouvements-stock-${new Date().toISOString().slice(0,10)}.csv`);
+                  exportCsv(rows, `mouvements-stock-${new Date().toISOString().slice(0,10)}.csv`,
+                    [undefined, undefined, "number", undefined, undefined, "date"]);
                 }}
                   className="w-full flex items-center justify-center gap-2 py-2.5 bg-sky-600 hover:bg-sky-700 text-white rounded-xl text-sm font-semibold transition-colors">
                   <Download size={15} />Exporter les mouvements (CSV)
