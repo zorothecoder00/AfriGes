@@ -3023,6 +3023,7 @@ model SuccesseurPotentiel {
   readiness       NiveauReadiness
   estTalentCle    Boolean         @default(false)
   notes           String?
+  actif           Boolean         @default(true)  // soft delete (CDC §8)
 
   posteCritique PosteCritique @relation(fields: [posteCritiqueId], references: [id], onDelete: Cascade)
   profilRH      ProfilRH      @relation(fields: [profilRHId], references: [id])
@@ -3516,6 +3517,12 @@ model Pointage {
   valideParId  Int?      // User.id du validateur
   valideA      DateTime? // date de validation
 
+  // ── Annulation (soft delete — aucune suppression définitive, CDC §8) ──
+  annule          Boolean   @default(false)
+  annuleParId     Int?      // User.id de l'auteur de l'annulation
+  annuleA         DateTime?
+  motifAnnulation String?
+
   profilRH ProfilRH @relation(fields: [profilRHId], references: [id])
 
   createdAt DateTime @default(now())
@@ -3525,6 +3532,7 @@ model Pointage {
   @@index([profilRHId])
   @@index([date])
   @@index([statut])
+  @@index([annule])
 }
 
 /// Horaires de référence utilisés pour calculer retards et heures sup
@@ -3539,6 +3547,7 @@ model ConfigHoraire {
   joursOuvres          Json?    // tableau [1,2,3,4,5] (1=lundi … 7=dimanche)
   toleranceRetardMin   Int?     // minutes de tolérance avant comptage retard (ex: 5)
   estDefaut            Boolean  @default(false)  // config appliquée si aucune perso
+  actif                Boolean  @default(true)   // soft delete (CDC §8 — pas de suppression définitive)
   createdById          Int?     // User.id
 
   collaborateurs ProfilRH[]
@@ -3547,6 +3556,7 @@ model ConfigHoraire {
   updatedAt DateTime @updatedAt
 
   @@index([estDefaut])
+  @@index([actif])
 }
 
 // ============================================================
@@ -3594,6 +3604,7 @@ model CollaborateurCompetence {
   dateAcquisition DateTime?
   notes           String?
   evalueParId     Int?             // User.id du RH qui a évalué
+  actif           Boolean          @default(true)  // soft delete (CDC §8)
 
   profilRH   ProfilRH   @relation(fields: [profilRHId],   references: [id])
   competence Competence @relation(fields: [competenceId], references: [id])
@@ -3760,6 +3771,7 @@ model ObjectifKPI {
   unite          String?
   poids          Int?     // pondération en % (0-100)
   commentaire    String?
+  actif          Boolean  @default(true)  // soft delete (CDC §8)
 
   evaluation EvaluationRH @relation(fields: [evaluationId], references: [id], onDelete: Cascade)
 

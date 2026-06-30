@@ -44,6 +44,7 @@ export async function GET(req: NextRequest) {
         id: true, matricule: true, departement: true, fonction: true,
         gestionnaire: { select: { member: { select: { nom: true, prenom: true } } } },
         competences: {
+          where:  { actif: true },
           select: { competenceId: true, niveau: true, dateAcquisition: true, notes: true },
         },
       },
@@ -72,7 +73,10 @@ export async function GET(req: NextRequest) {
     const statsParCompetence = await prisma.collaborateurCompetence.groupBy({
       by: ["competenceId", "niveau"],
       _count: { id: true },
-      ...(competences.length > 0 && { where: { competenceId: { in: competences.map((c) => c.id) } } }),
+      where: {
+        actif: true,
+        ...(competences.length > 0 && { competenceId: { in: competences.map((c) => c.id) } }),
+      },
     });
 
     return NextResponse.json({ competences, collaborateurs, statsParCompetence });

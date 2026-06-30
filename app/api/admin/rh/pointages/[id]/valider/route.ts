@@ -19,6 +19,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
 
     const existing = await prisma.pointage.findUnique({ where: { id: Number(id) } });
     if (!existing) return NextResponse.json({ error: "Pointage introuvable" }, { status: 404 });
+    if (existing.annule) return NextResponse.json({ error: "Pointage annulé — validation impossible" }, { status: 400 });
 
     const updated = await prisma.pointage.update({
       where: { id: Number(id) },

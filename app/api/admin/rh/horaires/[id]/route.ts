@@ -86,9 +86,22 @@ export async function DELETE(_req: NextRequest, { params }: Ctx) {
         { status: 409 }
       );
     }
+    if (!config.actif) return NextResponse.json({ error: "Config déjà archivée" }, { status: 400 });
 
-    await prisma.configHoraire.delete({ where: { id: Number(id) } });
-    return NextResponse.json({ message: "Config supprimée" });
+    // Soft delete (CDC §8) — archivage au lieu de suppression définitive.
+    await prisma.$transaction([
+      prisma.configHoraire.update({ where: { id: Number(id) }, data: { actif: false, estDefaut: false } }),
+      prisma.auditLog.create({
+        data: {
+          userId:   parseInt(session.user.id),
+          action:   "ARCHIVER",
+          entite:   "ConfigHoraire",
+          entiteId: Number(id),
+          details:  { avant: { actif: true, nom: config.nom }, apres: { actif: false } },
+        },
+      }),
+    ]);
+    return NextResponse.json({ message: "Config archivée", actif: false });
   } catch (error) {
     console.error("DELETE /api/admin/rh/horaires/[id]", error);
     return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });

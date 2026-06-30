@@ -6,12 +6,15 @@ import { getAdminSession } from "@/lib/authAdmin";
  * GET /api/admin/rh/horaires
  * Liste toutes les configs d'horaires
  */
-export async function GET(_req: NextRequest) {
+export async function GET(req: NextRequest) {
   try {
     const session = await getAdminSession();
     if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
 
+    // Soft delete : on masque les configs archivées par défaut (CDC §8).
+    const actifParam = new URL(req.url).searchParams.get("actif");
     const configs = await prisma.configHoraire.findMany({
+      where: actifParam === "all" ? undefined : { actif: true },
       orderBy: [{ estDefaut: "desc" }, { nom: "asc" }],
       include: { _count: { select: { collaborateurs: true } } },
     });

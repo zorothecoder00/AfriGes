@@ -86,6 +86,7 @@ export async function PATCH(
       role,
       etat,
       password,
+      googleOnly,
     } = body;
 
     if (
@@ -108,9 +109,27 @@ export async function PATCH(
       );
     }
 
-    const passwordHash = password
-      ? await bcrypt.hash(password, 10)
-      : undefined;
+    // E-mail : normalisation + validation de format (l'unicité est vérifiée en transaction).
+    let emailNormalized: string | undefined;
+    if (email !== undefined && email !== null && String(email).trim() !== "") {
+      const e = String(email).trim().toLowerCase();
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)) {
+        return NextResponse.json(
+          { message: "Adresse e-mail invalide" },
+          { status: 400 }
+        );
+      }
+      emailNormalized = e;
+    }
+
+    // googleOnly = true → passwordHash null (connexion par mot de passe désactivée → Google seul).
+    // Sinon, on ne change le mot de passe que si un nouveau est fourni.
+    const newPasswordHash =
+      googleOnly === true
+        ? null
+        : password
+          ? await bcrypt.hash(password, 10)
+          : undefined;
 
     const result = await prisma.$transaction(async (tx) => {
       const membre = await tx.user.findUnique({
@@ -121,17 +140,26 @@ export async function PATCH(
         throw new Error("MEMBRE_INTRouvable");
       }
 
+      // E-mail unique : refuser s'il est déjà utilisé par un autre compte.
+      if (emailNormalized) {
+        const clash = await tx.user.findFirst({
+          where: { email: emailNormalized, id: { not: memberId } },
+          select: { id: true },
+        });
+        if (clash) throw new Error("EMAIL_TAKEN");
+      }
+
       const updated = await tx.user.update({
         where: { id: memberId },
         data: {
           ...(nom && { nom }),
           ...(prenom && { prenom }),
-          ...(email && { email }),
+          ...(emailNormalized && { email: emailNormalized }),
           ...(telephone && { telephone }),
           ...(adresse && { adresse }),
           ...(role && { role }),
           ...(etat && { etat }),
-          ...(passwordHash && { passwordHash }),
+          ...(newPasswordHash !== undefined && { passwordHash: newPasswordHash }),
         },
       });
 
@@ -181,6 +209,13 @@ export async function PATCH(
       return NextResponse.json(
         { message: "Membre introuvable" },
         { status: 404 }
+      );
+    }
+
+    if (error instanceof Error && error.message === "EMAIL_TAKEN") {
+      return NextResponse.json(
+        { message: "Cette adresse e-mail est déjà utilisée par un autre compte." },
+        { status: 409 }
       );
     }
 

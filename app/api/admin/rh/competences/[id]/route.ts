@@ -50,7 +50,7 @@ export async function DELETE(_req: NextRequest, { params }: Ctx) {
     const { id } = await params;
     const comp = await prisma.competence.findUnique({
       where:   { id: Number(id) },
-      include: { _count: { select: { collaborateurCompetences: true } } },
+      include: { _count: { select: { collaborateurCompetences: { where: { actif: true } } } } },
     });
     if (!comp) return NextResponse.json({ error: "Compétence introuvable" }, { status: 404 });
 

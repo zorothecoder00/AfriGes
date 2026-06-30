@@ -61,7 +61,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
 /**
  * DELETE /api/admin/rh/pointages/[id]
  */
-export async function DELETE(_req: NextRequest, { params }: Ctx) {
+export async function DELETE(req: NextRequest, { params }: Ctx) {
   try {
     const session = await getAdminSession();
     if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
@@ -69,9 +69,42 @@ export async function DELETE(_req: NextRequest, { params }: Ctx) {
     const { id } = await params;
     const existing = await prisma.pointage.findUnique({ where: { id: Number(id) } });
     if (!existing) return NextResponse.json({ error: "Pointage introuvable" }, { status: 404 });
+    if (existing.annule) return NextResponse.json({ error: "Pointage déjà annulé" }, { status: 400 });
 
-    await prisma.pointage.delete({ where: { id: Number(id) } });
-    return NextResponse.json({ message: "Pointage supprimé" });
+    // Motif optionnel (query ?motif=... ou body { motif })
+    const motif =
+      new URL(req.url).searchParams.get("motif") ??
+      (await req.json().catch(() => ({})))?.motif ??
+      null;
+
+    // Soft delete — aucune suppression définitive (CDC §8). La présence alimente
+    // la paie : on annule logiquement et on trace l'avant/après.
+    await prisma.$transaction([
+      prisma.pointage.update({
+        where: { id: Number(id) },
+        data: {
+          annule:          true,
+          annuleParId:     parseInt(session.user.id),
+          annuleA:         new Date(),
+          motifAnnulation: motif,
+        },
+      }),
+      prisma.auditLog.create({
+        data: {
+          userId:   parseInt(session.user.id),
+          action:   "ANNULER",
+          entite:   "Pointage",
+          entiteId: Number(id),
+          details:  {
+            avant: { annule: false, statut: existing.statut },
+            apres: { annule: true },
+            motif,
+          },
+        },
+      }),
+    ]);
+
+    return NextResponse.json({ message: "Pointage annulé", annule: true });
   } catch (error) {
     console.error("DELETE /api/admin/rh/pointages/[id]", error);
     return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });

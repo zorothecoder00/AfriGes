@@ -38,7 +38,7 @@ export async function GET(req: NextRequest) {
         id: true, matricule: true, fonction: true, departement: true,
         gestionnaire: { select: { member: { select: { nom: true, prenom: true } } } },
         pointages: {
-          where:   { date: { gte: debut, lt: fin } },
+          where:   { date: { gte: debut, lt: fin }, annule: false },
           orderBy: { date: "asc" },
           select: {
             id: true, date: true, statut: true,

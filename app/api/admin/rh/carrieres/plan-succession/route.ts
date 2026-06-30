@@ -4,6 +4,7 @@ import { getAdminSession } from "@/lib/authAdmin";
 
 const INCLUDE = {
   successeurs: {
+    where: { actif: true },
     include: {
       profilRH: {
         select: {

@@ -7,7 +7,7 @@ type Ctx = { params: Promise<{ id: string }> };
 
 const INCLUDE = {
   criteres:  true,
-  objectifs: true,
+  objectifs: { where: { actif: true } },
   profilRH: {
     select: {
       id: true, matricule: true,

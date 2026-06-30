@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
     const competences = await prisma.competence.findMany({
       where,
       orderBy: [{ type: "asc" }, { categorie: "asc" }, { nom: "asc" }],
-      include: { _count: { select: { collaborateurCompetences: true } } },
+      include: { _count: { select: { collaborateurCompetences: { where: { actif: true } } } } },
     });
 
     // Stats par type

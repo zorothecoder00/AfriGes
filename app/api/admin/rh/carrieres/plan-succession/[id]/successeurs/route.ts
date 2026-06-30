@@ -20,7 +20,7 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
     if (!poste) return NextResponse.json({ error: "Poste critique introuvable" }, { status: 404 });
 
     const successeurs = await prisma.successeurPotentiel.findMany({
-      where: { posteCritiqueId: Number(id) },
+      where: { posteCritiqueId: Number(id), actif: true },
       include: {
         profilRH: {
           select: {
@@ -79,6 +79,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
         readiness:    readiness as NiveauReadiness,
         estTalentCle: estTalentCle ?? false,
         notes:        notes ?? null,
+        actif:        true,   // ré-ajout → réactive un successeur retiré
       },
       include: {
         profilRH: {
@@ -115,10 +116,24 @@ export async function DELETE(req: NextRequest, { params }: Ctx) {
       where: { posteCritiqueId_profilRHId: { posteCritiqueId: Number(id), profilRHId: Number(profilRHId) } },
     });
     if (!existing) return NextResponse.json({ error: "Successeur introuvable" }, { status: 404 });
+    if (!existing.actif) return NextResponse.json({ error: "Successeur déjà retiré" }, { status: 400 });
 
-    await prisma.successeurPotentiel.delete({
-      where: { posteCritiqueId_profilRHId: { posteCritiqueId: Number(id), profilRHId: Number(profilRHId) } },
-    });
+    // Soft delete (CDC §8) — archivage + traçabilité avant/après.
+    await prisma.$transaction([
+      prisma.successeurPotentiel.update({
+        where: { posteCritiqueId_profilRHId: { posteCritiqueId: Number(id), profilRHId: Number(profilRHId) } },
+        data:  { actif: false },
+      }),
+      prisma.auditLog.create({
+        data: {
+          userId:   parseInt(session.user.id),
+          action:   "ARCHIVER",
+          entite:   "SuccesseurPotentiel",
+          entiteId: existing.id,
+          details:  { avant: JSON.parse(JSON.stringify(existing)), apres: { actif: false } },
+        },
+      }),
+    ]);
     return NextResponse.json({ message: "Successeur retiré" });
   } catch (error) {
     console.error("DELETE /api/admin/rh/carrieres/plan-succession/[id]/successeurs", error);

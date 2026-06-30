@@ -20,7 +20,7 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
     if (!profil) return NextResponse.json({ error: "Collaborateur introuvable" }, { status: 404 });
 
     const competences = await prisma.collaborateurCompetence.findMany({
-      where:   { profilRHId: Number(id) },
+      where:   { profilRHId: Number(id), actif: true },
       include: { competence: true },
       orderBy: [{ competence: { type: "asc" } }, { competence: { categorie: "asc" } }, { competence: { nom: "asc" } }],
     });
@@ -76,6 +76,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
         dateAcquisition: dateAcquisition ? new Date(dateAcquisition) : null,
         notes:           notes           ?? null,
         evalueParId:     parseInt(session.user.id),
+        actif:           true,   // ré-assignation → réactive une compétence retirée
       },
       include: { competence: true },
     });
@@ -106,10 +107,24 @@ export async function DELETE(req: NextRequest, { params }: Ctx) {
       where: { profilRHId_competenceId: { profilRHId: Number(id), competenceId: Number(competenceId) } },
     });
     if (!existing) return NextResponse.json({ error: "Compétence non assignée" }, { status: 404 });
+    if (!existing.actif) return NextResponse.json({ error: "Compétence déjà retirée" }, { status: 400 });
 
-    await prisma.collaborateurCompetence.delete({
-      where: { profilRHId_competenceId: { profilRHId: Number(id), competenceId: Number(competenceId) } },
-    });
+    // Soft delete (CDC §8) — archivage + traçabilité avant/après.
+    await prisma.$transaction([
+      prisma.collaborateurCompetence.update({
+        where: { profilRHId_competenceId: { profilRHId: Number(id), competenceId: Number(competenceId) } },
+        data:  { actif: false },
+      }),
+      prisma.auditLog.create({
+        data: {
+          userId:   parseInt(session.user.id),
+          action:   "ARCHIVER",
+          entite:   "CollaborateurCompetence",
+          entiteId: existing.id,
+          details:  { avant: JSON.parse(JSON.stringify(existing)), apres: { actif: false } },
+        },
+      }),
+    ]);
 
     return NextResponse.json({ message: "Compétence retirée" });
   } catch (error) {

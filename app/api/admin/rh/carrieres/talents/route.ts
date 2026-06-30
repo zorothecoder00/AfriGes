@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
     const departement = searchParams.get("departement")?.trim();
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const where: any = { estTalentCle: true };
+    const where: any = { estTalentCle: true, actif: true };
     if (departement) where.profilRH = { departement: { contains: departement, mode: "insensitive" } };
 
     const rows = await prisma.successeurPotentiel.findMany({
@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
             id: true, matricule: true, fonction: true, departement: true,
             gestionnaire: { select: { member: { select: { nom: true, prenom: true, photo: true } } } },
             planCarriere: { select: { prochainPosteVise: true, dateRevision: true } },
-            competences:  { select: { niveau: true, competence: { select: { nom: true, type: true } } }, take: 5 },
+            competences:  { where: { actif: true }, select: { niveau: true, competence: { select: { nom: true, type: true } } }, take: 5 },
           },
         },
         posteCritique: { select: { id: true, titre: true, departement: true } },

@@ -19,6 +19,7 @@ export async function GET(req: NextRequest) {
     const mois       = searchParams.get("mois");
     const annee      = searchParams.get("annee");
     const statut     = searchParams.get("statut") as StatutPointage | null;
+    const annuleParam = searchParams.get("annule"); // "true" → annulés | "all" → tous | défaut → non annulés
     const search     = searchParams.get("search")?.trim() ?? "";
     const page       = Math.max(1, Number(searchParams.get("page")  || 1));
     const limit      = Math.min(100, Math.max(1, Number(searchParams.get("limit") || 31)));
@@ -26,6 +27,9 @@ export async function GET(req: NextRequest) {
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const where: any = {};
+    // Soft delete : on masque les pointages annulés par défaut (CDC §8).
+    if (annuleParam === "true")      where.annule = true;
+    else if (annuleParam !== "all")  where.annule = false;
     if (profilRHId) where.profilRHId = Number(profilRHId);
     if (statut)     where.statut     = statut;
     if (dateParam) {
@@ -106,7 +110,7 @@ export async function POST(req: NextRequest) {
           created.push(await tx.pointage.upsert({
             where:  { profilRHId_date: { profilRHId: Number(p.profilRHId), date: dateObj } },
             create: { profilRHId: Number(p.profilRHId), date: dateObj, statut: calcul.statutAuto as StatutPointage, heureArrivee: arrivee, heureDepart: depart, notes: p.notes ?? null, justificatif: p.justificatif ?? null, saisieParId: parseInt(session.user.id), source: "MANUEL", tempsTotal: calcul.tempsTotal, retardMinutes: calcul.retardMinutes, heuresSup: calcul.heuresSup },
-            update: { statut: calcul.statutAuto as StatutPointage, heureArrivee: arrivee, heureDepart: depart, notes: p.notes ?? null, justificatif: p.justificatif ?? null, tempsTotal: calcul.tempsTotal, retardMinutes: calcul.retardMinutes, heuresSup: calcul.heuresSup },
+            update: { statut: calcul.statutAuto as StatutPointage, heureArrivee: arrivee, heureDepart: depart, notes: p.notes ?? null, justificatif: p.justificatif ?? null, tempsTotal: calcul.tempsTotal, retardMinutes: calcul.retardMinutes, heuresSup: calcul.heuresSup, annule: false, annuleParId: null, annuleA: null, motifAnnulation: null },
           }));
         }
         return created;
@@ -129,7 +133,7 @@ export async function POST(req: NextRequest) {
     const pointage = await prisma.pointage.upsert({
       where:  { profilRHId_date: { profilRHId: Number(profilRHId), date: dateObj } },
       create: { profilRHId: Number(profilRHId), date: dateObj, statut: calcul.statutAuto as StatutPointage, heureArrivee: arrivee, heureDepart: depart, notes: notes ?? null, justificatif: justificatif ?? null, saisieParId: parseInt(session.user.id), source: "MANUEL", tempsTotal: calcul.tempsTotal, retardMinutes: calcul.retardMinutes, heuresSup: calcul.heuresSup },
-      update: { statut: calcul.statutAuto as StatutPointage, heureArrivee: arrivee, heureDepart: depart, notes: notes ?? null, justificatif: justificatif ?? null, tempsTotal: calcul.tempsTotal, retardMinutes: calcul.retardMinutes, heuresSup: calcul.heuresSup },
+      update: { statut: calcul.statutAuto as StatutPointage, heureArrivee: arrivee, heureDepart: depart, notes: notes ?? null, justificatif: justificatif ?? null, tempsTotal: calcul.tempsTotal, retardMinutes: calcul.retardMinutes, heuresSup: calcul.heuresSup, annule: false, annuleParId: null, annuleA: null, motifAnnulation: null },
     });
 
     return NextResponse.json({ data: pointage }, { status: 201 });

@@ -12,9 +12,10 @@ interface MemberFormData {
   email: string;
   telephone: string;
   adresse: string;
-  role: string;  
+  role: string;
   etat: string;
   password?: string;
+  googleOnly?: boolean;
 }
 
 interface MemberResponse {
@@ -46,6 +47,7 @@ export default function EditMember({ memberId }: { memberId: string }) {
     role: 'USER',
     etat: 'ACTIF',
     password: '',
+    googleOnly: false,
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -62,7 +64,8 @@ export default function EditMember({ memberId }: { memberId: string }) {
         telephone: m.telephone || '',
         adresse: m.adresse || '',
         role: m.role || 'USER',
-        etat: m.etat, 
+        etat: m.etat,
+        googleOnly: false,
       });
     }, 0);
 
@@ -89,7 +92,7 @@ export default function EditMember({ memberId }: { memberId: string }) {
     e.preventDefault();
     if (!validateForm()) return;
 
-    const payload: Record<string, string | undefined> = { ...formData };
+    const payload: Record<string, string | boolean | undefined> = { ...formData };
     if (!payload.password) delete payload.password;
 
     const result = await mutate(payload);
@@ -206,8 +209,25 @@ export default function EditMember({ memberId }: { memberId: string }) {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
                     <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">Nouveau mot de passe</label>
-                    <input type="password" id="password" name="password" value={formData.password || ''} onChange={handleChange} className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors" placeholder="Laissez vide pour ne pas changer" />
+                    <input type="password" id="password" name="password" value={formData.password || ''} onChange={handleChange} disabled={formData.googleOnly} className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors disabled:bg-gray-100 disabled:opacity-60" placeholder="Laissez vide pour ne pas changer" />
                     <p className="mt-1 text-sm text-gray-500">Minimum 8 caracteres</p>
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="flex items-start gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={formData.googleOnly || false}
+                        onChange={(e) => setFormData(prev => ({ ...prev, googleOnly: e.target.checked }))}
+                        className="mt-1 w-4 h-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+                      />
+                      <div>
+                        <span className="text-sm font-medium text-gray-700">Connexion Google uniquement</span>
+                        <p className="text-xs text-gray-500 mt-0.5">
+                          Désactive le mot de passe : le membre ne pourra se connecter qu&apos;avec « Continuer avec Google »
+                          (l&apos;e-mail ci-dessus doit être son Gmail). Réactiver un mot de passe nécessiterait une réinitialisation.
+                        </p>
+                      </div>
+                    </label>
                   </div>
                 </div>
               </div>

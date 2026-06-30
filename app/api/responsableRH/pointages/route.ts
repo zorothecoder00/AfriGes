@@ -79,6 +79,9 @@ export async function GET(req: NextRequest) {
       };
     }
 
+    // Soft delete : ne jamais inclure les pointages annulés (CDC §8).
+    where.annule = false;
+
     const [pointages, total, stats] = await Promise.all([
       prisma.pointage.findMany({
         where,
@@ -160,6 +163,11 @@ export async function POST(req: NextRequest) {
         tempsTotal:    calcul.tempsTotal,
         retardMinutes: calcul.retardMinutes,
         heuresSup:     calcul.heuresSup,
+        // Re-saisie sur une date annulée → réactive la ligne (soft delete réversible).
+        annule:          false,
+        annuleParId:     null,
+        annuleA:         null,
+        motifAnnulation: null,
       },
     });
 

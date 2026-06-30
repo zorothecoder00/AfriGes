@@ -6,6 +6,7 @@ type Ctx = { params: Promise<{ id: string }> };
 
 const INCLUDE = {
   successeurs: {
+    where: { actif: true },
     include: {
       profilRH: {
         select: {
@@ -61,9 +62,22 @@ export async function DELETE(_req: NextRequest, { params }: Ctx) {
     const { id } = await params;
     const existing = await prisma.posteCritique.findUnique({ where: { id: Number(id) } });
     if (!existing) return NextResponse.json({ error: "Poste critique introuvable" }, { status: 404 });
+    if (!existing.actif) return NextResponse.json({ error: "Poste critique déjà archivé" }, { status: 400 });
 
-    await prisma.posteCritique.delete({ where: { id: Number(id) } });
-    return NextResponse.json({ message: "Poste critique supprimé" });
+    // Soft delete (CDC §8) — archivage au lieu de suppression définitive.
+    await prisma.$transaction([
+      prisma.posteCritique.update({ where: { id: Number(id) }, data: { actif: false } }),
+      prisma.auditLog.create({
+        data: {
+          userId:   parseInt(session.user.id),
+          action:   "ARCHIVER",
+          entite:   "PosteCritique",
+          entiteId: Number(id),
+          details:  { avant: { actif: true, titre: existing.titre }, apres: { actif: false } },
+        },
+      }),
+    ]);
+    return NextResponse.json({ message: "Poste critique archivé", actif: false });
   } catch (error) {
     console.error("DELETE /api/admin/rh/carrieres/plan-succession/[id]", error);
     return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });

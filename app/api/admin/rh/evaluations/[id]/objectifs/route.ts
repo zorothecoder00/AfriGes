@@ -18,7 +18,7 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
     if (!eval_) return NextResponse.json({ error: "Évaluation introuvable" }, { status: 404 });
 
     const objectifs = await prisma.objectifKPI.findMany({
-      where:   { evaluationId: Number(id) },
+      where:   { evaluationId: Number(id), actif: true },
       orderBy: { createdAt: "asc" },
     });
     return NextResponse.json({ data: objectifs });
@@ -124,9 +124,22 @@ export async function DELETE(req: NextRequest, { params }: Ctx) {
       where: { id: Number(kpiId), evaluationId: Number(id) },
     });
     if (!existing) return NextResponse.json({ error: "KPI introuvable" }, { status: 404 });
+    if (!existing.actif) return NextResponse.json({ error: "KPI déjà archivé" }, { status: 400 });
 
-    await prisma.objectifKPI.delete({ where: { id: Number(kpiId) } });
-    return NextResponse.json({ message: "KPI supprimé" });
+    // Soft delete (CDC §8) — archivage + traçabilité avant/après.
+    await prisma.$transaction([
+      prisma.objectifKPI.update({ where: { id: Number(kpiId) }, data: { actif: false } }),
+      prisma.auditLog.create({
+        data: {
+          userId:   parseInt(session.user.id),
+          action:   "ARCHIVER",
+          entite:   "ObjectifKPI",
+          entiteId: existing.id,
+          details:  { avant: JSON.parse(JSON.stringify(existing)), apres: { actif: false } },
+        },
+      }),
+    ]);
+    return NextResponse.json({ message: "KPI archivé" });
   } catch (error) {
     console.error("DELETE /api/admin/rh/evaluations/[id]/objectifs", error);
     return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
