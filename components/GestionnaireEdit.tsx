@@ -43,6 +43,8 @@ interface GestionnaireResponse {
 interface FormData {
   role: string;
   actif: boolean;
+  email: string;
+  googleOnly: boolean;
 }
 
 export default function GestionnaireEdit({ gestionnaireId }: GestionnaireEditProps) {
@@ -53,6 +55,8 @@ export default function GestionnaireEdit({ gestionnaireId }: GestionnaireEditPro
   const [formData, setFormData] = useState<FormData>({
     role: 'CAISSIER',
     actif: true,
+    email: '',
+    googleOnly: false,
   });
 
   useEffect(() => {
@@ -63,6 +67,8 @@ export default function GestionnaireEdit({ gestionnaireId }: GestionnaireEditPro
       setFormData({
         role: response.data.role,
         actif: response.data.actif,
+        email: response.data.member.email,
+        googleOnly: false,
       });
     }, 0);
 
@@ -143,12 +149,24 @@ export default function GestionnaireEdit({ gestionnaireId }: GestionnaireEditPro
                     <span className="text-sm text-gray-900">{gestionnaire.member.nom}</span>
                   </div>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
-                  <div className="flex items-center gap-2">
-                    <Mail className="w-4 h-4 text-gray-400" />
-                    <span className="text-sm text-gray-900">{gestionnaire.member.email}</span>
+                <div className="md:col-span-2">
+                  <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+                    Email de connexion <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <Mail className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input
+                      id="email"
+                      type="email"
+                      value={formData.email}
+                      onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+                      className="w-full pl-9 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition-all"
+                      placeholder="prenom.nom@gmail.com"
+                    />
                   </div>
+                  <p className="mt-1 text-xs text-gray-500">
+                    Renseignez le vrai Gmail du membre ici pour activer sa connexion via Google.
+                  </p>
                 </div>
                 {gestionnaire.member.telephone && (
                   <div>
@@ -237,6 +255,30 @@ export default function GestionnaireEdit({ gestionnaireId }: GestionnaireEditPro
                 </label>
               </div>
             </div>
+          </div>
+
+          {/* Connexion */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+              <Shield className="w-5 h-5 text-purple-600" />
+              Connexion
+            </h2>
+            <label className="flex items-start gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={formData.googleOnly}
+                onChange={(e) => setFormData(prev => ({ ...prev, googleOnly: e.target.checked }))}
+                className="mt-1 w-4 h-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+              />
+              <div>
+                <span className="text-sm font-medium text-gray-700">Connexion Google uniquement</span>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  Désactive le mot de passe de ce compte : le membre ne pourra plus se connecter
+                  qu&apos;avec le bouton « Continuer avec Google » (l&apos;e-mail ci-dessus doit être son Gmail).
+                  Réactiver un mot de passe nécessiterait une réinitialisation.
+                </p>
+              </div>
+            </label>
           </div>
 
           {/* Boutons d'action */}

@@ -91,7 +91,7 @@ export async function PATCH(
     }
 
     const body = await req.json();
-    const { role, actif } = body;
+    const { role, actif, email, googleOnly } = body;
 
     if (
       role &&
@@ -101,6 +101,19 @@ export async function PATCH(
         { message: "Rôle de gestionnaire invalide" },
         { status: 400 }
       );
+    }
+
+    // E-mail : normalisation + validation de format (l'unicité est vérifiée en transaction).
+    let emailNormalized: string | undefined;
+    if (email !== undefined && email !== null && String(email).trim() !== "") {
+      const e = String(email).trim().toLowerCase();
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)) {
+        return NextResponse.json(
+          { message: "Adresse e-mail invalide" },
+          { status: 400 }
+        );
+      }
+      emailNormalized = e;
     }
 
     const result = await prisma.$transaction(async (tx) => {
@@ -132,13 +145,27 @@ export async function PATCH(
         },
       });
 
-      // Mettre à jour le role du membre
-      if (newMemberRole) {
+      // E-mail unique : refuser s'il est déjà utilisé par un autre compte.
+      if (emailNormalized) {
+        const clash = await tx.user.findFirst({
+          where: { email: emailNormalized, id: { not: gestionnaire.memberId } },
+          select: { id: true },
+        });
+        if (clash) throw new Error("EMAIL_TAKEN");
+      }
+
+      // Mettre à jour le membre (User) : rôle, e-mail, et/ou désactivation du mot de passe.
+      // googleOnly = true → passwordHash null → la connexion par mot de passe est
+      // désactivée pour ce compte ; il ne pourra plus se connecter que via Google.
+      const memberData: { role?: Role; email?: string; passwordHash?: null } = {};
+      if (newMemberRole) memberData.role = newMemberRole;
+      if (emailNormalized) memberData.email = emailNormalized;
+      if (googleOnly === true) memberData.passwordHash = null;
+
+      if (Object.keys(memberData).length > 0) {
         await tx.user.update({
           where: { id: gestionnaire.memberId },
-          data: {
-            role: newMemberRole,
-          },
+          data: memberData,
         });
       }
 
@@ -149,6 +176,11 @@ export async function PATCH(
           action: "MODIFICATION_GESTIONNAIRE",
           entite: "Gestionnaire",
           entiteId: gestionnaireId,
+          details: {
+            ...(role && { role }),
+            ...(emailNormalized && { emailChange: emailNormalized }),
+            ...(googleOnly === true && { passwordDisabled: true }),
+          },
         },
       });
 
@@ -185,6 +217,13 @@ export async function PATCH(
       return NextResponse.json(
         { message: error.message },
         { status: 404 }
+      );
+    }
+
+    if (error instanceof Error && error.message === "EMAIL_TAKEN") {
+      return NextResponse.json(
+        { message: "Cette adresse e-mail est déjà utilisée par un autre compte." },
+        { status: 409 }
       );
     }
 

@@ -1,17 +1,17 @@
 import { prisma } from '@/lib/prisma'
 import { Role, RoleGestionnaire } from "@/types"
-import bcrypt from 'bcryptjs'     
+import bcrypt from 'bcryptjs'
 import GoogleProvider from 'next-auth/providers/google'
 import CredentialsProvider from 'next-auth/providers/credentials'
 import { NextAuthOptions } from 'next-auth'
-    
+
 export const authOptions: NextAuthOptions = {
-	providers: [      
+	providers: [
 		GoogleProvider({
 			clientId: process.env.GOOGLE_CLIENT_ID!,
 			clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
 
-		}),     
+		}),
 
 		CredentialsProvider({
 			name: "Credentials",
@@ -59,58 +59,63 @@ export const authOptions: NextAuthOptions = {
 				}
 			}
 		})
-	], 
+	],
 	callbacks: {
-		async signIn({ user, account }) {  
-	      // Si c'est Google → vérifier s'il existe déjà dans ta DB
-	      if (account?.provider === "google") {
-	        const existingUser = await prisma.user.findUnique({ where: { email: user.email! } })
-	        if (!existingUser) {
-   
-	          // Séparer le prénom et le nom depuis Google "name"
-	          const [prenom, ...rest] = user.name?.split(" ") ?? ["Inconnu"]
-	          const nom = rest.join(" ") || "Inconnu"
-
-	          // optionnel : créer l’utilisateur en DB
-	          await prisma.user.create({
-	            data: {
-	              email: user.email!,
-	              passwordHash: null,
-	              prenom,    
-	              nom,
-	              photo: user.image,
-	              role: null
-	            }
-	          })     
- 
-	          // Forcer la redirection vers /chooseRole
-      		  return "/chooseRole";
-	        }
-
-	        // S’il n’a pas encore choisi de rôle
-		    if (!existingUser.role) {
-		      return "/chooseRole";
-		    }
-	      }
-	      return true
-	    },
-		async jwt({ token, user }){
+		async signIn({ user, account }) {
+		  // Google = CONNEXION uniquement. La création de comptes reste réservée à
+		  // l'administrateur : un Gmail sans compte pré-existant est refusé. Aucune
+		  // auto-inscription, aucun choix de rôle → aucune auto-promotion possible.
+		  if (account?.provider === "google") {
+		    const existingUser = await prisma.user.findUnique({
+		      where:  { email: user.email! },
+		      select: { id: true, etat: true },
+		    })
+		    // Aucun compte pour ce Gmail → refus avec message dédié.
+		    if (!existingUser) return "/auth/login?error=GoogleNoAccount"
+		    // Compte existant mais non actif → même politique que la connexion par mot de passe.
+		    if (existingUser.etat === "SUSPENDU" || existingUser.etat === "BLOQUE")
+		      return "/auth/login?error=ACCOUNT_SUSPENDED"
+		    if (existingUser.etat !== "ACTIF")
+		      return "/auth/login?error=ACCOUNT_INACTIVE"
+		  }
+		  return true
+		},
+		async jwt({ token, user, account }){
 			if(user){
-				token.id = user.id
-				token.prenom = user.prenom ?? user.name?.split(" ")[0]
-				token.nom = user.nom ?? user.name?.split(" ").slice(1).join(" ")
-				token.photo = user.photo ?? user.image ?? null
-				token.role = user.role ?? null
+				// Pour une connexion Google, `user.id` est l'identifiant Google (sub),
+				// PAS l'id de notre table User. On résout donc l'utilisateur par email
+				// pour récupérer le bon id DB, le rôle, etc. (sinon permissions cassées).
+				let dbUserId: number
+				if (account?.provider === "google") {
+					const g = await prisma.user.findUnique({
+						where:  { email: user.email! },
+						select: { id: true, prenom: true, nom: true, role: true, photo: true },
+					})
+					if (!g) { token.error = "SESSION_INVALID"; return token }
+					dbUserId     = g.id
+					token.id     = String(g.id)
+					token.prenom = g.prenom
+					token.nom    = g.nom
+					token.role   = g.role ?? null
+					token.photo  = g.photo ?? user.image ?? null
+				} else {
+					dbUserId     = Number(user.id)
+					token.id     = user.id
+					token.prenom = user.prenom ?? user.name?.split(" ")[0]
+					token.nom    = user.nom ?? user.name?.split(" ").slice(1).join(" ")
+					token.photo  = user.photo ?? user.image ?? null
+					token.role   = user.role ?? null
+				}
 				delete token.error
 
 				// Récupérer le rôle gestionnaire + tokenVersion + mustChangePassword depuis la DB
 				const [gestionnaire, dbUser] = await Promise.all([
 					prisma.gestionnaire.findUnique({
-						where: { memberId: Number(user.id) },
+						where: { memberId: dbUserId },
 						select: { role: true },
 					}),
 					prisma.user.findUnique({
-						where: { id: Number(user.id) },
+						where: { id: dbUserId },
 						select: { tokenVersion: true, mustChangePassword: true },
 					}),
 				])
@@ -158,7 +163,7 @@ export const authOptions: NextAuthOptions = {
 			}
 			return session
 		},
-		
+
 	},
 
 	session: {
@@ -173,5 +178,5 @@ export const authOptions: NextAuthOptions = {
 	    signIn: "/auth/login", // page login
 	    error: "/auth/login"   // ⚠️ ici on redirige l'erreur vers login
 	},
-	
+
 }
