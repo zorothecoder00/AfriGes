@@ -4099,6 +4099,14 @@ enum StatutActionRecouvrement {
   SANS_SUITE
 }
 
+// Phase d'un dossier de défaillance client RIA (escalade > seuils de retard)
+enum PhaseRecouvrementRIA {
+  NORMAL          // pas de retard significatif
+  PRECONTENTIEUX  // retard installé, recouvrement amiable
+  CONTENTIEUX     // mise en demeure / dossier juridique
+  PERTE           // créance irrécouvrable
+}
+
 // ============================================================
 // MODULE RIA — RÉSEAU DES INVESTISSEURS AFRISIME
 // ============================================================
@@ -4319,6 +4327,12 @@ model OperationFinancementRIA {
   dateFinancement DateTime             @default(now())
   dateEcheance    DateTime?
   notes           String?
+
+  // ── Suivi de défaillance / escalade (moteur lib/riaRecouvrement.ts) ──────────
+  phaseRecouvrement   PhaseRecouvrementRIA @default(NORMAL)
+  niveauEscalade      Int                  @default(0)   // 0..5 — dernier palier déjà notifié (idempotence)
+  joursRetard         Int                  @default(0)   // jours depuis dateEcheance (recalculé à chaque scan)
+  dateDernierEscalade DateTime?                          // dernière fois qu'un palier a été franchi
 
   portefeuille PortefeuilleRIA        @relation(fields: [portefeuilleId], references: [id])
   affectation  AffectationClientRIA?  @relation(fields: [affectationId],  references: [id])

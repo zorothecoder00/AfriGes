@@ -99,6 +99,9 @@ export async function GET(req: Request) {
         dateEcheance: fin.dateEcheance,
         joursRetard,
         niveauAlerte,
+        // Scénario de défaillance (moteur lib/riaRecouvrement.ts)
+        phaseRecouvrement: fin.phaseRecouvrement,
+        niveauEscalade:    fin.niveauEscalade,
         portefeuille: {
           id: fin.portefeuille.id,
           reference: fin.portefeuille.reference,

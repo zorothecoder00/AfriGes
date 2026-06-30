@@ -8,8 +8,12 @@
       "path": "/api/cron/fermeture-caisse?secret=${CRON_SECRET}",
       "schedule": "5 0 * * *"
     },
-    { "path": "/api/cron/alertes", 
-      "schedule": "0 8 * * *" 
+    { "path": "/api/cron/alertes",
+      "schedule": "0 8 * * *"
+    },
+    {
+      "path": "/api/cron/ria/retards?secret=${CRON_SECRET}",
+      "schedule": "0 7 * * *"
     }
   ]
 }

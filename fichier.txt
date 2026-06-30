@@ -99,26 +99,6 @@ Chercher comment utiliser l'authentification de google sans avoir besoin de paye
 ⎿ Tip: Working with HTML/CSS? Install the frontend-design plugin:  /plugin install frontend-design@claude-plugins-official
 
 
-6. SCÉNARIO DE DÉFAILLANCE CLIENT
-Client :
-Retard supérieur à 60 jours.
-Le système :
-Niveau 1
-Relance automatique
-Niveau 2
-Alerte agent
-Niveau 3
-Alerte chef d'agence
-Niveau 4
-Alerte responsable régional
-Niveau 5
-Alerte Direction Générale
-Le dossier passe alors en :
-Précontentieux
-Contentieux
-Perte
-
-
 Pour les archivages , je veux le montant total des impayés et des autres status
 
 On va revoir aussi les reçus dans les dashboards

@@ -39,7 +39,11 @@ interface FinancementRecouvrement {
   client: { id: number; nom: string; telephone: string | null; agentTerrain: string | null };
   creditReference: string | null;
   classeRisque: string;
+  phaseRecouvrement: PhaseRecouvrement;
+  niveauEscalade: number;
 }
+
+type PhaseRecouvrement = "NORMAL" | "PRECONTENTIEUX" | "CONTENTIEUX" | "PERTE";
 
 interface StatsPF {
   portefeuilleId: number;
@@ -106,6 +110,23 @@ const CLASSE_COLOR: Record<string, string> = {
   C: "bg-amber-100 text-amber-800",
   D: "bg-orange-100 text-orange-800",
   E: "bg-red-100 text-red-800",
+};
+
+// Scénario de défaillance : phases du dossier
+const PHASE_CONFIG: Record<PhaseRecouvrement, { label: string; cls: string }> = {
+  NORMAL:         { label: "Normal",        cls: "bg-slate-100 text-slate-500" },
+  PRECONTENTIEUX: { label: "Précontentieux", cls: "bg-amber-100 text-amber-800" },
+  CONTENTIEUX:    { label: "Contentieux",    cls: "bg-orange-100 text-orange-800" },
+  PERTE:          { label: "Perte",          cls: "bg-red-100 text-red-800" },
+};
+
+// Scénario de défaillance : paliers d'escalade (cible notifiée)
+const NIVEAU_LABEL: Record<number, { court: string; cible: string }> = {
+  1: { court: "N1", cible: "Relance auto" },
+  2: { court: "N2", cible: "Agent terrain" },
+  3: { court: "N3", cible: "Chef d'agence" },
+  4: { court: "N4", cible: "RVP" },
+  5: { court: "N5", cible: "Direction Générale" },
 };
 
 const TYPE_ACTION_CONFIG: Record<string, { label: string; icon: React.ElementType; color: string }> = {
@@ -273,10 +294,10 @@ export default function RecouvrementPage() {
   const { data: actData, loading: actLoading, refetch: refetchActions } =
     useApi<ActionsData>("/api/admin/ria/recouvrement/actions");
 
-  const { mutate: escalade } = useMutation<{ enRetard: number; enDefaut: number }, Record<string, number>>(
-    "/api/admin/ria/recouvrement/escalade",
-    "POST"
-  );
+  const { mutate: escalade } = useMutation<
+    { escalades: number; paliersFranchis: number; enRetard: number; parPhase: Record<string, number> },
+    Record<string, never>
+  >("/api/admin/ria/recouvrement/escalade", "POST");
 
   const financementsFiltres = useMemo(() => {
     if (!data) return [];
@@ -341,12 +362,27 @@ export default function RecouvrementPage() {
     const res = await escalade({});
     setEscaladeLoading(false);
     if (res) {
-      toast.success(`Escalade : ${res.enRetard} → EN_RETARD, ${res.enDefaut} → DEFAUT`);
+      const contentieux = (res.parPhase?.CONTENTIEUX ?? 0) + (res.parPhase?.PERTE ?? 0);
+      toast.success(
+        res.escalades > 0
+          ? `Escalade : ${res.escalades} dossier(s) escaladé(s), ${res.paliersFranchis} palier(s) franchi(s)${contentieux ? ` · ${contentieux} en contentieux/perte` : ""}.`
+          : `Aucun nouveau palier — ${res.enRetard} dossier(s) en retard déjà à jour.`
+      );
       refetch();
     } else {
       toast.error("Erreur lors de l'escalade");
     }
   }
+
+  const phaseCounts = useMemo(() => {
+    const c = { PRECONTENTIEUX: 0, CONTENTIEUX: 0, PERTE: 0 };
+    for (const f of data?.financements ?? []) {
+      if (f.phaseRecouvrement && f.phaseRecouvrement in c) {
+        c[f.phaseRecouvrement as keyof typeof c]++;
+      }
+    }
+    return c;
+  }, [data]);
 
   function openModal(fin: FinancementRecouvrement) {
     setModalFin({ id: fin.id, reference: fin.reference, client: fin.client.nom });
@@ -431,6 +467,33 @@ export default function RecouvrementPage() {
             <span className="text-red-600">+15j : {stats.alertes.j15}</span>
             <span className="text-red-900 font-semibold">+30j : {stats.alertes.j30}</span>
           </div>
+        </div>
+      </div>
+
+      {/* ── Scénario de défaillance : échelle d'escalade + phases ── */}
+      <div className="bg-white rounded-xl border border-slate-200 p-4">
+        <div className="flex items-center justify-between gap-3 flex-wrap mb-3">
+          <div className="flex items-center gap-2">
+            <ShieldAlert className="w-4 h-4 text-orange-600" />
+            <span className="text-sm font-semibold text-slate-700">Scénario de défaillance client</span>
+          </div>
+          <div className="flex items-center gap-2 text-xs">
+            <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">Précontentieux : {phaseCounts.PRECONTENTIEUX}</span>
+            <span className="px-2 py-0.5 rounded-full bg-orange-100 text-orange-800">Contentieux : {phaseCounts.CONTENTIEUX}</span>
+            <span className="px-2 py-0.5 rounded-full bg-red-100 text-red-800">Perte : {phaseCounts.PERTE}</span>
+          </div>
+        </div>
+        <div className="flex items-center gap-1.5 flex-wrap text-xs">
+          {[1, 2, 3, 4, 5].map((n) => (
+            <span key={n} className="flex items-center gap-1.5">
+              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-slate-50 border border-slate-200 text-slate-600">
+                <span className="font-bold text-orange-600">{NIVEAU_LABEL[n].court}</span>
+                {NIVEAU_LABEL[n].cible}
+              </span>
+              {n < 5 && <span className="text-slate-300">→</span>}
+            </span>
+          ))}
+          <span className="ml-1 text-slate-400">— « Escalade auto » déclenche la chaîne (idempotent, aussi exécutée chaque nuit).</span>
         </div>
       </div>
 
@@ -596,13 +659,14 @@ export default function RecouvrementPage() {
                       </span>
                     </th>
                     <th className="px-4 py-3 text-center">Statut</th>
+                    <th className="px-4 py-3 text-center">Escalade</th>
                     <th className="px-4 py-3 text-center">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {financementsFiltres.length === 0 && (
                     <tr>
-                      <td colSpan={9} className="px-4 py-8 text-center text-slate-400">
+                      <td colSpan={10} className="px-4 py-8 text-center text-slate-400">
                         {tab === "alertes" ? "Aucun retard détecté — tous les financements sont à jour." : "Aucun résultat."}
                       </td>
                     </tr>
@@ -642,6 +706,25 @@ export default function RecouvrementPage() {
                           }`}>
                             {f.statut}
                           </span>
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          {f.niveauEscalade > 0 ? (
+                            <div className="flex flex-col items-center gap-1">
+                              <span
+                                className="px-1.5 py-0.5 text-xs font-bold rounded bg-orange-100 text-orange-700"
+                                title={NIVEAU_LABEL[f.niveauEscalade]?.cible}
+                              >
+                                {NIVEAU_LABEL[f.niveauEscalade]?.court ?? `N${f.niveauEscalade}`}
+                              </span>
+                              {f.phaseRecouvrement !== "NORMAL" && (
+                                <span className={`px-1.5 py-0.5 text-[10px] rounded ${PHASE_CONFIG[f.phaseRecouvrement].cls}`}>
+                                  {PHASE_CONFIG[f.phaseRecouvrement].label}
+                                </span>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-slate-300 text-xs">—</span>
+                          )}
                         </td>
                         <td className="px-4 py-3 text-center">
                           <button
