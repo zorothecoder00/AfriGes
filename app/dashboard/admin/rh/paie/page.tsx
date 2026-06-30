@@ -6,7 +6,7 @@ import {
   DollarSign, CheckCircle, Clock, CreditCard, ArrowLeft,
   ChevronDown, ChevronUp, User, Eye, BarChart2,
   Send, Settings, TrendingUp, Banknote,
-  ShieldCheck, Play,
+  ShieldCheck, Play, Info,
 } from "lucide-react";
 import Link from "next/link";
 import { useApi, useMutation } from "@/hooks/useApi";
@@ -423,6 +423,12 @@ function CreateFicheModal({ onClose, onCreated }: { onClose: () => void; onCreat
               <input type="number" value={form.salaireBase} onChange={(e) => set("salaireBase", e.target.value)} placeholder="0"
                 className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
             </PField>
+          </div>
+
+          {/* Info retenues auto */}
+          <div className="flex items-start gap-2 bg-blue-50 border border-blue-200 rounded-xl px-3 py-2.5 text-xs text-blue-800">
+            <Info className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+            <span>Les remboursements de <strong>prêts en cours</strong> et <strong>avances approuvées</strong> sont ajoutés automatiquement comme retenues à la création, et leurs soldes décrémentés.</span>
           </div>
 
           {/* Composants */}

@@ -103,3 +103,20 @@ Pour les archivages , je veux le montant total des impayés et des autres status
 On va revoir aussi les reçus dans les dashboards
 
 Permettre certaines notifications via mail (vu que maintenant j'ai implémenté l'authification par Google)
+
+
+ Ce que je peux faire (par valeur décroissante)
+
+  1. Auto-injection prêts + avances : à la génération d'un bulletin, récupérer
+  les prêts EN_COURS / avances APPROUVE du collaborateur → créer les composants
+  retenue (REMBOURSEMENT_PRET, AVANCE_SUR_SALAIRE) automatiquement + décrémenter
+  montantRestant + solder à 0. Toutes les données existent déjà — c'est le gain
+  le plus net et le plus fidèle au CDC.
+  2. Ordres de paiement en 3 listes (groupées par modePaiement : virement /
+  Mobile Money / espèces).
+  3. Application auto des commissions par barème (le plus lourd : nécessite une
+  source de « ventes/recouvrement » par collaborateur).
+
+  Veux-tu que j'implémente le point 1 (auto-injection prêts & avances dans le
+  bulletin) ? C'est le plus impactant pour « l'automatisation + réduction des
+  erreurs ».

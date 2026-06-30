@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAdminSession } from "@/lib/authAdmin";
 import { StatutFichePaie } from "@prisma/client";
+import { appliquerRetenuesAuto } from "@/lib/paieRetenues";
 
 /**
  * GET /api/admin/rh/paie
@@ -86,6 +87,8 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json();
     const { profilRHId, mois, annee, salaireBase, composants = [], notes } = body;
+    // Retenues automatiques (prêts + avances) activées par défaut (CDC 13.5/13.6).
+    const autoRetenues = body.autoRetenues !== false;
 
     if (!profilRHId || !mois || !annee) {
       return NextResponse.json({ error: "profilRHId, mois et annee sont obligatoires" }, { status: 400 });
@@ -94,12 +97,28 @@ export async function POST(req: NextRequest) {
     const profil = await prisma.profilRH.findUnique({ where: { id: Number(profilRHId) } });
     if (!profil) return NextResponse.json({ error: "Collaborateur introuvable" }, { status: 404 });
 
-    // Calculer totaux depuis les composants
-    const totalBrut     = composants.filter((c: { isRetenue: boolean; montant: number }) => !c.isRetenue).reduce((s: number, c: { montant: number }) => s + Number(c.montant), Number(salaireBase ?? 0));
-    const totalRetenues = composants.filter((c: { isRetenue: boolean; montant: number }) =>  c.isRetenue).reduce((s: number, c: { montant: number }) => s + Number(c.montant), 0);
-    const netAPayer     = totalBrut - totalRetenues;
+    // Anti double prélèvement : une seule fiche par (collaborateur, mois, année).
+    const dejaCree = await prisma.fichePaie.findUnique({
+      where: { profilRHId_mois_annee: { profilRHId: Number(profilRHId), mois: Number(mois), annee: Number(annee) } },
+      select: { id: true },
+    });
+    if (dejaCree) {
+      return NextResponse.json({ error: "Une fiche de paie existe déjà pour ce collaborateur sur cette période." }, { status: 409 });
+    }
+
+    // Totaux des composants saisis manuellement.
+    const brutManuel        = composants.filter((c: { isRetenue: boolean; montant: number }) => !c.isRetenue).reduce((s: number, c: { montant: number }) => s + Number(c.montant), Number(salaireBase ?? 0));
+    const retenuesManuelles = composants.filter((c: { isRetenue: boolean; montant: number }) =>  c.isRetenue).reduce((s: number, c: { montant: number }) => s + Number(c.montant), 0);
 
     const fiche = await prisma.$transaction(async (tx) => {
+      // Injection des retenues automatiques (décrémente les soldes prêts/avances).
+      const autoComposants = autoRetenues ? await appliquerRetenuesAuto(tx, Number(profilRHId)) : [];
+      const retenuesAuto    = autoComposants.reduce((s, c) => s + c.montant, 0);
+
+      const totalBrut     = brutManuel;
+      const totalRetenues = retenuesManuelles + retenuesAuto;
+      const netAPayer     = totalBrut - totalRetenues;
+
       const f = await tx.fichePaie.create({
         data: {
           profilRHId:    Number(profilRHId),
@@ -113,12 +132,21 @@ export async function POST(req: NextRequest) {
           genereParId:   parseInt(session.user.id),
           statut:        "BROUILLON",
           composants: {
-            create: composants.map((c: { type: string; libelle: string; montant: number; isRetenue: boolean }) => ({
-              type:      c.type,
-              libelle:   c.libelle,
-              montant:   Number(c.montant),
-              isRetenue: c.isRetenue ?? false,
-            })),
+            create: [
+              ...composants.map((c: { type: string; libelle: string; montant: number; isRetenue: boolean }) => ({
+                type:      c.type,
+                libelle:   c.libelle,
+                montant:   Number(c.montant),
+                isRetenue: c.isRetenue ?? false,
+              })),
+              ...autoComposants.map((c) => ({
+                type:      c.type,
+                libelle:   c.libelle,
+                montant:   c.montant,
+                isRetenue: true,
+                ordre:     c.ordre,
+              })),
+            ],
           },
         },
         include: { composants: true },
