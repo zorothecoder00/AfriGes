@@ -6,7 +6,7 @@ import {
   DollarSign, CheckCircle, Clock, CreditCard, ArrowLeft,
   ChevronDown, ChevronUp, User, Eye, BarChart2,
   Send, Settings, TrendingUp, Banknote,
-  ShieldCheck, Play, Info,
+  ShieldCheck, Play, Info, Download,
 } from "lucide-react";
 import Link from "next/link";
 import { useApi, useMutation } from "@/hooks/useApi";
@@ -999,33 +999,52 @@ function PretModal({ onClose, onCreated }: { onClose: () => void; onCreated: () 
 // TAB 3 — ORDRES DE PAIEMENT
 // ════════════════════════════════════════════════════════════════════════════
 
+interface ListeGroupe { fiches: OrdreItem[]; total: number; count: number }
+interface OrdresRes { data: OrdreItem[]; total: number; listes: Record<string, ListeGroupe> }
+
+const MODES_PAIEMENT = [
+  { key: "VIREMENT",     label: "Virement bancaire", icon: Banknote,   dot: "bg-blue-500",    head: "bg-blue-50 border-blue-200",       text: "text-blue-700" },
+  { key: "MOBILE_MONEY", label: "Mobile Money",      icon: CreditCard, dot: "bg-amber-500",   head: "bg-amber-50 border-amber-200",     text: "text-amber-700" },
+  { key: "ESPECES",      label: "Espèces",           icon: DollarSign, dot: "bg-emerald-500", head: "bg-emerald-50 border-emerald-200", text: "text-emerald-700" },
+] as const;
+
 function OrdresPaiementTab() {
   const [mois,   setMois]   = useState(String(new Date().getMonth() + 1));
   const [annee,  setAnnee]  = useState(String(ANNEE_COURANTE));
-  const [modeP,  setModeP]  = useState("VIREMENT");
-  const [selected, setSelected] = useState<number[]>([]);
+  const [selected,   setSelected]   = useState<number[]>([]);
+  const [assignMode, setAssignMode] = useState("VIREMENT");
 
-  const { mutate: bulkPay, loading: paying } = useMutation("/api/admin/rh/paie/ordres-paiement", "PATCH");
+  const { mutate: patch, loading: working } = useMutation("/api/admin/rh/paie/ordres-paiement", "PATCH");
 
   const params = new URLSearchParams({ statut: "EN_PAIEMENT" });
   if (mois)  params.set("mois",  mois);
   if (annee) params.set("annee", annee);
 
-  const { data: res, loading, refetch } = useApi<{ data: OrdreItem[]; total: number }>(`/api/admin/rh/paie/ordres-paiement?${params}`);
-  const ordres = res?.data ?? [];
+  const { data: res, loading, refetch } = useApi<OrdresRes>(`/api/admin/rh/paie/ordres-paiement?${params}`);
+  const listes = res?.listes;
   const total  = res?.total ?? 0;
+  const nonAffecte = listes?.NON_AFFECTE;
 
-  const toggleAll = () => setSelected(selected.length === ordres.length ? [] : ordres.map((o) => o.id));
   const toggle = (id: number) => setSelected((s) => s.includes(id) ? s.filter((x) => x !== id) : [...s, id]);
 
-  const handleBulkPay = async () => {
+  const affecter = async () => {
     if (selected.length === 0) { toast.error("Sélectionnez au moins une fiche"); return; }
-    const r = await bulkPay({ ids: selected, modePaiement: modeP });
-    if (r) { toast.success(`${selected.length} fiche(s) marquée(s) payée(s)`); setSelected([]); refetch(); }
+    const r = await patch({ ids: selected, modePaiement: assignMode, action: "AFFECTER" });
+    if (r) { toast.success("Mode de paiement affecté"); setSelected([]); refetch(); }
   };
+
+  const payerListe = async (mode: string, fiches: OrdreItem[]) => {
+    if (fiches.length === 0) return;
+    if (!confirm(`Marquer ${fiches.length} fiche(s) « ${mode} » comme payée(s) ?`)) return;
+    const r = await patch({ ids: fiches.map((f) => f.id), modePaiement: mode, action: "PAYER" });
+    if (r) { toast.success(`Liste ${mode} : ${fiches.length} fiche(s) payée(s)`); refetch(); }
+  };
+
+  const pdfUrl = (mode: string) => `/api/admin/rh/paie/ordres-paiement/liste?mode=${mode}&mois=${mois}&annee=${annee}`;
 
   return (
     <div className="space-y-5">
+      {/* Filtres */}
       <div className="flex gap-3 flex-wrap items-center">
         <select value={mois} onChange={(e) => setMois(e.target.value)}
           className="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
@@ -1036,67 +1055,103 @@ function OrdresPaiementTab() {
           {ANNEES.map((a) => <option key={a} value={a}>{a}</option>)}
         </select>
         <button onClick={refetch} className="p-2 text-slate-500 hover:text-slate-700 bg-white border border-slate-200 rounded-lg"><RefreshCw className="w-4 h-4" /></button>
-
-        {ordres.length > 0 && (
-          <div className="flex items-center gap-2 ml-auto">
-            <select value={modeP} onChange={(e) => setModeP(e.target.value)}
-              className="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none">
-              <option value="VIREMENT">Virement bancaire</option>
-              <option value="MOBILE_MONEY">Mobile Money</option>
-              <option value="ESPECES">Espèces</option>
-            </select>
-            <button onClick={handleBulkPay} disabled={paying || selected.length === 0}
-              className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 disabled:opacity-50">
-              {paying ? <RefreshCw className="w-4 h-4 animate-spin" /> : <CreditCard className="w-4 h-4" />}
-              Payer sélection ({selected.length})
-            </button>
+        {total > 0 && (
+          <div className="ml-auto bg-purple-50 border border-purple-200 rounded-xl px-4 py-2 text-sm">
+            <span className="text-purple-700">Total à décaisser — {MOIS_LABELS[Number(mois)]} {annee} : </span>
+            <span className="font-bold text-purple-900">{fmt(total)} FCFA</span>
           </div>
         )}
       </div>
 
-      {total > 0 && (
-        <div className="bg-purple-50 border border-purple-200 rounded-xl px-5 py-3 flex items-center justify-between">
-          <span className="text-sm text-purple-700 font-medium">{ordres.length} virement(s) en attente — {MOIS_LABELS[Number(mois)]} {annee}</span>
-          <span className="text-lg font-bold text-purple-900">{fmt(total)} FCFA</span>
-        </div>
-      )}
-
       {loading ? (
         <div className="flex items-center justify-center py-12 text-slate-400"><RefreshCw className="w-5 h-5 animate-spin mr-2" /> Chargement…</div>
-      ) : ordres.length === 0 ? (
+      ) : total === 0 ? (
         <div className="bg-white rounded-xl border border-slate-200 flex flex-col items-center py-12 text-slate-400">
           <Send className="w-8 h-8 mb-2 opacity-30" /><p className="text-sm">Aucune fiche en attente de paiement</p>
         </div>
       ) : (
-        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-          <div className="px-5 py-3 border-b border-slate-100 flex items-center gap-3">
-            <input type="checkbox" checked={selected.length === ordres.length} onChange={toggleAll}
-              className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500" />
-            <span className="text-xs font-medium text-slate-500 uppercase">Tout sélectionner</span>
-          </div>
-          <div className="divide-y divide-slate-100">
-            {ordres.map((o) => {
-              const member = o.profilRH.gestionnaire.member;
-              return (
-                <div key={o.id} className="flex items-center gap-4 px-5 py-3.5 hover:bg-slate-50">
-                  <input type="checkbox" checked={selected.includes(o.id)} onChange={() => toggle(o.id)}
-                    className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500" />
-                  <div className="w-8 h-8 rounded-full bg-purple-500 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
-                    {member.prenom[0]}{member.nom[0]}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium text-slate-800">{member.prenom} {member.nom}</div>
-                    <div className="text-xs text-slate-400">{o.profilRH.matricule} — {MOIS_LABELS[o.mois]} {o.annee}</div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-sm font-bold text-slate-900">{fmt(o.netAPayer)} FCFA</div>
-                    {o.modePaiement && <div className="text-xs text-slate-400">{o.modePaiement}</div>}
+        <>
+          {/* À affecter — assignation du mode de paiement */}
+          {nonAffecte && nonAffecte.count > 0 && (
+            <div className="bg-white border border-amber-300 rounded-xl overflow-hidden">
+              <div className="flex flex-wrap items-center gap-3 px-5 py-3 bg-amber-50 border-b border-amber-200">
+                <Info className="w-4 h-4 text-amber-600" />
+                <span className="text-sm font-semibold text-amber-800">À affecter ({nonAffecte.count}) — {fmt(nonAffecte.total)} FCFA</span>
+                <div className="flex items-center gap-2 ml-auto">
+                  <select value={assignMode} onChange={(e) => setAssignMode(e.target.value)}
+                    className="border border-amber-200 rounded-lg px-3 py-1.5 text-sm bg-white focus:outline-none">
+                    {MODES_PAIEMENT.map((m) => <option key={m.key} value={m.key}>{m.label}</option>)}
+                  </select>
+                  <button onClick={affecter} disabled={working || selected.length === 0}
+                    className="px-3 py-1.5 bg-amber-600 text-white text-sm font-medium rounded-lg hover:bg-amber-700 disabled:opacity-50">
+                    Affecter ({selected.length})
+                  </button>
+                </div>
+              </div>
+              <div className="divide-y divide-slate-100">
+                {nonAffecte.fiches.map((o) => {
+                  const m = o.profilRH.gestionnaire.member;
+                  return (
+                    <label key={o.id} className="flex items-center gap-4 px-5 py-3 hover:bg-slate-50 cursor-pointer">
+                      <input type="checkbox" checked={selected.includes(o.id)} onChange={() => toggle(o.id)}
+                        className="rounded border-slate-300 text-amber-600 focus:ring-amber-500" />
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium text-slate-800">{m.prenom} {m.nom}</div>
+                        <div className="text-xs text-slate-400">{o.profilRH.matricule}</div>
+                      </div>
+                      <div className="text-sm font-bold text-slate-900">{fmt(o.netAPayer)} FCFA</div>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Les 3 listes par mode */}
+          {MODES_PAIEMENT.map((m) => {
+            const g = listes?.[m.key];
+            const Icon = m.icon;
+            return (
+              <div key={m.key} className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+                <div className={`flex flex-wrap items-center gap-3 px-5 py-3 border-b ${m.head}`}>
+                  <Icon className={`w-4 h-4 ${m.text}`} />
+                  <span className={`text-sm font-semibold ${m.text}`}>{m.label}</span>
+                  <span className="text-xs text-slate-500">({g?.count ?? 0})</span>
+                  <span className="text-sm font-bold text-slate-800 ml-2">{fmt(g?.total ?? 0)} FCFA</span>
+                  <div className="flex items-center gap-2 ml-auto">
+                    <a href={pdfUrl(m.key)} target="_blank" rel="noreferrer"
+                      className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg border ${m.head} ${m.text} hover:opacity-80 ${(g?.count ?? 0) === 0 ? "pointer-events-none opacity-40" : ""}`}>
+                      <Download className="w-3.5 h-3.5" /> Liste PDF
+                    </a>
+                    <button onClick={() => g && payerListe(m.key, g.fiches)} disabled={working || (g?.count ?? 0) === 0}
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 disabled:opacity-40">
+                      <CreditCard className="w-3.5 h-3.5" /> Marquer payée
+                    </button>
                   </div>
                 </div>
-              );
-            })}
-          </div>
-        </div>
+                {(g?.count ?? 0) === 0 ? (
+                  <p className="px-5 py-4 text-sm text-slate-400">Aucune fiche affectée à ce mode.</p>
+                ) : (
+                  <div className="divide-y divide-slate-100">
+                    {g!.fiches.map((o) => {
+                      const mb = o.profilRH.gestionnaire.member;
+                      return (
+                        <div key={o.id} className="flex items-center gap-4 px-5 py-3 hover:bg-slate-50">
+                          <span className={`w-2 h-2 rounded-full ${m.dot}`} />
+                          <div className="flex-1 min-w-0">
+                            <div className="text-sm font-medium text-slate-800">{mb.prenom} {mb.nom}</div>
+                            <div className="text-xs text-slate-400">{o.profilRH.matricule} — {MOIS_LABELS[o.mois]} {o.annee}</div>
+                          </div>
+                          <div className="text-sm font-bold text-slate-900">{fmt(o.netAPayer)} FCFA</div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </>
       )}
     </div>
   );

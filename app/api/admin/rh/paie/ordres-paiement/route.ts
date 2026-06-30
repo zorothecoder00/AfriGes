@@ -46,7 +46,24 @@ export async function GET(req: NextRequest) {
 
     const total = fiches.reduce((s, f) => s + Number(f.netAPayer), 0);
 
-    return NextResponse.json({ data: fiches, total });
+    // Génération des 3 listes par mode de paiement (CDC 13.8) + bucket « non affecté ».
+    type Groupe = { fiches: typeof fiches; total: number; count: number };
+    const listes: Record<"VIREMENT" | "MOBILE_MONEY" | "ESPECES" | "NON_AFFECTE", Groupe> = {
+      VIREMENT:     { fiches: [], total: 0, count: 0 },
+      MOBILE_MONEY: { fiches: [], total: 0, count: 0 },
+      ESPECES:      { fiches: [], total: 0, count: 0 },
+      NON_AFFECTE:  { fiches: [], total: 0, count: 0 },
+    };
+    for (const f of fiches) {
+      const k = (["VIREMENT", "MOBILE_MONEY", "ESPECES"] as const).includes(f.modePaiement as never)
+        ? (f.modePaiement as "VIREMENT" | "MOBILE_MONEY" | "ESPECES")
+        : "NON_AFFECTE";
+      listes[k].fiches.push(f);
+      listes[k].total += Number(f.netAPayer);
+      listes[k].count += 1;
+    }
+
+    return NextResponse.json({ data: fiches, total, listes });
   } catch (error) {
     console.error("GET /api/admin/rh/paie/ordres-paiement", error);
     return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
@@ -58,27 +75,38 @@ export async function PATCH(req: NextRequest) {
     const session = await getAdminSession();
     if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
 
-    const { ids, modePaiement } = await req.json();
+    const { ids, modePaiement, action } = await req.json();
     if (!Array.isArray(ids) || ids.length === 0) {
       return NextResponse.json({ error: "ids est obligatoire" }, { status: 400 });
     }
 
+    // action = "AFFECTER" → assigne le mode de paiement SANS payer (la fiche reste EN_PAIEMENT,
+    //                        elle bascule juste dans la bonne liste).
+    //          "PAYER" (défaut) → marque PAYE avec le mode.
+    const affecterSeul = action === "AFFECTER";
+
+    if (affecterSeul && !modePaiement) {
+      return NextResponse.json({ error: "modePaiement est obligatoire pour l'affectation" }, { status: 400 });
+    }
+
     const updated = await prisma.fichePaie.updateMany({
       where: { id: { in: ids.map(Number) }, statut: "EN_PAIEMENT" },
-      data: {
-        statut: "PAYE",
-        modePaiement: modePaiement ?? null,
-      },
+      data: affecterSeul
+        ? { modePaiement }
+        : { statut: "PAYE", modePaiement: modePaiement ?? null },
     });
 
-    // Audit log pour chaque fiche
     await prisma.auditLog.createMany({
       data: ids.map((id: number) => ({
         userId:   parseInt(session.user.id),
-        action:   "UPDATE",
+        action:   affecterSeul ? "AFFECTER_MODE_PAIEMENT" : "MARQUER_PAYE",
         entite:   "FichePaie",
         entiteId: Number(id),
-        details:  JSON.parse(JSON.stringify({ avant: { statut: "EN_PAIEMENT" }, apres: { statut: "PAYE", modePaiement } })),
+        details:  JSON.parse(JSON.stringify(
+          affecterSeul
+            ? { apres: { modePaiement } }
+            : { avant: { statut: "EN_PAIEMENT" }, apres: { statut: "PAYE", modePaiement } },
+        )),
       })),
     });
 
