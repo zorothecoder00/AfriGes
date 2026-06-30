@@ -114,7 +114,7 @@ export async function POST(req: Request, { params }: Ctx) {
       // 1. Confirmer le remboursement
       await tx.remboursementCredit.update({
         where: { id: remboursementId },
-        data:  { statut: "CONFIRME" },
+        data:  { statut: "CONFIRME", dateConfirmation: new Date() },
       });
 
       // 2. Mettre à jour les échéances crédit

@@ -428,7 +428,7 @@ function CreateFicheModal({ onClose, onCreated }: { onClose: () => void; onCreat
           {/* Info retenues auto */}
           <div className="flex items-start gap-2 bg-blue-50 border border-blue-200 rounded-xl px-3 py-2.5 text-xs text-blue-800">
             <Info className="w-3.5 h-3.5 mt-0.5 shrink-0" />
-            <span>Les remboursements de <strong>prêts en cours</strong> et <strong>avances approuvées</strong> sont ajoutés automatiquement comme retenues à la création, et leurs soldes décrémentés.</span>
+            <span>À la création : <strong>commissions</strong> (barème du rôle × activité : ventes, crédits, packs, recouvrements) ajoutées en gains ; <strong>prêts</strong> + <strong>avances</strong> + <strong>absences</strong> (depuis les pointages) en retenues. Soldes prêts/avances décrémentés.</span>
           </div>
 
           {/* Composants */}

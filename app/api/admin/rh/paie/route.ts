@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { getAdminSession } from "@/lib/authAdmin";
 import { StatutFichePaie } from "@prisma/client";
 import { appliquerRetenuesAuto } from "@/lib/paieRetenues";
+import { calculerCommissionsProfil } from "@/lib/calcCommission";
+import { calculerDeductionsAbsence } from "@/lib/calcDeductionsPointage";
 
 /**
  * GET /api/admin/rh/paie
@@ -87,14 +89,19 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json();
     const { profilRHId, mois, annee, salaireBase, composants = [], notes } = body;
-    // Retenues automatiques (prêts + avances) activées par défaut (CDC 13.5/13.6).
-    const autoRetenues = body.autoRetenues !== false;
+    // Retenues (prêts+avances) et commissions automatiques activées par défaut (CDC 13.4/13.5/13.6).
+    const autoRetenues    = body.autoRetenues    !== false;
+    const autoCommissions = body.autoCommissions !== false;
+    const autoDeductions  = body.autoDeductions  !== false; // absences (CDC 13.2)
 
     if (!profilRHId || !mois || !annee) {
       return NextResponse.json({ error: "profilRHId, mois et annee sont obligatoires" }, { status: 400 });
     }
 
-    const profil = await prisma.profilRH.findUnique({ where: { id: Number(profilRHId) } });
+    const profil = await prisma.profilRH.findUnique({
+      where:   { id: Number(profilRHId) },
+      include: { gestionnaire: { select: { role: true, memberId: true } } },
+    });
     if (!profil) return NextResponse.json({ error: "Collaborateur introuvable" }, { status: 404 });
 
     // Anti double prélèvement : une seule fiche par (collaborateur, mois, année).
@@ -111,11 +118,23 @@ export async function POST(req: NextRequest) {
     const retenuesManuelles = composants.filter((c: { isRetenue: boolean; montant: number }) =>  c.isRetenue).reduce((s: number, c: { montant: number }) => s + Number(c.montant), 0);
 
     const fiche = await prisma.$transaction(async (tx) => {
-      // Injection des retenues automatiques (décrémente les soldes prêts/avances).
+      // Retenues automatiques (décrémente les soldes prêts/avances).
       const autoComposants = autoRetenues ? await appliquerRetenuesAuto(tx, Number(profilRHId)) : [];
-      const retenuesAuto    = autoComposants.reduce((s, c) => s + c.montant, 0);
 
-      const totalBrut     = brutManuel;
+      // Déductions absences (depuis les pointages de la période).
+      const deductionComposants = autoDeductions
+        ? await calculerDeductionsAbsence(tx, Number(profilRHId), Number(mois), Number(annee), Number(salaireBase ?? 0))
+        : [];
+
+      const retenuesAuto = [...autoComposants, ...deductionComposants].reduce((s, c) => s + c.montant, 0);
+
+      // Commissions automatiques (barème du rôle × activité de la période).
+      const commissionComposants = autoCommissions && profil.gestionnaire
+        ? await calculerCommissionsProfil(tx, profil.gestionnaire, Number(mois), Number(annee))
+        : [];
+      const gainsAuto = commissionComposants.reduce((s, c) => s + c.montant, 0);
+
+      const totalBrut     = brutManuel + gainsAuto;
       const totalRetenues = retenuesManuelles + retenuesAuto;
       const netAPayer     = totalBrut - totalRetenues;
 
@@ -139,7 +158,14 @@ export async function POST(req: NextRequest) {
                 montant:   Number(c.montant),
                 isRetenue: c.isRetenue ?? false,
               })),
-              ...autoComposants.map((c) => ({
+              ...commissionComposants.map((c) => ({
+                type:      c.type,
+                libelle:   c.libelle,
+                montant:   c.montant,
+                isRetenue: false,
+                ordre:     c.ordre,
+              })),
+              ...[...autoComposants, ...deductionComposants].map((c) => ({
                 type:      c.type,
                 libelle:   c.libelle,
                 montant:   c.montant,

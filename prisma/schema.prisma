@@ -1245,11 +1245,14 @@ model RemboursementCredit {
 
   credit CreditClient @relation(fields: [creditId], references: [id], onDelete: Cascade)
 
+  dateConfirmation  DateTime?    // date où le caissier a confirmé (statut → CONFIRME)
+
   createdAt DateTime @default(now())
 
   @@index([creditId])
   @@index([statut])
   @@index([dateRemboursement])
+  @@index([dateConfirmation])
   @@index([agentCollecteurId])
 }
 

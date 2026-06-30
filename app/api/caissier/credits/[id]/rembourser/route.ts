@@ -116,6 +116,7 @@ export async function POST(req: Request, { params }: Ctx) {
           montantAttendu,
           dateRemboursement: parseDateCollecte(dateCollecte) ?? new Date(),
           statut:           "CONFIRME", // encaissement direct au comptoir — effets financiers déjà appliqués
+          dateConfirmation: new Date(),
         },
       });
 

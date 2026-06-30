@@ -128,6 +128,7 @@ export async function POST(req: Request, { params }: Ctx) {
           montantAttendu,
           dateRemboursement: parseDateCollecte(dateCollecte) ?? new Date(),
           statut: "CONFIRME", // enregistrement direct admin/RVC — effets financiers déjà appliqués
+          dateConfirmation: new Date(),
         },
       });
 

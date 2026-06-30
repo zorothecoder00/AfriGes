@@ -122,6 +122,7 @@ export async function POST(req: Request, { params }: Ctx) {
           montantAttendu,
           dateRemboursement: parseDateCollecte(dateCollecte) ?? new Date(),
           statut:           "CONFIRME", // encaissement direct par le RVC — effets financiers déjà appliqués
+          dateConfirmation: new Date(),
         },
       });
 
