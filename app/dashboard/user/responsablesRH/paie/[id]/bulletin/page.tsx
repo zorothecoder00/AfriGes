@@ -2,7 +2,7 @@
 
 import { useParams } from "next/navigation";
 import { useApi } from "@/hooks/useApi";
-import { RefreshCw, Printer, ArrowLeft } from "lucide-react";
+import { RefreshCw, Printer, ArrowLeft, Download } from "lucide-react";
 import Link from "next/link";
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -79,12 +79,22 @@ export default function RHBulletinPage() {
         >
           <ArrowLeft className="w-4 h-4" /> Retour à la liste
         </Link>
-        <button
-          onClick={() => window.print()}
-          className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700"
-        >
-          <Printer className="w-4 h-4" /> Imprimer / Exporter PDF
-        </button>
+        <div className="flex items-center gap-2">
+          <a
+            href={`/api/admin/rh/paie/${params.id}/pdf`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 px-4 py-2 bg-white border border-emerald-600 text-emerald-700 text-sm font-medium rounded-lg hover:bg-emerald-50"
+          >
+            <Download className="w-4 h-4" /> Télécharger PDF
+          </a>
+          <button
+            onClick={() => window.print()}
+            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700"
+          >
+            <Printer className="w-4 h-4" /> Imprimer
+          </button>
+        </div>
       </div>
 
       {/* Bulletin */}

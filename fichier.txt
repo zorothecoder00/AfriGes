@@ -1,6 +1,8 @@
 -Pages user qu'il me reste à créer( types de gestionnaires [ COMMERCIAL, RESPONSABLE_VENTE_CREDIT, RESPONSABLE_ECONOMIQUE, RESPONSABLE_MARKETING ] )
 
--exceljs pour styliser les exports
+-exceljs est une lib pour styliser les exports
+
+-Chromium headless est une lib qui permet le rendu pdf
 
 -Print CSS et window.print() pour les export PDF/Excel
 
@@ -100,62 +102,4 @@ Pour les archivages , je veux le montant total des impayés et des autres status
 
 On va revoir aussi les reçus dans les dashboards
 
-
-
-Les emplacements sont prêts. Maintenant, voici comment obtenir les deux
-  valeurs dans la console Google (c'est gratuit, ~5 minutes).
-
-  Étape A — Créer le projet et l'écran de consentement
-
-  1. Va sur https://console.cloud.google.com (connecte-toi avec ton Gmail).
-  2. En haut, crée un projet (ex. « AfriGes ») ou sélectionne-en un.
-  3. Menu ☰ → APIs et services → Écran de consentement OAuth.
-    - Type d'utilisateur : Externe → Créer.
-    - Nom de l'app : AfriGes · E-mail d'assistance : ton Gmail · Coordonnées
-  développeur : ton Gmail.
-    - Les scopes par défaut (email, profile, openid) suffisent pour le login —
-  n'ajoute rien de sensible.
-    - Publie l'application (bouton « Publier l'application » / « Passer en
-  production ») → utilisateurs illimités, sans revue Google. (Si tu la laisses
-  en « Test », seuls les comptes que tu ajoutes en « utilisateurs test »
-  pourront se connecter.)
-
-  Étape B — Créer les identifiants OAuth
-
-  4. APIs et services → Identifiants → + Créer des identifiants → ID client
-  OAuth.
-  5. Type d'application : Application Web.
-  6. Origines JavaScript autorisées — ajoute les deux :
-    - http://localhost:3000
-    - https://afri-ges.vercel.app
-  7. URI de redirection autorisés — ajoute les deux (⚠️ exactement, sans slash
-  final) :
-    - http://localhost:3000/api/auth/callback/google
-    - https://afri-ges.vercel.app/api/auth/callback/google
-  8. Créer → Google affiche l'ID client et le code secret du client. Copie-les.
-
-  Étape C — Coller les valeurs
-
-  9. Dans .env (lignes 53-54) et .env.production (lignes 64-65), colle :
-  GOOGLE_CLIENT_ID=ton-id-client.apps.googleusercontent.com
-  GOOGLE_CLIENT_SECRET=ton-secret
-
-  ⚠️ Étape D — Vercel (à ne pas oublier)
-
-  En production, Vercel n'utilise PAS ton fichier .env.production. Tu dois
-  ajouter les deux variables dans le dashboard Vercel :
-  Projet AfriGes → Settings → Environment Variables → ajoute GOOGLE_CLIENT_ID et
-  GOOGLE_CLIENT_SECRET (environnement Production), puis redéploie.
-
-  Tester
-
-  - En local : relance npm run dev, va sur /auth/login, clique sur le bouton
-  Google → tu dois être redirigé vers Google puis revenir connecté.
-
-  ---
-  Une fois que tu auras testé, on a un sujet à régler : on avait vu que pour les
-  comptes Google, ton callback ne mappe pas correctement vers l'id de ta base
-  (le rôle/les permissions risquent de casser). Mais ça, on le verra après que
-  tu aies confirmé que la connexion Google de base fonctionne. Tiens-moi au
-  courant quand tu as collé les clés et testé.
-
+Permettre certaines notifications via mail (vu que maintenant j'ai implémenté l'authification par Google)

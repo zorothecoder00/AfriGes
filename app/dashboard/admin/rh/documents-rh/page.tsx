@@ -347,6 +347,12 @@ function DocRow({ doc, onEdit, onPreview, onRefetch }: {
             <Eye className="w-3.5 h-3.5" /> Aperçu
           </button>
         )}
+        {doc.contenu && (
+          <a href={`/api/admin/rh/documents-rh/${doc.id}/pdf`} target="_blank" rel="noreferrer"
+            className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-red-600 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100">
+            <Download className="w-3.5 h-3.5" /> PDF
+          </a>
+        )}
         {doc.fileUrl && (
           <a href={doc.fileUrl} target="_blank" rel="noreferrer"
             className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-slate-600 bg-slate-50 border border-slate-200 rounded-lg hover:bg-slate-100">
