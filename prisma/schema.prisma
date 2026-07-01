@@ -669,6 +669,7 @@ model User {
   inventairesValides   InventaireSite[]     @relation("ValidateurInventaire")
   commandesInternes    CommandeInterne[]    @relation("DemandeurCommande")
   mouvementsStock      MouvementStock[]     @relation("MouvementsStock")
+  changementsPrix      HistoriquePrixProduit[] @relation("HistoriquePrixCreateur")
   bonsSortieCreePar    BonSortie[]          @relation("BonsSortieCreePar")
   bonsSortieValidePar  BonSortie[]          @relation("BonsSortieValidePar")
   demandesAjustement    DemandeAjustementStock[] @relation("DemandesAjustement")
@@ -1360,7 +1361,8 @@ model Produit {
 
   // Stock localisé par site (remplace l'ancien champ global stock)
   stocks               StockSite[]
-  mouvements           MouvementStock[]  
+  mouvements           MouvementStock[]
+  historiquePrix       HistoriquePrixProduit[]
 
   // Packs & fidélité
   lignesReceptionPack  LigneReceptionPack[]
@@ -1440,6 +1442,39 @@ model MouvementStock {
   @@index([pointDeVenteId])
   @@index([type])
   @@index([dateMouvement])
+}
+
+// Type de changement de prix (ce qui a été modifié dans l'entrée d'historique)
+enum TypeChangementPrix {
+  INITIAL   // création du produit
+  ACHAT     // seul le prix d'achat a changé (typiquement lors d'un approvisionnement)
+  VENTE     // seul le prix de vente (prixUnitaire) a changé
+  LES_DEUX  // achat et vente modifiés en même temps
+}
+
+// Historique daté des prix d'un produit (achat & vente) — traçabilité & transparence.
+// Chaque entrée est un SNAPSHOT des deux prix effectifs à partir de `dateEffet`,
+// même si un seul des deux a changé : cela permet de retrouver le prix appliqué à
+// n'importe quelle date et de calculer la marge figée du moment.
+model HistoriquePrixProduit {
+  id               Int                @id @default(autoincrement())
+  produitId        Int
+  prixAchat        Decimal?           // prix d'achat effectif à partir de dateEffet
+  prixVente        Decimal            // prix de vente (prixUnitaire) effectif à partir de dateEffet
+  marge            Decimal?           // vente - achat (valeur), figée au moment du changement
+  type             TypeChangementPrix
+  source           String?            // MANUEL | APPRO | INITIAL | ...
+  motif            String?
+  receptionApproId Int?               // réception d'appro à l'origine d'un changement de prix d'achat
+  dateEffet        DateTime           @default(now())
+  creeParId        Int?
+  createdAt        DateTime           @default(now())
+
+  produit Produit @relation(fields: [produitId], references: [id], onDelete: Cascade)
+  creePar User?   @relation("HistoriquePrixCreateur", fields: [creeParId], references: [id])
+
+  @@index([produitId, dateEffet])
+  @@index([dateEffet])
 }
 
 // ============================================================

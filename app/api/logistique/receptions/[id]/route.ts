@@ -6,6 +6,7 @@ import { getMagasinierSession } from "@/lib/authMagasinier";
 import { getAuthSession } from "@/lib/auth";
 import { randomUUID } from "crypto";
 import { notifyRoles, notifyAdmins, auditLog } from "@/lib/notifications";
+import { enregistrerChangementPrix } from "@/lib/prixProduit";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -189,6 +190,15 @@ export async function PATCH(req: Request, { params }: Ctx) {
 
           // Mise à jour du prix d'achat de référence si la ligne a un prix d'achat renseigné
           if (ligne.prixUnitaire !== null && ligne.prixUnitaire !== undefined) {
+            // Traçabilité prix : journaliser le changement de prix d'achat (appro)
+            await enregistrerChangementPrix(tx, {
+              produitId:        ligne.produitId,
+              nouveauPrixAchat: ligne.prixUnitaire,
+              source:           "APPRO",
+              motif:            `Réception ${reception.reference}`,
+              receptionApproId: Number(id),
+              userId:           parseInt(session.user.id),
+            });
             await tx.produit.update({
               where: { id: ligne.produitId },
               data:  { prixAchat: ligne.prixUnitaire },

@@ -7,8 +7,9 @@ import {
   BarChart3, Boxes, LucideIcon, CheckCircle, X, Plus, ArrowRightLeft,
   ChevronDown, ChevronUp, Truck, FileText, Printer, ShieldAlert,
   Trash2, Gift, MinusCircle, Send, Clock, CheckSquare, XCircle, PackageCheck, ShoppingBag,
-  AlertCircle, FileCheck, TrendingDown,
+  AlertCircle, FileCheck, TrendingDown, History,
 } from 'lucide-react';
+import HistoriquePrixProduit from '@/components/HistoriquePrixProduit';
 import Link from 'next/link';  
 import SignOutButton from '@/components/SignOutButton';
 import NotificationBell from '@/components/NotificationBell';
@@ -194,6 +195,7 @@ export default function MagasinierPage() {
 
   // Modal states
   const [detailProduitId, setDetailProduitId] = useState<number | null>(null);
+  const [prixHistoProduit, setPrixHistoProduit] = useState<{ id: number; nom: string } | null>(null);
   const [showAjustementModal, setShowAjustementModal] = useState(false);
   const [ajustementProduitId, setAjustementProduitId] = useState<number | null>(null);
   const [ajustementType, setAjustementType] = useState<'ENTREE' | 'AJUSTEMENT'>('ENTREE');
@@ -968,6 +970,13 @@ export default function MagasinierPage() {
                               title="Voir les mouvements"
                             >
                               <Eye size={16} />
+                            </button>
+                            <button
+                              onClick={() => setPrixHistoProduit({ id: produit.id, nom: produit.nom })}
+                              className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                              title="Historique des prix"
+                            >
+                              <History size={16} />
                             </button>
                             <button
                               onClick={() => { setAjustementProduitId(produit.id); setAjustementType('ENTREE'); setShowAjustementModal(true); }}
@@ -2575,6 +2584,27 @@ export default function MagasinierPage() {
           </div>
         )}
       </main>
+
+      {/* ================================================================ */}
+      {/* MODAL: Historique des prix */}
+      {/* ================================================================ */}
+      {prixHistoProduit && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setPrixHistoProduit(null)}>
+          <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="p-4 border-b border-slate-200 flex items-center justify-between sticky top-0 bg-white z-10">
+              <h2 className="text-base font-semibold text-slate-800 flex items-center gap-2">
+                <History size={18} className="text-blue-500" /> {prixHistoProduit.nom}
+              </h2>
+              <button onClick={() => setPrixHistoProduit(null)} className="text-slate-400 hover:text-slate-700">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="p-4">
+              <HistoriquePrixProduit produitId={prixHistoProduit.id} />
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ================================================================ */}
       {/* MODAL: Detail produit (mouvements) */}

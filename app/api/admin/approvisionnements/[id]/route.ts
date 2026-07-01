@@ -3,6 +3,7 @@ import { Prisma, PrioriteNotification } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getAuthSession } from "@/lib/auth";
 import { notifyRoles, notifyAdmins, auditLog } from "@/lib/notifications";
+import { enregistrerChangementPrix } from "@/lib/prixProduit";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -99,6 +100,15 @@ export async function PATCH(req: Request, { params }: Ctx) {
             if (hasPrix) {
               const ligne = reception.lignes.find(l => l.id === Number(lp.ligneId));
               if (ligne) {
+                // Traçabilité prix : journaliser le changement de prix d'achat (appro)
+                await enregistrerChangementPrix(tx, {
+                  produitId:        ligne.produitId,
+                  nouveauPrixAchat: Number(lp.prixUnitaire),
+                  source:           "APPRO",
+                  motif:            `Approbation réception ${reception.reference}`,
+                  receptionApproId: Number(id),
+                  userId:           parseInt(session.user.id),
+                });
                 await tx.produit.update({
                   where: { id: ligne.produitId },
                   data:  { prixAchat: new Prisma.Decimal(Number(lp.prixUnitaire)) },

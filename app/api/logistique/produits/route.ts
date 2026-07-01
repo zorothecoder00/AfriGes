@@ -5,6 +5,7 @@ import { getLogistiqueSession } from "@/lib/authLogistique";
 import { getAuthSession } from "@/lib/auth";
 import { auditLog, notifyRoles, notifyAdmins } from "@/lib/notifications";
 import { PrioriteNotification } from "@prisma/client";
+import { enregistrerChangementPrix } from "@/lib/prixProduit";
 
 /** Voir produits → tous les gestionnaires authentifiés */
 async function getReadSession() {
@@ -128,6 +129,17 @@ export async function POST(req: Request) {
       });
 
       await auditLog(tx, parseInt(session.user.id), "PRODUIT_CREE", "Produit", p.id);
+
+      // Traçabilité prix : entrée initiale d'historique
+      await enregistrerChangementPrix(tx, {
+        produitId:        p.id,
+        nouveauPrixVente: p.prixUnitaire,
+        nouveauPrixAchat: p.prixAchat,
+        initial:          true,
+        source:           "INITIAL",
+        motif:            "Création du produit",
+        userId:           parseInt(session.user.id),
+      });
 
       await notifyRoles(tx, ["MAGAZINIER", "RESPONSABLE_POINT_DE_VENTE"], {
         titre:    `Nouveau produit : ${p.nom}`,

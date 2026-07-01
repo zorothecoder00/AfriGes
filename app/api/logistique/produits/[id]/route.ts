@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getLogistiqueSession } from "@/lib/authLogistique";
 import { getAuthSession } from "@/lib/auth";
 import { auditLog, notifyRoles } from "@/lib/notifications";
+import { enregistrerChangementPrix } from "@/lib/prixProduit";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -86,6 +87,19 @@ export async function PATCH(req: Request, { params }: Ctx) {
     }
 
     const updated = await prisma.$transaction(async (tx) => {
+      // Traçabilité prix : journaliser AVANT l'update (le helper lit les prix
+      // courants pour détecter la variation réelle) si un prix est fourni.
+      if (prixUnitaire !== undefined || prixAchat !== undefined) {
+        await enregistrerChangementPrix(tx, {
+          produitId:        Number(id),
+          nouveauPrixVente: prixUnitaire,
+          nouveauPrixAchat: prixAchat,
+          source:           "MANUEL",
+          motif:            body.motifPrix ?? "Modification manuelle",
+          userId:           parseInt(session.user.id),
+        });
+      }
+
       const p = await tx.produit.update({
         where: { id: Number(id) },
         data: {
