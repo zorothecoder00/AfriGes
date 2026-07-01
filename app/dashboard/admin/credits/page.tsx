@@ -167,6 +167,11 @@ export default function CreditsPage() {
 
   // ── État modals ────────────────────────────────────────────────────────────
   const [detailCredit,    setDetailCredit]    = useState<CreditDetail | null>(null);
+  // Édition d'un remboursement déjà enregistré (correction montant/date/notes)
+  type RembItem = CreditDetail['remboursements'][number];
+  const [editRemb, setEditRemb] = useState<RembItem | null>(null);
+  const [editRembForm, setEditRembForm] = useState({ montant: '', dateCollecte: '', observation: '' });
+  const [editRembSaving, setEditRembSaving] = useState(false);
   const [detailLoading,   setDetailLoading]   = useState(false);
   const [showEcheances,   setShowEcheances]   = useState(false);
   const [factureId,       setFactureId]       = useState<number | null>(null);
@@ -504,6 +509,37 @@ export default function CreditsPage() {
       else toast.error(j.message ?? 'Erreur');
     } catch { toast.error('Erreur réseau'); }
     finally { setDetailLoading(false); }
+  };
+
+  // ── Éditer un remboursement déjà enregistré ─────────────────────────────────
+  const openEditRemb = (r: RembItem) => {
+    setEditRemb(r);
+    setEditRembForm({
+      montant: String(Number(r.montant)),
+      dateCollecte: r.dateRemboursement ? r.dateRemboursement.slice(0, 10) : '',
+      observation: r.notes ?? '',
+    });
+  };
+  const saveEditRemb = async () => {
+    if (!editRemb || !detailCredit) return;
+    const montantNum = Number(editRembForm.montant);
+    if (!montantNum || montantNum <= 0) { toast.error('Montant invalide'); return; }
+    setEditRembSaving(true);
+    try {
+      const creditId = detailCredit.id;
+      const r = await fetch(`/api/admin/credits/${creditId}/remboursements/${editRemb.id}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          montant: montantNum !== Number(editRemb.montant) ? montantNum : undefined,
+          dateCollecte: editRembForm.dateCollecte || undefined,
+          observation: editRembForm.observation,
+        }),
+      });
+      const j = await r.json();
+      if (r.ok) { toast.success('Remboursement corrigé'); setEditRemb(null); await openDetail(creditId); }
+      else toast.error(j.error ?? j.message ?? 'Erreur');
+    } catch { toast.error('Erreur réseau'); }
+    finally { setEditRembSaving(false); }
   };
 
   // ── Valider / Annuler / Rejeter ────────────────────────────────────────────
@@ -1210,6 +1246,10 @@ export default function CreditsPage() {
                             </span>
                             <span className="text-gray-400">{r.modePaiement.replace('_', ' ')}</span>
                             <span className="font-bold text-emerald-700">{formatCurrency(Number(r.montant))}</span>
+                            <button type="button" onClick={() => openEditRemb(r)}
+                              className="p-1 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded" title="Corriger ce remboursement">
+                              <Pencil className="w-3.5 h-3.5" />
+                            </button>
                           </div>
                             ))}
                           </div>
@@ -1220,6 +1260,53 @@ export default function CreditsPage() {
                 </div>
               </>
             ) : null}
+          </div>
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════════════════════════════════
+          MODAL — Correction d'un remboursement
+      ══════════════════════════════════════════════════════════════════ */}
+      {editRemb && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[170] p-4">
+          <div className="bg-white rounded-2xl w-full max-w-md shadow-xl">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+              <div className="flex items-center gap-2">
+                <Pencil className="w-5 h-5 text-amber-600" />
+                <h3 className="text-base font-bold text-gray-900">Corriger le remboursement</h3>
+              </div>
+              <button onClick={() => setEditRemb(null)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+            </div>
+            <div className="px-6 py-4 space-y-3">
+              <div className="text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
+                Corriger le montant recalcule automatiquement l&apos;échéancier, le solde du crédit et du client, ainsi que le recouvrement RIA des financements liés.
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Montant (FCFA)</label>
+                <input type="number" min={1} value={editRembForm.montant}
+                  onChange={(e) => setEditRembForm((f) => ({ ...f, montant: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-amber-500" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Date de collecte</label>
+                <input type="date" value={editRembForm.dateCollecte}
+                  onChange={(e) => setEditRembForm((f) => ({ ...f, dateCollecte: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-amber-500" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Observation</label>
+                <textarea rows={2} value={editRembForm.observation}
+                  onChange={(e) => setEditRembForm((f) => ({ ...f, observation: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-amber-500 resize-none" />
+              </div>
+            </div>
+            <div className="flex justify-end gap-3 px-6 py-4 border-t border-gray-100">
+              <button onClick={() => setEditRemb(null)} className="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">Annuler</button>
+              <button onClick={saveEditRemb} disabled={editRembSaving}
+                className="flex items-center gap-2 px-5 py-2 text-sm text-white bg-amber-600 hover:bg-amber-700 rounded-lg font-medium disabled:opacity-50">
+                {editRembSaving ? <><Loader2 className="w-4 h-4 animate-spin" />Enregistrement…</> : <>Enregistrer</>}
+              </button>
+            </div>
           </div>
         </div>
       )}

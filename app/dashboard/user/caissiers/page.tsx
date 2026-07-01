@@ -967,11 +967,12 @@ export default function CaissierPage() {
 
   // Édition d'un remboursement crédit depuis l'historique (champs non financiers)
   const [editRemb, setEditRemb] = useState<HistoEncItem | null>(null);
-  const [editRembForm, setEditRembForm] = useState({ dateCollecte: "", numeroJour: "", agentCollecteurId: "", observation: "" });
+  const [editRembForm, setEditRembForm] = useState({ montant: "", dateCollecte: "", numeroJour: "", agentCollecteurId: "", observation: "" });
   const [editRembSaving, setEditRembSaving] = useState(false);
   const openEditRemb = (it: HistoEncItem) => {
     setEditRemb(it);
     setEditRembForm({
+      montant: String(it.montant ?? ""),
       dateCollecte: it.date ? it.date.slice(0, 10) : "",
       numeroJour: it.numeroJour != null ? String(it.numeroJour) : "",
       agentCollecteurId: it.agentCollecteurId != null ? String(it.agentCollecteurId) : "",
@@ -980,11 +981,15 @@ export default function CaissierPage() {
   };
   const saveEditRemb = async () => {
     if (!editRemb) return;
+    const montantNum = Number(editRembForm.montant);
+    if (!montantNum || montantNum <= 0) { toast.error("Montant invalide"); return; }
     setEditRembSaving(true);
     try {
+      const montantChange = montantNum !== editRemb.montant;
       const r = await fetch(`/api/caissier/remboursements/${editRemb.sourceId}`, {
         method: "PATCH", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          montant: montantChange ? montantNum : undefined,
           dateCollecte: editRembForm.dateCollecte || undefined,
           numeroJour: editRembForm.numeroJour || undefined,
           agentCollecteurId: editRembForm.agentCollecteurId || undefined,
@@ -1590,7 +1595,12 @@ export default function CaissierPage() {
             <div className="px-5 py-4 space-y-3">
               <div className="text-xs text-gray-500 bg-gray-50 border border-gray-100 rounded-lg px-3 py-2">
                 {editRemb.client} · {editRemb.libelle} · <span className="font-semibold text-gray-700">{formatCurrency(editRemb.montant)}</span>
-                <span className="block text-[11px] text-gray-400 mt-0.5">Le montant encaissé n&apos;est pas modifiable ici (effet financier).</span>
+                <span className="block text-[11px] text-amber-600 mt-0.5">Corriger le montant recalcule automatiquement le crédit (échéancier, solde) et le recouvrement RIA.</span>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Montant encaissé (FCFA)</label>
+                <input type="number" min={1} value={editRembForm.montant} onChange={(e) => setEditRembForm((f) => ({ ...f, montant: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-amber-500" />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>

@@ -1,5 +1,6 @@
 import { Prisma, StatutCredit, StatutEcheanceCredit, TypePaiement } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { auditLog } from "@/lib/notifications";
 
 type TX = Omit<Prisma.TransactionClient, "$connect" | "$disconnect" | "$on" | "$transaction" | "$use" | "$extends">;
 
@@ -315,4 +316,272 @@ export async function traiterBatchRemboursement(params: {
   });
 
   return res;
+}
+
+// ── Modification d'un remboursement déjà enregistré (correction d'erreur) ────────
+
+/**
+ * Réimpute intégralement l'échéancier d'un crédit à partir d'un total remboursé
+ * donné, quel que soit son statut courant, puis recalcule montantRembourse,
+ * soldeRestant et statut (SOLDE / EN_RETARD / ACTIF). Utilisé lors de la
+ * correction d'un montant de remboursement (un crédit SOLDE peut se rouvrir).
+ */
+async function regenererEcheancesEtStatut(
+  tx: TX,
+  credit: { id: number; montantTotal: Prisma.Decimal | number; dureeJours: number; dateDebut: Date },
+  totalRembourse: number,
+): Promise<void> {
+  const montantTotal      = Number(credit.montantTotal);
+  const duree             = credit.dureeJours;
+  const montantJournalier = Number((montantTotal / duree).toFixed(2));
+  const residuel          = Number((montantTotal - montantJournalier * duree).toFixed(2));
+  const soldeRestant      = Math.max(0, Number((montantTotal - totalRembourse).toFixed(2)));
+  const debut             = new Date(credit.dateDebut);
+  const now               = new Date();
+
+  await tx.echeanceCredit.deleteMany({ where: { creditId: credit.id } });
+
+  let budget = totalRembourse;
+  let resteEnRetard = false;
+  const echData = Array.from({ length: duree }, (_, idx) => {
+    const i = idx + 1;
+    const d = new Date(debut);
+    d.setDate(d.getDate() + idx);
+    const montantDu = i === duree ? Number((montantJournalier + residuel).toFixed(2)) : montantJournalier;
+    const paye = Math.min(budget, montantDu);
+    budget = Number((budget - paye).toFixed(2));
+    const statut = paye >= montantDu
+      ? StatutEcheanceCredit.PAYE
+      : paye > 0 ? StatutEcheanceCredit.PARTIEL : StatutEcheanceCredit.EN_ATTENTE;
+    if (paye < montantDu && d < now) resteEnRetard = true;
+    return { creditId: credit.id, numeroEcheance: i, dateEcheance: d, montantDu, montantPaye: paye, statut };
+  });
+  await tx.echeanceCredit.createMany({ data: echData });
+
+  const nouveauStatut = soldeRestant <= 0
+    ? StatutCredit.SOLDE
+    : resteEnRetard ? StatutCredit.EN_RETARD : StatutCredit.ACTIF;
+
+  await tx.creditClient.update({
+    where: { id: credit.id },
+    data:  { montantRembourse: totalRembourse, soldeRestant, statut: nouveauStatut },
+  });
+}
+
+/** Annule l'effet RIA d'un remboursement (réversion encours + capital portefeuille). */
+async function reverserEffetRIA(tx: TX, remboursementCreditId: number, refCredit: string): Promise<void> {
+  const parts = await tx.remboursementRIA.findMany({
+    where:   { remboursementCreditId },
+    include: { financement: { select: { id: true, portefeuilleId: true, encours: true, statut: true, reference: true } } },
+  });
+  for (const rr of parts) {
+    const part = Number(rr.montant);
+    const fin  = rr.financement;
+    const newEncours = Number((Number(fin.encours) + part).toFixed(2));
+    await tx.operationFinancementRIA.update({
+      where: { id: fin.id },
+      data: {
+        montantRembourse: { decrement: part },
+        encours:          newEncours,
+        statut:           fin.statut === "REMBOURSE" && newEncours > 0 ? "ACTIF" : fin.statut,
+      },
+    });
+    await tx.portefeuilleRIA.update({
+      where: { id: fin.portefeuilleId },
+      data: {
+        capitalEngage:     { increment: part },
+        capitalRecouvre:   { decrement: part },
+        capitalDisponible: { decrement: part },
+      },
+    });
+    await tx.mouvementFondsRIA.create({
+      data: {
+        type: "AJUSTEMENT", montant: part, sens: "DEBIT",
+        description: `Annulation recouvrement (correction remboursement) — crédit ${refCredit}`,
+        reference: fin.reference, portefeuilleId: fin.portefeuilleId, financementId: fin.id,
+      },
+    });
+    await tx.remboursementRIA.delete({ where: { id: rr.id } });
+  }
+}
+
+/** Applique le recouvrement RIA proportionnel d'un montant (identique à l'enregistrement). */
+async function appliquerEffetRIA(
+  tx: TX, creditId: number, refCredit: string, remboursementCreditId: number, montant: number,
+): Promise<void> {
+  const fins = await tx.operationFinancementRIA.findMany({
+    where: { creditClientId: creditId, statut: { in: ["ACTIF", "EN_RETARD"] } },
+  });
+  const totalEncours = fins.reduce((s, f) => s + Number(f.encours), 0);
+  for (const fin of fins) {
+    if (Number(fin.encours) <= 0) continue;
+    const part = Number(Math.min(montant * (totalEncours > 0 ? Number(fin.encours) / totalEncours : 0), Number(fin.encours)).toFixed(2));
+    if (part <= 0) continue;
+    const newEncours = Number(Math.max(0, Number(fin.encours) - part).toFixed(2));
+    await tx.remboursementRIA.create({ data: { financementId: fin.id, montant: part, remboursementCreditId } });
+    await tx.operationFinancementRIA.update({
+      where: { id: fin.id },
+      data:  { montantRembourse: { increment: part }, encours: newEncours, statut: newEncours <= 0 ? "REMBOURSE" : fin.statut },
+    });
+    await tx.portefeuilleRIA.update({
+      where: { id: fin.portefeuilleId },
+      data:  { capitalEngage: { decrement: part }, capitalRecouvre: { increment: part }, capitalDisponible: { increment: part } },
+    });
+    await tx.mouvementFondsRIA.create({
+      data: {
+        type: "REMBOURSEMENT_CLIENT", montant: part, sens: "CREDIT",
+        description: `Recouvrement (correction remboursement) — crédit ${refCredit}`,
+        reference: fin.reference, portefeuilleId: fin.portefeuilleId, financementId: fin.id,
+      },
+    });
+  }
+}
+
+export interface ParamsModification {
+  remboursementId:   number;
+  /** Nouveau montant. `undefined` = inchangé. */
+  nouveauMontant?:   number | null;
+  /** Nouvelle date de collecte (ISO). `undefined` = inchangé. */
+  dateCollecte?:     string | null;
+  /** Nouveau N° de jour. `undefined` = inchangé. */
+  numeroJour?:       number | null;
+  /** Nouvel agent collecteur. `undefined` = inchangé. */
+  agentCollecteurId?: number | null;
+  /** Nouvelle observation. `undefined` = inchangé. */
+  observation?:      string | null;
+  userId:            number;
+  /** Portée facultative : le crédit doit correspondre (scoping PDV caissier). */
+  pdvId?:            number | null;
+}
+
+export type ResultatModification =
+  | { ok: true; remboursementId: number; montantEffectif: number; recalculFinancier: boolean }
+  | { ok: false; error: string; status: number };
+
+/**
+ * Modifie un remboursement de crédit déjà enregistré (correction d'erreur de
+ * saisie). Gère le montant ET les champs non financiers (date, N° jour, agent,
+ * notes), dans une seule transaction.
+ *
+ * - Remboursement EN_ATTENTE_CAISSIER : aucun effet financier appliqué → simple
+ *   mise à jour des champs.
+ * - Remboursement CONFIRME : recalcul financier complet — réimputation de
+ *   l'échéancier, montantRembourse / solde / statut du crédit, soldeActuel du
+ *   client, et réversion + réapplication du recouvrement RIA des financements liés.
+ *
+ * Le montant est plafonné pour que le total remboursé ne dépasse pas le montant
+ * total du crédit.
+ */
+export async function modifierRemboursementCredit(p: ParamsModification): Promise<ResultatModification> {
+  return prisma.$transaction(async (tx) => {
+    const remb = await tx.remboursementCredit.findUnique({
+      where: { id: p.remboursementId },
+      include: {
+        credit: {
+          select: {
+            id: true, clientId: true, reference: true, statut: true,
+            montantTotal: true, montantRembourse: true, soldeRestant: true,
+            dureeJours: true, dateDebut: true,
+            client: { select: { pointDeVenteId: true } },
+          },
+        },
+      },
+    });
+    if (!remb) return { ok: false as const, error: "Remboursement introuvable", status: 404 };
+
+    const credit = remb.credit;
+    if (p.pdvId != null && credit.client.pointDeVenteId !== p.pdvId) {
+      return { ok: false as const, error: "Ce remboursement n'appartient pas à votre point de vente", status: 403 };
+    }
+    if (remb.statut === "REJETE") {
+      return { ok: false as const, error: "Un remboursement rejeté ne peut pas être modifié", status: 422 };
+    }
+    if (credit.statut === StatutCredit.ANNULE || credit.statut === StatutCredit.REJETE) {
+      return { ok: false as const, error: "Le crédit associé n'est pas modifiable", status: 422 };
+    }
+
+    // ── Champs non financiers ─────────────────────────────────────────────────
+    const data: Prisma.RemboursementCreditUpdateInput = {};
+    if (p.dateCollecte !== undefined) {
+      const d = parseDateCollecte(p.dateCollecte);
+      if (d) data.dateRemboursement = d;
+    }
+    if (p.numeroJour !== undefined) {
+      const nj = p.numeroJour ?? null;
+      const err = validerNumeroJour(nj, credit.dureeJours);
+      if (err) return { ok: false as const, error: err, status: 400 };
+      data.numeroJour = nj;
+      data.montantAttendu = await montantAttenduDuJour(tx, credit.id, nj);
+    }
+    if (p.agentCollecteurId !== undefined) {
+      data.agentCollecteur = p.agentCollecteurId
+        ? { connect: { id: p.agentCollecteurId } }
+        : { disconnect: true };
+    }
+    if (p.observation !== undefined) data.notes = p.observation || null;
+
+    // ── Montant ───────────────────────────────────────────────────────────────
+    const oldMontant = Number(remb.montant);
+    let montantEffectif = oldMontant;
+    let recalcul = false;
+
+    const veutChangerMontant =
+      p.nouveauMontant !== undefined && p.nouveauMontant !== null && Number(p.nouveauMontant) !== oldMontant;
+
+    if (veutChangerMontant) {
+      const requested = Number(p.nouveauMontant);
+      if (requested <= 0) return { ok: false as const, error: "Le montant doit être positif", status: 400 };
+
+      if (remb.statut === "EN_ATTENTE_CAISSIER") {
+        // Aucun effet financier encore appliqué → simple correction du montant.
+        montantEffectif = requested;
+        data.montant = montantEffectif;
+      } else {
+        // CONFIRME → recalcul financier complet.
+        recalcul = true;
+
+        // 1. Annuler l'effet RIA de ce remboursement.
+        await reverserEffetRIA(tx, remb.id, credit.reference);
+
+        // 2. Plafonner : total remboursé ≤ montant total du crédit.
+        const agg = await tx.remboursementCredit.aggregate({
+          where:  { creditId: credit.id, statut: "CONFIRME", id: { not: remb.id } },
+          _sum:   { montant: true },
+        });
+        const otherSum   = Number(agg._sum.montant ?? 0);
+        const maxForThis = Math.max(0, Number((Number(credit.montantTotal) - otherSum).toFixed(2)));
+        montantEffectif  = Number(Math.min(requested, maxForThis).toFixed(2));
+        data.montant     = montantEffectif;
+
+        const newTotal = Number((otherSum + montantEffectif).toFixed(2));
+
+        // 3. Réimputer l'échéancier + recalculer crédit.
+        await regenererEcheancesEtStatut(tx, credit, newTotal);
+
+        // 4. Ajuster le solde du client (delta).
+        const deltaClient = Number((oldMontant - montantEffectif).toFixed(2));
+        if (deltaClient !== 0) {
+          await tx.client.update({
+            where: { id: credit.clientId },
+            data:  { soldeActuel: { increment: deltaClient } },
+          });
+        }
+
+        // 5. Réappliquer le recouvrement RIA avec le nouveau montant.
+        await appliquerEffetRIA(tx, credit.id, credit.reference, remb.id, montantEffectif);
+      }
+    }
+
+    if (Object.keys(data).length > 0) {
+      await tx.remboursementCredit.update({ where: { id: remb.id }, data });
+    }
+
+    await auditLog(tx, p.userId, "MODIFICATION_REMBOURSEMENT_CREDIT", "RemboursementCredit", remb.id, {
+      avant: { montant: oldMontant },
+      apres: { montant: montantEffectif },
+      recalculFinancier: recalcul,
+    });
+
+    return { ok: true as const, remboursementId: remb.id, montantEffectif, recalculFinancier: recalcul };
+  });
 }
