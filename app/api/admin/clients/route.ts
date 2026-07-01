@@ -16,6 +16,14 @@ export async function GET(req: Request) {
 
     const { searchParams } = new URL(req.url);
 
+    // Export de la liste clients : réservé au SUPER_ADMIN.
+    if (searchParams.get("export") === "1" && session.user.role !== "SUPER_ADMIN") {
+      return NextResponse.json(
+        { message: "Seul le super administrateur peut exporter la liste des clients" },
+        { status: 403 },
+      );
+    }
+
     const page = Number(searchParams.get("page") || 1);
     const limit = Number(searchParams.get("limit") || 10);
     const skip = (page - 1) * limit;

@@ -35,7 +35,7 @@ netsh wlan show profile name="NomDuWifi" key=clear affiche toutes les propriét�
 -Jitsi Meet (gratuit, intégrable
   en iframe, salle générée par réunion, aucun backend à héberger) — ce qui donne
   une vraie réunion dans l'application — tout en gardant la possibilité de
-  coller un lien Meet/Zoom externe.
+  coller un lien Meet/Zoom externe.  
 
 
  Voilà. Ce que tu dois remplir obligatoirement pour activer les alertes :
@@ -97,8 +97,14 @@ Google OAuth crée automatiquement un utilisateur sans rôle
 Chercher comment utiliser l'authentification de google sans avoir besoin de payer
 
 
-Pour les archivages des crédits clients , je veux le montant total des impayés et des autres status
+Pour les archivages des crédits clients au niveau du dashboard admin/superadmin, je veux le montant total des impayés et des autres status
 
 On va revoir aussi les reçus dans les dashboards
 
 Permettre certaines notifications via mail (vu que maintenant j'ai implémenté l'authification par Google)
+
+Pour les connexion google , demander aussi un autre mot de passe pour empêcher les passant de pouvoir se connecter facilement avec le google d'un utilisateur
+
+Empêcher les admin simples de faire les impressions clients ( dashboard/admin/clients) ecxel ( le superadmin seul peut le faire)
+
+

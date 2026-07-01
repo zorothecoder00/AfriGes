@@ -2,6 +2,7 @@
 
 import { useState, type ReactNode } from "react";
 import { useApi } from "@/hooks/useApi";
+import { exportRowsToXlsx } from "@/lib/exportXlsx";
 import {
   FolderTree, Folder, FolderOpen, Calendar, ChevronRight, ChevronDown,
   Banknote, AlertTriangle, XCircle, FileText, X, RefreshCw, ArrowLeft, Loader2,
@@ -24,19 +25,6 @@ const fmt = (n: number) => new Intl.NumberFormat("fr-FR").format(Math.round(n));
 
 // ── Utilitaires d'export ────────────────────────────────────────────────────────
 type Cell = string | number;
-function toCSV(rows: Cell[][]): string {
-  return rows.map((r) => r.map((c) => {
-    const s = String(c ?? "");
-    return /[",;\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-  }).join(";")).join("\n");
-}
-function telechargerCSV(filename: string, rows: Cell[][]) {
-  const blob = new Blob(["﻿" + toCSV(rows)], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url; a.download = filename; a.click();
-  URL.revokeObjectURL(url);
-}
 function imprimerPDF(titre: string, corpsHTML: string) {
   const w = window.open("", "_blank", "width=900,height=700");
   if (!w) return;
@@ -82,10 +70,14 @@ async function chargerPlage(apiBase: string, jours: NoeudJour[]): Promise<Detail
   if (!res.ok) return null;
   return (await res.json()).data as DetailPlage;
 }
-async function exporterCSVNoeud(apiBase: string, label: string, jours: NoeudJour[]) {
+async function exporterXlsxNoeud(apiBase: string, label: string, jours: NoeudJour[]) {
   const p = await chargerPlage(apiBase, jours);
   if (!p) return;
-  telechargerCSV(`archivage-${label}.csv`.replace(/\s+/g, "_"), [ENTETE_PLAGE, ...lignesPlage(p)]);
+  await exportRowsToXlsx(
+    [ENTETE_PLAGE, ...lignesPlage(p)],
+    `archivage-${label}.xlsx`.replace(/\s+/g, "_"),
+    { sheetName: "Détail", columnTypes: ["text", "text", "text", "text", "text", "currency"] },
+  );
 }
 async function exporterPDFNoeud(apiBase: string, label: string, jours: NoeudJour[]) {
   const p = await chargerPlage(apiBase, jours);
@@ -95,16 +87,21 @@ async function exporterPDFNoeud(apiBase: string, label: string, jours: NoeudJour
   imprimerPDF(`Archivage — ${label}`, corps);
 }
 
-function exporterCSVJour(d: DetailJour) {
-  const rows: Cell[][] = [["Journée", d.label], [],
-    ["COLLECTES"], ["Client", "Référence", "Jour", "Agent", "Heure", "Montant"],
-    ...d.collectes.map((c): Cell[] => [c.client, c.reference, c.numeroJour ? `J${c.numeroJour}` : "", c.agent ?? "", c.heure, c.montant]),
-    [], ["RETARDS"], ["Client", "Référence", "Échéance", "Jours retard", "Reste dû"],
-    ...d.retards.map((r): Cell[] => [r.client, r.reference, `#${r.numeroEcheance}`, r.joursRetard, r.reste]),
-    [], ["IMPAYÉS"], ["Client", "Référence", "Solde restant"],
-    ...d.impayes.map((m): Cell[] => [m.client, m.reference, m.soldeRestant]),
-  ];
-  telechargerCSV(`archivage-${d.date}.csv`, rows);
+/** Détail d'un jour en table unifiée (mêmes colonnes que la plage, sans "Jour"). */
+const ENTETE_JOUR = ["Type", "Client", "Référence", "Détail", "Montant"];
+function lignesJour(d: DetailJour): Cell[][] {
+  const rows: Cell[][] = [];
+  d.collectes.forEach((c) => rows.push(["Collecte", c.client, c.reference, [c.numeroJour ? `J${c.numeroJour}` : "", c.agent ?? "", c.heure].filter(Boolean).join(" · "), c.montant]));
+  d.retards.forEach((r) => rows.push(["Retard", r.client, r.reference, `Échéance #${r.numeroEcheance} · ${r.joursRetard}j`, r.reste]));
+  d.impayes.forEach((m) => rows.push(["Impayé", m.client, m.reference, "Crédit clos", m.soldeRestant]));
+  return rows;
+}
+async function exporterXlsxJour(d: DetailJour) {
+  await exportRowsToXlsx(
+    [ENTETE_JOUR, ...lignesJour(d)],
+    `archivage-${d.date}.xlsx`,
+    { sheetName: d.label.slice(0, 31), columnTypes: ["text", "text", "text", "text", "currency"] },
+  );
 }
 function exporterPDFJour(d: DetailJour) {
   const tbl = (titre: string, head: string[], corps: string, ncols: number) =>
@@ -120,14 +117,14 @@ function exporterPDFJour(d: DetailJour) {
     + tbl("Impayés", ["Client", "Réf.", "Solde restant"], imp, 3));
 }
 
-/** Boutons CSV / PDF d'un nœud → détail ligne par ligne de tous ses jours. */
+/** Boutons Excel / PDF d'un nœud → détail ligne par ligne de tous ses jours. */
 function ExportNoeud({ apiBase, label, jours }: { apiBase: string; label: string; jours: NoeudJour[] }) {
-  const [busy, setBusy] = useState<null | "csv" | "pdf">(null);
-  const run = async (kind: "csv" | "pdf", fn: () => Promise<void>) => { setBusy(kind); try { await fn(); } finally { setBusy(null); } };
+  const [busy, setBusy] = useState<null | "xlsx" | "pdf">(null);
+  const run = async (kind: "xlsx" | "pdf", fn: () => Promise<void>) => { setBusy(kind); try { await fn(); } finally { setBusy(null); } };
   return (
     <span className="flex items-center gap-0.5 shrink-0">
-      <button onClick={(e) => { e.stopPropagation(); run("csv", () => exporterCSVNoeud(apiBase, label, jours)); }} disabled={busy !== null} title="Export CSV (détail ligne par ligne)" className="p-1 text-slate-300 hover:text-emerald-600 disabled:opacity-50">
-        {busy === "csv" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileSpreadsheet className="w-3.5 h-3.5" />}
+      <button onClick={(e) => { e.stopPropagation(); run("xlsx", () => exporterXlsxNoeud(apiBase, label, jours)); }} disabled={busy !== null} title="Export Excel (détail ligne par ligne)" className="p-1 text-slate-300 hover:text-emerald-600 disabled:opacity-50">
+        {busy === "xlsx" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileSpreadsheet className="w-3.5 h-3.5" />}
       </button>
       <button onClick={(e) => { e.stopPropagation(); run("pdf", () => exporterPDFNoeud(apiBase, label, jours)); }} disabled={busy !== null} title="Export PDF (détail ligne par ligne)" className="p-1 text-slate-300 hover:text-rose-600 disabled:opacity-50">
         {busy === "pdf" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Printer className="w-3.5 h-3.5" />}
@@ -293,7 +290,7 @@ function DetailJourModal({ apiBase, date, onClose }: { apiBase: string; date: st
           <div className="flex items-center gap-1">
             {d && (
               <>
-                <button onClick={() => exporterCSVJour(d)} title="Export CSV" className="flex items-center gap-1 px-2.5 py-1.5 text-xs text-emerald-700 bg-emerald-50 rounded-lg hover:bg-emerald-100"><FileSpreadsheet className="w-3.5 h-3.5" /> CSV</button>
+                <button onClick={() => exporterXlsxJour(d)} title="Export Excel" className="flex items-center gap-1 px-2.5 py-1.5 text-xs text-emerald-700 bg-emerald-50 rounded-lg hover:bg-emerald-100"><FileSpreadsheet className="w-3.5 h-3.5" /> Excel</button>
                 <button onClick={() => exporterPDFJour(d)} title="Export PDF" className="flex items-center gap-1 px-2.5 py-1.5 text-xs text-rose-700 bg-rose-50 rounded-lg hover:bg-rose-100"><Printer className="w-3.5 h-3.5" /> PDF</button>
               </>
             )}

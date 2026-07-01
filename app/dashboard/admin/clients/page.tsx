@@ -6,6 +6,7 @@ import { Search, Plus, Phone, MapPin, Eye, Edit, Trash2, Store, Building2, Link2
   AlertTriangle, Package, UserCheck, Navigation, Loader2, Tag,
   Archive, PauseCircle, Ban, CheckCircle, Filter, SlidersHorizontal, FileDown } from 'lucide-react';
 import Link from 'next/link';
+import { useSession } from 'next-auth/react';
 import { useApi, useMutation } from '@/hooks/useApi';
 import { exportToXlsx } from '@/lib/exportXlsx';
 import { formatDate, formatDateTime, formatCurrency } from '@/lib/format';
@@ -218,6 +219,8 @@ function TagsClientModal({
 export default function ClientsPage() {
   const t = useT();
   const tagModal = useTagModal();
+  const { data: session } = useSession();
+  const isSuperAdmin = session?.user?.role === 'SUPER_ADMIN';
   const [searchQuery, setSearchQuery]     = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [page, setPage]                   = useState(1);
@@ -421,7 +424,8 @@ export default function ClientsPage() {
     setExporting(true);
     try {
       // Reprend les filtres actifs mais sans pagination (limite large pour tout récupérer)
-      const exportParams = new URLSearchParams({ page: '1', limit: '100000' });
+      // export=1 → réservé au SUPER_ADMIN (contrôle appliqué aussi côté serveur)
+      const exportParams = new URLSearchParams({ page: '1', limit: '100000', export: '1' });
       if (debouncedSearch) exportParams.set('search', debouncedSearch);
       if (filterPdvId)     exportParams.set('pdvId', filterPdvId);
       if (filterAgentId)   exportParams.set('agentTerrainId', filterAgentId);
@@ -669,12 +673,14 @@ export default function ClientsPage() {
             <p className="text-slate-500 text-sm mt-0.5">{t('clients_subtitle')}</p>
           </div>
           <div className="flex items-center gap-3">
-            <button onClick={handleExport} disabled={exporting}
-              className="px-5 py-3 bg-white text-slate-700 border border-slate-200 rounded-xl hover:bg-slate-50 transition-all flex items-center gap-2 font-medium disabled:opacity-60">
-              {exporting
-                ? <><Loader2 size={18} className="animate-spin" /> Export…</>
-                : <><FileDown size={18} /> Exporter</>}
-            </button>
+            {isSuperAdmin && (
+              <button onClick={handleExport} disabled={exporting}
+                className="px-5 py-3 bg-white text-slate-700 border border-slate-200 rounded-xl hover:bg-slate-50 transition-all flex items-center gap-2 font-medium disabled:opacity-60">
+                {exporting
+                  ? <><Loader2 size={18} className="animate-spin" /> Export…</>
+                  : <><FileDown size={18} /> Exporter</>}
+              </button>
+            )}
             <button onClick={() => setModalOpen(true)}
               className="px-6 py-3 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-200 flex items-center gap-2 font-medium">
               <Plus size={20} /> {t('clients_add_btn')}

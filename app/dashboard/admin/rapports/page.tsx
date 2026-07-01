@@ -8,7 +8,7 @@ import {
 import { useApi } from '@/hooks/useApi';
 import { useT } from '@/contexts/AppSettingsContext';
 import { formatCurrency, formatDate } from '@/lib/format';
-import { exportToXlsx } from '@/lib/exportXlsx';
+import { exportToXlsx, exportRowsToXlsx } from '@/lib/exportXlsx';
 import { exportToXls } from '@/lib/exportXls';
 import { printToPdf } from '@/lib/exportPdf';
 import ClienteleTabBar from '@/components/ClienteleTabBar';
@@ -146,45 +146,39 @@ export default function RapportsPage() {
 
   // ─── Export : Recouvrement (CSV complet, toutes sections) ────────────────
 
-  const exportRecouvrementCsv = () => {
+  const exportRecouvrementXlsx = () => {
     const d = recouv.data;
     if (!d) return;
-    const sep = ';';
-    const BOM = '\uFEFF';
+    const pct = (n: number) => `${n}%`;
 
-    const line = (...cols: (string | number)[]) =>
-      cols.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(sep);
-
-    const rows: string[] = [
-      line('RAPPORT RECOUVREMENT'),
-      line('Souscriptions', 'Total packs (FCFA)', 'Versé (FCFA)', 'Restant (FCFA)', 'Taux global (%)'),
-      line(d.global.nb, d.global.totalPacks, d.global.totalVerse, d.global.totalRestant, d.global.tauxGlobal),
-      '',
-      line('PAR AGENT'),
-      line('Agent', 'Nb souscriptions', 'Total packs', 'Versé', 'Restant', 'Taux (%)'),
-      ...d.parAgent.map((r) => line(r.nom, r.nb, r.total, r.verse, r.restant, r.taux)),
-      '',
-      line('PAR TYPE DE PACK'),
-      line('Type', 'Nb', 'Total packs', 'Versé', 'Restant', 'Taux (%)'),
-      ...d.parTypePack.map((r) => line(r.type, r.nb, r.total, r.verse, r.restant, r.taux)),
-      '',
-      line('PAR POINT DE VENTE'),
-      line('PDV', 'Code', 'Nb', 'Total packs', 'Versé', 'Restant', 'Taux (%)'),
-      ...d.parPdv.map((r) => line(r.nom, r.code, r.nb, r.total, r.verse, r.restant, r.taux)),
-      '',
-      line('ÉVOLUTION MENSUELLE'),
-      line('Mois', 'Nb versements', 'Montant (FCFA)'),
-      ...d.evolution.map((e) => line(e.label, e.nb, e.montant)),
+    // 1re ligne padee a 7 colonnes -> l'auto-largeur couvre toutes les sections.
+    const rows: (string | number)[][] = [
+      ['RAPPORT RECOUVREMENT', '', '', '', '', '', ''],
+      ['Souscriptions', 'Total packs (FCFA)', 'Versé (FCFA)', 'Restant (FCFA)', 'Taux global (%)'],
+      [d.global.nb, d.global.totalPacks, d.global.totalVerse, d.global.totalRestant, pct(d.global.tauxGlobal)],
+      [],
+      ['PAR AGENT'],
+      ['Agent', 'Nb souscriptions', 'Total packs', 'Versé', 'Restant', 'Taux (%)'],
+      ...d.parAgent.map((r) => [r.nom, r.nb, r.total, r.verse, r.restant, pct(r.taux)]),
+      [],
+      ['PAR TYPE DE PACK'],
+      ['Type', 'Nb', 'Total packs', 'Versé', 'Restant', 'Taux (%)'],
+      ...d.parTypePack.map((r) => [r.type, r.nb, r.total, r.verse, r.restant, pct(r.taux)]),
+      [],
+      ['PAR POINT DE VENTE'],
+      ['PDV', 'Code', 'Nb', 'Total packs', 'Versé', 'Restant', 'Taux (%)'],
+      ...d.parPdv.map((r) => [r.nom, r.code, r.nb, r.total, r.verse, r.restant, pct(r.taux)]),
+      [],
+      ['ÉVOLUTION MENSUELLE'],
+      ['Mois', 'Nb versements', 'Montant (FCFA)'],
+      ...d.evolution.map((e) => [e.label, e.nb, e.montant]),
     ];
 
-    const csv  = BOM + rows.join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url  = URL.createObjectURL(blob);
-    const a    = document.createElement('a');
-    a.href     = url;
-    a.download = `rapport-recouvrement-${new Date().toISOString().slice(0, 10)}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    void exportRowsToXlsx(
+      rows,
+      `rapport-recouvrement-${new Date().toISOString().slice(0, 10)}.xlsx`,
+      { sheetName: 'Recouvrement' },
+    );
   };
 
   // ─── Export : Collectes (PDF complet) ────────────────────────────────────
@@ -423,9 +417,9 @@ export default function RapportsPage() {
 
   const exportButtons: Record<TabId, React.ReactNode> = {
     recouvrement: (
-      <button onClick={exportRecouvrementCsv}
+      <button onClick={exportRecouvrementXlsx}
         className="flex items-center gap-2 px-3 py-2 text-sm text-white bg-blue-600 rounded-xl hover:bg-blue-700 shadow-sm">
-        <Download className="w-4 h-4" /> CSV
+        <Download className="w-4 h-4" /> Excel
       </button>
     ),
     collectes: (

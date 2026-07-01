@@ -20,6 +20,7 @@ import { toast } from "sonner";
 import SignOutButton from "@/components/SignOutButton";
 import NotificationBell from "@/components/NotificationBell";
 import { PAGES_REGISTRY } from "@/lib/pagesRegistry";
+import { exportRowsToXlsx } from "@/lib/exportXlsx";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -256,11 +257,11 @@ export default function SuperAdminPage() {
         l.user?.role ?? "—",
       ]),
     ];
-    const csv = "\uFEFF" + rows.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(";")).join("\n");
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8;" }));
-    a.download = `logs-${logType}-${new Date().toISOString().slice(0, 10)}.csv`;
-    a.click();
+    void exportRowsToXlsx(
+      rows,
+      `logs-${logType}-${new Date().toISOString().slice(0, 10)}.xlsx`,
+      { sheetName: "Logs" },
+    );
   };
 
   const loadUserAcces = React.useCallback(async (userId: number) => {
@@ -992,7 +993,7 @@ export default function SuperAdminPage() {
                 <ShieldCheck size={14} />Journal RH
               </Link>
               <button onClick={handleExportLogs} className="flex items-center gap-2 px-4 py-2 bg-violet-600 text-white text-sm rounded-xl font-medium hover:bg-violet-700 transition-colors">
-                <Download size={14} />Export CSV
+                <Download size={14} />Export Excel
               </button>
             </div>
 
