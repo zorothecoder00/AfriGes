@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getRHSession } from "@/lib/authRH";
+import { getRHSession, profilRHDansPerimetre } from "@/lib/authRH";
 import { htmlToPdf, pdfResponse } from "@/lib/pdf";
 import { genBulletinHtml, type BulletinData } from "@/lib/bulletinHtml";
 
@@ -34,6 +34,11 @@ export async function GET(_req: Request, { params }: Ctx) {
       },
     });
     if (!fiche) return NextResponse.json({ error: "Fiche introuvable" }, { status: 404 });
+
+    // Scoping PDV : un RESPONSABLE_RH ne peut voir que les fiches de son périmètre.
+    if (!(await profilRHDansPerimetre(session, fiche.profilRHId))) {
+      return NextResponse.json({ error: "Fiche hors de votre périmètre" }, { status: 403 });
+    }
 
     const html     = genBulletinHtml(fiche as unknown as BulletinData);
     const pdf      = await htmlToPdf(html);

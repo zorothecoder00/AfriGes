@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getRHSession } from "@/lib/authRH";
+import { getRHSession, profilRHDansPerimetre } from "@/lib/authRH";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -33,6 +33,12 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
       },
     });
     if (!fiche) return NextResponse.json({ error: "Fiche introuvable" }, { status: 404 });
+
+    // Scoping PDV : un RESPONSABLE_RH ne peut consulter que les fiches de son périmètre.
+    if (!(await profilRHDansPerimetre(session, fiche.profilRHId))) {
+      return NextResponse.json({ error: "Fiche hors de votre périmètre" }, { status: 403 });
+    }
+
     return NextResponse.json({ data: fiche });
   } catch (error) {
     console.error("GET /api/responsableRH/paie/[id]", error);
@@ -53,6 +59,11 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
 
     const fiche = await prisma.fichePaie.findUnique({ where: { id: Number(id) } });
     if (!fiche) return NextResponse.json({ error: "Fiche introuvable" }, { status: 404 });
+
+    // Scoping PDV : un RESPONSABLE_RH ne peut agir que sur les fiches de son périmètre.
+    if (!(await profilRHDansPerimetre(session, fiche.profilRHId))) {
+      return NextResponse.json({ error: "Fiche hors de votre périmètre" }, { status: 403 });
+    }
 
     type T = { from: string[]; to: string; extra?: Record<string, unknown> };
     const TRANSITIONS: Record<string, T> = {

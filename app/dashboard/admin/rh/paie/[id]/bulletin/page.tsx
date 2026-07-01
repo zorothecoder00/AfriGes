@@ -1,8 +1,8 @@
 "use client";
 
 import { useParams } from "next/navigation";
-import { useApi } from "@/hooks/useApi";
-import { RefreshCw, Printer, ArrowLeft, Download } from "lucide-react";
+import { useApi, useMutation } from "@/hooks/useApi";
+import { RefreshCw, Printer, ArrowLeft, Download, Mail } from "lucide-react";
 import Link from "next/link";
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -44,6 +44,12 @@ export default function BulletinPage() {
   const params = useParams<{ id: string }>();
   const { data: res, loading } = useApi<{ data: FichePaie }>(`/api/admin/rh/paie/${params.id}`);
   const f = res?.data;
+
+  const { mutate: envoyerEmail, loading: envoi } = useMutation<{ message: string }>(
+    `/api/admin/rh/paie/${params.id}/envoyer-bulletin`,
+    "POST",
+    { successMessage: "Bulletin envoyé par email au collaborateur." },
+  );
 
   if (loading) {
     return (
@@ -88,6 +94,14 @@ export default function BulletinPage() {
           >
             <Download className="w-4 h-4" /> Télécharger PDF
           </a>
+          <button
+            onClick={() => envoyerEmail({})}
+            disabled={envoi}
+            className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-300 text-slate-700 text-sm font-medium rounded-lg hover:bg-slate-50 disabled:opacity-60"
+          >
+            {envoi ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Mail className="w-4 h-4" />}
+            {envoi ? "Envoi…" : "Envoyer par email"}
+          </button>
           <button
             onClick={() => window.print()}
             className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700"

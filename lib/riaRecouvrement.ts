@@ -25,12 +25,14 @@
 import { prisma } from "@/lib/prisma";
 import {
   Prisma,
+  Role,
   PrioriteNotification,
   PhaseRecouvrementRIA,
   StatutFinancementRIA,
   TypeActionRecouvrement,
 } from "@prisma/client";
 import { notify, notifyAdmins, type TxClient } from "@/lib/notifications";
+import { sendRetardRIAEmail } from "@/lib/email";
 
 // ─── Seuils (jours) — surchargeables via ConfigAlerteRIA (cle / valeur) ─────────
 
@@ -185,6 +187,64 @@ async function escaladerNiveau(
   if (c.versAdmins) await notifyAdmins(tx, payload);
 }
 
+// ─── Alerte email vers le staff interne (hors transaction) ─────────────────────
+
+/** Résout les emails des utilisateurs cibles (déduplication incluse). */
+async function resoudreEmails(userIds: number[]): Promise<string[]> {
+  const uniques = [...new Set(userIds)];
+  if (!uniques.length) return [];
+  const users = await prisma.user.findMany({
+    where: { id: { in: uniques } },
+    select: { email: true },
+  });
+  return users.map((u) => u.email).filter((e): e is string => !!e);
+}
+
+/** Emails des ADMIN / SUPER_ADMIN. */
+async function emailsAdmins(): Promise<string[]> {
+  const admins = await prisma.user.findMany({
+    where: { role: { in: [Role.ADMIN, Role.SUPER_ADMIN] } },
+    select: { email: true },
+  });
+  return admins.map((u) => u.email).filter((e): e is string => !!e);
+}
+
+/**
+ * Envoie une alerte email au staff responsable de chaque palier franchi.
+ * Appelée APRÈS le commit de la transaction ; entièrement non-bloquante.
+ */
+async function envoyerEmailsEscalade(
+  fin: FinAvecClient,
+  niveaux: number[],
+  joursRetard: number,
+): Promise<void> {
+  if (!niveaux.length) return;
+  const clientNom = `${fin.client.prenom} ${fin.client.nom}`.trim();
+  const encours = Number(fin.encours).toLocaleString("fr-FR");
+  const actionUrl = `/dashboard/admin/ria/financements?financement=${fin.id}`;
+
+  for (const niveau of niveaux) {
+    const c = paramsNiveau(niveau, fin);
+    const dest = new Set<string>(await resoudreEmails(c.cibles));
+    if (c.versAdmins) for (const e of await emailsAdmins()) dest.add(e);
+    if (!dest.size) continue;
+
+    await sendRetardRIAEmail({
+      to: [...dest],
+      niveau,
+      libelle: c.libelle,
+      clientNom,
+      reference: fin.reference,
+      joursRetard,
+      encours,
+      actionUrl,
+      urgent:
+        c.priorite === PrioriteNotification.HAUTE ||
+        c.priorite === PrioriteNotification.URGENT,
+    });
+  }
+}
+
 // ─── Résultat du scan ───────────────────────────────────────────────────────────
 
 export interface EscaladeResultat {
@@ -255,9 +315,13 @@ export async function evaluerRetardsRIA(): Promise<EscaladeResultat> {
     // Transition vers DEFAUT → immobiliser le capital (engage → bloque), une seule fois.
     const passeEnDefaut = statut === StatutFinancementRIA.DEFAUT && fin.statut !== StatutFinancementRIA.DEFAUT;
 
+    // Paliers réellement franchis ce passage (pour l'alerte email post-commit).
+    const niveauxFranchis: number[] = [];
+
     await prisma.$transaction(async (tx) => {
       for (let n = fin.niveauEscalade + 1; n <= niveauCible; n++) {
         await escaladerNiveau(tx, fin, n, joursRetard);
+        niveauxFranchis.push(n);
         res.paliersFranchis++;
       }
       await tx.operationFinancementRIA.update({
@@ -295,6 +359,9 @@ export async function evaluerRetardsRIA(): Promise<EscaladeResultat> {
     res.escalades++;
     res.parNiveau[niveauCible] = (res.parNiveau[niveauCible] ?? 0) + 1;
     res.parPhase[phaseCible] = (res.parPhase[phaseCible] ?? 0) + 1;
+
+    // Alerte email au staff — hors transaction, non-bloquante.
+    await envoyerEmailsEscalade(fin, niveauxFranchis, joursRetard);
   }
 
   return res;

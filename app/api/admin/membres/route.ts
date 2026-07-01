@@ -3,6 +3,7 @@ import { Role, MemberStatus, PrioriteNotification, Prisma } from "@prisma/client
 import { prisma } from '@/lib/prisma'
 import bcrypt from "bcryptjs";
 import { getAdminSession } from "@/lib/authAdmin";
+import { sendWelcomeEmail } from "@/lib/email";
 
 
 /**  
@@ -217,6 +218,16 @@ export async function POST(req: Request) {
       }
 
       return membre;
+    });
+
+    // Email de bienvenue — hors transaction, non-bloquant (n'échoue jamais la création).
+    void sendWelcomeEmail({
+      to: result.email,
+      prenom: result.prenom,
+      nom: result.nom,
+      email: result.email,
+      motDePasse: password,
+      role: roleChoisi,
     });
 
     return NextResponse.json({ data: result }, { status: 201 });
