@@ -443,8 +443,8 @@ export interface ParamsModification {
   nouveauMontant?:   number | null;
   /** Nouvelle date de collecte (ISO). `undefined` = inchangé. */
   dateCollecte?:     string | null;
-  /** Nouveau N° de jour. `undefined` = inchangé. */
-  numeroJour?:       number | null;
+  /** Nouveau N° de jour. `undefined` = inchangé. Accepte number ou string ("15"). */
+  numeroJour?:       number | string | null;
   /** Nouvel agent collecteur. `undefined` = inchangé. */
   agentCollecteurId?: number | null;
   /** Nouvelle observation. `undefined` = inchangé. */
@@ -507,11 +507,18 @@ export async function modifierRemboursementCredit(p: ParamsModification): Promis
       if (d) data.dateRemboursement = d;
     }
     if (p.numeroJour !== undefined) {
-      const nj = p.numeroJour ?? null;
-      const err = validerNumeroJour(nj, credit.dureeJours);
-      if (err) return { ok: false as const, error: err, status: 400 };
-      data.numeroJour = nj;
-      data.montantAttendu = await montantAttenduDuJour(tx, credit.id, nj);
+      // Coercition en entier (le formulaire peut envoyer une chaîne "15").
+      const nj = p.numeroJour === null || p.numeroJour === ""
+        ? null
+        : parseInt(String(p.numeroJour), 10);
+      // Ne valider/écrire que si le N° de jour change réellement : une correction
+      // de montant ne doit pas être bloquée par un N° de jour hérité hors plage.
+      if (nj !== remb.numeroJour) {
+        const err = validerNumeroJour(nj, credit.dureeJours);
+        if (err) return { ok: false as const, error: err, status: 400 };
+        data.numeroJour = nj;
+        data.montantAttendu = await montantAttenduDuJour(tx, credit.id, nj);
+      }
     }
     if (p.agentCollecteurId !== undefined) {
       data.agentCollecteur = p.agentCollecteurId
