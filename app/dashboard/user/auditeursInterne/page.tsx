@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import SignOutButton from "@/components/SignOutButton";
 import NotificationBell from "@/components/NotificationBell";
+import CongesNavButton from "@/components/CongesNavButton";
 import MessagesLink from "@/components/MessagesLink";
 import UserPdvBadge from "@/components/UserPdvBadge";
 import DashboardBackButton from "@/components/DashboardBackButton";
@@ -699,6 +700,7 @@ export default function AuditeurInternePage() {
             <div className="flex items-center gap-3">
               <UserPdvBadge />
               <MessagesLink />
+              <CongesNavButton />
               <NotificationBell href="/dashboard/user/notifications" />
               <SignOutButton redirectTo="/auth/login?logout=success" className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50 rounded-lg transition-colors" />
             </div>

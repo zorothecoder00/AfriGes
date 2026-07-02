@@ -12,6 +12,7 @@ import Link from "next/link";
 import HistoriquePrixProduit from "@/components/HistoriquePrixProduit";
 import SignOutButton from "@/components/SignOutButton";
 import NotificationBell from "@/components/NotificationBell";
+import CongesNavButton from "@/components/CongesNavButton";
 import MessagesLink from "@/components/MessagesLink";
 import UserPdvBadge from "@/components/UserPdvBadge";
 import DashboardBackButton from "@/components/DashboardBackButton";
@@ -760,6 +761,7 @@ export default function LogistiqueApprovisionnementPage() {
             <div className="flex items-center gap-3">
               <UserPdvBadge />
               <MessagesLink />
+              <CongesNavButton />
               <NotificationBell href="/dashboard/user/notifications" />
               <SignOutButton
                 redirectTo="/auth/login?logout=success"

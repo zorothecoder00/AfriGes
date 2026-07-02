@@ -2,9 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAdminSession } from "@/lib/authAdmin";
 import { StatutFichePaie } from "@prisma/client";
-import { appliquerRetenuesAuto } from "@/lib/paieRetenues";
-import { calculerCommissionsProfil } from "@/lib/calcCommission";
-import { calculerDeductionsAbsence } from "@/lib/calcDeductionsPointage";
+import { creerFichePaie, FichePaieError } from "@/lib/creerFichePaie";
 
 /**
  * GET /api/admin/rh/paie
@@ -89,109 +87,31 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json();
     const { profilRHId, mois, annee, salaireBase, composants = [], notes } = body;
-    // Retenues (prêts+avances) et commissions automatiques activées par défaut (CDC 13.4/13.5/13.6).
-    const autoRetenues    = body.autoRetenues    !== false;
-    const autoCommissions = body.autoCommissions !== false;
-    const autoDeductions  = body.autoDeductions  !== false; // absences (CDC 13.2)
 
     if (!profilRHId || !mois || !annee) {
       return NextResponse.json({ error: "profilRHId, mois et annee sont obligatoires" }, { status: 400 });
     }
 
-    const profil = await prisma.profilRH.findUnique({
-      where:   { id: Number(profilRHId) },
-      include: { gestionnaire: { select: { role: true, memberId: true } } },
-    });
-    if (!profil) return NextResponse.json({ error: "Collaborateur introuvable" }, { status: 404 });
-
-    // Anti double prélèvement : une seule fiche par (collaborateur, mois, année).
-    const dejaCree = await prisma.fichePaie.findUnique({
-      where: { profilRHId_mois_annee: { profilRHId: Number(profilRHId), mois: Number(mois), annee: Number(annee) } },
-      select: { id: true },
-    });
-    if (dejaCree) {
-      return NextResponse.json({ error: "Une fiche de paie existe déjà pour ce collaborateur sur cette période." }, { status: 409 });
-    }
-
-    // Totaux des composants saisis manuellement.
-    const brutManuel        = composants.filter((c: { isRetenue: boolean; montant: number }) => !c.isRetenue).reduce((s: number, c: { montant: number }) => s + Number(c.montant), Number(salaireBase ?? 0));
-    const retenuesManuelles = composants.filter((c: { isRetenue: boolean; montant: number }) =>  c.isRetenue).reduce((s: number, c: { montant: number }) => s + Number(c.montant), 0);
-
-    const fiche = await prisma.$transaction(async (tx) => {
-      // Retenues automatiques (décrémente les soldes prêts/avances).
-      const autoComposants = autoRetenues ? await appliquerRetenuesAuto(tx, Number(profilRHId)) : [];
-
-      // Déductions absences (depuis les pointages de la période).
-      const deductionComposants = autoDeductions
-        ? await calculerDeductionsAbsence(tx, Number(profilRHId), Number(mois), Number(annee), Number(salaireBase ?? 0))
-        : [];
-
-      const retenuesAuto = [...autoComposants, ...deductionComposants].reduce((s, c) => s + c.montant, 0);
-
-      // Commissions automatiques (barème du rôle × activité de la période).
-      const commissionComposants = autoCommissions && profil.gestionnaire
-        ? await calculerCommissionsProfil(tx, profil.gestionnaire, Number(mois), Number(annee))
-        : [];
-      const gainsAuto = commissionComposants.reduce((s, c) => s + c.montant, 0);
-
-      const totalBrut     = brutManuel + gainsAuto;
-      const totalRetenues = retenuesManuelles + retenuesAuto;
-      const netAPayer     = totalBrut - totalRetenues;
-
-      const f = await tx.fichePaie.create({
-        data: {
-          profilRHId:    Number(profilRHId),
-          mois:          Number(mois),
-          annee:         Number(annee),
-          salaireBase:   Number(salaireBase ?? 0),
-          totalBrut,
-          totalRetenues,
-          netAPayer,
-          notes:         notes ?? null,
-          genereParId:   parseInt(session.user.id),
-          statut:        "BROUILLON",
-          composants: {
-            create: [
-              ...composants.map((c: { type: string; libelle: string; montant: number; isRetenue: boolean }) => ({
-                type:      c.type,
-                libelle:   c.libelle,
-                montant:   Number(c.montant),
-                isRetenue: c.isRetenue ?? false,
-              })),
-              ...commissionComposants.map((c) => ({
-                type:      c.type,
-                libelle:   c.libelle,
-                montant:   c.montant,
-                isRetenue: false,
-                ordre:     c.ordre,
-              })),
-              ...[...autoComposants, ...deductionComposants].map((c) => ({
-                type:      c.type,
-                libelle:   c.libelle,
-                montant:   c.montant,
-                isRetenue: true,
-                ordre:     c.ordre,
-              })),
-            ],
-          },
-        },
-        include: { composants: true },
-      });
-      return f;
-    });
-
-    await prisma.auditLog.create({
-      data: {
-        userId:   parseInt(session.user.id),
-        action:   "CREATE",
-        entite:   "FichePaie",
-        entiteId: fiche.id,
-        details:  `Fiche paie ${mois}/${annee} créée pour profilRH #${profilRHId}`,
-      },
+    // Autos activés par défaut (CDC 13.2/13.4/13.5/13.6 + prime d'ancienneté).
+    const fiche = await creerFichePaie({
+      profilRHId:      Number(profilRHId),
+      mois:            Number(mois),
+      annee:           Number(annee),
+      salaireBase:     Number(salaireBase ?? 0),
+      composants,
+      notes:           notes ?? null,
+      genereParId:     parseInt(session.user.id),
+      autoRetenues:    body.autoRetenues    !== false,
+      autoCommissions: body.autoCommissions !== false,
+      autoDeductions:  body.autoDeductions  !== false,
+      autoAnciennete:  body.autoAnciennete  !== false,
     });
 
     return NextResponse.json({ data: fiche }, { status: 201 });
   } catch (error) {
+    if (error instanceof FichePaieError) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
+    }
     console.error("POST /api/admin/rh/paie", error);
     return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
   }

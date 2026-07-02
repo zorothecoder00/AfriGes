@@ -8,6 +8,8 @@
 
 -Resend est une lib permettant l'envoi d'email 
 
+-jose pour le JWT, bcryptjs pour le hash
+
 -On peut aussi utiliser du SVG pour les graphiques ( sans forcément dépendance externe)  
 -Ce code :      
    const a = document.createElement("a");
@@ -105,6 +107,106 @@ Permettre certaines notifications via mail (vu que maintenant j'ai implémenté 
 
 Pour les connexion google , demander aussi un autre mot de passe pour empêcher les passant de pouvoir se connecter facilement avec le google d'un utilisateur
 
-Empêcher les admin simples de faire les impressions clients ( dashboard/admin/clients) ecxel ( le superadmin seul peut le faire)
+
+Diminiuer les sous liens sur la page admin
+
+
+Ajouter personne à prévenir ( lien familial et numéro) et la photo dans dashboard/admin/rh/collaborateurs/id
+
+Pour toutes les exportations, factures , archivags, documents OGRH, les bulletins de paie etc etc il y'a le nom AfriGes en haut ( ça devrait être AfriSime plutôt avec le logo de préférence)
+
+Pour les documents OGRH donner la main aux admins de signer( pas seulement les Gestion de Ressources Humaines)
+
+Permettre d'envoyer les documents OGRH ( et tous les autres d'ailleurs) sur les emails
+
+Le RH et les admins doivent avoir un espace déclencheur pour Fin contrat
+Validation congé
+Évaluation programmée
+Formation à suivre
+Document expirant
+
+
+Le RH et les admins doivent avoir une vue détaillée pour le congés et les demandes de congé, les absences , les demandes de permissions d'absence des collaborateurs
+ 
+
+Pour les rh/audit tu es sûr d'avoir fait 
+
+
+Système RBAC (Role Based Access Control)
+Permissions :
+Lecture
+Création
+Modification
+Validation
+Export
+Suppression logique
+Gestion granulaire obligatoire.     A terminer (adminisatratio système)
+
+
+Pour la gestion des commissions et le paramètre des profils de de collaborateur on doit revoir ça
+
+
+Normalement pour les avances et les prêts , le collaboareur par son portail doit pouvoir faire une demande pour que e manager ou le rh valide Employé
+↓
+Manager
+↓
+RH
+↓
+Validation
+
+
+13.8 ORDRES DE PAIEMENT
+Génération automatique :
+Liste de virement bancaire
+Liste Mobile Money
+Liste espèces
+
+
+13.9 HISTORIQUE DES PAIES(documents uploadés avec les signatures)
+Conservation illimitée :
+Bulletin
+Modifications
+Paiements effectués
+Aucune suppression.
+
+
+WORKFLOW DE VALIDATION DE PAIE
+Préparation RH
+↓
+Contrôle RH
+↓
+Validation Direction(admin/superadmin)
+↓
+Mise en paiement
+↓
+Archivage
+
+
+Pour les ventes à crédit , on veut ceci : 
+Durée (jours) *
+
+Date de début *
+
+Montant/jour (AUTO)
+
+Fin d'échéance (AUTO)
+
+Taux pénalité (% / jour)
+
+Garantie   sur les factures
+
+On veut aussi côté du nom sa fonction ( rôle gestionnaire peut être )
+
+Est ce que le RH a le même tableau de bord complet comme l'admin pour la route des paie ???
+
+Un point à valider : je considère « versées » au sens large (fiches VALIDE +
+  EN_PAIEMENT + PAYE, comme la masse salariale). Si tu veux que « versées » =
+  strictement PAYE, je restreins les totaux variables à ce seul statut —
+  dis-moi.
+
+✻ Sautéed for 8m 36s
+
+
+
 
 

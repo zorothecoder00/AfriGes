@@ -10,6 +10,7 @@ import {
 import Link from "next/link";
 import SignOutButton from "@/components/SignOutButton";
 import NotificationBell from "@/components/NotificationBell";
+import CongesNavButton from "@/components/CongesNavButton";
 import MessagesLink from "@/components/MessagesLink";
 import DashboardBackButton from "@/components/DashboardBackButton";
 import ClientSegmentTags from "@/components/ClientSegmentTags";
@@ -589,6 +590,7 @@ export default function RVCPage() {
             </div>
             <div className="flex items-center gap-3">
               <MessagesLink />
+              <CongesNavButton />
               <NotificationBell href="/dashboard/user/notifications" />
               <SignOutButton />
             </div>

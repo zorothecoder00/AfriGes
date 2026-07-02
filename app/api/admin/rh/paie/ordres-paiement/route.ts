@@ -8,8 +8,11 @@ import { getAdminSession } from "@/lib/authAdmin";
  *   Retourne les fiches prêtes à payer avec total
  *
  * PATCH /api/admin/rh/paie/ordres-paiement
- *   Body: { ids: number[], modePaiement? }
- *   Marque toutes les fiches ids comme PAYE en masse
+ *   Body: { ids: number[], modePaiement?, action? }
+ *   action:
+ *     "METTRE_EN_PAIEMENT" → VALIDE → EN_PAIEMENT (entrée dans la file de paiement)
+ *     "AFFECTER"           → affecte le mode sans payer (reste EN_PAIEMENT)
+ *     "PAYER" (défaut)     → EN_PAIEMENT → PAYE
  */
 
 export async function GET(req: NextRequest) {
@@ -80,33 +83,54 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: "ids est obligatoire" }, { status: 400 });
     }
 
-    // action = "AFFECTER" → assigne le mode de paiement SANS payer (la fiche reste EN_PAIEMENT,
-    //                        elle bascule juste dans la bonne liste).
-    //          "PAYER" (défaut) → marque PAYE avec le mode.
-    const affecterSeul = action === "AFFECTER";
+    const userId = parseInt(session.user.id);
+    const idNums = ids.map(Number);
 
-    if (affecterSeul && !modePaiement) {
-      return NextResponse.json({ error: "modePaiement est obligatoire pour l'affectation" }, { status: 400 });
+    let updated: { count: number };
+    let auditAction: string;
+    let auditDetails: Record<string, unknown>;
+
+    if (action === "METTRE_EN_PAIEMENT") {
+      // VALIDE → EN_PAIEMENT (mise dans la file de paiement, mode optionnel).
+      updated = await prisma.fichePaie.updateMany({
+        where: { id: { in: idNums }, statut: "VALIDE" },
+        data:  {
+          statut:             "EN_PAIEMENT",
+          misEnPaiementParId: userId,
+          dateMiseEnPaiement: new Date(),
+          modePaiement:       modePaiement ?? null,
+        },
+      });
+      auditAction  = "METTRE_EN_PAIEMENT";
+      auditDetails = { avant: { statut: "VALIDE" }, apres: { statut: "EN_PAIEMENT" } };
+    } else if (action === "AFFECTER") {
+      // Affecte le mode sans payer (la fiche reste EN_PAIEMENT, bascule dans la bonne liste).
+      if (!modePaiement) {
+        return NextResponse.json({ error: "modePaiement est obligatoire pour l'affectation" }, { status: 400 });
+      }
+      updated = await prisma.fichePaie.updateMany({
+        where: { id: { in: idNums }, statut: "EN_PAIEMENT" },
+        data:  { modePaiement },
+      });
+      auditAction  = "AFFECTER_MODE_PAIEMENT";
+      auditDetails = { apres: { modePaiement } };
+    } else {
+      // PAYER (défaut) : EN_PAIEMENT → PAYE.
+      updated = await prisma.fichePaie.updateMany({
+        where: { id: { in: idNums }, statut: "EN_PAIEMENT" },
+        data:  { statut: "PAYE", modePaiement: modePaiement ?? null },
+      });
+      auditAction  = "MARQUER_PAYE";
+      auditDetails = { avant: { statut: "EN_PAIEMENT" }, apres: { statut: "PAYE", modePaiement } };
     }
 
-    const updated = await prisma.fichePaie.updateMany({
-      where: { id: { in: ids.map(Number) }, statut: "EN_PAIEMENT" },
-      data: affecterSeul
-        ? { modePaiement }
-        : { statut: "PAYE", modePaiement: modePaiement ?? null },
-    });
-
     await prisma.auditLog.createMany({
-      data: ids.map((id: number) => ({
-        userId:   parseInt(session.user.id),
-        action:   affecterSeul ? "AFFECTER_MODE_PAIEMENT" : "MARQUER_PAYE",
+      data: idNums.map((id: number) => ({
+        userId,
+        action:   auditAction,
         entite:   "FichePaie",
-        entiteId: Number(id),
-        details:  JSON.parse(JSON.stringify(
-          affecterSeul
-            ? { apres: { modePaiement } }
-            : { avant: { statut: "EN_PAIEMENT" }, apres: { statut: "PAYE", modePaiement } },
-        )),
+        entiteId: id,
+        details:  JSON.parse(JSON.stringify(auditDetails)),
       })),
     });
 

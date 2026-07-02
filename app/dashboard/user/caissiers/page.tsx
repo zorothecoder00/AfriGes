@@ -12,6 +12,7 @@ import {
 } from "lucide-react";     
 import SignOutButton from "@/components/SignOutButton";
 import NotificationBell from "@/components/NotificationBell";
+import CongesNavButton from "@/components/CongesNavButton";
 import FactureModal from "@/components/FactureModal";
 import MessagesLink from "@/components/MessagesLink";
 import UserPdvBadge from "@/components/UserPdvBadge";
@@ -2015,6 +2016,7 @@ export default function CaissierPage() {
               </button>
               <UserPdvBadge />
               <MessagesLink />
+              <CongesNavButton />
               <NotificationBell href="/dashboard/user/notifications" />
               <SignOutButton
                 redirectTo="/auth/login?logout=success"

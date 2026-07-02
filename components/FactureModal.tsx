@@ -88,6 +88,25 @@ const MODE_LABELS: Record<string, string> = {
   CREDIT:       "Crédit",
 };
 
+// Identité société pour l'en-tête / pied de facture (letterhead AFRISIME).
+const AFRISIME = {
+  logo:      "/afrisime-logo.svg",
+  nom:       "AFRISIME SARL",
+  slogan:    "La Grande Distribution Africaine",
+  activites: [
+    "Commerce Général | Vente en Gros | Vente au Détail",
+    "Vente à Crédit | Import-Export | Logistique & Livraison",
+  ],
+  siege:     "Siège : Adidogomé (Lomé) - Togo | Tél : +228 98 40 45 45 / 93 24 57 64 | afrisimea@afrisime.com | www.afrisime.com",
+  baseline:  "AFRISIME | Réinventer la distribution pour une Afrique plus prospère.",
+  legal:     "RCCM : TG-LFW-01-2026-B12-00649 | NIF : 1002122728",
+};
+
+/** Couleur du badge de type de facture (pour l'impression HTML inline). */
+function badgeColor(type: string): string {
+  return type === "CREDIT" ? "#2563eb" : type === "PRO_FORMA" ? "#f59e0b" : "#059669";
+}
+
 // ─── Layout imprimable de la facture ─────────────────────────────────────────
 
 function InvoiceLayout({ f }: { f: FactureData }) {
@@ -99,24 +118,37 @@ function InvoiceLayout({ f }: { f: FactureData }) {
   return (
     <div className="bg-white text-slate-800 font-['DM_Sans',sans-serif]">
 
-      {/* ── En-tête ─────────────────────────────────────────────────────────── */}
-      <div className="flex items-start justify-between mb-8 pb-6 border-b border-slate-200">
-        <div>
-          <h1 className="text-2xl font-black tracking-tight" style={{ color: "#059669" }}>
-            {f.entreprise.nom}
-          </h1>
-          {f.entreprise.adresse   && <p className="text-sm text-slate-500 mt-0.5">{f.entreprise.adresse}</p>}
-          {f.entreprise.telephone && <p className="text-sm text-slate-500">{f.entreprise.telephone}</p>}
-          {f.pdvNom && (
-            <p className="text-sm font-semibold text-slate-600 mt-1">{f.pdvNom}</p>
-          )}
-          {f.pdvTelephone && <p className="text-xs text-slate-400">{f.pdvTelephone}</p>}
+      {/* ── En-tête société (letterhead AFRISIME) ───────────────────────────── */}
+      <div className="mb-4">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={AFRISIME.logo} alt="AFRISIME" className="h-14 w-auto mb-3" />
+        <h1 className="text-2xl font-black tracking-tight" style={{ color: "#059669" }}>
+          {AFRISIME.nom}
+        </h1>
+        <p className="text-sm font-semibold text-slate-600">{AFRISIME.slogan}</p>
+        <div className="text-[11px] text-slate-500 leading-relaxed mt-1">
+          {AFRISIME.activites.map((a, i) => <p key={i}>{a}</p>)}
+          <p>{AFRISIME.siege}</p>
         </div>
+      </div>
 
-        <div className="text-right space-y-1">
+      <div className="border-t-[3px] border-double border-slate-300 mb-6" />
+
+      {/* ── Méta facture ────────────────────────────────────────────────────── */}
+      <div className="flex items-start justify-between mb-8">
+        <div className="space-y-1">
           <span className={`inline-block px-3 py-1 rounded-lg text-xs font-black uppercase tracking-wider ${badge.bg} ${badge.text}`}>
             FACTURE {badge.label}
           </span>
+          {f.statut === "ANNULEE" && (
+            <div>
+              <span className="inline-block bg-red-100 text-red-700 text-xs font-bold px-2 py-0.5 rounded">
+                ANNULÉE
+              </span>
+            </div>
+          )}
+        </div>
+        <div className="text-right space-y-0.5">
           <p className="text-xl font-black text-slate-800">{f.numero}</p>
           <p className="text-sm text-slate-500">
             Émise le {new Date(f.dateEmission).toLocaleDateString("fr-FR")}
@@ -125,11 +157,6 @@ function InvoiceLayout({ f }: { f: FactureData }) {
             <p className="text-sm font-semibold text-red-600">
               Échéance : {new Date(f.dateEcheance).toLocaleDateString("fr-FR")}
             </p>
-          )}
-          {f.statut === "ANNULEE" && (
-            <span className="inline-block bg-red-100 text-red-700 text-xs font-bold px-2 py-0.5 rounded">
-              ANNULÉE
-            </span>
           )}
         </div>
       </div>
@@ -244,6 +271,13 @@ function InvoiceLayout({ f }: { f: FactureData }) {
           Valide sous réserve de disponibilité des produits.
         </p>
       )}
+
+      {/* ── Pied de page société ─────────────────────────────────────────────── */}
+      <div className="mt-10">
+        <div className="border-t-[3px] border-double border-slate-300 mb-3" />
+        <p className="text-center text-xs font-semibold text-slate-600">{AFRISIME.baseline}</p>
+        <p className="text-center text-[11px] text-slate-400 mt-0.5">{AFRISIME.legal}</p>
+      </div>
     </div>
   );
 }
@@ -586,6 +620,10 @@ function printInvoice(f: FactureData) {
   const hasTVA = f.montantTVA > 0;
   const solde = f.montantTTC - f.montantPaye;
   const isPaid = f.montantPaye >= f.montantTTC && f.type !== "PRO_FORMA";
+  // Logo en URL absolue : la fenêtre d'impression est ouverte via un blob (origine opaque),
+  // un chemin relatif ne résoudrait pas vers l'app.
+  const origin  = typeof window !== "undefined" ? window.location.origin : "";
+  const logoUrl = `${origin}${AFRISIME.logo}`;
 
   function fmt(n: number) {
     return new Intl.NumberFormat("fr-FR").format(n) + " FCFA";
@@ -649,23 +687,31 @@ function printInvoice(f: FactureData) {
 </head>
 <body>
 
-  <!-- En-tête -->
-  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:32px;padding-bottom:24px;border-bottom:1px solid #e2e8f0">
-    <div>
-      <h1 style="font-size:22px;font-weight:900;color:#059669;letter-spacing:-0.5px">${f.entreprise.nom}</h1>
-      ${f.entreprise.adresse ? `<p style="font-size:13px;color:#64748b;margin-top:4px">${f.entreprise.adresse}</p>` : ""}
-      ${f.entreprise.telephone ? `<p style="font-size:13px;color:#64748b">${f.entreprise.telephone}</p>` : ""}
-      ${f.pdvNom ? `<p style="font-size:13px;font-weight:600;color:#475569;margin-top:6px">${f.pdvNom}</p>` : ""}
-      ${f.pdvTelephone ? `<p style="font-size:12px;color:#94a3b8">${f.pdvTelephone}</p>` : ""}
+  <!-- En-tête société (letterhead AFRISIME) -->
+  <div style="margin-bottom:20px">
+    <img src="${logoUrl}" alt="AFRISIME" style="height:56px;width:auto;display:block;margin-bottom:10px"/>
+    <h1 style="font-size:22px;font-weight:900;color:#059669;letter-spacing:-0.5px">${AFRISIME.nom}</h1>
+    <p style="font-size:13px;font-weight:600;color:#475569;margin-top:2px">${AFRISIME.slogan}</p>
+    <div style="font-size:11px;color:#64748b;line-height:1.6;margin-top:4px">
+      ${AFRISIME.activites.map((a) => `<p>${a}</p>`).join("")}
+      <p>${AFRISIME.siege}</p>
     </div>
-    <div style="text-align:right">
-      <span style="display:inline-block;padding:4px 12px;border-radius:8px;font-size:11px;font-weight:900;letter-spacing:1px;background:${badge.bg === "bg-emerald-600" ? "#059669" : badge.bg === "bg-blue-600" ? "#2563eb" : "#f59e0b"};color:white">
+  </div>
+
+  <div style="border-top:3px double #cbd5e1;margin-bottom:24px"></div>
+
+  <!-- Méta facture -->
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:32px">
+    <div>
+      <span style="display:inline-block;padding:4px 12px;border-radius:8px;font-size:11px;font-weight:900;letter-spacing:1px;background:${badgeColor(f.type)};color:white">
         FACTURE ${badge.label}
       </span>
-      <p style="font-size:20px;font-weight:900;color:#1e293b;margin-top:6px">${f.numero}</p>
+      ${f.statut === "ANNULEE" ? `<div style="margin-top:6px"><span style="display:inline-block;background:#fee2e2;color:#b91c1c;font-size:11px;font-weight:700;padding:2px 8px;border-radius:4px">ANNULÉE</span></div>` : ""}
+    </div>
+    <div style="text-align:right">
+      <p style="font-size:20px;font-weight:900;color:#1e293b">${f.numero}</p>
       <p style="font-size:13px;color:#64748b;margin-top:4px">Émise le ${fmtDate(f.dateEmission)}</p>
       ${f.dateEcheance ? `<p style="font-size:13px;font-weight:600;color:#dc2626;margin-top:2px">Échéance : ${fmtDate(f.dateEcheance)}</p>` : ""}
-      ${f.statut === "ANNULEE" ? `<span style="display:inline-block;background:#fee2e2;color:#b91c1c;font-size:11px;font-weight:700;padding:2px 8px;border-radius:4px;margin-top:4px">ANNULÉE</span>` : ""}
     </div>
   </div>
 
@@ -715,6 +761,13 @@ function printInvoice(f: FactureData) {
   <p style="text-align:center;font-size:11px;color:#94a3b8;margin-top:24px;font-style:italic">
     Ce document est une facture pro-forma — il ne constitue pas une facture définitive. Valide sous réserve de disponibilité des produits.
   </p>` : ""}
+
+  <!-- Pied de page société -->
+  <div style="margin-top:40px">
+    <div style="border-top:3px double #cbd5e1;margin-bottom:12px"></div>
+    <p style="text-align:center;font-size:12px;font-weight:600;color:#475569">${AFRISIME.baseline}</p>
+    <p style="text-align:center;font-size:11px;color:#94a3b8;margin-top:2px">${AFRISIME.legal}</p>
+  </div>
 
 </body></html>`;
 

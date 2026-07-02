@@ -6,7 +6,7 @@ import {
   DollarSign, CheckCircle, Clock, CreditCard, ArrowLeft,
   ChevronDown, ChevronUp, User, Eye, BarChart2,
   Send, Settings, TrendingUp, Banknote,
-  ShieldCheck, Play, Info, Download,
+  ShieldCheck, Play, Info, Download, Users,
 } from "lucide-react";
 import Link from "next/link";
 import { useApi, useMutation } from "@/hooks/useApi";
@@ -68,6 +68,10 @@ interface DashboardData {
   avancesEnCours: { count: number; montantTotal: number };
   pretsEnCours: { count: number; montantTotal: number };
   parDepartement: Record<string, number>;
+  parEquipe: Record<string, number>;
+  topCollaborateurs: { nom: string; montant: number }[];
+  variables: { commissions: number; bonus: number; primes: number };
+  variablesMensuelles: { mois: number; commissions: number; bonus: number; primes: number }[];
   composantsMoisCourant?: Record<string, number>;
 }
 
@@ -428,7 +432,7 @@ function CreateFicheModal({ onClose, onCreated }: { onClose: () => void; onCreat
           {/* Info retenues auto */}
           <div className="flex items-start gap-2 bg-blue-50 border border-blue-200 rounded-xl px-3 py-2.5 text-xs text-blue-800">
             <Info className="w-3.5 h-3.5 mt-0.5 shrink-0" />
-            <span>À la création : <strong>commissions</strong> (barème du rôle × activité : ventes, crédits, packs, recouvrements) ajoutées en gains ; <strong>prêts</strong> + <strong>avances</strong> + <strong>absences</strong> (depuis les pointages) en retenues. Soldes prêts/avances décrémentés.</span>
+            <span>À la création : <strong>prime d&apos;ancienneté</strong> (% du salaire de base selon les années de service) et <strong>commissions</strong> (barème du rôle × activité : ventes, crédits, packs, recouvrements) ajoutées en gains ; <strong>prêts</strong> + <strong>avances</strong> + <strong>absences</strong> (depuis les pointages) en retenues. Soldes prêts/avances décrémentés.</span>
           </div>
 
           {/* Composants */}
@@ -1011,33 +1015,51 @@ const MODES_PAIEMENT = [
 function OrdresPaiementTab() {
   const [mois,   setMois]   = useState(String(new Date().getMonth() + 1));
   const [annee,  setAnnee]  = useState(String(ANNEE_COURANTE));
+  const [allPeriods, setAllPeriods] = useState(false);
   const [selected,   setSelected]   = useState<number[]>([]);
   const [assignMode, setAssignMode] = useState("VIREMENT");
 
   const { mutate: patch, loading: working } = useMutation("/api/admin/rh/paie/ordres-paiement", "PATCH");
 
-  const params = new URLSearchParams({ statut: "EN_PAIEMENT" });
-  if (mois)  params.set("mois",  mois);
-  if (annee) params.set("annee", annee);
+  const buildParams = (statut: string) => {
+    const p = new URLSearchParams({ statut });
+    if (!allPeriods && mois)  p.set("mois",  mois);
+    if (!allPeriods && annee) p.set("annee", annee);
+    return p.toString();
+  };
 
-  const { data: res, loading, refetch } = useApi<OrdresRes>(`/api/admin/rh/paie/ordres-paiement?${params}`);
+  const { data: res,    loading, refetch }    = useApi<OrdresRes>(`/api/admin/rh/paie/ordres-paiement?${buildParams("EN_PAIEMENT")}`);
+  const { data: valRes,          refetch: refetchVal } = useApi<OrdresRes>(`/api/admin/rh/paie/ordres-paiement?${buildParams("VALIDE")}`);
   const listes = res?.listes;
   const total  = res?.total ?? 0;
   const nonAffecte = listes?.NON_AFFECTE;
 
+  const validees = valRes?.data  ?? [];
+  const totalVal = valRes?.total ?? 0;
+
+  const refreshAll   = () => { refetch(); refetchVal(); };
+  const periodeLabel = allPeriods ? "toutes périodes" : `${MOIS_LABELS[Number(mois)]} ${annee}`;
+
   const toggle = (id: number) => setSelected((s) => s.includes(id) ? s.filter((x) => x !== id) : [...s, id]);
+
+  const mettreEnPaiement = async () => {
+    if (validees.length === 0) return;
+    if (!confirm(`Mettre ${validees.length} fiche(s) validée(s) en paiement ?`)) return;
+    const r = await patch({ ids: validees.map((f) => f.id), action: "METTRE_EN_PAIEMENT" });
+    if (r) { toast.success(`${validees.length} fiche(s) mise(s) en paiement`); refreshAll(); }
+  };
 
   const affecter = async () => {
     if (selected.length === 0) { toast.error("Sélectionnez au moins une fiche"); return; }
     const r = await patch({ ids: selected, modePaiement: assignMode, action: "AFFECTER" });
-    if (r) { toast.success("Mode de paiement affecté"); setSelected([]); refetch(); }
+    if (r) { toast.success("Mode de paiement affecté"); setSelected([]); refreshAll(); }
   };
 
   const payerListe = async (mode: string, fiches: OrdreItem[]) => {
     if (fiches.length === 0) return;
     if (!confirm(`Marquer ${fiches.length} fiche(s) « ${mode} » comme payée(s) ?`)) return;
     const r = await patch({ ids: fiches.map((f) => f.id), modePaiement: mode, action: "PAYER" });
-    if (r) { toast.success(`Liste ${mode} : ${fiches.length} fiche(s) payée(s)`); refetch(); }
+    if (r) { toast.success(`Liste ${mode} : ${fiches.length} fiche(s) payée(s)`); refreshAll(); }
   };
 
   const pdfUrl = (mode: string) => `/api/admin/rh/paie/ordres-paiement/liste?mode=${mode}&mois=${mois}&annee=${annee}`;
@@ -1046,28 +1068,77 @@ function OrdresPaiementTab() {
     <div className="space-y-5">
       {/* Filtres */}
       <div className="flex gap-3 flex-wrap items-center">
-        <select value={mois} onChange={(e) => setMois(e.target.value)}
-          className="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
+        <select value={mois} onChange={(e) => setMois(e.target.value)} disabled={allPeriods}
+          className="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:opacity-50 disabled:bg-slate-50">
           {MOIS_LABELS.slice(1).map((l, i) => <option key={i+1} value={i+1}>{l}</option>)}
         </select>
-        <select value={annee} onChange={(e) => setAnnee(e.target.value)}
-          className="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
+        <select value={annee} onChange={(e) => setAnnee(e.target.value)} disabled={allPeriods}
+          className="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:opacity-50 disabled:bg-slate-50">
           {ANNEES.map((a) => <option key={a} value={a}>{a}</option>)}
         </select>
-        <button onClick={refetch} className="p-2 text-slate-500 hover:text-slate-700 bg-white border border-slate-200 rounded-lg"><RefreshCw className="w-4 h-4" /></button>
+        <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer select-none">
+          <input type="checkbox" checked={allPeriods} onChange={(e) => setAllPeriods(e.target.checked)}
+            className="rounded border-slate-300 text-purple-600 focus:ring-purple-500" />
+          Toutes périodes
+        </label>
+        <button onClick={refreshAll} className="p-2 text-slate-500 hover:text-slate-700 bg-white border border-slate-200 rounded-lg"><RefreshCw className="w-4 h-4" /></button>
         {total > 0 && (
           <div className="ml-auto bg-purple-50 border border-purple-200 rounded-xl px-4 py-2 text-sm">
-            <span className="text-purple-700">Total à décaisser — {MOIS_LABELS[Number(mois)]} {annee} : </span>
+            <span className="text-purple-700">Total à décaisser — {periodeLabel} : </span>
             <span className="font-bold text-purple-900">{fmt(total)} FCFA</span>
           </div>
         )}
       </div>
 
+      {/* Raccourci : fiches VALIDÉES prêtes à être mises en paiement */}
+      {validees.length > 0 && (
+        <div className="bg-white border border-blue-300 rounded-xl overflow-hidden">
+          <div className="flex flex-wrap items-center gap-3 px-5 py-3 bg-blue-50 border-b border-blue-200">
+            <CheckCircle className="w-4 h-4 text-blue-600" />
+            <span className="text-sm font-semibold text-blue-800">
+              {validees.length} fiche(s) validée(s) prête(s) — {fmt(totalVal)} FCFA
+            </span>
+            <button onClick={mettreEnPaiement} disabled={working}
+              className="ml-auto flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50">
+              <Send className="w-3.5 h-3.5" /> Mettre en paiement ({validees.length})
+            </button>
+          </div>
+          <div className="divide-y divide-slate-100">
+            {validees.map((o) => {
+              const mb = o.profilRH.gestionnaire.member;
+              return (
+                <div key={o.id} className="flex items-center gap-4 px-5 py-2.5">
+                  <span className="w-2 h-2 rounded-full bg-blue-400" />
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium text-slate-800">{mb.prenom} {mb.nom}</div>
+                    <div className="text-xs text-slate-400">{o.profilRH.matricule} — {MOIS_LABELS[o.mois]} {o.annee}</div>
+                  </div>
+                  <div className="text-sm font-bold text-slate-900">{fmt(o.netAPayer)} FCFA</div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {loading ? (
         <div className="flex items-center justify-center py-12 text-slate-400"><RefreshCw className="w-5 h-5 animate-spin mr-2" /> Chargement…</div>
       ) : total === 0 ? (
-        <div className="bg-white rounded-xl border border-slate-200 flex flex-col items-center py-12 text-slate-400">
-          <Send className="w-8 h-8 mb-2 opacity-30" /><p className="text-sm">Aucune fiche en attente de paiement</p>
+        <div className="bg-white rounded-xl border border-slate-200 flex flex-col items-center py-12 text-center text-slate-400 px-6">
+          <Send className="w-8 h-8 mb-2 opacity-30" />
+          <p className="text-sm font-medium text-slate-500">Aucune fiche en attente de paiement — {periodeLabel}</p>
+          <p className="text-xs mt-1 max-w-md">
+            Les fiches apparaissent ici une fois passées au statut « En paiement ».{" "}
+            {validees.length > 0
+              ? "Utilisez « Mettre en paiement » sur les fiches validées ci-dessus."
+              : "Faites d'abord avancer une fiche jusqu'à « Validée », puis mettez-la en paiement."}
+          </p>
+          {!allPeriods && (
+            <button onClick={() => setAllPeriods(true)}
+              className="mt-3 text-xs font-medium text-purple-600 hover:underline">
+              Voir toutes les périodes
+            </button>
+          )}
         </div>
       ) : (
         <>
@@ -1404,6 +1475,8 @@ function BaremesSubTab() {
 
 function DashboardTab() {
   const [annee, setAnnee] = useState(String(ANNEE_COURANTE));
+  const [masseView, setMasseView] = useState<"mensuel" | "trimestriel">("mensuel");
+  const [coutView,  setCoutView]  = useState<"departement" | "equipe" | "collaborateur">("departement");
   const { data: res, loading, refetch } = useApi<{ data: DashboardData }>(`/api/admin/rh/paie/dashboard?annee=${annee}`);
   const d = res?.data;
 
@@ -1445,36 +1518,75 @@ function DashboardTab() {
             </div>
           </div>
 
-          {/* Graphe mensuel */}
+          {/* Masse salariale — mensuelle / trimestrielle */}
           <div className="bg-white rounded-xl border border-slate-200 p-5">
-            <h3 className="text-sm font-semibold text-slate-700 mb-4 flex items-center gap-2">
-              <BarChart2 className="w-4 h-4" /> Masse salariale mensuelle {annee}
-            </h3>
-            <MasseMensuelleChart data={d.masseMensuelle} moisCourant={d.moisCourant} />
-          </div>
-
-          {/* Par département */}
-          {Object.keys(d.parDepartement).length > 0 && (
-            <div className="bg-white rounded-xl border border-slate-200 p-5">
-              <h3 className="text-sm font-semibold text-slate-700 mb-4">Par département — {MOIS_LABELS[d.moisCourant]}</h3>
-              <div className="space-y-2">
-                {(Object.entries(d.parDepartement) as [string, number][])
-                  .sort(([, a], [, b]) => b - a)
-                  .map(([dept, val]) => {
-                    const max = Math.max(...Object.values(d.parDepartement));
-                    return (
-                      <div key={dept} className="flex items-center gap-3">
-                        <span className="text-sm text-slate-600 w-40 truncate">{dept}</span>
-                        <div className="flex-1 bg-slate-100 rounded-full h-2">
-                          <div className="bg-emerald-500 h-2 rounded-full transition-all" style={{ width: `${(val / max) * 100}%` }} />
-                        </div>
-                        <span className="text-sm font-medium text-slate-700 text-right w-36">{fmt(val)} FCFA</span>
-                      </div>
-                    );
-                  })}
+            <div className="flex items-center justify-between mb-5 flex-wrap gap-2">
+              <h3 className="text-sm font-semibold text-slate-700 flex items-center gap-2">
+                <BarChart2 className="w-4 h-4" /> Masse salariale {masseView === "mensuel" ? "mensuelle" : "trimestrielle"} {annee}
+              </h3>
+              <div className="flex gap-1 bg-slate-100 rounded-lg p-0.5">
+                {([["mensuel", "Mensuelle"], ["trimestriel", "Trimestrielle"]] as const).map(([v, l]) => (
+                  <button key={v} onClick={() => setMasseView(v)}
+                    className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${masseView === v ? "bg-white shadow-sm text-slate-900" : "text-slate-500 hover:text-slate-700"}`}>
+                    {l}
+                  </button>
+                ))}
               </div>
             </div>
-          )}
+            {masseView === "mensuel"
+              ? <MasseMensuelleChart data={d.masseMensuelle} moisCourant={d.moisCourant} />
+              : <MasseTrimestrielleChart data={d.masseMensuelle} />}
+          </div>
+
+          {/* Variables — commissions & bonus versés */}
+          <div className="bg-white rounded-xl border border-slate-200 p-5">
+            <h3 className="text-sm font-semibold text-slate-700 mb-4 flex items-center gap-2">
+              <TrendingUp className="w-4 h-4" /> Rémunération variable {annee}
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-5">
+              <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-4">
+                <p className="text-xs text-emerald-700 font-medium">Commissions versées</p>
+                <p className="text-2xl font-bold text-emerald-800 mt-1">{fmt(d.variables.commissions)} FCFA</p>
+              </div>
+              <div className="rounded-xl border border-amber-100 bg-amber-50 p-4">
+                <p className="text-xs text-amber-700 font-medium">Bonus versés</p>
+                <p className="text-2xl font-bold text-amber-800 mt-1">{fmt(d.variables.bonus)} FCFA</p>
+              </div>
+              <div className="rounded-xl border border-indigo-100 bg-indigo-50 p-4">
+                <p className="text-xs text-indigo-700 font-medium">Primes versées</p>
+                <p className="text-2xl font-bold text-indigo-800 mt-1">{fmt(d.variables.primes)} FCFA</p>
+              </div>
+            </div>
+            <VariablesChart data={d.variablesMensuelles} moisCourant={d.moisCourant} />
+          </div>
+
+          {/* Coût RH — par département / équipe / collaborateur */}
+          <div className="bg-white rounded-xl border border-slate-200 p-5">
+            <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+              <h3 className="text-sm font-semibold text-slate-700 flex items-center gap-2">
+                <Users className="w-4 h-4" /> Coût RH {annee} — net cumulé
+              </h3>
+              <div className="flex gap-1 bg-slate-100 rounded-lg p-0.5">
+                {([["departement", "Département"], ["equipe", "Équipe"], ["collaborateur", "Collaborateur"]] as const).map(([v, l]) => (
+                  <button key={v} onClick={() => setCoutView(v)}
+                    className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${coutView === v ? "bg-white shadow-sm text-slate-900" : "text-slate-500 hover:text-slate-700"}`}>
+                    {l}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {(() => {
+              const rows = coutView === "departement"
+                ? (Object.entries(d.parDepartement) as [string, number][]).map(([label, montant]) => ({ label, montant }))
+                : coutView === "equipe"
+                ? (Object.entries(d.parEquipe) as [string, number][]).map(([label, montant]) => ({ label, montant }))
+                : d.topCollaborateurs.map((c) => ({ label: c.nom, montant: c.montant }));
+              return <BreakdownBars rows={rows} emptyLabel="Aucune donnée pour cette vue" />;
+            })()}
+            {coutView === "collaborateur" && d.topCollaborateurs.length >= 10 && (
+              <p className="text-xs text-slate-400 mt-3">Top 10 collaborateurs par coût net.</p>
+            )}
+          </div>
 
           {/* Composants mois courant */}
           {Object.keys(d.composantsMoisCourant ?? {}).length > 0 && (
@@ -1523,6 +1635,83 @@ function MasseMensuelleChart({ data, moisCourant }: { data: DashboardData["masse
           </div>
         );
       })}
+    </div>
+  );
+}
+
+function MasseTrimestrielleChart({ data }: { data: DashboardData["masseMensuelle"] }) {
+  const trimestres = [0, 1, 2, 3].map((t) => {
+    const mois = data.filter((m) => Math.floor((m.mois - 1) / 3) === t);
+    return {
+      label:     `T${t + 1}`,
+      netAPayer: mois.reduce((s, m) => s + m.netAPayer, 0),
+    };
+  });
+  const max = Math.max(...trimestres.map((t) => t.netAPayer), 1);
+  return (
+    <div className="flex items-end gap-6 h-40 pt-6">
+      {trimestres.map((t) => {
+        const h = Math.round((t.netAPayer / max) * 100);
+        return (
+          <div key={t.label} className="flex-1 flex flex-col items-center gap-1 relative">
+            <span className="absolute -top-5 left-1/2 -translate-x-1/2 text-xs font-medium text-slate-600 whitespace-nowrap">
+              {t.netAPayer > 0 ? fmt(t.netAPayer) : ""}
+            </span>
+            <div className="w-full rounded-t bg-emerald-300 hover:bg-emerald-400 transition-all"
+              style={{ height: `${Math.max(h, t.netAPayer > 0 ? 4 : 0)}%` }} />
+            <span className="text-xs text-slate-500 font-medium">{t.label}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function VariablesChart({ data, moisCourant }: { data: DashboardData["variablesMensuelles"]; moisCourant: number }) {
+  const max   = Math.max(...data.map((m) => Math.max(m.commissions, m.bonus, m.primes)), 1);
+  const total = data.reduce((s, m) => s + m.commissions + m.bonus + m.primes, 0);
+  if (total === 0) return <p className="text-sm text-slate-400 text-center py-4">Aucune rémunération variable cette année.</p>;
+  return (
+    <div>
+      <div className="flex items-end gap-1 h-28">
+        {data.map((m) => (
+          <div key={m.mois} className="flex-1 flex flex-col items-center gap-0.5 group relative">
+            <div className="absolute -top-14 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-[10px] px-2 py-1 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity z-10 text-center leading-tight">
+              Comm. {fmt(m.commissions)}<br />Bonus {fmt(m.bonus)}<br />Primes {fmt(m.primes)}
+            </div>
+            <div className="w-full flex justify-center items-end gap-px h-full">
+              <div className="w-1/3 rounded-t bg-emerald-400" style={{ height: `${(m.commissions / max) * 100}%` }} />
+              <div className="w-1/3 rounded-t bg-amber-400"   style={{ height: `${(m.bonus       / max) * 100}%` }} />
+              <div className="w-1/3 rounded-t bg-indigo-400"  style={{ height: `${(m.primes      / max) * 100}%` }} />
+            </div>
+            <span className={`text-[10px] ${m.mois === moisCourant ? "text-slate-700 font-medium" : "text-slate-400"}`}>{MOIS_LABELS[m.mois]}</span>
+          </div>
+        ))}
+      </div>
+      <div className="flex items-center gap-4 mt-3 text-xs flex-wrap">
+        <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-emerald-400" /> Commissions</span>
+        <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-amber-400" /> Bonus</span>
+        <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-indigo-400" /> Primes</span>
+      </div>
+    </div>
+  );
+}
+
+function BreakdownBars({ rows, emptyLabel }: { rows: { label: string; montant: number }[]; emptyLabel: string }) {
+  if (rows.length === 0) return <p className="text-sm text-slate-400 py-4 text-center">{emptyLabel}</p>;
+  const sorted = [...rows].sort((a, b) => b.montant - a.montant);
+  const max    = Math.max(...sorted.map((r) => r.montant), 1);
+  return (
+    <div className="space-y-2">
+      {sorted.map((r) => (
+        <div key={r.label} className="flex items-center gap-3">
+          <span className="text-sm text-slate-600 w-44 truncate">{r.label}</span>
+          <div className="flex-1 bg-slate-100 rounded-full h-2">
+            <div className="bg-emerald-500 h-2 rounded-full transition-all" style={{ width: `${(r.montant / max) * 100}%` }} />
+          </div>
+          <span className="text-sm font-medium text-slate-700 text-right w-36">{fmt(r.montant)} FCFA</span>
+        </div>
+      ))}
     </div>
   );
 }

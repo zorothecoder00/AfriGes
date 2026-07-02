@@ -6,11 +6,12 @@ import {
   CheckCircle, XCircle, Clock, CalendarDays,
   Plane, Sun, AlertTriangle, Search, ArrowLeft,
   BarChart2, Settings, Check, X, Edit2, ShieldCheck,
-  Timer, TrendingUp, Users,
+  Timer, TrendingUp, Users, UserCheck,
 } from "lucide-react";
 import Link from "next/link";
 import { useApi, useMutation } from "@/hooks/useApi";
 import { toast } from "sonner";
+import SaisieJourPointage from "@/components/SaisieJourPointage";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -98,7 +99,7 @@ export default function PointagesPage() {
   const [month,  setMonth]  = useState(today.getMonth());
   const [search, setSearch] = useState("");
   const [selectedCollab, setSelectedCollab] = useState<ProfilRH | null>(null);
-  const [activeTab, setActiveTab] = useState<"calendrier" | "rapport">("calendrier");
+  const [activeTab, setActiveTab] = useState<"calendrier" | "saisie" | "rapport">("calendrier");
 
   const handleSearch = useCallback((v: string) => setSearch(v), []);
 
@@ -135,7 +136,7 @@ export default function PointagesPage() {
 
         {/* Tabs */}
         <div className="flex gap-1 bg-white border border-slate-200 rounded-xl p-1 w-fit">
-          {([["calendrier", CalendarDays, "Calendrier individuel"], ["rapport", BarChart2, "Rapport mensuel"]] as const).map(([tab, Icon, label]) => (
+          {([["calendrier", CalendarDays, "Calendrier individuel"], ["saisie", UserCheck, "Saisie du jour"], ["rapport", BarChart2, "Rapport mensuel"]] as const).map(([tab, Icon, label]) => (
             <button key={tab} onClick={() => setActiveTab(tab)}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                 activeTab === tab ? "bg-emerald-600 text-white shadow-sm" : "text-slate-500 hover:text-slate-700"
@@ -193,6 +194,11 @@ export default function PointagesPage() {
               )}
             </div>
           </div>
+        ) : activeTab === "saisie" ? (
+          <SaisieJourPointage
+            pointagesBase="/api/admin/rh/pointages"
+            collabsUrl="/api/admin/rh/collaborateurs?limit=200&statut=ACTIF"
+          />
         ) : (
           <RapportMensuel year={year} month={month} onPrev={prevMonth} onNext={nextMonth} />
         )}

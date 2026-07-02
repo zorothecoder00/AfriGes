@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getRHSession } from "@/lib/authRH";
-import { TypeComposantSalaire } from "@prisma/client";
+import { creerFichePaie, FichePaieError } from "@/lib/creerFichePaie";
 
 /**
  * POST /api/responsableRH/paie
- * Crée une fiche en BROUILLON pour un collaborateur du PDV du RH
+ * Crée une fiche en BROUILLON pour un collaborateur du PDV du RH.
+ * Applique les mêmes automatisations que la route admin (prime d'ancienneté,
+ * commissions, absences, retenues prêts/avances) via le helper partagé.
  */
 export async function POST(req: NextRequest) {
   try {
@@ -13,12 +15,14 @@ export async function POST(req: NextRequest) {
     if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
 
     const isAdmin = ["ADMIN", "SUPER_ADMIN"].includes(session.user.role ?? "");
-    const { profilRHId, mois, annee, salaireBase = 0, composants = [], notes } = await req.json();
+    const body = await req.json();
+    const { profilRHId, mois, annee, salaireBase = 0, composants = [], notes } = body;
 
     if (!profilRHId || !mois || !annee) {
       return NextResponse.json({ error: "profilRHId, mois et annee sont obligatoires" }, { status: 400 });
     }
 
+    // Scoping PDV : un RESPONSABLE_RH ne crée que pour les collaborateurs de son PDV.
     if (!isAdmin) {
       const meId = parseInt(session.user.id);
       const affectation = await prisma.gestionnaireAffectation.findFirst({
@@ -39,36 +43,25 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    type Comp = { type: string; libelle: string; montant: number; isRetenue: boolean };
-    const comps = composants as Comp[];
-    const totalBrut     = comps.filter((c) => !c.isRetenue).reduce((s, c) => s + Number(c.montant), Number(salaireBase));
-    const totalRetenues = comps.filter((c) =>  c.isRetenue).reduce((s, c) => s + Number(c.montant), 0);
-
-    const fiche = await prisma.fichePaie.create({
-      data: {
-        profilRHId:    Number(profilRHId),
-        genereParId:   parseInt(session.user.id),
-        mois:          Number(mois),
-        annee:         Number(annee),
-        salaireBase:   Number(salaireBase),
-        totalBrut,
-        totalRetenues,
-        netAPayer: totalBrut - totalRetenues,
-        notes:     notes ?? null,
-        composants: {
-          create: comps.map((c) => ({
-            type:      c.type as TypeComposantSalaire,
-            libelle:   c.libelle,
-            montant:   Number(c.montant),
-            isRetenue: c.isRetenue,
-          })),
-        },
-      },
-      include: { composants: true },
+    const fiche = await creerFichePaie({
+      profilRHId:      Number(profilRHId),
+      mois:            Number(mois),
+      annee:           Number(annee),
+      salaireBase:     Number(salaireBase ?? 0),
+      composants,
+      notes:           notes ?? null,
+      genereParId:     parseInt(session.user.id),
+      autoRetenues:    body.autoRetenues    !== false,
+      autoCommissions: body.autoCommissions !== false,
+      autoDeductions:  body.autoDeductions  !== false,
+      autoAnciennete:  body.autoAnciennete  !== false,
     });
 
     return NextResponse.json({ data: fiche }, { status: 201 });
   } catch (error) {
+    if (error instanceof FichePaieError) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
+    }
     console.error("POST /api/responsableRH/paie", error);
     return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
   }

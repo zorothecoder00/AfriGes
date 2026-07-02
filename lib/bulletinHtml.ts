@@ -6,6 +6,7 @@
  */
 
 import { escapeHtml } from "@/lib/pdf";
+import { grouperComposantsPaie } from "@/lib/composantsPaie";
 
 const MOIS = [
   "", "Janvier", "Février", "Mars", "Avril", "Mai", "Juin",
@@ -21,6 +22,7 @@ const formatDate = (iso: string | Date | null | undefined) => {
 };
 
 export interface BulletinComposant {
+  type: string;
   libelle: string;
   montant: number;
   isRetenue: boolean;
@@ -47,9 +49,9 @@ export interface BulletinData {
 }
 
 export function genBulletinHtml(f: BulletinData): string {
-  const m       = f.profilRH.gestionnaire.member;
-  const gains    = f.composants.filter((c) => !c.isRetenue);
-  const retenues = f.composants.filter((c) => c.isRetenue);
+  const m = f.profilRH.gestionnaire.member;
+  const { fixe, variable, deductions, totalFixe, totalVariable, totalDeductions } =
+    grouperComposantsPaie(f.composants, Number(f.salaireBase));
 
   const ligne = (libelle: string, montant: string, color: string) => `
     <tr>
@@ -57,9 +59,27 @@ export function genBulletinHtml(f: BulletinData): string {
       <td style="padding:7px 12px;border-bottom:1px solid #f1f5f9;font-size:13px;font-weight:600;text-align:right;color:${color};font-variant-numeric:tabular-nums;">${montant}</td>
     </tr>`;
 
-  const section = (titre: string, color: string, rows: string) => rows ? `
-    <p style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:${color};margin:16px 0 4px;">${titre}</p>
-    <table style="border:1px solid #e2e8f0;border-radius:8px;border-collapse:separate;overflow:hidden;">${rows}</table>` : "";
+  const ligneTotal = (libelle: string, montant: string, color: string) => `
+    <tr style="background:#f8fafc;">
+      <td style="padding:8px 12px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;color:#475569;">${escapeHtml(libelle)}</td>
+      <td style="padding:8px 12px;font-size:13px;font-weight:700;text-align:right;color:${color};font-variant-numeric:tabular-nums;">${montant}</td>
+    </tr>`;
+
+  /** Bloc titré : en-tête + lignes + ligne de sous-total. */
+  const bloc = (titre: string, color: string, rows: string, totalLabel: string, totalStr: string) => rows ? `
+    <table style="border:1px solid #e2e8f0;border-radius:8px;border-collapse:separate;overflow:hidden;margin-top:16px;">
+      <tr style="background:#f8fafc;">
+        <td style="padding:7px 12px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:${color};">${titre}</td>
+        <td style="padding:7px 12px;font-size:11px;font-weight:600;text-transform:uppercase;text-align:right;color:#64748b;">Montant (FCFA)</td>
+      </tr>
+      ${rows}
+      ${ligneTotal(totalLabel, totalStr, color)}
+    </table>` : "";
+
+  // Bloc « Salaire fixe » : salaire de base + composants fixes.
+  const rowsFixe =
+    ligne("Salaire de base", fmt(f.salaireBase), "#0f172a") +
+    fixe.map((c) => ligne(c.libelle, "+ " + fmt(c.montant), "#047857")).join("");
 
   return `<!DOCTYPE html>
 <html lang="fr"><head><meta charset="utf-8" />
@@ -103,20 +123,14 @@ export function genBulletinHtml(f: BulletinData): string {
       </td>
     </tr></table>
 
-    <!-- Salaire de base -->
-    <table style="border:1px solid #e2e8f0;border-radius:8px;border-collapse:separate;overflow:hidden;">
-      <tr style="background:#f8fafc;">
-        <td style="padding:7px 12px;font-size:11px;font-weight:600;text-transform:uppercase;color:#64748b;">Désignation</td>
-        <td style="padding:7px 12px;font-size:11px;font-weight:600;text-transform:uppercase;text-align:right;color:#64748b;">Montant (FCFA)</td>
-      </tr>
-      <tr>
-        <td style="padding:8px 12px;font-size:13px;font-weight:600;color:#334155;">Salaire de base</td>
-        <td style="padding:8px 12px;font-size:13px;font-weight:700;text-align:right;color:#0f172a;font-variant-numeric:tabular-nums;">${fmt(f.salaireBase)}</td>
-      </tr>
-    </table>
+    <!-- Salaire fixe -->
+    ${bloc("Salaire fixe", "#047857", rowsFixe, "Total salaire fixe", fmt(totalFixe))}
 
-    ${section("Gains &amp; Primes", "#047857", gains.map((c) => ligne(c.libelle, "+ " + fmt(c.montant), "#047857")).join(""))}
-    ${section("Cotisations &amp; Retenues", "#dc2626", retenues.map((c) => ligne(c.libelle, "- " + fmt(c.montant), "#dc2626")).join(""))}
+    <!-- Salaire variable -->
+    ${bloc("Salaire variable", "#047857", variable.map((c) => ligne(c.libelle, "+ " + fmt(c.montant), "#047857")).join(""), "Total salaire variable", "+ " + fmt(totalVariable))}
+
+    <!-- Déductions -->
+    ${bloc("Déductions", "#dc2626", deductions.map((c) => ligne(c.libelle, "- " + fmt(c.montant), "#dc2626")).join(""), "Total déductions", "- " + fmt(totalDeductions))}
 
     <!-- Récapitulatif -->
     <table style="border:1px solid #cbd5e1;border-radius:10px;border-collapse:separate;overflow:hidden;margin-top:18px;">

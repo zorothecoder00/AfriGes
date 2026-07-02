@@ -11,6 +11,7 @@ import {
 import Link from "next/link";
 import SignOutButton from "@/components/SignOutButton";
 import NotificationBell from "@/components/NotificationBell";
+import CongesNavButton from "@/components/CongesNavButton";
 import MessagesLink from "@/components/MessagesLink";
 import UserPdvBadge from "@/components/UserPdvBadge";
 import ClientSegmentTags from "@/components/ClientSegmentTags";
@@ -530,7 +531,8 @@ export default function ChefAgenceDashboard() {
               <RefreshCw className="w-4 h-4" />
             </button>
             <MessagesLink />
-            <NotificationBell href="/dashboard/user/notifications" />
+            <CongesNavButton />
+              <NotificationBell href="/dashboard/user/notifications" />
             <UserPdvBadge />
             <SignOutButton />
           </div>

@@ -4,7 +4,7 @@ import { useState, useCallback } from "react";
 import {
   Search, RefreshCw, Filter, Plus, X, Save, Trash2,
   DollarSign, CheckCircle, Clock, CreditCard, ArrowLeft,
-  ChevronDown, ChevronUp, ShieldCheck, Eye,
+  ChevronDown, ChevronUp, ShieldCheck, Eye, Info,
 } from "lucide-react";
 import Link from "next/link";
 import { useApi, useMutation } from "@/hooks/useApi";
@@ -341,6 +341,12 @@ function CreateFicheModal({ onClose, onCreated }: { onClose: () => void; onCreat
               <input type="number" value={form.salaireBase} onChange={(e) => set("salaireBase", e.target.value)} placeholder="0"
                 className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
             </PField>
+          </div>
+
+          {/* Info retenues/gains auto */}
+          <div className="flex items-start gap-2 bg-blue-50 border border-blue-200 rounded-xl px-3 py-2.5 text-xs text-blue-800">
+            <Info className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+            <span>À la création : <strong>prime d&apos;ancienneté</strong> (% du salaire de base selon les années de service) et <strong>commissions</strong> (barème du rôle × activité) ajoutées en gains ; <strong>prêts</strong> + <strong>avances</strong> + <strong>absences</strong> (depuis les pointages) en retenues. Soldes prêts/avances décrémentés.</span>
           </div>
 
           <div>

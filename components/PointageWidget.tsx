@@ -3,8 +3,9 @@
 import { useState, useCallback, useEffect } from "react";
 import {
   Clock, LogIn, LogOut, CheckCircle, XCircle, AlertTriangle,
-  ChevronDown, ChevronUp, Sun, Plane, X,
+  ChevronDown, ChevronUp, Sun, Plane, X, CalendarDays, ChevronRight,
 } from "lucide-react";
+import Link from "next/link";
 import { toast } from "sonner";
 import { useApi } from "@/hooks/useApi";
 
@@ -275,6 +276,18 @@ export default function PointageWidget() {
                 Pointage saisi par le RH — pas d&apos;action requise de votre part.
               </p>
             )}
+
+            {/* Accès Congés & Absences */}
+            <Link
+              href="/dashboard/user/collaborateur/conges"
+              onClick={() => setOpen(false)}
+              className="flex items-center justify-between w-full px-3 py-2.5 rounded-xl bg-indigo-50 border border-indigo-100 text-indigo-700 hover:bg-indigo-100 transition-colors"
+            >
+              <span className="flex items-center gap-2 text-sm font-medium">
+                <CalendarDays className="w-4 h-4" /> Congés &amp; absences
+              </span>
+              <ChevronRight className="w-4 h-4" />
+            </Link>
 
             {/* Historique dépliable */}
             <div>

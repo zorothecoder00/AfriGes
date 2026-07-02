@@ -4,6 +4,7 @@ import { useParams } from "next/navigation";
 import { useApi, useMutation } from "@/hooks/useApi";
 import { RefreshCw, Printer, ArrowLeft, Download, Mail } from "lucide-react";
 import Link from "next/link";
+import { grouperComposantsPaie } from "@/lib/composantsPaie";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -71,8 +72,8 @@ export default function BulletinPage() {
   }
 
   const member  = f.profilRH.gestionnaire.member;
-  const gains   = f.composants.filter((c) => !c.isRetenue);
-  const retenues = f.composants.filter((c) => c.isRetenue);
+  const { fixe, variable, deductions, totalFixe, totalVariable, totalDeductions } =
+    grouperComposantsPaie(f.composants, Number(f.salaireBase));
 
   return (
     <div className="min-h-screen bg-slate-100 print:bg-white">
@@ -151,44 +152,70 @@ export default function BulletinPage() {
           </div>
         </div>
 
-        {/* ── Salaire de base ── */}
+        {/* ── Salaire fixe ── */}
         <div className="mb-1">
           <div className="flex justify-between items-center py-2 px-3 bg-slate-50 rounded-t-lg border-t border-x border-slate-200">
-            <span className="text-xs font-semibold text-slate-500 uppercase">Désignation</span>
+            <span className="text-xs font-semibold text-emerald-700 uppercase tracking-wider">Salaire fixe</span>
             <span className="text-xs font-semibold text-slate-500 uppercase">Montant (FCFA)</span>
           </div>
-          <div className="flex justify-between items-center py-2.5 px-3 border border-slate-200 rounded-b-lg">
-            <span className="text-sm font-medium text-slate-700">Salaire de base</span>
-            <span className="text-sm font-semibold text-slate-900 tabular-nums">{fmt(f.salaireBase)}</span>
+          <div className="border-x border-slate-200 divide-y divide-slate-100">
+            <div className="flex justify-between items-center py-2.5 px-3">
+              <span className="text-sm font-medium text-slate-700">Salaire de base</span>
+              <span className="text-sm font-semibold text-slate-900 tabular-nums">{fmt(f.salaireBase)}</span>
+            </div>
+            {fixe.map((c, i) => (
+              <div key={i} className="flex justify-between items-center py-2.5 px-3">
+                <span className="text-sm text-slate-700">{c.libelle}</span>
+                <span className="text-sm font-medium text-emerald-700 tabular-nums">+ {fmt(c.montant)}</span>
+              </div>
+            ))}
+          </div>
+          <div className="flex justify-between items-center py-2 px-3 bg-slate-50 rounded-b-lg border border-slate-200">
+            <span className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Total salaire fixe</span>
+            <span className="text-sm font-bold text-slate-800 tabular-nums">{fmt(totalFixe)}</span>
           </div>
         </div>
 
-        {/* ── Gains ── */}
-        {gains.length > 0 && (
+        {/* ── Salaire variable ── */}
+        {variable.length > 0 && (
           <div className="mt-4 mb-1">
-            <p className="text-xs font-semibold text-emerald-700 uppercase tracking-wider mb-1 px-1">Gains & Primes</p>
-            <div className="border border-slate-200 rounded-lg overflow-hidden divide-y divide-slate-100">
-              {gains.map((c, i) => (
+            <div className="flex justify-between items-center py-2 px-3 bg-slate-50 rounded-t-lg border-t border-x border-slate-200">
+              <span className="text-xs font-semibold text-emerald-700 uppercase tracking-wider">Salaire variable</span>
+              <span className="text-xs font-semibold text-slate-500 uppercase">Montant (FCFA)</span>
+            </div>
+            <div className="border-x border-slate-200 divide-y divide-slate-100">
+              {variable.map((c, i) => (
                 <div key={i} className="flex justify-between items-center py-2.5 px-3 hover:bg-emerald-50/30">
                   <span className="text-sm text-slate-700">{c.libelle}</span>
                   <span className="text-sm font-medium text-emerald-700 tabular-nums">+ {fmt(c.montant)}</span>
                 </div>
               ))}
             </div>
+            <div className="flex justify-between items-center py-2 px-3 bg-slate-50 rounded-b-lg border border-slate-200">
+              <span className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Total salaire variable</span>
+              <span className="text-sm font-bold text-emerald-700 tabular-nums">+ {fmt(totalVariable)}</span>
+            </div>
           </div>
         )}
 
-        {/* ── Retenues ── */}
-        {retenues.length > 0 && (
+        {/* ── Déductions ── */}
+        {deductions.length > 0 && (
           <div className="mt-4 mb-1">
-            <p className="text-xs font-semibold text-red-600 uppercase tracking-wider mb-1 px-1">Cotisations & Retenues</p>
-            <div className="border border-slate-200 rounded-lg overflow-hidden divide-y divide-slate-100">
-              {retenues.map((c, i) => (
+            <div className="flex justify-between items-center py-2 px-3 bg-slate-50 rounded-t-lg border-t border-x border-slate-200">
+              <span className="text-xs font-semibold text-red-600 uppercase tracking-wider">Déductions</span>
+              <span className="text-xs font-semibold text-slate-500 uppercase">Montant (FCFA)</span>
+            </div>
+            <div className="border-x border-slate-200 divide-y divide-slate-100">
+              {deductions.map((c, i) => (
                 <div key={i} className="flex justify-between items-center py-2.5 px-3 hover:bg-red-50/30">
                   <span className="text-sm text-slate-700">{c.libelle}</span>
                   <span className="text-sm font-medium text-red-600 tabular-nums">- {fmt(c.montant)}</span>
                 </div>
               ))}
+            </div>
+            <div className="flex justify-between items-center py-2 px-3 bg-slate-50 rounded-b-lg border border-slate-200">
+              <span className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Total déductions</span>
+              <span className="text-sm font-bold text-red-600 tabular-nums">- {fmt(totalDeductions)}</span>
             </div>
           </div>
         )}

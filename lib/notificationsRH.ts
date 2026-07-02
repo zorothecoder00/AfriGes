@@ -385,6 +385,55 @@ export async function notifyValidationConge(
   });
 }
 
+// ─── 5bis. Nouvelle demande de congé (in-action) ──────────────────────────────
+
+const TYPE_CONGE_LABEL: Record<string, string> = {
+  ANNUEL: "annuel", MALADIE: "maladie", EXCEPTIONNEL: "exceptionnel",
+  PERMISSION: "permission", FORMATION: "formation",
+  MATERNITE: "maternité", PATERNITE: "paternité", SANS_SOLDE: "sans solde",
+};
+
+/**
+ * À appeler quand un collaborateur soumet lui-même une demande de congé.
+ * Notifie son manager direct (s'il en a un) + tous les RESPONSABLE_RH actifs
+ * afin qu'ils traitent le workflow d'approbation.
+ */
+export async function notifyNouvelleDemandeConge(demandeCongeId: number): Promise<void> {
+  const demande = await prisma.demandeConge.findUnique({
+    where:  { id: demandeCongeId },
+    select: {
+      id: true, type: true, dateDebut: true, dateFin: true, nbJours: true,
+      profilRH: {
+        select: {
+          matricule: true,
+          gestionnaire: { select: { member: { select: { nom: true, prenom: true } } } },
+          manager: { select: { gestionnaire: { select: { memberId: true } } } },
+        },
+      },
+    },
+  });
+  if (!demande) return;
+
+  const member    = demande.profilRH.gestionnaire.member;
+  const nomCollab = `${member.prenom} ${member.nom}`;
+  const debut     = new Date(demande.dateDebut).toLocaleDateString("fr-FR");
+  const fin        = new Date(demande.dateFin).toLocaleDateString("fr-FR");
+  const typeLabel  = TYPE_CONGE_LABEL[demande.type] ?? demande.type.toLowerCase();
+
+  const rhIds     = await getRHManagerIds();
+  const managerId = demande.profilRH.manager?.gestionnaire.memberId ?? null;
+
+  // Destinataires uniques : manager direct + RH (createNotifs déduplique déjà)
+  const destinataires = [...(managerId ? [managerId] : []), ...rhIds];
+
+  await createNotifs(destinataires, {
+    titre:    `Nouvelle demande de congé — ${nomCollab}`,
+    message:  `${nomCollab} (${demande.profilRH.matricule}) a soumis une demande de congé ${typeLabel} du ${debut} au ${fin} (${demande.nbJours} jour${demande.nbJours > 1 ? "s" : ""}). À valider.`,
+    priorite: PrioriteNotification.NORMAL,
+    actionUrl: `/dashboard/user/responsablesRH/conges`,
+  });
+}
+
 // ─── 6. Inscription à une formation (in-action) ───────────────────────────────
 
 /**

@@ -9,6 +9,7 @@ import {
 import Link from "next/link";
 import { useApi, useMutation } from "@/hooks/useApi";
 import { toast } from "sonner";
+import SaisieJourPointage from "@/components/SaisieJourPointage";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -64,6 +65,7 @@ export default function PointagesRHPage() {
   const [search,     setSearch]     = useState("");
   const [showSaisie, setShowSaisie] = useState(false);
   const [selectedPt, setSelectedPt] = useState<Pointage | null>(null);
+  const [view,       setView]       = useState<"mensuel" | "saisie">("mensuel");
 
   const params = new URLSearchParams();
   params.set("mois",  String(mois));
@@ -138,6 +140,26 @@ export default function PointagesRHPage() {
           </div>
         </div>
 
+        {/* ── Onglets ── */}
+        <div className="flex gap-1 bg-white border border-slate-200 rounded-xl p-1 w-fit">
+          {([["mensuel", "Vue mensuelle"], ["saisie", "Saisie du jour"]] as const).map(([v, l]) => (
+            <button key={v} onClick={() => setView(v)}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                view === v ? "bg-emerald-600 text-white shadow-sm" : "text-slate-500 hover:text-slate-700"
+              }`}>
+              {l}
+            </button>
+          ))}
+        </div>
+
+        {view === "saisie" && (
+          <SaisieJourPointage
+            pointagesBase="/api/responsableRH/pointages"
+            collabsUrl="/api/responsableRH/collaborateurs?limit=200&statut=ACTIF"
+          />
+        )}
+
+        {view === "mensuel" && (<>
         {/* ── Stats du mois ── */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {["PRESENT", "ABSENT", "RETARD", "CONGE"].map((k) => {
@@ -298,6 +320,7 @@ export default function PointagesRHPage() {
             )}
           </div>
         )}
+        </>)}
       </div>
 
       {/* ── Modals ── */}
