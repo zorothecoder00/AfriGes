@@ -679,10 +679,16 @@ function printInvoice(f: FactureData) {
   <meta charset="utf-8"/>
   <title>Facture ${f.numero}</title>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: Arial, sans-serif; font-size: 14px; color: #1e293b; background: white; padding: 40px; max-width: 794px; margin: 0 auto; }
+    /* Forcer l'impression des couleurs de fond (badges, encadrés) : sans ceci, les
+       navigateurs les suppriment → texte blanc sur fond blanc = invisible. */
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    html, body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    body { font-family: Arial, sans-serif; font-size: 14px; color: #0f172a; background: white; padding: 40px; max-width: 794px; margin: 0 auto; -webkit-font-smoothing: antialiased; }
     @page { margin: 1cm; size: A4 portrait; }
-    @media print { body { padding: 0; } }
+    @media print {
+      body { padding: 0; }
+      * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+    }
   </style>
 </head>
 <body>

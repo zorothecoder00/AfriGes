@@ -204,9 +204,12 @@ Un point à valider : je considère « versées » au sens large (fiches VALIDE 
   strictement PAYE, je restreins les totaux variables à ce seul statut —
   dis-moi.
 
-✻ Sautéed for 8m 36s
 
 
+Avoir un menu " bordereau de remboursement" dans /dashboard/admin/clients/id
+
+
+Pourquoi lorsque j'imprime une facture dans mon app notamment dans /dashboard/admin/credits , l'encre ne sort pas bien ?? C'est un problème de mon code ou c'est l'imprimante ?? Parce que apparemment quand on imprime autre chose ( pas avec l'appli ) , le rendu sort mieux ( avec plus d'opacité et de clarté )
 
 
 
