@@ -33,7 +33,17 @@ interface CreditClient {
   dateEcheanceFin: string;
   montantJournalier: string | number;
   tauxPenalite: string | number;
+  delaiGraceJours?: number;
+  fraisDossier?: string | number;
+  assurance?: string | number;
+  autresFrais?: string | number;
+  tauxInteret?: string | number;
   garantie: string | null;
+  garantNom?: string | null;
+  garantTelephone?: string | null;
+  garantAdresse?: string | null;
+  garantTypeGarantie?: string | null;
+  garantValeurEstimee?: string | number;
   observations: string | null;
   createdAt: string;
   updatedAt: string;
@@ -227,7 +237,11 @@ export default function CreditsPage() {
 
   // ── Édition d'un crédit (EN_ATTENTE_VALIDATION ou ACTIF) ──────────────────
   const [editCredit,     setEditCredit]     = useState<CreditClient | null>(null);
-  const [editForm,       setEditForm]       = useState({ dureeJours: '', dateDebut: '', tauxPenalite: '0', garantie: '', observations: '' });
+  const [editForm,       setEditForm]       = useState({
+    dureeJours: '', dateDebut: '', tauxPenalite: '0', garantie: '', observations: '',
+    fraisDossier: '0', assurance: '0', autresFrais: '0', tauxInteret: '0', delaiGraceJours: '0',
+    garantNom: '', garantTelephone: '', garantAdresse: '', garantTypeGarantie: '', garantValeurEstimee: '0',
+  });
   const [editLoading,    setEditLoading]    = useState(false);
   const [editError,      setEditError]      = useState('');
 
@@ -247,6 +261,16 @@ export default function CreditsPage() {
       tauxPenalite: String(credit.tauxPenalite ?? '0'),
       garantie:     credit.garantie ?? '',
       observations: credit.observations ?? '',
+      fraisDossier:    String(credit.fraisDossier ?? '0'),
+      assurance:       String(credit.assurance ?? '0'),
+      autresFrais:     String(credit.autresFrais ?? '0'),
+      tauxInteret:     String(credit.tauxInteret ?? '0'),
+      delaiGraceJours: String(credit.delaiGraceJours ?? '0'),
+      garantNom:          credit.garantNom ?? '',
+      garantTelephone:    credit.garantTelephone ?? '',
+      garantAdresse:      credit.garantAdresse ?? '',
+      garantTypeGarantie: credit.garantTypeGarantie ?? '',
+      garantValeurEstimee: String(credit.garantValeurEstimee ?? '0'),
     });
     setEditError('');
     setEditCredit(credit);
@@ -267,6 +291,18 @@ export default function CreditsPage() {
     if (editForm.tauxPenalite !== String(editCredit.tauxPenalite ?? '0')) payload.tauxPenalite = Number(editForm.tauxPenalite || 0);
     if (editForm.garantie !== (editCredit.garantie ?? '')) payload.garantie = editForm.garantie;
     if (editForm.observations !== (editCredit.observations ?? '')) payload.observations = editForm.observations;
+    // Frais / intérêts (recalcul du montant côté serveur)
+    if (editForm.fraisDossier    !== String(editCredit.fraisDossier ?? '0'))    payload.fraisDossier    = Number(editForm.fraisDossier || 0);
+    if (editForm.assurance       !== String(editCredit.assurance ?? '0'))       payload.assurance       = Number(editForm.assurance || 0);
+    if (editForm.autresFrais     !== String(editCredit.autresFrais ?? '0'))     payload.autresFrais     = Number(editForm.autresFrais || 0);
+    if (editForm.tauxInteret     !== String(editCredit.tauxInteret ?? '0'))     payload.tauxInteret     = Number(editForm.tauxInteret || 0);
+    if (editForm.delaiGraceJours !== String(editCredit.delaiGraceJours ?? '0')) payload.delaiGraceJours = Number(editForm.delaiGraceJours || 0);
+    // Garant (métadonnées bordereau)
+    if (editForm.garantNom          !== (editCredit.garantNom ?? ''))          payload.garantNom          = editForm.garantNom;
+    if (editForm.garantTelephone    !== (editCredit.garantTelephone ?? ''))    payload.garantTelephone    = editForm.garantTelephone;
+    if (editForm.garantAdresse      !== (editCredit.garantAdresse ?? ''))      payload.garantAdresse      = editForm.garantAdresse;
+    if (editForm.garantTypeGarantie !== (editCredit.garantTypeGarantie ?? '')) payload.garantTypeGarantie = editForm.garantTypeGarantie;
+    if (editForm.garantValeurEstimee !== String(editCredit.garantValeurEstimee ?? '0')) payload.garantValeurEstimee = Number(editForm.garantValeurEstimee || 0);
 
     if (Object.keys(payload).length === 0) { setEditError('Aucune modification'); return; }
 
@@ -2131,6 +2167,49 @@ export default function CreditsPage() {
                   placeholder="Caution, gage…"
                   className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-400" />
               </div>
+
+              {/* Frais & intérêts (recomposent le total à rembourser) */}
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Frais & intérêts (bordereau)</label>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  <input type="number" min={0} step={100} value={editForm.fraisDossier} disabled={editAvecRemboursements}
+                    onChange={(e) => setEditForm(f => ({ ...f, fraisDossier: e.target.value }))} placeholder="Frais dossier"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-400 disabled:opacity-50" />
+                  <input type="number" min={0} step={100} value={editForm.assurance} disabled={editAvecRemboursements}
+                    onChange={(e) => setEditForm(f => ({ ...f, assurance: e.target.value }))} placeholder="Assurance"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-400 disabled:opacity-50" />
+                  <input type="number" min={0} step={100} value={editForm.autresFrais} disabled={editAvecRemboursements}
+                    onChange={(e) => setEditForm(f => ({ ...f, autresFrais: e.target.value }))} placeholder="Autres frais"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-400 disabled:opacity-50" />
+                  <input type="number" min={0} step={0.1} value={editForm.tauxInteret} disabled={editAvecRemboursements}
+                    onChange={(e) => setEditForm(f => ({ ...f, tauxInteret: e.target.value }))} placeholder="Taux intérêt %"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-400 disabled:opacity-50" />
+                  <input type="number" min={0} step={1} value={editForm.delaiGraceJours}
+                    onChange={(e) => setEditForm(f => ({ ...f, delaiGraceJours: e.target.value }))} placeholder="Délai grâce (j)"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+                </div>
+                {editAvecRemboursements && (
+                  <p className="text-xs text-amber-600 mt-1">Frais/intérêt verrouillés (crédit avec remboursements). Garant, délai de grâce et pénalité restent modifiables.</p>
+                )}
+              </div>
+
+              {/* Garant (structuré — bordereau de remboursement) */}
+              <div className="border border-gray-100 rounded-lg p-3 bg-gray-50/60">
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Garant</p>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  <input type="text" value={editForm.garantNom} onChange={(e) => setEditForm(f => ({ ...f, garantNom: e.target.value }))} placeholder="Nom du garant"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+                  <input type="text" value={editForm.garantTelephone} onChange={(e) => setEditForm(f => ({ ...f, garantTelephone: e.target.value }))} placeholder="Téléphone"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+                  <input type="text" value={editForm.garantAdresse} onChange={(e) => setEditForm(f => ({ ...f, garantAdresse: e.target.value }))} placeholder="Adresse"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+                  <input type="text" value={editForm.garantTypeGarantie} onChange={(e) => setEditForm(f => ({ ...f, garantTypeGarantie: e.target.value }))} placeholder="Type (caution, gage…)"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+                  <input type="number" min={0} step={1000} value={editForm.garantValeurEstimee} onChange={(e) => setEditForm(f => ({ ...f, garantValeurEstimee: e.target.value }))} placeholder="Valeur estimée"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+                </div>
+              </div>
+
               <div>
                 <label className="block text-xs font-medium text-gray-600 mb-1">Observations</label>
                 <textarea rows={2} value={editForm.observations}

@@ -27,13 +27,14 @@ export interface CreditPourDuree {
 export async function appliquerNouvelleDureeCredit(
   tx: TX,
   credit: CreditPourDuree,
-  input: { dureeJours?: number | null; dateDebut?: string | null; garantie?: string | null; observations?: string | null },
+  input: { dureeJours?: number | null; dateDebut?: string | null; garantie?: string | null; observations?: string | null; montantTotal?: number | null },
 ) {
   const duree = input.dureeJours != null ? Number(input.dureeJours) : credit.dureeJours;
   if (duree < 1) throw new Error("DUREE_INVALIDE");
   const debut = input.dateDebut ? new Date(input.dateDebut) : credit.dateDebut;
 
-  const montantTotal      = Number(credit.montantTotal);
+  // montantTotal peut être recalculé par l'appelant (ex. changement de frais/intérêt).
+  const montantTotal      = input.montantTotal != null ? Number(input.montantTotal) : Number(credit.montantTotal);
   const dejaRembourse     = Number(credit.montantRembourse);
   const montantJournalier = Number((montantTotal / duree).toFixed(2));
   const dateEcheanceFin   = new Date(debut);
@@ -48,6 +49,7 @@ export async function appliquerNouvelleDureeCredit(
       montantJournalier,
       dateEcheanceFin,
       soldeRestant,
+      ...(input.montantTotal != null && { montantTotal }),
       ...(input.garantie     !== undefined && { garantie:     input.garantie }),
       ...(input.observations !== undefined && { observations: input.observations }),
     },

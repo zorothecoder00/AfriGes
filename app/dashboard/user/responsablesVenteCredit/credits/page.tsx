@@ -51,6 +51,18 @@ interface CreditClient {
   dateEcheanceFin: string;
   montantJournalier: number;
   createdAt: string;
+  tauxPenalite?: number | string;
+  delaiGraceJours?: number;
+  fraisDossier?: number | string;
+  assurance?: number | string;
+  autresFrais?: number | string;
+  tauxInteret?: number | string;
+  garantie?: string | null;
+  garantNom?: string | null;
+  garantTelephone?: string | null;
+  garantAdresse?: string | null;
+  garantTypeGarantie?: string | null;
+  garantValeurEstimee?: number | string;
   client: { id: number; nom: string; prenom: string; codeClient: string | null; telephone: string };
   creePar: { id: number; nom: string; prenom: string };
   _count: { lignes: number; remboursements: number };
@@ -550,7 +562,11 @@ export default function RVCCreditsPage() {
 
   // ── Modification durée / date de début d'un crédit ─────────────────────────
   const [dureeCredit,  setDureeCredit]  = useState<CreditClient | null>(null);
-  const [dureeForm,    setDureeForm]    = useState({ dureeJours: "", dateDebut: "" });
+  const [dureeForm,    setDureeForm]    = useState({
+    dureeJours: "", dateDebut: "", tauxPenalite: "0", delaiGraceJours: "0",
+    fraisDossier: "0", assurance: "0", autresFrais: "0", tauxInteret: "0",
+    garantNom: "", garantTelephone: "", garantAdresse: "", garantTypeGarantie: "", garantValeurEstimee: "0",
+  });
   const [dureeLoading, setDureeLoading] = useState(false);
   const [dureeError,   setDureeError]   = useState("");
 
@@ -590,6 +606,17 @@ export default function RVCCreditsPage() {
     setDureeForm({
       dureeJours: String(credit.dureeJours),
       dateDebut:  credit.dateDebut ? credit.dateDebut.slice(0, 10) : "",
+      tauxPenalite:    String(credit.tauxPenalite ?? "0"),
+      delaiGraceJours: String(credit.delaiGraceJours ?? "0"),
+      fraisDossier:    String(credit.fraisDossier ?? "0"),
+      assurance:       String(credit.assurance ?? "0"),
+      autresFrais:     String(credit.autresFrais ?? "0"),
+      tauxInteret:     String(credit.tauxInteret ?? "0"),
+      garantNom:          credit.garantNom ?? "",
+      garantTelephone:    credit.garantTelephone ?? "",
+      garantAdresse:      credit.garantAdresse ?? "",
+      garantTypeGarantie: credit.garantTypeGarantie ?? "",
+      garantValeurEstimee: String(credit.garantValeurEstimee ?? "0"),
     });
     setDureeError("");
     setDureeCredit(credit);
@@ -606,6 +633,17 @@ export default function RVCCreditsPage() {
       if (!dureeForm.dateDebut) { setDureeError("Date de début requise"); return; }
       payload.dateDebut = dureeForm.dateDebut;
     }
+    if (dureeForm.tauxPenalite    !== String(dureeCredit.tauxPenalite ?? "0"))    payload.tauxPenalite    = Number(dureeForm.tauxPenalite || 0);
+    if (dureeForm.delaiGraceJours !== String(dureeCredit.delaiGraceJours ?? "0")) payload.delaiGraceJours = Number(dureeForm.delaiGraceJours || 0);
+    if (dureeForm.fraisDossier    !== String(dureeCredit.fraisDossier ?? "0"))    payload.fraisDossier    = Number(dureeForm.fraisDossier || 0);
+    if (dureeForm.assurance       !== String(dureeCredit.assurance ?? "0"))       payload.assurance       = Number(dureeForm.assurance || 0);
+    if (dureeForm.autresFrais     !== String(dureeCredit.autresFrais ?? "0"))     payload.autresFrais     = Number(dureeForm.autresFrais || 0);
+    if (dureeForm.tauxInteret     !== String(dureeCredit.tauxInteret ?? "0"))     payload.tauxInteret     = Number(dureeForm.tauxInteret || 0);
+    if (dureeForm.garantNom          !== (dureeCredit.garantNom ?? ""))          payload.garantNom          = dureeForm.garantNom;
+    if (dureeForm.garantTelephone    !== (dureeCredit.garantTelephone ?? ""))    payload.garantTelephone    = dureeForm.garantTelephone;
+    if (dureeForm.garantAdresse      !== (dureeCredit.garantAdresse ?? ""))      payload.garantAdresse      = dureeForm.garantAdresse;
+    if (dureeForm.garantTypeGarantie !== (dureeCredit.garantTypeGarantie ?? "")) payload.garantTypeGarantie = dureeForm.garantTypeGarantie;
+    if (dureeForm.garantValeurEstimee !== String(dureeCredit.garantValeurEstimee ?? "0")) payload.garantValeurEstimee = Number(dureeForm.garantValeurEstimee || 0);
     if (Object.keys(payload).length === 0) { setDureeError("Aucune modification"); return; }
     setDureeLoading(true);
     setDureeError("");
@@ -1541,7 +1579,7 @@ export default function RVCCreditsPage() {
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
               <div className="flex items-center gap-2">
                 <Edit3 className="w-5 h-5 text-amber-600" />
-                <h3 className="text-base font-bold text-gray-900">Modifier la durée du crédit</h3>
+                <h3 className="text-base font-bold text-gray-900">Modifier le crédit</h3>
               </div>
               <button onClick={() => setDureeCredit(null)} className="text-gray-400 hover:text-gray-600">
                 <X className="w-5 h-5" />
@@ -1579,6 +1617,57 @@ export default function RVCCreditsPage() {
                   <input type="date" value={dureeForm.dateDebut}
                     onChange={(e) => setDureeForm(f => ({ ...f, dateDebut: e.target.value }))}
                     className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-amber-400" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Taux pénalité (% / jour)</label>
+                  <input type="number" min={0} step={0.1} value={dureeForm.tauxPenalite}
+                    onChange={(e) => setDureeForm(f => ({ ...f, tauxPenalite: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-amber-400" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Délai de grâce (jours)</label>
+                  <input type="number" min={0} step={1} value={dureeForm.delaiGraceJours}
+                    onChange={(e) => setDureeForm(f => ({ ...f, delaiGraceJours: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-amber-400" />
+                </div>
+              </div>
+
+              {/* Frais & intérêts (recomposent le total à rembourser) */}
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Frais & intérêts (bordereau)</label>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  <input type="number" min={0} step={100} value={dureeForm.fraisDossier} disabled={dureeCredit._count.remboursements > 0}
+                    onChange={(e) => setDureeForm(f => ({ ...f, fraisDossier: e.target.value }))} placeholder="Frais dossier"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-amber-400 disabled:opacity-50" />
+                  <input type="number" min={0} step={100} value={dureeForm.assurance} disabled={dureeCredit._count.remboursements > 0}
+                    onChange={(e) => setDureeForm(f => ({ ...f, assurance: e.target.value }))} placeholder="Assurance"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-amber-400 disabled:opacity-50" />
+                  <input type="number" min={0} step={100} value={dureeForm.autresFrais} disabled={dureeCredit._count.remboursements > 0}
+                    onChange={(e) => setDureeForm(f => ({ ...f, autresFrais: e.target.value }))} placeholder="Autres frais"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-amber-400 disabled:opacity-50" />
+                  <input type="number" min={0} step={0.1} value={dureeForm.tauxInteret} disabled={dureeCredit._count.remboursements > 0}
+                    onChange={(e) => setDureeForm(f => ({ ...f, tauxInteret: e.target.value }))} placeholder="Taux intérêt %"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-amber-400 disabled:opacity-50" />
+                </div>
+                {dureeCredit._count.remboursements > 0 && (
+                  <p className="text-xs text-amber-600 mt-1">Frais/intérêt verrouillés (crédit avec remboursements). Garant, délai et pénalité restent modifiables.</p>
+                )}
+              </div>
+
+              {/* Garant (bordereau de remboursement) */}
+              <div className="border border-gray-100 rounded-lg p-3 bg-gray-50/60">
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Garant</p>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  <input type="text" value={dureeForm.garantNom} onChange={(e) => setDureeForm(f => ({ ...f, garantNom: e.target.value }))} placeholder="Nom du garant"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-400" />
+                  <input type="text" value={dureeForm.garantTelephone} onChange={(e) => setDureeForm(f => ({ ...f, garantTelephone: e.target.value }))} placeholder="Téléphone"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-400" />
+                  <input type="text" value={dureeForm.garantAdresse} onChange={(e) => setDureeForm(f => ({ ...f, garantAdresse: e.target.value }))} placeholder="Adresse"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-400" />
+                  <input type="text" value={dureeForm.garantTypeGarantie} onChange={(e) => setDureeForm(f => ({ ...f, garantTypeGarantie: e.target.value }))} placeholder="Type (caution, gage…)"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-400" />
+                  <input type="number" min={0} step={1000} value={dureeForm.garantValeurEstimee} onChange={(e) => setDureeForm(f => ({ ...f, garantValeurEstimee: e.target.value }))} placeholder="Valeur estimée"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-400" />
                 </div>
               </div>
             </div>

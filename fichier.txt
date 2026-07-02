@@ -17,7 +17,7 @@
 -On peut aussi utiliser du SVG pour les graphiques ( sans forcément dépendance externe)  
 -Ce code :      
    const a = document.createElement("a");
-   a.href = url;                        
+   a.href = url;                          
    a.download = filename;                                                
    a.click();                                                                  
    permet de créer un téléchargement via un clic sur une URL ( utile pour les exports)
@@ -211,6 +211,8 @@ Un point à valider : je considère « versées » au sens large (fiches VALIDE 
 
 
 Créé un menu ou onglet " bordereau de remboursement" dans /dashboard/admin/clients/id
+
+Je pense que les caissiers et les agents de terrain aussi devraient avoir la main pour modifier les crédits avec les nouvezux champs ( qui vont aider pour le bordereau de remboursement )
 
 
 

@@ -77,7 +77,9 @@ export async function PATCH(req: Request, { params }: Ctx) {
     if (isNaN(creditId)) return NextResponse.json({ message: "ID invalide" }, { status: 400 });
 
     const body = await req.json();
-    const { lignes, dureeJours, dateDebut, tauxPenalite, garantie, observations } = body;
+    const { lignes, dureeJours, dateDebut, tauxPenalite, garantie, observations,
+      fraisDossier, assurance, autresFrais, tauxInteret, delaiGraceJours,
+      garantNom, garantTelephone, garantAdresse, garantTypeGarantie, garantValeurEstimee } = body;
 
     const result = await prisma.$transaction(async (tx) => {
       const credit = await tx.creditClient.findUnique({
@@ -94,7 +96,8 @@ export async function PATCH(req: Request, { params }: Ctx) {
       const estActif = credit.statut === StatutCredit.ACTIF || credit.statut === StatutCredit.EN_RETARD;
       if (credit.statut !== StatutCredit.EN_ATTENTE_VALIDATION && !estActif) throw new Error("CREDIT_NON_MODIFIABLE");
 
-      const toucheMontant  = lignes !== undefined;
+      const toucheFrais    = fraisDossier !== undefined || assurance !== undefined || autresFrais !== undefined || tauxInteret !== undefined;
+      const toucheMontant  = lignes !== undefined || toucheFrais;
       const touchePlanning = dureeJours !== undefined || dateDebut !== undefined;
       const dejaRembourse  = Number(credit.montantRembourse);
 
@@ -112,6 +115,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
 
       const ancienMontant = Number(credit.montantTotal);
       let montantTotal = ancienMontant;
+      let montantInteret = Number(credit.montantInteret);
 
       if (lignes !== undefined) {
         if (!Array.isArray(lignes) || lignes.length === 0) throw new Error("LIGNES_INVALIDES");
@@ -174,6 +178,20 @@ export async function PATCH(req: Request, { params }: Ctx) {
         }
       }
 
+      // ── Frais / assurance / intérêts → recomposition du montant total ──────
+      if (toucheFrais || lignes !== undefined) {
+        const fraisD  = fraisDossier !== undefined ? Math.max(0, Number(fraisDossier)) : Number(credit.fraisDossier);
+        const assur   = assurance    !== undefined ? Math.max(0, Number(assurance))    : Number(credit.assurance);
+        const autres  = autresFrais  !== undefined ? Math.max(0, Number(autresFrais))  : Number(credit.autresFrais);
+        const tauxInt = tauxInteret  !== undefined ? Math.max(0, Number(tauxInteret))  : Number(credit.tauxInteret);
+        // Valeur produits = somme des lignes si modifiées, sinon montant actuel − frais actuels.
+        const ancienFraisTotal = Number(credit.fraisDossier) + Number(credit.assurance) + Number(credit.autresFrais) + Number(credit.montantInteret);
+        const valeurProduits = lignes !== undefined ? montantTotal : Number((ancienMontant - ancienFraisTotal).toFixed(2));
+        montantInteret = Number((valeurProduits * tauxInt / 100).toFixed(2));
+        montantTotal   = Number((valeurProduits + fraisD + assur + autres + montantInteret).toFixed(2));
+        if (montantTotal <= 0) throw new Error("MONTANT_INVALIDE");
+      }
+
       // ── Recalcul de l'échéancier ──────────────────────────────────────────
       const duree = dureeJours !== undefined ? Number(dureeJours) : credit.dureeJours;
       if (duree < 1) throw new Error("DUREE_INVALIDE");
@@ -195,8 +213,19 @@ export async function PATCH(req: Request, { params }: Ctx) {
           dateDebut:  debut,
           dateEcheanceFin,
           montantJournalier,
+          ...(toucheFrais && { montantInteret }),
+          ...(fraisDossier  !== undefined && { fraisDossier: Math.max(0, Number(fraisDossier)) }),
+          ...(assurance     !== undefined && { assurance:    Math.max(0, Number(assurance)) }),
+          ...(autresFrais   !== undefined && { autresFrais:  Math.max(0, Number(autresFrais)) }),
+          ...(tauxInteret   !== undefined && { tauxInteret:  Math.max(0, Number(tauxInteret)) }),
+          ...(delaiGraceJours !== undefined && { delaiGraceJours: Math.max(0, Number(delaiGraceJours)) }),
           ...(tauxPenalite  !== undefined && { tauxPenalite:  Number(tauxPenalite) }),
           ...(garantie      !== undefined && { garantie:      garantie || null }),
+          ...(garantNom          !== undefined && { garantNom:          garantNom || null }),
+          ...(garantTelephone    !== undefined && { garantTelephone:    garantTelephone || null }),
+          ...(garantAdresse      !== undefined && { garantAdresse:      garantAdresse || null }),
+          ...(garantTypeGarantie !== undefined && { garantTypeGarantie: garantTypeGarantie || null }),
+          ...(garantValeurEstimee !== undefined && { garantValeurEstimee: Math.max(0, Number(garantValeurEstimee)) }),
           ...(observations  !== undefined && { observations:  observations || null }),
         },
       });
