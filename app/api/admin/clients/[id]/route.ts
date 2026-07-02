@@ -43,7 +43,7 @@ export async function GET(
         tags:          { select: { tag: { select: { id: true, nom: true, couleur: true } } } },
         pointDeVente:  { select: { id: true, nom: true, code: true } },
         pointsDeVente: { select: { pointDeVente: { select: { id: true, nom: true, code: true } } } },
-        agentTerrain:  { select: { id: true, nom: true, prenom: true } },
+        agentTerrain:  { select: { id: true, nom: true, prenom: true, telephone: true } },
         souscriptionsPacks: {
           include: {
             pack: true,
@@ -116,7 +116,7 @@ export async function PATCH(
       nom, prenom, telephone, adresse, etat, pointDeVenteId, pointsDeVenteIds, agentTerrainId,
       // Nouveaux champs
       sexe, dateNaissance, telephoneSecondaire, quartier, ville, commune,
-      photoUrl, pieceIdentiteUrl, numeroCNI,
+      photoUrl, pieceIdentiteUrl, numeroCNI, numeroCarteAfrisime,
       activite, nomCommerce,
       latitude, longitude,
       segment,
@@ -211,6 +211,7 @@ export async function PATCH(
           ...(photoUrl           !== undefined && { photoUrl: photoUrl || null }),
           ...(pieceIdentiteUrl   !== undefined && { pieceIdentiteUrl: pieceIdentiteUrl || null }),
           ...(numeroCNI          !== undefined && { numeroCNI: numeroCNI || null }),
+          ...(numeroCarteAfrisime !== undefined && { numeroCarteAfrisime: numeroCarteAfrisime || null }),
           ...(activite           !== undefined && { activite: activite || null }),
           ...(nomCommerce        !== undefined && { nomCommerce: nomCommerce || null }),
           ...(latitude           !== undefined && { latitude: latitude != null ? Number(latitude) : null }),

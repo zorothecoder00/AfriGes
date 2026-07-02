@@ -88,7 +88,9 @@ export async function POST(req: Request) {
 
     const userId = parseInt(session.user.id);
     const body = await req.json();
-    const { clientId, pointDeVenteId, lignes, dureeJours, dateDebut, tauxPenalite, garantie, observations } = body;
+    const { clientId, pointDeVenteId, lignes, dureeJours, dateDebut, tauxPenalite, garantie, observations,
+      fraisDossier, assurance, autresFrais, tauxInteret, delaiGraceJours,
+      garantNom, garantTelephone, garantAdresse, garantTypeGarantie, garantValeurEstimee } = body;
 
     if (!clientId || !lignes?.length || !dureeJours || !dateDebut) {
       return NextResponse.json(
@@ -139,8 +141,15 @@ export async function POST(req: Request) {
         return { ...l, qte, pu, rem, montantLigne: Number((pu * qte - rem).toFixed(2)) };
       });
 
-      const montantTotal = Number(lignesCalc.reduce((s, l) => s + l.montantLigne, 0).toFixed(2));
-      if (montantTotal <= 0) throw new Error("MONTANT_INVALIDE");
+      const valeurProduits = Number(lignesCalc.reduce((s, l) => s + l.montantLigne, 0).toFixed(2));
+      if (valeurProduits <= 0) throw new Error("MONTANT_INVALIDE");
+
+      const fraisDossierN = Math.max(0, Number(fraisDossier ?? 0));
+      const assuranceN    = Math.max(0, Number(assurance ?? 0));
+      const autresFraisN  = Math.max(0, Number(autresFrais ?? 0));
+      const tauxInteretN  = Math.max(0, Number(tauxInteret ?? 0));
+      const montantInteret = Number((valeurProduits * tauxInteretN / 100).toFixed(2));
+      const montantTotal = Number((valeurProduits + fraisDossierN + assuranceN + autresFraisN + montantInteret).toFixed(2));
 
       const duree = Number(dureeJours);
       const debut = new Date(dateDebut);
@@ -207,8 +216,19 @@ export async function POST(req: Request) {
           dateDebut: debut,
           dateEcheanceFin,
           montantJournalier,
+          fraisDossier:   fraisDossierN,
+          assurance:      assuranceN,
+          autresFrais:    autresFraisN,
+          tauxInteret:    tauxInteretN,
+          montantInteret,
           tauxPenalite: tauxPenalite != null ? Number(tauxPenalite) : 0,
+          delaiGraceJours: delaiGraceJours != null ? Math.max(0, Number(delaiGraceJours)) : 0,
           garantie: garantie || null,
+          garantNom:           garantNom || null,
+          garantTelephone:     garantTelephone || null,
+          garantAdresse:       garantAdresse || null,
+          garantTypeGarantie:  garantTypeGarantie || null,
+          garantValeurEstimee: garantValeurEstimee != null ? Math.max(0, Number(garantValeurEstimee)) : 0,
           observations: observations || null,
           creeParId: userId,
           valideParId: userId,

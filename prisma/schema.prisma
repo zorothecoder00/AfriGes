@@ -865,6 +865,7 @@ model Client {
   photoUrl           String?           // URL stockage photo client
   pieceIdentiteUrl   String?           // URL scan pièce d'identité
   numeroCNI          String?           @unique  // numéro CNI (unique si renseigné)
+  numeroCarteAfrisime String?          // N° carte client physique AfriSime
 
   // ── Activité & commerce ────────────────────────────────────
   activite           String?           // métier / secteur d'activité
@@ -1129,11 +1130,25 @@ model CreditClient {
   dateEcheanceFin  DateTime     // = dateDebut + dureeJours (calculé à la validation)
   montantJournalier Decimal     // = montantTotal / dureeJours (calculé à la validation)
 
+  // Frais & intérêts (décomposition du montant total)
+  fraisDossier     Decimal      @default(0)
+  assurance        Decimal      @default(0)
+  autresFrais      Decimal      @default(0)
+  tauxInteret      Decimal      @default(0) // % appliqué sur la valeur des produits
+  montantInteret   Decimal      @default(0) // = valeurProduits × tauxInteret / 100
+
   // Pénalités
   tauxPenalite     Decimal      @default(0) // % par jour de retard
+  delaiGraceJours  Int          @default(0) // jours de grâce avant application des pénalités
 
   // Métadonnées
   garantie         String?
+  // Garant structuré (bordereau — section Garantie)
+  garantNom           String?
+  garantTelephone     String?
+  garantAdresse       String?
+  garantTypeGarantie  String?   // caution, gage, hypothèque, aval…
+  garantValeurEstimee Decimal   @default(0)
   observations     String?
 
   // Traçabilité

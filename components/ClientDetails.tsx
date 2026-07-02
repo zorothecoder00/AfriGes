@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useApi, useMutation } from '@/hooks/useApi';
 import { formatDate, formatDateTime, formatCurrency } from '@/lib/format';
 import CreditEcheancier from '@/components/CreditEcheancier';
+import BordereauRemboursement from '@/components/BordereauRemboursement';
 import {
   Phone, MapPin, Calendar, Activity, ArrowLeft, Edit, Trash2,
   AlertTriangle, Hash, Briefcase, Store,
@@ -55,6 +56,7 @@ interface Client {
   telephoneSecondaire: string | null;
   quartier: string | null; ville: string | null;
   photoUrl: string | null; pieceIdentiteUrl: string | null; numeroCNI: string | null;
+  numeroCarteAfrisime: string | null;
   activite: string | null; nomCommerce: string | null;
   latitude: number | null; longitude: number | null;
   typeClient: string | null; limiteCredit: string | number | null;
@@ -63,7 +65,7 @@ interface Client {
   // Relations
   pointDeVente?: { id: number; nom: string; code: string } | null;
   pointsDeVente?: { pointDeVente: { id: number; nom: string; code: string } }[];
-  agentTerrain?: { id: number; nom: string; prenom: string } | null;
+  agentTerrain?: { id: number; nom: string; prenom: string; telephone?: string | null } | null;
   souscriptionsPacks?: SouscriptionPack[];
   ventesDirectes?: VenteDirecte[];
 }
@@ -194,8 +196,19 @@ interface CreditItem {
   dateDebut: string;
   dateEcheanceFin: string;
   montantJournalier: number | string;
+  fraisDossier: number | string;
+  assurance: number | string;
+  autresFrais: number | string;
+  tauxInteret: number | string;
+  montantInteret: number | string;
   tauxPenalite: number | string;
+  delaiGraceJours: number;
   garantie: string | null;
+  garantNom: string | null;
+  garantTelephone: string | null;
+  garantAdresse: string | null;
+  garantTypeGarantie: string | null;
+  garantValeurEstimee: number | string;
   observations: string | null;
   createdAt: string;
   lignes: CreditLigne[];
@@ -264,9 +277,10 @@ export default function ClientDetails({
     useApi<HistoriqueResponse>(`${apiBase}/${clientId}/historique?page=${timelinePage}&limit=20`);
 
   // ── Onglets bas de page ────────────────────────────────────────────────────
-  type TabId = 'versements' | 'credits' | 'histo-credit' | 'ventes' | 'historique';
+  type TabId = 'versements' | 'credits' | 'histo-credit' | 'bordereau' | 'ventes' | 'historique';
   const [activeTab, setActiveTab] = useState<TabId>('versements');
   const [expandedCredits, setExpandedCredits] = useState<Set<number>>(new Set());
+  const [bordereauCredit, setBordereauCredit] = useState<CreditItem | null>(null);
   const { data: creditsRes, loading: creditsLoading, refetch: creditsRefetch } =
     useApi<CreditsClientResponse>(`${apiBase}/${clientId}/credits`);
 
@@ -533,6 +547,7 @@ export default function ClientDetails({
                 { id: 'versements' as TabId, label: 'Versements & Créances', icon: <Activity className="w-4 h-4" />, count: client.souscriptionsPacks?.length },
                 { id: 'credits'    as TabId, label: 'Crédits',               icon: <CreditCard className="w-4 h-4" />, count: creditsRes?.data.length, alert: (creditsRes?.stats.enRetard ?? 0) > 0 },
                 { id: 'histo-credit' as TabId, label: 'Historique crédit',    icon: <Banknote className="w-4 h-4" /> },
+                { id: 'bordereau'  as TabId, label: 'Bordereau de remboursement', icon: <FileText className="w-4 h-4" />, count: creditsRes?.data.length },
                 { id: 'ventes'     as TabId, label: 'Ventes',                 icon: <ShoppingBag className="w-4 h-4" />, count: client.ventesDirectes?.length },
                 { id: 'historique' as TabId, label: 'Historique',             icon: <Clock className="w-4 h-4" />, count: histRes?.meta.total },
               ] as { id: TabId; label: string; icon: React.ReactNode; count?: number; alert?: boolean }[]
@@ -856,6 +871,56 @@ export default function ClientDetails({
             );
           })()}
 
+          {/* ── Tab: BORDEREAU DE REMBOURSEMENT ────────────────────────── */}
+          {activeTab === 'bordereau' && (
+          <div className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-2 uppercase tracking-wide">
+                <FileText className="w-4 h-4 text-emerald-600" /> Bordereau de remboursement
+              </h3>
+              <button onClick={creditsRefetch} className="text-xs text-gray-400 hover:text-gray-600 flex items-center gap-1">
+                <RefreshCw className={`w-3 h-3 ${creditsLoading ? 'animate-spin' : ''}`} /> Actualiser
+              </button>
+            </div>
+            <p className="text-xs text-gray-400 mb-4">
+              Sélectionnez un crédit pour générer son bordereau de remboursement (aperçu + impression couleur ou N/B).
+            </p>
+            {creditsLoading && !creditsRes ? (
+              <div className="flex items-center justify-center py-10 text-gray-400">
+                <RefreshCw className="w-4 h-4 animate-spin mr-2" /> Chargement…
+              </div>
+            ) : !creditsRes?.data.length ? (
+              <div className="text-center py-10">
+                <CreditCard className="w-10 h-10 text-gray-200 mx-auto mb-2" />
+                <p className="text-sm text-gray-400">Aucun crédit pour ce client</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {creditsRes.data.map((credit) => (
+                  <div key={credit.id} className="flex items-center justify-between gap-3 border border-gray-100 rounded-xl px-4 py-3 hover:bg-gray-50">
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-gray-800 font-mono">{credit.reference}</p>
+                      <p className="text-xs text-gray-400 mt-0.5">
+                        {formatDate(credit.dateDebut)} → {formatDate(credit.dateEcheanceFin)} · {credit.dureeJours}j · {formatCurrency(Number(credit.montantTotal))}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-3 flex-shrink-0">
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${CREDIT_STATUT_STYLE[credit.statut] ?? 'bg-gray-100 text-gray-600'}`}>
+                        {CREDIT_STATUT_LABEL[credit.statut] ?? credit.statut}
+                      </span>
+                      <button
+                        onClick={() => setBordereauCredit(credit)}
+                        className="flex items-center gap-2 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-medium transition-colors">
+                        <FileText className="w-3.5 h-3.5" /> Bordereau
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          )}
+
           {/* ── Tab: VENTES ────────────────────────────────────────────── */}
           {activeTab === 'ventes' && (
           <div className="p-6">
@@ -974,6 +1039,14 @@ export default function ClientDetails({
 
         </div>{/* fin onglets */}
       </div>
+
+      {bordereauCredit && (
+        <BordereauRemboursement
+          credit={bordereauCredit}
+          client={client}
+          onClose={() => setBordereauCredit(null)}
+        />
+      )}
     </div>
   );
 }

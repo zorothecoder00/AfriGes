@@ -99,6 +99,8 @@ export async function POST(req: Request) {
       lignes,
       dureeJours, dateDebut,
       tauxPenalite, garantie, observations,
+      fraisDossier, assurance, autresFrais, tauxInteret, delaiGraceJours,
+      garantNom, garantTelephone, garantAdresse, garantTypeGarantie, garantValeurEstimee,
     } = body;
 
     // ── Validation de base ────────────────────────────────────────────────────
@@ -156,10 +158,20 @@ export async function POST(req: Request) {
         return { ...l, qte, pu, rem, montantLigne };
       });
 
-      const montantTotal = Number(
+      // Valeur des produits (somme des lignes) + frais/assurance/intérêts = montant total à rembourser.
+      const valeurProduits = Number(
         lignesCalculees.reduce((s, l) => s + l.montantLigne, 0).toFixed(2)
       );
-      if (montantTotal <= 0) throw new Error("MONTANT_INVALIDE");
+      if (valeurProduits <= 0) throw new Error("MONTANT_INVALIDE");
+
+      const fraisDossierN = Math.max(0, Number(fraisDossier ?? 0));
+      const assuranceN    = Math.max(0, Number(assurance ?? 0));
+      const autresFraisN  = Math.max(0, Number(autresFrais ?? 0));
+      const tauxInteretN  = Math.max(0, Number(tauxInteret ?? 0));
+      const montantInteret = Number((valeurProduits * tauxInteretN / 100).toFixed(2));
+      const montantTotal = Number(
+        (valeurProduits + fraisDossierN + assuranceN + autresFraisN + montantInteret).toFixed(2)
+      );
 
       // ── Calcul échéancier (stocké, échéances générées à la validation) ────
       const duree = Number(dureeJours);
@@ -210,8 +222,19 @@ export async function POST(req: Request) {
           dateDebut: debut,
           dateEcheanceFin,
           montantJournalier,
+          fraisDossier:   fraisDossierN,
+          assurance:      assuranceN,
+          autresFrais:    autresFraisN,
+          tauxInteret:    tauxInteretN,
+          montantInteret,
           tauxPenalite: tauxPenalite != null ? Number(tauxPenalite) : 0,
+          delaiGraceJours: delaiGraceJours != null ? Math.max(0, Number(delaiGraceJours)) : 0,
           garantie: garantie || null,
+          garantNom:           garantNom || null,
+          garantTelephone:     garantTelephone || null,
+          garantAdresse:       garantAdresse || null,
+          garantTypeGarantie:  garantTypeGarantie || null,
+          garantValeurEstimee: garantValeurEstimee != null ? Math.max(0, Number(garantValeurEstimee)) : 0,
           observations: observations || null,
           creeParId: Number(session.user.id),
           lignes: {

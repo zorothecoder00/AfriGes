@@ -213,6 +213,8 @@ export default function CreditsPage() {
   ]);
   const [creditParams,    setCreditParams]    = useState({
     dureeJours: '', dateDebut: new Date().toISOString().slice(0, 10),
+    fraisDossier: '0', assurance: '0', autresFrais: '0', tauxInteret: '0', delaiGraceJours: '0',
+    garantNom: '', garantTelephone: '', garantAdresse: '', garantTypeGarantie: '', garantValeurEstimee: '0',
     tauxPenalite: '0', garantie: '', observations: '',
   });
   const [creditSubmitting, setCreditSubmitting] = useState(false);
@@ -396,7 +398,7 @@ export default function CreditsPage() {
     setCreditSelectedClient(null); setEligibilite(null); setCreditError('');
     setCreditPdvId(''); setCreditStockPdv([]); setCreditClientResults([]);
     setCreditLignes([{ produitId: null, produitNom: '', quantite: 1, prixUnitaire: 0, remise: 0, stockDisponible: Infinity }]);
-    setCreditParams({ dureeJours: '', dateDebut: new Date().toISOString().slice(0, 10), tauxPenalite: '0', garantie: '', observations: '' });
+    setCreditParams({ dureeJours: '', dateDebut: new Date().toISOString().slice(0, 10), fraisDossier: '0', assurance: '0', autresFrais: '0', tauxInteret: '0', delaiGraceJours: '0', garantNom: '', garantTelephone: '', garantAdresse: '', garantTypeGarantie: '', garantValeurEstimee: '0', tauxPenalite: '0', garantie: '', observations: '' });
   };
 
   const checkEligibilite = async (clientId: number) => {
@@ -409,6 +411,9 @@ export default function CreditsPage() {
   };
 
   const creditMontantTotal = creditLignes.reduce((s, l) => s + (l.prixUnitaire * l.quantite - l.remise), 0);
+  const creditInteret        = Number(((creditMontantTotal * Number(creditParams.tauxInteret || 0)) / 100).toFixed(2));
+  const creditFraisTotal     = Number(creditParams.fraisDossier || 0) + Number(creditParams.assurance || 0) + Number(creditParams.autresFrais || 0) + creditInteret;
+  const creditTotalARembourser = creditMontantTotal + creditFraisTotal;
   const creditLignesInvalid = creditLignes.filter(l => l.produitNom.trim()).some(l =>
     l.prixUnitaire <= 0 || l.quantite < 1 ||
     (l.remise > 0 && l.remise >= l.prixUnitaire * l.quantite) ||
@@ -416,7 +421,7 @@ export default function CreditsPage() {
   );
   const creditDateDebutInvalid = !!creditParams.dateDebut && creditParams.dateDebut < new Date().toISOString().slice(0, 10);
   const creditMontantJournalier = creditParams.dureeJours
-    ? Number((creditMontantTotal / Number(creditParams.dureeJours)).toFixed(2)) : 0;
+    ? Number((creditTotalARembourser / Number(creditParams.dureeJours)).toFixed(2)) : 0;
   const creditDateFin = (() => {
     if (!creditParams.dureeJours || !creditParams.dateDebut) return '';
     const d = new Date(creditParams.dateDebut);
@@ -446,6 +451,16 @@ export default function CreditsPage() {
           })),
           dureeJours:   Number(creditParams.dureeJours),
           dateDebut:    creditParams.dateDebut,
+          fraisDossier:    Number(creditParams.fraisDossier || 0),
+          assurance:       Number(creditParams.assurance || 0),
+          autresFrais:     Number(creditParams.autresFrais || 0),
+          tauxInteret:     Number(creditParams.tauxInteret || 0),
+          delaiGraceJours: Number(creditParams.delaiGraceJours || 0),
+          garantNom:           creditParams.garantNom || undefined,
+          garantTelephone:     creditParams.garantTelephone || undefined,
+          garantAdresse:       creditParams.garantAdresse || undefined,
+          garantTypeGarantie:  creditParams.garantTypeGarantie || undefined,
+          garantValeurEstimee: Number(creditParams.garantValeurEstimee || 0),
           tauxPenalite: Number(creditParams.tauxPenalite),
           garantie:     creditParams.garantie || undefined,
           observations: creditParams.observations || undefined,
@@ -1688,6 +1703,82 @@ export default function CreditsPage() {
                         className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50" />
                     </div>
                   </div>
+
+                  {/* Frais & intérêts (inclus dans le total à rembourser) */}
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600 mb-1">Frais de dossier</label>
+                      <input type="number" min={0} step={100} value={creditParams.fraisDossier}
+                        onChange={e => setCreditParams(p => ({ ...p, fraisDossier: e.target.value }))}
+                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600 mb-1">Assurance</label>
+                      <input type="number" min={0} step={100} value={creditParams.assurance}
+                        onChange={e => setCreditParams(p => ({ ...p, assurance: e.target.value }))}
+                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600 mb-1">Autres frais</label>
+                      <input type="number" min={0} step={100} value={creditParams.autresFrais}
+                        onChange={e => setCreditParams(p => ({ ...p, autresFrais: e.target.value }))}
+                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600 mb-1">Taux d&apos;intérêt (%)</label>
+                      <input type="number" min={0} step={0.1} value={creditParams.tauxInteret}
+                        onChange={e => setCreditParams(p => ({ ...p, tauxInteret: e.target.value }))}
+                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600 mb-1">Délai de grâce (jours)</label>
+                      <input type="number" min={0} step={1} value={creditParams.delaiGraceJours}
+                        onChange={e => setCreditParams(p => ({ ...p, delaiGraceJours: e.target.value }))}
+                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50" />
+                    </div>
+                    <div className="bg-blue-50 rounded-lg px-3 py-2 border border-blue-100">
+                      <p className="text-xs text-blue-500">Total à rembourser</p>
+                      <p className="text-sm font-bold text-blue-800 mt-0.5">{formatCurrency(creditTotalARembourser)}</p>
+                    </div>
+                  </div>
+
+                  {/* Garant (garantie) */}
+                  <div className="border border-slate-100 rounded-xl p-3 bg-slate-50/60 space-y-3">
+                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Garant</p>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                      <div>
+                        <label className="block text-xs font-medium text-slate-600 mb-1">Nom du garant</label>
+                        <input type="text" value={creditParams.garantNom}
+                          onChange={e => setCreditParams(p => ({ ...p, garantNom: e.target.value }))} placeholder="Nom & prénoms"
+                          className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-slate-600 mb-1">Téléphone</label>
+                        <input type="text" value={creditParams.garantTelephone}
+                          onChange={e => setCreditParams(p => ({ ...p, garantTelephone: e.target.value }))} placeholder="+228…"
+                          className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-slate-600 mb-1">Adresse</label>
+                        <input type="text" value={creditParams.garantAdresse}
+                          onChange={e => setCreditParams(p => ({ ...p, garantAdresse: e.target.value }))} placeholder="Quartier, ville"
+                          className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-slate-600 mb-1">Type de garantie</label>
+                        <input type="text" value={creditParams.garantTypeGarantie}
+                          onChange={e => setCreditParams(p => ({ ...p, garantTypeGarantie: e.target.value }))} placeholder="caution, gage, aval…"
+                          className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-slate-600 mb-1">Valeur estimée</label>
+                        <input type="number" min={0} step={1000} value={creditParams.garantValeurEstimee}
+                          onChange={e => setCreditParams(p => ({ ...p, garantValeurEstimee: e.target.value }))}
+                          className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" />
+                      </div>
+                    </div>
+                  </div>
+
                   <div>
                     <label className="block text-xs font-medium text-slate-600 mb-1">Observations</label>
                     <textarea rows={2} value={creditParams.observations}
@@ -1713,7 +1804,7 @@ export default function CreditsPage() {
                     </div>
                   </div>
                   <div className="grid grid-cols-3 gap-3">
-                    {[{ label: 'Montant total', value: formatCurrency(creditMontantTotal) }, { label: 'Durée', value: `${creditParams.dureeJours} jours` }, { label: 'Montant/jour', value: formatCurrency(creditMontantJournalier) }].map(s => (
+                    {[{ label: 'Total à rembourser', value: formatCurrency(creditTotalARembourser) }, { label: 'Durée', value: `${creditParams.dureeJours} jours` }, { label: 'Montant/jour', value: formatCurrency(creditMontantJournalier) }].map(s => (
                       <div key={s.label} className="bg-blue-50 rounded-lg p-3 text-center">
                         <p className="text-xs text-blue-500">{s.label}</p>
                         <p className="text-sm font-bold text-blue-700 mt-0.5">{s.value}</p>

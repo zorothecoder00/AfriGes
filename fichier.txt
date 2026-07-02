@@ -10,6 +10,10 @@
 
 -jose pour le JWT, bcryptjs pour le hash
 
+- QR scannable (et un vrai code-barres Code128) ? Ça
+  nécessite une petite dépendance (qrcode / bwip-js)
+
+
 -On peut aussi utiliser du SVG pour les graphiques ( sans forcément dépendance externe)  
 -Ce code :      
    const a = document.createElement("a");
@@ -206,10 +210,8 @@ Un point à valider : je considère « versées » au sens large (fiches VALIDE 
 
 
 
-Avoir un menu " bordereau de remboursement" dans /dashboard/admin/clients/id
+Créé un menu ou onglet " bordereau de remboursement" dans /dashboard/admin/clients/id
 
-
-Pourquoi lorsque j'imprime une facture dans mon app notamment dans /dashboard/admin/credits , l'encre ne sort pas bien ?? C'est un problème de mon code ou c'est l'imprimante ?? Parce que apparemment quand on imprime autre chose ( pas avec l'appli ) , le rendu sort mieux ( avec plus d'opacité et de clarté )
 
 
 

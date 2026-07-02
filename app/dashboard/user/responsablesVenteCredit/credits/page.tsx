@@ -136,6 +136,16 @@ function NouveauCreditModal({ onClose, onSuccess }: { onClose: () => void; onSuc
   const [dateDebut,    setDateDebut]    = useState(new Date().toISOString().slice(0, 10));
   const [garantie,     setGarantie]     = useState("");
   const [observations, setObservations] = useState("");
+  const [fraisDossier,    setFraisDossier]    = useState("0");
+  const [assurance,       setAssurance]       = useState("0");
+  const [autresFrais,     setAutresFrais]     = useState("0");
+  const [tauxInteret,     setTauxInteret]     = useState("0");
+  const [delaiGraceJours, setDelaiGraceJours] = useState("0");
+  const [garantNom,          setGarantNom]          = useState("");
+  const [garantTelephone,    setGarantTelephone]    = useState("");
+  const [garantAdresse,      setGarantAdresse]      = useState("");
+  const [garantTypeGarantie, setGarantTypeGarantie] = useState("");
+  const [garantValeurEstimee,setGarantValeurEstimee]= useState("0");
   const [lignes, setLignes] = useState([{ produitId: "", produitNom: "", quantite: "1", prixUnitaire: "", remise: "0" }]);
   const [submitLoading, setSubmitLoading] = useState(false);
 
@@ -205,6 +215,16 @@ function NouveauCreditModal({ onClose, onSuccess }: { onClose: () => void; onSuc
           clientId:     Number(clientId),
           dureeJours:   Number(dureeJours),
           dateDebut,
+          fraisDossier:    Number(fraisDossier || 0),
+          assurance:       Number(assurance || 0),
+          autresFrais:     Number(autresFrais || 0),
+          tauxInteret:     Number(tauxInteret || 0),
+          delaiGraceJours: Number(delaiGraceJours || 0),
+          garantNom:           garantNom || undefined,
+          garantTelephone:     garantTelephone || undefined,
+          garantAdresse:       garantAdresse || undefined,
+          garantTypeGarantie:  garantTypeGarantie || undefined,
+          garantValeurEstimee: Number(garantValeurEstimee || 0),
           garantie:     garantie || undefined,
           observations: observations || undefined,
           lignes: lignes.map((l) => ({
@@ -350,6 +370,52 @@ function NouveauCreditModal({ onClose, onSuccess }: { onClose: () => void; onSuc
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1.5">Observations</label>
                       <input type="text" value={observations} onChange={(e) => setObservations(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                    </div>
+                  </div>
+
+                  {/* Frais & intérêts (inclus dans le total à rembourser) */}
+                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1.5">Frais dossier</label>
+                      <input type="number" min={0} step={100} value={fraisDossier} onChange={(e) => setFraisDossier(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1.5">Assurance</label>
+                      <input type="number" min={0} step={100} value={assurance} onChange={(e) => setAssurance(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1.5">Autres frais</label>
+                      <input type="number" min={0} step={100} value={autresFrais} onChange={(e) => setAutresFrais(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1.5">Taux intérêt (%)</label>
+                      <input type="number" min={0} step={0.1} value={tauxInteret} onChange={(e) => setTauxInteret(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1.5">Délai grâce (j)</label>
+                      <input type="number" min={0} step={1} value={delaiGraceJours} onChange={(e) => setDelaiGraceJours(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                    </div>
+                  </div>
+
+                  {/* Garant */}
+                  <div className="border border-gray-100 rounded-xl p-3 bg-gray-50/60">
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Garant</p>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                      <input type="text" value={garantNom} onChange={(e) => setGarantNom(e.target.value)} placeholder="Nom du garant"
+                        className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                      <input type="text" value={garantTelephone} onChange={(e) => setGarantTelephone(e.target.value)} placeholder="Téléphone"
+                        className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                      <input type="text" value={garantAdresse} onChange={(e) => setGarantAdresse(e.target.value)} placeholder="Adresse"
+                        className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                      <input type="text" value={garantTypeGarantie} onChange={(e) => setGarantTypeGarantie(e.target.value)} placeholder="Type (caution, gage…)"
+                        className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                      <input type="number" min={0} step={1000} value={garantValeurEstimee} onChange={(e) => setGarantValeurEstimee(e.target.value)} placeholder="Valeur estimée"
                         className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
                     </div>
                   </div>

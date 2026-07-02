@@ -20,6 +20,7 @@ interface Client {
   telephoneSecondaire: string | null;
   quartier: string | null; ville: string | null;
   photoUrl: string | null; pieceIdentiteUrl: string | null; numeroCNI: string | null;
+  numeroCarteAfrisime: string | null;
   activite: string | null; nomCommerce: string | null;
   latitude: number | null; longitude: number | null;
   typeClient: string | null; limiteCredit: string | number | null;
@@ -58,7 +59,7 @@ export default function ClientEdit({ clientId }: { clientId: string }) {
     // Legacy
     nom: '', prenom: '', telephone: '', adresse: '', etat: 'ACTIF',
     // Identité
-    sexe: '', dateNaissance: '', telephoneSecondaire: '', numeroCNI: '',
+    sexe: '', dateNaissance: '', telephoneSecondaire: '', numeroCNI: '', numeroCarteAfrisime: '',
     // Localisation
     quartier: '', ville: '', latitude: '', longitude: '',
     // Documents
@@ -85,6 +86,7 @@ export default function ClientEdit({ clientId }: { clientId: string }) {
         dateNaissance:       c.dateNaissance        ? c.dateNaissance.slice(0, 10) : '',
         telephoneSecondaire: c.telephoneSecondaire  ?? '',
         numeroCNI:           c.numeroCNI            ?? '',
+        numeroCarteAfrisime: c.numeroCarteAfrisime  ?? '',
         quartier:            c.quartier             ?? '',
         ville:               c.ville                ?? '',
         latitude:            c.latitude             != null ? String(c.latitude)  : '',
@@ -142,6 +144,7 @@ export default function ClientEdit({ clientId }: { clientId: string }) {
       dateNaissance:       form.dateNaissance       || null,
       telephoneSecondaire: form.telephoneSecondaire || null,
       numeroCNI:           form.numeroCNI           || null,
+      numeroCarteAfrisime: form.numeroCarteAfrisime || null,
       quartier:            form.quartier            || null,
       ville:               form.ville               || null,
       latitude:            form.latitude            ? Number(form.latitude)  : null,
@@ -234,6 +237,10 @@ export default function ClientEdit({ clientId }: { clientId: string }) {
               <div>
                 <label className="block text-xs font-medium text-gray-600 mb-1.5">N° CNI</label>
                 <input type="text" value={form.numeroCNI} onChange={set('numeroCNI')} className={INPUT} placeholder="Numéro CNI / pièce d'identité" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1.5">N° Carte Client AfriSime</label>
+                <input type="text" value={form.numeroCarteAfrisime} onChange={set('numeroCarteAfrisime')} className={INPUT} placeholder="N° carte physique" />
               </div>
             </div>
           </div>

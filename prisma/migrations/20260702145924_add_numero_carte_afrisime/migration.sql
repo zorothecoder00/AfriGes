@@ -1,0 +1,10 @@
+-- AlterTable
+ALTER TABLE "Client" ADD COLUMN     "numeroCarteAfrisime" TEXT;
+
+-- AlterTable
+ALTER TABLE "CreditClient" ADD COLUMN     "assurance" DECIMAL(65,30) NOT NULL DEFAULT 0,
+ADD COLUMN     "autresFrais" DECIMAL(65,30) NOT NULL DEFAULT 0,
+ADD COLUMN     "delaiGraceJours" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "fraisDossier" DECIMAL(65,30) NOT NULL DEFAULT 0,
+ADD COLUMN     "montantInteret" DECIMAL(65,30) NOT NULL DEFAULT 0,
+ADD COLUMN     "tauxInteret" DECIMAL(65,30) NOT NULL DEFAULT 0;
