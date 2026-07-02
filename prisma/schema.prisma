@@ -691,6 +691,7 @@ model User {
   // Crédits clients
   creditsCreees                CreditClient[]       @relation("CreditCreateur")
   creditsValides               CreditClient[]       @relation("CreditValidateur")
+  creditsGeres                 CreditClient[]       @relation("CreditGestionnaire")
   facturesVenteEmises          FactureVente[]       @relation("FacturesVenteEmises")
   remboursementsEnregistres    RemboursementCredit[]      @relation("RemboursementEnregistrePar")
   remboursementsCollectes      RemboursementCredit[]      @relation("RemboursementAgentCollecteur")
@@ -1150,6 +1151,9 @@ model CreditClient {
   garantTypeGarantie  String?   // caution, gage, hypothèque, aval…
   garantValeurEstimee Decimal   @default(0)
   observations     String?
+  // Gestionnaire du crédit (bordereau) : User choisi manuellement ; fallback = RVC du PDV → validePar → creePar
+  gestionnaireCreditId Int?
+  gestionnaireCredit   User? @relation("CreditGestionnaire", fields: [gestionnaireCreditId], references: [id])
 
   // Traçabilité
   creeParId        Int

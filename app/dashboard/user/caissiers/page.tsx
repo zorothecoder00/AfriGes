@@ -24,6 +24,7 @@ import { usePageAccess } from "@/hooks/usePageAccess";
 import { groupByMonth } from "@/lib/groupByMonth";
 import { MonthGroupHeaderRow, useCollapsedMonths } from "@/components/MonthGroupHeaderRow";
 import { CreditRappelInfo } from "@/components/CreditRappelInfo";
+import BordereauRemboursement, { type BordereauCredit, type BordereauClient } from "@/components/BordereauRemboursement";
 
 // ============================================================================
 // TYPES
@@ -1117,6 +1118,20 @@ export default function CaissierPage() {
     }
   };
 
+  // ── Bordereau de remboursement (accès direct depuis la liste) ───────────────
+  const [bordereauData, setBordereauData] = useState<{ credit: BordereauCredit; client: BordereauClient } | null>(null);
+  const [bordereauLoadingId, setBordereauLoadingId] = useState<number | null>(null);
+  const openBordereau = async (id: number) => {
+    setBordereauLoadingId(id);
+    try {
+      const r = await fetch(`/api/caissier/credits/${id}`);
+      const j = await r.json();
+      if (r.ok) setBordereauData({ credit: j.data as BordereauCredit, client: j.data.client as BordereauClient });
+      else toast.error(j.error ?? "Erreur");
+    } catch { toast.error("Erreur réseau"); }
+    finally { setBordereauLoadingId(null); }
+  };
+
   // ── Édition durée / date du crédit ──────────────────────────────────────────
   const openDureeEdit = (c: NonNullable<typeof creditsRes>["data"][number]) => {
     setDureeForm({ dureeJours: String(c.dureeJours), dateDebut: c.dateDebut ? c.dateDebut.slice(0, 10) : "" });
@@ -1528,6 +1543,14 @@ export default function CaissierPage() {
       {factureVenteId     && <FactureModal venteDirecteId={factureVenteId}       onClose={() => setFactureVenteId(null)} />}
       {factureReceptionId && <FactureModal receptionPackId={factureReceptionId} onClose={() => setFactureReceptionId(null)} />}
       {factureCreditId    && <FactureModal creditClientId={factureCreditId}      onClose={() => setFactureCreditId(null)} />}
+
+      {bordereauData && (
+        <BordereauRemboursement
+          credit={bordereauData.credit}
+          client={bordereauData.client}
+          onClose={() => setBordereauData(null)}
+        />
+      )}
 
       {/* ── Modal : modifier la durée / date du crédit ─────────────────────────── */}
       {dureeCredit && (
@@ -3774,6 +3797,14 @@ export default function CaissierPage() {
                                   title="Modifier la durée"
                                 >
                                   <Pencil size={13} />
+                                </button>
+                                <button
+                                  onClick={() => openBordereau(c.id)}
+                                  disabled={bordereauLoadingId === c.id}
+                                  className="p-1.5 text-slate-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors disabled:opacity-50"
+                                  title="Bordereau de remboursement"
+                                >
+                                  {bordereauLoadingId === c.id ? <Loader2 size={13} className="animate-spin" /> : <FileText size={13} />}
                                 </button>
                                 <button
                                   onClick={() => setFactureCreditId(c.id)}

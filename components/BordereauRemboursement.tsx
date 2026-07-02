@@ -7,7 +7,7 @@ import { toCanvas as barcodeToCanvas } from "bwip-js/browser";
 
 // ─── Types (sous-ensembles de CreditItem / Client de ClientDetails) ────────────
 
-interface BordereauCredit {
+export interface BordereauCredit {
   reference: string;
   statut: string;
   montantTotal: number | string;
@@ -31,6 +31,8 @@ interface BordereauCredit {
   garantTypeGarantie: string | null;
   garantValeurEstimee: number | string;
   observations: string | null;
+  gestionnaireCredit?: { nom: string; prenom: string } | null;
+  rvcPdv?: { nom: string; prenom: string } | null;
   createdAt: string;
   lignes: { id: number; produitNom: string; quantite: number; prixUnitaire: number | string; montantLigne: number | string }[];
   echeances: { id: number; numeroEcheance: number; dateEcheance: string; montantDu: number | string; montantPaye: number | string; statut: string; penalite: number | string }[];
@@ -39,7 +41,7 @@ interface BordereauCredit {
   validePar: { nom: string; prenom: string } | null;
 }
 
-interface BordereauClient {
+export interface BordereauClient {
   id: number;
   codeClient: string | null;
   nom: string; prenom: string;
@@ -100,15 +102,19 @@ function buildBordereauHtml(credit: BordereauCredit, client: BordereauClient, or
 
   const pdv = client.pointDeVente?.nom ?? client.pointsDeVente?.[0]?.pointDeVente.nom ?? "—";
   const agent = client.agentTerrain ? `${client.agentTerrain.prenom} ${client.agentTerrain.nom}` : "—";
-  const gestionnaire = credit.validePar ? `${credit.validePar.prenom} ${credit.validePar.nom}` : `${credit.creePar.prenom} ${credit.creePar.nom}`;
+  const nomUser = (u?: { nom: string; prenom: string } | null) => (u ? `${u.prenom} ${u.nom}` : null);
+  const gestionnaire =
+    nomUser(credit.gestionnaireCredit) ??
+    nomUser(credit.rvcPdv) ??
+    nomUser(credit.validePar) ??
+    nomUser(credit.creePar) ??
+    "—";
 
   // ── D. Résumé financier ──
   const valeurProduits = credit.lignes.reduce((s, l) => s + N(l.montantLigne), 0);
   const montantTotal   = N(credit.montantTotal);
 
-  // ── F. Situation ──
-  const joursPayes    = credit.echeances.filter((e) => e.statut === "PAYE").length;
-  const joursRestants = Math.max(0, credit.dureeJours - joursPayes);
+  // ── F. Pénalités ──
   const retards       = credit.echeances.filter((e) => e.statut !== "PAYE" && new Date(e.dateEcheance) < today);
   const nombreRetards = retards.length;
   const tauxPen       = N(credit.tauxPenalite);
@@ -116,7 +122,6 @@ function buildBordereauHtml(credit: BordereauCredit, client: BordereauClient, or
   const joursRetardFactures = Math.max(0, nombreRetards - grace);
   const penalitesStored = credit.echeances.reduce((s, e) => s + N(e.penalite), 0);
   const totalPenalites  = penalitesStored > 0 ? penalitesStored : Math.round(N(credit.montantJournalier) * (tauxPen / 100) * joursRetardFactures);
-  const soldeGlobal     = N(credit.soldeRestant) + totalPenalites;
 
   // ── E. Calendrier journalier — TOUTES les lignes jusqu'à la fin du crédit ──
   // On génère 1..dureeJours ; on utilise l'échéance réelle si elle existe (crédit validé),
@@ -150,22 +155,6 @@ function buildBordereauHtml(credit: BordereauCredit, client: BordereauClient, or
       <td style="padding:5px 6px;border:1px solid ${c.line}"></td>
     </tr>`;
   }).join("");
-
-  // ── H. Historique paiements ──
-  const paiements = [...credit.remboursements].sort((a, b) => new Date(a.dateRemboursement).getTime() - new Date(b.dateRemboursement).getTime());
-  const paiementRows = paiements.length
-    ? paiements.map((r, i) => {
-        const ag = r.agentCollecteur ?? r.enregistrePar;
-        return `<tr>
-          <td style="padding:5px 6px;border:1px solid ${c.line};text-align:center">${i + 1}</td>
-          <td style="padding:5px 6px;border:1px solid ${c.line}">${fmtDate(r.dateRemboursement)}</td>
-          <td style="padding:5px 6px;border:1px solid ${c.line};text-align:right">${fmt(r.montant)}</td>
-          <td style="padding:5px 6px;border:1px solid ${c.line}">${esc(r.modePaiement.replace(/_/g, " "))}</td>
-          <td style="padding:5px 6px;border:1px solid ${c.line}">R-${r.id}</td>
-          <td style="padding:5px 6px;border:1px solid ${c.line}">${esc(`${ag.prenom} ${ag.nom}`)}</td>
-        </tr>`;
-      }).join("")
-    : `<tr><td colspan="6" style="padding:10px;border:1px solid ${c.line};text-align:center;color:${c.faint}">Aucun paiement enregistré</td></tr>`;
 
   // ── Helpers de rendu ──
   const kv = (k: string, v: string) => `<tr>
@@ -225,10 +214,6 @@ function buildBordereauHtml(credit: BordereauCredit, client: BordereauClient, or
     kv("Sexe", client.sexe ? (SEXE_LABEL[client.sexe] ?? client.sexe) : "—") +
     kv("Téléphone", dash(client.telephone)) +
     kv("Adresse", dash(client.adresse)) +
-    kv("Quartier", dash(client.quartier)) +
-    kv("Profession", dash(client.activite)) +
-    kv("Employeur", dash(client.nomCommerce)) +
-    kv("Pièce d'identité", dash(client.numeroCNI)) +
     kv("N° Carte Client AfriSime", dash(client.numeroCarteAfrisime)),
   )}
 
@@ -247,11 +232,11 @@ function buildBordereauHtml(credit: BordereauCredit, client: BordereauClient, or
   ${sectionTitle("D. Résumé financier du crédit")}
   ${table(
     kv("Valeur des produits achetés", fmt(valeurProduits)) +
-    kv("Frais de dossier", N(credit.fraisDossier) > 0 ? fmt(credit.fraisDossier) : "—") +
-    kv("Assurance (si applicable)", N(credit.assurance) > 0 ? fmt(credit.assurance) : "—") +
-    kv("Autres frais", N(credit.autresFrais) > 0 ? fmt(credit.autresFrais) : "—") +
+    kv("Frais de dossier", fmt(credit.fraisDossier)) +
+    kv("Assurance (si applicable)", fmt(credit.assurance)) +
+    kv("Autres frais", fmt(credit.autresFrais)) +
     kv("Taux d'intérêt appliqué", `${N(credit.tauxInteret)} %`) +
-    kv("Intérêt total", N(credit.montantInteret) > 0 ? fmt(credit.montantInteret) : "—") +
+    kv("Intérêt total", fmt(credit.montantInteret)) +
     kv("Montant total du crédit accordé", fmt(montantTotal)) +
     kv("Taux de pénalité appliqué", `${tauxPen} % / jour`) +
     kv("Montant total à rembourser", fmt(montantTotal)) +
@@ -277,21 +262,8 @@ function buildBordereauHtml(credit: BordereauCredit, client: BordereauClient, or
     <tbody>${calendrierRows || `<tr><td colspan="7" style="padding:10px;border:1px solid ${c.line};text-align:center;color:${c.faint}">Durée du crédit non définie</td></tr>`}</tbody>
   </table>
 
-  <!-- F. Situation du crédit -->
-  ${sectionTitle("F. Situation du crédit (mise à jour automatique)")}
-  ${table(
-    kv("Total déjà payé", fmt(credit.montantRembourse)) +
-    kv("Solde restant", fmt(credit.soldeRestant)) +
-    kv("Nombre de jours payés", String(joursPayes)) +
-    kv("Nombre de jours restants", String(joursRestants)) +
-    kv("Retard actuel", `${nombreRetards} jour(s)`) +
-    kv("Nombre total de retards", String(nombreRetards)) +
-    kv("Total des pénalités", fmt(totalPenalites)) +
-    `<tr><td style="padding:6px 8px;border:1px solid ${c.line};color:${c.headText};background:${c.headBg};font-weight:700">Solde global à payer</td><td style="padding:6px 8px;border:1px solid ${c.line};font-weight:800;color:${c.danger};background:${c.headBg}">${fmt(soldeGlobal)}</td></tr>`,
-  )}
-
-  <!-- G. Gestion des pénalités -->
-  ${sectionTitle("G. Gestion des pénalités")}
+  <!-- F. Gestion des pénalités -->
+  ${sectionTitle("F. Gestion des pénalités")}
   ${table(
     kv("Délai de grâce", `${grace} jour(s)`) +
     kv("Début des pénalités", grace > 0 ? `Après ${grace} jour(s) de retard` : "Dès le 1er jour de retard") +
@@ -302,32 +274,17 @@ function buildBordereauHtml(credit: BordereauCredit, client: BordereauClient, or
   )}
   <p style="font-size:10px;color:${c.faint};margin-top:4px;font-style:italic">Calcul auto : montant journalier × taux × jours de retard = ${fmt(credit.montantJournalier)} × ${tauxPen}% × ${joursRetardFactures} = ${fmt(totalPenalites)}.</p>
 
-  <!-- H. Historique des paiements -->
-  ${sectionTitle("H. Historique des paiements")}
-  <table style="width:100%;border-collapse:collapse;font-size:11px">
-    <thead><tr style="background:${c.headBg};color:${c.headText}">
-      <th style="padding:6px;border:1px solid ${c.line}">N°</th>
-      <th style="padding:6px;border:1px solid ${c.line}">Date</th>
-      <th style="padding:6px;border:1px solid ${c.line}">Montant</th>
-      <th style="padding:6px;border:1px solid ${c.line}">Mode de paiement</th>
-      <th style="padding:6px;border:1px solid ${c.line}">Référence</th>
-      <th style="padding:6px;border:1px solid ${c.line}">Agent</th>
-    </tr></thead>
-    <tbody>${paiementRows}</tbody>
-  </table>
+  <!-- G. Consentement -->
+  ${sectionTitle("G. Consentement du client")}
+  <p style="font-size:11px;line-height:1.6;color:${c.text};text-align:justify;border:1px solid ${c.line};background:${c.headBg};padding:10px 12px;border-radius:4px">
+    Par la présente, je reconnais avoir bénéficié d'un crédit accordé par AFRISIME et m'engage
+    irrévocablement à rembourser le montant total indiqué sur ce bordereau selon le calendrier
+    convenu. Je reconnais avoir pris connaissance des conditions de remboursement, des pénalités
+    applicables en cas de retard et des dispositions prévues en cas de non-respect de mes engagements.
+  </p>
 
-  <!-- I. Garantie -->
-  ${sectionTitle("I. Garantie")}
-  ${table(
-    kv("Garant", dash(credit.garantNom ?? credit.garantie)) +
-    kv("Téléphone", dash(credit.garantTelephone)) +
-    kv("Adresse", dash(credit.garantAdresse)) +
-    kv("Type de garantie", dash(credit.garantTypeGarantie)) +
-    kv("Valeur estimée", N(credit.garantValeurEstimee) > 0 ? fmt(credit.garantValeurEstimee) : "—"),
-  )}
-
-  <!-- J. Signatures -->
-  ${sectionTitle("J. Signatures")}
+  <!-- H. Signatures -->
+  ${sectionTitle("H. Signatures")}
   <table style="width:100%;border-collapse:collapse;font-size:11px;margin-top:24px">
     <tr>
       ${["Client", "Agent affecté", "Responsable crédit"].map((r) => `

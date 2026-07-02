@@ -5,7 +5,7 @@ import {
   Search, RefreshCw, CreditCard, AlertCircle, CheckCircle2, XCircle,
   Wallet, ChevronLeft, ChevronRight, X, TrendingDown, Loader2,
   Eye, Ban, BadgeCheck, Banknote, Calendar, Clock, User, ChevronDown, ChevronUp,
-  Plus, Trash, Info, Receipt, PackageCheck, ArrowLeftRight, Pencil, FolderTree,
+  Plus, Trash, Info, Receipt, PackageCheck, ArrowLeftRight, Pencil, FolderTree, FileText,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useApi } from '@/hooks/useApi';
@@ -18,6 +18,7 @@ import FactureModal from '@/components/FactureModal';
 import { groupByMonth } from '@/lib/groupByMonth';
 import { MonthGroupHeaderRow, useCollapsedMonths } from '@/components/MonthGroupHeaderRow';
 import { CreditRappelInfo } from '@/components/CreditRappelInfo';
+import BordereauRemboursement, { type BordereauCredit, type BordereauClient } from '@/components/BordereauRemboursement';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -45,6 +46,7 @@ interface CreditClient {
   garantTypeGarantie?: string | null;
   garantValeurEstimee?: string | number;
   observations: string | null;
+  gestionnaireCreditId?: number | null;
   createdAt: string;
   updatedAt: string;
   client: {
@@ -238,7 +240,7 @@ export default function CreditsPage() {
   // ── Édition d'un crédit (EN_ATTENTE_VALIDATION ou ACTIF) ──────────────────
   const [editCredit,     setEditCredit]     = useState<CreditClient | null>(null);
   const [editForm,       setEditForm]       = useState({
-    dureeJours: '', dateDebut: '', tauxPenalite: '0', garantie: '', observations: '',
+    dureeJours: '', dateDebut: '', tauxPenalite: '0', garantie: '', observations: '', gestionnaireCreditId: '',
     fraisDossier: '0', assurance: '0', autresFrais: '0', tauxInteret: '0', delaiGraceJours: '0',
     garantNom: '', garantTelephone: '', garantAdresse: '', garantTypeGarantie: '', garantValeurEstimee: '0',
   });
@@ -261,6 +263,7 @@ export default function CreditsPage() {
       tauxPenalite: String(credit.tauxPenalite ?? '0'),
       garantie:     credit.garantie ?? '',
       observations: credit.observations ?? '',
+      gestionnaireCreditId: credit.gestionnaireCreditId ? String(credit.gestionnaireCreditId) : '',
       fraisDossier:    String(credit.fraisDossier ?? '0'),
       assurance:       String(credit.assurance ?? '0'),
       autresFrais:     String(credit.autresFrais ?? '0'),
@@ -291,6 +294,9 @@ export default function CreditsPage() {
     if (editForm.tauxPenalite !== String(editCredit.tauxPenalite ?? '0')) payload.tauxPenalite = Number(editForm.tauxPenalite || 0);
     if (editForm.garantie !== (editCredit.garantie ?? '')) payload.garantie = editForm.garantie;
     if (editForm.observations !== (editCredit.observations ?? '')) payload.observations = editForm.observations;
+    if (editForm.gestionnaireCreditId !== (editCredit.gestionnaireCreditId ? String(editCredit.gestionnaireCreditId) : '')) {
+      payload.gestionnaireCreditId = editForm.gestionnaireCreditId ? Number(editForm.gestionnaireCreditId) : null;
+    }
     // Frais / intérêts (recalcul du montant côté serveur)
     if (editForm.fraisDossier    !== String(editCredit.fraisDossier ?? '0'))    payload.fraisDossier    = Number(editForm.fraisDossier || 0);
     if (editForm.assurance       !== String(editCredit.assurance ?? '0'))       payload.assurance       = Number(editForm.assurance || 0);
@@ -418,6 +424,7 @@ export default function CreditsPage() {
 
   const { data: pdvResponse } = useApi<{ data: PDVOption[] }>('/api/admin/pdv?limit=200&actif=true');
   const { data: collecteursRes } = useApi<{ data: { id: number; nom: string; prenom: string }[] }>('/api/admin/collecteurs');
+  const { data: gestionnairesRes } = useApi<{ data: { id: number; nom: string; prenom: string }[] }>('/api/admin/credits/gestionnaires');
   const collecteurs = collecteursRes?.data ?? [];
   const pdvOptions = pdvResponse?.data ?? [];
 
@@ -581,6 +588,20 @@ export default function CreditsPage() {
       else toast.error(j.message ?? 'Erreur');
     } catch { toast.error('Erreur réseau'); }
     finally { setDetailLoading(false); }
+  };
+
+  // ── Bordereau de remboursement (accès direct depuis la liste) ───────────────
+  const [bordereauData, setBordereauData] = useState<{ credit: BordereauCredit; client: BordereauClient } | null>(null);
+  const [bordereauLoadingId, setBordereauLoadingId] = useState<number | null>(null);
+  const openBordereau = async (id: number) => {
+    setBordereauLoadingId(id);
+    try {
+      const r = await fetch(`/api/admin/credits/${id}`);
+      const j = await r.json();
+      if (r.ok) setBordereauData({ credit: j.data as BordereauCredit, client: j.data.client as BordereauClient });
+      else toast.error(j.message ?? 'Erreur');
+    } catch { toast.error('Erreur réseau'); }
+    finally { setBordereauLoadingId(null); }
   };
 
   // ── Éditer un remboursement déjà enregistré ─────────────────────────────────
@@ -960,6 +981,12 @@ export default function CreditsPage() {
                               <button onClick={() => openDetail(credit.id)}
                                 className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg transition-colors" title="Voir le détail">
                                 <Eye className="w-4 h-4" />
+                              </button>
+
+                              {/* Bordereau de remboursement */}
+                              <button onClick={() => openBordereau(credit.id)} disabled={bordereauLoadingId === credit.id}
+                                className="p-2 text-purple-600 hover:bg-purple-50 rounded-lg transition-colors disabled:opacity-50" title="Bordereau de remboursement">
+                                {bordereauLoadingId === credit.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
                               </button>
 
                               {/* Facture crédit */}
@@ -2112,15 +2139,15 @@ export default function CreditsPage() {
       ══════════════════════════════════════════════════════════════════ */}
       {editCredit && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[170] p-4">
-          <div className="bg-white rounded-2xl w-full max-w-md shadow-xl">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+          <div className="bg-white rounded-2xl w-full max-w-lg shadow-xl flex flex-col max-h-[92vh]">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
               <div className="flex items-center gap-2">
                 <Pencil className="w-5 h-5 text-indigo-600" />
                 <h3 className="text-base font-bold text-gray-900">Modifier le crédit {editCredit.reference}</h3>
               </div>
               <button onClick={() => setEditCredit(null)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
             </div>
-            <div className="px-6 py-5 space-y-4">
+            <div className="px-6 py-5 space-y-4 overflow-y-auto flex-1">
               {editError && (
                 <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-lg px-3 py-2 text-red-700 text-sm">
                   <AlertCircle className="w-4 h-4 flex-shrink-0" />{editError}
@@ -2211,13 +2238,26 @@ export default function CreditsPage() {
               </div>
 
               <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Gestionnaire du crédit</label>
+                <select value={editForm.gestionnaireCreditId}
+                  onChange={(e) => setEditForm(f => ({ ...f, gestionnaireCreditId: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-400">
+                  <option value="">— RVC du point de vente (automatique) —</option>
+                  {(gestionnairesRes?.data ?? []).map((u) => (
+                    <option key={u.id} value={u.id}>{u.prenom} {u.nom}</option>
+                  ))}
+                </select>
+                <p className="text-xs text-gray-400 mt-1">Laissez sur « automatique » pour reprendre le RVC rattaché au point de vente du client.</p>
+              </div>
+
+              <div>
                 <label className="block text-xs font-medium text-gray-600 mb-1">Observations</label>
                 <textarea rows={2} value={editForm.observations}
                   onChange={(e) => setEditForm(f => ({ ...f, observations: e.target.value }))}
                   className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-400 resize-none" />
               </div>
             </div>
-            <div className="flex justify-end gap-3 px-6 py-4 border-t border-gray-100">
+            <div className="flex justify-end gap-3 px-6 py-4 border-t border-gray-100 flex-shrink-0">
               <button onClick={() => setEditCredit(null)}
                 className="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">
                 Annuler
@@ -2274,6 +2314,14 @@ export default function CreditsPage() {
         <FactureModal
           creditClientId={factureId}
           onClose={() => setFactureId(null)}
+        />
+      )}
+
+      {bordereauData && (
+        <BordereauRemboursement
+          credit={bordereauData.credit}
+          client={bordereauData.client}
+          onClose={() => setBordereauData(null)}
         />
       )}
     </div>

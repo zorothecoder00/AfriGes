@@ -11,7 +11,7 @@
 -jose pour le JWT, bcryptjs pour le hash
 
 - QR scannable (et un vrai code-barres Code128) ? Ça
-  nécessite une petite dépendance (qrcode / bwip-js)
+  nécessite une petite dépendance (qrcode / bwip-js)  
 
 
 -On peut aussi utiliser du SVG pour les graphiques ( sans forcément dépendance externe)  
@@ -214,6 +214,14 @@ Créé un menu ou onglet " bordereau de remboursement" dans /dashboard/admin/cli
 
 Je pense que les caissiers et les agents de terrain aussi devraient avoir la main pour modifier les crédits avec les nouvezux champs ( qui vont aider pour le bordereau de remboursement )
 
+
+Lorsqu'on scanne le code QR , ça doit ramené vers le document de bordereau de remboursement ( sans avoir besoin de se connecter ; parce que ça renvoie vers la page de login)
+
+
+Sur le bordereau de remboursement( je précise au niveau de l'impression) , on supprime quartier , profession , employeur , numéro piece d'identité , historique de paiement , garantie ET situation du crédit 
+
+
+Sur /dashboard/admin/credits  le modale d'edit de crédit créé un overflow mais qui ne couvre même pas tout le modal ; corrige moi ça mais aussi l'edit est insuffisant ( on doit pouvoir modifier manuellement le gestionaire du crédit; les valeurs code client , n carte client afrisime, numéro agent , agent affecté doivent être normalement automatique sur le bordereau puisque chaque client est affecté ,à un agent de terrain et on a les infos aussi de l'agen,t de terrain ; maintenant pour les valeurs modifiables comme frais de dossier, assurance etc etc il faut mettre plutôt zero si aucune valeur n'est renseignée au lieu d'un tiret.)
 
 
 

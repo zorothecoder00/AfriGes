@@ -3,6 +3,7 @@ import { StatutCredit } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getRVCSession } from "@/lib/authRVC";
 import { appliquerNouvelleDureeCredit } from "@/lib/dureeCredit";
+import { resolveRvcPdv } from "@/lib/gestionnaireCredit";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -35,9 +36,16 @@ export async function GET(_req: Request, { params }: Ctx) {
     const credit = await prisma.creditClient.findUnique({
       where: { id: creditId },
       include: {
-        client:    { select: { id: true, nom: true, prenom: true, codeClient: true, telephone: true } },
+        client:    { select: {
+          id: true, nom: true, prenom: true, codeClient: true, telephone: true,
+          sexe: true, adresse: true, quartier: true, activite: true, nomCommerce: true, numeroCNI: true, numeroCarteAfrisime: true,
+          agentTerrain:  { select: { nom: true, prenom: true, telephone: true } },
+          pointDeVente:  { select: { nom: true, code: true } },
+          pointsDeVente: { select: { pointDeVente: { select: { nom: true, code: true } } } },
+        } },
         creePar:   { select: { id: true, nom: true, prenom: true } },
         validePar: { select: { id: true, nom: true, prenom: true } },
+        gestionnaireCredit: { select: { id: true, nom: true, prenom: true } },
         lignes: {
           orderBy: { id: "asc" },
           include: {
@@ -62,7 +70,8 @@ export async function GET(_req: Request, { params }: Ctx) {
       return NextResponse.json({ error: "Accès refusé — PDV non autorisé" }, { status: 403 });
     }
 
-    return NextResponse.json({ data: credit });
+    const rvcPdv = await resolveRvcPdv(credit.pointDeVenteId);
+    return NextResponse.json({ data: { ...credit, rvcPdv } });
   } catch (error) {
     console.error("GET /api/rvc/credits/[id]", error);
     return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });

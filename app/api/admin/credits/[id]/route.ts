@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { StatutCredit, StatutEcheanceCredit, TypeMouvement, TypeEntreeStock } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getRVCSession } from "@/lib/authRVC";
+import { resolveRvcPdv } from "@/lib/gestionnaireCredit";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -23,9 +24,16 @@ export async function GET(_req: Request, { params }: Ctx) {
     const credit = await prisma.creditClient.findUnique({
       where: { id: creditId },
       include: {
-        client:   { select: { id: true, nom: true, prenom: true, codeClient: true, telephone: true, niveauRisque: true, limiteCredit: true, soldeActuel: true } },
+        client:   { select: {
+          id: true, nom: true, prenom: true, codeClient: true, telephone: true, niveauRisque: true, limiteCredit: true, soldeActuel: true,
+          sexe: true, adresse: true, quartier: true, activite: true, nomCommerce: true, numeroCNI: true, numeroCarteAfrisime: true,
+          agentTerrain:  { select: { nom: true, prenom: true, telephone: true } },
+          pointDeVente:  { select: { nom: true, code: true } },
+          pointsDeVente: { select: { pointDeVente: { select: { nom: true, code: true } } } },
+        } },
         creePar:  { select: { id: true, nom: true, prenom: true } },
         validePar: { select: { id: true, nom: true, prenom: true } },
+        gestionnaireCredit: { select: { id: true, nom: true, prenom: true } },
         lignes: {
           orderBy: { id: "asc" },
           include: {
@@ -49,7 +57,8 @@ export async function GET(_req: Request, { params }: Ctx) {
 
     if (!credit) return NextResponse.json({ message: "Crédit introuvable" }, { status: 404 });
 
-    return NextResponse.json({ data: credit });
+    const rvcPdv = await resolveRvcPdv(credit.pointDeVenteId);
+    return NextResponse.json({ data: { ...credit, rvcPdv } });
   } catch (error) {
     console.error("GET /api/admin/credits/[id]", error);
     return NextResponse.json({ message: "Erreur lors de la récupération du crédit" }, { status: 500 });
@@ -77,7 +86,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
     if (isNaN(creditId)) return NextResponse.json({ message: "ID invalide" }, { status: 400 });
 
     const body = await req.json();
-    const { lignes, dureeJours, dateDebut, tauxPenalite, garantie, observations,
+    const { lignes, dureeJours, dateDebut, tauxPenalite, garantie, observations, gestionnaireCreditId,
       fraisDossier, assurance, autresFrais, tauxInteret, delaiGraceJours,
       garantNom, garantTelephone, garantAdresse, garantTypeGarantie, garantValeurEstimee } = body;
 
@@ -227,6 +236,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
           ...(garantTypeGarantie !== undefined && { garantTypeGarantie: garantTypeGarantie || null }),
           ...(garantValeurEstimee !== undefined && { garantValeurEstimee: Math.max(0, Number(garantValeurEstimee)) }),
           ...(observations  !== undefined && { observations:  observations || null }),
+          ...(gestionnaireCreditId !== undefined && { gestionnaireCreditId: gestionnaireCreditId ? Number(gestionnaireCreditId) : null }),
         },
       });
 

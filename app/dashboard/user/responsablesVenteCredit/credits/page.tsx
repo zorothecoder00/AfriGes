@@ -5,7 +5,7 @@ import {
   CreditCard, Search, RefreshCw, Loader2, Plus, X, Eye, Pencil,
   CheckCircle2, AlertCircle, TrendingDown, Calendar, Banknote,
   ChevronLeft, ChevronRight, ChevronDown, ChevronUp, User,
-  PackageCheck, ArrowLeftRight, XCircle, Receipt, Edit3, Trash2, FolderTree,
+  PackageCheck, ArrowLeftRight, XCircle, Receipt, Edit3, Trash2, FolderTree, FileText,
 } from "lucide-react";
 import Link from "next/link";
 import SignOutButton from "@/components/SignOutButton";
@@ -18,6 +18,7 @@ import { formatCurrency, formatDate } from "@/lib/format";
 import { groupByMonth } from "@/lib/groupByMonth";
 import { MonthGroupHeaderRow, useCollapsedMonths } from "@/components/MonthGroupHeaderRow";
 import { CreditRappelInfo } from "@/components/CreditRappelInfo";
+import BordereauRemboursement, { type BordereauCredit, type BordereauClient } from "@/components/BordereauRemboursement";
 import { toast } from "sonner";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
@@ -833,6 +834,20 @@ export default function RVCCreditsPage() {
     finally { setDetailLoading(false); }
   };
 
+  // ── Bordereau de remboursement (accès direct depuis la liste) ───────────────
+  const [bordereauData, setBordereauData] = useState<{ credit: BordereauCredit; client: BordereauClient } | null>(null);
+  const [bordereauLoadingId, setBordereauLoadingId] = useState<number | null>(null);
+  const openBordereau = async (id: number) => {
+    setBordereauLoadingId(id);
+    try {
+      const r = await fetch(`/api/rvc/credits/${id}`);
+      const j = await r.json();
+      if (r.ok) setBordereauData({ credit: j.data as BordereauCredit, client: j.data.client as BordereauClient });
+      else toast.error(j.error ?? "Erreur");
+    } catch { toast.error("Erreur réseau"); }
+    finally { setBordereauLoadingId(null); }
+  };
+
   // ── Éditer un remboursement déjà enregistré (via l'endpoint admin/RVC) ───────
   const openEditRemb = (r: RembItem) => {
     setEditRemb(r);
@@ -1101,6 +1116,10 @@ export default function RVCCreditsPage() {
                               <button onClick={() => openDetail(credit.id)}
                                 className="p-2 text-indigo-500 hover:bg-indigo-50 rounded-lg transition-colors" title="Voir le détail">
                                 <Eye className="w-4 h-4" />
+                              </button>
+                              <button onClick={() => openBordereau(credit.id)} disabled={bordereauLoadingId === credit.id}
+                                className="p-2 text-purple-600 hover:bg-purple-50 rounded-lg transition-colors disabled:opacity-50" title="Bordereau de remboursement">
+                                {bordereauLoadingId === credit.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
                               </button>
                               {(credit.statut === "EN_ATTENTE_VALIDATION" || credit.statut === "ACTIF" || credit.statut === "EN_RETARD") && (
                                 <button onClick={() => openDureeEdit(credit)}
@@ -1570,6 +1589,14 @@ export default function RVCCreditsPage() {
 
       {factureId !== null && (
         <FactureModal creditClientId={factureId} onClose={() => setFactureId(null)} />
+      )}
+
+      {bordereauData && (
+        <BordereauRemboursement
+          credit={bordereauData.credit}
+          client={bordereauData.client}
+          onClose={() => setBordereauData(null)}
+        />
       )}
 
       {/* ── Modal : modifier la durée / date du crédit ─────────────────────────── */}

@@ -50,7 +50,7 @@ export async function GET(req: Request) {
           dureeJours: true, dateDebut: true, dateEcheanceFin: true,
           montantJournalier: true, tauxPenalite: true, delaiGraceJours: true,
           fraisDossier: true, assurance: true, autresFrais: true, tauxInteret: true, montantInteret: true,
-          garantie: true, observations: true, dateValidation: true,
+          garantie: true, observations: true, gestionnaireCreditId: true, dateValidation: true,
           garantNom: true, garantTelephone: true, garantAdresse: true, garantTypeGarantie: true, garantValeurEstimee: true,
           createdAt: true, updatedAt: true,
           client: {
