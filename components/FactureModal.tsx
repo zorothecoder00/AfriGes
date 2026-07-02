@@ -615,7 +615,8 @@ function ProduitCombobox({
 
 // ─── Impression nouvelle fenêtre ─────────────────────────────────────────────
 
-function printInvoice(f: FactureData) {
+function printInvoice(f: FactureData, opts?: { mono?: boolean }) {
+  const mono  = opts?.mono ?? false;
   const badge = TYPE_BADGE[f.type] ?? TYPE_BADGE.COMPTANT;
   const hasTVA = f.montantTVA > 0;
   const solde = f.montantTTC - f.montantPaye;
@@ -624,6 +625,28 @@ function printInvoice(f: FactureData) {
   // un chemin relatif ne résoudrait pas vers l'app.
   const origin  = typeof window !== "undefined" ? window.location.origin : "";
   const logoUrl = `${origin}${AFRISIME.logo}`;
+
+  // Palette : couleur (écran/couleur) ou noir & blanc haute lisibilité (impression N/B,
+  // économe en encre — badges/encadrés en contour noir plutôt qu'en aplat coloré).
+  const c = mono
+    ? {
+        primary: "#000000", text: "#000000", muted: "#333333", faint: "#555555", danger: "#000000",
+        rule: "#000000", rowLine: "#999999", headRule: "#000000",
+        badgeBg: "#ffffff", badgeText: "#000000", badgeBorder: "1.5px solid #000000",
+        boxBg: "#ffffff", boxBorder: "1px solid #000000",
+        paidBg: "#ffffff", paidText: "#000000", paidBorder: "1.5px solid #000000",
+        annBg: "#ffffff", annText: "#000000", annBorder: "1.5px solid #000000",
+        logoFilter: "filter:grayscale(1);",
+      }
+    : {
+        primary: "#059669", text: "#0f172a", muted: "#64748b", faint: "#94a3b8", danger: "#dc2626",
+        rule: "#cbd5e1", rowLine: "#f1f5f9", headRule: "#e2e8f0",
+        badgeBg: badgeColor(f.type), badgeText: "#ffffff", badgeBorder: "none",
+        boxBg: "#f8fafc", boxBorder: "none",
+        paidBg: "#dcfce7", paidText: "#15803d", paidBorder: "none",
+        annBg: "#fee2e2", annText: "#b91c1c", annBorder: "none",
+        logoFilter: "",
+      };
 
   function fmt(n: number) {
     return new Intl.NumberFormat("fr-FR").format(n) + " FCFA";
@@ -635,41 +658,41 @@ function printInvoice(f: FactureData) {
 
   const lignesHtml = f.lignes.map((l, i) => `
     <tr>
-      <td style="padding:10px 6px;border-bottom:1px solid #f1f5f9;color:#94a3b8;font-size:12px">${i + 1}</td>
-      <td style="padding:10px 6px;border-bottom:1px solid #f1f5f9;font-weight:500;color:#1e293b">
-        ${l.designation}${l.unite ? ` <span style="color:#94a3b8;font-size:11px">(${l.unite})</span>` : ""}
+      <td style="padding:10px 6px;border-bottom:1px solid ${c.rowLine};color:${c.faint};font-size:12px">${i + 1}</td>
+      <td style="padding:10px 6px;border-bottom:1px solid ${c.rowLine};font-weight:500;color:${c.text}">
+        ${l.designation}${l.unite ? ` <span style="color:${c.faint};font-size:11px">(${l.unite})</span>` : ""}
       </td>
-      <td style="padding:10px 6px;border-bottom:1px solid #f1f5f9;text-align:center;color:#334155">${l.quantite}</td>
-      <td style="padding:10px 6px;border-bottom:1px solid #f1f5f9;text-align:right;color:#475569">${fmt(l.prixUnitaire)}</td>
-      <td style="padding:10px 6px;border-bottom:1px solid #f1f5f9;text-align:right;font-weight:600;color:#1e293b">${fmt(l.montant)}</td>
+      <td style="padding:10px 6px;border-bottom:1px solid ${c.rowLine};text-align:center;color:${c.muted}">${l.quantite}</td>
+      <td style="padding:10px 6px;border-bottom:1px solid ${c.rowLine};text-align:right;color:${c.muted}">${fmt(l.prixUnitaire)}</td>
+      <td style="padding:10px 6px;border-bottom:1px solid ${c.rowLine};text-align:right;font-weight:600;color:${c.text}">${fmt(l.montant)}</td>
     </tr>`).join("");
 
   const totauxHtml = `
     ${hasTVA ? `
       <div style="display:flex;justify-content:space-between;margin-bottom:8px">
-        <span style="color:#64748b">Sous-total HT</span><span style="font-weight:500">${fmt(f.montantHT)}</span>
+        <span style="color:${c.muted}">Sous-total HT</span><span style="font-weight:500">${fmt(f.montantHT)}</span>
       </div>
       <div style="display:flex;justify-content:space-between;margin-bottom:8px">
-        <span style="color:#64748b">TVA</span><span style="font-weight:500">${fmt(f.montantTVA)}</span>
+        <span style="color:${c.muted}">TVA</span><span style="font-weight:500">${fmt(f.montantTVA)}</span>
       </div>` : ""}
-    <div style="display:flex;justify-content:space-between;border-top:2px solid #e2e8f0;padding-top:10px;margin-bottom:8px">
-      <span style="font-weight:700;font-size:16px;color:#1e293b">Total TTC</span>
-      <span style="font-weight:900;font-size:18px;color:#059669">${fmt(f.montantTTC)}</span>
+    <div style="display:flex;justify-content:space-between;border-top:2px solid ${c.headRule};padding-top:10px;margin-bottom:8px">
+      <span style="font-weight:700;font-size:16px;color:${c.text}">Total TTC</span>
+      <span style="font-weight:900;font-size:18px;color:${c.primary}">${fmt(f.montantTTC)}</span>
     </div>
     ${modeLabel ? `
       <div style="display:flex;justify-content:space-between;margin-bottom:8px">
-        <span style="color:#64748b">Mode de paiement</span><span>${modeLabel}</span>
+        <span style="color:${c.muted}">Mode de paiement</span><span>${modeLabel}</span>
       </div>` : ""}
     ${f.montantPaye > 0 && f.montantPaye < f.montantTTC ? `
       <div style="display:flex;justify-content:space-between;margin-bottom:6px">
-        <span style="color:#64748b">Montant payé</span>
-        <span style="font-weight:600;color:#059669">${fmt(f.montantPaye)}</span>
+        <span style="color:${c.muted}">Montant payé</span>
+        <span style="font-weight:600;color:${c.primary}">${fmt(f.montantPaye)}</span>
       </div>
-      <div style="display:flex;justify-content:space-between;font-weight:700;color:#dc2626">
+      <div style="display:flex;justify-content:space-between;font-weight:700;color:${c.danger}">
         <span>Reste à payer</span><span>${fmt(solde)}</span>
       </div>` : ""}
     ${isPaid ? `
-      <div style="text-align:center;padding:8px;border-radius:8px;background:#dcfce7;color:#15803d;font-weight:900;font-size:11px;letter-spacing:2px;margin-top:8px">
+      <div style="text-align:center;padding:8px;border-radius:8px;background:${c.paidBg};color:${c.paidText};border:${c.paidBorder};font-weight:900;font-size:11px;letter-spacing:2px;margin-top:8px">
         ✓ PAYÉ INTÉGRALEMENT
       </div>` : ""}`;
 
@@ -677,13 +700,13 @@ function printInvoice(f: FactureData) {
 <html lang="fr">
 <head>
   <meta charset="utf-8"/>
-  <title>Facture ${f.numero}</title>
+  <title>Facture ${f.numero}${mono ? " (N/B)" : ""}</title>
   <style>
     /* Forcer l'impression des couleurs de fond (badges, encadrés) : sans ceci, les
        navigateurs les suppriment → texte blanc sur fond blanc = invisible. */
     * { box-sizing: border-box; margin: 0; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     html, body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-    body { font-family: Arial, sans-serif; font-size: 14px; color: #0f172a; background: white; padding: 40px; max-width: 794px; margin: 0 auto; -webkit-font-smoothing: antialiased; }
+    body { font-family: Arial, sans-serif; font-size: 14px; color: ${c.text}; background: white; padding: 40px; max-width: 794px; margin: 0 auto; -webkit-font-smoothing: antialiased; }
     @page { margin: 1cm; size: A4 portrait; }
     @media print {
       body { padding: 0; }
@@ -695,58 +718,58 @@ function printInvoice(f: FactureData) {
 
   <!-- En-tête société (letterhead AFRISIME) -->
   <div style="margin-bottom:20px">
-    <img src="${logoUrl}" alt="AFRISIME" style="height:56px;width:auto;display:block;margin-bottom:10px"/>
-    <h1 style="font-size:22px;font-weight:900;color:#059669;letter-spacing:-0.5px">${AFRISIME.nom}</h1>
-    <p style="font-size:13px;font-weight:600;color:#475569;margin-top:2px">${AFRISIME.slogan}</p>
-    <div style="font-size:11px;color:#64748b;line-height:1.6;margin-top:4px">
+    <img src="${logoUrl}" alt="AFRISIME" style="height:56px;width:auto;display:block;margin-bottom:10px;${c.logoFilter}"/>
+    <h1 style="font-size:22px;font-weight:900;color:${c.primary};letter-spacing:-0.5px">${AFRISIME.nom}</h1>
+    <p style="font-size:13px;font-weight:600;color:${c.muted};margin-top:2px">${AFRISIME.slogan}</p>
+    <div style="font-size:11px;color:${c.muted};line-height:1.6;margin-top:4px">
       ${AFRISIME.activites.map((a) => `<p>${a}</p>`).join("")}
       <p>${AFRISIME.siege}</p>
     </div>
   </div>
 
-  <div style="border-top:3px double #cbd5e1;margin-bottom:24px"></div>
+  <div style="border-top:3px double ${c.rule};margin-bottom:24px"></div>
 
   <!-- Méta facture -->
   <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:32px">
     <div>
-      <span style="display:inline-block;padding:4px 12px;border-radius:8px;font-size:11px;font-weight:900;letter-spacing:1px;background:${badgeColor(f.type)};color:white">
+      <span style="display:inline-block;padding:4px 12px;border-radius:8px;font-size:11px;font-weight:900;letter-spacing:1px;background:${c.badgeBg};color:${c.badgeText};border:${c.badgeBorder}">
         FACTURE ${badge.label}
       </span>
-      ${f.statut === "ANNULEE" ? `<div style="margin-top:6px"><span style="display:inline-block;background:#fee2e2;color:#b91c1c;font-size:11px;font-weight:700;padding:2px 8px;border-radius:4px">ANNULÉE</span></div>` : ""}
+      ${f.statut === "ANNULEE" ? `<div style="margin-top:6px"><span style="display:inline-block;background:${c.annBg};color:${c.annText};border:${c.annBorder};font-size:11px;font-weight:700;padding:2px 8px;border-radius:4px">ANNULÉE</span></div>` : ""}
     </div>
     <div style="text-align:right">
-      <p style="font-size:20px;font-weight:900;color:#1e293b">${f.numero}</p>
-      <p style="font-size:13px;color:#64748b;margin-top:4px">Émise le ${fmtDate(f.dateEmission)}</p>
-      ${f.dateEcheance ? `<p style="font-size:13px;font-weight:600;color:#dc2626;margin-top:2px">Échéance : ${fmtDate(f.dateEcheance)}</p>` : ""}
+      <p style="font-size:20px;font-weight:900;color:${c.text}">${f.numero}</p>
+      <p style="font-size:13px;color:${c.muted};margin-top:4px">Émise le ${fmtDate(f.dateEmission)}</p>
+      ${f.dateEcheance ? `<p style="font-size:13px;font-weight:600;color:${c.danger};margin-top:2px">Échéance : ${fmtDate(f.dateEcheance)}</p>` : ""}
     </div>
   </div>
 
   <!-- Parties -->
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:32px">
-    <div style="background:#f8fafc;border-radius:12px;padding:16px">
-      <p style="font-size:10px;font-weight:700;color:#94a3b8;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px">Facturé à</p>
-      <p style="font-weight:700;font-size:15px;color:#1e293b">${f.clientNom}</p>
-      ${f.clientTelephone ? `<p style="font-size:13px;color:#64748b;margin-top:4px">${f.clientTelephone}</p>` : ""}
-      ${f.clientAdresse ? `<p style="font-size:13px;color:#64748b">${f.clientAdresse}</p>` : ""}
+    <div style="background:${c.boxBg};border:${c.boxBorder};border-radius:12px;padding:16px">
+      <p style="font-size:10px;font-weight:700;color:${c.faint};letter-spacing:1px;text-transform:uppercase;margin-bottom:8px">Facturé à</p>
+      <p style="font-weight:700;font-size:15px;color:${c.text}">${f.clientNom}</p>
+      ${f.clientTelephone ? `<p style="font-size:13px;color:${c.muted};margin-top:4px">${f.clientTelephone}</p>` : ""}
+      ${f.clientAdresse ? `<p style="font-size:13px;color:${c.muted}">${f.clientAdresse}</p>` : ""}
     </div>
-    <div style="background:#f8fafc;border-radius:12px;padding:16px">
-      <p style="font-size:10px;font-weight:700;color:#94a3b8;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px">Émis par</p>
-      <p style="font-weight:700;font-size:15px;color:#1e293b">${f.emiseParNom}</p>
-      ${f.pdvNom ? `<p style="font-size:13px;color:#64748b;margin-top:4px">${f.pdvNom}</p>` : ""}
-      ${f.pdvAdresse ? `<p style="font-size:13px;color:#64748b">${f.pdvAdresse}</p>` : ""}
-      ${f.pdvTelephone ? `<p style="font-size:13px;color:#64748b">${f.pdvTelephone}</p>` : ""}
+    <div style="background:${c.boxBg};border:${c.boxBorder};border-radius:12px;padding:16px">
+      <p style="font-size:10px;font-weight:700;color:${c.faint};letter-spacing:1px;text-transform:uppercase;margin-bottom:8px">Émis par</p>
+      <p style="font-weight:700;font-size:15px;color:${c.text}">${f.emiseParNom}</p>
+      ${f.pdvNom ? `<p style="font-size:13px;color:${c.muted};margin-top:4px">${f.pdvNom}</p>` : ""}
+      ${f.pdvAdresse ? `<p style="font-size:13px;color:${c.muted}">${f.pdvAdresse}</p>` : ""}
+      ${f.pdvTelephone ? `<p style="font-size:13px;color:${c.muted}">${f.pdvTelephone}</p>` : ""}
     </div>
   </div>
 
   <!-- Tableau -->
   <table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:24px">
     <thead>
-      <tr style="border-bottom:2px solid #e2e8f0">
-        <th style="text-align:left;padding-bottom:8px;color:#94a3b8;font-size:11px;letter-spacing:1px;text-transform:uppercase;width:32px">N°</th>
-        <th style="text-align:left;padding-bottom:8px;color:#94a3b8;font-size:11px;letter-spacing:1px;text-transform:uppercase">Désignation</th>
-        <th style="text-align:center;padding-bottom:8px;color:#94a3b8;font-size:11px;letter-spacing:1px;text-transform:uppercase;width:60px">Qté</th>
-        <th style="text-align:right;padding-bottom:8px;color:#94a3b8;font-size:11px;letter-spacing:1px;text-transform:uppercase;width:140px">Prix de vente</th>
-        <th style="text-align:right;padding-bottom:8px;color:#94a3b8;font-size:11px;letter-spacing:1px;text-transform:uppercase;width:140px">Montant</th>
+      <tr style="border-bottom:2px solid ${c.headRule}">
+        <th style="text-align:left;padding-bottom:8px;color:${c.faint};font-size:11px;letter-spacing:1px;text-transform:uppercase;width:32px">N°</th>
+        <th style="text-align:left;padding-bottom:8px;color:${c.faint};font-size:11px;letter-spacing:1px;text-transform:uppercase">Désignation</th>
+        <th style="text-align:center;padding-bottom:8px;color:${c.faint};font-size:11px;letter-spacing:1px;text-transform:uppercase;width:60px">Qté</th>
+        <th style="text-align:right;padding-bottom:8px;color:${c.faint};font-size:11px;letter-spacing:1px;text-transform:uppercase;width:140px">Prix de vente</th>
+        <th style="text-align:right;padding-bottom:8px;color:${c.faint};font-size:11px;letter-spacing:1px;text-transform:uppercase;width:140px">Montant</th>
       </tr>
     </thead>
     <tbody>${lignesHtml}</tbody>
@@ -759,20 +782,20 @@ function printInvoice(f: FactureData) {
 
   ${f.notes ? `
   <!-- Notes -->
-  <div style="background:#f8fafc;border-radius:12px;padding:16px;margin-bottom:32px;font-size:13px;color:#475569;font-style:italic">
+  <div style="background:${c.boxBg};border:${c.boxBorder};border-radius:12px;padding:16px;margin-bottom:32px;font-size:13px;color:${c.muted};font-style:italic">
     <strong style="font-style:normal">Note : </strong>${f.notes}
   </div>` : ""}
 
   ${f.type === "PRO_FORMA" ? `
-  <p style="text-align:center;font-size:11px;color:#94a3b8;margin-top:24px;font-style:italic">
+  <p style="text-align:center;font-size:11px;color:${c.faint};margin-top:24px;font-style:italic">
     Ce document est une facture pro-forma — il ne constitue pas une facture définitive. Valide sous réserve de disponibilité des produits.
   </p>` : ""}
 
   <!-- Pied de page société -->
   <div style="margin-top:40px">
-    <div style="border-top:3px double #cbd5e1;margin-bottom:12px"></div>
-    <p style="text-align:center;font-size:12px;font-weight:600;color:#475569">${AFRISIME.baseline}</p>
-    <p style="text-align:center;font-size:11px;color:#94a3b8;margin-top:2px">${AFRISIME.legal}</p>
+    <div style="border-top:3px double ${c.rule};margin-bottom:12px"></div>
+    <p style="text-align:center;font-size:12px;font-weight:600;color:${c.text}">${AFRISIME.baseline}</p>
+    <p style="text-align:center;font-size:11px;color:${c.faint};margin-top:2px">${AFRISIME.legal}</p>
   </div>
 
 </body></html>`;
@@ -1143,6 +1166,12 @@ export default function FactureModal({
               </div>
             </div>
             <div className="flex items-center gap-2">
+              <button
+                onClick={() => printInvoice(facture, { mono: true })}
+                title="Impression noir & blanc, économe en encre"
+                className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-sm font-medium transition-colors shadow-sm">
+                <Printer size={14} /> Imprimer en N/B
+              </button>
               <button
                 onClick={() => printInvoice(facture)}
                 className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-medium transition-colors shadow-sm">
