@@ -205,6 +205,9 @@ export default function CreditsPage() {
   const [creditClientSearchLoading, setCreditClientSearchLoading] = useState(false);
   const [eligibilite,     setEligibilite]     = useState<EligibiliteData | null>(null);
   const [eligibiliteLoading, setEligibiliteLoading] = useState(false);
+  const [showSetLimite,   setShowSetLimite]   = useState(false);
+  const [limiteInput,     setLimiteInput]     = useState('');
+  const [limiteLoading,   setLimiteLoading]   = useState(false);
   const [creditPdvId,     setCreditPdvId]     = useState('');
   const [creditStockPdv,  setCreditStockPdv]  = useState<StockPdvItem[]>([]);
   const [creditStockLoading, setCreditStockLoading] = useState(false);
@@ -395,19 +398,37 @@ export default function CreditsPage() {
 
   const resetNewCredit = () => {
     setCreditStep(1); setCreditClientId(null); setCreditClientSearch('');
-    setCreditSelectedClient(null); setEligibilite(null); setCreditError('');
+    setCreditSelectedClient(null); setEligibilite(null); setShowSetLimite(false); setLimiteInput(''); setCreditError('');
     setCreditPdvId(''); setCreditStockPdv([]); setCreditClientResults([]);
     setCreditLignes([{ produitId: null, produitNom: '', quantite: 1, prixUnitaire: 0, remise: 0, stockDisponible: Infinity }]);
     setCreditParams({ dureeJours: '', dateDebut: new Date().toISOString().slice(0, 10), fraisDossier: '0', assurance: '0', autresFrais: '0', tauxInteret: '0', delaiGraceJours: '0', garantNom: '', garantTelephone: '', garantAdresse: '', garantTypeGarantie: '', garantValeurEstimee: '0', tauxPenalite: '0', garantie: '', observations: '' });
   };
 
   const checkEligibilite = async (clientId: number) => {
-    setEligibiliteLoading(true); setEligibilite(null);
+    setEligibiliteLoading(true); setEligibilite(null); setShowSetLimite(false); setLimiteInput('');
     try {
       const r = await fetch(`/api/admin/clients/${clientId}/eligibilite-credit`);
-      setEligibilite(await r.json());
+      const data = await r.json();
+      setEligibilite(data);
+      // Pas de plafond configuré → action requise avant de continuer (comme côté RVC).
+      if (r.ok) setShowSetLimite(data?.client?.limiteCredit == null);
     } catch { /* ignore */ }
     finally { setEligibiliteLoading(false); }
+  };
+
+  const handleSetLimite = async () => {
+    if (!creditClientId || !limiteInput || Number(limiteInput) <= 0) { toast.error('Montant de plafond invalide'); return; }
+    setLimiteLoading(true);
+    try {
+      const r = await fetch(`/api/admin/clients/${creditClientId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ limiteCredit: Number(limiteInput) }),
+      });
+      if (r.ok) { toast.success('Plafond de crédit défini'); setLimiteInput(''); await checkEligibilite(creditClientId); }
+      else { const j = await r.json().catch(() => ({})); toast.error(j.message ?? 'Erreur lors de la définition du plafond'); }
+    } catch { toast.error('Erreur réseau'); }
+    finally { setLimiteLoading(false); }
   };
 
   const creditMontantTotal = creditLignes.reduce((s, l) => s + (l.prixUnitaire * l.quantite - l.remise), 0);
@@ -1481,7 +1502,7 @@ export default function CreditsPage() {
                     <div className="relative">
                       <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                       <input type="text" value={creditClientSearch}
-                        onChange={(e) => { setCreditClientSearch(e.target.value); if (creditSelectedClient) { setCreditSelectedClient(null); setCreditClientId(null); setEligibilite(null); } }}
+                        onChange={(e) => { setCreditClientSearch(e.target.value); if (creditSelectedClient) { setCreditSelectedClient(null); setCreditClientId(null); setEligibilite(null); setShowSetLimite(false); } }}
                         placeholder="Nom, prénom, téléphone…"
                         className="w-full pl-9 pr-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50"
                       />
@@ -1507,7 +1528,7 @@ export default function CreditsPage() {
                         <span className="text-sm font-semibold text-blue-800">{creditSelectedClient.prenom} {creditSelectedClient.nom}</span>
                         <span className="text-xs text-blue-500 font-mono">{creditSelectedClient.telephone}</span>
                         <button type="button" className="ml-auto text-blue-400 hover:text-blue-600"
-                          onClick={() => { setCreditSelectedClient(null); setCreditClientId(null); setCreditClientSearch(''); setEligibilite(null); setCreditPdvId(''); setCreditStockPdv([]); }}>
+                          onClick={() => { setCreditSelectedClient(null); setCreditClientId(null); setCreditClientSearch(''); setEligibilite(null); setShowSetLimite(false); setLimiteInput(''); setCreditPdvId(''); setCreditStockPdv([]); }}>
                           <X className="w-3.5 h-3.5" />
                         </button>
                       </div>
@@ -1518,6 +1539,25 @@ export default function CreditsPage() {
                     <div>
                       {eligibiliteLoading ? (
                         <div className="flex items-center gap-2 text-sm text-gray-400 py-2"><Loader2 className="w-4 h-4 animate-spin" /> Vérification de l&apos;éligibilité…</div>
+                      ) : showSetLimite ? (
+                        <div className="rounded-xl p-4 border bg-amber-50 border-amber-200">
+                          <div className="flex items-center gap-2 mb-1">
+                            <AlertCircle className="w-5 h-5 text-amber-600" />
+                            <span className="text-sm font-semibold text-amber-700">Plafond de crédit requis</span>
+                          </div>
+                          <p className="text-xs text-amber-700 ml-7 mb-2">Ce client n&apos;a pas encore de plafond de crédit. Définissez-en un pour débloquer la création du crédit.</p>
+                          <div className="flex items-center gap-2 ml-7">
+                            <input type="number" min={0} step={1000} value={limiteInput}
+                              onChange={(e) => setLimiteInput(e.target.value)}
+                              onKeyDown={(e) => e.key === 'Enter' && handleSetLimite()}
+                              placeholder="Montant du plafond (FCFA)"
+                              className="flex-1 px-3 py-2 border border-amber-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white" />
+                            <button onClick={handleSetLimite} disabled={limiteLoading || !limiteInput || Number(limiteInput) <= 0}
+                              className="px-4 py-2 bg-amber-600 text-white text-sm font-medium rounded-lg hover:bg-amber-700 disabled:opacity-50 flex items-center gap-1.5 whitespace-nowrap">
+                              {limiteLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : null} Définir le plafond
+                            </button>
+                          </div>
+                        </div>
                       ) : eligibilite ? (
                         <div className={`rounded-xl p-4 border ${eligibilite.eligible ? 'bg-emerald-50 border-emerald-200' : 'bg-red-50 border-red-200'}`}>
                           <div className="flex items-center gap-2 mb-2">
@@ -1564,7 +1604,7 @@ export default function CreditsPage() {
                     </div>
                   )}
 
-                  {creditClientId && eligibilite?.eligible && (
+                  {creditClientId && eligibilite?.eligible && !showSetLimite && (
                     <div>
                       <label className="block text-xs font-medium text-slate-600 mb-1">
                         Point de vente source <span className="text-red-500">*</span>
@@ -1850,7 +1890,7 @@ export default function CreditsPage() {
               {creditStep < 4 ? (
                 <button type="button"
                   disabled={
-                    (creditStep === 1 && (!creditClientId || !creditPdvId || eligibiliteLoading || eligibilite?.eligible === false)) ||
+                    (creditStep === 1 && (!creditClientId || !creditPdvId || eligibiliteLoading || showSetLimite || eligibilite?.eligible === false)) ||
                     (creditStep === 2 && (creditMontantTotal <= 0 || !creditLignes.some(l => l.produitNom.trim()) || creditLignesInvalid)) ||
                     (creditStep === 3 && (!creditParams.dureeJours || Number(creditParams.dureeJours) < 1 || !creditParams.dateDebut))
                   }
