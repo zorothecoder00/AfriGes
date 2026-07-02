@@ -138,7 +138,7 @@ function Field({ label, value, icon }: { label: string; value: React.ReactNode; 
 
 interface TimelineItem {
   id:        string;
-  type:      'COLLECTE' | 'VERSEMENT' | 'VENTE' | 'AUDIT';
+  type:      'COLLECTE' | 'VERSEMENT' | 'VENTE' | 'CREDIT' | 'AUDIT';
   date:      string;
   titre:     string;
   detail:    string;
@@ -239,6 +239,7 @@ const TIMELINE_ICON: Record<TimelineItem['type'], React.ReactNode> = {
   COLLECTE:  <Banknote  className="w-4 h-4" />,
   VERSEMENT: <TrendingDown className="w-4 h-4" />,
   VENTE:     <ShoppingBag className="w-4 h-4" />,
+  CREDIT:    <CreditCard className="w-4 h-4" />,
   AUDIT:     <Shield    className="w-4 h-4" />,
 };
 
@@ -246,6 +247,7 @@ const TIMELINE_COLOR: Record<TimelineItem['type'], string> = {
   COLLECTE:  'bg-teal-100 text-teal-700',
   VERSEMENT: 'bg-blue-100 text-blue-700',
   VENTE:     'bg-purple-100 text-purple-700',
+  CREDIT:    'bg-violet-100 text-violet-700',
   AUDIT:     'bg-gray-100 text-gray-600',
 };
 

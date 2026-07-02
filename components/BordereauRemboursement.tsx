@@ -118,18 +118,33 @@ function buildBordereauHtml(credit: BordereauCredit, client: BordereauClient, or
   const totalPenalites  = penalitesStored > 0 ? penalitesStored : Math.round(N(credit.montantJournalier) * (tauxPen / 100) * joursRetardFactures);
   const soldeGlobal     = N(credit.soldeRestant) + totalPenalites;
 
-  // ── E. Calendrier (solde restant cumulé) ──
+  // ── E. Calendrier journalier — TOUTES les lignes jusqu'à la fin du crédit ──
+  // On génère 1..dureeJours ; on utilise l'échéance réelle si elle existe (crédit validé),
+  // sinon on synthétise (date = dateDebut + n, montant prévu = journalier, dernier jour = résiduel).
+  const echeancesByNum = new Map(credit.echeances.map((e) => [e.numeroEcheance, e]));
+  const duree      = Math.max(0, credit.dureeJours);
+  const debut      = new Date(credit.dateDebut);
+  const journalier = N(credit.montantJournalier);
+  const dernierMontant = Number((montantTotal - journalier * (duree - 1)).toFixed(2)); // résiduel sur le dernier jour
   let cumulPaye = 0;
-  const calendrierRows = credit.echeances.map((e) => {
-    cumulPaye += N(e.montantPaye);
+  const calendrierRows = Array.from({ length: duree }, (_, idx) => {
+    const jour = idx + 1;
+    const e    = echeancesByNum.get(jour);
+    const dateEch = e
+      ? new Date(e.dateEcheance)
+      : (() => { const d = new Date(debut); d.setDate(d.getDate() + idx); return d; })();
+    const montantPrevu = e ? N(e.montantDu)   : (jour === duree ? dernierMontant : journalier);
+    const montantPaye  = e ? N(e.montantPaye) : 0;
+    cumulPaye += montantPaye;
     const soldeRestant = Math.max(0, montantTotal - cumulPaye);
-    const enRetard = e.statut !== "PAYE" && new Date(e.dateEcheance) < today;
-    const statutLabel = enRetard && e.statut !== "PAYE" ? "En retard" : (ECHEANCE_LABEL[e.statut] ?? e.statut);
+    const statutRaw    = e ? e.statut : "EN_ATTENTE";
+    const enRetard     = statutRaw !== "PAYE" && dateEch < today;
+    const statutLabel  = enRetard ? "En retard" : (ECHEANCE_LABEL[statutRaw] ?? statutRaw);
     return `<tr>
-      <td style="padding:5px 6px;border:1px solid ${c.line};text-align:center">${e.numeroEcheance}</td>
-      <td style="padding:5px 6px;border:1px solid ${c.line}">${fmtDate(e.dateEcheance)}</td>
-      <td style="padding:5px 6px;border:1px solid ${c.line};text-align:right">${fmt(e.montantDu)}</td>
-      <td style="padding:5px 6px;border:1px solid ${c.line};text-align:right">${N(e.montantPaye) > 0 ? fmt(e.montantPaye) : "—"}</td>
+      <td style="padding:5px 6px;border:1px solid ${c.line};text-align:center">${jour}</td>
+      <td style="padding:5px 6px;border:1px solid ${c.line}">${fmtDate(dateEch.toISOString())}</td>
+      <td style="padding:5px 6px;border:1px solid ${c.line};text-align:right">${fmt(montantPrevu)}</td>
+      <td style="padding:5px 6px;border:1px solid ${c.line};text-align:right">${montantPaye > 0 ? fmt(montantPaye) : "—"}</td>
       <td style="padding:5px 6px;border:1px solid ${c.line};text-align:right">${fmt(soldeRestant)}</td>
       <td style="padding:5px 6px;border:1px solid ${c.line};text-align:center;${enRetard ? `color:${c.danger};font-weight:600` : ""}">${statutLabel}</td>
       <td style="padding:5px 6px;border:1px solid ${c.line}"></td>
@@ -259,7 +274,7 @@ function buildBordereauHtml(credit: BordereauCredit, client: BordereauClient, or
       <th style="padding:6px;border:1px solid ${c.line}">Statut</th>
       <th style="padding:6px;border:1px solid ${c.line}">Signature agent</th>
     </tr></thead>
-    <tbody>${calendrierRows || `<tr><td colspan="7" style="padding:10px;border:1px solid ${c.line};text-align:center;color:${c.faint}">Échéancier non généré (crédit non validé)</td></tr>`}</tbody>
+    <tbody>${calendrierRows || `<tr><td colspan="7" style="padding:10px;border:1px solid ${c.line};text-align:center;color:${c.faint}">Durée du crédit non définie</td></tr>`}</tbody>
   </table>
 
   <!-- F. Situation du crédit -->

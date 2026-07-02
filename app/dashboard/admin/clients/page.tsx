@@ -50,7 +50,7 @@ interface Client {
   pointDeVente: ClientPdv | null;
   pointsDeVente?: { pointDeVente: ClientPdv }[];
   agentTerrain: { id: number; nom: string; prenom: string } | null;
-  _count: { souscriptionsPacks: number; ventesDirectes: number };
+  _count: { souscriptionsPacks: number; ventesDirectes: number; creditsClients: number };
   tags?: { tag: TagOption }[];
 }
 
@@ -104,11 +104,36 @@ interface VenteDirecteHisto {
   lignes: LigneVente[];
 }
 
+interface RemboursementHisto {
+  id: number;
+  montant: string;
+  dateRemboursement: string;
+  modePaiement: string;
+  statut: string;
+  numeroJour: number | null;
+}
+
+interface CreditHisto {
+  id: number;
+  reference: string;
+  statut: string;
+  montantTotal: string;
+  montantRembourse: string;
+  soldeRestant: string;
+  dureeJours: number;
+  montantJournalier: string;
+  dateDebut: string;
+  dateEcheanceFin: string;
+  createdAt: string;
+  remboursements: RemboursementHisto[];
+}
+
 interface HistoriqueData {
   success: boolean;
   client: Client & { pointsDeVente: { pointDeVente: ClientPdv }[] };
   souscriptions: SouscriptionHisto[];
   ventesDirectes: VenteDirecteHisto[];
+  credits: CreditHisto[];
   totaux: {
     totalVersementsPacks: number;
     totalAchatsDirects: number;
@@ -116,6 +141,10 @@ interface HistoriqueData {
     totalDu: number;
     nbSouscriptions: number;
     nbAchats: number;
+    totalCreditRembourse: number;
+    soldeCredit: number;
+    nbCredits: number;
+    nbCreditsActifs: number;
   };
 }
 
@@ -1430,7 +1459,12 @@ export default function ClientsPage() {
                             {client._count.ventesDirectes} vente{client._count.ventesDirectes > 1 ? 's' : ''}
                           </span>
                         ) : null}
-                        {client._count.souscriptionsPacks === 0 && client._count.ventesDirectes === 0 && (
+                        {client._count.creditsClients > 0 ? (
+                          <span className="px-2 py-0.5 bg-violet-50 text-violet-700 text-xs rounded-full font-medium w-fit flex items-center gap-1">
+                            <CreditCard className="w-3 h-3" /> {client._count.creditsClients} crédit{client._count.creditsClients > 1 ? 's' : ''}
+                          </span>
+                        ) : null}
+                        {client._count.souscriptionsPacks === 0 && client._count.ventesDirectes === 0 && client._count.creditsClients === 0 && (
                           <span className="text-xs text-slate-400 italic">Sans activité</span>
                         )}
                       </div>
@@ -1665,6 +1699,16 @@ export default function ClientsPage() {
                       </div>
                       <p className="text-2xl font-bold text-purple-700">{histoData.totaux.nbAchats}</p>
                     </div>
+                    <div className="bg-violet-50 border border-violet-200 rounded-2xl p-4">
+                      <div className="flex items-center gap-2 mb-1">
+                        <CreditCard size={16} className="text-violet-600" />
+                        <span className="text-xs font-semibold text-violet-700 uppercase tracking-wide">Crédits actifs</span>
+                      </div>
+                      <p className="text-2xl font-bold text-violet-700">{histoData.totaux.nbCreditsActifs}</p>
+                      {histoData.totaux.soldeCredit > 0 && (
+                        <p className="text-xs text-red-500 mt-1">Solde : {formatCurrency(histoData.totaux.soldeCredit)}</p>
+                      )}
+                    </div>
                   </div>
 
                   {/* ── Souscriptions packs ── */}
@@ -1819,6 +1863,57 @@ export default function ClientsPage() {
                                   )}
                                 </div>
                               )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* ── Crédits ── */}
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wide mb-3 flex items-center gap-2">
+                      <CreditCard size={15} className="text-violet-500" />
+                      Crédits ({histoData.credits.length})
+                    </h3>
+                    {histoData.credits.length === 0 ? (
+                      <div className="text-center py-8 text-slate-400 text-sm bg-slate-50 rounded-2xl">Aucun crédit</div>
+                    ) : (
+                      <div className="space-y-3">
+                        {histoData.credits.map((cr) => {
+                          const total = Number(cr.montantTotal);
+                          const pct = total > 0 ? Math.min(100, Math.round((Number(cr.montantRembourse) / total) * 100)) : 0;
+                          const statutColor =
+                            cr.statut === 'SOLDE'     ? 'bg-emerald-100 text-emerald-700' :
+                            cr.statut === 'EN_RETARD' ? 'bg-red-100 text-red-700' :
+                            cr.statut === 'ACTIF'     ? 'bg-blue-100 text-blue-700' :
+                            cr.statut === 'ANNULE' || cr.statut === 'REJETE' ? 'bg-slate-100 text-slate-500' :
+                                                        'bg-amber-100 text-amber-700';
+                          return (
+                            <div key={cr.id} className="border border-slate-200 rounded-2xl px-4 py-3">
+                              <div className="flex items-center justify-between gap-3">
+                                <div className="flex items-center gap-3 min-w-0">
+                                  <div className="w-8 h-8 bg-violet-100 rounded-xl flex items-center justify-center">
+                                    <CreditCard size={14} className="text-violet-600" />
+                                  </div>
+                                  <div className="min-w-0">
+                                    <p className="font-semibold text-slate-800 text-sm font-mono">{cr.reference}</p>
+                                    <p className="text-xs text-slate-400">
+                                      {formatDate(cr.dateDebut)} → {formatDate(cr.dateEcheanceFin)} · {cr.dureeJours}j · {cr.remboursements.length} remb.
+                                    </p>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-3 shrink-0">
+                                  <div className="text-right">
+                                    <p className="text-sm font-bold text-slate-800">{formatCurrency(total)}</p>
+                                    <p className="text-xs text-slate-400">Reste : <span className={Number(cr.soldeRestant) > 0 ? 'text-red-600 font-semibold' : 'text-emerald-600'}>{formatCurrency(Number(cr.soldeRestant))}</span></p>
+                                  </div>
+                                  <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${statutColor}`}>{cr.statut.replace(/_/g, ' ')}</span>
+                                </div>
+                              </div>
+                              <div className="mt-2 w-full bg-slate-100 rounded-full h-1.5">
+                                <div className={`h-1.5 rounded-full ${pct >= 100 ? 'bg-emerald-500' : pct >= 50 ? 'bg-blue-500' : 'bg-amber-500'}`} style={{ width: `${pct}%` }} />
+                              </div>
                             </div>
                           );
                         })}

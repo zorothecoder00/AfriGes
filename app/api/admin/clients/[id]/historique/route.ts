@@ -26,7 +26,7 @@ export async function GET(req: Request, { params }: Ctx) {
       return await getDetailHistorique(clientId);
     }
 
-    const [lignesCollecte, versements, ventes, auditLogs] = await Promise.all([
+    const [lignesCollecte, versements, ventes, credits, remboursementsCredit, auditLogs] = await Promise.all([
 
       prisma.ligneCollecte.findMany({
         where: { clientId },
@@ -78,6 +78,31 @@ export async function GET(req: Request, { params }: Ctx) {
         orderBy: { createdAt: 'desc' },
       }),
 
+      prisma.creditClient.findMany({
+        where: { clientId },
+        select: {
+          id:           true,
+          reference:    true,
+          statut:       true,
+          montantTotal: true,
+          createdAt:    true,
+        },
+        orderBy: { createdAt: 'desc' },
+      }),
+
+      prisma.remboursementCredit.findMany({
+        where: { credit: { clientId } },
+        select: {
+          id:                true,
+          montant:           true,
+          dateRemboursement: true,
+          modePaiement:      true,
+          statut:            true,
+          credit:            { select: { reference: true } },
+        },
+        orderBy: { dateRemboursement: 'desc' },
+      }),
+
       prisma.auditLog.findMany({
         where: { entite: 'Client', entiteId: clientId },
         select: {
@@ -92,7 +117,7 @@ export async function GET(req: Request, { params }: Ctx) {
 
     type TItem = {
       id: string;
-      type: 'COLLECTE' | 'VERSEMENT' | 'VENTE' | 'AUDIT';
+      type: 'COLLECTE' | 'VERSEMENT' | 'VENTE' | 'CREDIT' | 'AUDIT';
       date: string;
       titre: string;
       detail: string;
@@ -131,6 +156,26 @@ export async function GET(req: Request, { params }: Ctx) {
         statut:    v.statut,
         reference: v.reference,
       })),
+      ...credits.map((c) => ({
+        id:        `crd-${c.id}`,
+        type:      'CREDIT' as const,
+        date:      c.createdAt.toISOString(),
+        titre:     `Crédit octroyé – ${c.reference}`,
+        detail:    `Montant total : ${Number(c.montantTotal).toLocaleString('fr-FR')} FCFA`,
+        montant:   Number(c.montantTotal),
+        statut:    c.statut,
+        reference: c.reference,
+      })),
+      ...remboursementsCredit.map((r) => ({
+        id:        `rem-${r.id}`,
+        type:      'CREDIT' as const,
+        date:      r.dateRemboursement.toISOString(),
+        titre:     `Remboursement crédit – ${r.credit.reference}`,
+        detail:    r.modePaiement.replace(/_/g, ' '),
+        montant:   Number(r.montant),
+        statut:    r.statut,
+        reference: r.credit.reference,
+      })),
       ...auditLogs.map((a) => ({
         id:     `aud-${a.id}`,
         type:   'AUDIT' as const,
@@ -158,7 +203,7 @@ export async function GET(req: Request, { params }: Ctx) {
  * cartes de totaux + souscriptions (avec versements) + ventes directes (avec lignes).
  */
 async function getDetailHistorique(clientId: number) {
-  const [client, souscriptionsRaw, ventesRaw] = await Promise.all([
+  const [client, souscriptionsRaw, ventesRaw, creditsRaw] = await Promise.all([
     prisma.client.findUnique({
       where: { id: clientId },
       select: {
@@ -197,6 +242,21 @@ async function getDetailHistorique(clientId: number) {
         },
       },
     }),
+
+    prisma.creditClient.findMany({
+      where: { clientId },
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true, reference: true, statut: true,
+        montantTotal: true, montantRembourse: true, soldeRestant: true,
+        dureeJours: true, montantJournalier: true,
+        dateDebut: true, dateEcheanceFin: true, createdAt: true,
+        remboursements: {
+          orderBy: { dateRemboursement: 'desc' },
+          select: { id: true, montant: true, dateRemboursement: true, modePaiement: true, statut: true, numeroJour: true },
+        },
+      },
+    }),
   ]);
 
   if (!client) return NextResponse.json({ message: 'Client introuvable' }, { status: 404 });
@@ -219,11 +279,20 @@ async function getDetailHistorique(clientId: number) {
     .filter((x) => x.statut !== 'ANNULE' && x.statut !== 'COMPLETE')
     .reduce((s, x) => s + Number(x.montantRestant), 0);
 
+  // Totaux crédits
+  const ACTIFS = ['ACTIF', 'EN_RETARD'];
+  const totalCreditRembourse = creditsRaw.reduce((s, x) => s + Number(x.montantRembourse), 0);
+  const soldeCredit = creditsRaw
+    .filter((x) => ACTIFS.includes(x.statut))
+    .reduce((s, x) => s + Number(x.soldeRestant), 0);
+  const nbCreditsActifs = creditsRaw.filter((x) => ACTIFS.includes(x.statut)).length;
+
   return NextResponse.json({
     success: true,
     client,
     souscriptions: souscriptionsRaw,
     ventesDirectes,
+    credits: creditsRaw,
     totaux: {
       totalVersementsPacks,
       totalAchatsDirects,
@@ -231,6 +300,10 @@ async function getDetailHistorique(clientId: number) {
       totalDu,
       nbSouscriptions: souscriptionsRaw.length,
       nbAchats: ventesRaw.length,
+      totalCreditRembourse,
+      soldeCredit,
+      nbCredits: creditsRaw.length,
+      nbCreditsActifs,
     },
   });
 }

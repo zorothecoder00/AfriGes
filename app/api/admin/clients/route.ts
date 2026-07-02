@@ -125,7 +125,7 @@ export async function GET(req: Request) {
           etat: true, createdAt: true, codeClient: true, quartier: true, ville: true, commune: true,
           niveauRisque: true, typeClient: true, limiteCredit: true, soldeActuel: true,
           segment: true,
-          _count: { select: { souscriptionsPacks: true, ventesDirectes: true } },
+          _count: { select: { souscriptionsPacks: true, ventesDirectes: true, creditsClients: true } },
           pointDeVente: { select: { id: true, nom: true, code: true } },
           pointsDeVente: { select: { pointDeVente: { select: { id: true, nom: true, code: true } } } },
           agentTerrain: { select: { id: true, nom: true, prenom: true } },
