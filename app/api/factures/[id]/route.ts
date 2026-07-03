@@ -28,11 +28,11 @@ function buildResponse(
     id: number; numero: string; type: string; statut: string;
     dateEmission: Date; dateEcheance: Date | null;
     clientNom: string; clientTelephone: string | null; clientAdresse: string | null;
-    emiseParNom: string;
+    emiseParNom: string; emiseParFonction: string | null;
     pdvNom: string | null; pdvAdresse: string | null; pdvTelephone: string | null;
     montantHT: { toNumber(): number }; montantTVA: { toNumber(): number };
     montantTTC: { toNumber(): number }; montantPaye: { toNumber(): number };
-    modePaiement: string | null; notes: string | null;
+    modePaiement: string | null; notes: string | null; garantie: string | null;
     lignes: { designation: string; unite: string | null; quantite: number; prixUnitaire: { toNumber(): number }; montant: { toNumber(): number } }[];
     pointDeVente: { nom: string; adresse: string | null; telephone: string | null } | null;
   },
@@ -49,6 +49,7 @@ function buildResponse(
     clientTelephone: f.clientTelephone,
     clientAdresse: f.clientAdresse,
     emiseParNom: f.emiseParNom,
+    emiseParFonction: f.emiseParFonction ?? null,
     pdvNom:      f.pdvNom      ?? f.pointDeVente?.nom      ?? null,
     pdvAdresse:  f.pdvAdresse  ?? f.pointDeVente?.adresse  ?? null,
     pdvTelephone: f.pdvTelephone ?? f.pointDeVente?.telephone ?? null,
@@ -58,6 +59,7 @@ function buildResponse(
     montantPaye: f.montantPaye.toNumber(),
     modePaiement: f.modePaiement,
     notes: f.notes,
+    garantie: f.garantie ?? null,
     lignes: f.lignes.map(l => ({
       designation:  l.designation,
       unite:        l.unite,

@@ -26,6 +26,7 @@ interface FactureData {
   clientTelephone?: string | null;
   clientAdresse?: string | null;
   emiseParNom: string;
+  emiseParFonction?: string | null;
   pdvNom?: string | null;
   pdvAdresse?: string | null;
   pdvTelephone?: string | null;
@@ -35,6 +36,7 @@ interface FactureData {
   montantPaye: number;
   modePaiement?: string | null;
   notes?: string | null;
+  garantie?: string | null;
   lignes: LigneFacture[];
   entreprise: { nom: string; adresse?: string; telephone?: string };
 }
@@ -172,6 +174,7 @@ function InvoiceLayout({ f }: { f: FactureData }) {
         <div className="bg-slate-50 rounded-xl p-4">
           <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Émis par</p>
           <p className="font-bold text-slate-800 text-base">{f.emiseParNom}</p>
+          {f.emiseParFonction && <p className="text-sm font-medium text-slate-500 mt-0.5">{f.emiseParFonction}</p>}
           {f.pdvNom      && <p className="text-sm text-slate-500 mt-0.5">{f.pdvNom}</p>}
           {f.pdvAdresse  && <p className="text-sm text-slate-500">{f.pdvAdresse}</p>}
           {f.pdvTelephone && <p className="text-sm text-slate-500">{f.pdvTelephone}</p>}
@@ -256,6 +259,14 @@ function InvoiceLayout({ f }: { f: FactureData }) {
           )}
         </div>
       </div>
+
+      {/* ── Garantie ────────────────────────────────────────────────────────── */}
+      {f.garantie && (
+        <div className="border border-amber-200 bg-amber-50 rounded-xl p-4 mb-4 text-sm text-amber-800">
+          <span className="font-semibold uppercase tracking-wide text-xs text-amber-600 block mb-0.5">Garantie</span>
+          {f.garantie}
+        </div>
+      )}
 
       {/* ── Notes ───────────────────────────────────────────────────────────── */}
       {f.notes && (
@@ -755,6 +766,7 @@ function printInvoice(f: FactureData, opts?: { mono?: boolean }) {
     <div style="background:${c.boxBg};border:${c.boxBorder};border-radius:12px;padding:16px">
       <p style="font-size:10px;font-weight:700;color:${c.faint};letter-spacing:1px;text-transform:uppercase;margin-bottom:8px">Émis par</p>
       <p style="font-weight:700;font-size:15px;color:${c.text}">${f.emiseParNom}</p>
+      ${f.emiseParFonction ? `<p style="font-size:13px;font-weight:500;color:${c.muted};margin-top:4px">${f.emiseParFonction}</p>` : ""}
       ${f.pdvNom ? `<p style="font-size:13px;color:${c.muted};margin-top:4px">${f.pdvNom}</p>` : ""}
       ${f.pdvAdresse ? `<p style="font-size:13px;color:${c.muted}">${f.pdvAdresse}</p>` : ""}
       ${f.pdvTelephone ? `<p style="font-size:13px;color:${c.muted}">${f.pdvTelephone}</p>` : ""}
@@ -779,6 +791,12 @@ function printInvoice(f: FactureData, opts?: { mono?: boolean }) {
   <div style="display:flex;justify-content:flex-end;margin-bottom:32px">
     <div style="width:280px">${totauxHtml}</div>
   </div>
+
+  ${f.garantie ? `
+  <!-- Garantie -->
+  <div style="border:${mono ? "1px solid #000000" : "1px solid #fcd34d"};background:${mono ? "#ffffff" : "#fffbeb"};border-radius:12px;padding:16px;margin-bottom:16px;font-size:13px;color:${mono ? c.text : "#92400e"}">
+    <strong style="display:block;font-size:11px;letter-spacing:1px;text-transform:uppercase;color:${mono ? c.muted : "#b45309"};margin-bottom:2px">Garantie</strong>${f.garantie}
+  </div>` : ""}
 
   ${f.notes ? `
   <!-- Notes -->

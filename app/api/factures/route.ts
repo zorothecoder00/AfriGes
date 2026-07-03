@@ -6,6 +6,7 @@ import { getCaissierSession } from "@/lib/authCaissier";
 import { getRPVSession } from "@/lib/authRPV";
 import { getAgentTerrainSession } from "@/lib/authAgentTerrain";
 import { getRVCSession } from "@/lib/authRVC";
+import { getStatusLabel } from "@/lib/status";
 
 async function getSession() {
   return (
@@ -62,11 +63,11 @@ type FactureRow = {
   id: number; numero: string; type: string; statut: string;
   dateEmission: Date; dateEcheance: Date | null;
   clientNom: string; clientTelephone: string | null; clientAdresse: string | null;
-  emiseParNom: string;
+  emiseParNom: string; emiseParFonction: string | null;
   pdvNom: string | null; pdvAdresse: string | null; pdvTelephone: string | null;
   montantHT: { toNumber(): number }; montantTVA: { toNumber(): number };
   montantTTC: { toNumber(): number }; montantPaye: { toNumber(): number };
-  modePaiement: string | null; notes: string | null;
+  modePaiement: string | null; notes: string | null; garantie: string | null;
   lignes: { designation: string; unite: string | null; quantite: number; prixUnitaire: { toNumber(): number }; montant: { toNumber(): number } }[];
   pointDeVente: { nom: string; adresse: string | null; telephone: string | null } | null;
 };
@@ -83,6 +84,7 @@ function buildResponse(f: FactureRow, getParam: (k: string) => string) {
     clientTelephone: f.clientTelephone,
     clientAdresse: f.clientAdresse,
     emiseParNom: f.emiseParNom,
+    emiseParFonction: f.emiseParFonction ?? null,
     pdvNom: f.pdvNom ?? f.pointDeVente?.nom ?? null,
     pdvAdresse: f.pdvAdresse ?? f.pointDeVente?.adresse ?? null,
     pdvTelephone: f.pdvTelephone ?? f.pointDeVente?.telephone ?? null,
@@ -92,6 +94,7 @@ function buildResponse(f: FactureRow, getParam: (k: string) => string) {
     montantPaye: f.montantPaye.toNumber(),
     modePaiement: f.modePaiement,
     notes: f.notes,
+    garantie: f.garantie ?? null,
     lignes: f.lignes.map(l => ({
       designation: l.designation,
       unite: l.unite,
@@ -205,6 +208,9 @@ export async function POST(req: NextRequest) {
 
     const userId     = parseInt(session.user.id);
     const emiseParNom = `${session.user.prenom ?? ""} ${session.user.nom ?? ""}`.trim();
+    // Fonction/rôle de l'émetteur dans l'entreprise (snapshot) : rôle gestionnaire
+    // s'il existe, sinon rôle User (Administrateur / Super Admin).
+    const emiseParFonction = getStatusLabel(session.user.gestionnaireRole ?? session.user.role ?? "") || null;
 
     const params = await prisma.parametre.findMany({
       where: { cle: { in: ["APP_NOM", "APP_ADRESSE", "APP_TELEPHONE"] } },
@@ -251,6 +257,7 @@ export async function POST(req: NextRequest) {
           clientTelephone: vente.client?.telephone ?? vente.clientTelephone,
           emiseParId:   userId,
           emiseParNom,
+          emiseParFonction,
           montantHT:    montantTTC,
           montantTVA:   0,
           montantTTC,
@@ -338,6 +345,7 @@ export async function POST(req: NextRequest) {
           clientAdresse:  credit.client.adresse,
           emiseParId:   userId,
           emiseParNom,
+          emiseParFonction,
           montantHT:    montantTTC,
           montantTVA:   0,
           montantTTC,
@@ -345,6 +353,7 @@ export async function POST(req: NextRequest) {
           modePaiement: "CREDIT",
           dateEcheance: credit.dateEcheanceFin,
           notes:        credit.observations,
+          garantie:     credit.garantie,
           lignes: { create: lignesFacture },
         },
         INCLUDE_FULL,
@@ -405,6 +414,7 @@ export async function POST(req: NextRequest) {
           clientAdresse:   sClient?.adresse ?? null,
           emiseParId:      userId,
           emiseParNom,
+          emiseParFonction,
           montantHT:       montantTTC,
           montantTVA:      0,
           montantTTC,
@@ -456,6 +466,7 @@ export async function POST(req: NextRequest) {
           clientAdresse:   body.clientAdresse?.trim() ?? null,
           emiseParId:   userId,
           emiseParNom,
+          emiseParFonction,
           montantHT:    montantTTC,
           montantTVA:   0,
           montantTTC,

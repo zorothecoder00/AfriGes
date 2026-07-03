@@ -2820,9 +2820,10 @@ model FactureVente {
   clientTelephone String?
   clientAdresse   String?
 
-  // Émetteur (snapshot nom)
-  emiseParId  Int
-  emiseParNom String
+  // Émetteur (snapshot nom + fonction/rôle dans l'entreprise au moment de l'émission)
+  emiseParId       Int
+  emiseParNom      String
+  emiseParFonction String?
 
   // Montants
   montantHT    Decimal
@@ -2834,6 +2835,7 @@ model FactureVente {
   dateEmission DateTime  @default(now())
   dateEcheance DateTime?
   notes        String?
+  garantie     String?   // snapshot de la garantie du crédit (si facture issue d'un crédit)
 
   // Relations
   venteDirecte  VenteDirecte?         @relation("VenteDirecteFacture",  fields: [venteDirecteId],  references: [id])

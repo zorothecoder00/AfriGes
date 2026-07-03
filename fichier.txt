@@ -138,7 +138,7 @@ Modification
 Validation
 Export
 Suppression logique
-Gestion granulaire obligatoire.     A terminer (adminisatratio système)
+Gestion granulaire obligatoire.     A terminer (adminisatration système)
 
 
 Pour la gestion des commissions et le paramètre des profils de de collaborateur on doit revoir ça
@@ -154,10 +154,6 @@ Montant/jour (AUTO)
 Fin d'échéance (AUTO)
 
 Taux pénalité (% / jour)
-
-Garantie   sur les factures
-
-On veut aussi côté du nom sa fonction ( rôle gestionnaire peut être )
 
 
 Créé un menu ou onglet " bordereau de remboursement" dans /dashboard/admin/clients/id
