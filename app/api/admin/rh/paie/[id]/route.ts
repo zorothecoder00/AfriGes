@@ -37,13 +37,20 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
 /**
  * PATCH /api/admin/rh/paie/[id]
  *
- * Workflow:
- *   action: "SOUMETTRE_CONTROLE" | "VALIDER" | "REFUSER_CONTROLE"
+ * Workflow (CDC — séparation des tâches Préparation RH → Contrôle RH → Validation Direction) :
+ *   action: "SOUMETTRE_CONTROLE" | "CONTROLER" | "REFUSER_CONTROLE"
+ *         | "VALIDER" | "REJETER_DIRECTION"
  *         | "METTRE_EN_PAIEMENT" | "MARQUER_PAYE" | "REPASSER_BROUILLON"
- *   + modePaiement? (pour METTRE_EN_PAIEMENT)
+ *   + modePaiement? (pour METTRE_EN_PAIEMENT) + commentaire? (pour REJETER_DIRECTION)
+ *
+ *   VALIDER (CONTROLE_VALIDE → VALIDE) = Validation Direction, réservée à
+ *   l'admin/superadmin (cette route). Le RESPONSABLE_RH ne peut que préparer/contrôler.
  *
  * Édition (BROUILLON seulement):
  *   { salaireBase?, composants?, notes?, fichierUrl? }
+ *
+ * Archivage document signé (CDC 13.9 — tout statut, sans toucher aux montants) :
+ *   { action: "ARCHIVER_DOCUMENT", fichierUrl }
  */
 export async function PATCH(req: NextRequest, { params }: Ctx) {
   try {
@@ -52,10 +59,32 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
 
     const { id } = await params;
     const body   = await req.json();
-    const { action, composants, salaireBase, notes, fichierUrl, modePaiement } = body;
+    const { action, composants, salaireBase, notes, fichierUrl, modePaiement, commentaire } = body;
 
     const fiche = await prisma.fichePaie.findUnique({ where: { id: Number(id) } });
     if (!fiche) return NextResponse.json({ error: "Fiche introuvable" }, { status: 404 });
+
+    // ── Archivage du bulletin signé (CDC 13.9) — indépendant du workflow, jamais destructif
+    if (action === "ARCHIVER_DOCUMENT") {
+      if (!fichierUrl) {
+        return NextResponse.json({ error: "fichierUrl est obligatoire" }, { status: 400 });
+      }
+      const updated = await prisma.fichePaie.update({
+        where: { id: Number(id) },
+        data:  { fichierUrl: String(fichierUrl) },
+        include: { composants: true },
+      });
+      await prisma.auditLog.create({
+        data: {
+          userId:   parseInt(session.user.id),
+          action:   "ARCHIVER_DOCUMENT",
+          entite:   "FichePaie",
+          entiteId: Number(id),
+          details:  { avant: { fichierUrl: fiche.fichierUrl }, apres: { fichierUrl } },
+        },
+      });
+      return NextResponse.json({ data: updated });
+    }
 
     // ── Workflow statut ────────────────────────────────────────────────────────
     if (action) {
@@ -68,19 +97,33 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
       };
 
       const TRANSITIONS: Record<string, Transition> = {
+        // Préparation RH
         SOUMETTRE_CONTROLE: {
           from: ["BROUILLON"],
           to:   "CONTROLE",
         },
-        VALIDER: {
-          from: ["CONTROLE", "BROUILLON"],
-          to:   "VALIDE",
-          extra: (now) => ({ valideParId: userId, dateValidation: now }),
+        // Contrôle RH (admin peut aussi contrôler)
+        CONTROLER: {
+          from: ["CONTROLE"],
+          to:   "CONTROLE_VALIDE",
+          extra: (now) => ({ controleParId: userId, dateControle: now }),
         },
         REFUSER_CONTROLE: {
           from: ["CONTROLE"],
           to:   "BROUILLON",
         },
+        // Validation Direction (admin/superadmin uniquement — cette route l'est déjà)
+        VALIDER: {
+          from: ["CONTROLE_VALIDE", "CONTROLE"],
+          to:   "VALIDE",
+          extra: (now) => ({ valideParId: userId, dateValidation: now }),
+        },
+        REJETER_DIRECTION: {
+          from: ["CONTROLE_VALIDE"],
+          to:   "BROUILLON",
+          extra: () => (commentaire ? { notes: String(commentaire) } : {}),
+        },
+        // Mise en paiement / Archivage
         METTRE_EN_PAIEMENT: {
           from: ["VALIDE"],
           to:   "EN_PAIEMENT",
@@ -95,7 +138,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
           to:   "PAYE",
         },
         REPASSER_BROUILLON: {
-          from: ["VALIDE", "CONTROLE"],
+          from: ["VALIDE", "CONTROLE", "CONTROLE_VALIDE"],
           to:   "BROUILLON",
         },
       };

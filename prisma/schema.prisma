@@ -3280,11 +3280,12 @@ model DocumentRHGenere {
 // ============================================================
 
 enum StatutFichePaie {
-  BROUILLON      // en cours de saisie
-  CONTROLE       // soumis au contrôle RH
-  VALIDE         // validé par la direction
-  EN_PAIEMENT    // ordre de paiement émis
-  PAYE           // versement effectué
+  BROUILLON        // Préparation RH — en cours de saisie
+  CONTROLE         // soumis au contrôle RH (en cours de contrôle)
+  CONTROLE_VALIDE  // contrôlé par le RH — en attente de validation Direction
+  VALIDE           // validé par la Direction (admin/superadmin)
+  EN_PAIEMENT      // ordre de paiement émis
+  PAYE             // versement effectué (archivé)
 }
 
 enum TypeComposantSalaire {

@@ -8,10 +8,14 @@ type Ctx = { params: Promise<{ id: string }> };
  * GET /api/responsableRH/paie/[id]
  *
  * PATCH /api/responsableRH/paie/[id]
- *   Actions disponibles pour RESPONSABLE_RH :
- *   - SOUMETTRE_CONTROLE : BROUILLON → CONTROLE
- *   - VALIDER            : CONTROLE  → VALIDE  (contrôle RH)
- *   - REFUSER_CONTROLE   : CONTROLE  → BROUILLON
+ *   Actions disponibles pour RESPONSABLE_RH (Préparation + Contrôle RH) :
+ *   - SOUMETTRE_CONTROLE : BROUILLON        → CONTROLE          (fin de préparation)
+ *   - CONTROLER          : CONTROLE         → CONTROLE_VALIDE   (contrôle RH ; transmet à la Direction)
+ *   - REFUSER_CONTROLE   : CONTROLE         → BROUILLON         (renvoi en préparation)
+ *   - REPRENDRE_CONTROLE : CONTROLE_VALIDE  → CONTROLE          (annule le contrôle, tant que la Direction n'a pas validé)
+ *
+ *   La VALIDATION (CONTROLE_VALIDE → VALIDE) est réservée à la Direction
+ *   (admin/superadmin) — cf. /api/admin/rh/paie/[id]. Séparation des tâches (CDC).
  */
 
 export async function GET(_req: NextRequest, { params }: Ctx) {
@@ -67,9 +71,10 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
 
     type T = { from: string[]; to: string; extra?: Record<string, unknown> };
     const TRANSITIONS: Record<string, T> = {
-      SOUMETTRE_CONTROLE: { from: ["BROUILLON"],  to: "CONTROLE" },
-      VALIDER:            { from: ["CONTROLE"],   to: "VALIDE",   extra: { valideParId: userId, dateValidation: new Date() } },
-      REFUSER_CONTROLE:   { from: ["CONTROLE"],   to: "BROUILLON" },
+      SOUMETTRE_CONTROLE: { from: ["BROUILLON"],       to: "CONTROLE" },
+      CONTROLER:          { from: ["CONTROLE"],        to: "CONTROLE_VALIDE", extra: { controleParId: userId, dateControle: new Date() } },
+      REFUSER_CONTROLE:   { from: ["CONTROLE"],        to: "BROUILLON" },
+      REPRENDRE_CONTROLE: { from: ["CONTROLE_VALIDE"], to: "CONTROLE",        extra: { controleParId: null, dateControle: null } },
     };
 
     const t = TRANSITIONS[action];

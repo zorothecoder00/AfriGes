@@ -1,0 +1,2 @@
+-- AlterEnum
+ALTER TYPE "StatutFichePaie" ADD VALUE 'CONTROLE_VALIDE';

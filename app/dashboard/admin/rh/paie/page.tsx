@@ -7,6 +7,7 @@ import {
   ChevronDown, ChevronUp, User, Eye, BarChart2,
   Send, Settings, TrendingUp, Banknote,
   ShieldCheck, Play, Info, Download, Users,
+  Archive, FileText, History, Lock, Paperclip,
 } from "lucide-react";
 import Link from "next/link";
 import { useApi, useMutation } from "@/hooks/useApi";
@@ -88,8 +89,9 @@ const ANNEE_COURANTE = new Date().getFullYear();
 const ANNEES = Array.from({ length: 4 }, (_, i) => ANNEE_COURANTE - i);
 
 const STATUT_CFG: Record<string, { label: string; badge: string; icon: React.ReactNode; short: string }> = {
-  BROUILLON:   { label: "Brouillon",    badge: "bg-slate-100 text-slate-600",    icon: <Clock       className="w-3 h-3" />, short: "Brouillon" },
-  CONTROLE:    { label: "En contrôle",  badge: "bg-yellow-100 text-yellow-700",  icon: <ShieldCheck className="w-3 h-3" />, short: "Contrôle" },
+  BROUILLON:      { label: "Brouillon",         badge: "bg-slate-100 text-slate-600",    icon: <Clock       className="w-3 h-3" />, short: "Brouillon" },
+  CONTROLE:       { label: "En contrôle RH",    badge: "bg-yellow-100 text-yellow-700",  icon: <ShieldCheck className="w-3 h-3" />, short: "Contrôle" },
+  CONTROLE_VALIDE:{ label: "Attente Direction", badge: "bg-orange-100 text-orange-700",  icon: <ShieldCheck className="w-3 h-3" />, short: "Att. Direction" },
   VALIDE:      { label: "Validée",      badge: "bg-blue-100 text-blue-700",      icon: <CheckCircle className="w-3 h-3" />, short: "Validée" },
   EN_PAIEMENT: { label: "En paiement",  badge: "bg-purple-100 text-purple-700",  icon: <Send        className="w-3 h-3" />, short: "Paiement" },
   PAYE:        { label: "Payée",        badge: "bg-emerald-100 text-emerald-700",icon: <CreditCard  className="w-3 h-3" />, short: "Payée" },
@@ -143,6 +145,7 @@ const TABS = [
   { id: "fiches",   label: "Fiches de paie", icon: <DollarSign className="w-4 h-4" /> },
   { id: "avances",  label: "Avances & Prêts",icon: <Banknote   className="w-4 h-4" /> },
   { id: "ordres",   label: "Paiements",       icon: <Send       className="w-4 h-4" /> },
+  { id: "historique",label: "Historique",     icon: <Archive    className="w-4 h-4" /> },
   { id: "config",   label: "Configuration",   icon: <Settings   className="w-4 h-4" /> },
   { id: "dashboard",label: "Tableau de bord", icon: <TrendingUp className="w-4 h-4" /> },
 ];
@@ -182,11 +185,12 @@ export default function PaiePage() {
         </div>
 
         {/* Contenu de l'onglet actif */}
-        {activeTab === "fiches"    && <FichesTab />}
-        {activeTab === "avances"   && <AvancesPretsTab />}
-        {activeTab === "ordres"    && <OrdresPaiementTab />}
-        {activeTab === "config"    && <ConfigTab />}
-        {activeTab === "dashboard" && <DashboardTab />}
+        {activeTab === "fiches"     && <FichesTab />}
+        {activeTab === "avances"    && <AvancesPretsTab />}
+        {activeTab === "ordres"     && <OrdresPaiementTab />}
+        {activeTab === "historique" && <HistoriqueTab />}
+        {activeTab === "config"     && <ConfigTab />}
+        {activeTab === "dashboard"  && <DashboardTab />}
 
       </div>
     </div>
@@ -343,13 +347,19 @@ function FicheRow({ fiche, onOpen, onRefetch }: { fiche: FichePaie; onOpen: () =
         {fiche.statut === "BROUILLON" && (
           <button onClick={() => doAction("SOUMETTRE_CONTROLE")} disabled={loading}
             className="px-2.5 py-1.5 text-xs font-medium text-yellow-700 bg-yellow-50 border border-yellow-200 rounded-lg hover:bg-yellow-100 disabled:opacity-50">
-            Contrôle
+            Soumettre au contrôle
           </button>
         )}
         {fiche.statut === "CONTROLE" && (
+          <button onClick={() => doAction("CONTROLER")} disabled={loading}
+            className="px-2.5 py-1.5 text-xs font-medium text-orange-700 bg-orange-50 border border-orange-200 rounded-lg hover:bg-orange-100 disabled:opacity-50">
+            Contrôler
+          </button>
+        )}
+        {fiche.statut === "CONTROLE_VALIDE" && (
           <button onClick={() => doAction("VALIDER")} disabled={loading}
             className="px-2.5 py-1.5 text-xs font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 disabled:opacity-50">
-            Valider
+            Valider (Direction)
           </button>
         )}
         {fiche.statut === "VALIDE" && (
@@ -608,7 +618,7 @@ function FicheDetailModal({ fiche, onClose, onUpdated }: { fiche: FichePaie; onC
                 Bulletin
               </Link>
             )}
-            {(fiche.statut === "VALIDE" || fiche.statut === "CONTROLE") && (
+            {(fiche.statut === "VALIDE" || fiche.statut === "CONTROLE" || fiche.statut === "CONTROLE_VALIDE") && (
               <button onClick={() => doAction("REPASSER_BROUILLON")} disabled={loading}
                 className="px-3 py-2 text-xs text-slate-600 bg-slate-50 border border-slate-200 rounded-lg hover:bg-slate-100 disabled:opacity-50">
                 Brouillon
@@ -620,19 +630,31 @@ function FicheDetailModal({ fiche, onClose, onUpdated }: { fiche: FichePaie; onC
                 Refuser
               </button>
             )}
+            {fiche.statut === "CONTROLE_VALIDE" && (
+              <button onClick={() => doAction("REJETER_DIRECTION")} disabled={loading}
+                className="px-3 py-2 text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 disabled:opacity-50">
+                Rejeter (Direction)
+              </button>
+            )}
           </div>
           <div className="flex gap-2">
             <button onClick={onClose} className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 rounded-lg border border-slate-200">Fermer</button>
             {fiche.statut === "BROUILLON" && (
               <button onClick={() => doAction("SOUMETTRE_CONTROLE")} disabled={loading}
                 className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-yellow-700 bg-yellow-50 border border-yellow-200 rounded-lg hover:bg-yellow-100 disabled:opacity-50">
-                <ShieldCheck className="w-4 h-4" /> Contrôle
+                <ShieldCheck className="w-4 h-4" /> Soumettre au contrôle
               </button>
             )}
             {fiche.statut === "CONTROLE" && (
+              <button onClick={() => doAction("CONTROLER")} disabled={loading}
+                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-orange-600 rounded-lg hover:bg-orange-700 disabled:opacity-50">
+                {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />} Contrôler
+              </button>
+            )}
+            {fiche.statut === "CONTROLE_VALIDE" && (
               <button onClick={() => doAction("VALIDER")} disabled={loading}
                 className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50">
-                {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />} Valider
+                {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />} Valider (Direction)
               </button>
             )}
             {fiche.statut === "VALIDE" && (
@@ -1254,6 +1276,258 @@ function OrdresPaiementTab() {
           })}
         </>
       )}
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// TAB 3bis — HISTORIQUE DES PAIES (CDC 13.9)
+// ════════════════════════════════════════════════════════════════════════════
+
+interface ArchiveItem {
+  id: number; mois: number; annee: number; netAPayer: number; statut: string;
+  modePaiement: string | null; fichierUrl: string | null;
+  dateMiseEnPaiement: string | null; updatedAt: string;
+  profilRH: { id: number; matricule: string; departement?: string; gestionnaire: { member: { nom: string; prenom: string; photo: string | null } } };
+}
+interface ArchiveRes {
+  data: ArchiveItem[];
+  meta: { page: number; limit: number; total: number; totalPages: number };
+  stats: { montantTotal: number; avecBulletin: number; sansBulletin: number };
+}
+
+function HistoriqueTab() {
+  const [mois,   setMois]   = useState("");
+  const [annee,  setAnnee]  = useState(String(ANNEE_COURANTE));
+  const [statut, setStatut] = useState("PAYE");
+  const [search, setSearch] = useState("");
+
+  const params = new URLSearchParams();
+  if (mois)   params.set("mois", mois);
+  if (annee)  params.set("annee", annee);
+  if (statut) params.set("statut", statut);
+  if (search) params.set("search", search);
+
+  const { data, loading, refetch } = useApi<ArchiveRes>(`/api/admin/rh/paie/historique?${params.toString()}`);
+  const fiches = data?.data ?? [];
+  const stats  = data?.stats;
+
+  return (
+    <div className="space-y-5">
+      {/* Bandeau conformité */}
+      <div className="flex items-start gap-3 px-4 py-3 bg-indigo-50 border border-indigo-100 rounded-xl text-xs text-indigo-800">
+        <Lock className="w-4 h-4 text-indigo-500 flex-shrink-0 mt-0.5" />
+        <p>
+          <b>Archive des paies — conservation illimitée.</b> Bulletins signés, modifications et paiements
+          effectués sont conservés sans limite de durée. <b>Aucune suppression</b> n&apos;est possible : cet espace est en lecture seule,
+          seul l&apos;ajout du bulletin signé est autorisé.
+        </p>
+      </div>
+
+      {/* Filtres */}
+      <div className="flex gap-3 flex-wrap items-center">
+        <div className="relative">
+          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Rechercher un collaborateur…"
+            className="pl-9 pr-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 w-64" />
+        </div>
+        <select value={mois} onChange={(e) => setMois(e.target.value)}
+          className="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
+          <option value="">Tous les mois</option>
+          {MOIS_LABELS.slice(1).map((l, i) => <option key={i+1} value={i+1}>{l}</option>)}
+        </select>
+        <select value={annee} onChange={(e) => setAnnee(e.target.value)}
+          className="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
+          {ANNEES.map((a) => <option key={a} value={a}>{a}</option>)}
+        </select>
+        <select value={statut} onChange={(e) => setStatut(e.target.value)}
+          className="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
+          <option value="PAYE">Payées</option>
+          <option value="EN_PAIEMENT">En paiement</option>
+          <option value="TOUS">Tous statuts</option>
+        </select>
+        <button onClick={refetch} className="p-2 text-slate-500 hover:text-slate-700 bg-white border border-slate-200 rounded-lg"><RefreshCw className="w-4 h-4" /></button>
+      </div>
+
+      {/* Stats */}
+      {stats && fiches.length > 0 && (
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+          <StatCard label="Total décaissé" value={`${fmt(stats.montantTotal)} FCFA`} icon={<DollarSign className="w-4 h-4" />} tone="emerald" />
+          <StatCard label="Bulletins signés archivés" value={String(stats.avecBulletin)} icon={<Paperclip className="w-4 h-4" />} tone="blue" />
+          <StatCard label="Bulletins signés manquants" value={String(stats.sansBulletin)} icon={<FileText className="w-4 h-4" />} tone="amber" />
+        </div>
+      )}
+
+      {/* Liste */}
+      {loading && !data ? (
+        <div className="flex items-center justify-center py-16 text-slate-400"><RefreshCw className="w-5 h-5 animate-spin mr-2" /> Chargement…</div>
+      ) : fiches.length === 0 ? (
+        <div className="bg-white rounded-xl border border-slate-200 flex flex-col items-center justify-center py-16 text-slate-400">
+          <Archive className="w-10 h-10 mb-2 opacity-30" />
+          <p className="text-sm">Aucune paie archivée pour ces critères</p>
+        </div>
+      ) : (
+        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden divide-y divide-slate-100">
+          {fiches.map((f) => <ArchiveRow key={f.id} fiche={f} onRefetch={refetch} />)}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function StatCard({ label, value, icon, tone }: { label: string; value: string; icon: React.ReactNode; tone: "emerald" | "blue" | "amber" }) {
+  const tones = {
+    emerald: "bg-emerald-50 border-emerald-200 text-emerald-700",
+    blue:    "bg-blue-50 border-blue-200 text-blue-700",
+    amber:   "bg-amber-50 border-amber-200 text-amber-700",
+  }[tone];
+  return (
+    <div className={`rounded-xl border p-4 ${tones}`}>
+      <div className="flex items-center gap-2 text-xs font-medium opacity-80">{icon}{label}</div>
+      <p className="text-xl font-bold mt-1">{value}</p>
+    </div>
+  );
+}
+
+interface HistoDetail {
+  paiement: {
+    statut: string; modePaiement: string | null;
+    dateValidation: string | null; valideParNom: string | null;
+    dateMiseEnPaiement: string | null; misEnPaiementNom: string | null; paye: boolean;
+  };
+  modifications: { id: number; action: string; details: unknown; createdAt: string; auteur: string | null }[];
+  bulletin: { fichierUrl: string | null };
+}
+
+const ACTION_LABEL: Record<string, string> = {
+  CREATE: "Création", UPDATE: "Modification",
+  SOUMETTRE_CONTROLE: "Soumise au contrôle", CONTROLER: "Contrôlée (RH)",
+  REFUSER_CONTROLE: "Refusée (contrôle)", REPRENDRE_CONTROLE: "Contrôle repris",
+  VALIDER: "Validée (Direction)", REJETER_DIRECTION: "Rejetée (Direction)",
+  METTRE_EN_PAIEMENT: "Mise en paiement",
+  MARQUER_PAYE: "Marquée payée", AFFECTER_MODE_PAIEMENT: "Mode de paiement affecté",
+  REPASSER_BROUILLON: "Repassée en brouillon", ARCHIVER_DOCUMENT: "Bulletin signé archivé",
+};
+
+function ArchiveRow({ fiche, onRefetch }: { fiche: ArchiveItem; onRefetch: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [url, setUrl] = useState("");
+  const m = fiche.profilRH.gestionnaire.member;
+  const cfg = STATUT_CFG[fiche.statut] ?? STATUT_CFG.PAYE;
+
+  const { data: detail, loading, refetch } = useApi<HistoDetail>(open ? `/api/admin/rh/paie/${fiche.id}/historique` : null);
+  const { mutate, loading: saving } = useMutation(`/api/admin/rh/paie/${fiche.id}`, "PATCH");
+
+  const attacher = async () => {
+    if (!url.trim()) { toast.error("Renseignez l'URL du bulletin signé"); return; }
+    const r = await mutate({ action: "ARCHIVER_DOCUMENT", fichierUrl: url.trim() });
+    if (r) { toast.success("Bulletin signé archivé"); setUrl(""); refetch(); onRefetch(); }
+  };
+
+  return (
+    <div className="hover:bg-slate-50">
+      <div className="flex items-center gap-4 px-5 py-3.5">
+        <button onClick={() => setOpen((o) => !o)} className="p-1 text-slate-400 hover:text-slate-600">
+          {open ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+        </button>
+        <div className="w-8 h-8 rounded-full bg-slate-500 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+          {m.prenom[0]}{m.nom[0]}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-sm font-medium text-slate-800">{m.prenom} {m.nom}</span>
+            <span className="text-xs text-slate-400 font-mono">{fiche.profilRH.matricule}</span>
+            <span className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${cfg.badge}`}>{cfg.icon} {cfg.short}</span>
+            {fiche.fichierUrl
+              ? <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-600"><Paperclip className="w-3 h-3" /> Signé</span>
+              : <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-600"><FileText className="w-3 h-3" /> Sans bulletin signé</span>}
+          </div>
+          <div className="flex items-center gap-3 mt-0.5 text-xs text-slate-400">
+            <span>{MOIS_LABELS[fiche.mois]} {fiche.annee}</span>
+            <span>Net : <b className="text-slate-700">{fmt(fiche.netAPayer)} FCFA</b></span>
+            {fiche.modePaiement && <span>{fiche.modePaiement.replace("_", " ")}</span>}
+            {fiche.dateMiseEnPaiement && <span>Payée le {formatDate(fiche.dateMiseEnPaiement)}</span>}
+          </div>
+        </div>
+        <Link href={`/dashboard/admin/rh/paie/${fiche.id}/bulletin`}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-100">
+          <Eye className="w-3.5 h-3.5" /> Bulletin
+        </Link>
+      </div>
+
+      {open && (
+        <div className="px-5 pb-4 pl-16 space-y-4">
+          {loading && !detail ? (
+            <p className="text-xs text-slate-400 flex items-center gap-2"><RefreshCw className="w-3.5 h-3.5 animate-spin" /> Chargement de l&apos;historique…</p>
+          ) : detail ? (
+            <>
+              {/* Bulletin signé */}
+              <div>
+                <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5 flex items-center gap-1.5"><Paperclip className="w-3.5 h-3.5" /> Bulletin signé</h4>
+                {detail.bulletin.fichierUrl ? (
+                  <a href={detail.bulletin.fichierUrl} target="_blank" rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 text-xs text-blue-600 hover:underline break-all">
+                    <Download className="w-3.5 h-3.5" /> {detail.bulletin.fichierUrl}
+                  </a>
+                ) : (
+                  <div className="flex gap-2">
+                    <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://… URL du bulletin signé (scan)"
+                      className="flex-1 px-3 py-1.5 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                    <button onClick={attacher} disabled={saving}
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 text-white text-xs font-medium rounded-lg hover:bg-emerald-700 disabled:opacity-50">
+                      {saving ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Paperclip className="w-3.5 h-3.5" />} Archiver
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Paiement effectué */}
+              <div>
+                <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5 flex items-center gap-1.5"><CreditCard className="w-3.5 h-3.5" /> Paiement effectué</h4>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
+                  <InfoCell label="Statut" value={STATUT_CFG[detail.paiement.statut]?.label ?? detail.paiement.statut} />
+                  <InfoCell label="Mode" value={detail.paiement.modePaiement?.replace("_", " ") ?? "—"} />
+                  <InfoCell label="Validée par" value={detail.paiement.valideParNom ?? "—"} sub={detail.paiement.dateValidation ? formatDate(detail.paiement.dateValidation) : undefined} />
+                  <InfoCell label="Mise en paiement" value={detail.paiement.misEnPaiementNom ?? "—"} sub={detail.paiement.dateMiseEnPaiement ? formatDate(detail.paiement.dateMiseEnPaiement) : undefined} />
+                </div>
+              </div>
+
+              {/* Modifications */}
+              <div>
+                <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5 flex items-center gap-1.5"><History className="w-3.5 h-3.5" /> Modifications ({detail.modifications.length})</h4>
+                {detail.modifications.length === 0 ? (
+                  <p className="text-xs text-slate-400">Aucune modification enregistrée.</p>
+                ) : (
+                  <ol className="relative border-l border-slate-200 ml-1.5 space-y-2.5">
+                    {detail.modifications.map((mod) => (
+                      <li key={mod.id} className="ml-4">
+                        <span className="absolute -left-1.5 w-3 h-3 rounded-full bg-slate-300 border-2 border-white" />
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-xs font-medium text-slate-700">{ACTION_LABEL[mod.action] ?? mod.action}</span>
+                          <span className="text-[11px] text-slate-400">{formatDate(mod.createdAt)}</span>
+                          {mod.auteur && <span className="text-[11px] text-slate-400">· {mod.auteur}</span>}
+                        </div>
+                      </li>
+                    ))}
+                  </ol>
+                )}
+              </div>
+            </>
+          ) : (
+            <p className="text-xs text-red-500">Impossible de charger l&apos;historique.</p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function InfoCell({ label, value, sub }: { label: string; value: string; sub?: string }) {
+  return (
+    <div className="bg-slate-50 rounded-lg px-3 py-2 border border-slate-100">
+      <p className="text-[11px] text-slate-400">{label}</p>
+      <p className="text-xs font-medium text-slate-700 truncate">{value}</p>
+      {sub && <p className="text-[11px] text-slate-400">{sub}</p>}
     </div>
   );
 }

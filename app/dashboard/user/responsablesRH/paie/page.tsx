@@ -89,8 +89,9 @@ const ANNEE_COURANTE = new Date().getFullYear();
 const ANNEES = Array.from({ length: 3 }, (_, i) => ANNEE_COURANTE - i);
 
 const STATUT_CFG: Record<string, { label: string; badge: string; icon: React.ReactNode }> = {
-  BROUILLON:   { label: "Brouillon",   badge: "bg-slate-100 text-slate-600",    icon: <Clock       className="w-3 h-3" /> },
-  CONTROLE:    { label: "En contrôle", badge: "bg-yellow-100 text-yellow-700",  icon: <ShieldCheck className="w-3 h-3" /> },
+  BROUILLON:      { label: "Brouillon",         badge: "bg-slate-100 text-slate-600",    icon: <Clock       className="w-3 h-3" /> },
+  CONTROLE:       { label: "En contrôle RH",    badge: "bg-yellow-100 text-yellow-700",  icon: <ShieldCheck className="w-3 h-3" /> },
+  CONTROLE_VALIDE:{ label: "Attente Direction", badge: "bg-orange-100 text-orange-700",  icon: <ShieldCheck className="w-3 h-3" /> },
   VALIDE:      { label: "Validée",     badge: "bg-blue-100 text-blue-700",      icon: <CheckCircle className="w-3 h-3" /> },
   EN_PAIEMENT: { label: "En paiement", badge: "bg-purple-100 text-purple-700",  icon: <CreditCard  className="w-3 h-3" /> },
   PAYE:        { label: "Payée",       badge: "bg-emerald-100 text-emerald-700",icon: <CreditCard  className="w-3 h-3" /> },
@@ -361,7 +362,7 @@ function FicheRow({ fiche, onOpen, onRefetch }: { fiche: FichePaie; onOpen: () =
         {fiche.statut === "BROUILLON" && (
           <button onClick={() => doAction("SOUMETTRE_CONTROLE")} disabled={loading}
             className="px-2.5 py-1.5 text-xs font-medium text-yellow-700 bg-yellow-50 border border-yellow-200 rounded-lg hover:bg-yellow-100 disabled:opacity-50">
-            Contrôle
+            Soumettre au contrôle
           </button>
         )}
         {fiche.statut === "CONTROLE" && (
@@ -370,11 +371,16 @@ function FicheRow({ fiche, onOpen, onRefetch }: { fiche: FichePaie; onOpen: () =
               className="px-2.5 py-1.5 text-xs font-medium text-red-700 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 disabled:opacity-50">
               Refuser
             </button>
-            <button onClick={() => doAction("VALIDER")} disabled={loading}
-              className="px-2.5 py-1.5 text-xs font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 disabled:opacity-50">
-              Valider ✓
+            <button onClick={() => doAction("CONTROLER")} disabled={loading}
+              className="px-2.5 py-1.5 text-xs font-medium text-orange-700 bg-orange-50 border border-orange-200 rounded-lg hover:bg-orange-100 disabled:opacity-50">
+              Contrôler ✓
             </button>
           </>
+        )}
+        {fiche.statut === "CONTROLE_VALIDE" && (
+          <span className="px-2.5 py-1.5 text-xs font-medium text-orange-600 bg-orange-50 border border-orange-200 rounded-lg">
+            En attente Direction
+          </span>
         )}
         {fiche.statut === "PAYE" && (
           <Link href={`/dashboard/user/responsablesRH/paie/${fiche.id}/bulletin`}
@@ -586,7 +592,13 @@ function FicheDetailModal({ fiche, onClose, onUpdated }: { fiche: FichePaie; onC
           {fiche.statut === "CONTROLE" && (
             <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-xl">
               <p className="text-xs font-semibold text-yellow-700 mb-1">Contrôle RH requis</p>
-              <p className="text-xs text-yellow-600">Vérifiez les composants et validez ou refusez cette fiche.</p>
+              <p className="text-xs text-yellow-600">Vérifiez les composants puis contrôlez (transmission à la Direction) ou refusez cette fiche.</p>
+            </div>
+          )}
+          {fiche.statut === "CONTROLE_VALIDE" && (
+            <div className="p-3 bg-orange-50 border border-orange-200 rounded-xl">
+              <p className="text-xs font-semibold text-orange-700 mb-1">En attente de validation Direction</p>
+              <p className="text-xs text-orange-600">Cette fiche a été contrôlée et attend la validation de la Direction (admin/superadmin).</p>
             </div>
           )}
           {fiche.notes && <p className="text-xs text-slate-400 italic">{fiche.notes}</p>}
@@ -606,6 +618,12 @@ function FicheDetailModal({ fiche, onClose, onUpdated }: { fiche: FichePaie; onC
                 Refuser
               </button>
             )}
+            {fiche.statut === "CONTROLE_VALIDE" && (
+              <button onClick={() => doAction("REPRENDRE_CONTROLE")} disabled={loading}
+                className="px-3 py-2 text-xs font-medium text-slate-600 bg-slate-50 border border-slate-200 rounded-lg hover:bg-slate-100 disabled:opacity-50">
+                Reprendre le contrôle
+              </button>
+            )}
           </div>
           <div className="flex gap-2">
             <button onClick={onClose} className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 rounded-lg border border-slate-200">Fermer</button>
@@ -616,9 +634,9 @@ function FicheDetailModal({ fiche, onClose, onUpdated }: { fiche: FichePaie; onC
               </button>
             )}
             {fiche.statut === "CONTROLE" && (
-              <button onClick={() => doAction("VALIDER")} disabled={loading}
-                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50">
-                {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />} Valider
+              <button onClick={() => doAction("CONTROLER")} disabled={loading}
+                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-orange-600 rounded-lg hover:bg-orange-700 disabled:opacity-50">
+                {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />} Contrôler
               </button>
             )}
           </div>
