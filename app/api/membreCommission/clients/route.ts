@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCommissionMembreSession } from "@/lib/authCommissionRIA";
 import { Prisma, MemberStatus, SegmentClient } from "@prisma/client";
+import { genererCodeClient } from "@/lib/codeClient";
 
 // Recherche de clients pour les membres de commission (préparation des dossiers
 // de financement). Lecture seule, champs minimaux, recherche nom/prénom/téléphone/code.
@@ -59,13 +60,13 @@ export async function POST(req: NextRequest) {
     if (existing) return NextResponse.json({ message: "Ce numéro de téléphone est déjà utilisé" }, { status: 409 });
 
     const client = await prisma.$transaction(async (tx) => {
-      const total = await tx.client.count();
+      const codeClient = await genererCodeClient(tx);
       return tx.client.create({
         data: {
           nom: nom.trim(),
           prenom: prenom.trim(),
           telephone: telephone.trim(),
-          codeClient: `CLI-${String(total + 1).padStart(5, "0")}`,
+          codeClient,
           etat: MemberStatus.ACTIF,
           segment: SegmentClient.ORDINAIRE,
           soldeActuel: 0,

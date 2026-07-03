@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { MemberStatus, PrioriteNotification, Prisma, Role, SegmentClient } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getAdminSession } from "@/lib/authAdmin";
+import { genererCodeClient } from "@/lib/codeClient";
 
 /**  
  * ==========================
@@ -214,9 +215,8 @@ export async function POST(req: Request) {
     const pdvIdToStore = legacyPdvId ?? finalRelationIds[0] ?? null;
 
     const result = await prisma.$transaction(async (tx) => {
-      // Auto-génération du code client
-      const totalClients = await tx.client.count();
-      const codeClient = `CLI-${String(totalClients + 1).padStart(5, "0")}`;
+      // Auto-génération du code client (basée sur le plus grand code existant)
+      const codeClient = await genererCodeClient(tx);
 
       // 1. Création du client
       const client = await tx.client.create({

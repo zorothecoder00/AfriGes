@@ -7,7 +7,9 @@
     "build": "prisma generate && cross-env NODE_OPTIONS=--max-old-space-size=4096 next build",
     "start": "next start",
     "lint": "eslint . --ext .ts,.tsx,.js,.jsx",
-    "check": "npm run lint && tsc --noEmit && next build"
+    "check": "npm run lint && tsc --noEmit && next build",
+    "backfill:codes": "node scripts/backfill-code-client.js",
+    "backfill:codes:prod": "node scripts/backfill-code-client.js --prod"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.2.0",

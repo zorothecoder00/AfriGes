@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getRPVSession } from "@/lib/authRPV";
 import { auditLog } from "@/lib/notifications";
 import { resolveViewAs } from "@/lib/viewAs";
+import { genererCodeClient } from "@/lib/codeClient";
    
 /**  
  * GET /api/rpv/clients
@@ -123,8 +124,9 @@ export async function POST(req: Request) {
     });
 
     const client = await prisma.$transaction(async (tx) => {
+      const codeClient = await genererCodeClient(tx);
       const c = await tx.client.create({
-        data: { nom, prenom, telephone, adresse: adresse || null, pointDeVenteId: pdvRPV?.id ?? null },
+        data: { nom, prenom, telephone, codeClient, adresse: adresse || null, pointDeVenteId: pdvRPV?.id ?? null },
       });
 
       if (pdvRPV?.id) {

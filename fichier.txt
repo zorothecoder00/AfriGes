@@ -229,5 +229,7 @@ Le solde restant doit se décrémenter après chaque jour de collecte (théoriqu
 au niveau du statut aussi , il doit être vide et ça devient payé automatiquement quand c'est payé et en retard quand le jour est vraiment passé mais que le client n'a pas encore payé
 
 
-Lorsqu'on veut enregistrer un crédit , ce n'est pas possible de donner une quantité de 0.5 ( moitié ) , 
+Lorsqu'on créé un crédit(admin et rvc) , ce n'est pas possible de donner une quantité de 0.5 ( moitié ) , c'est important pour pouvoir donner les moitié de quantité à certains clients qui ont du mal à payer plus 
+
+Lorsqu'on crée un crédit(admin et rvc) , on doit aussi renseigner les frais de livraison dans le modal et ces frais de livraison doivent être indiqués aussi sur les factures crédit 
 

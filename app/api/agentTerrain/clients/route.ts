@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getAgentTerrainSession } from "@/lib/authAgentTerrain";
 import { resolveViewAs } from "@/lib/viewAs";
 import { notifyRoles, auditLog } from "@/lib/notifications";
+import { genererCodeClient } from "@/lib/codeClient";
 
 /**
  * GET /api/agentTerrain/clients
@@ -131,9 +132,11 @@ export async function POST(req: Request) {
     const agentId = parseInt(session.user.id);
 
     const client = await prisma.$transaction(async (tx) => {
+      const codeClient = await genererCodeClient(tx);
       const created = await tx.client.create({
         data: {
           nom, prenom, telephone,
+          codeClient,
           etat:                 MemberStatus.EN_ATTENTE_VALIDATION,
           adresse:              adresse              || null,
           sexe:                 sexe                 || null,
