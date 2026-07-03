@@ -56,9 +56,9 @@ interface ListResponse<T> {
   meta: { page: number; limit: number; total: number; totalPages: number };
 }
 
-interface GrilleSalariale { id: number; categorie: string; niveau: string; salaireMin: number; salaireMax: number; salaireBase: number }
-interface TypeComposant   { id: number; code: string; libelle: string; type: string; description: string | null }
-interface Bareme          { id: number; nom: string; type: string; valeur: number | null; paliers: unknown }
+interface GrilleSalariale { id: number; categorie: string; niveau: string; salaireMin: number; salaireMax: number; description: string | null }
+interface TypeComposant   { id: number; code: string; libelle: string; categorie: string; isRetenue: boolean }
+interface Bareme          { id: number; libelle: string; profilCible: string; type: string; valeur: number | null; paliers: unknown }
 
 interface DashboardData {
   annee: number; moisCourant: number;
@@ -1255,15 +1255,15 @@ function GrillesSubTab() {
   const { data: res, loading, refetch } = useApi<{ data: GrilleSalariale[] }>("/api/admin/rh/paie/config/grilles");
   const { mutate, loading: saving } = useMutation("/api/admin/rh/paie/config/grilles", "POST");
   const grilles = res?.data ?? [];
-  const [form, setForm] = useState({ id: "", categorie: "", niveau: "", salaireMin: "", salaireMax: "", salaireBase: "" });
+  const [form, setForm] = useState({ id: "", categorie: "", niveau: "", salaireMin: "", salaireMax: "", description: "" });
   const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
-  const reset = () => setForm({ id: "", categorie: "", niveau: "", salaireMin: "", salaireMax: "", salaireBase: "" });
+  const reset = () => setForm({ id: "", categorie: "", niveau: "", salaireMin: "", salaireMax: "", description: "" });
 
-  const edit = (g: GrilleSalariale) => setForm({ id: String(g.id), categorie: g.categorie, niveau: g.niveau, salaireMin: String(g.salaireMin), salaireMax: String(g.salaireMax), salaireBase: String(g.salaireBase) });
+  const edit = (g: GrilleSalariale) => setForm({ id: String(g.id), categorie: g.categorie, niveau: g.niveau, salaireMin: String(g.salaireMin), salaireMax: String(g.salaireMax), description: g.description ?? "" });
 
   const handleSave = async () => {
     if (!form.categorie || !form.niveau) { toast.error("Catégorie et niveau obligatoires"); return; }
-    const body: Record<string, unknown> = { categorie: form.categorie, niveau: form.niveau, salaireMin: Number(form.salaireMin), salaireMax: Number(form.salaireMax), salaireBase: Number(form.salaireBase) };
+    const body: Record<string, unknown> = { categorie: form.categorie, niveau: form.niveau, salaireMin: Number(form.salaireMin), salaireMax: Number(form.salaireMax), description: form.description || null };
     if (form.id) body.id = Number(form.id);
     const r = await mutate(body);
     if (r) { toast.success(form.id ? "Grille mise à jour" : "Grille créée"); reset(); refetch(); }
@@ -1286,7 +1286,8 @@ function GrillesSubTab() {
               <div key={g.id} className="flex items-center gap-3 px-5 py-3 hover:bg-slate-50">
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-medium text-slate-800">{g.categorie} — {g.niveau}</div>
-                  <div className="text-xs text-slate-400">{fmt(g.salaireMin)} – {fmt(g.salaireMax)} FCFA · Base : {fmt(g.salaireBase)}</div>
+                  <div className="text-xs text-slate-400">{fmt(g.salaireMin)} – {fmt(g.salaireMax)} FCFA</div>
+                  {g.description && <div className="text-xs text-slate-400 italic mt-0.5">{g.description}</div>}
                 </div>
                 <button onClick={() => edit(g)} className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg">
                   <Eye className="w-3.5 h-3.5" />
@@ -1304,8 +1305,8 @@ function GrillesSubTab() {
           <PField label="Niveau *"><input value={form.niveau} onChange={(e) => set("niveau", e.target.value)} placeholder="Ex: Senior" className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" /></PField>
           <PField label="Salaire min"><input type="number" value={form.salaireMin} onChange={(e) => set("salaireMin", e.target.value)} placeholder="0" className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" /></PField>
           <PField label="Salaire max"><input type="number" value={form.salaireMax} onChange={(e) => set("salaireMax", e.target.value)} placeholder="0" className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" /></PField>
-          <PField label="Salaire de base"><input type="number" value={form.salaireBase} onChange={(e) => set("salaireBase", e.target.value)} placeholder="0" className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" /></PField>
         </div>
+        <PField label="Description"><input value={form.description} onChange={(e) => set("description", e.target.value)} placeholder="Optionnel" className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" /></PField>
         <div className="flex gap-2">
           {form.id && <button onClick={reset} className="px-3 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50"><X className="w-3.5 h-3.5" /></button>}
           <button onClick={handleSave} disabled={saving}
@@ -1322,15 +1323,15 @@ function TypesSubTab() {
   const { data: res, loading, refetch } = useApi<{ data: TypeComposant[] }>("/api/admin/rh/paie/config/types");
   const { mutate, loading: saving } = useMutation("/api/admin/rh/paie/config/types", "POST");
   const types = res?.data ?? [];
-  const [form, setForm] = useState({ id: "", code: "", libelle: "", type: "GAIN", description: "" });
-  const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
-  const reset = () => setForm({ id: "", code: "", libelle: "", type: "GAIN", description: "" });
+  const [form, setForm] = useState({ id: "", code: "", libelle: "", categorie: "PRIME", isRetenue: false });
+  const set = (k: string, v: string | boolean) => setForm((f) => ({ ...f, [k]: v }));
+  const reset = () => setForm({ id: "", code: "", libelle: "", categorie: "PRIME", isRetenue: false });
 
-  const edit = (t: TypeComposant) => setForm({ id: String(t.id), code: t.code, libelle: t.libelle, type: t.type, description: t.description ?? "" });
+  const edit = (t: TypeComposant) => setForm({ id: String(t.id), code: t.code, libelle: t.libelle, categorie: t.categorie, isRetenue: t.isRetenue });
 
   const handleSave = async () => {
     if (!form.code || !form.libelle) { toast.error("Code et libellé obligatoires"); return; }
-    const body: Record<string, unknown> = { code: form.code, libelle: form.libelle, type: form.type, description: form.description || null };
+    const body: Record<string, unknown> = { code: form.code, libelle: form.libelle, categorie: form.categorie, isRetenue: form.isRetenue };
     if (form.id) body.id = Number(form.id);
     const r = await mutate(body);
     if (r) { toast.success(form.id ? "Type mis à jour" : "Type créé"); reset(); refetch(); }
@@ -1351,10 +1352,10 @@ function TypesSubTab() {
           <div className="divide-y divide-slate-100">
             {types.map((t) => (
               <div key={t.id} className="flex items-center gap-3 px-5 py-3 hover:bg-slate-50">
-                <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${t.type === "GAIN" ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"}`}>{t.type}</span>
+                <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${t.isRetenue ? "bg-red-100 text-red-700" : "bg-emerald-100 text-emerald-700"}`}>{t.isRetenue ? "Retenue" : "Gain"}</span>
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-medium text-slate-800">{t.libelle}</div>
-                  <div className="text-xs text-slate-400 font-mono">{t.code}</div>
+                  <div className="text-xs text-slate-400 font-mono">{t.code} · {t.categorie}</div>
                 </div>
                 <button onClick={() => edit(t)} className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg"><Eye className="w-3.5 h-3.5" /></button>
               </div>
@@ -1366,16 +1367,22 @@ function TypesSubTab() {
       <div className="bg-white rounded-xl border border-slate-200 p-5 space-y-4">
         <h3 className="text-sm font-semibold text-slate-700">{form.id ? "Modifier le type" : "Nouveau type"}</h3>
         <div className="grid grid-cols-2 gap-3">
-          <PField label="Code *"><input value={form.code} onChange={(e) => set("code", e.target.value)} placeholder="EX_CODE" className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" /></PField>
-          <PField label="Type">
-            <select value={form.type} onChange={(e) => set("type", e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
-              <option value="GAIN">Gain</option>
+          <PField label="Code *"><input value={form.code} onChange={(e) => set("code", e.target.value)} disabled={!!form.id} placeholder="EX_CODE" className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:bg-slate-50 disabled:text-slate-400" /></PField>
+          <PField label="Catégorie">
+            <select value={form.categorie} onChange={(e) => set("categorie", e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
+              <option value="PRIME">Prime</option>
+              <option value="COMMISSION">Commission</option>
+              <option value="INDEMNITE">Indemnité</option>
+              <option value="BONUS">Bonus</option>
               <option value="RETENUE">Retenue</option>
             </select>
           </PField>
         </div>
         <PField label="Libellé *"><input value={form.libelle} onChange={(e) => set("libelle", e.target.value)} placeholder="Ex: Prime terrain" className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" /></PField>
-        <PField label="Description"><input value={form.description} onChange={(e) => set("description", e.target.value)} placeholder="Optionnel" className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" /></PField>
+        <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer select-none">
+          <input type="checkbox" checked={form.isRetenue} onChange={(e) => set("isRetenue", e.target.checked)} className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500" />
+          Composant de retenue (déduit du salaire)
+        </label>
         <div className="flex gap-2">
           {form.id && <button onClick={reset} className="px-3 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50"><X className="w-3.5 h-3.5" /></button>}
           <button onClick={handleSave} disabled={saving}
@@ -1392,19 +1399,19 @@ function BaremesSubTab() {
   const { data: res, loading, refetch } = useApi<{ data: Bareme[] }>("/api/admin/rh/paie/config/commissions");
   const { mutate, loading: saving } = useMutation("/api/admin/rh/paie/config/commissions", "POST");
   const baremes = res?.data ?? [];
-  const [form, setForm] = useState({ id: "", nom: "", type: "FIXE", valeur: "", paliers: "" });
+  const [form, setForm] = useState({ id: "", libelle: "", profilCible: "", type: "FIXE", valeur: "", paliers: "" });
   const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
-  const reset = () => setForm({ id: "", nom: "", type: "FIXE", valeur: "", paliers: "" });
+  const reset = () => setForm({ id: "", libelle: "", profilCible: "", type: "FIXE", valeur: "", paliers: "" });
 
-  const edit = (b: Bareme) => setForm({ id: String(b.id), nom: b.nom, type: b.type, valeur: b.valeur != null ? String(b.valeur) : "", paliers: b.paliers ? JSON.stringify(b.paliers, null, 2) : "" });
+  const edit = (b: Bareme) => setForm({ id: String(b.id), libelle: b.libelle, profilCible: b.profilCible, type: b.type, valeur: b.valeur != null ? String(b.valeur) : "", paliers: b.paliers ? JSON.stringify(b.paliers, null, 2) : "" });
 
   const handleSave = async () => {
-    if (!form.nom) { toast.error("Nom obligatoire"); return; }
+    if (!form.libelle || !form.profilCible) { toast.error("Libellé et profil ciblé obligatoires"); return; }
     let paliers = undefined;
     if (form.type === "PALIER" && form.paliers) {
       try { paliers = JSON.parse(form.paliers); } catch { toast.error("Paliers JSON invalide"); return; }
     }
-    const body: Record<string, unknown> = { nom: form.nom, type: form.type, valeur: form.valeur ? Number(form.valeur) : null, paliers };
+    const body: Record<string, unknown> = { libelle: form.libelle, profilCible: form.profilCible, type: form.type, valeur: form.valeur ? Number(form.valeur) : null, paliers };
     if (form.id) body.id = Number(form.id);
     const r = await mutate(body);
     if (r) { toast.success(form.id ? "Barème mis à jour" : "Barème créé"); reset(); refetch(); }
@@ -1427,8 +1434,11 @@ function BaremesSubTab() {
               <div key={b.id} className="flex items-center gap-3 px-5 py-3 hover:bg-slate-50">
                 <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700">{b.type}</span>
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium text-slate-800">{b.nom}</div>
-                  {b.valeur != null && <div className="text-xs text-slate-400">{b.type === "POURCENTAGE" ? `${b.valeur}%` : `${fmt(b.valeur)} FCFA`}</div>}
+                  <div className="text-sm font-medium text-slate-800">{b.libelle}</div>
+                  <div className="text-xs text-slate-400">
+                    {b.profilCible}
+                    {b.valeur != null && ` · ${b.type === "POURCENTAGE" ? `${b.valeur}%` : `${fmt(b.valeur)} FCFA`}`}
+                  </div>
                 </div>
                 <button onClick={() => edit(b)} className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg"><Eye className="w-3.5 h-3.5" /></button>
               </div>
@@ -1439,7 +1449,8 @@ function BaremesSubTab() {
 
       <div className="bg-white rounded-xl border border-slate-200 p-5 space-y-4">
         <h3 className="text-sm font-semibold text-slate-700">{form.id ? "Modifier le barème" : "Nouveau barème"}</h3>
-        <PField label="Nom *"><input value={form.nom} onChange={(e) => set("nom", e.target.value)} placeholder="Ex: Commission vente standard" className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" /></PField>
+        <PField label="Libellé *"><input value={form.libelle} onChange={(e) => set("libelle", e.target.value)} placeholder="Ex: Commission vente standard" className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" /></PField>
+        <PField label="Profil ciblé *"><input value={form.profilCible} onChange={(e) => set("profilCible", e.target.value)} placeholder="Ex: COMMERCIAL, AGENT_TERRAIN" className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" /></PField>
         <div className="grid grid-cols-2 gap-3">
           <PField label="Type">
             <select value={form.type} onChange={(e) => set("type", e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500">

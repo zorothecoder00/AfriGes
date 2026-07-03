@@ -5,9 +5,11 @@ import {
   Search, RefreshCw, Filter, Plus, X, Save, Trash2,
   DollarSign, CheckCircle, Clock, CreditCard, ArrowLeft,
   ChevronDown, ChevronUp, ShieldCheck, Eye, Info,
+  BarChart2, TrendingUp, Banknote, Users, Send, Settings,
 } from "lucide-react";
 import Link from "next/link";
 import { useApi, useMutation } from "@/hooks/useApi";
+import { formatDate } from "@/lib/format";
 import { toast } from "sonner";
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -34,6 +36,51 @@ interface FichesResponse {
 interface CollabsResponse {
   data: { id: number; matricule: string; gestionnaire: { member: { nom: string; prenom: string } } }[];
 }
+
+interface DashboardData {
+  annee: number; moisCourant: number;
+  masseMensuelle: { mois: number; netAPayer: number; totalBrut: number; totalRetenues: number }[];
+  totauxAnnee: { netAPayer: number; totalBrut: number; totalRetenues: number };
+  statuts: Record<string, number>;
+  avancesEnCours: { count: number; montantTotal: number };
+  pretsEnCours: { count: number; montantTotal: number };
+  parDepartement: Record<string, number>;
+  parEquipe: Record<string, number>;
+  topCollaborateurs: { nom: string; montant: number }[];
+  variables: { commissions: number; bonus: number; primes: number };
+  variablesMensuelles: { mois: number; commissions: number; bonus: number; primes: number }[];
+  composantsMoisCourant?: Record<string, number>;
+}
+
+interface Avance {
+  id: number; montant: number; montantRestant: number; statut: string;
+  motif: string | null; echeancesMois: number; createdAt: string;
+  profilRH: { id: number; matricule: string; gestionnaire: { member: { nom: string; prenom: string } } };
+}
+
+interface Pret {
+  id: number; montant: number; montantRestant: number; montantMensuel: number;
+  tauxInteret: number; dureesMois: number; statut: string; notes: string | null; createdAt: string;
+  profilRH: { id: number; matricule: string; gestionnaire: { member: { nom: string; prenom: string } } };
+}
+
+interface ListResponse<T> {
+  data: T[];
+  meta: { page: number; limit: number; total: number; totalPages: number };
+}
+
+interface OrdreItem {
+  id: number; mois: number; annee: number; netAPayer: number;
+  statut: string; modePaiement: string | null;
+  profilRH: { id: number; matricule: string; gestionnaire: { member: { nom: string; prenom: string } } };
+}
+
+interface ListeGroupe { fiches: OrdreItem[]; total: number; count: number }
+interface OrdresRes { data: OrdreItem[]; total: number; listes: Record<string, ListeGroupe> }
+
+interface GrilleSalariale { id: number; categorie: string; niveau: string; salaireMin: number; salaireMax: number; description: string | null }
+interface TypeComposant   { id: number; code: string; libelle: string; categorie: string; isRetenue: boolean }
+interface Bareme          { id: number; libelle: string; profilCible: string; type: string; valeur: number | null; paliers: unknown }
 
 // ── Constantes ───────────────────────────────────────────────────────────────
 
@@ -69,11 +116,81 @@ const TYPE_COMPOSANT_OPTS = [
   { value: "AUTRE_RETENUE",          label: "Autre retenue",           isRetenue: true  },
 ];
 
+const AVANCE_STATUT: Record<string, string> = {
+  EN_ATTENTE: "bg-yellow-100 text-yellow-700",
+  APPROUVE:   "bg-blue-100 text-blue-700",
+  REJETE:     "bg-red-100 text-red-600",
+  REMBOURSE:  "bg-emerald-100 text-emerald-700",
+};
+
+const PRET_STATUT: Record<string, string> = {
+  EN_COURS:  "bg-blue-100 text-blue-700",
+  SOLDE:     "bg-emerald-100 text-emerald-700",
+  EN_DEFAUT: "bg-red-100 text-red-600",
+};
+
+const MODES_PAIEMENT = [
+  { key: "VIREMENT",     label: "Virement bancaire", dot: "bg-blue-500",    head: "bg-blue-50 border-blue-200",       text: "text-blue-700" },
+  { key: "MOBILE_MONEY", label: "Mobile Money",      dot: "bg-amber-500",   head: "bg-amber-50 border-amber-200",     text: "text-amber-700" },
+  { key: "ESPECES",      label: "Espèces",           dot: "bg-emerald-500", head: "bg-emerald-50 border-emerald-200", text: "text-emerald-700" },
+] as const;
+
+const TABS = [
+  { id: "fiches",    label: "Fiches de paie",   icon: <DollarSign className="w-4 h-4" /> },
+  { id: "avances",   label: "Avances & Prêts",  icon: <Banknote   className="w-4 h-4" /> },
+  { id: "ordres",    label: "Paiements",        icon: <Send       className="w-4 h-4" /> },
+  { id: "config",    label: "Configuration",    icon: <Settings   className="w-4 h-4" /> },
+  { id: "dashboard", label: "Tableau de bord",  icon: <TrendingUp className="w-4 h-4" /> },
+];
+
 const fmt = (n: number) => new Intl.NumberFormat("fr-FR").format(Math.round(n));
 
 // ── Page ────────────────────────────────────────────────────────────────────
 
 export default function RHPaiePage() {
+  const [activeTab, setActiveTab] = useState("fiches");
+
+  return (
+    <div className="min-h-screen bg-slate-50">
+      <div className="p-6 max-w-6xl mx-auto space-y-5">
+
+        {/* En-tête */}
+        <div>
+          <Link href="/dashboard/user/responsablesRH" className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700 mb-2">
+            <ArrowLeft size={15} /> Dashboard RH
+          </Link>
+          <h1 className="text-2xl font-bold text-slate-900">Paie & Rémunération</h1>
+          <p className="text-sm text-slate-500 mt-0.5">Fiches de paie de votre équipe — Contrôle RH</p>
+        </div>
+
+        {/* Tabs */}
+        <div className="flex gap-1 bg-white border border-slate-200 rounded-xl p-1 overflow-x-auto">
+          {TABS.map((t) => (
+            <button key={t.id} onClick={() => setActiveTab(t.id)}
+              className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg whitespace-nowrap transition-all ${
+                activeTab === t.id ? "bg-emerald-600 text-white shadow-sm" : "text-slate-600 hover:bg-slate-100"
+              }`}>
+              {t.icon} {t.label}
+            </button>
+          ))}
+        </div>
+
+        {activeTab === "fiches"    && <FichesTab />}
+        {activeTab === "avances"   && <AvancesPretsTab />}
+        {activeTab === "ordres"    && <OrdresPaiementTab />}
+        {activeTab === "config"    && <ConfigTab />}
+        {activeTab === "dashboard" && <DashboardTab />}
+
+      </div>
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// TAB — FICHES DE PAIE
+// ════════════════════════════════════════════════════════════════════════════
+
+function FichesTab() {
   const [statut, setStatut] = useState("");
   const [annee,  setAnnee]  = useState(String(ANNEE_COURANTE));
   const [mois,   setMois]   = useState("");
@@ -101,17 +218,7 @@ export default function RHPaiePage() {
   const aControler = stats["CONTROLE"] ?? 0;
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <div className="p-6 max-w-6xl mx-auto space-y-5">
-
-        {/* En-tête */}
-        <div>
-          <Link href="/dashboard/user/responsablesRH" className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700 mb-2">
-            <ArrowLeft size={15} /> Dashboard RH
-          </Link>
-          <h1 className="text-2xl font-bold text-slate-900">Paie & Rémunération</h1>
-          <p className="text-sm text-slate-500 mt-0.5">Fiches de paie de votre équipe — Contrôle RH</p>
-        </div>
+    <div className="space-y-5">
 
         {/* Alerte contrôle en attente */}
         {aControler > 0 && (
@@ -203,8 +310,6 @@ export default function RHPaiePage() {
             </div>
           </div>
         )}
-
-      </div>
 
       {showCreate && <CreateFicheModal onClose={() => setShowCreate(false)} onCreated={() => { setShowCreate(false); refetch(); }} />}
       {selected   && <FicheDetailModal fiche={selected} onClose={() => setSelected(null)} onUpdated={() => { setSelected(null); refetch(); }} />}
@@ -513,6 +618,903 @@ function FicheDetailModal({ fiche, onClose, onUpdated }: { fiche: FichePaie; onC
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// TAB — AVANCES & PRÊTS (scopé PDV, gestion complète)
+// ════════════════════════════════════════════════════════════════════════════
+
+function AvancesPretsTab() {
+  const [sub, setSub] = useState<"avances" | "prets">("avances");
+  return (
+    <div className="space-y-4">
+      <div className="flex gap-1 w-fit bg-slate-100 rounded-lg p-1">
+        {(["avances", "prets"] as const).map((s) => (
+          <button key={s} onClick={() => setSub(s)}
+            className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${sub === s ? "bg-white shadow-sm text-slate-900" : "text-slate-600 hover:text-slate-800"}`}>
+            {s === "avances" ? "Avances sur salaire" : "Prêts employés"}
+          </button>
+        ))}
+      </div>
+      {sub === "avances" ? <AvancesSubTab /> : <PretsSubTab />}
+    </div>
+  );
+}
+
+function AvancesSubTab() {
+  const [showCreate, setShowCreate] = useState(false);
+  const [statutFilter, setStatutFilter] = useState("");
+
+  const params = new URLSearchParams();
+  if (statutFilter) params.set("statut", statutFilter);
+  params.set("limit", "30");
+
+  const { data: res, loading, refetch } = useApi<ListResponse<Avance>>(`/api/responsableRH/paie/avances?${params}`);
+  const avances = res?.data ?? [];
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-3">
+        <select value={statutFilter} onChange={(e) => setStatutFilter(e.target.value)}
+          className="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
+          <option value="">Tous statuts</option>
+          <option value="EN_ATTENTE">En attente</option>
+          <option value="APPROUVE">Approuvée</option>
+          <option value="REJETE">Rejetée</option>
+          <option value="REMBOURSE">Remboursée</option>
+        </select>
+        <button onClick={refetch} className="p-2 text-slate-500 hover:text-slate-700 bg-white border border-slate-200 rounded-lg"><RefreshCw className="w-4 h-4" /></button>
+        <button onClick={() => setShowCreate(true)}
+          className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 ml-auto">
+          <Plus className="w-4 h-4" /> Nouvelle avance
+        </button>
+      </div>
+
+      {loading ? (
+        <div className="flex items-center justify-center py-12 text-slate-400"><RefreshCw className="w-5 h-5 animate-spin mr-2" /> Chargement…</div>
+      ) : avances.length === 0 ? (
+        <div className="bg-white rounded-xl border border-slate-200 flex flex-col items-center py-12 text-slate-400">
+          <Banknote className="w-8 h-8 mb-2 opacity-30" /><p className="text-sm">Aucune avance</p>
+        </div>
+      ) : (
+        <div className="bg-white rounded-xl border border-slate-200 divide-y divide-slate-100">
+          {avances.map((a) => <AvanceRow key={a.id} avance={a} onRefetch={refetch} />)}
+        </div>
+      )}
+
+      {showCreate && <AvanceModal onClose={() => setShowCreate(false)} onCreated={() => { setShowCreate(false); refetch(); }} />}
+    </div>
+  );
+}
+
+function AvanceRow({ avance, onRefetch }: { avance: Avance; onRefetch: () => void }) {
+  const { mutate, loading } = useMutation(`/api/responsableRH/paie/avances/${avance.id}`, "PATCH");
+  const member = avance.profilRH.gestionnaire.member;
+
+  const doAction = async (action: string) => {
+    const r = await mutate({ action });
+    if (r) { toast.success("Avance mise à jour"); onRefetch(); }
+  };
+
+  return (
+    <div className="flex items-center gap-4 px-5 py-3.5 hover:bg-slate-50 group">
+      <div className="w-8 h-8 rounded-full bg-slate-500 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+        {member.prenom[0]}{member.nom[0]}
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium text-slate-800">{member.prenom} {member.nom}</span>
+          <span className="text-xs text-slate-400 font-mono">{avance.profilRH.matricule}</span>
+          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${AVANCE_STATUT[avance.statut] ?? "bg-slate-100 text-slate-600"}`}>{avance.statut.replace("_", " ")}</span>
+        </div>
+        <div className="flex items-center gap-3 mt-0.5 text-xs text-slate-400">
+          <span>Montant : <b className="text-slate-700">{fmt(avance.montant)} FCFA</b></span>
+          {avance.montantRestant > 0 && avance.statut === "APPROUVE" && (
+            <span>Restant : <b className="text-orange-600">{fmt(avance.montantRestant)} FCFA</b></span>
+          )}
+          {avance.motif && <span>{avance.motif}</span>}
+          <span>{formatDate(avance.createdAt)}</span>
+        </div>
+      </div>
+      <div className="flex items-center gap-1.5 flex-shrink-0 opacity-0 group-hover:opacity-100">
+        {avance.statut === "EN_ATTENTE" && (
+          <>
+            <button onClick={() => doAction("APPROUVER")} disabled={loading}
+              className="px-2.5 py-1.5 text-xs font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg hover:bg-emerald-100 disabled:opacity-50">
+              Approuver
+            </button>
+            <button onClick={() => doAction("REJETER")} disabled={loading}
+              className="px-2.5 py-1.5 text-xs font-medium text-red-700 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 disabled:opacity-50">
+              Rejeter
+            </button>
+          </>
+        )}
+        {avance.statut === "APPROUVE" && (
+          <button onClick={() => doAction("REMBOURSER")} disabled={loading}
+            className="px-2.5 py-1.5 text-xs font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 disabled:opacity-50">
+            Solder
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function AvanceModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
+  const { mutate, loading } = useMutation("/api/responsableRH/paie/avances", "POST");
+  const { data: collabRes } = useApi<CollabsResponse>("/api/responsableRH/collaborateurs?limit=200&statut=ACTIF");
+  const collabs = collabRes?.data ?? [];
+  const [form, setForm] = useState({ profilRHId: "", montant: "", motif: "", echeancesMois: "1" });
+  const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
+
+  const handleSubmit = async () => {
+    if (!form.profilRHId || !form.montant) { toast.error("Collaborateur et montant obligatoires"); return; }
+    const r = await mutate({ profilRHId: Number(form.profilRHId), montant: Number(form.montant), motif: form.motif || null, echeancesMois: Number(form.echeancesMois) });
+    if (r) { toast.success("Avance créée"); onCreated(); }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
+          <h2 className="font-semibold text-slate-900">Nouvelle avance sur salaire</h2>
+          <button onClick={onClose} className="p-1.5 hover:bg-slate-100 rounded-lg"><X className="w-4 h-4" /></button>
+        </div>
+        <div className="p-6 space-y-4">
+          <PField label="Collaborateur *">
+            <select value={form.profilRHId} onChange={(e) => set("profilRHId", e.target.value)}
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
+              <option value="">— Sélectionner —</option>
+              {collabs.map((c) => <option key={c.id} value={c.id}>{c.gestionnaire.member.prenom} {c.gestionnaire.member.nom} ({c.matricule})</option>)}
+            </select>
+          </PField>
+          <div className="grid grid-cols-2 gap-3">
+            <PField label="Montant *">
+              <input type="number" value={form.montant} onChange={(e) => set("montant", e.target.value)} placeholder="0"
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+            </PField>
+            <PField label="Échéances (mois)">
+              <input type="number" min="1" value={form.echeancesMois} onChange={(e) => set("echeancesMois", e.target.value)}
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+            </PField>
+          </div>
+          <PField label="Motif">
+            <input value={form.motif} onChange={(e) => set("motif", e.target.value)} placeholder="Optionnel"
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+          </PField>
+        </div>
+        <div className="flex justify-end gap-3 px-6 py-4 border-t border-slate-200">
+          <button onClick={onClose} className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 rounded-lg border border-slate-200">Annuler</button>
+          <button onClick={handleSubmit} disabled={loading}
+            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 disabled:opacity-50">
+            {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Créer
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PretsSubTab() {
+  const [showCreate, setShowCreate] = useState(false);
+  const [statutFilter, setStatutFilter] = useState("");
+
+  const params = new URLSearchParams();
+  if (statutFilter) params.set("statut", statutFilter);
+  params.set("limit", "30");
+
+  const { data: res, loading, refetch } = useApi<ListResponse<Pret>>(`/api/responsableRH/paie/prets?${params}`);
+  const prets = res?.data ?? [];
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-3">
+        <select value={statutFilter} onChange={(e) => setStatutFilter(e.target.value)}
+          className="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
+          <option value="">Tous statuts</option>
+          <option value="EN_COURS">En cours</option>
+          <option value="SOLDE">Soldé</option>
+          <option value="EN_DEFAUT">En défaut</option>
+        </select>
+        <button onClick={refetch} className="p-2 text-slate-500 hover:text-slate-700 bg-white border border-slate-200 rounded-lg"><RefreshCw className="w-4 h-4" /></button>
+        <button onClick={() => setShowCreate(true)}
+          className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 ml-auto">
+          <Plus className="w-4 h-4" /> Nouveau prêt
+        </button>
+      </div>
+
+      {loading ? (
+        <div className="flex items-center justify-center py-12 text-slate-400"><RefreshCw className="w-5 h-5 animate-spin mr-2" /> Chargement…</div>
+      ) : prets.length === 0 ? (
+        <div className="bg-white rounded-xl border border-slate-200 flex flex-col items-center py-12 text-slate-400">
+          <CreditCard className="w-8 h-8 mb-2 opacity-30" /><p className="text-sm">Aucun prêt</p>
+        </div>
+      ) : (
+        <div className="bg-white rounded-xl border border-slate-200 divide-y divide-slate-100">
+          {prets.map((p) => <PretRow key={p.id} pret={p} onRefetch={refetch} />)}
+        </div>
+      )}
+
+      {showCreate && <PretModal onClose={() => setShowCreate(false)} onCreated={() => { setShowCreate(false); refetch(); }} />}
+    </div>
+  );
+}
+
+function PretRow({ pret, onRefetch }: { pret: Pret; onRefetch: () => void }) {
+  const { mutate, loading } = useMutation(`/api/responsableRH/paie/prets/${pret.id}`, "PATCH");
+  const member = pret.profilRH.gestionnaire.member;
+  const progres = Math.round(((pret.montant - pret.montantRestant) / pret.montant) * 100);
+
+  const doAction = async (action: string) => {
+    const r = await mutate({ action });
+    if (r) { toast.success("Prêt mis à jour"); onRefetch(); }
+  };
+
+  return (
+    <div className="flex items-center gap-4 px-5 py-3.5 hover:bg-slate-50 group">
+      <div className="w-8 h-8 rounded-full bg-purple-500 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+        {member.prenom[0]}{member.nom[0]}
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium text-slate-800">{member.prenom} {member.nom}</span>
+          <span className="text-xs text-slate-400 font-mono">{pret.profilRH.matricule}</span>
+          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${PRET_STATUT[pret.statut] ?? "bg-slate-100 text-slate-600"}`}>{pret.statut.replace("_", " ")}</span>
+        </div>
+        <div className="flex items-center gap-3 mt-0.5 text-xs text-slate-400">
+          <span>Capital : <b className="text-slate-700">{fmt(pret.montant)} FCFA</b></span>
+          <span>Restant : <b className={pret.statut === "EN_DEFAUT" ? "text-red-600" : "text-orange-600"}>{fmt(pret.montantRestant)} FCFA</b></span>
+          <span>Mensualité : <b className="text-slate-700">{fmt(pret.montantMensuel)}</b></span>
+          <span>{pret.dureesMois} mois / {pret.tauxInteret}%</span>
+        </div>
+        {pret.statut === "EN_COURS" && (
+          <div className="mt-1.5 flex items-center gap-2">
+            <div className="flex-1 bg-slate-200 rounded-full h-1.5">
+              <div className="bg-purple-500 h-1.5 rounded-full" style={{ width: `${progres}%` }} />
+            </div>
+            <span className="text-xs text-slate-400">{progres}%</span>
+          </div>
+        )}
+      </div>
+      <div className="flex items-center gap-1.5 flex-shrink-0 opacity-0 group-hover:opacity-100">
+        {pret.statut === "EN_COURS" && (
+          <>
+            <button onClick={() => doAction("SOLDER")} disabled={loading}
+              className="px-2.5 py-1.5 text-xs font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg hover:bg-emerald-100 disabled:opacity-50">
+              Solder
+            </button>
+            <button onClick={() => doAction("EN_DEFAUT")} disabled={loading}
+              className="px-2.5 py-1.5 text-xs font-medium text-red-700 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 disabled:opacity-50">
+              Défaut
+            </button>
+          </>
+        )}
+        {(pret.statut === "EN_DEFAUT" || pret.statut === "SOLDE") && (
+          <button onClick={() => doAction("REACTIVER")} disabled={loading}
+            className="px-2.5 py-1.5 text-xs font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 disabled:opacity-50">
+            Réactiver
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function PretModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
+  const { mutate, loading } = useMutation("/api/responsableRH/paie/prets", "POST");
+  const { data: collabRes } = useApi<CollabsResponse>("/api/responsableRH/collaborateurs?limit=200&statut=ACTIF");
+  const collabs = collabRes?.data ?? [];
+  const [form, setForm] = useState({ profilRHId: "", montant: "", tauxInteret: "0", dureesMois: "12", notes: "" });
+  const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
+
+  const capital    = Number(form.montant || 0);
+  const taux       = Number(form.tauxInteret || 0);
+  const duree      = Number(form.dureesMois || 1);
+  const totalDu    = capital * (1 + taux / 100);
+  const mensualite = duree > 0 ? Math.ceil(totalDu / duree) : 0;
+
+  const handleSubmit = async () => {
+    if (!form.profilRHId || !form.montant || !form.dureesMois) { toast.error("Collaborateur, montant et durée obligatoires"); return; }
+    const r = await mutate({ profilRHId: Number(form.profilRHId), montant: capital, tauxInteret: taux, dureesMois: duree, notes: form.notes || null });
+    if (r) { toast.success("Prêt créé"); onCreated(); }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
+          <h2 className="font-semibold text-slate-900">Nouveau prêt employé</h2>
+          <button onClick={onClose} className="p-1.5 hover:bg-slate-100 rounded-lg"><X className="w-4 h-4" /></button>
+        </div>
+        <div className="p-6 space-y-4">
+          <PField label="Collaborateur *">
+            <select value={form.profilRHId} onChange={(e) => set("profilRHId", e.target.value)}
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
+              <option value="">— Sélectionner —</option>
+              {collabs.map((c) => <option key={c.id} value={c.id}>{c.gestionnaire.member.prenom} {c.gestionnaire.member.nom} ({c.matricule})</option>)}
+            </select>
+          </PField>
+          <div className="grid grid-cols-3 gap-3">
+            <PField label="Montant *">
+              <input type="number" value={form.montant} onChange={(e) => set("montant", e.target.value)} placeholder="0"
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+            </PField>
+            <PField label="Taux (%)">
+              <input type="number" min="0" step="0.1" value={form.tauxInteret} onChange={(e) => set("tauxInteret", e.target.value)}
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+            </PField>
+            <PField label="Durée (mois)">
+              <input type="number" min="1" value={form.dureesMois} onChange={(e) => set("dureesMois", e.target.value)}
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+            </PField>
+          </div>
+          {capital > 0 && (
+            <div className="p-3 bg-slate-50 rounded-lg text-sm flex justify-between">
+              <span className="text-slate-500">Mensualité estimée</span>
+              <span className="font-bold text-slate-800">{fmt(mensualite)} FCFA</span>
+            </div>
+          )}
+          <PField label="Notes">
+            <input value={form.notes} onChange={(e) => set("notes", e.target.value)} placeholder="Optionnel"
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+          </PField>
+        </div>
+        <div className="flex justify-end gap-3 px-6 py-4 border-t border-slate-200">
+          <button onClick={onClose} className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 rounded-lg border border-slate-200">Annuler</button>
+          <button onClick={handleSubmit} disabled={loading}
+            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 disabled:opacity-50">
+            {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Créer
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// TAB — PAIEMENTS (scopé PDV, lecture seule — le marquage payé reste à l'admin)
+// ════════════════════════════════════════════════════════════════════════════
+
+function OrdresPaiementTab() {
+  const [mois,  setMois]  = useState(String(new Date().getMonth() + 1));
+  const [annee, setAnnee] = useState(String(ANNEE_COURANTE));
+  const [allPeriods, setAllPeriods] = useState(false);
+
+  const buildParams = (statut: string) => {
+    const p = new URLSearchParams({ statut });
+    if (!allPeriods && mois)  p.set("mois",  mois);
+    if (!allPeriods && annee) p.set("annee", annee);
+    return p.toString();
+  };
+
+  const { data: res,    loading, refetch }             = useApi<OrdresRes>(`/api/responsableRH/paie/ordres-paiement?${buildParams("EN_PAIEMENT")}`);
+  const { data: valRes,          refetch: refetchVal } = useApi<OrdresRes>(`/api/responsableRH/paie/ordres-paiement?${buildParams("VALIDE")}`);
+  const listes = res?.listes;
+  const total  = res?.total ?? 0;
+
+  const validees = valRes?.data  ?? [];
+  const totalVal = valRes?.total ?? 0;
+
+  const refreshAll   = () => { refetch(); refetchVal(); };
+  const periodeLabel = allPeriods ? "toutes périodes" : `${MOIS_LABELS[Number(mois)]} ${annee}`;
+
+  return (
+    <div className="space-y-5">
+      {/* Bandeau lecture seule */}
+      <div className="flex items-start gap-2 bg-blue-50 border border-blue-200 rounded-xl px-4 py-2.5 text-xs text-blue-800">
+        <Info className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+        <span>Vue <strong>lecture seule</strong> des paiements de votre point de vente. La mise en paiement et le marquage « payé » sont réalisés par l&apos;administration.</span>
+      </div>
+
+      {/* Filtres */}
+      <div className="flex gap-3 flex-wrap items-center">
+        <select value={mois} onChange={(e) => setMois(e.target.value)} disabled={allPeriods}
+          className="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:opacity-50 disabled:bg-slate-50">
+          {MOIS_LABELS.slice(1).map((l, i) => <option key={i+1} value={i+1}>{l}</option>)}
+        </select>
+        <select value={annee} onChange={(e) => setAnnee(e.target.value)} disabled={allPeriods}
+          className="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:opacity-50 disabled:bg-slate-50">
+          {ANNEES.map((a) => <option key={a} value={a}>{a}</option>)}
+        </select>
+        <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer select-none">
+          <input type="checkbox" checked={allPeriods} onChange={(e) => setAllPeriods(e.target.checked)}
+            className="rounded border-slate-300 text-purple-600 focus:ring-purple-500" />
+          Toutes périodes
+        </label>
+        <button onClick={refreshAll} className="p-2 text-slate-500 hover:text-slate-700 bg-white border border-slate-200 rounded-lg"><RefreshCw className="w-4 h-4" /></button>
+        {total > 0 && (
+          <div className="ml-auto bg-purple-50 border border-purple-200 rounded-xl px-4 py-2 text-sm">
+            <span className="text-purple-700">Total à décaisser — {periodeLabel} : </span>
+            <span className="font-bold text-purple-900">{fmt(total)} FCFA</span>
+          </div>
+        )}
+      </div>
+
+      {/* Fiches validées prêtes (en attente de mise en paiement par l'admin) */}
+      {validees.length > 0 && (
+        <div className="bg-white border border-blue-300 rounded-xl overflow-hidden">
+          <div className="flex flex-wrap items-center gap-3 px-5 py-3 bg-blue-50 border-b border-blue-200">
+            <CheckCircle className="w-4 h-4 text-blue-600" />
+            <span className="text-sm font-semibold text-blue-800">
+              {validees.length} fiche(s) validée(s) prête(s) — {fmt(totalVal)} FCFA
+            </span>
+            <span className="ml-auto text-xs text-blue-600">En attente de mise en paiement par l&apos;administration</span>
+          </div>
+          <div className="divide-y divide-slate-100">
+            {validees.map((o) => {
+              const mb = o.profilRH.gestionnaire.member;
+              return (
+                <div key={o.id} className="flex items-center gap-4 px-5 py-2.5">
+                  <span className="w-2 h-2 rounded-full bg-blue-400" />
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium text-slate-800">{mb.prenom} {mb.nom}</div>
+                    <div className="text-xs text-slate-400">{o.profilRH.matricule} — {MOIS_LABELS[o.mois]} {o.annee}</div>
+                  </div>
+                  <div className="text-sm font-bold text-slate-900">{fmt(o.netAPayer)} FCFA</div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {loading ? (
+        <div className="flex items-center justify-center py-12 text-slate-400"><RefreshCw className="w-5 h-5 animate-spin mr-2" /> Chargement…</div>
+      ) : total === 0 ? (
+        <div className="bg-white rounded-xl border border-slate-200 flex flex-col items-center py-12 text-center text-slate-400 px-6">
+          <Send className="w-8 h-8 mb-2 opacity-30" />
+          <p className="text-sm font-medium text-slate-500">Aucune fiche en attente de paiement — {periodeLabel}</p>
+          {!allPeriods && (
+            <button onClick={() => setAllPeriods(true)}
+              className="mt-3 text-xs font-medium text-purple-600 hover:underline">
+              Voir toutes les périodes
+            </button>
+          )}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          {MODES_PAIEMENT.map((m) => {
+            const g = listes?.[m.key];
+            return (
+              <div key={m.key} className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+                <div className={`flex items-center gap-2 px-4 py-3 border-b ${m.head}`}>
+                  <span className={`w-2.5 h-2.5 rounded-full ${m.dot}`} />
+                  <span className={`text-sm font-semibold ${m.text}`}>{m.label}</span>
+                  <span className="ml-auto text-xs text-slate-500">{g?.count ?? 0} · {fmt(g?.total ?? 0)} FCFA</span>
+                </div>
+                <div className="divide-y divide-slate-100 max-h-80 overflow-y-auto">
+                  {(g?.fiches ?? []).length === 0 ? (
+                    <p className="text-xs text-slate-400 text-center py-6">Aucune fiche</p>
+                  ) : (
+                    (g?.fiches ?? []).map((o) => {
+                      const mb = o.profilRH.gestionnaire.member;
+                      return (
+                        <div key={o.id} className="flex items-center gap-3 px-4 py-2.5">
+                          <div className="flex-1 min-w-0">
+                            <div className="text-sm font-medium text-slate-800 truncate">{mb.prenom} {mb.nom}</div>
+                            <div className="text-xs text-slate-400">{o.profilRH.matricule} — {MOIS_LABELS[o.mois]} {o.annee}</div>
+                          </div>
+                          <div className="text-sm font-semibold text-slate-900">{fmt(o.netAPayer)}</div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            );
+          })}
+          {/* Non affecté */}
+          {listes?.NON_AFFECTE && listes.NON_AFFECTE.count > 0 && (
+            <div className="bg-white rounded-xl border border-amber-200 overflow-hidden lg:col-span-3">
+              <div className="flex items-center gap-2 px-4 py-3 border-b bg-amber-50 border-amber-200">
+                <Info className="w-4 h-4 text-amber-600" />
+                <span className="text-sm font-semibold text-amber-800">Sans mode de paiement affecté</span>
+                <span className="ml-auto text-xs text-slate-500">{listes.NON_AFFECTE.count} · {fmt(listes.NON_AFFECTE.total)} FCFA</span>
+              </div>
+              <div className="divide-y divide-slate-100">
+                {listes.NON_AFFECTE.fiches.map((o) => {
+                  const mb = o.profilRH.gestionnaire.member;
+                  return (
+                    <div key={o.id} className="flex items-center gap-3 px-4 py-2.5">
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium text-slate-800">{mb.prenom} {mb.nom}</div>
+                        <div className="text-xs text-slate-400">{o.profilRH.matricule} — {MOIS_LABELS[o.mois]} {o.annee}</div>
+                      </div>
+                      <div className="text-sm font-semibold text-slate-900">{fmt(o.netAPayer)} FCFA</div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// TAB — CONFIGURATION (lecture seule — paramètres globaux entreprise)
+// ════════════════════════════════════════════════════════════════════════════
+
+function ConfigTab() {
+  const [sub, setSub] = useState<"grilles" | "types" | "baremes">("grilles");
+  return (
+    <div className="space-y-4">
+      <div className="flex items-start gap-2 bg-blue-50 border border-blue-200 rounded-xl px-4 py-2.5 text-xs text-blue-800">
+        <Info className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+        <span>Configuration de paie <strong>globale à l&apos;entreprise</strong>, en <strong>lecture seule</strong>. La création et la modification (grilles, types, barèmes) sont réservées à l&apos;administration.</span>
+      </div>
+      <div className="flex gap-1 w-fit bg-slate-100 rounded-lg p-1">
+        {([["grilles", "Grilles salariales"], ["types", "Types de composants"], ["baremes", "Barèmes commissions"]] as const).map(([s, l]) => (
+          <button key={s} onClick={() => setSub(s)}
+            className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${sub === s ? "bg-white shadow-sm text-slate-900" : "text-slate-600 hover:text-slate-800"}`}>
+            {l}
+          </button>
+        ))}
+      </div>
+      {sub === "grilles" && <GrillesSubTab />}
+      {sub === "types"   && <TypesSubTab />}
+      {sub === "baremes" && <BaremesSubTab />}
+    </div>
+  );
+}
+
+function GrillesSubTab() {
+  const { data: res, loading, refetch } = useApi<{ data: GrilleSalariale[] }>("/api/responsableRH/paie/config/grilles");
+  const grilles = res?.data ?? [];
+
+  return (
+    <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+      <div className="px-5 py-3 border-b border-slate-100 flex items-center justify-between">
+        <span className="text-sm font-semibold text-slate-700">Grilles salariales</span>
+        <button onClick={refetch} className="p-1.5 text-slate-400 hover:text-slate-600"><RefreshCw className="w-4 h-4" /></button>
+      </div>
+      {loading ? (
+        <div className="flex items-center justify-center py-10 text-slate-400"><RefreshCw className="w-4 h-4 animate-spin mr-2" /> Chargement…</div>
+      ) : grilles.length === 0 ? (
+        <div className="flex items-center justify-center py-10 text-slate-400 text-sm">Aucune grille</div>
+      ) : (
+        <div className="divide-y divide-slate-100">
+          {grilles.map((g) => (
+            <div key={g.id} className="flex items-center gap-3 px-5 py-3">
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-medium text-slate-800">{g.categorie} — {g.niveau}</div>
+                <div className="text-xs text-slate-400">{fmt(g.salaireMin)} – {fmt(g.salaireMax)} FCFA</div>
+                {g.description && <div className="text-xs text-slate-400 italic mt-0.5">{g.description}</div>}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TypesSubTab() {
+  const { data: res, loading, refetch } = useApi<{ data: TypeComposant[] }>("/api/responsableRH/paie/config/types");
+  const types = res?.data ?? [];
+
+  return (
+    <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+      <div className="px-5 py-3 border-b border-slate-100 flex items-center justify-between">
+        <span className="text-sm font-semibold text-slate-700">Types de composants</span>
+        <button onClick={refetch} className="p-1.5 text-slate-400 hover:text-slate-600"><RefreshCw className="w-4 h-4" /></button>
+      </div>
+      {loading ? (
+        <div className="flex items-center justify-center py-10 text-slate-400"><RefreshCw className="w-4 h-4 animate-spin mr-2" /> Chargement…</div>
+      ) : types.length === 0 ? (
+        <div className="flex items-center justify-center py-10 text-slate-400 text-sm">Aucun type personnalisé</div>
+      ) : (
+        <div className="divide-y divide-slate-100">
+          {types.map((t) => (
+            <div key={t.id} className="flex items-center gap-3 px-5 py-3">
+              <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${t.isRetenue ? "bg-red-100 text-red-700" : "bg-emerald-100 text-emerald-700"}`}>
+                {t.isRetenue ? "Retenue" : "Gain"}
+              </span>
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-medium text-slate-800">{t.libelle}</div>
+                <div className="text-xs text-slate-400 font-mono">{t.code} · {t.categorie}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function BaremesSubTab() {
+  const { data: res, loading, refetch } = useApi<{ data: Bareme[] }>("/api/responsableRH/paie/config/commissions");
+  const baremes = res?.data ?? [];
+
+  return (
+    <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+      <div className="px-5 py-3 border-b border-slate-100 flex items-center justify-between">
+        <span className="text-sm font-semibold text-slate-700">Barèmes de commissions</span>
+        <button onClick={refetch} className="p-1.5 text-slate-400 hover:text-slate-600"><RefreshCw className="w-4 h-4" /></button>
+      </div>
+      {loading ? (
+        <div className="flex items-center justify-center py-10 text-slate-400"><RefreshCw className="w-4 h-4 animate-spin mr-2" /> Chargement…</div>
+      ) : baremes.length === 0 ? (
+        <div className="flex items-center justify-center py-10 text-slate-400 text-sm">Aucun barème</div>
+      ) : (
+        <div className="divide-y divide-slate-100">
+          {baremes.map((b) => (
+            <div key={b.id} className="flex items-center gap-3 px-5 py-3">
+              <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700">{b.type}</span>
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-medium text-slate-800">{b.libelle}</div>
+                <div className="text-xs text-slate-400">
+                  {b.profilCible}
+                  {b.valeur != null && ` · ${b.type === "POURCENTAGE" ? `${b.valeur}%` : `${fmt(b.valeur)} FCFA`}`}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// TAB — TABLEAU DE BORD (scopé PDV du RESPONSABLE_RH)
+// ════════════════════════════════════════════════════════════════════════════
+
+function DashboardTab() {
+  const [annee, setAnnee] = useState(String(ANNEE_COURANTE));
+  const [masseView, setMasseView] = useState<"mensuel" | "trimestriel">("mensuel");
+  const [coutView,  setCoutView]  = useState<"departement" | "collaborateur">("departement");
+  const { data: res, loading, refetch } = useApi<{ data: DashboardData }>(`/api/responsableRH/paie/dashboard?annee=${annee}`);
+  const d = res?.data;
+
+  return (
+    <div className="space-y-5">
+      <div className="flex items-center gap-3">
+        <select value={annee} onChange={(e) => setAnnee(e.target.value)}
+          className="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
+          {ANNEES.map((a) => <option key={a} value={a}>{a}</option>)}
+        </select>
+        <button onClick={refetch} className="p-2 text-slate-500 hover:text-slate-700 bg-white border border-slate-200 rounded-lg"><RefreshCw className="w-4 h-4" /></button>
+        <span className="text-xs text-slate-400">Périmètre : votre point de vente</span>
+      </div>
+
+      {loading ? (
+        <div className="flex items-center justify-center py-16 text-slate-400"><RefreshCw className="w-5 h-5 animate-spin mr-2" /> Chargement…</div>
+      ) : !d ? (
+        <div className="flex items-center justify-center py-16 text-slate-400 text-sm">Aucune donnée</div>
+      ) : (
+        <>
+          {/* KPIs */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <KpiCard title="Masse salariale (année)" value={`${fmt(d.totauxAnnee.netAPayer)} FCFA`} sub="Net cumulé" color="bg-emerald-50 text-emerald-700" icon={<TrendingUp className="w-5 h-5" />} />
+            <KpiCard title="Total brut (année)" value={`${fmt(d.totauxAnnee.totalBrut)} FCFA`} sub="Avant retenues" color="bg-blue-50 text-blue-700" icon={<DollarSign className="w-5 h-5" />} />
+            <KpiCard title="Avances en cours" value={`${d.avancesEnCours.count}`} sub={`${fmt(d.avancesEnCours.montantTotal)} FCFA restants`} color="bg-yellow-50 text-yellow-700" icon={<Banknote className="w-5 h-5" />} />
+            <KpiCard title="Prêts en cours" value={`${d.pretsEnCours.count}`} sub={`${fmt(d.pretsEnCours.montantTotal)} FCFA restants`} color="bg-purple-50 text-purple-700" icon={<CreditCard className="w-5 h-5" />} />
+          </div>
+
+          {/* Statuts fiches */}
+          <div className="bg-white rounded-xl border border-slate-200 p-5">
+            <h3 className="text-sm font-semibold text-slate-700 mb-4">Répartition des fiches {annee}</h3>
+            <div className="flex flex-wrap gap-3">
+              {Object.entries(STATUT_CFG).map(([key, cfg]) => (
+                <div key={key} className={`flex items-center gap-2 px-3 py-2 rounded-lg ${cfg.badge}`}>
+                  {cfg.icon}
+                  <span className="text-sm font-medium">{d.statuts[key] ?? 0}</span>
+                  <span className="text-xs">{cfg.label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Masse salariale — mensuelle / trimestrielle */}
+          <div className="bg-white rounded-xl border border-slate-200 p-5">
+            <div className="flex items-center justify-between mb-5 flex-wrap gap-2">
+              <h3 className="text-sm font-semibold text-slate-700 flex items-center gap-2">
+                <BarChart2 className="w-4 h-4" /> Masse salariale {masseView === "mensuel" ? "mensuelle" : "trimestrielle"} {annee}
+              </h3>
+              <div className="flex gap-1 bg-slate-100 rounded-lg p-0.5">
+                {([["mensuel", "Mensuelle"], ["trimestriel", "Trimestrielle"]] as const).map(([v, l]) => (
+                  <button key={v} onClick={() => setMasseView(v)}
+                    className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${masseView === v ? "bg-white shadow-sm text-slate-900" : "text-slate-500 hover:text-slate-700"}`}>
+                    {l}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {masseView === "mensuel"
+              ? <MasseMensuelleChart data={d.masseMensuelle} moisCourant={d.moisCourant} />
+              : <MasseTrimestrielleChart data={d.masseMensuelle} />}
+          </div>
+
+          {/* Variables — commissions & bonus versés */}
+          <div className="bg-white rounded-xl border border-slate-200 p-5">
+            <h3 className="text-sm font-semibold text-slate-700 mb-4 flex items-center gap-2">
+              <TrendingUp className="w-4 h-4" /> Rémunération variable {annee}
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-5">
+              <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-4">
+                <p className="text-xs text-emerald-700 font-medium">Commissions versées</p>
+                <p className="text-2xl font-bold text-emerald-800 mt-1">{fmt(d.variables.commissions)} FCFA</p>
+              </div>
+              <div className="rounded-xl border border-amber-100 bg-amber-50 p-4">
+                <p className="text-xs text-amber-700 font-medium">Bonus versés</p>
+                <p className="text-2xl font-bold text-amber-800 mt-1">{fmt(d.variables.bonus)} FCFA</p>
+              </div>
+              <div className="rounded-xl border border-indigo-100 bg-indigo-50 p-4">
+                <p className="text-xs text-indigo-700 font-medium">Primes versées</p>
+                <p className="text-2xl font-bold text-indigo-800 mt-1">{fmt(d.variables.primes)} FCFA</p>
+              </div>
+            </div>
+            <VariablesChart data={d.variablesMensuelles} moisCourant={d.moisCourant} />
+          </div>
+
+          {/* Coût RH — par département / collaborateur */}
+          <div className="bg-white rounded-xl border border-slate-200 p-5">
+            <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+              <h3 className="text-sm font-semibold text-slate-700 flex items-center gap-2">
+                <Users className="w-4 h-4" /> Coût RH {annee} — net cumulé
+              </h3>
+              <div className="flex gap-1 bg-slate-100 rounded-lg p-0.5">
+                {([["departement", "Département"], ["collaborateur", "Collaborateur"]] as const).map(([v, l]) => (
+                  <button key={v} onClick={() => setCoutView(v)}
+                    className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${coutView === v ? "bg-white shadow-sm text-slate-900" : "text-slate-500 hover:text-slate-700"}`}>
+                    {l}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {(() => {
+              const rows = coutView === "departement"
+                ? (Object.entries(d.parDepartement) as [string, number][]).map(([label, montant]) => ({ label, montant }))
+                : d.topCollaborateurs.map((c) => ({ label: c.nom, montant: c.montant }));
+              return <BreakdownBars rows={rows} emptyLabel="Aucune donnée pour cette vue" />;
+            })()}
+            {coutView === "collaborateur" && d.topCollaborateurs.length >= 10 && (
+              <p className="text-xs text-slate-400 mt-3">Top 10 collaborateurs par coût net.</p>
+            )}
+          </div>
+
+          {/* Composants mois courant */}
+          {Object.keys(d.composantsMoisCourant ?? {}).length > 0 && (
+            <div className="bg-white rounded-xl border border-slate-200 p-5">
+              <h3 className="text-sm font-semibold text-slate-700 mb-4">Composants — {MOIS_LABELS[d.moisCourant]}</h3>
+              <div className="space-y-2">
+                {(Object.entries(d.composantsMoisCourant ?? {}) as [string, number][])
+                  .sort(([, a], [, b]) => b - a)
+                  .map(([type, val]) => {
+                    const opt = TYPE_COMPOSANT_OPTS.find((o) => o.value === type);
+                    return (
+                      <div key={type} className="flex items-center justify-between py-1 border-b border-slate-50">
+                        <span className="text-sm text-slate-600">{opt?.label ?? type}</span>
+                        <span className="text-sm font-medium text-slate-800">{fmt(val)} FCFA</span>
+                      </div>
+                    );
+                  })}
+              </div>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+function MasseMensuelleChart({ data, moisCourant }: { data: DashboardData["masseMensuelle"]; moisCourant: number }) {
+  const maxVal = Math.max(...data.map((m) => m.netAPayer), 1);
+  return (
+    <div className="flex items-end gap-1 h-36">
+      {data.map((m) => {
+        const h = Math.round((m.netAPayer / maxVal) * 100);
+        const isCurrent = m.mois === moisCourant;
+        return (
+          <div key={m.mois} className="flex-1 flex flex-col items-center gap-1 group relative">
+            {m.netAPayer > 0 && (
+              <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                {fmt(m.netAPayer)}
+              </div>
+            )}
+            <div
+              className={`w-full rounded-t transition-all ${isCurrent ? "bg-emerald-500" : m.netAPayer > 0 ? "bg-emerald-200 hover:bg-emerald-300" : "bg-slate-100"}`}
+              style={{ height: `${Math.max(h, m.netAPayer > 0 ? 4 : 0)}%` }}
+            />
+            <span className={`text-xs ${isCurrent ? "text-emerald-700 font-medium" : "text-slate-400"}`}>{MOIS_LABELS[m.mois]}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function MasseTrimestrielleChart({ data }: { data: DashboardData["masseMensuelle"] }) {
+  const trimestres = [0, 1, 2, 3].map((t) => {
+    const mois = data.filter((m) => Math.floor((m.mois - 1) / 3) === t);
+    return {
+      label:     `T${t + 1}`,
+      netAPayer: mois.reduce((s, m) => s + m.netAPayer, 0),
+    };
+  });
+  const max = Math.max(...trimestres.map((t) => t.netAPayer), 1);
+  return (
+    <div className="flex items-end gap-6 h-40 pt-6">
+      {trimestres.map((t) => {
+        const h = Math.round((t.netAPayer / max) * 100);
+        return (
+          <div key={t.label} className="flex-1 flex flex-col items-center gap-1 relative">
+            <span className="absolute -top-5 left-1/2 -translate-x-1/2 text-xs font-medium text-slate-600 whitespace-nowrap">
+              {t.netAPayer > 0 ? fmt(t.netAPayer) : ""}
+            </span>
+            <div className="w-full rounded-t bg-emerald-300 hover:bg-emerald-400 transition-all"
+              style={{ height: `${Math.max(h, t.netAPayer > 0 ? 4 : 0)}%` }} />
+            <span className="text-xs text-slate-500 font-medium">{t.label}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function VariablesChart({ data, moisCourant }: { data: DashboardData["variablesMensuelles"]; moisCourant: number }) {
+  const max   = Math.max(...data.map((m) => Math.max(m.commissions, m.bonus, m.primes)), 1);
+  const total = data.reduce((s, m) => s + m.commissions + m.bonus + m.primes, 0);
+  if (total === 0) return <p className="text-sm text-slate-400 text-center py-4">Aucune rémunération variable cette année.</p>;
+  return (
+    <div>
+      <div className="flex items-end gap-1 h-28">
+        {data.map((m) => (
+          <div key={m.mois} className="flex-1 flex flex-col items-center gap-0.5 group relative">
+            <div className="absolute -top-14 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-[10px] px-2 py-1 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity z-10 text-center leading-tight">
+              Comm. {fmt(m.commissions)}<br />Bonus {fmt(m.bonus)}<br />Primes {fmt(m.primes)}
+            </div>
+            <div className="w-full flex justify-center items-end gap-px h-full">
+              <div className="w-1/3 rounded-t bg-emerald-400" style={{ height: `${(m.commissions / max) * 100}%` }} />
+              <div className="w-1/3 rounded-t bg-amber-400"   style={{ height: `${(m.bonus       / max) * 100}%` }} />
+              <div className="w-1/3 rounded-t bg-indigo-400"  style={{ height: `${(m.primes      / max) * 100}%` }} />
+            </div>
+            <span className={`text-[10px] ${m.mois === moisCourant ? "text-slate-700 font-medium" : "text-slate-400"}`}>{MOIS_LABELS[m.mois]}</span>
+          </div>
+        ))}
+      </div>
+      <div className="flex items-center gap-4 mt-3 text-xs flex-wrap">
+        <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-emerald-400" /> Commissions</span>
+        <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-amber-400" /> Bonus</span>
+        <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-indigo-400" /> Primes</span>
+      </div>
+    </div>
+  );
+}
+
+function BreakdownBars({ rows, emptyLabel }: { rows: { label: string; montant: number }[]; emptyLabel: string }) {
+  if (rows.length === 0) return <p className="text-sm text-slate-400 py-4 text-center">{emptyLabel}</p>;
+  const sorted = [...rows].sort((a, b) => b.montant - a.montant);
+  const max    = Math.max(...sorted.map((r) => r.montant), 1);
+  return (
+    <div className="space-y-2">
+      {sorted.map((r) => (
+        <div key={r.label} className="flex items-center gap-3">
+          <span className="text-sm text-slate-600 w-44 truncate">{r.label}</span>
+          <div className="flex-1 bg-slate-100 rounded-full h-2">
+            <div className="bg-emerald-500 h-2 rounded-full transition-all" style={{ width: `${(r.montant / max) * 100}%` }} />
+          </div>
+          <span className="text-sm font-medium text-slate-700 text-right w-36">{fmt(r.montant)} FCFA</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function KpiCard({ title, value, sub, color, icon }: { title: string; value: string; sub: string; color: string; icon: React.ReactNode }) {
+  return (
+    <div className="bg-white rounded-xl border border-slate-200 p-4">
+      <div className="flex items-center gap-2 mb-2">
+        <span className={`p-2 rounded-lg ${color}`}>{icon}</span>
+      </div>
+      <p className="text-lg font-bold text-slate-900 leading-tight">{value}</p>
+      <p className="text-xs font-medium text-slate-600 mt-0.5">{title}</p>
+      <p className="text-xs text-slate-400">{sub}</p>
     </div>
   );
 }
