@@ -117,16 +117,22 @@ const TYPE_COMPOSANT_OPTS = [
 ];
 
 const AVANCE_STATUT: Record<string, string> = {
-  EN_ATTENTE: "bg-yellow-100 text-yellow-700",
-  APPROUVE:   "bg-blue-100 text-blue-700",
-  REJETE:     "bg-red-100 text-red-600",
-  REMBOURSE:  "bg-emerald-100 text-emerald-700",
+  EN_ATTENTE:     "bg-yellow-100 text-yellow-700",
+  VALIDE_MANAGER: "bg-indigo-100 text-indigo-700",
+  APPROUVE:       "bg-blue-100 text-blue-700",
+  REJETE:         "bg-red-100 text-red-600",
+  REMBOURSE:      "bg-emerald-100 text-emerald-700",
+  ANNULE:         "bg-slate-100 text-slate-500",
 };
 
 const PRET_STATUT: Record<string, string> = {
-  EN_COURS:  "bg-blue-100 text-blue-700",
-  SOLDE:     "bg-emerald-100 text-emerald-700",
-  EN_DEFAUT: "bg-red-100 text-red-600",
+  EN_ATTENTE:     "bg-yellow-100 text-yellow-700",
+  VALIDE_MANAGER: "bg-indigo-100 text-indigo-700",
+  EN_COURS:       "bg-blue-100 text-blue-700",
+  SOLDE:          "bg-emerald-100 text-emerald-700",
+  EN_DEFAUT:      "bg-red-100 text-red-600",
+  REJETE:         "bg-red-100 text-red-600",
+  ANNULE:         "bg-slate-100 text-slate-500",
 };
 
 const MODES_PAIEMENT = [
@@ -720,6 +726,12 @@ function AvanceRow({ avance, onRefetch }: { avance: Avance; onRefetch: () => voi
       </div>
       <div className="flex items-center gap-1.5 flex-shrink-0 opacity-0 group-hover:opacity-100">
         {avance.statut === "EN_ATTENTE" && (
+          <button onClick={() => doAction("VALIDER_MANAGER")} disabled={loading}
+            className="px-2.5 py-1.5 text-xs font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 disabled:opacity-50">
+            Valider (manager)
+          </button>
+        )}
+        {(avance.statut === "EN_ATTENTE" || avance.statut === "VALIDE_MANAGER") && (
           <>
             <button onClick={() => doAction("APPROUVER")} disabled={loading}
               className="px-2.5 py-1.5 text-xs font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg hover:bg-emerald-100 disabled:opacity-50">
@@ -879,6 +891,24 @@ function PretRow({ pret, onRefetch }: { pret: Pret; onRefetch: () => void }) {
         )}
       </div>
       <div className="flex items-center gap-1.5 flex-shrink-0 opacity-0 group-hover:opacity-100">
+        {pret.statut === "EN_ATTENTE" && (
+          <button onClick={() => doAction("VALIDER_MANAGER")} disabled={loading}
+            className="px-2.5 py-1.5 text-xs font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 disabled:opacity-50">
+            Valider (manager)
+          </button>
+        )}
+        {(pret.statut === "EN_ATTENTE" || pret.statut === "VALIDE_MANAGER") && (
+          <>
+            <button onClick={() => doAction("APPROUVER")} disabled={loading}
+              className="px-2.5 py-1.5 text-xs font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg hover:bg-emerald-100 disabled:opacity-50">
+              Approuver &amp; décaisser
+            </button>
+            <button onClick={() => doAction("REJETER")} disabled={loading}
+              className="px-2.5 py-1.5 text-xs font-medium text-red-700 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 disabled:opacity-50">
+              Rejeter
+            </button>
+          </>
+        )}
         {pret.statut === "EN_COURS" && (
           <>
             <button onClick={() => doAction("SOLDER")} disabled={loading}

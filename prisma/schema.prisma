@@ -3313,16 +3313,22 @@ enum TypeComposantSalaire {
 }
 
 enum StatutAvanceSalaire {
-  EN_ATTENTE
-  APPROUVE
+  EN_ATTENTE       // demande soumise (attente validation manager)
+  VALIDE_MANAGER   // validée par le manager/RH (attente approbation Direction)
+  APPROUVE         // approuvée — injectée en paie
   REJETE
   REMBOURSE
+  ANNULE           // annulée par le demandeur
 }
 
 enum StatutPretEmploye {
-  EN_COURS
+  EN_ATTENTE       // demande soumise (attente validation manager)
+  VALIDE_MANAGER   // validée par le manager/RH (attente approbation Direction)
+  EN_COURS         // approuvé & actif — remboursement injecté en paie
   SOLDE
   EN_DEFAUT
+  REJETE
+  ANNULE           // annulée par le demandeur
 }
 
 model FichePaie {
@@ -3429,7 +3435,11 @@ model AvanceSalaire {
   montantRestant Decimal
   statut         StatutAvanceSalaire  @default(EN_ATTENTE)
   commentaire    String?              // motif refus ou note
-  approuveParId  Int?                 // User.id
+  // ── Workflow de demande (Collaborateur → Manager → Direction) ──
+  demandeParId          Int?          // User.id du collaborateur demandeur (null si créée par admin/RH)
+  valideManagerParId    Int?          // User.id du manager/RH validateur niveau 1
+  dateValidationManager DateTime?
+  approuveParId  Int?                 // User.id (approbation finale Direction/RH)
   dateApprobation DateTime?
 
   profilRH ProfilRH @relation(fields: [profilRHId], references: [id])
@@ -3453,6 +3463,14 @@ model PretEmploye {
   montantRestant  Decimal
   statut          StatutPretEmploye @default(EN_COURS)
   notes           String?
+  motif           String?           // objet de la demande (saisi par le collaborateur)
+  commentaire     String?           // motif de refus / note de validation
+  // ── Workflow de demande (Collaborateur → Manager → Direction) ──
+  demandeParId          Int?        // User.id du collaborateur demandeur (null si créé par admin/RH)
+  valideManagerParId    Int?        // User.id du manager/RH validateur niveau 1
+  dateValidationManager DateTime?
+  approuveParId         Int?        // User.id (approbation finale Direction/RH)
+  dateApprobation       DateTime?
 
   profilRH ProfilRH @relation(fields: [profilRHId], references: [id])
 

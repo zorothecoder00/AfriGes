@@ -434,6 +434,88 @@ export async function notifyNouvelleDemandeConge(demandeCongeId: number): Promis
   });
 }
 
+// ─── 5ter. Avances & Prêts — workflow de demande (in-action) ──────────────────
+
+/**
+ * À appeler quand un collaborateur soumet lui-même une demande d'avance ou de prêt.
+ * Notifie son manager direct (s'il en a un) + tous les RESPONSABLE_RH actifs.
+ */
+export async function notifyNouvelleDemandeAvancePret(params: {
+  kind:       "AVANCE" | "PRET";
+  profilRHId: number;
+  montant:    number;
+}): Promise<void> {
+  const profil = await prisma.profilRH.findUnique({
+    where:  { id: params.profilRHId },
+    select: {
+      matricule: true,
+      gestionnaire: { select: { member: { select: { nom: true, prenom: true } } } },
+      manager: { select: { gestionnaire: { select: { memberId: true } } } },
+    },
+  });
+  if (!profil) return;
+
+  const member    = profil.gestionnaire.member;
+  const nomCollab = `${member.prenom} ${member.nom}`;
+  const montant   = new Intl.NumberFormat("fr-FR").format(Math.round(params.montant)) + " FCFA";
+  const label     = params.kind === "AVANCE" ? "avance sur salaire" : "prêt";
+
+  const rhIds     = await getRHManagerIds();
+  const managerId = profil.manager?.gestionnaire.memberId ?? null;
+  const destinataires = [...(managerId ? [managerId] : []), ...rhIds];
+
+  await createNotifs(destinataires, {
+    titre:    `Nouvelle demande de ${label} — ${nomCollab}`,
+    message:  `${nomCollab} (${profil.matricule}) a soumis une demande de ${label} de ${montant}. À valider.`,
+    priorite: PrioriteNotification.NORMAL,
+    actionUrl: `/dashboard/user/responsablesRH/paie`,
+  });
+}
+
+/**
+ * À appeler lorsqu'une demande d'avance/prêt change de statut (validation ou refus).
+ * Notifie uniquement le collaborateur demandeur.
+ */
+export async function notifyDecisionAvancePret(params: {
+  kind:       "AVANCE" | "PRET";
+  profilRHId: number;
+  montant:    number;
+  decision:   "VALIDE_MANAGER" | "APPROUVE" | "REJETE";
+  motif?:     string;
+}): Promise<void> {
+  const userId = await getUserIdFromProfil(params.profilRHId);
+  if (!userId) return;
+
+  const montant = new Intl.NumberFormat("fr-FR").format(Math.round(params.montant)) + " FCFA";
+  const label   = params.kind === "AVANCE" ? "avance sur salaire" : "prêt";
+
+  const MAP: Record<string, { titre: string; message: string; priorite: PrioriteNotification }> = {
+    VALIDE_MANAGER: {
+      titre:    `Demande de ${label} validée (manager)`,
+      message:  `Votre demande de ${label} de ${montant} a été validée par votre manager et attend l'approbation de la Direction.`,
+      priorite: PrioriteNotification.NORMAL,
+    },
+    APPROUVE: {
+      titre:    `Demande de ${label} approuvée ✓`,
+      message:  `Votre demande de ${label} de ${montant} a été approuvée. Le remboursement sera prélevé sur vos prochaines paies.`,
+      priorite: PrioriteNotification.NORMAL,
+    },
+    REJETE: {
+      titre:    `Demande de ${label} refusée`,
+      message:  `Votre demande de ${label} de ${montant} a été refusée.${params.motif ? ` Motif : ${params.motif}` : ""}`,
+      priorite: PrioriteNotification.HAUTE,
+    },
+  };
+
+  const n = MAP[params.decision];
+  if (!n) return;
+
+  await createNotifs([userId], {
+    ...n,
+    actionUrl: `/dashboard/user/collaborateur/avances-prets`,
+  });
+}
+
 // ─── 6. Inscription à une formation (in-action) ───────────────────────────────
 
 /**

@@ -3,7 +3,7 @@
 import { useState, useCallback, useEffect } from "react";
 import {
   Clock, LogIn, LogOut, CheckCircle, XCircle, AlertTriangle,
-  ChevronDown, ChevronUp, Sun, Plane, X, CalendarDays, ChevronRight,
+  ChevronDown, ChevronUp, Sun, Plane, X, CalendarDays, ChevronRight, Wallet,
 } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
@@ -285,6 +285,18 @@ export default function PointageWidget() {
             >
               <span className="flex items-center gap-2 text-sm font-medium">
                 <CalendarDays className="w-4 h-4" /> Congés &amp; absences
+              </span>
+              <ChevronRight className="w-4 h-4" />
+            </Link>
+
+            {/* Accès Avances & Prêts */}
+            <Link
+              href="/dashboard/user/collaborateur/avances-prets"
+              onClick={() => setOpen(false)}
+              className="flex items-center justify-between w-full px-3 py-2.5 rounded-xl bg-emerald-50 border border-emerald-100 text-emerald-700 hover:bg-emerald-100 transition-colors"
+            >
+              <span className="flex items-center gap-2 text-sm font-medium">
+                <Wallet className="w-4 h-4" /> Avances &amp; prêts
               </span>
               <ChevronRight className="w-4 h-4" />
             </Link>

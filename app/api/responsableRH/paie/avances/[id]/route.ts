@@ -2,14 +2,16 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getRHSession } from "@/lib/authRH";
 import { getRHScope, profilDansPerimetre } from "@/lib/scopeRH";
+import { notifyDecisionAvancePret } from "@/lib/notificationsRH";
 
 type Ctx = { params: Promise<{ id: string }> };
 
 /**
  * PATCH /api/responsableRH/paie/avances/[id]
- *   Body: { action: "APPROUVER" | "REJETER" | "REMBOURSER", commentaire? }
+ *   Body: { action: "VALIDER_MANAGER" | "APPROUVER" | "REJETER" | "REMBOURSER", commentaire? }
  *         ou { montantRestant } pour mise à jour du solde
  *   Réservé aux avances des collaborateurs du PDV du RESPONSABLE_RH.
+ *   VALIDER_MANAGER = validation de niveau 1 avant approbation Direction.
  */
 export async function PATCH(req: NextRequest, { params }: Ctx) {
   try {
@@ -43,9 +45,10 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
     if (!action) return NextResponse.json({ error: "action est obligatoire" }, { status: 400 });
 
     const TRANSITIONS: Record<string, { from: string[]; to: string }> = {
-      APPROUVER:  { from: ["EN_ATTENTE"], to: "APPROUVE"  },
-      REJETER:    { from: ["EN_ATTENTE"], to: "REJETE"    },
-      REMBOURSER: { from: ["APPROUVE"],  to: "REMBOURSE" },
+      VALIDER_MANAGER: { from: ["EN_ATTENTE"],                  to: "VALIDE_MANAGER" },
+      APPROUVER:       { from: ["EN_ATTENTE", "VALIDE_MANAGER"], to: "APPROUVE"       },
+      REJETER:         { from: ["EN_ATTENTE", "VALIDE_MANAGER"], to: "REJETE"         },
+      REMBOURSER:      { from: ["APPROUVE"],                     to: "REMBOURSE"      },
     };
 
     const t = TRANSITIONS[action];
@@ -57,10 +60,12 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
     const updated = await prisma.avanceSalaire.update({
       where: { id: Number(id) },
       data: {
-        statut:          t.to as never,
-        commentaire:     commentaire ?? null,
-        approuveParId:   action === "APPROUVER" ? parseInt(session.user.id) : undefined,
-        dateApprobation: action === "APPROUVER" ? new Date() : undefined,
+        statut:                t.to as never,
+        commentaire:           commentaire ?? null,
+        valideManagerParId:    action === "VALIDER_MANAGER" ? parseInt(session.user.id) : undefined,
+        dateValidationManager: action === "VALIDER_MANAGER" ? new Date() : undefined,
+        approuveParId:         action === "APPROUVER" ? parseInt(session.user.id) : undefined,
+        dateApprobation:       action === "APPROUVER" ? new Date() : undefined,
       },
     });
 
@@ -73,6 +78,16 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
         details:  { avant: { statut: avance.statut }, apres: { statut: t.to } },
       },
     });
+
+    if (["VALIDER_MANAGER", "APPROUVER", "REJETER"].includes(action)) {
+      notifyDecisionAvancePret({
+        kind:       "AVANCE",
+        profilRHId: avance.profilRHId,
+        montant:    Number(avance.montant),
+        decision:   t.to as "VALIDE_MANAGER" | "APPROUVE" | "REJETE",
+        motif:      commentaire ?? undefined,
+      }).catch(() => {});
+    }
 
     return NextResponse.json({ data: updated });
   } catch (error) {
