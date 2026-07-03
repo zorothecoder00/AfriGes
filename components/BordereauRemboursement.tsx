@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { X, Printer } from "lucide-react";
 import QRCode from "qrcode";
 import { toCanvas as barcodeToCanvas } from "bwip-js/browser";
+import { buildCalendrier } from "@/lib/calendrierRemboursement";
 
 // ─── Types (sous-ensembles de CreditItem / Client de ClientDetails) ────────────
 
@@ -67,7 +68,6 @@ const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&l
 const dash = (v: string | number | null | undefined) => (v === null || v === undefined || v === "" ? "—" : String(v));
 
 const SEXE_LABEL: Record<string, string> = { MASCULIN: "Masculin", FEMININ: "Féminin", AUTRE: "Autre" };
-const ECHEANCE_LABEL: Record<string, string> = { PAYE: "Payé", PARTIEL: "Partiel", EN_ATTENTE: "En attente", EN_RETARD: "En retard" };
 
 /** Code-barres décoratif (SVG) dérivé de la référence — non scannable. */
 function barcodeSvg(text: string, color: string): string {
@@ -96,7 +96,7 @@ function buildBordereauHtml(credit: BordereauCredit, client: BordereauClient, or
     : { text: "#0f172a", muted: "#475569", faint: "#94a3b8", rule: "#047857", line: "#e2e8f0", headBg: "#ecfdf5", headText: "#065f46", accent: "#047857", danger: "#dc2626", logoFilter: "", barColor: "#0f172a" };
 
   const logoUrl  = `${origin}/afrisime-logo.svg`;
-  const dossierUrl = `${origin}/dashboard/admin/clients/${client.id}`;
+  const dossierUrl = `${origin}/suivi/${credit.reference}`;
   const noBordereau = `BR-${credit.reference}`;
   const today = new Date();
 
@@ -126,32 +126,23 @@ function buildBordereauHtml(credit: BordereauCredit, client: BordereauClient, or
   // ── E. Calendrier journalier — TOUTES les lignes jusqu'à la fin du crédit ──
   // On génère 1..dureeJours ; on utilise l'échéance réelle si elle existe (crédit validé),
   // sinon on synthétise (date = dateDebut + n, montant prévu = journalier, dernier jour = résiduel).
-  const echeancesByNum = new Map(credit.echeances.map((e) => [e.numeroEcheance, e]));
-  const duree      = Math.max(0, credit.dureeJours);
-  const debut      = new Date(credit.dateDebut);
-  const journalier = N(credit.montantJournalier);
-  const dernierMontant = Number((montantTotal - journalier * (duree - 1)).toFixed(2)); // résiduel sur le dernier jour
-  let cumulPaye = 0;
-  const calendrierRows = Array.from({ length: duree }, (_, idx) => {
-    const jour = idx + 1;
-    const e    = echeancesByNum.get(jour);
-    const dateEch = e
-      ? new Date(e.dateEcheance)
-      : (() => { const d = new Date(debut); d.setDate(d.getDate() + idx); return d; })();
-    const montantPrevu = e ? N(e.montantDu)   : (jour === duree ? dernierMontant : journalier);
-    const montantPaye  = e ? N(e.montantPaye) : 0;
-    cumulPaye += montantPaye;
-    const soldeRestant = Math.max(0, montantTotal - cumulPaye);
-    const statutRaw    = e ? e.statut : "EN_ATTENTE";
-    const enRetard     = statutRaw !== "PAYE" && dateEch < today;
-    const statutLabel  = enRetard ? "En retard" : (ECHEANCE_LABEL[statutRaw] ?? statutRaw);
+  const STATUT_CAL_LABEL: Record<string, string> = { PAYE: "Payé", EN_RETARD: "En retard", A_VENIR: "" };
+  const calendrierRows = buildCalendrier({
+    dureeJours:        credit.dureeJours,
+    dateDebut:         credit.dateDebut,
+    montantTotal:      credit.montantTotal,
+    montantJournalier: credit.montantJournalier,
+    echeances:         credit.echeances,
+  }, today).map((r) => {
+    const enRetard = r.statut === "EN_RETARD";
+    const estPaye  = r.statut === "PAYE";
     return `<tr>
-      <td style="padding:5px 6px;border:1px solid ${c.line};text-align:center">${jour}</td>
-      <td style="padding:5px 6px;border:1px solid ${c.line}">${fmtDate(dateEch.toISOString())}</td>
-      <td style="padding:5px 6px;border:1px solid ${c.line};text-align:right">${fmt(montantPrevu)}</td>
-      <td style="padding:5px 6px;border:1px solid ${c.line};text-align:right">${montantPaye > 0 ? fmt(montantPaye) : "—"}</td>
-      <td style="padding:5px 6px;border:1px solid ${c.line};text-align:right">${fmt(soldeRestant)}</td>
-      <td style="padding:5px 6px;border:1px solid ${c.line};text-align:center;${enRetard ? `color:${c.danger};font-weight:600` : ""}">${statutLabel}</td>
+      <td style="padding:5px 6px;border:1px solid ${c.line};text-align:center">${r.jour}</td>
+      <td style="padding:5px 6px;border:1px solid ${c.line}">${fmtDate(r.date)}</td>
+      <td style="padding:5px 6px;border:1px solid ${c.line};text-align:right">${fmt(r.montantPrevu)}</td>
+      <td style="padding:5px 6px;border:1px solid ${c.line};text-align:right">${fmt(r.montantPaye)}</td>
+      <td style="padding:5px 6px;border:1px solid ${c.line};text-align:right">${fmt(r.soldeRestant)}</td>
+      <td style="padding:5px 6px;border:1px solid ${c.line};text-align:center;${enRetard ? `color:${c.danger};font-weight:600` : estPaye ? `color:${c.accent};font-weight:600` : ""}">${STATUT_CAL_LABEL[r.statut]}</td>
       <td style="padding:5px 6px;border:1px solid ${c.line}"></td>
     </tr>`;
   }).join("");
@@ -195,7 +186,7 @@ function buildBordereauHtml(credit: BordereauCredit, client: BordereauClient, or
           ${qrDataUrl
             ? `<img src="${qrDataUrl}" alt="QR dossier client" style="width:78px;height:78px;${c.logoFilter}"/>`
             : `<div style="width:78px;height:78px;border:1px solid ${c.line};display:flex;align-items:center;justify-content:center;font-size:9px;color:${c.faint}">QR</div>`}
-          <p style="font-size:8px;color:${c.faint};margin-top:1px">Dossier client</p>
+          <p style="font-size:8px;color:${c.faint};margin-top:1px">Suivi remboursement</p>
         </div>
       </div>
       <div style="margin-top:6px">${barcodeUrl
@@ -221,7 +212,7 @@ function buildBordereauHtml(credit: BordereauCredit, client: BordereauClient, or
   ${sectionTitle("C. Informations du crédit")}
   ${table(
     kv("Type de crédit", "Crédit alimentaire journalier") +
-    kv("Date d'octroi", fmtDate(credit.dateDebut)) +
+    kv("Date d'octroi", fmtDate(credit.createdAt)) +
     kv("Agent affecté", esc(agent)) +
     kv("Numéro de l'agent", dash(client.agentTerrain?.telephone)) +
     kv("Point de vente", esc(pdv)) +
@@ -322,9 +313,9 @@ export default function BordereauRemboursement({ credit, client, onClose }: {
   onClose: () => void;
 }) {
   const origin = typeof window !== "undefined" ? window.location.origin : "";
-  const dossierUrl = `${origin}/dashboard/admin/clients/${client.id}`;
+  const dossierUrl = `${origin}/suivi/${credit.reference}`;
 
-  // QR code (data URL) pointant vers le dossier du client — généré côté navigateur.
+  // QR code (data URL) pointant vers la page publique de suivi — généré côté navigateur.
   const [qr, setQr] = useState("");
   useEffect(() => {
     let alive = true;

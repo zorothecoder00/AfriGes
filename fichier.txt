@@ -12,7 +12,7 @@
 
 - QR scannable (et un vrai code-barres Code128) ? Ça
   nécessite une petite dépendance (qrcode / bwip-js)  
-
+ 
 
 -On peut aussi utiliser du SVG pour les graphiques ( sans forcément dépendance externe)  
 -Ce code :      
@@ -100,9 +100,6 @@ SessionGuard existe mais semble non utilisé dans le layout utilisateur
 Google OAuth crée automatiquement un utilisateur sans rôle
 
 
-Chercher comment utiliser l'authentification de google sans avoir besoin de payer
-
-
 Pour les archivages des crédits clients au niveau du dashboard admin/superadmin, je veux le montant total des impayés et des autres status
 
 On va revoir aussi les reçus dans les dashboards
@@ -110,9 +107,6 @@ On va revoir aussi les reçus dans les dashboards
 Permettre certaines notifications via mail (vu que maintenant j'ai implémenté l'authification par Google)
 
 Pour les connexion google , demander aussi un autre mot de passe pour empêcher les passant de pouvoir se connecter facilement avec le google d'un utilisateur
-
-
-Diminiuer les sous liens sur la page admin
 
 
 Ajouter personne à prévenir ( lien familial et numéro) et la photo dans dashboard/admin/rh/collaborateurs/id
@@ -130,7 +124,7 @@ Formation à suivre
 Document expirant
 
 
-Le RH et les admins doivent avoir une vue détaillée pour le congés et les demandes de congé, les absences , les demandes de permissions d'absence des collaborateurs
+Le RH et les admins doivent avoir une vue détaillée pour leS congés et les demandes de congé, les absences , les demandes de permissions d'absence des collaborateurs
  
 
 Pour les rh/audit tu es sûr d'avoir fait 
@@ -201,7 +195,6 @@ Garantie   sur les factures
 
 On veut aussi côté du nom sa fonction ( rôle gestionnaire peut être )
 
-Est ce que le RH a le même tableau de bord complet comme l'admin pour la route des paie ???
 
 Un point à valider : je considère « versées » au sens large (fiches VALIDE +
   EN_PAIEMENT + PAYE, comme la masse salariale). Si tu veux que « versées » =
@@ -224,4 +217,17 @@ Sur le bordereau de remboursement( je précise au niveau de l'impression) , on s
 Sur /dashboard/admin/credits  le modale d'edit de crédit créé un overflow mais qui ne couvre même pas tout le modal ; corrige moi ça mais aussi l'edit est insuffisant ( on doit pouvoir modifier manuellement le gestionaire du crédit; les valeurs code client , n carte client afrisime, numéro agent , agent affecté doivent être normalement automatique sur le bordereau puisque chaque client est affecté ,à un agent de terrain et on a les infos aussi de l'agen,t de terrain ; maintenant pour les valeurs modifiables comme frais de dossier, assurance etc etc il faut mettre plutôt zero si aucune valeur n'est renseignée au lieu d'un tiret.)
 
 
+          Choses à revoir pour le bordereau de remboursement des clients 
+lorsque le client scanne le code QR ,que ça renvoie sur son niveau d'évolution des remboursements 
+le code client doit être conforme au code client en base
+le sexe du client doit venir automatiquement
+le numero carte client afrisime on laisse
+date d'octroit dans les informations du crédit  doit être la date de création du crédit et non la date de 1er remboursement
+Au niveau de l'agent affecté et de son numéro , ça doit etre automatique
+Pour le calendrier de remboursement journalier la case doit afficher zero si aucun remboursement mais se remplie automatiquement quand le client a remboursé
+Le solde restant doit se décrémenter après chaque jour de collecte (théoriquement c'est à dire par rapport au montant prévu payé mais si montant réellement payé , on fait la vraie soustraction du montant payé)
+au niveau du statut aussi , il doit être vide et ça devient payé automatiquement quand c'est payé et en retard quand le jour est vraiment passé mais que le client n'a pas encore payé
+
+
+Lorsqu'on veut enregistrer un crédit , ce n'est pas possible de donner une quantité de 0.5 ( moitié ) , 
 
