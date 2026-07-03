@@ -7,7 +7,7 @@ import {
   Star, AlertTriangle, Calendar, Briefcase, RefreshCw, Bell,
   ArrowRight, ChevronRight, CheckCircle2, Building2,
   FileWarning, GraduationCap, FileText, Target, ShieldCheck, MessageSquare, DollarSign, ClipboardList,
-  MapPin,
+  MapPin, Zap,
 } from "lucide-react";
 import { useApi } from "@/hooks/useApi";
 import { usePageAccess } from "@/hooks/usePageAccess";
@@ -140,6 +140,15 @@ export default function DashboardRHPage() {
                 title="Préférences de notifications"
               >
                 <Bell size={16} />
+              </Link>
+            )}
+            {isAllowed("notifications") && (
+              <Link
+                href="/dashboard/user/responsablesRH/notifications"
+                className="p-2.5 rounded-xl border border-slate-200 bg-white text-slate-500 hover:text-slate-700 transition-all"
+                title="Déclencheurs de notifications RH"
+              >
+                <Zap size={16} />
               </Link>
             )}
             <button

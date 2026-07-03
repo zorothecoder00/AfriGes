@@ -7,7 +7,7 @@ import {
   Users, Banknote, GraduationCap, Clock, Gift,
   CalendarDays, MapPin, Star, UserCheck, FileWarning,
   Building2, TrendingUp, AlertTriangle, CheckCircle2,
-  ArrowRight, ArrowLeft, RefreshCw, ClipboardList, Brain, Rocket, FileText,
+  ArrowRight, ArrowLeft, RefreshCw, ClipboardList, Brain, Rocket, FileText, Bell,
 } from "lucide-react";
 
 /* ─── Types ─────────────────────────────────────────────── */
@@ -115,12 +115,21 @@ export default function RHDashboardPage() {
             <h1 className="text-2xl font-bold text-gray-900">Tableau de bord RH</h1>
             <p className="text-sm text-gray-500 mt-1">Vue consolidée de la gestion des ressources humaines</p>
           </div>
-          <button
-            onClick={refetch}
-            className={`p-2.5 rounded-xl border border-gray-200 bg-white text-gray-500 hover:text-gray-700 hover:border-gray-300 transition-all ${loading ? "animate-spin" : ""}`}
-          >
-            <RefreshCw size={16} />
-          </button>
+          <div className="flex items-center gap-2">
+            <Link
+              href="/dashboard/admin/rh/notifications"
+              className="flex items-center gap-2 px-3 py-2 rounded-xl border border-gray-200 bg-white text-gray-600 hover:text-gray-800 hover:border-gray-300 text-sm font-medium transition-all"
+              title="Déclencheurs de notifications RH"
+            >
+              <Bell size={16} /> <span className="hidden sm:inline">Déclencheurs</span>
+            </Link>
+            <button
+              onClick={refetch}
+              className={`p-2.5 rounded-xl border border-gray-200 bg-white text-gray-500 hover:text-gray-700 hover:border-gray-300 transition-all ${loading ? "animate-spin" : ""}`}
+            >
+              <RefreshCw size={16} />
+            </button>
+          </div>
         </div>
 
         {loading && !s && (

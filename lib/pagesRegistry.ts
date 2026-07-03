@@ -138,6 +138,7 @@ export const PAGES_REGISTRY: RoleRegistry[] = [
       { key: "onboarding",     label: "Onboarding",                defaultAllowed: true, module: null },
       { key: "audit",          label: "Audit & Traçabilité",       defaultAllowed: true, module: null },
       { key: "preferences",    label: "Préférences notifications", defaultAllowed: true, module: null },
+      { key: "notifications",  label: "Déclencheurs notifications", defaultAllowed: true, module: null },
     ],
   },
   // NB : PRESIDENT_COMMISSION_RIA / RAPPORTEUR_COMMISSION_RIA ne sont pas dans ce registre :

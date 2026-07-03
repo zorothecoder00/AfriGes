@@ -232,6 +232,7 @@ export async function POST(req: NextRequest) {
           client:       { select: { nom: true, prenom: true, telephone: true, adresse: true } },
           pointDeVente: { select: { nom: true, adresse: true, telephone: true } },
           lignes:       { include: { produit: { select: { nom: true, unite: true } } } },
+          creditClient: { select: { garantie: true } },
         },
       });
       if (!vente) return NextResponse.json({ error: "Vente introuvable" }, { status: 404 });
@@ -264,6 +265,7 @@ export async function POST(req: NextRequest) {
           montantPaye:  Number(vente.montantPaye),
           modePaiement: vente.modePaiement,
           notes:        vente.notes,
+          garantie:     vente.creditClient?.garantie ?? null,
           lignes: {
             create: vente.lignes.map(l => ({
               designation:  l.produitNom ?? l.produit?.nom ?? `Produit #${l.produitId}`,

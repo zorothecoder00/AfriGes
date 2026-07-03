@@ -28,6 +28,7 @@ export async function GET(req: Request) {
         "Documents expirants":  result.documentsExpirants,
         "Évaluations prog.":    result.evaluationsProg,
         "Formations à suivre":  result.formationsAsuivre,
+        "Congés à valider":     result.congesEnAttente,
       },
     });
   } catch (error) {

@@ -144,17 +144,6 @@ Gestion granulaire obligatoire.     A terminer (adminisatration système)
 Pour la gestion des commissions et le paramètre des profils de de collaborateur on doit revoir ça
 
 
-Pour les ventes à crédit , on veut ceci : 
-Durée (jours) *
-
-Date de début *
-
-Montant/jour (AUTO)
-
-Fin d'échéance (AUTO)
-
-Taux pénalité (% / jour)
-
 
 Créé un menu ou onglet " bordereau de remboursement" dans /dashboard/admin/clients/id
 

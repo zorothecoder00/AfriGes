@@ -82,6 +82,47 @@ async function getRHManagerIds(): Promise<number[]> {
   return users.map((u) => u.id);
 }
 
+/** Renvoie les User.id des ADMIN / SUPER_ADMIN (Direction). */
+async function getAdminIds(): Promise<number[]> {
+  const users = await prisma.user.findMany({
+    where:  { role: { in: ["ADMIN", "SUPER_ADMIN"] } },
+    select: { id: true },
+  });
+  return users.map((u) => u.id);
+}
+
+/**
+ * Résout, par PDV, les RESPONSABLE_RH affectés, et le PDV de chaque collaborateur.
+ * Sert à n'envoyer les copies de surveillance qu'au(x) RH du PDV concerné.
+ */
+type RHByPdvLookup = { pdvByUser: Map<number, number>; rhByPdv: Map<number, number[]> };
+
+async function getRHByPdvLookup(): Promise<RHByPdvLookup> {
+  const rhIds = new Set(await getRHManagerIds());
+  const affs  = await prisma.gestionnaireAffectation.findMany({
+    where:  { actif: true },
+    select: { userId: true, pointDeVenteId: true },
+  });
+  const pdvByUser = new Map<number, number>();
+  const rhByPdv   = new Map<number, number[]>();
+  for (const a of affs) {
+    pdvByUser.set(a.userId, a.pointDeVenteId);
+    if (rhIds.has(a.userId)) {
+      const list = rhByPdv.get(a.pointDeVenteId) ?? [];
+      list.push(a.userId);
+      rhByPdv.set(a.pointDeVenteId, list);
+    }
+  }
+  return { pdvByUser, rhByPdv };
+}
+
+/** RESPONSABLE_RH du PDV d'un collaborateur (via son User.id) ; [] si PDV/RH introuvable. */
+function rhForCollaborator(lookup: RHByPdvLookup, collabUserId: number): number[] {
+  const pdv = lookup.pdvByUser.get(collabUserId);
+  if (pdv == null) return [];
+  return lookup.rhByPdv.get(pdv) ?? [];
+}
+
 /**
  * Renvoie le User.id d'un collaborateur (ProfilRH) via son gestionnaire.
  * Retourne null si introuvable.
@@ -115,8 +156,11 @@ async function prefActivee(userId: number, champ: keyof {
 /**
  * Notifie les collaborateurs CDD dont le contrat expire dans 30j ou 7j.
  * Notifie aussi les RESPONSABLE_RH pour monitoring.
+ *
+ * `profilRHIds` : restreint le scan à ces collaborateurs (périmètre PDV du RH).
+ * `null`/absent = tous les collaborateurs (admin / CRON).
  */
-export async function alertesFinContrat(): Promise<number> {
+export async function alertesFinContrat(profilRHIds?: number[] | null): Promise<number> {
   const now      = new Date();
   const j7end    = daysFromNow(7);
   const j30end   = daysFromNow(30);
@@ -132,6 +176,7 @@ export async function alertesFinContrat(): Promise<number> {
         gte: j7start,
         lte: j30end,
       },
+      ...(profilRHIds ? { id: { in: profilRHIds } } : {}),
     },
     select: {
       id: true, matricule: true, dateFin: true,
@@ -144,7 +189,7 @@ export async function alertesFinContrat(): Promise<number> {
     },
   });
 
-  const rhIds = await getRHManagerIds();
+  const lookup = await getRHByPdvLookup();
   let sent    = 0;
 
   for (const p of profils) {
@@ -166,9 +211,9 @@ export async function alertesFinContrat(): Promise<number> {
       sent++;
     }
 
-    // Notification de surveillance aux RH managers
+    // Notification de surveillance au(x) RH du PDV du collaborateur
     const titreRH = `[RH] ${titreKey} — ${nomCollab}`;
-    for (const rhId of rhIds) {
+    for (const rhId of rhForCollaborator(lookup, userId)) {
       if (!(await dejaNotifie(rhId, titreRH))) {
         await createNotifs([rhId], {
           titre:    titreRH,
@@ -190,13 +235,14 @@ export async function alertesFinContrat(): Promise<number> {
  * Notifie les collaborateurs dont un document (CNI, passeport…) expire dans 30j.
  * Notifie aussi les RESPONSABLE_RH.
  */
-export async function alertesDocumentsExpirants(): Promise<number> {
+export async function alertesDocumentsExpirants(profilRHIds?: number[] | null): Promise<number> {
   const now    = new Date();
   const j30    = daysFromNow(30);
 
   const docs = await prisma.documentCollaborateur.findMany({
     where: {
       dateExpiration: { gte: now, lte: j30 },
+      ...(profilRHIds ? { profilRHId: { in: profilRHIds } } : {}),
     },
     select: {
       id: true, type: true, nom: true, dateExpiration: true,
@@ -214,7 +260,7 @@ export async function alertesDocumentsExpirants(): Promise<number> {
     },
   });
 
-  const rhIds = await getRHManagerIds();
+  const lookup = await getRHByPdvLookup();
   let sent    = 0;
 
   for (const doc of docs) {
@@ -234,8 +280,9 @@ export async function alertesDocumentsExpirants(): Promise<number> {
       sent++;
     }
 
+    // Copie de surveillance au(x) RH du PDV du collaborateur
     const titreRH = `[RH] Document expirant — ${nomCollab} (${doc.nom})`;
-    for (const rhId of rhIds) {
+    for (const rhId of rhForCollaborator(lookup, userId)) {
       if (!(await dejaNotifie(rhId, titreRH))) {
         await createNotifs([rhId], {
           titre:    titreRH,
@@ -256,7 +303,7 @@ export async function alertesDocumentsExpirants(): Promise<number> {
 /**
  * Notifie les collaborateurs dont une évaluation débute dans les 7 prochains jours.
  */
-export async function alertesEvaluationsProg(): Promise<number> {
+export async function alertesEvaluationsProg(profilRHIds?: number[] | null): Promise<number> {
   const now  = new Date();
   const j7   = daysFromNow(7);
 
@@ -264,6 +311,7 @@ export async function alertesEvaluationsProg(): Promise<number> {
     where: {
       statut:    { in: ["BROUILLON", "OBJECTIFS_FIXES"] },
       dateDebut: { gte: now, lte: j7 },
+      ...(profilRHIds ? { profilRHId: { in: profilRHIds } } : {}),
     },
     select: {
       id: true, annee: true, periode: true, dateDebut: true,
@@ -302,7 +350,7 @@ export async function alertesEvaluationsProg(): Promise<number> {
 /**
  * Notifie les participants inscrits à une formation débutant dans 3 jours.
  */
-export async function alertesFormationsAsuivre(): Promise<number> {
+export async function alertesFormationsAsuivre(profilRHIds?: number[] | null): Promise<number> {
   const now = new Date();
   const j3  = daysFromNow(3);
 
@@ -313,6 +361,7 @@ export async function alertesFormationsAsuivre(): Promise<number> {
         statut:    "PLANIFIEE",
         dateDebut: { gte: now, lte: j3 },
       },
+      ...(profilRHIds ? { profilRHId: { in: profilRHIds } } : {}),
     },
     select: {
       profilRHId: true,
@@ -338,6 +387,105 @@ export async function alertesFormationsAsuivre(): Promise<number> {
         actionUrl: `/dashboard/admin/rh/formations`,
       });
       sent++;
+    }
+  }
+
+  return sent;
+}
+
+// ─── 4bis. Congés en attente de validation (rappel aux valideurs) ─────────────
+
+/**
+ * Rappelle aux valideurs les demandes de congé qui attendent leur décision :
+ *   - Managers directs → congés EN_ATTENTE de leur équipe
+ *   - RESPONSABLE_RH   → congés EN_ATTENTE + VALIDE_MANAGER (niveau RH)
+ *   - Direction (admin) → congés VALIDE_RH (validation finale)
+ * Déduplication : un rappel par valideur et par jour.
+ */
+export async function alertesCongesEnAttente(profilRHIds?: number[] | null): Promise<number> {
+  let sent = 0;
+  const urlRH    = "/dashboard/user/responsablesRH/conges";
+  const urlAdmin = "/dashboard/admin/rh/conges";
+  const scopeWhere = profilRHIds ? { profilRHId: { in: profilRHIds } } : {};
+
+  const lookup = await getRHByPdvLookup();
+
+  const [enAttente, valideManagerList, valideRH] = await Promise.all([
+    prisma.demandeConge.findMany({
+      where:  { statut: "EN_ATTENTE", ...scopeWhere },
+      select: {
+        profilRH: {
+          select: {
+            gestionnaire: { select: { memberId: true } },
+            manager:      { select: { gestionnaire: { select: { memberId: true } } } },
+          },
+        },
+      },
+    }),
+    prisma.demandeConge.findMany({
+      where:  { statut: "VALIDE_MANAGER", ...scopeWhere },
+      select: { profilRH: { select: { gestionnaire: { select: { memberId: true } } } } },
+    }),
+    prisma.demandeConge.count({ where: { statut: "VALIDE_RH", ...scopeWhere } }),
+  ]);
+
+  // 1) Managers directs : congés EN_ATTENTE de leur équipe
+  const parManager = new Map<number, number>();
+  for (const d of enAttente) {
+    const mid = d.profilRH.manager?.gestionnaire.memberId;
+    if (mid) parManager.set(mid, (parManager.get(mid) ?? 0) + 1);
+  }
+  for (const [managerId, count] of parManager) {
+    const titreKey = "Congés à valider (manager)";
+    if (!(await dejaNotifie(managerId, titreKey))) {
+      await createNotifs([managerId], {
+        titre:    titreKey,
+        message:  `${count} demande(s) de congé de votre équipe attendent votre validation.`,
+        priorite: PrioriteNotification.NORMAL,
+        actionUrl: urlRH,
+      });
+      sent++;
+    }
+  }
+
+  // 2) RESPONSABLE_RH : EN_ATTENTE + VALIDE_MANAGER, regroupés par PDV → RH du PDV concerné
+  const collabUserIds = [
+    ...enAttente.map((d) => d.profilRH.gestionnaire.memberId),
+    ...valideManagerList.map((d) => d.profilRH.gestionnaire.memberId),
+  ];
+  const parPdv = new Map<number, number>();
+  for (const uid of collabUserIds) {
+    const pdv = lookup.pdvByUser.get(uid);
+    if (pdv != null) parPdv.set(pdv, (parPdv.get(pdv) ?? 0) + 1);
+  }
+  for (const [pdv, count] of parPdv) {
+    const titreKey = "Congés à valider (RH)";
+    for (const rhId of lookup.rhByPdv.get(pdv) ?? []) {
+      if (!(await dejaNotifie(rhId, titreKey))) {
+        await createNotifs([rhId], {
+          titre:    titreKey,
+          message:  `${count} demande(s) de congé de votre point de vente attendent une validation RH.`,
+          priorite: PrioriteNotification.NORMAL,
+          actionUrl: urlRH,
+        });
+        sent++;
+      }
+    }
+  }
+
+  // 3) Direction (admin) : validation finale VALIDE_RH
+  if (valideRH > 0) {
+    const titreKey = "Congés à valider (Direction)";
+    for (const adminId of await getAdminIds()) {
+      if (!(await dejaNotifie(adminId, titreKey))) {
+        await createNotifs([adminId], {
+          titre:    titreKey,
+          message:  `${valideRH} demande(s) de congé attendent la validation finale de la Direction.`,
+          priorite: PrioriteNotification.NORMAL,
+          actionUrl: urlAdmin,
+        });
+        sent++;
+      }
     }
   }
 
@@ -554,19 +702,22 @@ export async function runAlertesRH(): Promise<{
   documentsExpirants: number;
   evaluationsProg: number;
   formationsAsuivre: number;
+  congesEnAttente: number;
 }> {
-  const [finContrat, documentsExpirants, evaluationsProg, formationsAsuivre] = await Promise.all([
+  const [finContrat, documentsExpirants, evaluationsProg, formationsAsuivre, congesEnAttente] = await Promise.all([
     alertesFinContrat(),
     alertesDocumentsExpirants(),
     alertesEvaluationsProg(),
     alertesFormationsAsuivre(),
+    alertesCongesEnAttente(),
   ]);
 
   return {
-    total: finContrat + documentsExpirants + evaluationsProg + formationsAsuivre,
+    total: finContrat + documentsExpirants + evaluationsProg + formationsAsuivre + congesEnAttente,
     finContrat,
     documentsExpirants,
     evaluationsProg,
     formationsAsuivre,
+    congesEnAttente,
   };
 }

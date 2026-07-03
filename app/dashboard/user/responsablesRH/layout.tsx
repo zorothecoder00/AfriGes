@@ -26,6 +26,7 @@ const SEGMENT_TO_KEY: Record<string, string> = {
   onboarding:     "onboarding",
   audit:          "audit",
   preferences:    "preferences",
+  notifications:  "notifications",
 };
 
 export default function ResponsableRHLayout({ children }: { children: ReactNode }) {
