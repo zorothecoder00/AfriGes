@@ -118,10 +118,10 @@ export default function RHDashboardPage() {
           <div className="flex items-center gap-2">
             <Link
               href="/dashboard/admin/rh/notifications"
-              className="flex items-center gap-2 px-3 py-2 rounded-xl border border-gray-200 bg-white text-gray-600 hover:text-gray-800 hover:border-gray-300 text-sm font-medium transition-all"
+              className="flex items-center gap-2 px-3 py-2 rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 text-sm font-medium transition-all"
               title="Déclencheurs de notifications RH"
             >
-              <Bell size={16} /> <span className="hidden sm:inline">Déclencheurs</span>
+              <Bell size={16} /> <span>Déclencheurs</span>
             </Link>
             <button
               onClick={refetch}

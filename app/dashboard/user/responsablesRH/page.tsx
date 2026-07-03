@@ -145,10 +145,10 @@ export default function DashboardRHPage() {
             {isAllowed("notifications") && (
               <Link
                 href="/dashboard/user/responsablesRH/notifications"
-                className="p-2.5 rounded-xl border border-slate-200 bg-white text-slate-500 hover:text-slate-700 transition-all"
+                className="flex items-center gap-2 px-3 py-2.5 rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 text-sm font-medium transition-all"
                 title="Déclencheurs de notifications RH"
               >
-                <Zap size={16} />
+                <Zap size={16} /> <span>Déclencheurs</span>
               </Link>
             )}
             <button
