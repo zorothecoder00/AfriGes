@@ -87,7 +87,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
 
     const body = await req.json();
     const { lignes, dureeJours, dateDebut, tauxPenalite, garantie, observations, gestionnaireCreditId,
-      fraisDossier, assurance, autresFrais, tauxInteret, delaiGraceJours,
+      fraisDossier, assurance, autresFrais, fraisLivraison, tauxInteret, delaiGraceJours,
       garantNom, garantTelephone, garantAdresse, garantTypeGarantie, garantValeurEstimee } = body;
 
     const result = await prisma.$transaction(async (tx) => {
@@ -105,7 +105,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
       const estActif = credit.statut === StatutCredit.ACTIF || credit.statut === StatutCredit.EN_RETARD;
       if (credit.statut !== StatutCredit.EN_ATTENTE_VALIDATION && !estActif) throw new Error("CREDIT_NON_MODIFIABLE");
 
-      const toucheFrais    = fraisDossier !== undefined || assurance !== undefined || autresFrais !== undefined || tauxInteret !== undefined;
+      const toucheFrais    = fraisDossier !== undefined || assurance !== undefined || autresFrais !== undefined || fraisLivraison !== undefined || tauxInteret !== undefined;
       const toucheMontant  = lignes !== undefined || toucheFrais;
       const touchePlanning = dureeJours !== undefined || dateDebut !== undefined;
       const dejaRembourse  = Number(credit.montantRembourse);
@@ -189,15 +189,16 @@ export async function PATCH(req: Request, { params }: Ctx) {
 
       // ── Frais / assurance / intérêts → recomposition du montant total ──────
       if (toucheFrais || lignes !== undefined) {
-        const fraisD  = fraisDossier !== undefined ? Math.max(0, Number(fraisDossier)) : Number(credit.fraisDossier);
-        const assur   = assurance    !== undefined ? Math.max(0, Number(assurance))    : Number(credit.assurance);
-        const autres  = autresFrais  !== undefined ? Math.max(0, Number(autresFrais))  : Number(credit.autresFrais);
-        const tauxInt = tauxInteret  !== undefined ? Math.max(0, Number(tauxInteret))  : Number(credit.tauxInteret);
+        const fraisD  = fraisDossier   !== undefined ? Math.max(0, Number(fraisDossier))   : Number(credit.fraisDossier);
+        const assur   = assurance      !== undefined ? Math.max(0, Number(assurance))      : Number(credit.assurance);
+        const autres  = autresFrais    !== undefined ? Math.max(0, Number(autresFrais))    : Number(credit.autresFrais);
+        const fraisLiv = fraisLivraison !== undefined ? Math.max(0, Number(fraisLivraison)) : Number(credit.fraisLivraison);
+        const tauxInt = tauxInteret    !== undefined ? Math.max(0, Number(tauxInteret))    : Number(credit.tauxInteret);
         // Valeur produits = somme des lignes si modifiées, sinon montant actuel − frais actuels.
-        const ancienFraisTotal = Number(credit.fraisDossier) + Number(credit.assurance) + Number(credit.autresFrais) + Number(credit.montantInteret);
+        const ancienFraisTotal = Number(credit.fraisDossier) + Number(credit.assurance) + Number(credit.autresFrais) + Number(credit.fraisLivraison) + Number(credit.montantInteret);
         const valeurProduits = lignes !== undefined ? montantTotal : Number((ancienMontant - ancienFraisTotal).toFixed(2));
         montantInteret = Number((valeurProduits * tauxInt / 100).toFixed(2));
-        montantTotal   = Number((valeurProduits + fraisD + assur + autres + montantInteret).toFixed(2));
+        montantTotal   = Number((valeurProduits + fraisD + assur + autres + fraisLiv + montantInteret).toFixed(2));
         if (montantTotal <= 0) throw new Error("MONTANT_INVALIDE");
       }
 
@@ -223,10 +224,11 @@ export async function PATCH(req: Request, { params }: Ctx) {
           dateEcheanceFin,
           montantJournalier,
           ...(toucheFrais && { montantInteret }),
-          ...(fraisDossier  !== undefined && { fraisDossier: Math.max(0, Number(fraisDossier)) }),
-          ...(assurance     !== undefined && { assurance:    Math.max(0, Number(assurance)) }),
-          ...(autresFrais   !== undefined && { autresFrais:  Math.max(0, Number(autresFrais)) }),
-          ...(tauxInteret   !== undefined && { tauxInteret:  Math.max(0, Number(tauxInteret)) }),
+          ...(fraisDossier   !== undefined && { fraisDossier:   Math.max(0, Number(fraisDossier)) }),
+          ...(assurance      !== undefined && { assurance:      Math.max(0, Number(assurance)) }),
+          ...(autresFrais    !== undefined && { autresFrais:    Math.max(0, Number(autresFrais)) }),
+          ...(fraisLivraison !== undefined && { fraisLivraison: Math.max(0, Number(fraisLivraison)) }),
+          ...(tauxInteret    !== undefined && { tauxInteret:    Math.max(0, Number(tauxInteret)) }),
           ...(delaiGraceJours !== undefined && { delaiGraceJours: Math.max(0, Number(delaiGraceJours)) }),
           ...(tauxPenalite  !== undefined && { tauxPenalite:  Number(tauxPenalite) }),
           ...(garantie      !== undefined && { garantie:      garantie || null }),

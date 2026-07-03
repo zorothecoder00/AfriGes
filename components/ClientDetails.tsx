@@ -199,6 +199,7 @@ interface CreditItem {
   fraisDossier: number | string;
   assurance: number | string;
   autresFrais: number | string;
+  fraisLivraison: number | string;
   tauxInteret: number | string;
   montantInteret: number | string;
   tauxPenalite: number | string;

@@ -1,0 +1,11 @@
+-- AlterTable
+ALTER TABLE "CreditClient" ADD COLUMN     "fraisLivraison" DECIMAL(65,30) NOT NULL DEFAULT 0;
+
+-- AlterTable
+ALTER TABLE "LigneCreditClient" ALTER COLUMN "quantite" SET DATA TYPE DOUBLE PRECISION;
+
+-- AlterTable
+ALTER TABLE "StockSite" ALTER COLUMN "quantite" SET DEFAULT 0,
+ALTER COLUMN "quantite" SET DATA TYPE DOUBLE PRECISION,
+ALTER COLUMN "quantiteReservee" SET DEFAULT 0,
+ALTER COLUMN "quantiteReservee" SET DATA TYPE DOUBLE PRECISION;

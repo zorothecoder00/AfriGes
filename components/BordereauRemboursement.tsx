@@ -21,6 +21,7 @@ export interface BordereauCredit {
   fraisDossier: number | string;
   assurance: number | string;
   autresFrais: number | string;
+  fraisLivraison: number | string;
   tauxInteret: number | string;
   montantInteret: number | string;
   tauxPenalite: number | string;
@@ -226,6 +227,7 @@ function buildBordereauHtml(credit: BordereauCredit, client: BordereauClient, or
     kv("Frais de dossier", fmt(credit.fraisDossier)) +
     kv("Assurance (si applicable)", fmt(credit.assurance)) +
     kv("Autres frais", fmt(credit.autresFrais)) +
+    kv("Frais de livraison", fmt(credit.fraisLivraison)) +
     kv("Taux d'intérêt appliqué", `${N(credit.tauxInteret)} %`) +
     kv("Intérêt total", fmt(credit.montantInteret)) +
     kv("Montant total du crédit accordé", fmt(montantTotal)) +

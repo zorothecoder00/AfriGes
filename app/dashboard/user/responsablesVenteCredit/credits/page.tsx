@@ -57,6 +57,7 @@ interface CreditClient {
   fraisDossier?: number | string;
   assurance?: number | string;
   autresFrais?: number | string;
+  fraisLivraison?: number | string;
   tauxInteret?: number | string;
   garantie?: string | null;
   garantNom?: string | null;
@@ -152,6 +153,7 @@ function NouveauCreditModal({ onClose, onSuccess }: { onClose: () => void; onSuc
   const [fraisDossier,    setFraisDossier]    = useState("0");
   const [assurance,       setAssurance]       = useState("0");
   const [autresFrais,     setAutresFrais]     = useState("0");
+  const [fraisLivraison,  setFraisLivraison]  = useState("0");
   const [tauxInteret,     setTauxInteret]     = useState("0");
   const [delaiGraceJours, setDelaiGraceJours] = useState("0");
   const [garantNom,          setGarantNom]          = useState("");
@@ -231,6 +233,7 @@ function NouveauCreditModal({ onClose, onSuccess }: { onClose: () => void; onSuc
           fraisDossier:    Number(fraisDossier || 0),
           assurance:       Number(assurance || 0),
           autresFrais:     Number(autresFrais || 0),
+          fraisLivraison:  Number(fraisLivraison || 0),
           tauxInteret:     Number(tauxInteret || 0),
           delaiGraceJours: Number(delaiGraceJours || 0),
           garantNom:           garantNom || undefined,
@@ -405,6 +408,11 @@ function NouveauCreditModal({ onClose, onSuccess }: { onClose: () => void; onSuc
                         className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
                     </div>
                     <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1.5">Frais de livraison</label>
+                      <input type="number" min={0} step={100} value={fraisLivraison} onChange={(e) => setFraisLivraison(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                    </div>
+                    <div>
                       <label className="block text-xs font-medium text-gray-700 mb-1.5">Taux intérêt (%)</label>
                       <input type="number" min={0} step={0.1} value={tauxInteret} onChange={(e) => setTauxInteret(e.target.value)}
                         className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
@@ -464,7 +472,7 @@ function NouveauCreditModal({ onClose, onSuccess }: { onClose: () => void; onSuc
                               <input type="text" placeholder="Nom du produit *" value={l.produitNom} onChange={(e) => setLigne(i, "produitNom", e.target.value)}
                                 className="w-full px-2.5 py-1.5 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500" />
                             </div>
-                            <input type="number" placeholder="Qté" min={1} value={l.quantite} onChange={(e) => setLigne(i, "quantite", e.target.value)}
+                            <input type="number" placeholder="Qté" min={0.25} step={0.25} value={l.quantite} onChange={(e) => setLigne(i, "quantite", e.target.value)}
                               className="px-2.5 py-1.5 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500" />
                             <input type="number" placeholder="Prix u." min={0} value={l.prixUnitaire} onChange={(e) => setLigne(i, "prixUnitaire", e.target.value)}
                               className="px-2.5 py-1.5 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500" />
@@ -565,7 +573,7 @@ export default function RVCCreditsPage() {
   const [dureeCredit,  setDureeCredit]  = useState<CreditClient | null>(null);
   const [dureeForm,    setDureeForm]    = useState({
     dureeJours: "", dateDebut: "", tauxPenalite: "0", delaiGraceJours: "0",
-    fraisDossier: "0", assurance: "0", autresFrais: "0", tauxInteret: "0",
+    fraisDossier: "0", assurance: "0", autresFrais: "0", fraisLivraison: "0", tauxInteret: "0",
     garantNom: "", garantTelephone: "", garantAdresse: "", garantTypeGarantie: "", garantValeurEstimee: "0",
   });
   const [dureeLoading, setDureeLoading] = useState(false);
@@ -612,6 +620,7 @@ export default function RVCCreditsPage() {
       fraisDossier:    String(credit.fraisDossier ?? "0"),
       assurance:       String(credit.assurance ?? "0"),
       autresFrais:     String(credit.autresFrais ?? "0"),
+      fraisLivraison:  String(credit.fraisLivraison ?? "0"),
       tauxInteret:     String(credit.tauxInteret ?? "0"),
       garantNom:          credit.garantNom ?? "",
       garantTelephone:    credit.garantTelephone ?? "",
@@ -639,6 +648,7 @@ export default function RVCCreditsPage() {
     if (dureeForm.fraisDossier    !== String(dureeCredit.fraisDossier ?? "0"))    payload.fraisDossier    = Number(dureeForm.fraisDossier || 0);
     if (dureeForm.assurance       !== String(dureeCredit.assurance ?? "0"))       payload.assurance       = Number(dureeForm.assurance || 0);
     if (dureeForm.autresFrais     !== String(dureeCredit.autresFrais ?? "0"))     payload.autresFrais     = Number(dureeForm.autresFrais || 0);
+    if (dureeForm.fraisLivraison  !== String(dureeCredit.fraisLivraison ?? "0"))  payload.fraisLivraison  = Number(dureeForm.fraisLivraison || 0);
     if (dureeForm.tauxInteret     !== String(dureeCredit.tauxInteret ?? "0"))     payload.tauxInteret     = Number(dureeForm.tauxInteret || 0);
     if (dureeForm.garantNom          !== (dureeCredit.garantNom ?? ""))          payload.garantNom          = dureeForm.garantNom;
     if (dureeForm.garantTelephone    !== (dureeCredit.garantTelephone ?? ""))    payload.garantTelephone    = dureeForm.garantTelephone;
@@ -1671,6 +1681,9 @@ export default function RVCCreditsPage() {
                     className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-amber-400 disabled:opacity-50" />
                   <input type="number" min={0} step={100} value={dureeForm.autresFrais} disabled={dureeCredit._count.remboursements > 0}
                     onChange={(e) => setDureeForm(f => ({ ...f, autresFrais: e.target.value }))} placeholder="Autres frais"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-amber-400 disabled:opacity-50" />
+                  <input type="number" min={0} step={100} value={dureeForm.fraisLivraison} disabled={dureeCredit._count.remboursements > 0}
+                    onChange={(e) => setDureeForm(f => ({ ...f, fraisLivraison: e.target.value }))} placeholder="Frais livraison"
                     className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-amber-400 disabled:opacity-50" />
                   <input type="number" min={0} step={0.1} value={dureeForm.tauxInteret} disabled={dureeCredit._count.remboursements > 0}
                     onChange={(e) => setDureeForm(f => ({ ...f, tauxInteret: e.target.value }))} placeholder="Taux intérêt %"

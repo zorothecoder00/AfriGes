@@ -304,6 +304,26 @@ export async function POST(req: NextRequest) {
 
       const montantTTC = Number(credit.montantTotal);
 
+      // Lignes produits + itemisation des frais qui composent le montant total
+      // (pour que la facture totalise exactement montantTotal, frais de livraison compris).
+      const ligneFrais = (designation: string, montant: number) => ({
+        designation, unite: null, quantite: 1, prixUnitaire: montant, montant,
+      });
+      const lignesFacture = [
+        ...credit.lignes.map(l => ({
+          designation:  l.produitNom,
+          unite:        l.produit?.unite ?? null,
+          quantite:     l.quantite,
+          prixUnitaire: Number(l.prixUnitaire),
+          montant:      Number(l.montantLigne),
+        })),
+        ...(Number(credit.fraisDossier)   > 0 ? [ligneFrais("Frais de dossier",   Number(credit.fraisDossier))]   : []),
+        ...(Number(credit.assurance)      > 0 ? [ligneFrais("Assurance",          Number(credit.assurance))]      : []),
+        ...(Number(credit.autresFrais)    > 0 ? [ligneFrais("Autres frais",       Number(credit.autresFrais))]    : []),
+        ...(Number(credit.fraisLivraison) > 0 ? [ligneFrais("Frais de livraison", Number(credit.fraisLivraison))] : []),
+        ...(Number(credit.montantInteret) > 0 ? [ligneFrais("Intérêt",            Number(credit.montantInteret))] : []),
+      ];
+
       const created = await createFactureWithRetry({
           type:           "CREDIT",
           statut:         "EMISE",
@@ -325,15 +345,7 @@ export async function POST(req: NextRequest) {
           modePaiement: "CREDIT",
           dateEcheance: credit.dateEcheanceFin,
           notes:        credit.observations,
-          lignes: {
-            create: credit.lignes.map(l => ({
-              designation:  l.produitNom,
-              unite:        l.produit?.unite ?? null,
-              quantite:     l.quantite,
-              prixUnitaire: Number(l.prixUnitaire),
-              montant:      Number(l.montantLigne),
-            })),
-          },
+          lignes: { create: lignesFacture },
         },
         INCLUDE_FULL,
       );

@@ -49,7 +49,7 @@ export async function GET(req: Request) {
           montantTotal: true, montantRembourse: true, soldeRestant: true,
           dureeJours: true, dateDebut: true, dateEcheanceFin: true,
           montantJournalier: true, tauxPenalite: true, delaiGraceJours: true,
-          fraisDossier: true, assurance: true, autresFrais: true, tauxInteret: true, montantInteret: true,
+          fraisDossier: true, assurance: true, autresFrais: true, fraisLivraison: true, tauxInteret: true, montantInteret: true,
           garantie: true, observations: true, gestionnaireCreditId: true, dateValidation: true,
           garantNom: true, garantTelephone: true, garantAdresse: true, garantTypeGarantie: true, garantValeurEstimee: true,
           createdAt: true, updatedAt: true,
@@ -101,7 +101,7 @@ export async function POST(req: Request) {
       lignes,
       dureeJours, dateDebut,
       tauxPenalite, garantie, observations,
-      fraisDossier, assurance, autresFrais, tauxInteret, delaiGraceJours,
+      fraisDossier, assurance, autresFrais, fraisLivraison, tauxInteret, delaiGraceJours,
       garantNom, garantTelephone, garantAdresse, garantTypeGarantie, garantValeurEstimee,
     } = body;
 
@@ -166,13 +166,14 @@ export async function POST(req: Request) {
       );
       if (valeurProduits <= 0) throw new Error("MONTANT_INVALIDE");
 
-      const fraisDossierN = Math.max(0, Number(fraisDossier ?? 0));
-      const assuranceN    = Math.max(0, Number(assurance ?? 0));
-      const autresFraisN  = Math.max(0, Number(autresFrais ?? 0));
-      const tauxInteretN  = Math.max(0, Number(tauxInteret ?? 0));
+      const fraisDossierN   = Math.max(0, Number(fraisDossier ?? 0));
+      const assuranceN      = Math.max(0, Number(assurance ?? 0));
+      const autresFraisN    = Math.max(0, Number(autresFrais ?? 0));
+      const fraisLivraisonN = Math.max(0, Number(fraisLivraison ?? 0));
+      const tauxInteretN    = Math.max(0, Number(tauxInteret ?? 0));
       const montantInteret = Number((valeurProduits * tauxInteretN / 100).toFixed(2));
       const montantTotal = Number(
-        (valeurProduits + fraisDossierN + assuranceN + autresFraisN + montantInteret).toFixed(2)
+        (valeurProduits + fraisDossierN + assuranceN + autresFraisN + fraisLivraisonN + montantInteret).toFixed(2)
       );
 
       // ── Calcul échéancier (stocké, échéances générées à la validation) ────
@@ -227,6 +228,7 @@ export async function POST(req: Request) {
           fraisDossier:   fraisDossierN,
           assurance:      assuranceN,
           autresFrais:    autresFraisN,
+          fraisLivraison: fraisLivraisonN,
           tauxInteret:    tauxInteretN,
           montantInteret,
           tauxPenalite: tauxPenalite != null ? Number(tauxPenalite) : 0,

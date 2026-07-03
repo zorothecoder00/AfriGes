@@ -1135,6 +1135,7 @@ model CreditClient {
   fraisDossier     Decimal      @default(0)
   assurance        Decimal      @default(0)
   autresFrais      Decimal      @default(0)
+  fraisLivraison   Decimal      @default(0)
   tauxInteret      Decimal      @default(0) // % appliqué sur la valeur des produits
   montantInteret   Decimal      @default(0) // = valeurProduits × tauxInteret / 100
 
@@ -1189,7 +1190,7 @@ model LigneCreditClient {
   // Snapshot au moment de la vente (conservé même si produit modifié)
   produitNom       String
   produitNomSaisi  String?  // saisie libre originale — pour traçabilité si produit substitué
-  quantite         Int
+  quantite         Float    // décimal autorisé (ex: 0.5 = demi-quantité pour clients fragiles)
   prixUnitaire     Decimal
   remise           Decimal  @default(0)
   montantLigne     Decimal
@@ -1417,8 +1418,8 @@ model StockSite {
   id             Int          @id @default(autoincrement())
   produitId      Int
   pointDeVenteId Int
-  quantite           Int      @default(0)  // 4.1 disponible — physiquement vendable
-  quantiteReservee   Int      @default(0)  // 4.2 réservé — engagé (ventes crédit en attente d'approbation)
+  quantite           Float    @default(0)  // 4.1 disponible — physiquement vendable (décimal : demi-quantités crédit)
+  quantiteReservee   Float    @default(0)  // 4.2 réservé — engagé (ventes crédit en attente d'approbation)
   quantiteEnTransit  Int      @default(0)  // 4.3 en transit — commandé, non encore réceptionné
   quantiteEndommagee Int      @default(0)  // 4.4 endommagé — non vendable (perte/casse mis de côté)
   // 4.5 stockTheorique = quantite + quantiteReservee + quantiteEnTransit - quantiteEndommagee (calculé)
@@ -2860,7 +2861,7 @@ model LigneFactureVente {
   factureId    Int
   designation  String
   unite        String?
-  quantite     Int
+  quantite     Float
   prixUnitaire Decimal
   montant      Decimal
 

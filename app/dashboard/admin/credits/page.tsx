@@ -38,6 +38,7 @@ interface CreditClient {
   fraisDossier?: string | number;
   assurance?: string | number;
   autresFrais?: string | number;
+  fraisLivraison?: string | number;
   tauxInteret?: string | number;
   garantie: string | null;
   garantNom?: string | null;
@@ -228,7 +229,7 @@ export default function CreditsPage() {
   ]);
   const [creditParams,    setCreditParams]    = useState({
     dureeJours: '', dateDebut: new Date().toISOString().slice(0, 10),
-    fraisDossier: '0', assurance: '0', autresFrais: '0', tauxInteret: '0', delaiGraceJours: '0',
+    fraisDossier: '0', assurance: '0', autresFrais: '0', fraisLivraison: '0', tauxInteret: '0', delaiGraceJours: '0',
     garantNom: '', garantTelephone: '', garantAdresse: '', garantTypeGarantie: '', garantValeurEstimee: '0',
     tauxPenalite: '0', garantie: '', observations: '',
   });
@@ -241,7 +242,7 @@ export default function CreditsPage() {
   const [editCredit,     setEditCredit]     = useState<CreditClient | null>(null);
   const [editForm,       setEditForm]       = useState({
     dureeJours: '', dateDebut: '', tauxPenalite: '0', garantie: '', observations: '', gestionnaireCreditId: '',
-    fraisDossier: '0', assurance: '0', autresFrais: '0', tauxInteret: '0', delaiGraceJours: '0',
+    fraisDossier: '0', assurance: '0', autresFrais: '0', fraisLivraison: '0', tauxInteret: '0', delaiGraceJours: '0',
     garantNom: '', garantTelephone: '', garantAdresse: '', garantTypeGarantie: '', garantValeurEstimee: '0',
   });
   const [editLoading,    setEditLoading]    = useState(false);
@@ -267,6 +268,7 @@ export default function CreditsPage() {
       fraisDossier:    String(credit.fraisDossier ?? '0'),
       assurance:       String(credit.assurance ?? '0'),
       autresFrais:     String(credit.autresFrais ?? '0'),
+      fraisLivraison:  String(credit.fraisLivraison ?? '0'),
       tauxInteret:     String(credit.tauxInteret ?? '0'),
       delaiGraceJours: String(credit.delaiGraceJours ?? '0'),
       garantNom:          credit.garantNom ?? '',
@@ -301,6 +303,7 @@ export default function CreditsPage() {
     if (editForm.fraisDossier    !== String(editCredit.fraisDossier ?? '0'))    payload.fraisDossier    = Number(editForm.fraisDossier || 0);
     if (editForm.assurance       !== String(editCredit.assurance ?? '0'))       payload.assurance       = Number(editForm.assurance || 0);
     if (editForm.autresFrais     !== String(editCredit.autresFrais ?? '0'))     payload.autresFrais     = Number(editForm.autresFrais || 0);
+    if (editForm.fraisLivraison  !== String(editCredit.fraisLivraison ?? '0'))  payload.fraisLivraison  = Number(editForm.fraisLivraison || 0);
     if (editForm.tauxInteret     !== String(editCredit.tauxInteret ?? '0'))     payload.tauxInteret     = Number(editForm.tauxInteret || 0);
     if (editForm.delaiGraceJours !== String(editCredit.delaiGraceJours ?? '0')) payload.delaiGraceJours = Number(editForm.delaiGraceJours || 0);
     // Garant (métadonnées bordereau)
@@ -444,7 +447,7 @@ export default function CreditsPage() {
     setCreditSelectedClient(null); setEligibilite(null); setShowSetLimite(false); setLimiteInput(''); setCreditError('');
     setCreditPdvId(''); setCreditStockPdv([]); setCreditClientResults([]);
     setCreditLignes([{ produitId: null, produitNom: '', quantite: 1, prixUnitaire: 0, remise: 0, stockDisponible: Infinity }]);
-    setCreditParams({ dureeJours: '', dateDebut: new Date().toISOString().slice(0, 10), fraisDossier: '0', assurance: '0', autresFrais: '0', tauxInteret: '0', delaiGraceJours: '0', garantNom: '', garantTelephone: '', garantAdresse: '', garantTypeGarantie: '', garantValeurEstimee: '0', tauxPenalite: '0', garantie: '', observations: '' });
+    setCreditParams({ dureeJours: '', dateDebut: new Date().toISOString().slice(0, 10), fraisDossier: '0', assurance: '0', autresFrais: '0', fraisLivraison: '0', tauxInteret: '0', delaiGraceJours: '0', garantNom: '', garantTelephone: '', garantAdresse: '', garantTypeGarantie: '', garantValeurEstimee: '0', tauxPenalite: '0', garantie: '', observations: '' });
   };
 
   const checkEligibilite = async (clientId: number) => {
@@ -476,10 +479,10 @@ export default function CreditsPage() {
 
   const creditMontantTotal = creditLignes.reduce((s, l) => s + (l.prixUnitaire * l.quantite - l.remise), 0);
   const creditInteret        = Number(((creditMontantTotal * Number(creditParams.tauxInteret || 0)) / 100).toFixed(2));
-  const creditFraisTotal     = Number(creditParams.fraisDossier || 0) + Number(creditParams.assurance || 0) + Number(creditParams.autresFrais || 0) + creditInteret;
+  const creditFraisTotal     = Number(creditParams.fraisDossier || 0) + Number(creditParams.assurance || 0) + Number(creditParams.autresFrais || 0) + Number(creditParams.fraisLivraison || 0) + creditInteret;
   const creditTotalARembourser = creditMontantTotal + creditFraisTotal;
   const creditLignesInvalid = creditLignes.filter(l => l.produitNom.trim()).some(l =>
-    l.prixUnitaire <= 0 || l.quantite < 1 ||
+    l.prixUnitaire <= 0 || l.quantite <= 0 ||
     (l.remise > 0 && l.remise >= l.prixUnitaire * l.quantite) ||
     (l.stockDisponible !== Infinity && l.quantite > l.stockDisponible)
   );
@@ -518,6 +521,7 @@ export default function CreditsPage() {
           fraisDossier:    Number(creditParams.fraisDossier || 0),
           assurance:       Number(creditParams.assurance || 0),
           autresFrais:     Number(creditParams.autresFrais || 0),
+          fraisLivraison:  Number(creditParams.fraisLivraison || 0),
           tauxInteret:     Number(creditParams.tauxInteret || 0),
           delaiGraceJours: Number(creditParams.delaiGraceJours || 0),
           garantNom:           creditParams.garantNom || undefined,
@@ -1718,8 +1722,8 @@ export default function CreditsPage() {
                             </div>
                             <div className="col-span-2">
                               {i === 0 && <label className="block text-xs font-medium text-slate-500 mb-1">Qté</label>}
-                              <input type="number" min={1} max={ligne.stockDisponible !== Infinity ? ligne.stockDisponible : undefined} value={ligne.quantite}
-                                onChange={e => setCreditLignes(prev => prev.map((l, j) => j !== i ? l : { ...l, quantite: Math.max(1, Number(e.target.value)) }))}
+                              <input type="number" min={0.25} step={0.25} max={ligne.stockDisponible !== Infinity ? ligne.stockDisponible : undefined} value={ligne.quantite}
+                                onChange={e => setCreditLignes(prev => prev.map((l, j) => j !== i ? l : { ...l, quantite: Math.max(0.25, Number(e.target.value)) }))}
                                 className={`w-full px-2 py-2 border rounded-lg text-xs bg-white text-center focus:outline-none focus:ring-2 focus:ring-blue-500 ${stockInsuffisant ? 'border-red-300 bg-red-50' : 'border-slate-200'}`} />
                               {ligne.stockDisponible !== Infinity && <p className="text-xs text-gray-400 text-center mt-0.5">max {ligne.stockDisponible}</p>}
                             </div>
@@ -1825,6 +1829,12 @@ export default function CreditsPage() {
                       <label className="block text-xs font-medium text-slate-600 mb-1">Autres frais</label>
                       <input type="number" min={0} step={100} value={creditParams.autresFrais}
                         onChange={e => setCreditParams(p => ({ ...p, autresFrais: e.target.value }))}
+                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600 mb-1">Frais de livraison</label>
+                      <input type="number" min={0} step={100} value={creditParams.fraisLivraison}
+                        onChange={e => setCreditParams(p => ({ ...p, fraisLivraison: e.target.value }))}
                         className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50" />
                     </div>
                     <div>
@@ -2207,6 +2217,9 @@ export default function CreditsPage() {
                     className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-400 disabled:opacity-50" />
                   <input type="number" min={0} step={100} value={editForm.autresFrais} disabled={editAvecRemboursements}
                     onChange={(e) => setEditForm(f => ({ ...f, autresFrais: e.target.value }))} placeholder="Autres frais"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-400 disabled:opacity-50" />
+                  <input type="number" min={0} step={100} value={editForm.fraisLivraison} disabled={editAvecRemboursements}
+                    onChange={(e) => setEditForm(f => ({ ...f, fraisLivraison: e.target.value }))} placeholder="Frais livraison"
                     className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-400 disabled:opacity-50" />
                   <input type="number" min={0} step={0.1} value={editForm.tauxInteret} disabled={editAvecRemboursements}
                     onChange={(e) => setEditForm(f => ({ ...f, tauxInteret: e.target.value }))} placeholder="Taux intérêt %"

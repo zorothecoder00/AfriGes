@@ -118,6 +118,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
       fraisDossier?: number;
       assurance?: number;
       autresFrais?: number;
+      fraisLivraison?: number;
       tauxInteret?: number;
       garantNom?: string | null;
       garantTelephone?: string | null;
@@ -132,7 +133,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
         select: {
           id: true, statut: true, pointDeVenteId: true, clientId: true,
           montantTotal: true, montantRembourse: true, dureeJours: true, dateDebut: true,
-          fraisDossier: true, assurance: true, autresFrais: true, tauxInteret: true, montantInteret: true,
+          fraisDossier: true, assurance: true, autresFrais: true, fraisLivraison: true, tauxInteret: true, montantInteret: true,
         },
       });
       if (!credit) throw new Error("CREDIT_INTROUVABLE");
@@ -143,20 +144,21 @@ export async function PATCH(req: Request, { params }: Ctx) {
       if (rvcPdvId !== null && credit.pointDeVenteId !== rvcPdvId) throw new Error("ACCES_REFUSE");
 
       // ── Frais / intérêts → recomposition du montant total à rembourser ──
-      const toucheFrais = body.fraisDossier !== undefined || body.assurance !== undefined || body.autresFrais !== undefined || body.tauxInteret !== undefined;
+      const toucheFrais = body.fraisDossier !== undefined || body.assurance !== undefined || body.autresFrais !== undefined || body.fraisLivraison !== undefined || body.tauxInteret !== undefined;
       let nouveauMontantTotal: number | undefined;
       let nouveauMontantInteret: number | undefined;
       if (toucheFrais) {
         // Interdit si le crédit a déjà des remboursements (fausserait le suivi).
         if (Number(credit.montantRembourse) > 0) throw new Error("ACTIF_AVEC_REMBOURSEMENT");
-        const fraisD  = body.fraisDossier !== undefined ? Math.max(0, Number(body.fraisDossier)) : Number(credit.fraisDossier);
-        const assur   = body.assurance    !== undefined ? Math.max(0, Number(body.assurance))    : Number(credit.assurance);
-        const autres  = body.autresFrais  !== undefined ? Math.max(0, Number(body.autresFrais))  : Number(credit.autresFrais);
-        const tauxInt = body.tauxInteret  !== undefined ? Math.max(0, Number(body.tauxInteret))  : Number(credit.tauxInteret);
-        const ancienFraisTotal = Number(credit.fraisDossier) + Number(credit.assurance) + Number(credit.autresFrais) + Number(credit.montantInteret);
+        const fraisD  = body.fraisDossier   !== undefined ? Math.max(0, Number(body.fraisDossier))   : Number(credit.fraisDossier);
+        const assur   = body.assurance      !== undefined ? Math.max(0, Number(body.assurance))      : Number(credit.assurance);
+        const autres  = body.autresFrais    !== undefined ? Math.max(0, Number(body.autresFrais))    : Number(credit.autresFrais);
+        const fraisLiv = body.fraisLivraison !== undefined ? Math.max(0, Number(body.fraisLivraison)) : Number(credit.fraisLivraison);
+        const tauxInt = body.tauxInteret    !== undefined ? Math.max(0, Number(body.tauxInteret))    : Number(credit.tauxInteret);
+        const ancienFraisTotal = Number(credit.fraisDossier) + Number(credit.assurance) + Number(credit.autresFrais) + Number(credit.fraisLivraison) + Number(credit.montantInteret);
         const valeurProduits = Number((Number(credit.montantTotal) - ancienFraisTotal).toFixed(2));
         nouveauMontantInteret = Number((valeurProduits * tauxInt / 100).toFixed(2));
-        nouveauMontantTotal   = Number((valeurProduits + fraisD + assur + autres + nouveauMontantInteret).toFixed(2));
+        nouveauMontantTotal   = Number((valeurProduits + fraisD + assur + autres + fraisLiv + nouveauMontantInteret).toFixed(2));
         if (nouveauMontantTotal <= 0) throw new Error("MONTANT_INVALIDE");
       }
 
@@ -177,6 +179,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
       if (body.fraisDossier       !== undefined) meta.fraisDossier    = Math.max(0, Number(body.fraisDossier));
       if (body.assurance          !== undefined) meta.assurance       = Math.max(0, Number(body.assurance));
       if (body.autresFrais        !== undefined) meta.autresFrais     = Math.max(0, Number(body.autresFrais));
+      if (body.fraisLivraison     !== undefined) meta.fraisLivraison  = Math.max(0, Number(body.fraisLivraison));
       if (body.tauxInteret        !== undefined) meta.tauxInteret     = Math.max(0, Number(body.tauxInteret));
       if (nouveauMontantInteret   != null)       meta.montantInteret  = nouveauMontantInteret;
       if (body.garantNom          !== undefined) meta.garantNom          = body.garantNom || null;

@@ -59,7 +59,7 @@ export async function GET(req: Request) {
           dureeJours: true, dateDebut: true, dateEcheanceFin: true,
           montantJournalier: true, createdAt: true,
           tauxPenalite: true, delaiGraceJours: true,
-          fraisDossier: true, assurance: true, autresFrais: true, tauxInteret: true,
+          fraisDossier: true, assurance: true, autresFrais: true, fraisLivraison: true, tauxInteret: true,
           garantie: true, garantNom: true, garantTelephone: true, garantAdresse: true, garantTypeGarantie: true, garantValeurEstimee: true,
           client:   { select: { id: true, nom: true, prenom: true, codeClient: true, telephone: true } },
           creePar:  { select: { id: true, nom: true, prenom: true } },
@@ -92,7 +92,7 @@ export async function POST(req: Request) {
     const userId = parseInt(session.user.id);
     const body = await req.json();
     const { clientId, pointDeVenteId, lignes, dureeJours, dateDebut, tauxPenalite, garantie, observations,
-      fraisDossier, assurance, autresFrais, tauxInteret, delaiGraceJours,
+      fraisDossier, assurance, autresFrais, fraisLivraison, tauxInteret, delaiGraceJours,
       garantNom, garantTelephone, garantAdresse, garantTypeGarantie, garantValeurEstimee } = body;
 
     if (!clientId || !lignes?.length || !dureeJours || !dateDebut) {
@@ -147,12 +147,13 @@ export async function POST(req: Request) {
       const valeurProduits = Number(lignesCalc.reduce((s, l) => s + l.montantLigne, 0).toFixed(2));
       if (valeurProduits <= 0) throw new Error("MONTANT_INVALIDE");
 
-      const fraisDossierN = Math.max(0, Number(fraisDossier ?? 0));
-      const assuranceN    = Math.max(0, Number(assurance ?? 0));
-      const autresFraisN  = Math.max(0, Number(autresFrais ?? 0));
-      const tauxInteretN  = Math.max(0, Number(tauxInteret ?? 0));
+      const fraisDossierN   = Math.max(0, Number(fraisDossier ?? 0));
+      const assuranceN      = Math.max(0, Number(assurance ?? 0));
+      const autresFraisN    = Math.max(0, Number(autresFrais ?? 0));
+      const fraisLivraisonN = Math.max(0, Number(fraisLivraison ?? 0));
+      const tauxInteretN    = Math.max(0, Number(tauxInteret ?? 0));
       const montantInteret = Number((valeurProduits * tauxInteretN / 100).toFixed(2));
-      const montantTotal = Number((valeurProduits + fraisDossierN + assuranceN + autresFraisN + montantInteret).toFixed(2));
+      const montantTotal = Number((valeurProduits + fraisDossierN + assuranceN + autresFraisN + fraisLivraisonN + montantInteret).toFixed(2));
 
       const duree = Number(dureeJours);
       const debut = new Date(dateDebut);
@@ -222,6 +223,7 @@ export async function POST(req: Request) {
           fraisDossier:   fraisDossierN,
           assurance:      assuranceN,
           autresFrais:    autresFraisN,
+          fraisLivraison: fraisLivraisonN,
           tauxInteret:    tauxInteretN,
           montantInteret,
           tauxPenalite: tauxPenalite != null ? Number(tauxPenalite) : 0,
