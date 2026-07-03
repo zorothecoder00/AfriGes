@@ -1855,9 +1855,10 @@ function DashboardTab() {
 
           {/* Variables — commissions & bonus versés */}
           <div className="bg-white rounded-xl border border-slate-200 p-5">
-            <h3 className="text-sm font-semibold text-slate-700 mb-4 flex items-center gap-2">
+            <h3 className="text-sm font-semibold text-slate-700 mb-1 flex items-center gap-2">
               <TrendingUp className="w-4 h-4" /> Rémunération variable {annee}
             </h3>
+            <p className="text-xs text-slate-400 mb-4">Montants effectivement <b>versés</b> (fiches payées uniquement) — distinct de la masse salariale engagée.</p>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-5">
               <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-4">
                 <p className="text-xs text-emerald-700 font-medium">Commissions versées</p>

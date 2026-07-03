@@ -97,7 +97,7 @@ export async function GET(req: NextRequest) {
       prisma.fichePaie.findMany({
         where:  { annee, statut: { in: [...STATUTS_PAIE] }, profilRHId: profilFilter },
         select: {
-          mois: true, netAPayer: true, profilRHId: true,
+          mois: true, netAPayer: true, profilRHId: true, statut: true,
           composants: { select: { type: true, montant: true, isRetenue: true } },
         },
       }),
@@ -152,11 +152,16 @@ export async function GET(req: NextRequest) {
 
       parCollabMap[f.profilRHId] = (parCollabMap[f.profilRHId] ?? 0) + net;
 
+      // « Versées » = strictement PAYE (cf. dashboard admin) ; masse salariale /
+      // coût RH restent sur l'engagement large (VALIDE+EN_PAIEMENT+PAYE).
+      const verse = f.statut === "PAYE";
+
       for (const c of f.composants) {
         const montant = Number(c.montant);
         if (!c.isRetenue && f.mois === moisCourant) {
           composantsMoisMap[c.type] = (composantsMoisMap[c.type] ?? 0) + montant;
         }
+        if (!verse) continue;
         if (c.type === "COMMISSION")      { commissionsAnnee += montant; variablesMensuelles[f.mois - 1].commissions += montant; }
         if (c.type === "BONUS")           { bonusAnnee       += montant; variablesMensuelles[f.mois - 1].bonus       += montant; }
         if (c.type.startsWith("PRIME_"))  { primesAnnee      += montant; variablesMensuelles[f.mois - 1].primes      += montant; }

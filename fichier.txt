@@ -160,22 +160,9 @@ Garantie   sur les factures
 On veut aussi côté du nom sa fonction ( rôle gestionnaire peut être )
 
 
-Un point à valider : je considère « versées » au sens large (fiches VALIDE +
-  EN_PAIEMENT + PAYE, comme la masse salariale). Si tu veux que « versées » =
-  strictement PAYE, je restreins les totaux variables à ce seul statut —
-  dis-moi.
-
-
-
 Créé un menu ou onglet " bordereau de remboursement" dans /dashboard/admin/clients/id
 
 Je pense que les caissiers et les agents de terrain aussi devraient avoir la main pour modifier les crédits avec les nouvezux champs ( qui vont aider pour le bordereau de remboursement )
-
-
-Lorsqu'on scanne le code QR , ça doit ramené vers le document de bordereau de remboursement ( sans avoir besoin de se connecter ; parce que ça renvoie vers la page de login)
-
-
-Sur le bordereau de remboursement( je précise au niveau de l'impression) , on supprime quartier , profession , employeur , numéro piece d'identité , historique de paiement , garantie ET situation du crédit 
 
 
           Choses à revoir pour le bordereau de remboursement des clients 
