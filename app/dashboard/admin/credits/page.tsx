@@ -62,7 +62,12 @@ interface CreditClient {
 
 interface CreditsResponse {
   data: CreditClient[];
-  meta: { total: number; page: number; limit: number; totalPages: number };
+  meta: {
+    total: number; page: number; limit: number; totalPages: number;
+    // Sous-totaux mensuels calculés côté serveur sur tout le filtre (hors pagination),
+    // clé "YYYY-MM". Sert à afficher le vrai total du mois en tête de groupe.
+    parMois?: Record<string, { total: number; count: number }>;
+  };
 }
 
 interface LigneCreditDetail {
@@ -893,7 +898,10 @@ export default function CreditsPage() {
                     {groupByMonth(credits, (c) => c.dateDebut, (c) => Number(c.montantTotal)).map((grp) => (
                       <React.Fragment key={grp.key}>
                         <MonthGroupHeaderRow
-                          label={grp.label} total={grp.total} count={grp.count} colSpan={8}
+                          label={grp.label}
+                          total={meta?.parMois?.[grp.key]?.total ?? grp.total}
+                          count={meta?.parMois?.[grp.key]?.count ?? grp.count}
+                          colSpan={8}
                           open={credMonths.isOpen(grp.key)} onToggle={() => credMonths.toggle(grp.key)}
                         />
                         {credMonths.isOpen(grp.key) && grp.items.map((credit) => {

@@ -38,7 +38,7 @@ export async function GET(req: Request) {
       }),
     };
 
-    const [credits, total] = await Promise.all([
+    const [credits, total, creditsPourMois] = await Promise.all([
       prisma.creditClient.findMany({
         where,
         skip,
@@ -65,11 +65,34 @@ export async function GET(req: Request) {
         },
       }),
       prisma.creditClient.count({ where }),
+      // Agrégat mensuel sur TOUS les crédits du filtre courant (indépendant de la
+      // pagination) : les sous-totaux par mois affichés en tête de groupe doivent
+      // refléter l'ensemble des crédits du mois, pas seulement la page visible.
+      prisma.creditClient.findMany({
+        where,
+        select: { dateDebut: true, montantTotal: true },
+      }),
     ]);
+
+    // Regroupement par mois (clé "YYYY-MM", identique à lib/groupByMonth côté client).
+    // Calculé en UTC pour ne pas dépendre du fuseau du serveur.
+    const parMoisMap = new Map<string, { total: number; count: number }>();
+    for (const c of creditsPourMois) {
+      const d = c.dateDebut ? new Date(c.dateDebut) : null;
+      const valid = d != null && !isNaN(d.getTime());
+      const key = valid
+        ? `${d!.getUTCFullYear()}-${String(d!.getUTCMonth() + 1).padStart(2, "0")}`
+        : "0000-00";
+      const e = parMoisMap.get(key) ?? { total: 0, count: 0 };
+      e.total += Number(c.montantTotal);
+      e.count += 1;
+      parMoisMap.set(key, e);
+    }
+    const parMois: Record<string, { total: number; count: number }> = Object.fromEntries(parMoisMap);
 
     return NextResponse.json({
       data: credits,
-      meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
+      meta: { total, page, limit, totalPages: Math.ceil(total / limit), parMois },
     });
   } catch (error) {
     console.error("GET /api/admin/credits", error);

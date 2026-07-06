@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { X, Printer } from "lucide-react";
+import { X, Printer, ZoomIn, ZoomOut } from "lucide-react";
 import QRCode from "qrcode";
 import { toCanvas as barcodeToCanvas } from "bwip-js/browser";
 import { buildCalendrier } from "@/lib/calendrierRemboursement";
@@ -138,22 +138,26 @@ function buildBordereauHtml(credit: BordereauCredit, client: BordereauClient, or
     const enRetard = r.statut === "EN_RETARD";
     const estPaye  = r.statut === "PAYE";
     return `<tr>
-      <td style="padding:5px 6px;border:1px solid ${c.line};text-align:center">${r.jour}</td>
-      <td style="padding:5px 6px;border:1px solid ${c.line}">${fmtDate(r.date)}</td>
-      <td style="padding:5px 6px;border:1px solid ${c.line};text-align:right">${fmt(r.montantPrevu)}</td>
-      <td style="padding:5px 6px;border:1px solid ${c.line};text-align:right">${fmt(r.montantPaye)}</td>
-      <td style="padding:5px 6px;border:1px solid ${c.line};text-align:right">${fmt(r.soldeRestant)}</td>
-      <td style="padding:5px 6px;border:1px solid ${c.line};text-align:center;${enRetard ? `color:${c.danger};font-weight:600` : estPaye ? `color:${c.accent};font-weight:600` : ""}">${STATUT_CAL_LABEL[r.statut]}</td>
-      <td style="padding:5px 6px;border:1px solid ${c.line}"></td>
+      <td style="padding:2.5px 6px;border:1px solid ${c.line};text-align:center">${r.jour}</td>
+      <td style="padding:2.5px 6px;border:1px solid ${c.line}">${fmtDate(r.date)}</td>
+      <td style="padding:2.5px 6px;border:1px solid ${c.line};text-align:right">${fmt(r.montantPrevu)}</td>
+      <td style="padding:2.5px 6px;border:1px solid ${c.line};text-align:right">${fmt(r.montantPaye)}</td>
+      <td style="padding:2.5px 6px;border:1px solid ${c.line};text-align:right">${fmt(r.soldeRestant)}</td>
+      <td style="padding:2.5px 6px;border:1px solid ${c.line};text-align:center;${enRetard ? `color:${c.danger};font-weight:600` : estPaye ? `color:${c.accent};font-weight:600` : ""}">${STATUT_CAL_LABEL[r.statut]}</td>
+      <td style="padding:2.5px 6px;border:1px solid ${c.line}"></td>
     </tr>`;
   }).join("");
 
   // ── Helpers de rendu ──
   const kv = (k: string, v: string) => `<tr>
-    <td style="padding:5px 8px;border:1px solid ${c.line};color:${c.muted};width:45%">${k}</td>
-    <td style="padding:5px 8px;border:1px solid ${c.line};font-weight:600;color:${c.text}">${v}</td></tr>`;
-  const sectionTitle = (t: string) => `<h2 style="font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;color:${c.headText};background:${c.headBg};padding:6px 10px;border-left:3px solid ${c.accent};margin:22px 0 8px">${t}</h2>`;
-  const table = (rows: string) => `<table style="width:100%;border-collapse:collapse;font-size:12px">${rows}</table>`;
+    <td style="padding:3px 8px;border:1px solid ${c.line};color:${c.muted};width:45%">${k}</td>
+    <td style="padding:3px 8px;border:1px solid ${c.line};font-weight:600;color:${c.text}">${v}</td></tr>`;
+  const sectionTitle = (t: string) => `<h2 style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;color:${c.headText};background:${c.headBg};padding:5px 10px;border-left:3px solid ${c.accent};margin:12px 0 6px;page-break-after:avoid">${t}</h2>`;
+  const table = (rows: string) => `<table style="width:100%;border-collapse:collapse;font-size:11.5px">${rows}</table>`;
+  // Deux tables côte à côte sous un même titre (gain de hauteur).
+  const twoCol = (left: string, right: string) => `<div style="display:flex;gap:16px;align-items:flex-start">
+    <div style="flex:1;min-width:0">${table(left)}</div>
+    <div style="flex:1;min-width:0">${table(right)}</div></div>`;
 
   return `<!DOCTYPE html>
 <html lang="fr"><head><meta charset="utf-8"/>
@@ -198,31 +202,35 @@ function buildBordereauHtml(credit: BordereauCredit, client: BordereauClient, or
     </div>
   </div>
 
-  <!-- B. Informations du client -->
-  ${sectionTitle("B. Informations du client")}
-  ${table(
-    kv("Code Client", dash(client.codeClient)) +
-    kv("Nom & Prénoms", esc(`${client.prenom} ${client.nom}`)) +
-    kv("Sexe", client.sexe ? (SEXE_LABEL[client.sexe] ?? client.sexe) : "—") +
-    kv("Téléphone", dash(client.telephone)) +
-    kv("Adresse", dash(client.adresse)) +
-    kv("N° Carte Client AfriSime", dash(client.numeroCarteAfrisime)),
-  )}
+  <!-- B & C. Client / Crédit — côte à côte -->
+  <div style="display:flex;gap:16px;align-items:flex-start">
+    <div style="flex:1;min-width:0">
+      ${sectionTitle("B. Informations du client")}
+      ${table(
+        kv("Code Client", dash(client.codeClient)) +
+        kv("Nom & Prénoms", esc(`${client.prenom} ${client.nom}`)) +
+        kv("Sexe", client.sexe ? (SEXE_LABEL[client.sexe] ?? client.sexe) : "—") +
+        kv("Téléphone", dash(client.telephone)) +
+        kv("Adresse", dash(client.adresse)) +
+        kv("N° Carte Client AfriSime", dash(client.numeroCarteAfrisime)),
+      )}
+    </div>
+    <div style="flex:1;min-width:0">
+      ${sectionTitle("C. Informations du crédit")}
+      ${table(
+        kv("Type de crédit", "Crédit alimentaire journalier") +
+        kv("Date d'octroi", fmtDate(credit.createdAt)) +
+        kv("Agent affecté", esc(agent)) +
+        kv("Numéro de l'agent", dash(client.agentTerrain?.telephone)) +
+        kv("Point de vente", esc(pdv)) +
+        kv("Gestionnaire du crédit", esc(gestionnaire)),
+      )}
+    </div>
+  </div>
 
-  <!-- C. Informations du crédit -->
-  ${sectionTitle("C. Informations du crédit")}
-  ${table(
-    kv("Type de crédit", "Crédit alimentaire journalier") +
-    kv("Date d'octroi", fmtDate(credit.createdAt)) +
-    kv("Agent affecté", esc(agent)) +
-    kv("Numéro de l'agent", dash(client.agentTerrain?.telephone)) +
-    kv("Point de vente", esc(pdv)) +
-    kv("Gestionnaire du crédit", esc(gestionnaire)),
-  )}
-
-  <!-- D. Résumé financier -->
+  <!-- D. Résumé financier — deux colonnes -->
   ${sectionTitle("D. Résumé financier du crédit")}
-  ${table(
+  ${twoCol(
     kv("Valeur des produits achetés", fmt(valeurProduits)) +
     kv("Frais de dossier", fmt(credit.fraisDossier)) +
     kv("Assurance (si applicable)", fmt(credit.assurance)) +
@@ -230,7 +238,7 @@ function buildBordereauHtml(credit: BordereauCredit, client: BordereauClient, or
     kv("Frais de livraison", fmt(credit.fraisLivraison)) +
     kv("Taux d'intérêt appliqué", `${N(credit.tauxInteret)} %`) +
     kv("Intérêt total", fmt(credit.montantInteret)) +
-    kv("Montant total du crédit accordé", fmt(montantTotal)) +
+    kv("Montant total du crédit accordé", fmt(montantTotal)),
     kv("Taux de pénalité appliqué", `${tauxPen} % / jour`) +
     kv("Montant total à rembourser", fmt(montantTotal)) +
     kv("Durée du remboursement", `${credit.dureeJours} jour(s)`) +
@@ -242,52 +250,53 @@ function buildBordereauHtml(credit: BordereauCredit, client: BordereauClient, or
 
   <!-- E. Calendrier de remboursement journalier -->
   ${sectionTitle("E. Calendrier de remboursement journalier")}
-  <table style="width:100%;border-collapse:collapse;font-size:11px">
+  <table style="width:100%;border-collapse:collapse;font-size:10px">
     <thead><tr style="background:${c.headBg};color:${c.headText}">
-      <th style="padding:6px;border:1px solid ${c.line}">Jour</th>
-      <th style="padding:6px;border:1px solid ${c.line}">Date échéance</th>
-      <th style="padding:6px;border:1px solid ${c.line}">Montant prévu</th>
-      <th style="padding:6px;border:1px solid ${c.line}">Montant payé</th>
-      <th style="padding:6px;border:1px solid ${c.line}">Solde restant</th>
-      <th style="padding:6px;border:1px solid ${c.line}">Statut</th>
-      <th style="padding:6px;border:1px solid ${c.line}">Signature agent</th>
+      <th style="padding:4px 6px;border:1px solid ${c.line}">Jour</th>
+      <th style="padding:4px 6px;border:1px solid ${c.line}">Date échéance</th>
+      <th style="padding:4px 6px;border:1px solid ${c.line}">Montant prévu</th>
+      <th style="padding:4px 6px;border:1px solid ${c.line}">Montant payé</th>
+      <th style="padding:4px 6px;border:1px solid ${c.line}">Solde restant</th>
+      <th style="padding:4px 6px;border:1px solid ${c.line}">Statut</th>
+      <th style="padding:4px 6px;border:1px solid ${c.line}">Signature agent</th>
     </tr></thead>
     <tbody>${calendrierRows || `<tr><td colspan="7" style="padding:10px;border:1px solid ${c.line};text-align:center;color:${c.faint}">Durée du crédit non définie</td></tr>`}</tbody>
   </table>
 
-  <!-- F. Gestion des pénalités -->
+  <!-- F. Gestion des pénalités — deux colonnes -->
   ${sectionTitle("F. Gestion des pénalités")}
-  ${table(
+  ${twoCol(
     kv("Délai de grâce", `${grace} jour(s)`) +
     kv("Début des pénalités", grace > 0 ? `Après ${grace} jour(s) de retard` : "Dès le 1er jour de retard") +
-    kv("Type de pénalité", "Pourcentage") +
+    kv("Type de pénalité", "Pourcentage"),
     kv("Valeur de la pénalité", `${tauxPen} % / jour`) +
     kv("Nombre de jours de retard facturables", String(joursRetardFactures)) +
     kv("Total des pénalités", fmt(totalPenalites)),
   )}
-  <p style="font-size:10px;color:${c.faint};margin-top:4px;font-style:italic">Calcul auto : montant journalier × taux × jours de retard = ${fmt(credit.montantJournalier)} × ${tauxPen}% × ${joursRetardFactures} = ${fmt(totalPenalites)}.</p>
+  <p style="font-size:9.5px;color:${c.faint};margin-top:3px;font-style:italic">Calcul auto : montant journalier × taux × jours de retard = ${fmt(credit.montantJournalier)} × ${tauxPen}% × ${joursRetardFactures} = ${fmt(totalPenalites)}.</p>
 
-  <!-- G. Consentement -->
-  ${sectionTitle("G. Consentement du client")}
-  <p style="font-size:11px;line-height:1.6;color:${c.text};text-align:justify;border:1px solid ${c.line};background:${c.headBg};padding:10px 12px;border-radius:4px">
-    Par la présente, je reconnais avoir bénéficié d'un crédit accordé par AFRISIME et m'engage
-    irrévocablement à rembourser le montant total indiqué sur ce bordereau selon le calendrier
-    convenu. Je reconnais avoir pris connaissance des conditions de remboursement, des pénalités
-    applicables en cas de retard et des dispositions prévues en cas de non-respect de mes engagements.
-  </p>
+  <!-- G + H. Consentement & signatures — gardés ensemble sur une même page -->
+  <div style="page-break-inside:avoid">
+    ${sectionTitle("G. Consentement du client")}
+    <p style="font-size:10.5px;line-height:1.5;color:${c.text};text-align:justify;border:1px solid ${c.line};background:${c.headBg};padding:8px 12px;border-radius:4px">
+      Par la présente, je reconnais avoir bénéficié d'un crédit accordé par AFRISIME et m'engage
+      irrévocablement à rembourser le montant total indiqué sur ce bordereau selon le calendrier
+      convenu. Je reconnais avoir pris connaissance des conditions de remboursement, des pénalités
+      applicables en cas de retard et des dispositions prévues en cas de non-respect de mes engagements.
+    </p>
 
-  <!-- H. Signatures -->
-  ${sectionTitle("H. Signatures")}
-  <table style="width:100%;border-collapse:collapse;font-size:11px;margin-top:24px">
-    <tr>
-      ${["Client", "Agent affecté", "Responsable crédit"].map((r) => `
-        <td style="width:33%;text-align:center;padding:0 12px;vertical-align:top">
-          <div style="border-top:1px solid ${c.text};margin-top:44px;padding-top:6px;color:${c.muted}">${r}</div>
-        </td>`).join("")}
-    </tr>
-  </table>
+    ${sectionTitle("H. Signatures")}
+    <table style="width:100%;border-collapse:collapse;font-size:11px;margin-top:10px">
+      <tr>
+        ${["Client", "Agent affecté", "Responsable crédit"].map((r) => `
+          <td style="width:33%;text-align:center;padding:0 12px;vertical-align:top">
+            <div style="border-top:1px solid ${c.text};margin-top:34px;padding-top:6px;color:${c.muted}">${r}</div>
+          </td>`).join("")}
+      </tr>
+    </table>
+  </div>
 
-  <p style="text-align:center;font-size:9px;color:${c.faint};margin-top:26px;border-top:1px solid ${c.line};padding-top:8px">
+  <p style="text-align:center;font-size:9px;color:${c.faint};margin-top:14px;border-top:1px solid ${c.line};padding-top:8px">
     Document généré le ${fmtDate(today.toISOString())} · AFRISIME — Réinventer la distribution pour une Afrique plus prospère · RCCM : TG-LFW-01-2026-B12-00649 | NIF : 1002122728
   </p>
 
@@ -343,16 +352,44 @@ export default function BordereauRemboursement({ credit, client, onClose }: {
   );
   const filename = `bordereau-${credit.reference}.html`;
 
+  // Zoom de l'aperçu écran (n'affecte pas l'impression).
+  const ZOOM_MIN = 0.6, ZOOM_MAX = 2, ZOOM_STEP = 0.1;
+  const [zoom, setZoom] = useState(0.8);
+  const clampZoom = (z: number) => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Math.round(z * 10) / 10));
+
   return (
-    <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[94vh] flex flex-col">
+    <div className="fixed inset-0 z-[300] flex items-center justify-center p-2 bg-black/40 backdrop-blur-sm">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-6xl h-[97vh] flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 shrink-0">
+        <div className="flex items-center justify-between px-6 py-3 border-b border-slate-100 shrink-0">
           <div>
             <h3 className="font-bold text-slate-800">Bordereau de remboursement</h3>
             <p className="text-xs text-slate-400 font-mono">{credit.reference}</p>
           </div>
           <div className="flex items-center gap-2">
+            {/* Zoom aperçu */}
+            <div className="flex items-center gap-1 mr-1 rounded-xl border border-slate-200 bg-slate-50 px-1 py-0.5">
+              <button
+                onClick={() => setZoom((z) => clampZoom(z - ZOOM_STEP))}
+                disabled={zoom <= ZOOM_MIN}
+                title="Réduire l'aperçu"
+                className="p-1.5 rounded-lg hover:bg-slate-200 text-slate-600 disabled:opacity-40 disabled:hover:bg-transparent transition-colors">
+                <ZoomOut size={14} />
+              </button>
+              <button
+                onClick={() => setZoom(1)}
+                title="Réinitialiser le zoom (100 %)"
+                className="min-w-[48px] text-center text-xs font-medium text-slate-600 hover:text-slate-900 tabular-nums transition-colors">
+                {Math.round(zoom * 100)} %
+              </button>
+              <button
+                onClick={() => setZoom((z) => clampZoom(z + ZOOM_STEP))}
+                disabled={zoom >= ZOOM_MAX}
+                title="Agrandir l'aperçu"
+                className="p-1.5 rounded-lg hover:bg-slate-200 text-slate-600 disabled:opacity-40 disabled:hover:bg-transparent transition-colors">
+                <ZoomIn size={14} />
+              </button>
+            </div>
             <button
               onClick={() => openPrint(buildBordereauHtml(credit, client, origin, true, qr, barcode), filename)}
               title="Impression noir & blanc, économe en encre"
@@ -371,8 +408,20 @@ export default function BordereauRemboursement({ credit, client, onClose }: {
         </div>
 
         {/* Aperçu (iframe = même HTML que l'impression) */}
-        <div className="flex-1 overflow-hidden bg-slate-100 p-4">
-          <iframe title="Aperçu bordereau" srcDoc={previewHtml} className="w-full h-full bg-white rounded-lg border border-slate-200" />
+        <div className="flex-1 overflow-hidden bg-slate-100 p-2">
+          {/* L'iframe reste un viewport plein cadre (défilement interne) ; on la met à
+              l'échelle sans provoquer de scroll horizontal parasite. */}
+          <iframe
+            title="Aperçu bordereau"
+            srcDoc={previewHtml}
+            className="bg-white rounded-lg border border-slate-200"
+            style={{
+              width: `${100 / zoom}%`,
+              height: `${100 / zoom}%`,
+              transform: `scale(${zoom})`,
+              transformOrigin: "top left",
+            }}
+          />
         </div>
       </div>
     </div>

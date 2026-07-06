@@ -10,10 +10,9 @@
 
 -jose pour le JWT, bcryptjs pour le hash
 
-- QR scannable (et un vrai code-barres Code128) ? Ça
-  nécessite une petite dépendance (qrcode / bwip-js)  
+-une petite dépendance (qrcode / bwip-js) pour QR scannable (et un vrai code-barres Code128)  
  
-
+  
 -On peut aussi utiliser du SVG pour les graphiques ( sans forcément dépendance externe)  
 -Ce code :      
    const a = document.createElement("a");
@@ -89,9 +88,6 @@ Upload multi-fichiers
 OCR automatique des documents
 
 
-les stocks de produits chez l'admin et chez les appro/logistiques ( peut être même chez le magasinier) doivent avoir des prix d'achat et de vente par date ( par semaine , par mois avec un historique des prix pour pouvoir tracer tous les changements de prix mais aussi facilement être transparent pour les prix)
-
-
 Êxplique moi comment fonctionne la réunion , la convocation et les présences entre président( superadmin aussi évidemment) et membres d'une commission 
 
 
@@ -110,8 +106,6 @@ Pour les connexion google , demander aussi un autre mot de passe pour empêcher 
 
 
 Ajouter personne à prévenir ( lien familial et numéro) et la photo dans dashboard/admin/rh/collaborateurs/id
-
-Pour toutes les exportations, factures , archivags, documents OGRH, les bulletins de paie etc etc il y'a le nom AfriGes en haut ( ça devrait être AfriSime plutôt avec le logo de préférence)
 
 Pour les documents OGRH donner la main aux admins de signer( pas seulement les Gestion de Ressources Humaines)
 
@@ -166,3 +160,14 @@ Lorsqu'on créé un crédit(admin et rvc) , ce n'est pas possible de donner une 
 
 Lorsqu'on crée un crédit(admin et rvc) , on doit aussi renseigner les frais de livraison dans le modal et ces frais de livraison doivent être indiqués aussi sur les factures crédit 
 
+
+Permettre à chaque user de changer son mail , de mettre une photo de profil etc etc 
+
+Revoir les chiffres du dashboard/admin (tableau de bord)
+
+Au niveau du dashboard/admin/credits des clients aussi le montant total des credits par mois n'est pas vraie (ça se filtre par pagination ce qui fausse les vrais calculs)
+
+Permettre d'avoir des rapports de recouvrement , taux de recouvrement (ria par mois sur le dashboard admin ria et responsableRIA )
+
+
+Explique moi tous les chiffres de /dashboard/admin/rapports ( j'ai l'impression que certains ne sont pas bien calculés)

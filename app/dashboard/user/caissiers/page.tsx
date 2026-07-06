@@ -1042,7 +1042,10 @@ export default function CaissierPage() {
         restant: number; dateEcheance: string; statut: string;
       } | null;
     }[];
-    meta: { total: number; page: number; limit: number; totalPages: number };
+    meta: {
+      total: number; page: number; limit: number; totalPages: number;
+      parMois?: Record<string, { total: number; count: number }>;
+    };
   }>(`/api/caissier/credits?${vcParams}`);
 
   // ── Pliage des regroupements mensuels ────────────────────────────────────
@@ -3752,7 +3755,10 @@ export default function CaissierPage() {
                       {groupByMonth(creditsRes!.data, (c) => c.dateDebut, (c) => c.montantTotal).map((grp) => (
                         <React.Fragment key={grp.key}>
                           <MonthGroupHeaderRow
-                            label={grp.label} total={grp.total} count={grp.count} colSpan={7}
+                            label={grp.label}
+                            total={creditsRes!.meta.parMois?.[grp.key]?.total ?? grp.total}
+                            count={creditsRes!.meta.parMois?.[grp.key]?.count ?? grp.count}
+                            colSpan={7}
                             open={credMonths.isOpen(grp.key)} onToggle={() => credMonths.toggle(grp.key)}
                           />
                           {credMonths.isOpen(grp.key) && grp.items.map((c) => {

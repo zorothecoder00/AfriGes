@@ -83,7 +83,11 @@ interface CreditDetail extends CreditClient {
 
 interface CreditsResponse {
   data: CreditClient[];
-  meta: { total: number; page: number; limit: number; totalPages: number };
+  meta: {
+    total: number; page: number; limit: number; totalPages: number;
+    // Sous-totaux mensuels calculés côté serveur sur tout le filtre (hors pagination).
+    parMois?: Record<string, { total: number; count: number }>;
+  };
 }
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
@@ -1072,7 +1076,10 @@ export default function RVCCreditsPage() {
                     {groupByMonth(credits, (c) => c.dateDebut, (c) => Number(c.montantTotal)).map((grp) => (
                       <React.Fragment key={grp.key}>
                         <MonthGroupHeaderRow
-                          label={grp.label} total={grp.total} count={grp.count} colSpan={7}
+                          label={grp.label}
+                          total={meta?.parMois?.[grp.key]?.total ?? grp.total}
+                          count={meta?.parMois?.[grp.key]?.count ?? grp.count}
+                          colSpan={7}
                           open={credMonths.isOpen(grp.key)} onToggle={() => credMonths.toggle(grp.key)}
                         />
                         {credMonths.isOpen(grp.key) && grp.items.map((credit) => {
