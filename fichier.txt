@@ -111,15 +111,6 @@ Pour les documents OGRH donner la main aux admins de signer( pas seulement les G
 
 Permettre d'envoyer les documents OGRH ( et tous les autres d'ailleurs) sur les emails
 
-Le RH et les admins doivent avoir un espace déclencheur pour Fin contrat
-Validation congé
-Évaluation programmée
-Formation à suivre
-Document expirant
-
-
-Le RH et les admins doivent avoir une vue détaillée pour leS congés et les demandes de congé, les absences , les demandes de permissions d'absence des collaborateurs
- 
 
 Pour les rh/audit tu es sûr d'avoir fait 
 
@@ -141,31 +132,6 @@ Pour la gestion des commissions et le paramètre des profils de de collaborateur
 
 Créé un menu ou onglet " bordereau de remboursement" dans /dashboard/admin/clients/id
 
-Je pense que les caissiers et les agents de terrain aussi devraient avoir la main pour modifier les crédits avec les nouvezux champs ( qui vont aider pour le bordereau de remboursement )
-
-
-          Choses à revoir pour le bordereau de remboursement des clients 
-lorsque le client scanne le code QR ,que ça renvoie sur son niveau d'évolution des remboursements 
-le code client doit être conforme au code client en base
-le sexe du client doit venir automatiquement
-le numero carte client afrisime on laisse
-date d'octroit dans les informations du crédit  doit être la date de création du crédit et non la date de 1er remboursement
-Au niveau de l'agent affecté et de son numéro , ça doit etre automatique
-Pour le calendrier de remboursement journalier la case doit afficher zero si aucun remboursement mais se remplie automatiquement quand le client a remboursé
-Le solde restant doit se décrémenter après chaque jour de collecte (théoriquement c'est à dire par rapport au montant prévu payé mais si montant réellement payé , on fait la vraie soustraction du montant payé)
-au niveau du statut aussi , il doit être vide et ça devient payé automatiquement quand c'est payé et en retard quand le jour est vraiment passé mais que le client n'a pas encore payé
-
-
-Lorsqu'on créé un crédit(admin et rvc) , ce n'est pas possible de donner une quantité de 0.5 ( moitié ) , c'est important pour pouvoir donner les moitié de quantité à certains clients qui ont du mal à payer plus 
-
-Lorsqu'on crée un crédit(admin et rvc) , on doit aussi renseigner les frais de livraison dans le modal et ces frais de livraison doivent être indiqués aussi sur les factures crédit 
-
-
-□ API profil /api/me/profile
-     □ Composant AccountSettings
-     □ Routes /parametres (user + admin)
-     □ Avatar flottant + wiring layouts
-
 
 Revoir les chiffres du dashboard/admin (tableau de bord)
 
@@ -174,4 +140,9 @@ Au niveau du dashboard/admin/credits des clients aussi le montant total des cred
 Permettre d'avoir des rapports de recouvrement (taux de recouvrement, restant , payé etc etc rsia par mois sur le dashboard admin ria et responsableRIA )
 
 
-Explique moi tous les chiffres de /dashboard/admin/rapports ( j'ai l'impression que certains ne sont pas bien calculés)
+Explique moi tous les chiffres de /dashboard/admin/rapports (chaque onglet : recouvrement , collectes, créances, perf agents, liste clients, retards;  j'ai l'impression que certains ne sont pas bien calculés)
+
+Au niveau des montant attendus pour les crédits clients ( les échéances automatiquement calculées au niveau du bordereau ou au niveau des encaissement et recouvrement de crédits), on ne veut pas les chiffres bizarres ( mais des chiffres arrondis sur 00, 25 , 50 , 75 vu qu'on utilise du CFA )
+
+On va créer un compte client ( sorte de wallet) qui peut aussi être alimenté par les investisseurs RIA lors de financement etc etc et aussi les avances pour les clients
+

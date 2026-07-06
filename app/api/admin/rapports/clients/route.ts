@@ -60,21 +60,25 @@ export async function GET(req: Request) {
     });
 
     const data = clients.map((c) => {
-      const souscActives = c.souscriptionsPacks.filter(
-        (s) => s.statut === 'ACTIF' || s.statut === 'EN_ATTENTE',
-      );
-      const creditsActifs = c.creditsClients.filter(
-        (cr) => cr.statut === 'ACTIF' || cr.statut === 'EN_RETARD',
+      // Périmètre « engagements réels » : on exclut les contrats annulés/rejetés
+      // (et les demandes de crédit non encore approuvées) puis on calcule
+      // Engagement / Versé / Restant sur ce MÊME ensemble, afin que l'identité
+      // Engagement = Versé + Restant soit toujours respectée (fini les montants
+      // gonflés par des contrats annulés).
+      const souscRetenues = c.souscriptionsPacks.filter((s) => s.statut !== 'ANNULE');
+      const creditsRetenus = c.creditsClients.filter(
+        (cr) => cr.statut !== 'ANNULE' && cr.statut !== 'REJETE' && cr.statut !== 'EN_ATTENTE_VALIDATION',
       );
 
-      const totalSouscriptions  = c.souscriptionsPacks.length;
-      const totalCredits         = c.creditsClients.length;
-      const montantRestantSousc  = souscActives.reduce((s, x) => s + Number(x.montantRestant), 0);
-      const soldeRestantCredits  = creditsActifs.reduce((s, x) => s + Number(x.soldeRestant), 0);
-      const totalVerse           = c.souscriptionsPacks.reduce((s, x) => s + Number(x.montantVerse), 0)
-                                 + c.creditsClients.reduce((s, x) => s + Number(x.montantRembourse), 0);
-      const totalEngagement      = c.souscriptionsPacks.reduce((s, x) => s + Number(x.montantTotal), 0)
-                                 + c.creditsClients.reduce((s, x) => s + Number(x.montantTotal), 0);
+      const totalSouscriptions = c.souscriptionsPacks.length;
+      const totalCredits        = c.creditsClients.length;
+
+      const totalEngagement = souscRetenues.reduce((s, x) => s + Number(x.montantTotal), 0)
+                            + creditsRetenus.reduce((s, x) => s + Number(x.montantTotal), 0);
+      const totalVerse      = souscRetenues.reduce((s, x) => s + Number(x.montantVerse), 0)
+                            + creditsRetenus.reduce((s, x) => s + Number(x.montantRembourse), 0);
+      const montantRestant  = souscRetenues.reduce((s, x) => s + Number(x.montantRestant), 0)
+                            + creditsRetenus.reduce((s, x) => s + Number(x.soldeRestant), 0);
 
       return {
         id:              c.id,
@@ -95,7 +99,7 @@ export async function GET(req: Request) {
         totalCredits,
         totalEngagement,
         totalVerse,
-        montantRestant:  montantRestantSousc + soldeRestantCredits,
+        montantRestant,
         createdAt:       c.createdAt.toISOString().slice(0, 10),
       };
     });

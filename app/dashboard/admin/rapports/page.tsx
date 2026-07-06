@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import { useApi } from '@/hooks/useApi';
 import { useT } from '@/contexts/AppSettingsContext';
-import { formatCurrency, formatDate } from '@/lib/format';
+import { formatCurrency } from '@/lib/format';
 import { exportToXlsx, exportRowsToXlsx } from '@/lib/exportXlsx';
 import { exportToXls } from '@/lib/exportXls';
 import { printToPdf } from '@/lib/exportPdf';
@@ -21,13 +21,6 @@ interface RecouvrementData {
   parAgent:    { agentId: number; nom: string; nb: number; total: number; verse: number; restant: number; taux: number }[];
   parPdv:      { pdvId: number; nom: string; code: string; nb: number; total: number; verse: number; restant: number; taux: number }[];
   evolution:   { label: string; montant: number; nb: number }[];
-}
-
-interface CollectesData {
-  global:    { nbTotal: number; totalPrevu: number; totalCollecte: number; tauxRealisation: number };
-  parStatut: { statut: string; nb: number; montant: number }[];
-  parAgent:  { agentId: number; nom: string; nbCollectes: number; montantCollecte: number }[];
-  parJour:   { date: string; montant: number; nb: number }[];
 }
 
 interface CreancesData {
@@ -107,7 +100,7 @@ function kpisHtml(items: { label: string; value: string }[]): string {
   ).join('')}</div>`;
 }
 
-type TabId = 'recouvrement' | 'collectes' | 'creances' | 'agents' | 'clients' | 'retards';
+type TabId = 'recouvrement' | 'creances' | 'agents' | 'clients' | 'retards';
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
@@ -123,7 +116,6 @@ export default function RapportsPage() {
   }).toString();
 
   const recouv   = useApi<RecouvrementData>(`/api/admin/rapports/recouvrement?${dateQuery}`);
-  const collect  = useApi<CollectesData>(`/api/admin/rapports/collectes?${dateQuery}`);
   const creances = useApi<CreancesData>('/api/admin/rapports/creances');
   const agents   = useApi<AgentsData>(`/api/admin/rapports/agents?${dateQuery}`);
   const clients  = useApi<ClientsData>(`/api/admin/rapports/clients?${dateQuery}`);
@@ -131,7 +123,6 @@ export default function RapportsPage() {
 
   const TABS: { id: TabId; label: string; icon: React.ReactNode }[] = [
     { id: 'recouvrement', label: t('rapports_tab_recouvrement'), icon: <TrendingUp className="w-4 h-4" /> },
-    { id: 'collectes',    label: t('rapports_tab_collectes'),    icon: <Calendar className="w-4 h-4" /> },
     { id: 'creances',     label: t('rapports_tab_creances'),     icon: <TrendingDown className="w-4 h-4" /> },
     { id: 'agents',       label: t('rapports_tab_agents'),       icon: <UserCheck className="w-4 h-4" /> },
     { id: 'clients',      label: t('rapports_tab_clients'),      icon: <Users className="w-4 h-4" /> },
@@ -139,7 +130,7 @@ export default function RapportsPage() {
   ];
 
   const currentApi = {
-    recouvrement: recouv, collectes: collect, creances, agents, clients, retards,
+    recouvrement: recouv, creances, agents, clients, retards,
   }[tab];
   const isLoading = currentApi.loading;
   const refetchCurrent = () => currentApi.refetch();
@@ -179,46 +170,6 @@ export default function RapportsPage() {
       `rapport-recouvrement-${new Date().toISOString().slice(0, 10)}.xlsx`,
       { sheetName: 'Recouvrement' },
     );
-  };
-
-  // ─── Export : Collectes (PDF complet) ────────────────────────────────────
-
-  const exportCollectesPdf = () => {
-    const d = collect.data;
-    if (!d) return;
-    const { global: g } = d;
-
-    printToPdf('Rapport Collectes Journalières', [
-      {
-        content: kpisHtml([
-          { label: 'Total collectes',   value: String(g.nbTotal) },
-          { label: 'Montant prévu',     value: `${fc(g.totalPrevu)} FCFA` },
-          { label: 'Montant collecté',  value: `${fc(g.totalCollecte)} FCFA` },
-          { label: 'Taux réalisation',  value: `${g.tauxRealisation}%` },
-        ]),
-      },
-      {
-        heading: 'Répartition par statut',
-        content: tableHtml(
-          ['Statut', 'Nb sessions', 'Montant collecté (FCFA)'],
-          d.parStatut.map((s) => [s.statut, s.nb, fc(s.montant)]),
-        ),
-      },
-      {
-        heading: 'Performance par agent',
-        content: tableHtml(
-          ['Agent', 'Nb collectes', 'Montant collecté (FCFA)'],
-          d.parAgent.map((a) => [a.nom, a.nbCollectes, fc(a.montantCollecte)]),
-        ),
-      },
-      {
-        heading: 'Évolution quotidienne',
-        content: tableHtml(
-          ['Date', 'Nb sessions', 'Montant (FCFA)'],
-          d.parJour.map((j) => [j.date, j.nb, fc(j.montant)]),
-        ),
-      },
-    ]);
   };
 
   // ─── Export : Créances (PDF) ──────────────────────────────────────────────
@@ -307,12 +258,11 @@ export default function RapportsPage() {
         heading: 'Classement agents par CA',
         content: tableHtml(
           ['#', 'Agent', 'Téléphone', 'Clients', 'Souscriptions', 'Total packs (FCFA)',
-           'Versé (FCFA)', 'Restant (FCFA)', 'Taux (%)', 'Sessions collecte',
-           'CA réel (FCFA)'],
+           'Versé (FCFA)', 'Restant (FCFA)', 'Taux (%)', 'CA réel (FCFA)'],
           d.data.map((a, i) => [
             i + 1, a.nom, a.telephone ?? '—', a.nbClients, a.nbSouscriptions,
             fc(a.totalPacks), fc(a.totalVerse), fc(a.totalRestant),
-            `${a.tauxRecouvrement}%`, a.nbCollectes, fc(a.caTotal),
+            `${a.tauxRecouvrement}%`, fc(a.caTotal),
           ]),
         ),
       },
@@ -420,12 +370,6 @@ export default function RapportsPage() {
       <button onClick={exportRecouvrementXlsx}
         className="flex items-center gap-2 px-3 py-2 text-sm text-white bg-blue-600 rounded-xl hover:bg-blue-700 shadow-sm">
         <Download className="w-4 h-4" /> Excel
-      </button>
-    ),
-    collectes: (
-      <button onClick={exportCollectesPdf}
-        className="flex items-center gap-2 px-3 py-2 text-sm text-white bg-rose-600 rounded-xl hover:bg-rose-700 shadow-sm">
-        <FileText className="w-4 h-4" /> PDF
       </button>
     ),
     creances: (
@@ -550,7 +494,6 @@ export default function RapportsPage() {
             ) : (
               <>
                 {tab === 'recouvrement' && recouv.data  && <TabRecouvrement data={recouv.data} />}
-                {tab === 'collectes'    && collect.data && <TabCollectes    data={collect.data} />}
                 {tab === 'creances'     && creances.data && <TabCreances    data={creances.data} />}
                 {tab === 'agents'       && agents.data  && <TabAgents       data={agents.data} />}
                 {tab === 'clients'      && clients.data && <TabClients      data={clients.data} />}
@@ -624,63 +567,6 @@ function TabRecouvrement({ data }: { data: RecouvrementData }) {
             { label: t('rapports_col_nb'),    render: (r) => String(r.nb), cls: 'text-right text-gray-600' },
             { label: t('rapports_col_verse'), render: (r) => formatCurrency(r.verse), cls: 'text-right text-emerald-600 font-semibold' },
             { label: t('rapports_col_taux'),  render: (r) => `${r.taux}%`, cls: 'text-right font-bold' },
-          ]}
-        />
-      </div>
-    </div>
-  );
-}
-
-// ─── Tab Collectes ────────────────────────────────────────────────────────────
-
-function TabCollectes({ data }: { data: CollectesData }) {
-  const t = useT();
-  const g = data.global;
-  const maxJour = Math.max(...data.parJour.map((j) => j.montant), 1);
-  return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatBox label={t('rapports_total_collectes')}  value={String(g.nbTotal)}           icon={<Calendar className="w-5 h-5 text-teal-600" />}    bg="bg-teal-50" />
-        <StatBox label={t('rapports_montant_prevu')}    value={formatCurrency(g.totalPrevu)}  icon={<BarChart2 className="w-5 h-5 text-blue-600" />}   bg="bg-blue-50" />
-        <StatBox label={t('rapports_montant_encaisse')} value={formatCurrency(g.totalCollecte)} icon={<Wallet className="w-5 h-5 text-emerald-600" />} bg="bg-emerald-50" />
-        <StatBox label={t('rapports_taux_realisation')} value={`${g.tauxRealisation}%`}      icon={<TrendingUp className="w-5 h-5 text-orange-600" />} bg="bg-orange-50" />
-      </div>
-
-      <div className="flex flex-wrap gap-3">
-        {data.parStatut.map((s) => (
-          <div key={s.statut} className="bg-gray-50 rounded-xl px-4 py-3 flex items-center gap-3 border border-gray-200">
-            <span className="text-sm font-medium text-gray-700">{s.statut}</span>
-            <span className="text-lg font-bold text-gray-900">{s.nb}</span>
-            <span className="text-sm text-gray-500">{formatCurrency(s.montant)}</span>
-          </div>
-        ))}
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {data.parJour.length > 0 && (
-          <div>
-            <p className="text-sm font-semibold text-gray-700 mb-3">{t('rapports_collectes_par_jour')}</p>
-            <div className="flex items-end gap-1 h-28 bg-gray-50 rounded-xl p-3 overflow-x-auto">
-              {data.parJour.slice(-30).map((j) => {
-                const h = Math.max(4, Math.round((j.montant / maxJour) * 100));
-                return (
-                  <div key={j.date} className="flex-1 min-w-[12px] flex flex-col items-center">
-                    <div className="w-full rounded-t bg-teal-500 hover:bg-teal-600" style={{ height: `${h}%` }}
-                      title={`${formatDate(j.date)} : ${formatCurrency(j.montant)}`} />
-                  </div>
-                );
-              })}
-            </div>
-            <p className="text-xs text-gray-400 mt-1 text-center">{t('rapports_30j')}</p>
-          </div>
-        )}
-        <RankTable
-          title={t('rapports_par_agent')} icon={<Users className="w-4 h-4 text-teal-600" />}
-          rows={data.parAgent.slice(0, 8)}
-          cols={[
-            { label: t('rapports_col_agent'),    render: (r) => r.nom },
-            { label: t('rapports_col_collectes'), render: (r) => String(r.nbCollectes), cls: 'text-right text-gray-600' },
-            { label: t('rapports_col_encaisse'),  render: (r) => formatCurrency(r.montantCollecte), cls: 'text-right text-emerald-600 font-semibold' },
           ]}
         />
       </div>
@@ -771,7 +657,6 @@ function TabAgents({ data }: { data: AgentsData }) {
               <th className="text-right px-4 py-3 font-semibold text-gray-600">{t('rapports_col_verse')}</th>
               <th className="text-right px-4 py-3 font-semibold text-gray-600">{t('rapports_col_restant')}</th>
               <th className="text-center px-4 py-3 font-semibold text-gray-600">{t('rapports_col_taux')}</th>
-              <th className="text-center px-4 py-3 font-semibold text-gray-600">{t('rapports_col_sessions')}</th>
               <th className="text-right px-4 py-3 font-semibold text-blue-700">{t('rapports_col_ca_reel')}</th>
             </tr>
           </thead>
@@ -803,7 +688,6 @@ function TabAgents({ data }: { data: AgentsData }) {
                     <span className="text-xs font-bold">{a.tauxRecouvrement}%</span>
                   </div>
                 </td>
-                <td className="px-4 py-3 text-center text-gray-500">{a.nbCollectes}</td>
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-2 justify-end">
                     <div className="w-20 bg-blue-50 rounded-full h-2 hidden lg:block">

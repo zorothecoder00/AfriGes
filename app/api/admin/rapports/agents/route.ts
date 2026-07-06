@@ -49,16 +49,18 @@ export async function GET(req: Request) {
       remboursements,
       ventes,
     ] = await Promise.all([
-      // Nb clients affectés à chaque agent
+      // Nb clients affectés à chaque agent (filtré sur la période si fournie —
+      // cohérent avec les autres colonnes : tout reflète la même plage de dates)
       prisma.client.groupBy({
         by:    ['agentTerrainId'],
-        where: { agentTerrainId: { in: userIds } },
+        where: { agentTerrainId: { in: userIds }, ...dateRange('createdAt') },
         _count: { id: true },
       }),
 
-      // Souscriptions rattachées aux clients de l'agent (taux recouvrement)
+      // Souscriptions rattachées aux clients de l'agent (taux recouvrement),
+      // sur la période si fournie
       prisma.souscriptionPack.findMany({
-        where: { client: { agentTerrainId: { in: userIds } } },
+        where: { client: { agentTerrainId: { in: userIds } }, ...dateRange('createdAt') },
         select: {
           montantTotal:   true,
           montantVerse:   true,
