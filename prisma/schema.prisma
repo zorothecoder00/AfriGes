@@ -736,6 +736,10 @@ model User {
   missionsAuditRIA             MissionAuditRIA[]        @relation("MissionsAuditRIAAuditeur")
   analysesOptimisationRIA      AnalyseOptimisationRIA[] @relation("AnalysesOptimisationRIAAnalyste")
 
+  // Comptes courants clients (module Compte Courant)
+  comptesCourantsCrees         CompteCourant[]          @relation("CCCreateur")
+  mouvementsCompteCourant      MouvementCompteCourant[] @relation("CCMouvementUser")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -907,6 +911,7 @@ model Client {
   transactions       ClientTransaction[]
   scoreHistorique    ClientScoreHistorique[]
   facturesVente      FactureVente[]           @relation("FacturesVenteClient")
+  compteCourant      CompteCourant?
 
   // ── Validation RVC (tous nullable — données existantes non impactées) ───
   motifRejet       String?    // raison du rejet par le responsable crédit
@@ -5172,4 +5177,120 @@ model AnalyseOptimisationRIA {
 
   @@index([statut])
   @@index([rapportId])
+}
+
+// ============================================================
+// MODULE COMPTE COURANT CLIENT (portefeuille interne / Wallet AfriSime)
+// ============================================================
+
+enum StatutCompteCourant {
+  ACTIF
+  SUSPENDU
+  CLOTURE
+  DECEDE
+  BLACKLIST
+  FRAUDULEUX
+}
+
+enum NatureMouvementCC {
+  DEPOT
+  RETRAIT
+  PAIEMENT_CREDIT
+  PAIEMENT_COMPTANT
+  CORRECTION
+  ANNULATION
+  TRANSFERT
+}
+
+enum StatutMouvementCC {
+  VALIDE
+  EN_ATTENTE
+  ANNULE
+}
+
+// Paramétrage général du module (enregistrement unique, id = 1)
+model ParametrageCompteCourant {
+  id                    Int      @id @default(1)
+  montantMinOuverture   Decimal  @default(500)
+  soldeMinObligatoire   Decimal  @default(500)
+  depotMin              Decimal  @default(500)
+  depotMax              Decimal?
+  retraitMin            Decimal?
+  retraitMax            Decimal?
+  soldeMaxAutorise      Decimal?
+  autoriserSoldeNegatif Boolean  @default(false)
+  nbRetraitsMaxParMois  Int?
+  dureeInactiviteJours  Int      @default(180)
+  codeAgence            String   @default("TG-228")
+  codeGuichet           String   @default("Afrs001")
+  // Plan comptable (numéros de compte utilisés pour les écritures automatiques)
+  compteCaisseNumero        String @default("571") // Caisse
+  compteCourantClientNumero String @default("419") // Clients créditeurs (compte courant)
+  compteVentesNumero        String @default("701") // Ventes (contrepartie paiement)
+  updatedAt             DateTime @updatedAt
+}
+
+// Compte courant : un par client
+model CompteCourant {
+  id                  Int                 @id @default(autoincrement())
+  numeroCompte        String              @unique // 12 chiffres, commence par 12
+  cleRib              String                      // 2 chiffres (contrôle mod 97)
+  codeAgence          String
+  codeGuichet         String
+  ribComplet          String                      // ex: "TG-228 Afrs001 12XXXXXXXXXX 87"
+
+  clientId            Int                 @unique
+  client              Client              @relation(fields: [clientId], references: [id])
+
+  dateOuverture       DateTime            @default(now())
+  agentCreateurId     Int
+  agentCreateur       User                @relation("CCCreateur", fields: [agentCreateurId], references: [id])
+
+  statut              StatutCompteCourant @default(ACTIF)
+  motifBlocage        String?
+
+  solde               Decimal             @default(0)
+  totalDepose         Decimal             @default(0)
+  totalRetire         Decimal             @default(0)
+  totalUtilise        Decimal             @default(0)
+  nbMouvements        Int                 @default(0)
+  derniereOperationAt DateTime?
+
+  mouvements          MouvementCompteCourant[]
+
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+
+  @@index([statut])
+}
+
+// Grand livre des mouvements d'un compte courant
+model MouvementCompteCourant {
+  id           Int               @id @default(autoincrement())
+  reference    String            @unique
+  compteId     Int
+  compte       CompteCourant     @relation(fields: [compteId], references: [id])
+  nature       NatureMouvementCC
+  montant      Decimal                          // signé : + entrée, − sortie
+  soldeAvant   Decimal
+  soldeApres   Decimal
+  modePaiement String?
+  observation  String?
+  statut       StatutMouvementCC @default(VALIDE)
+
+  userId       Int?
+  user         User?             @relation("CCMouvementUser", fields: [userId], references: [id])
+  agence       String?
+
+  ecritureId   Int?                             // lien Comptabilité (lots suivants)
+  venteId      Int?                             // lien paiement comptant (lot suivant)
+  creditId     Int?                             // lien paiement crédit (lot suivant)
+
+  ip           String?
+
+  createdAt    DateTime          @default(now())
+
+  @@index([compteId])
+  @@index([nature])
+  @@index([createdAt])
 }

@@ -1,0 +1,28 @@
+ Plan par lots que je propose
+
+  1. Socle : schéma + paramétrage + création de compte (numérotation + clé RIB)
+  + consultation + recherche + droits d'accès + journalisation.
+  2. Dépôts : dépôt → maj solde + reçu PDF + notif in-app + écriture compta
+  (Débit Caisse / Crédit Compte courant).
+  3. Paiement : intégration « Utiliser mon compte courant » dans vente comptant
+  + crédit (recalcul reste à payer / à mettre à crédit) + écriture.
+  4. Retrait sécurisé : workflow double validation + écriture + reçu.
+  5. Tableau de bord + états/statistiques + exports + documents (relevé,
+  attestations, carnet).
+  - Différé (backlog) : section 19 (A–F : comptes collectifs, épargne
+  programmée, prélèvement auto, récompenses, blocage volontaire, multi-agences
+  temps réel), + OTP/biométrie/QR, SMS/WhatsApp réel, signature électronique.
+
+  Avant de rédiger le plan détaillé et de coder, 4 décisions à trancher :
+
+
+Points laissés pour les lots suivants (comme convenu)
+
+  - Lot 2 : dépôts (+ reçu PDF + notif + écriture compta Débit Caisse / Crédit
+  Compte courant).
+  - Lot 3 : paiement « Utiliser mon compte courant » dans ventes comptant +
+  crédits.
+  - Lot 4 : retrait sécurisé (double validation chef d'agence).
+  - Lot 5 : tableau de bord + états/stats + documents (relevé, attestations,
+  carnet).
+
