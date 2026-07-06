@@ -194,6 +194,12 @@ export default function CompteCourantDetailPage() {
                     <Plus className="w-4 h-4" /> Faire un dépôt
                   </button>
                 )}
+                {canDeposit && c.statut === "ACTIF" && creditsPayables.length > 0 && (
+                  <button onClick={() => { setPayOpen(true); setPayCreditId(String(creditsPayables[0].creditId)); }}
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-medium shadow-sm">
+                    <CreditCard className="w-4 h-4" /> Payer un crédit
+                  </button>
+                )}
                 {canDeposit && c.statut !== "ACTIF" && (
                   <span className="text-xs text-gray-400">Opérations bloquées : compte {STATUT_LABEL[c.statut]?.toLowerCase()}.</span>
                 )}
@@ -332,6 +338,59 @@ export default function CompteCourantDetailPage() {
               <button onClick={submitDepot} disabled={saving}
                 className="inline-flex items-center gap-2 px-5 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-xl text-sm font-semibold">
                 {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />} Valider le dépôt
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal paiement crédit */}
+      {payOpen && c && (
+        <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+              <h3 className="font-bold text-slate-800 flex items-center gap-2"><CreditCard className="w-4 h-4 text-blue-600" /> Payer un crédit</h3>
+              <button onClick={() => setPayOpen(false)} className="p-1.5 hover:bg-slate-100 rounded-lg"><X className="w-4 h-4 text-slate-500" /></button>
+            </div>
+            <div className="p-6 space-y-4">
+              <p className="text-xs text-gray-500">
+                Solde du compte courant : <span className="font-semibold text-emerald-700">{formatCurrency(N(c.solde))}</span>
+              </p>
+              <label className="block">
+                <span className="text-xs font-semibold text-slate-500">Crédit à payer</span>
+                <select value={payCreditId} onChange={(e) => setPayCreditId(e.target.value)}
+                  className="mt-1 w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                  {creditsPayables.map((cr) => (
+                    <option key={cr.creditId} value={cr.creditId}>
+                      {cr.reference} — reste {Math.round(cr.soldeRestant).toLocaleString("fr-FR")} FCFA
+                    </option>
+                  ))}
+                </select>
+              </label>
+              {selectedCredit && (
+                <p className="text-xs text-gray-500">
+                  Solde restant du crédit : <span className="font-semibold text-red-600">{formatCurrency(selectedCredit.soldeRestant)}</span>
+                  {selectedCredit.montantAttendu > 0 && <> · échéance du jour : {formatCurrency(selectedCredit.montantAttendu)}</>}
+                </p>
+              )}
+              <label className="block">
+                <span className="text-xs font-semibold text-slate-500">Montant à prélever (FCFA)</span>
+                <input type="number" min={0} value={payMontant} onChange={(e) => setPayMontant(e.target.value)}
+                  className="mt-1 w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                {selectedCredit && (
+                  <button type="button"
+                    onClick={() => setPayMontant(String(Math.round(Math.min(N(c.solde), selectedCredit.soldeRestant))))}
+                    className="mt-1 text-[11px] text-blue-600 hover:underline">
+                    Max ({formatCurrency(Math.min(N(c.solde), selectedCredit.soldeRestant))})
+                  </button>
+                )}
+              </label>
+            </div>
+            <div className="flex justify-end gap-2 px-6 py-4 border-t border-slate-100">
+              <button onClick={() => setPayOpen(false)} className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 rounded-xl">Annuler</button>
+              <button onClick={submitPaiement} disabled={paySaving}
+                className="inline-flex items-center gap-2 px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-xl text-sm font-semibold">
+                {paySaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <CreditCard className="w-4 h-4" />} Payer
               </button>
             </div>
           </div>
