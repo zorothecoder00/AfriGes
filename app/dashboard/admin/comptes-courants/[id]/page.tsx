@@ -7,7 +7,7 @@ import { useSession } from "next-auth/react";
 import { toast } from "sonner";
 import {
   Wallet, ArrowLeft, Loader2, TrendingUp, TrendingDown, ShoppingCart,
-  Activity, Clock, MapPin, Phone, User, Hash, Plus, X, Printer, ArrowDownCircle,
+  Activity, Clock, MapPin, Phone, User, Hash, Plus, X, Printer, ArrowDownCircle, CreditCard,
 } from "lucide-react";
 import { useApi } from "@/hooks/useApi";
 import { formatCurrency, formatDate } from "@/lib/format";
@@ -32,6 +32,11 @@ interface Mouvement {
   soldeAvant: string | number; soldeApres: string | number; modePaiement: string | null;
   observation: string | null; statut: string; createdAt: string;
   user: { nom: string; prenom: string } | null;
+}
+interface CreditPayable {
+  creditId: number; reference: string; soldeRestant: number;
+  montantTotal: number; montantRembourse: number; tauxPaye: number;
+  montantAttendu: number;
 }
 
 const STATUT_STYLE: Record<string, string> = {
@@ -70,8 +75,10 @@ export default function CompteCourantDetailPage() {
 
   const { data: res, loading, refetch } = useApi<{ data: CompteDetail }>(`/api/comptes-courants/${params.id}`);
   const { data: mvtRes, refetch: refetchMvt } = useApi<{ data: Mouvement[] }>(`/api/comptes-courants/${params.id}/mouvements?limit=50`);
+  const { data: credRes, refetch: refetchCred } = useApi<{ data: CreditPayable[] }>(`/api/comptes-courants/${params.id}/credits-payables`);
   const c = res?.data;
   const mouvements = mvtRes?.data ?? [];
+  const creditsPayables = credRes?.data ?? [];
 
   // ── Dépôt ──
   const [depotOpen, setDepotOpen] = useState(false);
@@ -80,6 +87,12 @@ export default function CompteCourantDetailPage() {
   const [reference, setReference] = useState("");
   const [observation, setObservation] = useState("");
   const [saving, setSaving] = useState(false);
+
+  // ── Paiement d'un crédit depuis le CC ──
+  const [payOpen, setPayOpen] = useState(false);
+  const [payCreditId, setPayCreditId] = useState("");
+  const [payMontant, setPayMontant] = useState("");
+  const [paySaving, setPaySaving] = useState(false);
 
   const recuUrl = (mid: number) => `/api/comptes-courants/${params.id}/mouvements/${mid}/recu`;
 
@@ -107,6 +120,30 @@ export default function CompteCourantDetailPage() {
       toast.error(e instanceof Error ? e.message : "Erreur");
     } finally { setSaving(false); }
   };
+
+  const submitPaiement = async () => {
+    const m = Number(payMontant);
+    if (!payCreditId) { toast.error("Choisissez un crédit"); return; }
+    if (!m || m <= 0) { toast.error("Montant invalide"); return; }
+    setPaySaving(true);
+    try {
+      const r = await fetch(`/api/comptes-courants/${params.id}/paiements`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ creditId: Number(payCreditId), montant: m }),
+      });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error ?? "Erreur");
+      toast.success(`Crédit payé : ${Number(j.data.montantApplique).toLocaleString("fr-FR")} FCFA`);
+      setPayOpen(false); setPayCreditId(""); setPayMontant("");
+      refetch(); refetchMvt(); refetchCred();
+      const mid = j.data?.mouvement?.id;
+      if (mid) window.open(recuUrl(mid), "_blank");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erreur");
+    } finally { setPaySaving(false); }
+  };
+
+  const selectedCredit = creditsPayables.find((cr) => String(cr.creditId) === payCreditId);
 
   return (
     <div className="min-h-screen bg-gray-50">
