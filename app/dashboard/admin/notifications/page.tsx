@@ -7,7 +7,6 @@ import { formatDateTime } from '@/lib/format';
 import DashboardBackButton from '@/components/DashboardBackButton';
 import NotificationBell from '@/components/NotificationBell';
 import MessagesLink from '@/components/MessagesLink';
-import SignOutButton from '@/components/SignOutButton';
 import {
   Bell, RefreshCw, CheckCheck, AlertCircle, Info,
   ShoppingBag, Users, Calendar, TrendingUp,
@@ -124,8 +123,7 @@ export default function NotificationsClientelePage() {
             <div className="flex items-center gap-3">
               <MessagesLink />
               <NotificationBell href="/dashboard/admin/notifications" />
-              <SignOutButton />
-            </div>
+                          </div>
           </div>
         </div>
       </nav>

@@ -10,7 +10,6 @@ import { useApi } from "@/hooks/useApi";
 import NotificationBell from "@/components/NotificationBell";
 import MessagesLink from "@/components/MessagesLink";
 import DashboardBackButton from "@/components/DashboardBackButton";
-import SignOutButton from "@/components/SignOutButton";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -127,8 +126,7 @@ export default function InvestisseurDashboardPage() {
           </button>
           <MessagesLink />
           <NotificationBell href="/dashboard/user/notifications" />
-          <SignOutButton redirectTo="/auth/login?logout=success" className="text-sm text-red-500 hover:text-red-700 px-3 py-1.5 border border-red-100 rounded-lg" />
-        </div>
+                  </div>
       </header>
 
       <div className="p-6 space-y-6 max-w-6xl mx-auto">

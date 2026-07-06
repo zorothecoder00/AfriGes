@@ -7,7 +7,6 @@ import {
   Clock, CheckCircle, AlertTriangle, X, Search, Receipt,
   PackageCheck, Banknote, FolderTree,
 } from "lucide-react";
-import SignOutButton from "@/components/SignOutButton";
 import NotificationBell from "@/components/NotificationBell";
 import MessagesLink from "@/components/MessagesLink";
 import DashboardBackButton from "@/components/DashboardBackButton";
@@ -743,8 +742,7 @@ export default function AgentTerrainCreditsPage() {
               </button>
               <MessagesLink />
               <NotificationBell href="/dashboard/user/notifications" />
-              <SignOutButton />
-            </div>
+                          </div>
           </div>
         </div>
       </nav>

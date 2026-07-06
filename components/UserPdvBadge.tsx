@@ -3,7 +3,10 @@
 import { useSession } from "next-auth/react";
 import { useApi } from "@/hooks/useApi";
 import { useViewAs } from "@/contexts/ViewAsContext";
-import { MapPin } from "lucide-react";
+import { MapPin, ShieldCheck } from "lucide-react";
+
+const prettifyRole = (r?: string | null) =>
+  r ? r.replace(/_/g, " ").toLowerCase().replace(/^\w/, (c) => c.toUpperCase()) : null;
 
 interface PDVInfo { id: number; nom: string; code: string }
 
@@ -26,6 +29,9 @@ export default function UserPdvBadge() {
   const prenom = viewAs?.prenom ?? session?.user?.prenom ?? "";
   const nom    = viewAs?.nom    ?? session?.user?.nom    ?? "";
   const pdvs   = data?.pdvs ?? (data?.pdv ? [data.pdv] : []);
+  // Repli quand aucun PDV (ex. compte Admin) : afficher le rôle. Désactivé en
+  // mode viewAs, où le rôle en session est celui de l'admin, pas de la cible.
+  const roleLabel = !viewAs ? prettifyRole(session?.user?.gestionnaireRole ?? session?.user?.role) : null;
 
   if (!prenom && !nom) return null;
 
@@ -49,6 +55,11 @@ export default function UserPdvBadge() {
               ? pdvs[0].nom
               : pdvs.map((p) => p.nom).join(" · ")
             }
+          </p>
+        ) : roleLabel ? (
+          <p className="text-[10px] text-slate-500 flex items-center gap-0.5">
+            <ShieldCheck size={9} className="shrink-0" />
+            {roleLabel}
           </p>
         ) : (
           <p className="text-[10px] text-slate-400 italic">Aucun PDV</p>

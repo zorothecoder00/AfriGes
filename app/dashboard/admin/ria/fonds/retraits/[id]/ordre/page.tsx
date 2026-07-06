@@ -50,7 +50,7 @@ export default function OrdrePaiementPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen text-slate-400">
-        <RefreshCw className="w-5 h-5 animate-spin mr-2" /> Chargement de l'ordre de paiement…
+        <RefreshCw className="w-5 h-5 animate-spin mr-2" /> Chargement de l&apos;ordre de paiement…
       </div>
     );
   }

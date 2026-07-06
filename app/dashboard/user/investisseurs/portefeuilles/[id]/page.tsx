@@ -9,7 +9,6 @@ import {
 import { useApi } from "@/hooks/useApi";
 import NotificationBell from "@/components/NotificationBell";
 import MessagesLink from "@/components/MessagesLink";
-import SignOutButton from "@/components/SignOutButton";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -104,8 +103,7 @@ export default function PortefeuilleDetailPage({ params }: { params: Promise<{ i
           </button>
           <MessagesLink />
           <NotificationBell href="/dashboard/user/notifications" />
-          <SignOutButton redirectTo="/auth/login?logout=success" className="text-sm text-red-500 hover:text-red-700 px-3 py-1.5 border border-red-100 rounded-lg" />
-        </div>
+                  </div>
       </header>
 
       {loading && !pf && (

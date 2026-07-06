@@ -9,7 +9,6 @@ import {
   ChevronDown, ChevronUp, Eye, MapPin,
 } from "lucide-react";
 import Link from "next/link";
-import SignOutButton from "@/components/SignOutButton";
 import NotificationBell from "@/components/NotificationBell";
 import CongesNavButton from "@/components/CongesNavButton";
 import MessagesLink from "@/components/MessagesLink";
@@ -534,7 +533,6 @@ export default function ChefAgenceDashboard() {
             <CongesNavButton />
               <NotificationBell href="/dashboard/user/notifications" />
             <UserPdvBadge />
-            <SignOutButton />
           </div>
         </div>
 

@@ -9,7 +9,6 @@ import {
   Loader2, User, Shield, BookOpen, Download, ArrowUpRight, ArrowDownRight,
   Repeat, Settings2, ExternalLink, TrendingDown, Info, Lock, Globe,
 } from "lucide-react";
-import SignOutButton from "@/components/SignOutButton";
 import NotificationBell from "@/components/NotificationBell";
 import MessagesLink from "@/components/MessagesLink";
 import DashboardBackButton from "@/components/DashboardBackButton";
@@ -561,7 +560,6 @@ export default function ActionnairePage() {
               <div className="w-9 h-9 rounded-full bg-gradient-to-r from-indigo-500 to-blue-500 flex items-center justify-center text-white font-bold text-sm">
                 {userInfo?.prenom?.[0] ?? "A"}
               </div>
-              <SignOutButton redirectTo="/auth/login?logout=success" className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50 rounded-lg transition-colors" />
             </div>
           </div>
         </div>

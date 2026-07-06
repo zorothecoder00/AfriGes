@@ -17,7 +17,6 @@ import { useApi, useMutation } from "@/hooks/useApi";
 import { useAppSettings } from "@/contexts/AppSettingsContext";
 import { formatCurrency, formatDate, formatDateTime } from "@/lib/format";
 import { toast } from "sonner";
-import SignOutButton from "@/components/SignOutButton";
 import NotificationBell from "@/components/NotificationBell";
 import { PAGES_REGISTRY } from "@/lib/pagesRegistry";
 import { exportRowsToXlsx } from "@/lib/exportXlsx";
@@ -361,8 +360,7 @@ export default function SuperAdminPage() {
             </button>
             <NotificationBell href="/dashboard/admin/notifications" />
             <span className="text-sm font-medium text-slate-600">{session?.user?.prenom} {session?.user?.nom}</span>
-            <SignOutButton redirectTo="/auth/login?logout=success" className="px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 rounded-lg transition-colors" />
-          </div>
+                      </div>
         </div>
       </header>
 

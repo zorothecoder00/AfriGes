@@ -12,7 +12,7 @@ import Link from "next/link";
 import { useSession } from 'next-auth/react';
 import { useT } from '@/contexts/AppSettingsContext';
 import NotificationBell from '@/components/NotificationBell';
-import SignOutButton from '@/components/SignOutButton';
+import UserPdvBadge from '@/components/UserPdvBadge';
 import MessageModal from '@/components/MessageModal';   
 import { useApi } from '@/hooks/useApi';     
 import { formatCurrency } from '@/lib/format';
@@ -281,15 +281,8 @@ export default function AfriGesDashboard() {
             <h1 className="text-xl font-bold text-slate-800">AfriGes</h1>
           </div>
           <div className="flex items-center gap-4">
+            <UserPdvBadge />
             <NotificationBell href="/dashboard/admin/notifications" />
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-slate-200 rounded-full" />
-              <span className="text-sm font-medium text-slate-700">{t('dash_admin_role')}</span>
-            </div>
-            <SignOutButton
-              redirectTo="/auth/login?logout=success"
-              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-            />
           </div>
         </div>
       </header>
@@ -374,12 +367,6 @@ export default function AfriGesDashboard() {
                   <span>Droits d&apos;accès</span>
                 </Link>
               </nav>
-            </div>
-            <div className="p-4">
-              <SignOutButton
-                redirectTo="/auth/login?logout=success"
-                className="w-full flex items-center justify-center gap-2 px-4 py-3 text-red-600 hover:bg-red-50 rounded-xl transition-all font-medium"
-              />
             </div>
           </div>
         </aside>

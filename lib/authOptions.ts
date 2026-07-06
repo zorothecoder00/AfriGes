@@ -129,7 +129,7 @@ export const authOptions: NextAuthOptions = {
 				const [dbUser, gestionnaire] = await Promise.all([
 					prisma.user.findUnique({
 						where: { id: Number(token.id) },
-						select: { etat: true, tokenVersion: true, mustChangePassword: true },
+						select: { etat: true, tokenVersion: true, mustChangePassword: true, prenom: true, nom: true, photo: true },
 					}),
 					prisma.gestionnaire.findUnique({
 						where: { memberId: Number(token.id) },
@@ -146,6 +146,11 @@ export const authOptions: NextAuthOptions = {
 					delete token.error
 					token.mustChangePassword = dbUser.mustChangePassword
 					token.gestionnaireRole = gestionnaire?.role ?? null
+					// Rafraîchit nom/prénom/photo depuis la DB : la mise à jour du profil
+					// (page Paramètres) se reflète alors immédiatement via session.update().
+					token.prenom = dbUser.prenom
+					token.nom    = dbUser.nom
+					token.photo  = dbUser.photo ?? null
 				}
 			}
 			return token

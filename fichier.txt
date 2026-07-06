@@ -161,13 +161,17 @@ Lorsqu'on créé un crédit(admin et rvc) , ce n'est pas possible de donner une 
 Lorsqu'on crée un crédit(admin et rvc) , on doit aussi renseigner les frais de livraison dans le modal et ces frais de livraison doivent être indiqués aussi sur les factures crédit 
 
 
-Permettre à chaque user de changer son mail , de mettre une photo de profil etc etc 
+□ API profil /api/me/profile
+     □ Composant AccountSettings
+     □ Routes /parametres (user + admin)
+     □ Avatar flottant + wiring layouts
+
 
 Revoir les chiffres du dashboard/admin (tableau de bord)
 
 Au niveau du dashboard/admin/credits des clients aussi le montant total des credits par mois n'est pas vraie (ça se filtre par pagination ce qui fausse les vrais calculs)
 
-Permettre d'avoir des rapports de recouvrement , taux de recouvrement (ria par mois sur le dashboard admin ria et responsableRIA )
+Permettre d'avoir des rapports de recouvrement (taux de recouvrement, restant , payé etc etc rsia par mois sur le dashboard admin ria et responsableRIA )
 
 
 Explique moi tous les chiffres de /dashboard/admin/rapports ( j'ai l'impression que certains ne sont pas bien calculés)

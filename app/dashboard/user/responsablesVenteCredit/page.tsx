@@ -8,7 +8,6 @@ import {
   CreditCard, FileText, Network,
 } from "lucide-react";
 import Link from "next/link";
-import SignOutButton from "@/components/SignOutButton";
 import NotificationBell from "@/components/NotificationBell";
 import CongesNavButton from "@/components/CongesNavButton";
 import MessagesLink from "@/components/MessagesLink";
@@ -592,8 +591,7 @@ export default function RVCPage() {
               <MessagesLink />
               <CongesNavButton />
               <NotificationBell href="/dashboard/user/notifications" />
-              <SignOutButton />
-            </div>
+                          </div>
           </div>
         </div>
       </nav>
