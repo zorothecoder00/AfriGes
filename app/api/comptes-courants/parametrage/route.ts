@@ -58,6 +58,9 @@ export async function PUT(req: Request) {
       autoriserSoldeNegatif: typeof body.autoriserSoldeNegatif === "boolean" ? body.autoriserSoldeNegatif : undefined,
       codeAgence:  typeof body.codeAgence === "string" && body.codeAgence.trim() ? body.codeAgence.trim() : undefined,
       codeGuichet: typeof body.codeGuichet === "string" && body.codeGuichet.trim() ? body.codeGuichet.trim() : undefined,
+      compteCaisseNumero:        typeof body.compteCaisseNumero === "string" && body.compteCaisseNumero.trim() ? body.compteCaisseNumero.trim() : undefined,
+      compteCourantClientNumero: typeof body.compteCourantClientNumero === "string" && body.compteCourantClientNumero.trim() ? body.compteCourantClientNumero.trim() : undefined,
+      compteVentesNumero:        typeof body.compteVentesNumero === "string" && body.compteVentesNumero.trim() ? body.compteVentesNumero.trim() : undefined,
     };
 
     // Upsert du singleton (id=1)

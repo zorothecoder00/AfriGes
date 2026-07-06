@@ -19,6 +19,9 @@ interface Parametrage {
   dureeInactiviteJours: number;
   codeAgence: string;
   codeGuichet: string;
+  compteCaisseNumero: string;
+  compteCourantClientNumero: string;
+  compteVentesNumero: string;
 }
 
 const s = (v: unknown) => (v === null || v === undefined ? "" : String(v));
@@ -48,6 +51,9 @@ export default function ParametrageCCPage() {
           dureeInactiviteJours: s(p.dureeInactiviteJours),
           codeAgence: s(p.codeAgence),
           codeGuichet: s(p.codeGuichet),
+          compteCaisseNumero: s(p.compteCaisseNumero),
+          compteCourantClientNumero: s(p.compteCourantClientNumero),
+          compteVentesNumero: s(p.compteVentesNumero),
         });
       } catch (e) {
         toast.error(e instanceof Error ? e.message : "Chargement impossible");
@@ -116,6 +122,15 @@ export default function ParametrageCCPage() {
               <TextField label="Code Guichet" k="codeGuichet" form={form} set={set} />
               <p className="text-xs text-gray-400">
                 Ces codes servent à construire le RIB des comptes. Le numéro (12 chiffres, commençant par 12) et la clé de contrôle sont générés automatiquement à l&apos;ouverture.
+              </p>
+            </Section>
+
+            <Section title="Comptabilité (numéros de compte)">
+              <TextField label="Compte Caisse" k="compteCaisseNumero" form={form} set={set} />
+              <TextField label="Compte courant client (crédit)" k="compteCourantClientNumero" form={form} set={set} />
+              <TextField label="Compte Ventes (contrepartie paiement)" k="compteVentesNumero" form={form} set={set} />
+              <p className="text-xs text-gray-400">
+                Numéros du plan comptable utilisés pour les écritures automatiques (dépôt : débit Caisse / crédit Compte courant client). Si un numéro est absent du plan comptable, le mouvement est enregistré sans écriture (à régulariser).
               </p>
             </Section>
 
