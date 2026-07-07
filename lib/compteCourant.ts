@@ -6,7 +6,8 @@
 //  - chargement du paramétrage (singleton)
 
 import { prisma } from "@/lib/prisma";
-import { Prisma, type TypeJournalComptable } from "@prisma/client";
+import { Prisma, PrioriteNotification, type TypeJournalComptable } from "@prisma/client";
+import { notifyAdmins } from "@/lib/notifications";
 
 export type TxClient = Prisma.TransactionClient;
 
@@ -171,4 +172,131 @@ export async function enregistrerDepotCC(
   });
 
   return { mouvement, soldeAvant: avant, soldeApres: apres, ecritureGeneree: ecritureId != null };
+}
+
+/**
+ * Suspension automatique des comptes ACTIF sans opération depuis
+ * `dureeInactiviteJours` (CDC §4). Passe le compte en SUSPENDU avec motif,
+ * journalise (audit système, sans userId) et notifie les admins.
+ * Appelable via le cron ou en mode « lazy » depuis une page d'administration.
+ */
+export async function suspendreComptesInactifs(): Promise<{ verifies: number; suspendus: number }> {
+  const param = await chargerParametrageCC();
+  const jours = param.dureeInactiviteJours;
+  if (!jours || jours <= 0) return { verifies: 0, suspendus: 0 };
+
+  const seuil = new Date();
+  seuil.setDate(seuil.getDate() - jours);
+
+  // ACTIF dont la dernière opération (ou l'ouverture si aucune) est antérieure au seuil.
+  const candidats = await prisma.compteCourant.findMany({
+    where: {
+      statut: "ACTIF",
+      OR: [
+        { derniereOperationAt: { lt: seuil } },
+        { derniereOperationAt: null, dateOuverture: { lt: seuil } },
+      ],
+    },
+    select: { id: true, numeroCompte: true, client: { select: { prenom: true, nom: true } } },
+  });
+
+  for (const cc of candidats) {
+    await prisma.$transaction(async (tx) => {
+      await tx.compteCourant.update({
+        where: { id: cc.id },
+        data: { statut: "SUSPENDU", motifBlocage: `Inactivité supérieure à ${jours} jours (suspension automatique)` },
+      });
+      await tx.auditLog.create({
+        data: {
+          action: "SUSPENSION_AUTO_INACTIVITE", entite: "CompteCourant", entiteId: cc.id,
+          details: { jours, seuil: seuil.toISOString() },
+        },
+      });
+      await notifyAdmins(tx, {
+        titre: "Compte courant suspendu (inactivité)",
+        message: `Le compte ${cc.numeroCompte} (${cc.client.prenom} ${cc.client.nom}) a été suspendu automatiquement après ${jours} jours sans opération.`,
+        priorite: PrioriteNotification.NORMAL,
+        actionUrl: `/dashboard/admin/comptes-courants/${cc.id}`,
+      });
+    });
+  }
+
+  return { verifies: candidats.length, suspendus: candidats.length };
+}
+
+/** Compte courant d'un client (ou null), pour le pré-contrôle POS et le lookup. */
+export async function getCompteCourantParClient(clientId: number) {
+  return prisma.compteCourant.findUnique({
+    where: { clientId },
+    select: {
+      id: true, numeroCompte: true, ribComplet: true, statut: true, solde: true, codeAgence: true,
+      client: { select: { prenom: true, nom: true } },
+    },
+  });
+}
+
+/** Erreurs métier du prélèvement CC sur vente comptant. */
+export type CCVenteError = "CC_ABSENT" | "CC_INACTIF" | "CC_SOLDE_INSUFFISANT";
+
+/**
+ * Débite le compte courant d'un client pour régler tout ou partie d'une vente
+ * comptant (CDC §3) : mouvement PAIEMENT_COMPTANT + écriture Débit Compte courant
+ * (419) / Crédit Ventes (701), lié à la vente. Lève une CCVenteError si le compte
+ * est absent, non ACTIF, ou de solde insuffisant.
+ */
+export async function preleverCCVenteComptant(
+  tx: TxClient,
+  opts: {
+    clientId: number; montant: number; venteId: number; venteRef: string;
+    userId: number; ip?: string | null;
+    param: { compteCourantClientNumero: string; compteVentesNumero: string };
+  },
+) {
+  const cc = await tx.compteCourant.findUnique({
+    where: { clientId: opts.clientId },
+    select: {
+      id: true, numeroCompte: true, statut: true, solde: true, codeAgence: true,
+      client: { select: { prenom: true, nom: true } },
+    },
+  });
+  if (!cc) throw new Error("CC_ABSENT");
+  if (cc.statut !== "ACTIF") throw new Error("CC_INACTIF");
+  const avant = Number(cc.solde);
+  if (opts.montant > avant) throw new Error("CC_SOLDE_INSUFFISANT");
+  const apres = avant - opts.montant;
+  const clientNom = `${cc.client.prenom} ${cc.client.nom}`;
+
+  const ecritureId = await creerEcritureCC(tx, {
+    journal: "OD", date: new Date(),
+    libelle: `Vente comptant ${opts.venteRef} réglée via compte courant ${cc.numeroCompte} — ${clientNom}`,
+    userId: opts.userId,
+    lignes: [
+      { numero: opts.param.compteCourantClientNumero, debit:  opts.montant, libelle: `Utilisation CC ${cc.numeroCompte}` },
+      { numero: opts.param.compteVentesNumero,        credit: opts.montant, libelle: `Vente comptant ${opts.venteRef}` },
+    ],
+  });
+
+  const reference = await genererReferenceMouvementCC(tx, "PAY");
+  const mouvement = await tx.mouvementCompteCourant.create({
+    data: {
+      reference, compteId: cc.id, nature: "PAIEMENT_COMPTANT",
+      montant: -opts.montant, soldeAvant: avant, soldeApres: apres,
+      observation: `Vente comptant ${opts.venteRef}`,
+      statut: "VALIDE", userId: opts.userId, agence: cc.codeAgence,
+      ecritureId, venteId: opts.venteId, ip: opts.ip ?? null,
+    },
+    select: { id: true, reference: true },
+  });
+
+  await tx.compteCourant.update({
+    where: { id: cc.id },
+    data: {
+      solde: apres,
+      totalUtilise: { increment: opts.montant },
+      nbMouvements: { increment: 1 },
+      derniereOperationAt: new Date(),
+    },
+  });
+
+  return { mouvement, compteId: cc.id, numeroCompte: cc.numeroCompte, soldeApres: apres, ecritureGeneree: ecritureId != null };
 }

@@ -165,9 +165,26 @@ export default function VentesPage() {
   const [modePaiement, setModePaiement]             = useState('ESPECES');
   const [montantPaye, setMontantPaye]               = useState('');
   const [notesVente, setNotesVente]                 = useState('');
+  // Paiement (partiel ou total) via le compte courant client (CDC §3)
+  const [ccInfo, setCcInfo]                         = useState<{ id: number; numeroCompte: string; statut: string; solde: number } | null>(null);
+  const [ccMontant, setCcMontant]                   = useState('');
 
   const montantTotal   = lignes.reduce((acc, l) => acc + l.quantite * l.prixUnitaire, 0);
-  const monnaieRendue  = Math.max(0, Number(montantPaye) - montantTotal);
+  const ccSolde        = ccInfo && ccInfo.statut === 'ACTIF' ? ccInfo.solde : 0;
+  const ccApplique     = Math.max(0, Math.min(Number(ccMontant) || 0, montantTotal, ccSolde));
+  const resteAPayer    = Math.max(0, montantTotal - ccApplique);
+  const monnaieRendue  = Math.max(0, Number(montantPaye) - resteAPayer);
+
+  // Récupère le compte courant du client sélectionné à l'étape paiement.
+  useEffect(() => {
+    if (venteStep !== 3 || clientType !== 'search' || !selectedClient?.id) { setCcInfo(null); setCcMontant(''); return; }
+    let annule = false;
+    fetch(`/api/comptes-courants/by-client/${selectedClient.id}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => { if (!annule) setCcInfo(j?.data ?? null); })
+      .catch(() => { if (!annule) setCcInfo(null); });
+    return () => { annule = true; };
+  }, [venteStep, clientType, selectedClient]);
 
   // ── Modal Pack (existant) ──────────────────────────────────────────────────
   const [packModalOpen, setPackModalOpen]           = useState(false);
@@ -374,6 +391,8 @@ export default function VentesPage() {
     setProduitSelectId('');
     setModePaiement('ESPECES');
     setMontantPaye('');
+    setCcInfo(null);
+    setCcMontant('');
     setNotesVente('');
   };
 
@@ -450,6 +469,7 @@ export default function VentesPage() {
       pointDeVenteId:  Number(selectedPdvId),
       modePaiement,
       montantPaye:     Number(montantPaye),
+      montantCompteCourant: ccApplique,
       clientId:        selectedClient?.id ?? null,
       clientNom:       clientType === 'walkin'
         ? clientNomManuel || null
@@ -926,22 +946,61 @@ export default function VentesPage() {
                     </select>
                   </div>
 
-                  {/* Montant reçu */}
+                  {/* Paiement via le compte courant (CDC §3) */}
+                  {clientType === 'search' && ccInfo && (
+                    ccInfo.statut === 'ACTIF' ? (
+                      <div className="rounded-xl border border-emerald-200 bg-emerald-50/50 p-3 space-y-2">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="font-medium text-emerald-800 flex items-center gap-1.5">
+                            <CreditCard size={15} /> Compte courant · {ccInfo.numeroCompte}
+                          </span>
+                          <span className="text-emerald-700">Solde : <b>{formatCurrency(ccInfo.solde)}</b></span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <input type="number" min="0" step="1" value={ccMontant}
+                            onChange={e => {
+                              const applique = Math.max(0, Math.min(Number(e.target.value) || 0, montantTotal, ccInfo.solde));
+                              setCcMontant(e.target.value);
+                              setMontantPaye(String(Math.max(0, montantTotal - applique)));
+                            }}
+                            placeholder="Montant à imputer sur le CC"
+                            className="flex-1 px-3 py-2 border border-emerald-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                          <button type="button"
+                            onClick={() => { const max = Math.min(ccInfo.solde, montantTotal); setCcMontant(String(max)); setMontantPaye(String(Math.max(0, montantTotal - max))); }}
+                            className="px-3 py-2 text-xs font-medium bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 whitespace-nowrap">
+                            Payer tout ({formatCurrency(Math.min(ccInfo.solde, montantTotal))})
+                          </button>
+                        </div>
+                        {ccApplique > 0 && (
+                          <p className="text-xs text-emerald-700">
+                            <b>{formatCurrency(ccApplique)}</b> imputés sur le compte courant · reste <b>{formatCurrency(resteAPayer)}</b> à régler.
+                          </p>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-slate-400">Compte courant {ccInfo.statut.toLowerCase()} — paiement par compte courant indisponible.</p>
+                    )
+                  )}
+
+                  {/* Montant reçu (part espèces / reste après CC) */}
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Montant reçu *</label>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">
+                      Montant reçu {ccApplique > 0 ? '(espèces, hors CC)' : ''} *
+                    </label>
                     <input type="number" required min="0" step="1" value={montantPaye}
                       onChange={e => setMontantPaye(e.target.value)}
                       className={`w-full px-4 py-2.5 border rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 ${
-                        montantPaye !== '' && Number(montantPaye) < montantTotal ? 'border-orange-400 bg-orange-50' : 'border-slate-200'
+                        montantPaye !== '' && Number(montantPaye) < resteAPayer ? 'border-orange-400 bg-orange-50' : 'border-slate-200'
                       }`} />
-                    {montantPaye !== '' && Number(montantPaye) >= montantTotal && montantTotal > 0 && (
+                    {resteAPayer === 0 && ccApplique > 0 ? (
+                      <p className="text-xs text-emerald-600 mt-1 font-medium">Réglé intégralement par le compte courant.</p>
+                    ) : montantPaye !== '' && Number(montantPaye) >= resteAPayer && resteAPayer > 0 ? (
                       <p className="text-xs text-emerald-600 mt-1">Monnaie à rendre : <span className="font-bold">{formatCurrency(monnaieRendue)}</span></p>
-                    )}
-                    {montantPaye !== '' && Number(montantPaye) < montantTotal && (
+                    ) : montantPaye !== '' && Number(montantPaye) < resteAPayer ? (
                       <p className="text-xs text-orange-600 mt-1 font-medium">
-                        Montant insuffisant — reste {formatCurrency(montantTotal - Number(montantPaye))}
+                        Montant insuffisant — reste {formatCurrency(resteAPayer - Number(montantPaye))}
                       </p>
-                    )}
+                    ) : null}
                   </div>
 
                   {/* Notes */}
@@ -961,7 +1020,7 @@ export default function VentesPage() {
                       Retour
                     </button>
                     <button type="submit"
-                      disabled={creatingVente || !montantPaye || Number(montantPaye) < montantTotal}
+                      disabled={creatingVente || Number(montantPaye || 0) < resteAPayer}
                       className="flex-1 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 disabled:opacity-60 font-medium text-sm flex items-center justify-center gap-2 transition-colors">
                       <CreditCard size={15} />
                       {creatingVente ? 'Enregistrement…' : 'Confirmer la vente'}

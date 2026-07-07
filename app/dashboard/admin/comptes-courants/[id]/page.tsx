@@ -150,7 +150,7 @@ export default function CompteCourantDetailPage() {
       refetch(); refetchMvt();
       // Édition automatique du reçu (CDC §5)
       const mid = j.data?.mouvement?.id;
-      if (mid) window.open(recuUrl(mid), "_blank");
+      if (mid) window.open(`${recuUrl(mid)}?print=1`, "_blank");
       if (j.data && j.data.ecritureGeneree === false) {
         toast.warning("Dépôt enregistré, mais écriture comptable non générée (plan comptable à configurer).");
       }
@@ -175,7 +175,7 @@ export default function CompteCourantDetailPage() {
       setPayOpen(false); setPayCreditId(""); setPayMontant("");
       refetch(); refetchMvt(); refetchCred();
       const mid = j.data?.mouvement?.id;
-      if (mid) window.open(recuUrl(mid), "_blank");
+      if (mid) window.open(`${recuUrl(mid)}?print=1`, "_blank");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erreur");
     } finally { setPaySaving(false); }
@@ -234,7 +234,7 @@ export default function CompteCourantDetailPage() {
       setValRetrait(null); setValPassword("");
       refetch(); refetchMvt(); refetchRet();
       const mid = j.data?.mouvement?.id;
-      if (mid) window.open(recuUrl(mid), "_blank");
+      if (mid) window.open(`${recuUrl(mid)}?print=1`, "_blank");
       if (j.data && j.data.ecritureGeneree === false) {
         toast.warning("Retrait validé, mais écriture comptable non générée (plan comptable à configurer).");
       }

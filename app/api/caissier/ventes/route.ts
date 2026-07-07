@@ -5,6 +5,7 @@ import { getCaissierSession } from "@/lib/authCaissier";
 import { randomUUID } from "crypto";
 import { notifyRoles, auditLog } from "@/lib/notifications";
 import { resolveViewAs } from "@/lib/viewAs";
+import { chargerParametrageCC, getCompteCourantParClient, preleverCCVenteComptant } from "@/lib/compteCourant";
 
 /**  
  * GET /api/caissier/ventes
@@ -142,6 +143,9 @@ export async function POST(req: Request) {
     if (!modePaiement || montantPaye === undefined || !lignes?.length) {
       return NextResponse.json({ error: "modePaiement, montantPaye et lignes sont obligatoires" }, { status: 400 });
     }
+
+    // Part réglée depuis le compte courant client (CDC §3) — 0 par défaut.
+    const ccMontantDemande = Math.max(0, Number(body.montantCompteCourant) || 0);
     // Les ventes à crédit doivent passer par le module CreditClient, pas par la caisse directe
     if (modePaiement === "CREDIT") {
       return NextResponse.json(
@@ -167,9 +171,29 @@ export async function POST(req: Request) {
       montantTotal += Number(l.quantite) * Number(l.prixUnitaire ?? stock.produit.prixUnitaire);
     }
 
+    // Part CC (plafonnée au total) et reste à encaisser en caisse (espèces/autre).
+    const ccMontant   = Math.min(ccMontantDemande, montantTotal);
+    const resteAPayer = montantTotal - ccMontant;
+
+    if (ccMontant > 0) {
+      if (!clientId) {
+        return NextResponse.json({ error: "Un client enregistré est requis pour payer avec le compte courant." }, { status: 400 });
+      }
+      const cc = await getCompteCourantParClient(Number(clientId));
+      if (!cc) return NextResponse.json({ error: "Ce client n'a pas de compte courant." }, { status: 422 });
+      if (cc.statut !== "ACTIF") return NextResponse.json({ error: `Compte courant ${cc.statut.toLowerCase()} : paiement impossible.` }, { status: 422 });
+      if (ccMontant > Number(cc.solde)) return NextResponse.json({ error: "Solde du compte courant insuffisant." }, { status: 422 });
+    }
+    if (Number(montantPaye) < resteAPayer) {
+      return NextResponse.json({ error: `Montant payé insuffisant : reste ${resteAPayer.toLocaleString("fr-FR")} FCFA à régler.` }, { status: 400 });
+    }
+
+    const param = ccMontant > 0 ? await chargerParametrageCC() : null;
+    const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null;
+
     const vente = await prisma.$transaction(async (tx) => {
       const ref = `VD-CAISSE-${Date.now()}-${randomUUID().slice(0, 6).toUpperCase()}`;
-      const monnaieRendue = Math.max(0, Number(montantPaye) - montantTotal);
+      const monnaieRendue = Math.max(0, Number(montantPaye) - resteAPayer);
 
       const v = await tx.venteDirecte.create({
         data: {
@@ -181,6 +205,7 @@ export async function POST(req: Request) {
           montantTotal,
           montantPaye:     Number(montantPaye),
           monnaieRendue,
+          montantCompteCourant: ccMontant,
           notes:           notes || null,
           clientId:        clientId        ? Number(clientId) : null,
           clientNom:       clientNom       || null,
@@ -221,18 +246,28 @@ export async function POST(req: Request) {
         });
       }
 
-      // Encaissement sur la grande caisse
-      await tx.operationCaisse.create({
-        data: {
-          sessionId:    sessionCaisse.id,
-          type:         "ENCAISSEMENT",
-          montant:      montantTotal,
-          motif:        `Vente directe ${ref}`,
-          reference:    `${ref}-CAISSE`,
-          operateurNom: `${session.user.prenom} ${session.user.nom}`,
-          operateurId:  userId,
-        },
-      });
+      // Prélèvement du compte courant (CDC §3) pour la part réglée via le CC.
+      if (ccMontant > 0 && param) {
+        await preleverCCVenteComptant(tx, {
+          clientId: Number(clientId), montant: ccMontant, venteId: v.id, venteRef: ref,
+          userId, ip, param,
+        });
+      }
+
+      // Encaissement sur la grande caisse : uniquement la part espèces (hors CC).
+      if (resteAPayer > 0) {
+        await tx.operationCaisse.create({
+          data: {
+            sessionId:    sessionCaisse.id,
+            type:         "ENCAISSEMENT",
+            montant:      resteAPayer,
+            motif:        ccMontant > 0 ? `Vente directe ${ref} (dont ${ccMontant.toLocaleString("fr-FR")} via CC)` : `Vente directe ${ref}`,
+            reference:    `${ref}-CAISSE`,
+            operateurNom: `${session.user.prenom} ${session.user.nom}`,
+            operateurId:  userId,
+          },
+        });
+      }
 
       await auditLog(tx, userId, "VENTE_DIRECTE_CREEE", "VenteDirecte", v.id);
 

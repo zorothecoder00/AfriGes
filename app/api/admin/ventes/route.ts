@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getAuthSession } from "@/lib/auth";
 import { randomUUID } from "crypto";
 import { notifyRoles, auditLog } from "@/lib/notifications";
+import { chargerParametrageCC, getCompteCourantParClient, preleverCCVenteComptant } from "@/lib/compteCourant";
 
 async function getAdminSession() {
   const s = await getAuthSession();
@@ -127,6 +128,9 @@ export async function POST(req: Request) {
       );
     }
 
+    // Part réglée depuis le compte courant client (CDC §3) — 0 par défaut.
+    const ccMontantDemande = Math.max(0, Number(body.montantCompteCourant) || 0);
+
     // Vérifier stocks et calculer montant
     let montantTotal = 0;
     for (const l of lignes as Array<{ produitId: number; quantite: number; prixUnitaire?: number }>) {
@@ -144,11 +148,31 @@ export async function POST(req: Request) {
       montantTotal += Number(l.quantite) * Number(l.prixUnitaire ?? stock.produit.prixUnitaire);
     }
 
+    // Part CC (plafonnée au total) et reste à régler en espèces/autre.
+    const ccMontant    = Math.min(ccMontantDemande, montantTotal);
+    const resteAPayer  = montantTotal - ccMontant;
+
+    if (ccMontant > 0) {
+      if (!clientId) {
+        return NextResponse.json({ error: "Un client enregistré est requis pour payer avec le compte courant." }, { status: 400 });
+      }
+      const cc = await getCompteCourantParClient(Number(clientId));
+      if (!cc) return NextResponse.json({ error: "Ce client n'a pas de compte courant." }, { status: 422 });
+      if (cc.statut !== "ACTIF") return NextResponse.json({ error: `Compte courant ${cc.statut.toLowerCase()} : paiement impossible.` }, { status: 422 });
+      if (ccMontant > Number(cc.solde)) return NextResponse.json({ error: "Solde du compte courant insuffisant." }, { status: 422 });
+    }
+    // Le paiement espèces doit couvrir au moins le reste (après part CC).
+    if (Number(montantPaye) < resteAPayer) {
+      return NextResponse.json({ error: `Montant payé insuffisant : reste ${resteAPayer.toLocaleString("fr-FR")} FCFA à régler.` }, { status: 400 });
+    }
+
+    const param = ccMontant > 0 ? await chargerParametrageCC() : null;
+    const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null;
     const pdv = await prisma.pointDeVente.findUnique({ where: { id: Number(pointDeVenteId) }, select: { nom: true } });
 
     const vente = await prisma.$transaction(async (tx) => {
       const ref = `VD-ADM-${Date.now()}-${randomUUID().slice(0, 6).toUpperCase()}`;
-      const monnaieRendue = Math.max(0, Number(montantPaye) - montantTotal);
+      const monnaieRendue = Math.max(0, Number(montantPaye) - resteAPayer);
 
       const v = await tx.venteDirecte.create({
         data: {
@@ -160,6 +184,7 @@ export async function POST(req: Request) {
           montantTotal,
           montantPaye:     Number(montantPaye),
           monnaieRendue,
+          montantCompteCourant: ccMontant,
           notes:           notes || null,
           clientId:        clientId        ? Number(clientId) : null,
           clientNom:       clientNom       || null,
@@ -195,6 +220,14 @@ export async function POST(req: Request) {
             operateurId:   userId,
             venteDirecteId:v.id,
           },
+        });
+      }
+
+      // Prélèvement du compte courant (CDC §3) si une part est réglée via le CC.
+      if (ccMontant > 0 && param) {
+        await preleverCCVenteComptant(tx, {
+          clientId: Number(clientId), montant: ccMontant, venteId: v.id, venteRef: ref,
+          userId, ip, param,
         });
       }
 

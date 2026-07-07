@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
 import { getCompteCourantSession } from "@/lib/authCompteCourant";
 import { htmlToPdf, pdfResponse, escapeHtml } from "@/lib/pdf";
@@ -7,6 +8,16 @@ export const runtime = "nodejs";
 export const maxDuration = 30;
 
 type Ctx = { params: Promise<{ id: string; mid: string }> };
+
+/**
+ * Signature électronique du reçu (CDC §5) : code de vérification HMAC déterministe
+ * calculé sur les données immuables du mouvement (référence, montant, compte, date).
+ * Permet d'attester l'authenticité du document sans service externe.
+ */
+function signatureElectronique(base: string): string {
+  const secret = process.env.NEXTAUTH_SECRET || "afrisime-compte-courant";
+  return crypto.createHmac("sha256", secret).update(base).digest("hex").slice(0, 16).toUpperCase();
+}
 
 const NATURE_LABEL: Record<string, string> = {
   DEPOT: "Reçu de dépôt", RETRAIT: "Reçu de retrait",
@@ -21,10 +32,11 @@ const dt = (d: Date) => new Date(d).toLocaleString("fr-FR", { dateStyle: "long",
  * GET /api/comptes-courants/[id]/mouvements/[mid]/recu
  * Reçu PDF d'un mouvement (CDC §13).
  */
-export async function GET(_req: Request, { params }: Ctx) {
+export async function GET(req: Request, { params }: Ctx) {
   const session = await getCompteCourantSession("READ");
   if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
 
+  const wantPrint = new URL(req.url).searchParams.get("print") === "1";
   const { id, mid } = await params;
   const mouvement = await prisma.mouvementCompteCourant.findFirst({
     where: { id: Number(mid), compteId: Number(id) },
@@ -45,6 +57,10 @@ export async function GET(_req: Request, { params }: Ctx) {
   const c = mouvement.compte;
   const titre = NATURE_LABEL[mouvement.nature] ?? "Reçu d'opération";
   const signe = Number(mouvement.montant) < 0 ? "−" : "+";
+  const operateur = mouvement.user ? `${mouvement.user.prenom} ${mouvement.user.nom}` : "AFRISIME";
+  const sigCode = signatureElectronique(
+    `${mouvement.reference}|${Number(mouvement.montant)}|${c.numeroCompte}|${new Date(mouvement.createdAt).toISOString()}`,
+  );
 
   const row = (k: string, v: string) =>
     `<tr><td style="padding:6px 0;color:#64748b">${escapeHtml(k)}</td><td style="padding:6px 0;text-align:right;font-weight:600;color:#0f172a">${escapeHtml(v)}</td></tr>`;
@@ -60,8 +76,11 @@ export async function GET(_req: Request, { params }: Ctx) {
     table{width:100%;border-collapse:collapse;font-size:13px}
     .amount{background:#ecfdf5;border:1px solid #a7f3d0;border-radius:10px;padding:14px 16px;margin:16px 0;display:flex;justify-content:space-between;align-items:center}
     .amount .big{font-size:24px;font-weight:900;color:#047857}
-    .sign{display:flex;gap:60px;margin-top:36px}
+    .sign{display:flex;gap:60px;margin-top:30px}
     .sign div{flex:1;border-top:1px solid #0f172a;padding-top:6px;font-size:11px;color:#64748b;text-align:center}
+    .esign{margin-top:22px;border:1px dashed #a7f3d0;background:#f0fdf4;border-radius:8px;padding:10px 12px;font-size:10.5px;color:#047857}
+    .esign b{color:#065f46}
+    .esign .code{font-family:monospace;font-weight:700;letter-spacing:1px;color:#0f172a}
     .foot{margin-top:26px;border-top:1px solid #e2e8f0;padding-top:8px;font-size:10px;color:#94a3b8;text-align:center}
   </style></head><body>
     <div class="head">
@@ -103,13 +122,29 @@ export async function GET(_req: Request, { params }: Ctx) {
       ${mouvement.observation ? row("Observation", mouvement.observation) : ""}
     </table>
 
+    <div class="esign">
+      <b>✔ Signature électronique</b> — Opération signée électroniquement par <b>${escapeHtml(operateur)}</b>
+      le ${escapeHtml(dt(mouvement.createdAt))}.<br/>
+      Code de vérification : <span class="code">${escapeHtml(sigCode)}</span>
+    </div>
+
     <div class="sign">
-      <div>Signature client</div>
-      <div>Signature caissier</div>
+      <div>Signature du client</div>
+      <div>Cachet AFRISIME</div>
     </div>
 
     <div class="foot">Document généré le ${escapeHtml(dt(new Date()))} · AFRISIME — reçu à conserver</div>
+    ${wantPrint ? `<script>window.onload=function(){setTimeout(function(){window.print()},250)}</script>` : ""}
   </body></html>`;
+
+  // Impression automatique (CDC §5) : ?print=1 renvoie le reçu en HTML et
+  // déclenche la boîte d'impression du navigateur ; sinon PDF téléchargeable.
+  if (wantPrint) {
+    return new Response(html, {
+      status: 200,
+      headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "private, no-store" },
+    });
+  }
 
   const pdf = await htmlToPdf(html, { format: "A4", margin: { top: "12mm", right: "12mm", bottom: "12mm", left: "12mm" } });
   return pdfResponse(pdf, `recu-${mouvement.reference}.pdf`, "inline");

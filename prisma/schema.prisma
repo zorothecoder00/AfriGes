@@ -1927,6 +1927,7 @@ model VenteDirecte {
   montantTotal    Decimal
   montantPaye     Decimal
   monnaieRendue   Decimal       @default(0)
+  montantCompteCourant Decimal  @default(0) // part réglée depuis le compte courant client (CDC §3)
   notes           String?
 
   // Client enregistré ou walk-in
