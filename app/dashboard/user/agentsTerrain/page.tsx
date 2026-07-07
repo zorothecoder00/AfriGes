@@ -1596,6 +1596,10 @@ export default function AgentTerrainPage() {
   const [vLignes, setVLignes]             = useState<{ produitId: string; quantite: string; prixUnitaire: string }[]>([
     { produitId: "", quantite: "", prixUnitaire: "" },
   ]);
+  // Paiement via compte courant (CDC §8) — uniquement pour un client enregistré.
+  const [vCcInfo, setVCcInfo]     = useState<{ id: number; numeroCompte: string; statut: string; solde: number } | null>(null);
+  const [vCcMontant, setVCcMontant] = useState("");
+  const [vUseCC, setVUseCC]       = useState(false);
 
   const cancelVenteIdRef  = useRef<number | null>(null);
   const livrerVenteIdRef  = useRef<number | null>(null);
@@ -1630,9 +1634,17 @@ export default function AgentTerrainPage() {
       const prix = Number(produitsDispo.find(p => p.produit.id === Number(l.produitId))?.produit.prixUnitaire ?? 0);
       return s + Number(l.quantite) * prix;
     }, 0);
+    // Part réglée via le compte courant (plafonnée au total et au solde) + reste en espèces.
+    const ccApplique  = vUseCC ? Math.max(0, Math.min(Number(vCcMontant) || 0, montantTotal, vCcSolde)) : 0;
+    const resteAPayer = Math.max(0, montantTotal - ccApplique);
+    if (ccApplique > 0 && (Number(vMontantPaye) || resteAPayer) < resteAPayer) {
+      toast.error(`Montant payé insuffisant : reste ${resteAPayer.toLocaleString("fr-FR")} FCFA à régler.`);
+      return;
+    }
     const res = await submitVente({
       modePaiement: vModePaiement,
-      montantPaye: Number(vMontantPaye) || montantTotal,
+      montantPaye: Number(vMontantPaye) || resteAPayer,
+      montantCompteCourant: ccApplique,
       clientId: vClientId || undefined,
       clientNom: !vClientId ? vClientNom || undefined : undefined,
       clientTelephone: !vClientId ? vClientTel || undefined : undefined,
@@ -1647,6 +1659,7 @@ export default function AgentTerrainPage() {
       setShowVenteForm(false);
       setVClientId(""); setVClientNom(""); setVClientTel("");
       setVMontantPaye(""); setVNotes("");
+      setVCcInfo(null); setVCcMontant(""); setVUseCC(false);
       setVLignes([{ produitId: "", quantite: "", prixUnitaire: "" }]);
       refetchVentes();
     }
@@ -1671,6 +1684,22 @@ export default function AgentTerrainPage() {
     const prix = Number(produitsDispo.find(p => p.produit.id === Number(l.produitId))?.produit.prixUnitaire ?? 0);
     return s + Number(l.quantite) * prix;
   }, 0);
+
+  // Récupère le compte courant du client sélectionné (client enregistré uniquement).
+  useEffect(() => {
+    let annule = false;
+    if (!vClientId) { setVCcInfo(null); setVCcMontant(""); setVUseCC(false); return; }
+    fetch(`/api/comptes-courants/by-client/${vClientId}`)
+      .then(r => (r.ok ? r.json() : null))
+      .then(j => { if (!annule) setVCcInfo(j?.data ?? null); })
+      .catch(() => { if (!annule) setVCcInfo(null); });
+    return () => { annule = true; };
+  }, [vClientId]);
+
+  const vCcSolde     = vCcInfo && vCcInfo.statut === "ACTIF" ? vCcInfo.solde : 0;
+  const vCcApplique  = vUseCC ? Math.max(0, Math.min(Number(vCcMontant) || 0, vMontantCalcule, vCcSolde)) : 0;
+  const vResteAPayer = Math.max(0, vMontantCalcule - vCcApplique);
+  const vCashSaisi   = vMontantPaye === "" ? vResteAPayer : Number(vMontantPaye);
 
   const clients        = clientsResponse?.data ?? [];
   const clientsMeta    = clientsResponse?.meta;
@@ -2582,7 +2611,7 @@ export default function AgentTerrainPage() {
                     <ShoppingCart size={18} className="text-teal-600" />
                     <h3 className="font-bold text-slate-800">Nouvelle vente</h3>
                   </div>
-                  <button onClick={() => { setShowVenteForm(false); setVModePaiement("ESPECES"); }} className="p-1 text-slate-400 hover:text-slate-600 rounded-lg"><X size={16} /></button>
+                  <button onClick={() => { setShowVenteForm(false); setVModePaiement("ESPECES"); setVUseCC(false); setVCcMontant(""); }} className="p-1 text-slate-400 hover:text-slate-600 rounded-lg"><X size={16} /></button>
                 </div>
                 <form onSubmit={handleSubmitVente} className="p-5 space-y-4">
 
@@ -2691,14 +2720,62 @@ export default function AgentTerrainPage() {
                     </div>
                   </div>
 
-                  {/* Montant payé */}
+                  {/* Paiement via le compte courant (CDC §8) — client enregistré uniquement */}
+                  {vClientId && vCcInfo && (
+                    vCcInfo.statut === "ACTIF" ? (
+                      <div className="rounded-xl border border-emerald-200 bg-emerald-50/50 p-3 space-y-2">
+                        <label className="flex items-center justify-between text-sm cursor-pointer">
+                          <span className="font-medium text-emerald-800 flex items-center gap-2">
+                            <input type="checkbox" checked={vUseCC}
+                              onChange={e => { setVUseCC(e.target.checked); if (!e.target.checked) { setVCcMontant(""); setVMontantPaye(String(vMontantCalcule)); } }}
+                              className="w-4 h-4 accent-emerald-600" />
+                            <CreditCard size={15} /> Utiliser le Compte Courant · {vCcInfo.numeroCompte}
+                          </span>
+                          <span className="text-emerald-700">Solde : <b>{formatCurrency(vCcInfo.solde)}</b></span>
+                        </label>
+                        {vUseCC && (
+                          <>
+                            <div className="flex items-center gap-2">
+                              <input type="number" min="0" step="1" value={vCcMontant}
+                                onChange={e => {
+                                  const applique = Math.max(0, Math.min(Number(e.target.value) || 0, vMontantCalcule, vCcInfo.solde));
+                                  setVCcMontant(e.target.value);
+                                  setVMontantPaye(String(Math.max(0, vMontantCalcule - applique)));
+                                }}
+                                placeholder="Montant à imputer sur le CC"
+                                className="flex-1 px-3 py-2 border border-emerald-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                              <button type="button"
+                                onClick={() => { const max = Math.min(vCcInfo.solde, vMontantCalcule); setVCcMontant(String(max)); setVMontantPaye(String(Math.max(0, vMontantCalcule - max))); }}
+                                className="px-3 py-2 text-xs font-medium bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 whitespace-nowrap">
+                                Payer tout ({formatCurrency(Math.min(vCcInfo.solde, vMontantCalcule))})
+                              </button>
+                            </div>
+                            {vCcApplique > 0 && (
+                              <p className="text-xs text-emerald-700">
+                                <b>{formatCurrency(vCcApplique)}</b> imputés sur le compte courant · reste <b>{formatCurrency(vResteAPayer)}</b> à régler.
+                              </p>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-slate-400">Compte courant {vCcInfo.statut.toLowerCase()} — paiement par compte courant indisponible.</p>
+                    )
+                  )}
+
+                  {/* Montant payé (part espèces / reste après CC) */}
                   <div>
                     <label className="block text-xs font-medium text-slate-600 mb-1">
-                      Montant payé (calculé : <strong>{vMontantCalcule.toLocaleString("fr-FR")} FCFA</strong>)
+                      Montant payé {vCcApplique > 0 ? "(espèces, hors CC)" : ""} (à régler : <strong>{vResteAPayer.toLocaleString("fr-FR")} FCFA</strong>)
                     </label>
-                    <input type="number" min="0" placeholder={String(vMontantCalcule)}
+                    <input type="number" min="0" placeholder={String(vResteAPayer)}
                       value={vMontantPaye} onChange={e => setVMontantPaye(e.target.value)}
-                      className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
+                      className={`w-full px-3 py-2.5 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 ${
+                        vMontantPaye !== "" && vCashSaisi < vResteAPayer ? "border-orange-400 bg-orange-50" : "border-slate-200"
+                      }`} />
+                    {vMontantPaye !== "" && vCashSaisi < vResteAPayer && (
+                      <p className="text-xs text-orange-600 mt-1">Montant insuffisant — reste {formatCurrency(vResteAPayer - vCashSaisi)}.</p>
+                    )}
                   </div>
 
                   <textarea placeholder="Notes (optionnel)" rows={2} value={vNotes} onChange={e => setVNotes(e.target.value)}
@@ -2707,7 +2784,7 @@ export default function AgentTerrainPage() {
                   <div className="flex gap-3 pt-1">
                     <button type="button" onClick={() => setShowVenteForm(false)}
                       className="flex-1 py-2.5 border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50 text-sm">Annuler</button>
-                    <button type="submit" disabled={venteSubmitLoading || vLignes.every(l => !l.produitId)}
+                    <button type="submit" disabled={venteSubmitLoading || vLignes.every(l => !l.produitId) || (vCcApplique > 0 && vCashSaisi < vResteAPayer)}
                       className="flex-1 py-2.5 text-white rounded-xl disabled:opacity-50 text-sm font-semibold flex items-center justify-center gap-2 bg-teal-600 hover:bg-teal-700">
                       {venteSubmitLoading
                         ? <><Loader2 size={14} className="animate-spin" /> Enregistrement…</>

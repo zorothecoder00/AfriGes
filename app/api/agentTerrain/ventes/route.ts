@@ -5,6 +5,9 @@ import { getAgentTerrainSession } from "@/lib/authAgentTerrain";
 import { randomUUID } from "crypto";
 import { notifyRoles, auditLog } from "@/lib/notifications";
 import { resolveViewAs } from "@/lib/viewAs";
+import {
+  getCompteCourantParClient, chargerParametrageCC, preleverCompteCourant, extraireMetaRequete,
+} from "@/lib/compteCourant";
 
 /**
  * GET /api/agentTerrain/ventes
@@ -136,6 +139,9 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Au moins une ligne est obligatoire" }, { status: 400 });
     }
 
+    // Part réglée depuis le compte courant client (CDC §8) — 0 par défaut.
+    const ccMontantDemande = Math.max(0, Number(body.montantCompteCourant) || 0);
+
     // ── Vérification stocks + calcul montant ──────────────────────────────────
     type LigneInput = { produitId: number; quantite: number };
     let montantTotal = 0;
@@ -171,10 +177,31 @@ export async function POST(req: Request) {
       lignesData.push({ produitId: Number(l.produitId), produitNom: null, quantite: qte, prixUnitaire: prix, montant: montantLigne });
     }
 
+    // Part CC (plafonnée au total) et reste à régler en espèces.
+    const ccMontant   = Math.min(ccMontantDemande, montantTotal);
+    const resteAPayer = montantTotal - ccMontant;
+
+    if (ccMontant > 0) {
+      if (!clientId) {
+        return NextResponse.json({ error: "Un client enregistré est requis pour payer avec le compte courant." }, { status: 400 });
+      }
+      const cc = await getCompteCourantParClient(Number(clientId));
+      if (!cc) return NextResponse.json({ error: "Ce client n'a pas de compte courant." }, { status: 422 });
+      if (cc.statut !== "ACTIF") return NextResponse.json({ error: `Compte courant ${cc.statut.toLowerCase()} : paiement impossible.` }, { status: 422 });
+      if (ccMontant > Number(cc.solde)) return NextResponse.json({ error: "Solde du compte courant insuffisant." }, { status: 422 });
+      // Le paiement espèces doit couvrir au moins le reste (après part CC).
+      if (Number(montantPaye ?? 0) < resteAPayer) {
+        return NextResponse.json({ error: `Montant payé insuffisant : reste ${resteAPayer.toLocaleString("fr-FR")} FCFA à régler.` }, { status: 400 });
+      }
+    }
+
+    const param = ccMontant > 0 ? await chargerParametrageCC() : null;
+    const { ip, userAgent } = extraireMetaRequete(req);
+
     const vente = await prisma.$transaction(async (tx) => {
       const ref            = `VD-AT-${Date.now()}-${randomUUID().slice(0, 6).toUpperCase()}`;
       const montantPayeNum = Number(montantPaye ?? 0);
-      const monnaieRendue  = Math.max(0, montantPayeNum - montantTotal);
+      const monnaieRendue  = Math.max(0, montantPayeNum - resteAPayer);
 
       const v = await tx.venteDirecte.create({
         data: {
@@ -186,6 +213,7 @@ export async function POST(req: Request) {
           montantTotal,
           montantPaye:     montantPayeNum,
           monnaieRendue,
+          montantCompteCourant: ccMontant,
           notes:           notes || null,
           clientId:        clientId        ? Number(clientId)        : null,
           clientNom:       clientNom       || null,
@@ -218,6 +246,14 @@ export async function POST(req: Request) {
             operateurId:    userId,
             venteDirecteId: v.id,
           },
+        });
+      }
+
+      // Prélèvement du compte courant (CDC §8) si une part est réglée via le CC.
+      if (ccMontant > 0 && param) {
+        await preleverCompteCourant(tx, {
+          clientId: Number(clientId), montant: ccMontant, nature: "PAIEMENT_COMPTANT",
+          venteId: v.id, refLibelle: `Vente comptant ${ref}`, userId, ip, userAgent, param,
         });
       }
 
