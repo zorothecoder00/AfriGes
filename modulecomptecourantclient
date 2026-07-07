@@ -1,54 +1,13 @@
- Plan par lots que je propose
+ Bilan des trous §8‑9
 
-  1. Socle : schéma + paramétrage + création de compte (numérotation + clé RIB)
-  + consultation + recherche + droits d'accès + journalisation.
-  2. Dépôts : dépôt → maj solde + reçu PDF + notif in-app + écriture compta
-  (Débit Caisse / Crédit Compte courant).
-  3. Paiement : intégration « Utiliser mon compte courant » dans vente comptant
-  + crédit (recalcul reste à payer / à mettre à crédit) + écriture.
-  4. Retrait sécurisé : workflow double validation + écriture + reçu.
-  5. Tableau de bord + états/statistiques + exports + documents (relevé,
-  attestations, carnet).
-  - Différé (backlog) : section 19 (A–F : comptes collectifs, épargne
-  programmée, prélèvement auto, récompenses, blocage volontaire, multi-agences
-  temps réel), + OTP/biométrie/QR, SMS/WhatsApp réel, signature électronique.
+  1. §8 — CC + reste à crédit (fonctionnel, important) — le plus gros manque.
+  2. §8 — case à cocher « Utiliser mon CC » (cosmétique).
+  3. §9 — OTP / empreinte / QR (infra externe, phase 2).
+  4. §9 — vérif pièce d'identité / photo / signature (documentaire, phase 2).
 
-  Avant de rédiger le plan détaillé et de coder, 4 décisions à trancher :
-
-
-Points laissés pour les lots suivants (comme convenu)
-
-  - Lot 2 : dépôts (+ reçu PDF + notif + écriture compta Débit Caisse / Crédit
-  Compte courant).
-  - Lot 3 : paiement « Utiliser mon compte courant » dans ventes comptant +
-  crédits.
-  - Lot 4 : retrait sécurisé (double validation chef d'agence).
-  - Lot 5 : tableau de bord + états/stats + documents (relevé, attestations,
-  carnet).
-
-
-Laissé de côté (à confirmer si tu les veux)
-
-  - Paiement d'une vente comptant via CC (autre intégration, sur VenteDirecte) —
-  je ne l'ai pas fait pour rester sur du sûr ; dis-moi si tu le veux.
-  - L'intégration « case Utiliser mon CC » dans l'assistant de création de
-  crédit (option B) — non retenue.
-
-  Prochaine étape logique : Lot 4 — Retrait sécurisé (caissier initie →
-  validation Chef d'agence avec ré-auth mot de passe + motif + audit). Je peux
-  aussi ajouter le paiement vente comptant avant si tu préfères. Tu veux quoi ?
-
-
-En clair, les 2 vrais « trous » sur les sections 1‑4
-
-  1. Aucune action pour changer le statut d'un compte (Suspendre / Clôturer /
-  Blacklister / Décédé / Frauduleux) — alors que le CDC §3 le liste et que le
-  blocage §10 en dépend.
-  2. Montant minimum d'ouverture non appliqué (pas de dépôt initial à la
-  création).
-
-  Veux-tu que je comble ces 2 trous maintenant (gestion des statuts + option de
-  dépôt d'ouverture avec montant minimum) avant de passer au Lot 4 — Retrait ?
-  Et peux-tu me confirmer le mapping Communauté = commune et Zone = ville (ou me
-  dire les bons champs) ?
+  Dis-moi ce que tu veux que je corrige. Le point 1 (CC + reste à crédit) est
+  faisable et fidèle au CDC ; les points 3‑4 demandent des briques externes
+  (OTP/biométrie) — je peux au minimum poser une case « pièce d'identité
+  vérifiée » + capture signature si tu veux une version soft. Ou colle d'abord
+  la suite (§10…) et on regroupe les corrections.
 

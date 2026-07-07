@@ -6,7 +6,7 @@
 //  - chargement du paramétrage (singleton)
 
 import { prisma } from "@/lib/prisma";
-import { Prisma, PrioriteNotification, type TypeJournalComptable } from "@prisma/client";
+import { Prisma, PrioriteNotification, type NatureMouvementCC, type TypeJournalComptable } from "@prisma/client";
 import { notifyAdmins } from "@/lib/notifications";
 
 export type TxClient = Prisma.TransactionClient;
@@ -239,16 +239,19 @@ export async function getCompteCourantParClient(clientId: number) {
 export type CCVenteError = "CC_ABSENT" | "CC_INACTIF" | "CC_SOLDE_INSUFFISANT";
 
 /**
- * Débite le compte courant d'un client pour régler tout ou partie d'une vente
- * comptant (CDC §3) : mouvement PAIEMENT_COMPTANT + écriture Débit Compte courant
- * (419) / Crédit Ventes (701), lié à la vente. Lève une CCVenteError si le compte
- * est absent, non ACTIF, ou de solde insuffisant.
+ * Débite le compte courant d'un client pour régler tout ou partie d'un achat
+ * (CDC §3, §8) : mouvement (PAIEMENT_COMPTANT par défaut) + écriture Débit Compte
+ * courant (419) / Crédit Ventes (701), lié à la vente OU au crédit client concerné.
+ * Lève une CCVenteError si le compte est absent, non ACTIF, ou de solde insuffisant.
+ *
+ * Usages : vente comptant (venteId) et apport initial d'un crédit client (creditId).
  */
-export async function preleverCCVenteComptant(
+export async function preleverCompteCourant(
   tx: TxClient,
   opts: {
-    clientId: number; montant: number; venteId: number; venteRef: string;
-    userId: number; ip?: string | null;
+    clientId: number; montant: number;
+    userId: number; ip?: string | null; refLibelle: string;
+    nature?: NatureMouvementCC; venteId?: number; creditId?: number;
     param: { compteCourantClientNumero: string; compteVentesNumero: string };
   },
 ) {
@@ -268,22 +271,22 @@ export async function preleverCCVenteComptant(
 
   const ecritureId = await creerEcritureCC(tx, {
     journal: "OD", date: new Date(),
-    libelle: `Vente comptant ${opts.venteRef} réglée via compte courant ${cc.numeroCompte} — ${clientNom}`,
+    libelle: `${opts.refLibelle} réglé via compte courant ${cc.numeroCompte} — ${clientNom}`,
     userId: opts.userId,
     lignes: [
       { numero: opts.param.compteCourantClientNumero, debit:  opts.montant, libelle: `Utilisation CC ${cc.numeroCompte}` },
-      { numero: opts.param.compteVentesNumero,        credit: opts.montant, libelle: `Vente comptant ${opts.venteRef}` },
+      { numero: opts.param.compteVentesNumero,        credit: opts.montant, libelle: opts.refLibelle },
     ],
   });
 
   const reference = await genererReferenceMouvementCC(tx, "PAY");
   const mouvement = await tx.mouvementCompteCourant.create({
     data: {
-      reference, compteId: cc.id, nature: "PAIEMENT_COMPTANT",
+      reference, compteId: cc.id, nature: opts.nature ?? "PAIEMENT_COMPTANT",
       montant: -opts.montant, soldeAvant: avant, soldeApres: apres,
-      observation: `Vente comptant ${opts.venteRef}`,
+      observation: opts.refLibelle,
       statut: "VALIDE", userId: opts.userId, agence: cc.codeAgence,
-      ecritureId, venteId: opts.venteId, ip: opts.ip ?? null,
+      ecritureId, venteId: opts.venteId ?? null, creditId: opts.creditId ?? null, ip: opts.ip ?? null,
     },
     select: { id: true, reference: true },
   });

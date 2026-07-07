@@ -1129,6 +1129,7 @@ model CreditClient {
   montantTotal     Decimal
   montantRembourse Decimal      @default(0)
   soldeRestant     Decimal
+  apportCompteCourant Decimal   @default(0) // part de l'achat réglée via le compte courant à la création (CDC §8)
 
   // Échéancier
   dureeJours       Int          // nombre de jours de remboursement

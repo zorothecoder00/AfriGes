@@ -5,7 +5,7 @@ import { getCaissierSession } from "@/lib/authCaissier";
 import { randomUUID } from "crypto";
 import { notifyRoles, auditLog } from "@/lib/notifications";
 import { resolveViewAs } from "@/lib/viewAs";
-import { chargerParametrageCC, getCompteCourantParClient, preleverCCVenteComptant } from "@/lib/compteCourant";
+import { chargerParametrageCC, getCompteCourantParClient, preleverCompteCourant } from "@/lib/compteCourant";
 
 /**  
  * GET /api/caissier/ventes
@@ -248,9 +248,9 @@ export async function POST(req: Request) {
 
       // Prélèvement du compte courant (CDC §3) pour la part réglée via le CC.
       if (ccMontant > 0 && param) {
-        await preleverCCVenteComptant(tx, {
-          clientId: Number(clientId), montant: ccMontant, venteId: v.id, venteRef: ref,
-          userId, ip, param,
+        await preleverCompteCourant(tx, {
+          clientId: Number(clientId), montant: ccMontant, nature: "PAIEMENT_COMPTANT",
+          venteId: v.id, refLibelle: `Vente comptant ${ref}`, userId, ip, param,
         });
       }
 

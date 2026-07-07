@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getAuthSession } from "@/lib/auth";
 import { randomUUID } from "crypto";
 import { notifyRoles, auditLog } from "@/lib/notifications";
-import { chargerParametrageCC, getCompteCourantParClient, preleverCCVenteComptant } from "@/lib/compteCourant";
+import { chargerParametrageCC, getCompteCourantParClient, preleverCompteCourant } from "@/lib/compteCourant";
 
 async function getAdminSession() {
   const s = await getAuthSession();
@@ -225,9 +225,9 @@ export async function POST(req: Request) {
 
       // Prélèvement du compte courant (CDC §3) si une part est réglée via le CC.
       if (ccMontant > 0 && param) {
-        await preleverCCVenteComptant(tx, {
-          clientId: Number(clientId), montant: ccMontant, venteId: v.id, venteRef: ref,
-          userId, ip, param,
+        await preleverCompteCourant(tx, {
+          clientId: Number(clientId), montant: ccMontant, nature: "PAIEMENT_COMPTANT",
+          venteId: v.id, refLibelle: `Vente comptant ${ref}`, userId, ip, param,
         });
       }
 

@@ -240,6 +240,20 @@ export default function CreditsPage() {
   });
   const [creditSubmitting, setCreditSubmitting] = useState(false);
   const [creditError,     setCreditError]     = useState('');
+  // Apport via compte courant (CDC §8) : réduit le montant mis à crédit
+  const [creditCcInfo,    setCreditCcInfo]    = useState<{ id: number; numeroCompte: string; statut: string; solde: number } | null>(null);
+  const [creditCcMontant, setCreditCcMontant] = useState('');
+  const [creditUseCC,     setCreditUseCC]     = useState(false);
+
+  useEffect(() => {
+    if (!creditClientId) { setCreditCcInfo(null); setCreditCcMontant(''); setCreditUseCC(false); return; }
+    let annule = false;
+    fetch(`/api/comptes-courants/by-client/${creditClientId}`)
+      .then(r => (r.ok ? r.json() : null))
+      .then(j => { if (!annule) setCreditCcInfo(j?.data ?? null); })
+      .catch(() => { if (!annule) setCreditCcInfo(null); });
+    return () => { annule = true; };
+  }, [creditClientId]);
 
   const [convertLoading,  setConvertLoading]  = useState(false);
 
@@ -486,6 +500,11 @@ export default function CreditsPage() {
   const creditInteret        = Number(((creditMontantTotal * Number(creditParams.tauxInteret || 0)) / 100).toFixed(2));
   const creditFraisTotal     = Number(creditParams.fraisDossier || 0) + Number(creditParams.assurance || 0) + Number(creditParams.autresFrais || 0) + Number(creditParams.fraisLivraison || 0) + creditInteret;
   const creditTotalARembourser = creditMontantTotal + creditFraisTotal;
+  // Apport CC (CDC §8) : le crédit ne finance que le reste (total − apport).
+  const creditCcSolde        = creditCcInfo && creditCcInfo.statut === 'ACTIF' ? creditCcInfo.solde : 0;
+  const creditApportCC       = creditUseCC ? Math.max(0, Math.min(Number(creditCcMontant) || 0, creditTotalARembourser, creditCcSolde)) : 0;
+  const creditResteAFinancer = Math.max(0, creditTotalARembourser - creditApportCC);
+  const creditCcCouvreTout   = creditApportCC > 0 && creditResteAFinancer <= 0;
   const creditLignesInvalid = creditLignes.filter(l => l.produitNom.trim()).some(l =>
     l.prixUnitaire <= 0 || l.quantite <= 0 ||
     (l.remise > 0 && l.remise >= l.prixUnitaire * l.quantite) ||
@@ -493,7 +512,7 @@ export default function CreditsPage() {
   );
   const creditDateDebutInvalid = !!creditParams.dateDebut && creditParams.dateDebut < new Date().toISOString().slice(0, 10);
   const creditMontantJournalier = creditParams.dureeJours
-    ? Number((creditTotalARembourser / Number(creditParams.dureeJours)).toFixed(2)) : 0;
+    ? Number((creditResteAFinancer / Number(creditParams.dureeJours)).toFixed(2)) : 0;
   const creditDateFin = (() => {
     if (!creditParams.dureeJours || !creditParams.dateDebut) return '';
     const d = new Date(creditParams.dateDebut);
@@ -523,6 +542,7 @@ export default function CreditsPage() {
           })),
           dureeJours:   Number(creditParams.dureeJours),
           dateDebut:    creditParams.dateDebut,
+          montantCompteCourant: creditApportCC,
           fraisDossier:    Number(creditParams.fraisDossier || 0),
           assurance:       Number(creditParams.assurance || 0),
           autresFrais:     Number(creditParams.autresFrais || 0),
@@ -1804,6 +1824,55 @@ export default function CreditsPage() {
                       <p className="text-sm font-bold text-slate-700 mt-0.5">{creditDateFin ? formatDate(creditDateFin) : '—'}</p>
                     </div>
                   </div>
+
+                  {/* Apport compte courant (CDC §8) : reste à mettre à crédit */}
+                  {creditCcInfo && creditCcInfo.statut === 'ACTIF' && (
+                    <div className="rounded-xl border border-emerald-200 bg-emerald-50/50 p-3 space-y-2">
+                      <label className="flex items-center justify-between text-sm cursor-pointer">
+                        <span className="font-medium text-emerald-800 flex items-center gap-2">
+                          <input type="checkbox" checked={creditUseCC}
+                            onChange={e => { setCreditUseCC(e.target.checked); if (!e.target.checked) setCreditCcMontant(''); }}
+                            className="w-4 h-4 accent-emerald-600" />
+                          <CreditCard className="w-4 h-4" /> Utiliser mon Compte Courant · {creditCcInfo.numeroCompte}
+                        </span>
+                        <span className="text-emerald-700">Solde : <b>{formatCurrency(creditCcInfo.solde)}</b></span>
+                      </label>
+                      {creditUseCC && (
+                        <>
+                          <div className="flex items-center gap-2">
+                            <input type="number" min={0} step={1} value={creditCcMontant}
+                              onChange={e => setCreditCcMontant(e.target.value)}
+                              placeholder="Montant à imputer sur le CC"
+                              className="flex-1 px-3 py-2 border border-emerald-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                            <button type="button"
+                              onClick={() => setCreditCcMontant(String(Math.min(creditCcInfo.solde, creditTotalARembourser)))}
+                              className="px-3 py-2 text-xs font-medium bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 whitespace-nowrap">
+                              Max ({formatCurrency(Math.min(creditCcInfo.solde, creditTotalARembourser))})
+                            </button>
+                          </div>
+                          <div className="grid grid-cols-3 gap-2 text-xs">
+                            <div className="bg-white rounded-lg px-3 py-2 border border-slate-100">
+                              <p className="text-slate-400">Achat</p>
+                              <p className="font-bold text-slate-700">{formatCurrency(creditTotalARembourser)}</p>
+                            </div>
+                            <div className="bg-white rounded-lg px-3 py-2 border border-emerald-100">
+                              <p className="text-slate-400">Compte courant</p>
+                              <p className="font-bold text-emerald-700">{formatCurrency(creditApportCC)}</p>
+                            </div>
+                            <div className="bg-white rounded-lg px-3 py-2 border border-blue-100">
+                              <p className="text-slate-400">Crédit accordé</p>
+                              <p className="font-bold text-blue-700">{formatCurrency(creditResteAFinancer)}</p>
+                            </div>
+                          </div>
+                          {creditCcCouvreTout && (
+                            <p className="text-xs text-amber-600 flex items-center gap-1">
+                              <AlertCircle className="w-3 h-3" /> Le compte courant couvre tout : enregistrez plutôt une vente comptant (100% CC).
+                            </p>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  )}
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="block text-xs font-medium text-slate-600 mb-1">Taux pénalité (% / jour)</label>
@@ -1925,7 +1994,7 @@ export default function CreditsPage() {
                     </div>
                   </div>
                   <div className="grid grid-cols-3 gap-3">
-                    {[{ label: 'Total à rembourser', value: formatCurrency(creditTotalARembourser) }, { label: 'Durée', value: `${creditParams.dureeJours} jours` }, { label: 'Montant/jour', value: formatCurrency(creditMontantJournalier) }].map(s => (
+                    {[{ label: creditApportCC > 0 ? 'Crédit à rembourser' : 'Total à rembourser', value: formatCurrency(creditResteAFinancer) }, { label: 'Durée', value: `${creditParams.dureeJours} jours` }, { label: 'Montant/jour', value: formatCurrency(creditMontantJournalier) }].map(s => (
                       <div key={s.label} className="bg-blue-50 rounded-lg p-3 text-center">
                         <p className="text-xs text-blue-500">{s.label}</p>
                         <p className="text-sm font-bold text-blue-700 mt-0.5">{s.value}</p>
@@ -1973,7 +2042,7 @@ export default function CreditsPage() {
                   disabled={
                     (creditStep === 1 && (!creditClientId || !creditPdvId || eligibiliteLoading || showSetLimite || eligibilite?.eligible === false)) ||
                     (creditStep === 2 && (creditMontantTotal <= 0 || !creditLignes.some(l => l.produitNom.trim()) || creditLignesInvalid)) ||
-                    (creditStep === 3 && (!creditParams.dureeJours || Number(creditParams.dureeJours) < 1 || !creditParams.dateDebut))
+                    (creditStep === 3 && (!creditParams.dureeJours || Number(creditParams.dureeJours) < 1 || !creditParams.dateDebut || creditCcCouvreTout))
                   }
                   onClick={() => { setCreditError(''); setCreditStep(s => s + 1); }}
                   className="flex items-center gap-1 px-5 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-40">

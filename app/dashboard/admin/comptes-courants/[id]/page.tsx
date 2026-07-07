@@ -31,7 +31,7 @@ interface CompteDetail {
 interface Mouvement {
   id: number; reference: string; nature: string; montant: string | number;
   soldeAvant: string | number; soldeApres: string | number; modePaiement: string | null;
-  observation: string | null; statut: string; createdAt: string;
+  observation: string | null; statut: string; agence: string | null; createdAt: string;
   user: { nom: string; prenom: string } | null;
 }
 interface CreditPayable {
@@ -458,9 +458,12 @@ export default function CompteCourantDetailPage() {
                         <th className="text-left px-5 py-3 font-semibold">Date</th>
                         <th className="text-left px-5 py-3 font-semibold">Nature</th>
                         <th className="text-right px-5 py-3 font-semibold">Montant</th>
+                        <th className="text-right px-5 py-3 font-semibold">Solde avant</th>
                         <th className="text-right px-5 py-3 font-semibold">Solde après</th>
-                        <th className="text-left px-5 py-3 font-semibold">Opérateur</th>
+                        <th className="text-left px-5 py-3 font-semibold">Utilisateur</th>
+                        <th className="text-left px-5 py-3 font-semibold">Agence</th>
                         <th className="text-left px-5 py-3 font-semibold">Référence</th>
+                        <th className="text-left px-5 py-3 font-semibold">Observation</th>
                         <th className="px-5 py-3"></th>
                       </tr>
                     </thead>
@@ -476,14 +479,16 @@ export default function CompteCourantDetailPage() {
                                 {NATURE_LABEL[m.nature] ?? m.nature}
                               </span>
                               {annule && <span className="text-[10px] px-1.5 py-0.5 ml-1 rounded-full bg-gray-200 text-gray-500 font-medium">Rejeté</span>}
-                              {m.observation && <p className="text-[11px] text-gray-400 mt-0.5">{m.observation}</p>}
                             </td>
                             <td className={`px-5 py-3 text-right font-semibold ${annule ? "text-gray-400 line-through" : neg ? "text-orange-600" : "text-emerald-600"}`}>
                               {neg ? "−" : "+"} {formatCurrency(Math.abs(N(m.montant)))}
                             </td>
+                            <td className="px-5 py-3 text-right text-gray-600">{formatCurrency(N(m.soldeAvant))}</td>
                             <td className="px-5 py-3 text-right text-gray-800">{annule ? "—" : formatCurrency(N(m.soldeApres))}</td>
                             <td className="px-5 py-3 text-xs text-gray-600">{m.user ? `${m.user.prenom} ${m.user.nom}` : "—"}</td>
+                            <td className="px-5 py-3 text-xs text-gray-500">{m.agence ?? "—"}</td>
                             <td className="px-5 py-3 font-mono text-[11px] text-gray-500">{m.reference}</td>
+                            <td className="px-5 py-3 text-[11px] text-gray-500 max-w-[200px] truncate" title={m.observation ?? ""}>{m.observation ?? "—"}</td>
                             <td className="px-5 py-3 text-right">
                               <a href={recuUrl(m.id)} target="_blank" rel="noopener noreferrer" title="Reçu PDF"
                                 className="inline-flex items-center gap-1 text-xs text-gray-400 hover:text-emerald-600">

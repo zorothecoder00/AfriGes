@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { MemberStatus, NiveauRisque, Prisma, PrioriteNotification, Role, StatutCredit } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getRVCSession } from "@/lib/authRVC";
+import { chargerParametrageCC, getCompteCourantParClient, preleverCompteCourant } from "@/lib/compteCourant";
 
 /**
  * ==========================
@@ -139,6 +140,11 @@ export async function POST(req: Request) {
       return NextResponse.json({ message: "La durée doit être d'au moins 1 jour" }, { status: 400 });
     }
 
+    // Apport via compte courant (CDC §8) : réduit le montant financé (« reste à crédit »).
+    const ccMontantDemande = Math.max(0, Number(body.montantCompteCourant) || 0);
+    const paramCC = ccMontantDemande > 0 ? await chargerParametrageCC() : null;
+    const ipReq = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null;
+
     const result = await prisma.$transaction(async (tx) => {
       // ── Vérifier le client ────────────────────────────────────────────────
       const client = await tx.client.findUnique({
@@ -199,10 +205,15 @@ export async function POST(req: Request) {
         (valeurProduits + fraisDossierN + assuranceN + autresFraisN + fraisLivraisonN + montantInteret).toFixed(2)
       );
 
+      // Apport CC (CDC §8) : le crédit ne finance que le reste (achat − apport CC).
+      const apportCC = Math.min(ccMontantDemande, montantTotal);
+      if (apportCC > 0 && montantTotal - apportCC <= 0) throw new Error("CC_COUVRE_TOUT");
+      const montantCredit = Number((montantTotal - apportCC).toFixed(2));
+
       // ── Calcul échéancier (stocké, échéances générées à la validation) ────
       const duree = Number(dureeJours);
       const debut = new Date(dateDebut);
-      const montantJournalier = Number((montantTotal / duree).toFixed(2));
+      const montantJournalier = Number((montantCredit / duree).toFixed(2));
       const dateEcheanceFin   = new Date(debut);
       dateEcheanceFin.setDate(dateEcheanceFin.getDate() + duree);
 
@@ -241,9 +252,10 @@ export async function POST(req: Request) {
           clientId: client.id,
           pointDeVenteId: pointDeVenteId ? Number(pointDeVenteId) : null,
           statut: StatutCredit.EN_ATTENTE_VALIDATION,
-          montantTotal,
+          montantTotal: montantCredit,
           montantRembourse: 0,
-          soldeRestant: montantTotal,
+          soldeRestant: montantCredit,
+          apportCompteCourant: apportCC,
           dureeJours: duree,
           dateDebut: debut,
           dateEcheanceFin,
@@ -281,6 +293,15 @@ export async function POST(req: Request) {
         },
       });
 
+      // ── Apport compte courant (CDC §8) : débite le CC de la part réglée ────
+      if (apportCC > 0 && paramCC) {
+        await preleverCompteCourant(tx, {
+          clientId: client.id, montant: apportCC, nature: "PAIEMENT_COMPTANT",
+          creditId: credit.id, refLibelle: `Apport crédit ${reference}`,
+          userId: Number(session.user.id), ip: ipReq, param: paramCC,
+        });
+      }
+
       // ── Audit log ─────────────────────────────────────────────────────────
       await tx.auditLog.create({
         data: {
@@ -292,7 +313,7 @@ export async function POST(req: Request) {
       });
 
       // ── Notifications ──────────────────────────────────────────────────────
-      const msgNotif = `Un crédit de ${montantTotal.toLocaleString("fr-FR")} FCFA a été créé pour ${client.prenom} ${client.nom} (${reference}). En attente de validation.`;
+      const msgNotif = `Un crédit de ${montantCredit.toLocaleString("fr-FR")} FCFA a été créé pour ${client.prenom} ${client.nom} (${reference})${apportCC > 0 ? ` (apport compte courant : ${apportCC.toLocaleString("fr-FR")} FCFA)` : ""}. En attente de validation.`;
 
       // Admins → page admin
       const admins = await tx.user.findMany({
@@ -345,6 +366,10 @@ export async function POST(req: Request) {
         LIMITE_CREDIT_ATTEINTE:  ["La limite de crédit de ce client est atteinte", 422],
         CLIENT_CRITIQUE_EN_RETARD: ["Client en risque CRITIQUE avec un crédit en retard", 422],
         MONTANT_INVALIDE:        ["Le montant total des lignes doit être positif", 400],
+        CC_COUVRE_TOUT:          ["Le compte courant couvre la totalité de l'achat : enregistrez plutôt une vente comptant (100% CC)", 422],
+        CC_ABSENT:               ["Ce client n'a pas de compte courant", 422],
+        CC_INACTIF:              ["Le compte courant du client n'est pas actif", 422],
+        CC_SOLDE_INSUFFISANT:    ["Solde du compte courant insuffisant pour cet apport", 422],
       };
       if (map[error.message]) {
         const [msg, status] = map[error.message];

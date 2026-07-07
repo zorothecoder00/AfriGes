@@ -168,16 +168,17 @@ export default function VentesPage() {
   // Paiement (partiel ou total) via le compte courant client (CDC §3)
   const [ccInfo, setCcInfo]                         = useState<{ id: number; numeroCompte: string; statut: string; solde: number } | null>(null);
   const [ccMontant, setCcMontant]                   = useState('');
+  const [useCC, setUseCC]                           = useState(false);
 
   const montantTotal   = lignes.reduce((acc, l) => acc + l.quantite * l.prixUnitaire, 0);
   const ccSolde        = ccInfo && ccInfo.statut === 'ACTIF' ? ccInfo.solde : 0;
-  const ccApplique     = Math.max(0, Math.min(Number(ccMontant) || 0, montantTotal, ccSolde));
+  const ccApplique     = useCC ? Math.max(0, Math.min(Number(ccMontant) || 0, montantTotal, ccSolde)) : 0;
   const resteAPayer    = Math.max(0, montantTotal - ccApplique);
   const monnaieRendue  = Math.max(0, Number(montantPaye) - resteAPayer);
 
   // Récupère le compte courant du client sélectionné à l'étape paiement.
   useEffect(() => {
-    if (venteStep !== 3 || clientType !== 'search' || !selectedClient?.id) { setCcInfo(null); setCcMontant(''); return; }
+    if (venteStep !== 3 || clientType !== 'search' || !selectedClient?.id) { setCcInfo(null); setCcMontant(''); setUseCC(false); return; }
     let annule = false;
     fetch(`/api/comptes-courants/by-client/${selectedClient.id}`)
       .then((r) => (r.ok ? r.json() : null))
@@ -393,6 +394,7 @@ export default function VentesPage() {
     setMontantPaye('');
     setCcInfo(null);
     setCcMontant('');
+    setUseCC(false);
     setNotesVente('');
   };
 
@@ -950,31 +952,41 @@ export default function VentesPage() {
                   {clientType === 'search' && ccInfo && (
                     ccInfo.statut === 'ACTIF' ? (
                       <div className="rounded-xl border border-emerald-200 bg-emerald-50/50 p-3 space-y-2">
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="font-medium text-emerald-800 flex items-center gap-1.5">
-                            <CreditCard size={15} /> Compte courant · {ccInfo.numeroCompte}
+                        <label className="flex items-center justify-between text-sm cursor-pointer">
+                          <span className="font-medium text-emerald-800 flex items-center gap-2">
+                            <input type="checkbox" checked={useCC}
+                              onChange={e => {
+                                setUseCC(e.target.checked);
+                                if (!e.target.checked) { setCcMontant(''); setMontantPaye(String(montantTotal)); }
+                              }}
+                              className="w-4 h-4 accent-emerald-600" />
+                            <CreditCard size={15} /> Utiliser mon Compte Courant · {ccInfo.numeroCompte}
                           </span>
                           <span className="text-emerald-700">Solde : <b>{formatCurrency(ccInfo.solde)}</b></span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <input type="number" min="0" step="1" value={ccMontant}
-                            onChange={e => {
-                              const applique = Math.max(0, Math.min(Number(e.target.value) || 0, montantTotal, ccInfo.solde));
-                              setCcMontant(e.target.value);
-                              setMontantPaye(String(Math.max(0, montantTotal - applique)));
-                            }}
-                            placeholder="Montant à imputer sur le CC"
-                            className="flex-1 px-3 py-2 border border-emerald-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500" />
-                          <button type="button"
-                            onClick={() => { const max = Math.min(ccInfo.solde, montantTotal); setCcMontant(String(max)); setMontantPaye(String(Math.max(0, montantTotal - max))); }}
-                            className="px-3 py-2 text-xs font-medium bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 whitespace-nowrap">
-                            Payer tout ({formatCurrency(Math.min(ccInfo.solde, montantTotal))})
-                          </button>
-                        </div>
-                        {ccApplique > 0 && (
-                          <p className="text-xs text-emerald-700">
-                            <b>{formatCurrency(ccApplique)}</b> imputés sur le compte courant · reste <b>{formatCurrency(resteAPayer)}</b> à régler.
-                          </p>
+                        </label>
+                        {useCC && (
+                          <>
+                            <div className="flex items-center gap-2">
+                              <input type="number" min="0" step="1" value={ccMontant}
+                                onChange={e => {
+                                  const applique = Math.max(0, Math.min(Number(e.target.value) || 0, montantTotal, ccInfo.solde));
+                                  setCcMontant(e.target.value);
+                                  setMontantPaye(String(Math.max(0, montantTotal - applique)));
+                                }}
+                                placeholder="Montant à imputer sur le CC"
+                                className="flex-1 px-3 py-2 border border-emerald-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                              <button type="button"
+                                onClick={() => { const max = Math.min(ccInfo.solde, montantTotal); setCcMontant(String(max)); setMontantPaye(String(Math.max(0, montantTotal - max))); }}
+                                className="px-3 py-2 text-xs font-medium bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 whitespace-nowrap">
+                                Payer tout ({formatCurrency(Math.min(ccInfo.solde, montantTotal))})
+                              </button>
+                            </div>
+                            {ccApplique > 0 && (
+                              <p className="text-xs text-emerald-700">
+                                <b>{formatCurrency(ccApplique)}</b> imputés sur le compte courant · reste <b>{formatCurrency(resteAPayer)}</b> à régler.
+                              </p>
+                            )}
+                          </>
                         )}
                       </div>
                     ) : (
