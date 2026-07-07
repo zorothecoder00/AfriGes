@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import {
-  Wallet, Search, Plus, Settings, RefreshCw, Loader2, X, ChevronRight, MapPin,
+  Wallet, Search, Plus, Settings, RefreshCw, Loader2, X, ChevronRight, MapPin, Activity,
 } from "lucide-react";
 import { useApi } from "@/hooks/useApi";
 import { formatCurrency, formatDate } from "@/lib/format";
@@ -78,6 +78,10 @@ export default function ComptesCourantsPage() {
             <p className="text-sm text-gray-500 mt-0.5">Portefeuilles internes clients · épargne AfriSime</p>
           </div>
           <div className="flex items-center gap-2">
+            <Link href="/dashboard/admin/comptes-courants/tableau-de-bord"
+              className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl hover:bg-slate-50 text-sm font-medium">
+              <Activity className="w-4 h-4" /> Tableau de bord
+            </Link>
             <Link href="/dashboard/admin/comptes-courants/parametres"
               className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl hover:bg-slate-50 text-sm font-medium">
               <Settings className="w-4 h-4" /> Paramètres

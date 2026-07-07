@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import {
   Wallet, ArrowLeft, Loader2, TrendingUp, TrendingDown, ShoppingCart,
   Activity, Clock, MapPin, Phone, User, Hash, Plus, X, Printer, ArrowDownCircle, CreditCard, ShieldAlert,
+  FileText, FileCheck, BookOpen,
 } from "lucide-react";
 import { useApi } from "@/hooks/useApi";
 import { formatCurrency, formatDate } from "@/lib/format";
@@ -125,6 +126,11 @@ export default function CompteCourantDetailPage() {
   const [rejRetrait, setRejRetrait] = useState<RetraitPending | null>(null);
   const [rejMotif, setRejMotif] = useState("");
   const [rejSaving, setRejSaving] = useState(false);
+
+  // ── Documents (CDC §14, Lot 5) : relevé sur période ──
+  const [releveOpen, setReleveOpen] = useState(false);
+  const [releveFrom, setReleveFrom] = useState("");
+  const [releveTo, setReleveTo] = useState("");
 
   const recuUrl = (mid: number) => `/api/comptes-courants/${params.id}/mouvements/${mid}/recu`;
 
@@ -256,6 +262,14 @@ export default function CompteCourantDetailPage() {
     } finally { setRejSaving(false); }
   };
 
+  const openReleve = () => {
+    const qs = new URLSearchParams();
+    if (releveFrom) qs.set("from", releveFrom);
+    if (releveTo) qs.set("to", releveTo);
+    window.open(`/api/comptes-courants/${params.id}/releve${qs.toString() ? `?${qs}` : ""}`, "_blank");
+    setReleveOpen(false);
+  };
+
   const selectedCredit = creditsPayables.find((cr) => String(cr.creditId) === payCreditId);
 
   return (
@@ -362,6 +376,26 @@ export default function CompteCourantDetailPage() {
                   <Row icon={<User className="w-4 h-4" />} label="Ouvert par" value={c.agentCreateur ? `${c.agentCreateur.prenom} ${c.agentCreateur.nom}` : "—"} />
                 </div>
               </div>
+            </div>
+
+            {/* Documents (CDC §14, Lot 5) */}
+            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
+              <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2"><FileText className="w-4 h-4 text-gray-400" /> Documents</h3>
+              <div className="flex flex-wrap gap-3">
+                <button onClick={() => { setReleveFrom(""); setReleveTo(""); setReleveOpen(true); }}
+                  className="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-xl text-sm font-medium">
+                  <FileText className="w-4 h-4 text-emerald-600" /> Relevé de compte
+                </button>
+                <a href={`/api/comptes-courants/${params.id}/attestation`} target="_blank" rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-xl text-sm font-medium">
+                  <FileCheck className="w-4 h-4 text-blue-600" /> Attestation
+                </a>
+                <a href={`/api/comptes-courants/${params.id}/carnet`} target="_blank" rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-xl text-sm font-medium">
+                  <BookOpen className="w-4 h-4 text-violet-600" /> Carnet
+                </a>
+              </div>
+              <p className="text-[11px] text-gray-400 mt-3">Documents PDF officiels AFRISIME · le relevé peut être filtré sur une période.</p>
             </div>
 
             {/* Retraits en attente de validation (CDC §9, Lot 4) */}
@@ -711,6 +745,40 @@ export default function CompteCourantDetailPage() {
               <button onClick={submitRejeter} disabled={rejSaving}
                 className="inline-flex items-center gap-2 px-5 py-2 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white rounded-xl text-sm font-semibold">
                 {rejSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <X className="w-4 h-4" />} Confirmer le rejet
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal relevé de compte (période) */}
+      {releveOpen && c && (
+        <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+              <h3 className="font-bold text-slate-800 flex items-center gap-2"><FileText className="w-4 h-4 text-emerald-600" /> Relevé de compte</h3>
+              <button onClick={() => setReleveOpen(false)} className="p-1.5 hover:bg-slate-100 rounded-lg"><X className="w-4 h-4 text-slate-500" /></button>
+            </div>
+            <div className="p-6 space-y-4">
+              <p className="text-xs text-gray-500">Laissez les dates vides pour un relevé depuis l&apos;ouverture du compte.</p>
+              <div className="grid grid-cols-2 gap-3">
+                <label className="block">
+                  <span className="text-xs font-semibold text-slate-500">Du</span>
+                  <input type="date" value={releveFrom} onChange={(e) => setReleveFrom(e.target.value)}
+                    className="mt-1 w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                </label>
+                <label className="block">
+                  <span className="text-xs font-semibold text-slate-500">Au</span>
+                  <input type="date" value={releveTo} onChange={(e) => setReleveTo(e.target.value)}
+                    className="mt-1 w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                </label>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 px-6 py-4 border-t border-slate-100">
+              <button onClick={() => setReleveOpen(false)} className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 rounded-xl">Annuler</button>
+              <button onClick={openReleve}
+                className="inline-flex items-center gap-2 px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-semibold">
+                <FileText className="w-4 h-4" /> Générer le PDF
               </button>
             </div>
           </div>
