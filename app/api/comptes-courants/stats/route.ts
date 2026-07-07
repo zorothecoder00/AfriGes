@@ -15,7 +15,7 @@ export async function GET() {
   const debutMois = new Date();
   debutMois.setDate(1); debutMois.setHours(0, 0, 0, 0);
 
-  const [agg, parStatut, retraitsEnAttente, mvtParNature, mvtDuMois, topComptes, depotsMoisRaw] = await Promise.all([
+  const [agg, parStatut, retraitsEnAttente, mvtParNature, mvtDuMois, topComptes, depotsMoisRaw, parAgence, clientsActifsRaw] = await Promise.all([
     prisma.compteCourant.aggregate({
       _count: true,
       _sum: { solde: true, totalDepose: true, totalRetire: true, totalUtilise: true, nbMouvements: true },
@@ -46,6 +46,20 @@ export async function GET() {
       where: { nature: "DEPOT", statut: "VALIDE", createdAt: { gte: debutMois } },
       _sum: { montant: true }, _count: true,
       orderBy: { _sum: { montant: "desc" } }, take: 20,
+    }),
+    // Top agences (CDC §11) : encours et nombre de comptes par agence.
+    prisma.compteCourant.groupBy({
+      by: ["codeAgence"],
+      _count: true, _sum: { solde: true, totalDepose: true },
+      orderBy: { _sum: { solde: "desc" } }, take: 50,
+    }),
+    // Clients les plus actifs (CDC §18) : par nombre de mouvements.
+    prisma.compteCourant.findMany({
+      orderBy: { nbMouvements: "desc" }, take: 100,
+      select: {
+        id: true, numeroCompte: true, nbMouvements: true, solde: true,
+        client: { select: { nom: true, prenom: true } },
+      },
     }),
   ]);
 
@@ -97,6 +111,16 @@ export async function GET() {
           nb: d._count,
         };
       }),
+      topAgences: parAgence.map((a) => ({
+        codeAgence: a.codeAgence,
+        nbComptes: a._count,
+        encours: num(a._sum.solde),
+        totalDepose: num(a._sum.totalDepose),
+      })),
+      clientsActifs: clientsActifsRaw.map((c) => ({
+        id: c.id, numeroCompte: c.numeroCompte, nbMouvements: c.nbMouvements,
+        solde: num(c.solde), client: `${c.client.prenom} ${c.client.nom}`,
+      })),
     },
   });
 }

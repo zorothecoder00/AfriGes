@@ -119,6 +119,11 @@ export default function CompteCourantDetailPage() {
   const [retMode, setRetMode] = useState(MODES[0]);
   const [retMotif, setRetMotif] = useState("");
   const [retSaving, setRetSaving] = useState(false);
+  // Contrôles de sécurité obligatoires (CDC §9)
+  const [retVerifPiece, setRetVerifPiece] = useState(false);
+  const [retVerifPhoto, setRetVerifPhoto] = useState(false);
+  const [retVerifSignature, setRetVerifSignature] = useState(false);
+  const retVerifOk = retVerifPiece && retVerifPhoto && retVerifSignature;
   // Validation / rejet d'un retrait en attente
   const [valRetrait, setValRetrait] = useState<RetraitPending | null>(null);
   const [valPassword, setValPassword] = useState("");
@@ -203,16 +208,21 @@ export default function CompteCourantDetailPage() {
   const submitRetrait = async () => {
     const m = Number(retMontant);
     if (!m || m <= 0) { toast.error("Montant invalide"); return; }
+    if (!retVerifOk) { toast.error("Validez les 3 contrôles de sécurité"); return; }
     setRetSaving(true);
     try {
       const r = await fetch(`/api/comptes-courants/${params.id}/retraits`, {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ montant: m, modePaiement: retMode, motif: retMotif || undefined }),
+        body: JSON.stringify({
+          montant: m, modePaiement: retMode, motif: retMotif || undefined,
+          verifPieceIdentite: retVerifPiece, verifPhoto: retVerifPhoto, verifSignature: retVerifSignature,
+        }),
       });
       const j = await r.json();
       if (!r.ok) throw new Error(j.error ?? "Erreur");
       toast.success("Demande de retrait envoyée pour validation ✓");
       setRetraitOpen(false); setRetMontant(""); setRetMotif("");
+      setRetVerifPiece(false); setRetVerifPhoto(false); setRetVerifSignature(false);
       refetchRet(); refetchMvt();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erreur");
@@ -328,7 +338,7 @@ export default function CompteCourantDetailPage() {
                   </button>
                 )}
                 {canDeposit && c.statut === "ACTIF" && (
-                  <button onClick={() => { setRetMontant(""); setRetMotif(""); setRetraitOpen(true); }}
+                  <button onClick={() => { setRetMontant(""); setRetMotif(""); setRetVerifPiece(false); setRetVerifPhoto(false); setRetVerifSignature(false); setRetraitOpen(true); }}
                     className="inline-flex items-center gap-2 px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-xl text-sm font-medium shadow-sm">
                     <TrendingDown className="w-4 h-4" /> Demander un retrait
                   </button>
@@ -688,12 +698,35 @@ export default function CompteCourantDetailPage() {
                 <input value={retMotif} onChange={(e) => setRetMotif(e.target.value)}
                   className="mt-1 w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-orange-500" />
               </label>
+
+              {/* Contrôles de sécurité obligatoires (CDC §9) */}
+              <div className="rounded-xl border border-orange-200 bg-orange-50/60 p-3 space-y-2">
+                <p className="text-xs font-semibold text-orange-700 flex items-center gap-1.5">
+                  <ShieldAlert className="w-3.5 h-3.5" /> Contrôles de sécurité (obligatoires)
+                </p>
+                <label className="flex items-start gap-2 text-xs text-slate-700 cursor-pointer">
+                  <input type="checkbox" checked={retVerifPiece} onChange={(e) => setRetVerifPiece(e.target.checked)}
+                    className="mt-0.5 w-4 h-4 accent-orange-600" />
+                  <span>Pièce d&apos;identité du client vérifiée</span>
+                </label>
+                <label className="flex items-start gap-2 text-xs text-slate-700 cursor-pointer">
+                  <input type="checkbox" checked={retVerifPhoto} onChange={(e) => setRetVerifPhoto(e.target.checked)}
+                    className="mt-0.5 w-4 h-4 accent-orange-600" />
+                  <span>Correspondance de la photo confirmée</span>
+                </label>
+                <label className="flex items-start gap-2 text-xs text-slate-700 cursor-pointer">
+                  <input type="checkbox" checked={retVerifSignature} onChange={(e) => setRetVerifSignature(e.target.checked)}
+                    className="mt-0.5 w-4 h-4 accent-orange-600" />
+                  <span>Signature du client recueillie</span>
+                </label>
+              </div>
+
               <p className="text-[11px] text-amber-600">Le retrait sera exécuté après validation d&apos;un responsable (Chef d&apos;agence).</p>
             </div>
             <div className="flex justify-end gap-2 px-6 py-4 border-t border-slate-100">
               <button onClick={() => setRetraitOpen(false)} className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 rounded-xl">Annuler</button>
-              <button onClick={submitRetrait} disabled={retSaving}
-                className="inline-flex items-center gap-2 px-5 py-2 bg-orange-600 hover:bg-orange-700 disabled:opacity-50 text-white rounded-xl text-sm font-semibold">
+              <button onClick={submitRetrait} disabled={retSaving || !retVerifOk}
+                className="inline-flex items-center gap-2 px-5 py-2 bg-orange-600 hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl text-sm font-semibold">
                 {retSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <TrendingDown className="w-4 h-4" />} Envoyer la demande
               </button>
             </div>

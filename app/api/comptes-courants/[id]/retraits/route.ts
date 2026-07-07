@@ -53,6 +53,18 @@ export async function POST(req: Request, { params }: Ctx) {
     return NextResponse.json({ error: "Montant invalide" }, { status: 400 });
   }
 
+  // Contrôles de sécurité obligatoires (CDC §9) : le caissier atteste, client présent,
+  // avoir vérifié la pièce d'identité, la correspondance photo et recueilli la signature.
+  const verifPieceIdentite = body?.verifPieceIdentite === true;
+  const verifPhoto = body?.verifPhoto === true;
+  const verifSignature = body?.verifSignature === true;
+  if (!verifPieceIdentite || !verifPhoto || !verifSignature) {
+    return NextResponse.json(
+      { error: "Contrôles de sécurité obligatoires : pièce d'identité, correspondance photo et signature du client." },
+      { status: 400 },
+    );
+  }
+
   const compte = await prisma.compteCourant.findUnique({
     where: { id: compteId },
     select: {
@@ -114,6 +126,10 @@ export async function POST(req: Request, { params }: Ctx) {
   const clientNom = `${compte.client.prenom} ${compte.client.nom}`;
   const userId = Number(session.user.id);
 
+  // Trace des contrôles de sécurité dans l'observation (visible reçu/historique, CDC §16).
+  const controles = "Contrôles : pièce d'identité vérifiée · photo confirmée · signature recueillie";
+  const observation = [motif, controles].filter(Boolean).join(" — ");
+
   try {
     const result = await prisma.$transaction(async (tx) => {
       const reference = await genererReferenceMouvementCC(tx, "RET");
@@ -121,14 +137,14 @@ export async function POST(req: Request, { params }: Ctx) {
         data: {
           reference, compteId, nature: "RETRAIT",
           montant: -montant, soldeAvant, soldeApres,
-          modePaiement, observation: motif,
+          modePaiement, observation,
           statut: "EN_ATTENTE", userId, agence: compte.codeAgence, ip, userAgent,
         },
         select: { id: true, reference: true, createdAt: true },
       });
 
       await auditLog(tx, userId, "INITIATION_RETRAIT_CC", "CompteCourant", compteId,
-        { montant, soldeAvant, soldeApres }, { ip, userAgent });
+        { montant, soldeAvant, soldeApres, verifPieceIdentite, verifPhoto, verifSignature }, { ip, userAgent });
       await notifyRoles(tx, ["CHEF_AGENCE", "RESPONSABLE_ECONOMIQUE"], {
         titre: "Retrait à valider",
         message: `Demande de retrait de ${montant.toLocaleString("fr-FR")} FCFA sur le compte ${compte.numeroCompte} (${clientNom}) — validation requise.`,

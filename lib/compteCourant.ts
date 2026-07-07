@@ -239,6 +239,74 @@ export async function suspendreComptesInactifs(): Promise<{ verifies: number; su
   return { verifies: candidats.length, suspendus: candidats.length };
 }
 
+/**
+ * Alerte « faible solde » (CDC §14) : notifie (in-app, priorité HAUTE) lorsqu'une
+ * opération laisse le solde du compte sous le seuil minimum obligatoire. À appeler
+ * dans la transaction, après toute sortie de fonds (retrait, paiement crédit/comptant).
+ * Ne fait rien si le seuil n'est pas atteint (solde encore suffisant).
+ */
+export async function alerterSoldeFaible(
+  tx: TxClient,
+  opts: { compteId: number; numeroCompte: string; clientNom: string; soldeApres: number; seuil: number },
+): Promise<void> {
+  if (!opts.seuil || opts.seuil <= 0) return;
+  if (opts.soldeApres >= opts.seuil) return;
+  await notifyAdmins(tx, {
+    titre: "Alerte solde faible — compte courant",
+    message: `Le solde du compte ${opts.numeroCompte} (${opts.clientNom}) est de ${opts.soldeApres.toLocaleString("fr-FR")} FCFA, sous le seuil minimum de ${opts.seuil.toLocaleString("fr-FR")} FCFA.`,
+    priorite: PrioriteNotification.HAUTE,
+    actionUrl: `/dashboard/admin/comptes-courants/${opts.compteId}`,
+  });
+}
+
+/**
+ * Alerte préventive « avant suspension » (CDC §14) : notifie les comptes ACTIF qui
+ * seront suspendus pour inactivité dans `joursAlerteAvantSuspension` jours. Conçu pour
+ * un cron quotidien : n'alerte chaque compte qu'une seule fois grâce à une bande d'un
+ * jour (dernière opération datée d'exactement `dureeInactiviteJours − délai` jours).
+ */
+export async function alerterComptesAvantSuspension(): Promise<{ alertes: number }> {
+  const param = await chargerParametrageCC();
+  const jours = param.dureeInactiviteJours;
+  const lead = param.joursAlerteAvantSuspension;
+  if (!jours || jours <= 0 || !lead || lead <= 0 || lead >= jours) return { alertes: 0 };
+
+  // Un compte est suspendu quand son inactivité atteint `jours`. On alerte quand il
+  // reste `lead` jours : dernière opération dans la bande [borne−1j, borne[ où
+  // borne = maintenant − (jours − lead). La bande d'un jour évite les doublons.
+  const bandeFin = new Date();
+  bandeFin.setDate(bandeFin.getDate() - (jours - lead));
+  const bandeDebut = new Date(bandeFin);
+  bandeDebut.setDate(bandeDebut.getDate() - 1);
+
+  const candidats = await prisma.compteCourant.findMany({
+    where: {
+      statut: "ACTIF",
+      OR: [
+        { derniereOperationAt: { gte: bandeDebut, lt: bandeFin } },
+        { derniereOperationAt: null, dateOuverture: { gte: bandeDebut, lt: bandeFin } },
+      ],
+    },
+    select: { id: true, numeroCompte: true, client: { select: { prenom: true, nom: true } } },
+  });
+
+  for (const cc of candidats) {
+    await prisma.$transaction(async (tx) => {
+      await notifyAdmins(tx, {
+        titre: "Compte courant bientôt suspendu (inactivité)",
+        message: `Le compte ${cc.numeroCompte} (${cc.client.prenom} ${cc.client.nom}) sera suspendu dans ${lead} jour(s) faute d'opération. Pensez à contacter le client.`,
+        priorite: PrioriteNotification.HAUTE,
+        actionUrl: `/dashboard/admin/comptes-courants/${cc.id}`,
+      });
+      await tx.auditLog.create({
+        data: { action: "ALERTE_AVANT_SUSPENSION_CC", entite: "CompteCourant", entiteId: cc.id, details: { lead, jours } },
+      });
+    });
+  }
+
+  return { alertes: candidats.length };
+}
+
 /** Compte courant d'un client (ou null), pour le pré-contrôle POS et le lookup. */
 export async function getCompteCourantParClient(clientId: number) {
   return prisma.compteCourant.findUnique({
@@ -267,7 +335,7 @@ export async function preleverCompteCourant(
     clientId: number; montant: number;
     userId: number; ip?: string | null; userAgent?: string | null; refLibelle: string;
     nature?: NatureMouvementCC; venteId?: number; creditId?: number;
-    param: { compteCourantClientNumero: string; compteVentesNumero: string };
+    param: { compteCourantClientNumero: string; compteVentesNumero: string; soldeMinObligatoire?: Prisma.Decimal | number | null };
   },
 ) {
   const cc = await tx.compteCourant.findUnique({
@@ -315,6 +383,12 @@ export async function preleverCompteCourant(
       nbMouvements: { increment: 1 },
       derniereOperationAt: new Date(),
     },
+  });
+
+  // Alerte préventive « faible solde » (CDC §14).
+  await alerterSoldeFaible(tx, {
+    compteId: cc.id, numeroCompte: cc.numeroCompte, clientNom,
+    soldeApres: apres, seuil: Number(opts.param.soldeMinObligatoire ?? 0),
   });
 
   return { mouvement, compteId: cc.id, numeroCompte: cc.numeroCompte, soldeApres: apres, ecritureGeneree: ecritureId != null };

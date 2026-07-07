@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { PrioriteNotification, TypePaiement } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCompteCourantSession } from "@/lib/authCompteCourant";
-import { chargerParametrageCC, genererReferenceMouvementCC, creerEcritureCC, extraireMetaRequete } from "@/lib/compteCourant";
+import { chargerParametrageCC, genererReferenceMouvementCC, creerEcritureCC, extraireMetaRequete, alerterSoldeFaible } from "@/lib/compteCourant";
 import { enregistrerRemboursementCredit } from "@/lib/remboursementCredit";
 import { notifyAdmins, auditLog } from "@/lib/notifications";
 
@@ -112,6 +112,12 @@ export async function POST(req: Request, { params }: Ctx) {
           nbMouvements: { increment: 1 },
           derniereOperationAt: new Date(),
         },
+      });
+
+      // Alerte préventive « faible solde » (CDC §14).
+      await alerterSoldeFaible(tx, {
+        compteId, numeroCompte: compte.numeroCompte, clientNom,
+        soldeApres: apres, seuil: Number(param.soldeMinObligatoire),
       });
 
       await auditLog(tx, userId, "PAIEMENT_CREDIT_VIA_CC", "CompteCourant", compteId,

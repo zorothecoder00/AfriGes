@@ -4,6 +4,7 @@ import Link from "next/link";
 import {
   Wallet, ArrowLeft, Loader2, TrendingUp, TrendingDown, ShoppingCart,
   Activity, Clock, Users, ChevronRight, ListChecks, UserCheck, UserX, Gauge,
+  Scale, Building2, Zap,
 } from "lucide-react";
 import { useApi } from "@/hooks/useApi";
 import { formatCurrency } from "@/lib/format";
@@ -20,6 +21,8 @@ interface Stats {
   mvtDuMois: { nature: string; nb: number; montant: number }[];
   topComptes: { id: number; numeroCompte: string; solde: number; nbMouvements: number; client: string }[];
   topDepotsMois: { id: number; numeroCompte: string; client: string; total: number; nb: number }[];
+  topAgences: { codeAgence: string; nbComptes: number; encours: number; totalDepose: number }[];
+  clientsActifs: { id: number; numeroCompte: string; nbMouvements: number; solde: number; client: string }[];
 }
 
 const STATUT_STYLE: Record<string, string> = {
@@ -52,10 +55,16 @@ export default function TableauBordCCPage() {
             </h2>
             <p className="text-sm text-gray-500 mt-0.5">États consolidés du portefeuille interne clients</p>
           </div>
-          <Link href="/dashboard/admin/comptes-courants"
-            className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700">
-            <ArrowLeft className="w-4 h-4" /> Liste des comptes
-          </Link>
+          <div className="flex items-center gap-3">
+            <Link href="/dashboard/admin/comptes-courants/etats"
+              className="inline-flex items-center gap-1.5 text-sm px-4 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl hover:bg-slate-50 font-medium">
+              <Scale className="w-4 h-4" /> États &amp; rapports
+            </Link>
+            <Link href="/dashboard/admin/comptes-courants"
+              className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700">
+              <ArrowLeft className="w-4 h-4" /> Liste des comptes
+            </Link>
+          </div>
         </div>
 
         {loading && !s ? (
@@ -177,6 +186,75 @@ export default function TableauBordCCPage() {
                             <td className="px-2 py-2.5 text-right font-bold text-teal-700">{formatCurrency(d.total)}</td>
                             <td className="px-3 py-2.5 text-right">
                               <Link href={`/dashboard/admin/comptes-courants/${d.id}`} className="text-gray-300 hover:text-teal-600">
+                                <ChevronRight className="w-4 h-4" />
+                              </Link>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Top agences (CDC §11) */}
+              <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+                <div className="px-6 py-4 border-b border-gray-100 flex items-center gap-2">
+                  <Building2 className="w-4 h-4 text-indigo-500" />
+                  <h3 className="font-bold text-gray-800">Top agences</h3>
+                  <span className="text-xs text-gray-400">(par encours)</span>
+                </div>
+                {s.topAgences.length === 0 ? (
+                  <p className="text-center py-10 text-gray-400 text-sm">Aucune agence.</p>
+                ) : (
+                  <div className="max-h-[420px] overflow-y-auto">
+                    <table className="w-full text-sm">
+                      <thead className="text-xs text-gray-400 uppercase border-b border-gray-100">
+                        <tr>
+                          <th className="text-left font-semibold py-2 px-4">Agence</th>
+                          <th className="text-center font-semibold py-2 px-2">Comptes</th>
+                          <th className="text-right font-semibold py-2 px-4">Encours</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-50">
+                        {s.topAgences.map((a) => (
+                          <tr key={a.codeAgence} className="hover:bg-gray-50/60">
+                            <td className="px-4 py-2.5 font-medium text-gray-800">{a.codeAgence}</td>
+                            <td className="px-2 py-2.5 text-center text-gray-500">{a.nbComptes}</td>
+                            <td className="px-4 py-2.5 text-right font-bold text-indigo-700">{formatCurrency(a.encours)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+
+              {/* Clients les plus actifs (CDC §18) */}
+              <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+                <div className="px-6 py-4 border-b border-gray-100 flex items-center gap-2">
+                  <Zap className="w-4 h-4 text-amber-500" />
+                  <h3 className="font-bold text-gray-800">Clients les plus actifs</h3>
+                  <span className="text-xs text-gray-400">(par mouvements)</span>
+                </div>
+                {s.clientsActifs.length === 0 ? (
+                  <p className="text-center py-10 text-gray-400 text-sm">Aucun mouvement.</p>
+                ) : (
+                  <div className="max-h-[420px] overflow-y-auto">
+                    <table className="w-full text-sm">
+                      <tbody className="divide-y divide-gray-50">
+                        {s.clientsActifs.map((c, i) => (
+                          <tr key={c.id} className="hover:bg-gray-50/60">
+                            <td className="px-4 py-2.5 text-gray-400 w-8 text-xs">{i + 1}</td>
+                            <td className="px-2 py-2.5">
+                              <p className="font-medium text-gray-800">{c.client}</p>
+                              <p className="text-[11px] text-gray-400 font-mono">{c.numeroCompte}</p>
+                            </td>
+                            <td className="px-2 py-2.5 text-right font-bold text-amber-700">{c.nbMouvements} mvt</td>
+                            <td className="px-3 py-2.5 text-right">
+                              <Link href={`/dashboard/admin/comptes-courants/${c.id}`} className="text-gray-300 hover:text-amber-600">
                                 <ChevronRight className="w-4 h-4" />
                               </Link>
                             </td>

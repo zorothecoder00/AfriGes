@@ -5223,6 +5223,7 @@ model ParametrageCompteCourant {
   autoriserSoldeNegatif Boolean  @default(false)
   nbRetraitsMaxParMois  Int?
   dureeInactiviteJours  Int      @default(180)
+  joursAlerteAvantSuspension Int @default(15) // délai d'alerte préventive avant suspension pour inactivité (CDC §14)
   codeAgence            String   @default("TG-228")
   codeGuichet           String   @default("Afrs001")
   // Plan comptable (numéros de compte utilisés pour les écritures automatiques)

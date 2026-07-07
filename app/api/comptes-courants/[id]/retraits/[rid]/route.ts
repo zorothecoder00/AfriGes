@@ -3,7 +3,7 @@ import bcrypt from "bcryptjs";
 import { PrioriteNotification } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCompteCourantSession } from "@/lib/authCompteCourant";
-import { chargerParametrageCC, creerEcritureCC, extraireMetaRequete } from "@/lib/compteCourant";
+import { chargerParametrageCC, creerEcritureCC, extraireMetaRequete, alerterSoldeFaible } from "@/lib/compteCourant";
 import { notifyAdmins, auditLog } from "@/lib/notifications";
 
 type Ctx = { params: Promise<{ id: string; rid: string }> };
@@ -145,6 +145,12 @@ export async function PATCH(req: Request, { params }: Ctx) {
           nbMouvements: { increment: 1 },
           derniereOperationAt: new Date(),
         },
+      });
+
+      // Alerte préventive « faible solde » (CDC §14).
+      await alerterSoldeFaible(tx, {
+        compteId, numeroCompte: compte.numeroCompte, clientNom,
+        soldeApres: apres, seuil: Number(param.soldeMinObligatoire),
       });
 
       await auditLog(tx, userId, "VALIDATION_RETRAIT_CC", "CompteCourant", compteId,

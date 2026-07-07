@@ -55,6 +55,8 @@ export async function PUT(req: Request) {
       nbRetraitsMaxParMois: int(body.nbRetraitsMaxParMois),
       dureeInactiviteJours: typeof body.dureeInactiviteJours !== "undefined"
         ? (int(body.dureeInactiviteJours) ?? 0) : undefined,
+      joursAlerteAvantSuspension: typeof body.joursAlerteAvantSuspension !== "undefined"
+        ? (int(body.joursAlerteAvantSuspension) ?? 0) : undefined,
       autoriserSoldeNegatif: typeof body.autoriserSoldeNegatif === "boolean" ? body.autoriserSoldeNegatif : undefined,
       codeAgence:  typeof body.codeAgence === "string" && body.codeAgence.trim() ? body.codeAgence.trim() : undefined,
       codeGuichet: typeof body.codeGuichet === "string" && body.codeGuichet.trim() ? body.codeGuichet.trim() : undefined,

@@ -17,6 +17,7 @@ interface Parametrage {
   autoriserSoldeNegatif: boolean;
   nbRetraitsMaxParMois: number | null;
   dureeInactiviteJours: number;
+  joursAlerteAvantSuspension: number;
   codeAgence: string;
   codeGuichet: string;
   compteCaisseNumero: string;
@@ -49,6 +50,7 @@ export default function ParametrageCCPage() {
           autoriserSoldeNegatif: !!p.autoriserSoldeNegatif,
           nbRetraitsMaxParMois: s(p.nbRetraitsMaxParMois),
           dureeInactiviteJours: s(p.dureeInactiviteJours),
+          joursAlerteAvantSuspension: s(p.joursAlerteAvantSuspension),
           codeAgence: s(p.codeAgence),
           codeGuichet: s(p.codeGuichet),
           compteCaisseNumero: s(p.compteCaisseNumero),
@@ -115,6 +117,7 @@ export default function ParametrageCCPage() {
               </div>
               <NumField label="Nombre maximum de retraits par mois" k="nbRetraitsMaxParMois" form={form} set={set} placeholder="Illimité" />
               <NumField label="Durée d'inactivité avant suspension (jours)" k="dureeInactiviteJours" form={form} set={set} />
+              <NumField label="Alerte préventive avant suspension (jours)" k="joursAlerteAvantSuspension" form={form} set={set} placeholder="15" />
             </Section>
 
             <Section title="Identité bancaire (RIB)">
