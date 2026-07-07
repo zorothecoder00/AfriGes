@@ -3,7 +3,7 @@ import bcrypt from "bcryptjs";
 import { PrioriteNotification } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCompteCourantSession } from "@/lib/authCompteCourant";
-import { chargerParametrageCC, creerEcritureCC } from "@/lib/compteCourant";
+import { chargerParametrageCC, creerEcritureCC, extraireMetaRequete } from "@/lib/compteCourant";
 import { notifyAdmins, auditLog } from "@/lib/notifications";
 
 type Ctx = { params: Promise<{ id: string; rid: string }> };
@@ -50,6 +50,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
   }
 
   const userId = Number(session.user.id);
+  const { ip, userAgent } = extraireMetaRequete(req);
   const isAdmin = session.user.role === "ADMIN" || session.user.role === "SUPER_ADMIN";
   const compte = retrait.compte;
   const clientNom = `${compte.client.prenom} ${compte.client.nom}`;
@@ -74,7 +75,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
             observation: [retrait.observation, `Rejeté : ${motif}`].filter(Boolean).join(" · "),
           },
         });
-        await auditLog(tx, userId, "REJET_RETRAIT_CC", "CompteCourant", compteId, { retraitId, motif });
+        await auditLog(tx, userId, "REJET_RETRAIT_CC", "CompteCourant", compteId, { retraitId, motif }, { ip, userAgent });
         await notifyAdmins(tx, {
           titre: "Retrait rejeté",
           message: `Retrait de ${montant.toLocaleString("fr-FR")} FCFA sur le compte ${compte.numeroCompte} (${clientNom}) rejeté. Motif : ${motif}.`,
@@ -104,7 +105,6 @@ export async function PATCH(req: Request, { params }: Ctx) {
   }
 
   const param = await chargerParametrageCC();
-  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null;
 
   try {
     const result = await prisma.$transaction(async (tx) => {
@@ -147,7 +147,8 @@ export async function PATCH(req: Request, { params }: Ctx) {
         },
       });
 
-      await auditLog(tx, userId, "VALIDATION_RETRAIT_CC", "CompteCourant", compteId, { retraitId, montant, ip });
+      await auditLog(tx, userId, "VALIDATION_RETRAIT_CC", "CompteCourant", compteId,
+        { retraitId, montant, soldeAvant: avant, soldeApres: apres }, { ip, userAgent });
       await notifyAdmins(tx, {
         titre: "Retrait validé",
         message: `Retrait de ${montant.toLocaleString("fr-FR")} FCFA validé sur le compte ${compte.numeroCompte} (${clientNom}). Nouveau solde : ${apres.toLocaleString("fr-FR")} FCFA.`,

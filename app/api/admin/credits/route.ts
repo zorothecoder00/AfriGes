@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { MemberStatus, NiveauRisque, Prisma, PrioriteNotification, Role, StatutCredit } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getRVCSession } from "@/lib/authRVC";
-import { chargerParametrageCC, getCompteCourantParClient, preleverCompteCourant } from "@/lib/compteCourant";
+import { chargerParametrageCC, getCompteCourantParClient, preleverCompteCourant, extraireMetaRequete } from "@/lib/compteCourant";
 
 /**
  * ==========================
@@ -143,7 +143,7 @@ export async function POST(req: Request) {
     // Apport via compte courant (CDC §8) : réduit le montant financé (« reste à crédit »).
     const ccMontantDemande = Math.max(0, Number(body.montantCompteCourant) || 0);
     const paramCC = ccMontantDemande > 0 ? await chargerParametrageCC() : null;
-    const ipReq = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null;
+    const { ip: ipReq, userAgent } = extraireMetaRequete(req);
 
     const result = await prisma.$transaction(async (tx) => {
       // ── Vérifier le client ────────────────────────────────────────────────
@@ -298,7 +298,7 @@ export async function POST(req: Request) {
         await preleverCompteCourant(tx, {
           clientId: client.id, montant: apportCC, nature: "PAIEMENT_COMPTANT",
           creditId: credit.id, refLibelle: `Apport crédit ${reference}`,
-          userId: Number(session.user.id), ip: ipReq, param: paramCC,
+          userId: Number(session.user.id), ip: ipReq, userAgent, param: paramCC,
         });
       }
 

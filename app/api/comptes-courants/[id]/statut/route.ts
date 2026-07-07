@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { PrioriteNotification, StatutCompteCourant } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCompteCourantSession } from "@/lib/authCompteCourant";
+import { extraireMetaRequete } from "@/lib/compteCourant";
 import { notifyAdmins, auditLog } from "@/lib/notifications";
 
 type Ctx = { params: Promise<{ id: string }> };
@@ -63,6 +64,8 @@ export async function PATCH(req: Request, { params }: Ctx) {
 
   const userId = Number(session.user.id);
   const clientNom = `${compte.client.prenom} ${compte.client.nom}`;
+  const { ip, userAgent } = extraireMetaRequete(req);
+  const ancienStatut = compte.statut;
 
   try {
     const updated = await prisma.$transaction(async (tx) => {
@@ -72,7 +75,8 @@ export async function PATCH(req: Request, { params }: Ctx) {
         select: { id: true, statut: true, motifBlocage: true },
       });
 
-      await auditLog(tx, userId, "CHANGEMENT_STATUT_COMPTE_COURANT", "CompteCourant", compteId);
+      await auditLog(tx, userId, "CHANGEMENT_STATUT_COMPTE_COURANT", "CompteCourant", compteId,
+        { ancienneValeur: ancienStatut, nouvelleValeur: statut, motif: motif || null }, { ip, userAgent });
       await notifyAdmins(tx, {
         titre: `Compte courant — ${LABELS[statut]}`,
         message: `Compte ${compte.numeroCompte} (${clientNom}) passé « ${LABELS[compte.statut]} » → « ${LABELS[statut]} »${motif ? ` · Motif : ${motif}` : ""}.`,

@@ -16,6 +16,19 @@ export const NUMERO_PREFIX = "12";
 export const NUMERO_LONGUEUR = 12;
 
 /**
+ * Extrait les métadonnées de traçabilité d'une requête (CDC §16) : adresse IP et
+ * machine (user-agent) de l'auteur, à journaliser sur chaque opération sensible.
+ */
+export function extraireMetaRequete(req: Request): { ip: string | null; userAgent: string | null } {
+  const ip =
+    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    req.headers.get("x-real-ip")?.trim() ||
+    null;
+  const userAgent = req.headers.get("user-agent")?.slice(0, 500) || null;
+  return { ip, userAgent };
+}
+
+/**
  * Numéro de compte à 12 chiffres = "12" + 10 chiffres séquentiels zéro-paddés.
  * `seq` est un entier ≥ 1 (unicité garantie par la contrainte @unique en base,
  * avec retry côté endpoint en cas de collision concurrente).
@@ -130,6 +143,7 @@ export async function enregistrerDepotCC(
     modePaiement?: string | null;
     observation?: string | null;
     ip?: string | null;
+    userAgent?: string | null;
     ouverture?: boolean;
   },
 ) {
@@ -156,7 +170,8 @@ export async function enregistrerDepotCC(
       reference, compteId: opts.compteId, nature: "DEPOT",
       montant: opts.montant, soldeAvant: avant, soldeApres: apres,
       modePaiement: opts.modePaiement ?? null, observation: opts.observation ?? null,
-      statut: "VALIDE", userId: opts.userId, agence: opts.codeAgence, ecritureId, ip: opts.ip ?? null,
+      statut: "VALIDE", userId: opts.userId, agence: opts.codeAgence, ecritureId,
+      ip: opts.ip ?? null, userAgent: opts.userAgent ?? null,
     },
     select: { id: true, reference: true, createdAt: true },
   });
@@ -250,7 +265,7 @@ export async function preleverCompteCourant(
   tx: TxClient,
   opts: {
     clientId: number; montant: number;
-    userId: number; ip?: string | null; refLibelle: string;
+    userId: number; ip?: string | null; userAgent?: string | null; refLibelle: string;
     nature?: NatureMouvementCC; venteId?: number; creditId?: number;
     param: { compteCourantClientNumero: string; compteVentesNumero: string };
   },
@@ -286,7 +301,8 @@ export async function preleverCompteCourant(
       montant: -opts.montant, soldeAvant: avant, soldeApres: apres,
       observation: opts.refLibelle,
       statut: "VALIDE", userId: opts.userId, agence: cc.codeAgence,
-      ecritureId, venteId: opts.venteId ?? null, creditId: opts.creditId ?? null, ip: opts.ip ?? null,
+      ecritureId, venteId: opts.venteId ?? null, creditId: opts.creditId ?? null,
+      ip: opts.ip ?? null, userAgent: opts.userAgent ?? null,
     },
     select: { id: true, reference: true },
   });

@@ -5,7 +5,7 @@ import { getCaissierSession } from "@/lib/authCaissier";
 import { randomUUID } from "crypto";
 import { notifyRoles, auditLog } from "@/lib/notifications";
 import { resolveViewAs } from "@/lib/viewAs";
-import { chargerParametrageCC, getCompteCourantParClient, preleverCompteCourant } from "@/lib/compteCourant";
+import { chargerParametrageCC, getCompteCourantParClient, preleverCompteCourant, extraireMetaRequete } from "@/lib/compteCourant";
 
 /**  
  * GET /api/caissier/ventes
@@ -189,7 +189,7 @@ export async function POST(req: Request) {
     }
 
     const param = ccMontant > 0 ? await chargerParametrageCC() : null;
-    const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null;
+    const { ip, userAgent } = extraireMetaRequete(req);
 
     const vente = await prisma.$transaction(async (tx) => {
       const ref = `VD-CAISSE-${Date.now()}-${randomUUID().slice(0, 6).toUpperCase()}`;
@@ -250,7 +250,7 @@ export async function POST(req: Request) {
       if (ccMontant > 0 && param) {
         await preleverCompteCourant(tx, {
           clientId: Number(clientId), montant: ccMontant, nature: "PAIEMENT_COMPTANT",
-          venteId: v.id, refLibelle: `Vente comptant ${ref}`, userId, ip, param,
+          venteId: v.id, refLibelle: `Vente comptant ${ref}`, userId, ip, userAgent, param,
         });
       }
 

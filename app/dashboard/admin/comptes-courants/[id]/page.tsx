@@ -394,8 +394,14 @@ export default function CompteCourantDetailPage() {
                   className="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-xl text-sm font-medium">
                   <BookOpen className="w-4 h-4 text-violet-600" /> Carnet
                 </a>
+                {c.statut === "CLOTURE" && (
+                  <a href={`/api/comptes-courants/${params.id}/attestation-fermeture`} target="_blank" rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-xl text-sm font-medium">
+                    <FileCheck className="w-4 h-4 text-rose-600" /> Attestation de fermeture
+                  </a>
+                )}
               </div>
-              <p className="text-[11px] text-gray-400 mt-3">Documents PDF officiels AFRISIME · le relevé peut être filtré sur une période.</p>
+              <p className="text-[11px] text-gray-400 mt-3">Documents PDF officiels AFRISIME · le relevé peut être filtré sur une période. L&apos;attestation de fermeture est disponible pour les comptes clôturés.</p>
             </div>
 
             {/* Retraits en attente de validation (CDC §9, Lot 4) */}

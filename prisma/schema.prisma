@@ -5288,7 +5288,8 @@ model MouvementCompteCourant {
   venteId      Int?                             // lien paiement comptant (lot suivant)
   creditId     Int?                             // lien paiement crédit (lot suivant)
 
-  ip           String?
+  ip           String?                          // adresse IP de l'auteur (CDC §16)
+  userAgent    String?                          // machine / navigateur de l'auteur (CDC §16)
 
   createdAt    DateTime          @default(now())
 

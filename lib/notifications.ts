@@ -144,7 +144,8 @@ export async function auditLog(
   action: string,
   entite: string,
   entiteId?: number,
-  details?: Record<string, unknown>
+  details?: Record<string, unknown>,
+  meta?: { ip?: string | null; userAgent?: string | null }
 ): Promise<void> {
   await tx.auditLog.create({
     data: {
@@ -153,6 +154,8 @@ export async function auditLog(
       entite,
       ...(entiteId !== undefined && { entiteId }),
       ...(details   !== undefined && { details: JSON.parse(JSON.stringify(details)) }),
+      ...(meta?.ip        != null && { ip: meta.ip }),
+      ...(meta?.userAgent != null && { userAgent: meta.userAgent }),
     },
   });
 }

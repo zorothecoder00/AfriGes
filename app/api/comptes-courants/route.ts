@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getCompteCourantSession } from "@/lib/authCompteCourant";
 import {
   chargerParametrageCC, genererNumeroCompte, calculerCleRib, formatRibComplet, enregistrerDepotCC,
+  extraireMetaRequete,
 } from "@/lib/compteCourant";
 import { notifyAdmins, auditLog } from "@/lib/notifications";
 import { PrioriteNotification } from "@prisma/client";
@@ -112,7 +113,7 @@ export async function POST(req: Request) {
 
   const clientNom = `${client.prenom} ${client.nom}`;
   const userId = Number(session.user.id);
-  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null;
+  const { ip, userAgent } = extraireMetaRequete(req);
 
   // Génération du numéro (12 chiffres) avec retry en cas de collision concurrente.
   for (let attempt = 0; attempt < 6; attempt++) {
@@ -139,14 +140,14 @@ export async function POST(req: Request) {
           },
         });
 
-        await auditLog(tx, userId, "CREATION_COMPTE_COURANT", "CompteCourant", created.id);
+        await auditLog(tx, userId, "CREATION_COMPTE_COURANT", "CompteCourant", created.id, undefined, { ip, userAgent });
 
         // Dépôt d'ouverture éventuel (mouvement DEPOT + écriture comptable).
         if (depotInitial > 0) {
           const depot = await enregistrerDepotCC(tx, {
             compteId: created.id, numeroCompte: created.numeroCompte, codeAgence: created.codeAgence,
             clientNom, montant: depotInitial, userId, param,
-            modePaiement, observation: "Dépôt d'ouverture", ip, ouverture: true,
+            modePaiement, observation: "Dépôt d'ouverture", ip, userAgent, ouverture: true,
           });
           await notifyAdmins(tx, {
             titre: "Ouverture compte courant",

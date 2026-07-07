@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { PrioriteNotification } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCompteCourantSession } from "@/lib/authCompteCourant";
-import { chargerParametrageCC, enregistrerDepotCC } from "@/lib/compteCourant";
+import { chargerParametrageCC, enregistrerDepotCC, extraireMetaRequete } from "@/lib/compteCourant";
 import { notifyAdmins, auditLog } from "@/lib/notifications";
 
 type Ctx = { params: Promise<{ id: string }> };
@@ -60,7 +60,7 @@ export async function POST(req: Request, { params }: Ctx) {
     return NextResponse.json({ error: `Solde maximum autorisé dépassé (${Number(param.soldeMaxAutorise)} FCFA)` }, { status: 422 });
   }
 
-  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null;
+  const { ip, userAgent } = extraireMetaRequete(req);
   const clientNom = `${compte.client.prenom} ${compte.client.nom}`;
   const userId = Number(session.user.id);
 
@@ -69,10 +69,11 @@ export async function POST(req: Request, { params }: Ctx) {
       const depot = await enregistrerDepotCC(tx, {
         compteId, numeroCompte: compte.numeroCompte, codeAgence: compte.codeAgence,
         clientNom, montant, userId, param,
-        modePaiement, observation: observationFinale, ip,
+        modePaiement, observation: observationFinale, ip, userAgent,
       });
 
-      await auditLog(tx, userId, "DEPOT_COMPTE_COURANT", "CompteCourant", compteId);
+      await auditLog(tx, userId, "DEPOT_COMPTE_COURANT", "CompteCourant", compteId,
+        { montant, soldeAvant: depot.soldeAvant, soldeApres: depot.soldeApres }, { ip, userAgent });
       await notifyAdmins(tx, {
         titre: "Dépôt compte courant",
         message: `Dépôt de ${montant.toLocaleString("fr-FR")} FCFA sur le compte ${compte.numeroCompte} (${clientNom}). Nouveau solde : ${depot.soldeApres.toLocaleString("fr-FR")} FCFA.`,

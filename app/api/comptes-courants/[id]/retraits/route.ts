@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { PrioriteNotification } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCompteCourantSession } from "@/lib/authCompteCourant";
-import { chargerParametrageCC, genererReferenceMouvementCC } from "@/lib/compteCourant";
+import { chargerParametrageCC, genererReferenceMouvementCC, extraireMetaRequete } from "@/lib/compteCourant";
 import { notifyRoles, auditLog } from "@/lib/notifications";
 
 type Ctx = { params: Promise<{ id: string }> };
@@ -110,7 +110,7 @@ export async function POST(req: Request, { params }: Ctx) {
     }
   }
 
-  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null;
+  const { ip, userAgent } = extraireMetaRequete(req);
   const clientNom = `${compte.client.prenom} ${compte.client.nom}`;
   const userId = Number(session.user.id);
 
@@ -122,12 +122,13 @@ export async function POST(req: Request, { params }: Ctx) {
           reference, compteId, nature: "RETRAIT",
           montant: -montant, soldeAvant, soldeApres,
           modePaiement, observation: motif,
-          statut: "EN_ATTENTE", userId, agence: compte.codeAgence, ip,
+          statut: "EN_ATTENTE", userId, agence: compte.codeAgence, ip, userAgent,
         },
         select: { id: true, reference: true, createdAt: true },
       });
 
-      await auditLog(tx, userId, "INITIATION_RETRAIT_CC", "CompteCourant", compteId);
+      await auditLog(tx, userId, "INITIATION_RETRAIT_CC", "CompteCourant", compteId,
+        { montant, soldeAvant, soldeApres }, { ip, userAgent });
       await notifyRoles(tx, ["CHEF_AGENCE", "RESPONSABLE_ECONOMIQUE"], {
         titre: "Retrait à valider",
         message: `Demande de retrait de ${montant.toLocaleString("fr-FR")} FCFA sur le compte ${compte.numeroCompte} (${clientNom}) — validation requise.`,

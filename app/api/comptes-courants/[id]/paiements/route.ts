@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { PrioriteNotification, TypePaiement } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCompteCourantSession } from "@/lib/authCompteCourant";
-import { chargerParametrageCC, genererReferenceMouvementCC, creerEcritureCC } from "@/lib/compteCourant";
+import { chargerParametrageCC, genererReferenceMouvementCC, creerEcritureCC, extraireMetaRequete } from "@/lib/compteCourant";
 import { enregistrerRemboursementCredit } from "@/lib/remboursementCredit";
 import { notifyAdmins, auditLog } from "@/lib/notifications";
 
@@ -57,7 +57,7 @@ export async function POST(req: Request, { params }: Ctx) {
   const param = await chargerParametrageCC();
   const userId = Number(session.user.id);
   const clientNom = `${compte.client.prenom} ${compte.client.nom}`;
-  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null;
+  const { ip, userAgent } = extraireMetaRequete(req);
 
   try {
     const result = await prisma.$transaction(async (tx) => {
@@ -99,7 +99,7 @@ export async function POST(req: Request, { params }: Ctx) {
           reference, compteId, nature: "PAIEMENT_CREDIT",
           montant: -applique, soldeAvant: avant, soldeApres: apres,
           observation: `Crédit ${credit.reference}${observationLibre ? ` · ${observationLibre}` : ""}`,
-          statut: "VALIDE", userId, agence: compte.codeAgence, ecritureId, creditId, ip,
+          statut: "VALIDE", userId, agence: compte.codeAgence, ecritureId, creditId, ip, userAgent,
         },
         select: { id: true, reference: true },
       });
@@ -114,7 +114,8 @@ export async function POST(req: Request, { params }: Ctx) {
         },
       });
 
-      await auditLog(tx, userId, "PAIEMENT_CREDIT_VIA_CC", "CompteCourant", compteId);
+      await auditLog(tx, userId, "PAIEMENT_CREDIT_VIA_CC", "CompteCourant", compteId,
+        { creditId, credit: credit.reference, montant: applique, soldeAvant: avant, soldeApres: apres }, { ip, userAgent });
       await notifyAdmins(tx, {
         titre: "Paiement crédit via compte courant",
         message: `${applique.toLocaleString("fr-FR")} FCFA prélevés du compte ${compte.numeroCompte} (${clientNom}) pour le crédit ${credit.reference}. Nouveau solde CC : ${apres.toLocaleString("fr-FR")} FCFA.`,

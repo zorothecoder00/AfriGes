@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getAuthSession } from "@/lib/auth";
 import { randomUUID } from "crypto";
 import { notifyRoles, auditLog } from "@/lib/notifications";
-import { chargerParametrageCC, getCompteCourantParClient, preleverCompteCourant } from "@/lib/compteCourant";
+import { chargerParametrageCC, getCompteCourantParClient, preleverCompteCourant, extraireMetaRequete } from "@/lib/compteCourant";
 
 async function getAdminSession() {
   const s = await getAuthSession();
@@ -167,7 +167,7 @@ export async function POST(req: Request) {
     }
 
     const param = ccMontant > 0 ? await chargerParametrageCC() : null;
-    const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null;
+    const { ip, userAgent } = extraireMetaRequete(req);
     const pdv = await prisma.pointDeVente.findUnique({ where: { id: Number(pointDeVenteId) }, select: { nom: true } });
 
     const vente = await prisma.$transaction(async (tx) => {
@@ -227,7 +227,7 @@ export async function POST(req: Request) {
       if (ccMontant > 0 && param) {
         await preleverCompteCourant(tx, {
           clientId: Number(clientId), montant: ccMontant, nature: "PAIEMENT_COMPTANT",
-          venteId: v.id, refLibelle: `Vente comptant ${ref}`, userId, ip, param,
+          venteId: v.id, refLibelle: `Vente comptant ${ref}`, userId, ip, userAgent, param,
         });
       }
 
