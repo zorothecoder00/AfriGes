@@ -4,10 +4,12 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  Wallet, Search, ArrowLeft, Loader2, CheckCircle2, User, MapPin, Phone, Hash, Building2, X,
+  Wallet, Search, ArrowLeft, Loader2, CheckCircle2, User, MapPin, Phone, Hash, Building2, X, Banknote,
 } from "lucide-react";
 import { toast } from "sonner";
 import ClienteleTabBar from "@/components/ClienteleTabBar";
+
+const MODES = ["Espèces", "Mobile Money", "Carte", "Virement"];
 
 interface ClientHit {
   id: number; nom: string; prenom: string; telephone: string;
@@ -30,6 +32,18 @@ export default function NouveauCompteCourantPage() {
   const [submitting, setSubmitting] = useState(false);
   const [cree, setCree] = useState<CompteCree | null>(null);
 
+  // Dépôt d'ouverture (optionnel) + montant minimum issu du paramétrage
+  const [depotOuverture, setDepotOuverture] = useState("");
+  const [modeOuverture, setModeOuverture] = useState(MODES[0]);
+  const [minOuverture, setMinOuverture] = useState<number | null>(null);
+
+  useEffect(() => {
+    fetch("/api/comptes-courants/parametrage")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => { if (j?.data) setMinOuverture(Number(j.data.montantMinOuverture)); })
+      .catch(() => { /* ignore */ });
+  }, []);
+
   // Recherche client (debounce) tant qu'aucun n'est sélectionné
   useEffect(() => {
     if (selected || searchInput.trim().length < 2) { setResults([]); return; }
@@ -47,16 +61,24 @@ export default function NouveauCompteCourantPage() {
 
   const ouvrir = async () => {
     if (!selected) return;
+    const depot = depotOuverture.trim() ? Number(depotOuverture) : 0;
+    if (depotOuverture.trim() && (isNaN(depot) || depot < 0)) { toast.error("Dépôt d'ouverture invalide"); return; }
+    if (depot > 0 && minOuverture != null && depot < minOuverture) {
+      toast.error(`Dépôt d'ouverture minimum : ${minOuverture.toLocaleString("fr-FR")} FCFA`); return;
+    }
     setSubmitting(true);
     try {
       const r = await fetch("/api/comptes-courants", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ clientId: selected.id }),
+        body: JSON.stringify({
+          clientId: selected.id,
+          ...(depot > 0 ? { depotInitial: depot, modePaiement: modeOuverture } : {}),
+        }),
       });
       const j = await r.json();
       if (!r.ok) throw new Error(j.error ?? "Erreur");
       setCree(j.data as CompteCree);
-      toast.success("Compte courant ouvert ✓");
+      toast.success(depot > 0 ? "Compte ouvert avec dépôt initial ✓" : "Compte courant ouvert ✓");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erreur lors de l'ouverture");
     } finally {
@@ -154,6 +176,38 @@ export default function NouveauCompteCourantPage() {
                 </div>
               )}
             </div>
+
+            {/* 2. Dépôt d'ouverture (optionnel) */}
+            {selected && (
+              <div>
+                <p className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                  <Banknote className="w-4 h-4 text-emerald-600" /> 2. Dépôt d&apos;ouverture <span className="font-normal text-gray-400">(optionnel)</span>
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <label className="block">
+                    <span className="text-xs font-semibold text-slate-500">Montant (FCFA)</span>
+                    <input
+                      type="number" min={0} value={depotOuverture} onChange={(e) => setDepotOuverture(e.target.value)}
+                      placeholder={minOuverture != null ? `min. ${minOuverture.toLocaleString("fr-FR")}` : "0"}
+                      className="mt-1 w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="text-xs font-semibold text-slate-500">Mode de paiement</span>
+                    <select value={modeOuverture} onChange={(e) => setModeOuverture(e.target.value)}
+                      disabled={!depotOuverture.trim()}
+                      className="mt-1 w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:opacity-50">
+                      {MODES.map((m) => <option key={m} value={m}>{m}</option>)}
+                    </select>
+                  </label>
+                </div>
+                <p className="text-[11px] text-gray-400 mt-2">
+                  {minOuverture != null && minOuverture > 0
+                    ? `Laisser vide pour ouvrir sans dépôt. Si renseigné, minimum ${minOuverture.toLocaleString("fr-FR")} FCFA.`
+                    : "Laisser vide pour ouvrir le compte à solde nul."}
+                </p>
+              </div>
+            )}
 
             <div className="pt-1">
               <p className="text-xs text-gray-400 mb-3">

@@ -3,8 +3,10 @@ import { Prisma, StatutCompteCourant } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCompteCourantSession } from "@/lib/authCompteCourant";
 import {
-  chargerParametrageCC, genererNumeroCompte, calculerCleRib, formatRibComplet,
+  chargerParametrageCC, genererNumeroCompte, calculerCleRib, formatRibComplet, enregistrerDepotCC,
 } from "@/lib/compteCourant";
+import { notifyAdmins, auditLog } from "@/lib/notifications";
+import { PrioriteNotification } from "@prisma/client";
 
 /**
  * /api/comptes-courants
@@ -77,13 +79,40 @@ export async function POST(req: Request) {
   const clientId = Number(body?.clientId);
   if (!clientId) return NextResponse.json({ error: "Client requis" }, { status: 400 });
 
-  const client = await prisma.client.findUnique({ where: { id: clientId }, select: { id: true } });
+  // Dépôt d'ouverture optionnel (CDC §2) : s'il est fourni, il doit respecter le
+  // montant minimum d'ouverture et les plafonds de dépôt du paramétrage.
+  const depotInitial = body?.depotInitial != null && body.depotInitial !== "" ? Number(body.depotInitial) : 0;
+  if (isNaN(depotInitial) || depotInitial < 0) {
+    return NextResponse.json({ error: "Dépôt d'ouverture invalide" }, { status: 400 });
+  }
+  const modePaiement = typeof body?.modePaiement === "string" && body.modePaiement.trim() ? body.modePaiement.trim() : null;
+
+  const client = await prisma.client.findUnique({
+    where: { id: clientId }, select: { id: true, nom: true, prenom: true },
+  });
   if (!client) return NextResponse.json({ error: "Client introuvable" }, { status: 404 });
 
   const deja = await prisma.compteCourant.findUnique({ where: { clientId }, select: { id: true } });
   if (deja) return NextResponse.json({ error: "Ce client possède déjà un compte courant" }, { status: 409 });
 
   const param = await chargerParametrageCC();
+
+  if (depotInitial > 0) {
+    const minOuverture = Number(param.montantMinOuverture);
+    if (depotInitial < minOuverture) {
+      return NextResponse.json({ error: `Dépôt d'ouverture minimum : ${minOuverture.toLocaleString("fr-FR")} FCFA` }, { status: 422 });
+    }
+    if (param.depotMax != null && depotInitial > Number(param.depotMax)) {
+      return NextResponse.json({ error: `Dépôt maximum : ${Number(param.depotMax).toLocaleString("fr-FR")} FCFA` }, { status: 422 });
+    }
+    if (param.soldeMaxAutorise != null && depotInitial > Number(param.soldeMaxAutorise)) {
+      return NextResponse.json({ error: `Solde maximum autorisé dépassé (${Number(param.soldeMaxAutorise).toLocaleString("fr-FR")} FCFA)` }, { status: 422 });
+    }
+  }
+
+  const clientNom = `${client.prenom} ${client.nom}`;
+  const userId = Number(session.user.id);
+  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null;
 
   // Génération du numéro (12 chiffres) avec retry en cas de collision concurrente.
   for (let attempt = 0; attempt < 6; attempt++) {
@@ -93,24 +122,41 @@ export async function POST(req: Request) {
     const ribComplet   = formatRibComplet(param.codeAgence, param.codeGuichet, numeroCompte, cleRib);
 
     try {
-      const compte = await prisma.compteCourant.create({
-        data: {
-          numeroCompte, cleRib, ribComplet,
-          codeAgence: param.codeAgence, codeGuichet: param.codeGuichet,
-          clientId,
-          agentCreateurId: Number(session.user.id),
-        },
-        select: {
-          id: true, numeroCompte: true, ribComplet: true, cleRib: true,
-          codeAgence: true, codeGuichet: true, statut: true, solde: true,
-          dateOuverture: true,
-          client: { select: clientSelect },
-          agentCreateur: { select: { id: true, nom: true, prenom: true } },
-        },
-      });
+      const compte = await prisma.$transaction(async (tx) => {
+        const created = await tx.compteCourant.create({
+          data: {
+            numeroCompte, cleRib, ribComplet,
+            codeAgence: param.codeAgence, codeGuichet: param.codeGuichet,
+            clientId,
+            agentCreateurId: userId,
+          },
+          select: {
+            id: true, numeroCompte: true, ribComplet: true, cleRib: true,
+            codeAgence: true, codeGuichet: true, statut: true, solde: true,
+            dateOuverture: true,
+            client: { select: clientSelect },
+            agentCreateur: { select: { id: true, nom: true, prenom: true } },
+          },
+        });
 
-      await prisma.auditLog.create({
-        data: { userId: Number(session.user.id), action: "CREATION_COMPTE_COURANT", entite: "CompteCourant", entiteId: compte.id },
+        await auditLog(tx, userId, "CREATION_COMPTE_COURANT", "CompteCourant", created.id);
+
+        // Dépôt d'ouverture éventuel (mouvement DEPOT + écriture comptable).
+        if (depotInitial > 0) {
+          const depot = await enregistrerDepotCC(tx, {
+            compteId: created.id, numeroCompte: created.numeroCompte, codeAgence: created.codeAgence,
+            clientNom, montant: depotInitial, userId, param,
+            modePaiement, observation: "Dépôt d'ouverture", ip, ouverture: true,
+          });
+          await notifyAdmins(tx, {
+            titre: "Ouverture compte courant",
+            message: `Compte ${created.numeroCompte} ouvert pour ${clientNom} avec un dépôt d'ouverture de ${depotInitial.toLocaleString("fr-FR")} FCFA.`,
+            priorite: PrioriteNotification.NORMAL,
+            actionUrl: `/dashboard/admin/comptes-courants/${created.id}`,
+          });
+          return { ...created, solde: depot.soldeApres };
+        }
+        return created;
       });
 
       return NextResponse.json({ data: compte }, { status: 201 });

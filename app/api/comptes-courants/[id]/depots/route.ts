@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { PrioriteNotification } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCompteCourantSession } from "@/lib/authCompteCourant";
-import { chargerParametrageCC, genererReferenceMouvementCC, creerEcritureCC } from "@/lib/compteCourant";
+import { chargerParametrageCC, enregistrerDepotCC } from "@/lib/compteCourant";
 import { notifyAdmins, auditLog } from "@/lib/notifications";
 
 type Ctx = { params: Promise<{ id: string }> };
@@ -66,53 +66,21 @@ export async function POST(req: Request, { params }: Ctx) {
 
   try {
     const result = await prisma.$transaction(async (tx) => {
-      // Relecture du solde dans la transaction (cohérence).
-      const courant = await tx.compteCourant.findUnique({ where: { id: compteId }, select: { solde: true } });
-      const avant = Number(courant?.solde ?? 0);
-      const apres = avant + montant;
-
-      // Écriture comptable : Débit Caisse / Crédit Compte courant client.
-      const ecritureId = await creerEcritureCC(tx, {
-        journal: "CAISSE",
-        date: new Date(),
-        libelle: `Dépôt compte courant ${compte.numeroCompte} — ${clientNom}`,
-        userId,
-        lignes: [
-          { numero: param.compteCaisseNumero,        debit:  montant, libelle: "Encaissement dépôt CC" },
-          { numero: param.compteCourantClientNumero, credit: montant, libelle: `Dépôt ${compte.numeroCompte}` },
-        ],
-      });
-
-      const reference = await genererReferenceMouvementCC(tx, "DEP");
-      const mouvement = await tx.mouvementCompteCourant.create({
-        data: {
-          reference, compteId, nature: "DEPOT",
-          montant, soldeAvant: avant, soldeApres: apres,
-          modePaiement, observation: observationFinale,
-          statut: "VALIDE", userId, agence: compte.codeAgence, ecritureId, ip,
-        },
-        select: { id: true, reference: true, createdAt: true },
-      });
-
-      await tx.compteCourant.update({
-        where: { id: compteId },
-        data: {
-          solde: apres,
-          totalDepose: { increment: montant },
-          nbMouvements: { increment: 1 },
-          derniereOperationAt: new Date(),
-        },
+      const depot = await enregistrerDepotCC(tx, {
+        compteId, numeroCompte: compte.numeroCompte, codeAgence: compte.codeAgence,
+        clientNom, montant, userId, param,
+        modePaiement, observation: observationFinale, ip,
       });
 
       await auditLog(tx, userId, "DEPOT_COMPTE_COURANT", "CompteCourant", compteId);
       await notifyAdmins(tx, {
         titre: "Dépôt compte courant",
-        message: `Dépôt de ${montant.toLocaleString("fr-FR")} FCFA sur le compte ${compte.numeroCompte} (${clientNom}). Nouveau solde : ${apres.toLocaleString("fr-FR")} FCFA.`,
+        message: `Dépôt de ${montant.toLocaleString("fr-FR")} FCFA sur le compte ${compte.numeroCompte} (${clientNom}). Nouveau solde : ${depot.soldeApres.toLocaleString("fr-FR")} FCFA.`,
         priorite: PrioriteNotification.NORMAL,
         actionUrl: `/dashboard/admin/comptes-courants/${compteId}`,
       });
 
-      return { mouvement, soldeApres: apres, ecritureGeneree: ecritureId != null };
+      return { mouvement: depot.mouvement, soldeApres: depot.soldeApres, ecritureGeneree: depot.ecritureGeneree };
     });
 
     return NextResponse.json({ data: result }, { status: 201 });

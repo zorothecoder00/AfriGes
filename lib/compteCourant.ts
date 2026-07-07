@@ -107,3 +107,68 @@ export async function creerEcritureCC(
   });
   return ecriture.id;
 }
+
+/**
+ * Enregistre un dépôt (mouvement DEPOT) sur un compte courant dans la transaction
+ * `tx` : écriture comptable Débit Caisse / Crédit Compte courant client, ligne au
+ * grand livre, et mise à jour du solde + totaux du compte. Mutualisé entre le dépôt
+ * courant (CDC §5) et le dépôt d'ouverture (CDC §2).
+ *
+ * Ne fait aucune validation métier (min/max, statut) : l'appelant les assure.
+ */
+export async function enregistrerDepotCC(
+  tx: TxClient,
+  opts: {
+    compteId: number;
+    numeroCompte: string;
+    codeAgence: string;
+    clientNom: string;
+    montant: number;
+    userId: number;
+    param: { compteCaisseNumero: string; compteCourantClientNumero: string };
+    modePaiement?: string | null;
+    observation?: string | null;
+    ip?: string | null;
+    ouverture?: boolean;
+  },
+) {
+  // Relecture du solde dans la transaction (cohérence).
+  const courant = await tx.compteCourant.findUnique({ where: { id: opts.compteId }, select: { solde: true } });
+  const avant = Number(courant?.solde ?? 0);
+  const apres = avant + opts.montant;
+
+  const libelleNature = opts.ouverture ? "Dépôt d'ouverture" : "Dépôt";
+  const ecritureId = await creerEcritureCC(tx, {
+    journal: "CAISSE",
+    date: new Date(),
+    libelle: `${libelleNature} compte courant ${opts.numeroCompte} — ${opts.clientNom}`,
+    userId: opts.userId,
+    lignes: [
+      { numero: opts.param.compteCaisseNumero,        debit:  opts.montant, libelle: `Encaissement ${libelleNature.toLowerCase()} CC` },
+      { numero: opts.param.compteCourantClientNumero, credit: opts.montant, libelle: `${libelleNature} ${opts.numeroCompte}` },
+    ],
+  });
+
+  const reference = await genererReferenceMouvementCC(tx, "DEP");
+  const mouvement = await tx.mouvementCompteCourant.create({
+    data: {
+      reference, compteId: opts.compteId, nature: "DEPOT",
+      montant: opts.montant, soldeAvant: avant, soldeApres: apres,
+      modePaiement: opts.modePaiement ?? null, observation: opts.observation ?? null,
+      statut: "VALIDE", userId: opts.userId, agence: opts.codeAgence, ecritureId, ip: opts.ip ?? null,
+    },
+    select: { id: true, reference: true, createdAt: true },
+  });
+
+  await tx.compteCourant.update({
+    where: { id: opts.compteId },
+    data: {
+      solde: apres,
+      totalDepose: { increment: opts.montant },
+      nbMouvements: { increment: 1 },
+      derniereOperationAt: new Date(),
+    },
+  });
+
+  return { mouvement, soldeAvant: avant, soldeApres: apres, ecritureGeneree: ecritureId != null };
+}

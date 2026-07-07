@@ -26,3 +26,29 @@ Points laissés pour les lots suivants (comme convenu)
   - Lot 5 : tableau de bord + états/stats + documents (relevé, attestations,
   carnet).
 
+
+Laissé de côté (à confirmer si tu les veux)
+
+  - Paiement d'une vente comptant via CC (autre intégration, sur VenteDirecte) —
+  je ne l'ai pas fait pour rester sur du sûr ; dis-moi si tu le veux.
+  - L'intégration « case Utiliser mon CC » dans l'assistant de création de
+  crédit (option B) — non retenue.
+
+  Prochaine étape logique : Lot 4 — Retrait sécurisé (caissier initie →
+  validation Chef d'agence avec ré-auth mot de passe + motif + audit). Je peux
+  aussi ajouter le paiement vente comptant avant si tu préfères. Tu veux quoi ?
+
+
+En clair, les 2 vrais « trous » sur les sections 1‑4
+
+  1. Aucune action pour changer le statut d'un compte (Suspendre / Clôturer /
+  Blacklister / Décédé / Frauduleux) — alors que le CDC §3 le liste et que le
+  blocage §10 en dépend.
+  2. Montant minimum d'ouverture non appliqué (pas de dépôt initial à la
+  création).
+
+  Veux-tu que je comble ces 2 trous maintenant (gestion des statuts + option de
+  dépôt d'ouverture avec montant minimum) avant de passer au Lot 4 — Retrait ?
+  Et peux-tu me confirmer le mapping Communauté = commune et Zone = ville (ou me
+  dire les bons champs) ?
+

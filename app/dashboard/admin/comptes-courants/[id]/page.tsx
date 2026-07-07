@@ -7,7 +7,7 @@ import { useSession } from "next-auth/react";
 import { toast } from "sonner";
 import {
   Wallet, ArrowLeft, Loader2, TrendingUp, TrendingDown, ShoppingCart,
-  Activity, Clock, MapPin, Phone, User, Hash, Plus, X, Printer, ArrowDownCircle, CreditCard,
+  Activity, Clock, MapPin, Phone, User, Hash, Plus, X, Printer, ArrowDownCircle, CreditCard, ShieldAlert,
 } from "lucide-react";
 import { useApi } from "@/hooks/useApi";
 import { formatCurrency, formatDate } from "@/lib/format";
@@ -72,6 +72,8 @@ export default function CompteCourantDetailPage() {
   const role = session?.user?.role;
   const gest = session?.user?.gestionnaireRole;
   const canDeposit = role === "ADMIN" || role === "SUPER_ADMIN" || gest === "CHEF_AGENCE" || gest === "CAISSIER";
+  // Capacité VALIDATE (CDC §17) : gestion du statut du compte (blocage/clôture/réactivation).
+  const canManageStatus = role === "ADMIN" || role === "SUPER_ADMIN" || gest === "CHEF_AGENCE" || gest === "RESPONSABLE_ECONOMIQUE";
 
   const { data: res, loading, refetch } = useApi<{ data: CompteDetail }>(`/api/comptes-courants/${params.id}`);
   const { data: mvtRes, refetch: refetchMvt } = useApi<{ data: Mouvement[] }>(`/api/comptes-courants/${params.id}/mouvements?limit=50`);
@@ -93,6 +95,12 @@ export default function CompteCourantDetailPage() {
   const [payCreditId, setPayCreditId] = useState("");
   const [payMontant, setPayMontant] = useState("");
   const [paySaving, setPaySaving] = useState(false);
+
+  // ── Changement de statut (CDC §3) ──
+  const [statutOpen, setStatutOpen] = useState(false);
+  const [newStatut, setNewStatut] = useState("");
+  const [motifStatut, setMotifStatut] = useState("");
+  const [statutSaving, setStatutSaving] = useState(false);
 
   const recuUrl = (mid: number) => `/api/comptes-courants/${params.id}/mouvements/${mid}/recu`;
 
@@ -141,6 +149,25 @@ export default function CompteCourantDetailPage() {
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erreur");
     } finally { setPaySaving(false); }
+  };
+
+  const submitStatut = async () => {
+    if (!newStatut) { toast.error("Choisissez un statut"); return; }
+    if (newStatut !== "ACTIF" && motifStatut.trim().length < 3) { toast.error("Motif obligatoire"); return; }
+    setStatutSaving(true);
+    try {
+      const r = await fetch(`/api/comptes-courants/${params.id}/statut`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ statut: newStatut, motif: motifStatut.trim() || undefined }),
+      });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error ?? "Erreur");
+      toast.success(`Statut mis à jour : ${STATUT_LABEL[newStatut] ?? newStatut}`);
+      setStatutOpen(false); setNewStatut(""); setMotifStatut("");
+      refetch();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erreur");
+    } finally { setStatutSaving(false); }
   };
 
   const selectedCredit = creditsPayables.find((cr) => String(cr.creditId) === payCreditId);
@@ -202,6 +229,12 @@ export default function CompteCourantDetailPage() {
                 )}
                 {canDeposit && c.statut !== "ACTIF" && (
                   <span className="text-xs text-gray-400">Opérations bloquées : compte {STATUT_LABEL[c.statut]?.toLowerCase()}.</span>
+                )}
+                {canManageStatus && (
+                  <button onClick={() => { setNewStatut(""); setMotifStatut(""); setStatutOpen(true); }}
+                    className="ml-auto inline-flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-xl text-sm font-medium">
+                    <ShieldAlert className="w-4 h-4 text-slate-500" /> Changer le statut
+                  </button>
                 )}
               </div>
             </div>
@@ -391,6 +424,55 @@ export default function CompteCourantDetailPage() {
               <button onClick={submitPaiement} disabled={paySaving}
                 className="inline-flex items-center gap-2 px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-xl text-sm font-semibold">
                 {paySaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <CreditCard className="w-4 h-4" />} Payer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal changement de statut */}
+      {statutOpen && c && (
+        <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+              <h3 className="font-bold text-slate-800 flex items-center gap-2"><ShieldAlert className="w-4 h-4 text-slate-600" /> Changer le statut</h3>
+              <button onClick={() => setStatutOpen(false)} className="p-1.5 hover:bg-slate-100 rounded-lg"><X className="w-4 h-4 text-slate-500" /></button>
+            </div>
+            <div className="p-6 space-y-4">
+              <p className="text-xs text-gray-500">
+                Compte {c.numeroCompte} · statut actuel :{" "}
+                <span className={`text-[11px] px-2 py-0.5 rounded-full border font-medium ${STATUT_STYLE[c.statut] ?? ""}`}>{STATUT_LABEL[c.statut] ?? c.statut}</span>
+              </p>
+              <label className="block">
+                <span className="text-xs font-semibold text-slate-500">Nouveau statut</span>
+                <select value={newStatut} onChange={(e) => setNewStatut(e.target.value)}
+                  className="mt-1 w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-400">
+                  <option value="">— Choisir —</option>
+                  {Object.keys(STATUT_LABEL).filter((s) => s !== c.statut).map((s) => (
+                    <option key={s} value={s}>{STATUT_LABEL[s]}</option>
+                  ))}
+                </select>
+              </label>
+              <label className="block">
+                <span className="text-xs font-semibold text-slate-500">
+                  Motif {newStatut && newStatut !== "ACTIF" ? <span className="text-red-500">*</span> : <span className="text-gray-400">(optionnel)</span>}
+                </span>
+                <textarea value={motifStatut} onChange={(e) => setMotifStatut(e.target.value)} rows={3}
+                  placeholder={newStatut === "ACTIF" ? "Ex : régularisation, levée de suspension…" : "Ex : décès, fraude avérée, demande client…"}
+                  className="mt-1 w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-400" />
+              </label>
+              {newStatut === "CLOTURE" && N(c.solde) !== 0 && (
+                <p className="text-[11px] text-red-600">Le solde doit être nul avant clôture (actuel : {formatCurrency(N(c.solde))}).</p>
+              )}
+              {newStatut && newStatut !== "ACTIF" && (
+                <p className="text-[11px] text-amber-600">Ce statut bloquera dépôts, paiements et retraits sur le compte (CDC §10).</p>
+              )}
+            </div>
+            <div className="flex justify-end gap-2 px-6 py-4 border-t border-slate-100">
+              <button onClick={() => setStatutOpen(false)} className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 rounded-xl">Annuler</button>
+              <button onClick={submitStatut} disabled={statutSaving}
+                className="inline-flex items-center gap-2 px-5 py-2 bg-slate-800 hover:bg-slate-900 disabled:opacity-50 text-white rounded-xl text-sm font-semibold">
+                {statutSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldAlert className="w-4 h-4" />} Confirmer
               </button>
             </div>
           </div>
