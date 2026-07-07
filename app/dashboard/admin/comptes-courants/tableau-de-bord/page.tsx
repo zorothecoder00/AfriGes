@@ -3,7 +3,7 @@
 import Link from "next/link";
 import {
   Wallet, ArrowLeft, Loader2, TrendingUp, TrendingDown, ShoppingCart,
-  Activity, Clock, Users, ChevronRight, ListChecks,
+  Activity, Clock, Users, ChevronRight, ListChecks, UserCheck, UserX, Gauge,
 } from "lucide-react";
 import { useApi } from "@/hooks/useApi";
 import { formatCurrency } from "@/lib/format";
@@ -11,13 +11,15 @@ import ClienteleTabBar from "@/components/ClienteleTabBar";
 
 interface Stats {
   totaux: {
-    nbComptes: number; encoursGlobal: number; totalDepose: number; totalRetire: number;
-    totalUtilise: number; nbMouvements: number; retraitsEnAttente: number;
+    nbComptes: number; comptesActifs: number; comptesInactifs: number;
+    encoursGlobal: number; totalDepose: number; totalRetire: number;
+    totalUtilise: number; soldeMoyen: number; nbMouvements: number; retraitsEnAttente: number;
   };
   parStatut: { statut: string; nb: number; solde: number }[];
   mvtParNature: { nature: string; nb: number; montant: number }[];
   mvtDuMois: { nature: string; nb: number; montant: number }[];
   topComptes: { id: number; numeroCompte: string; solde: number; nbMouvements: number; client: string }[];
+  topDepotsMois: { id: number; numeroCompte: string; client: string; total: number; nb: number }[];
 }
 
 const STATUT_STYLE: Record<string, string> = {
@@ -64,11 +66,14 @@ export default function TableauBordCCPage() {
           <>
             {/* KPIs */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-              <Kpi label="Encours global" value={formatCurrency(s.totaux.encoursGlobal)} icon={<Wallet className="w-5 h-5 text-emerald-600" />} bg="bg-emerald-50" />
-              <Kpi label="Comptes" value={String(s.totaux.nbComptes)} icon={<Users className="w-5 h-5 text-violet-600" />} bg="bg-violet-50" />
-              <Kpi label="Total déposé" value={formatCurrency(s.totaux.totalDepose)} icon={<TrendingUp className="w-5 h-5 text-teal-600" />} bg="bg-teal-50" />
-              <Kpi label="Total retiré" value={formatCurrency(s.totaux.totalRetire)} icon={<TrendingDown className="w-5 h-5 text-orange-600" />} bg="bg-orange-50" />
+              <Kpi label="Total disponible" value={formatCurrency(s.totaux.encoursGlobal)} icon={<Wallet className="w-5 h-5 text-emerald-600" />} bg="bg-emerald-50" />
+              <Kpi label="Nombre de comptes" value={String(s.totaux.nbComptes)} icon={<Users className="w-5 h-5 text-violet-600" />} bg="bg-violet-50" />
+              <Kpi label="Comptes actifs" value={String(s.totaux.comptesActifs)} icon={<UserCheck className="w-5 h-5 text-emerald-600" />} bg="bg-emerald-50" />
+              <Kpi label="Comptes inactifs" value={String(s.totaux.comptesInactifs)} icon={<UserX className="w-5 h-5 text-rose-600" />} bg="bg-rose-50" />
+              <Kpi label="Total des dépôts" value={formatCurrency(s.totaux.totalDepose)} icon={<TrendingUp className="w-5 h-5 text-teal-600" />} bg="bg-teal-50" />
+              <Kpi label="Total des retraits" value={formatCurrency(s.totaux.totalRetire)} icon={<TrendingDown className="w-5 h-5 text-orange-600" />} bg="bg-orange-50" />
               <Kpi label="Total utilisé (achats)" value={formatCurrency(s.totaux.totalUtilise)} icon={<ShoppingCart className="w-5 h-5 text-blue-600" />} bg="bg-blue-50" />
+              <Kpi label="Solde moyen" value={formatCurrency(s.totaux.soldeMoyen)} icon={<Gauge className="w-5 h-5 text-indigo-600" />} bg="bg-indigo-50" />
               <Kpi label="Mouvements" value={String(s.totaux.nbMouvements)} icon={<Activity className="w-5 h-5 text-slate-600" />} bg="bg-slate-100" />
               <Kpi label="Retraits en attente" value={String(s.totaux.retraitsEnAttente)} icon={<Clock className="w-5 h-5 text-amber-600" />} bg="bg-amber-50"
                 highlight={s.totaux.retraitsEnAttente > 0} />
@@ -115,36 +120,73 @@ export default function TableauBordCCPage() {
               </div>
             </div>
 
-            {/* Top comptes */}
-            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-              <div className="px-6 py-4 border-b border-gray-100 flex items-center gap-2">
-                <TrendingUp className="w-4 h-4 text-gray-400" />
-                <h3 className="font-bold text-gray-800">Top comptes par solde</h3>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Top 100 épargnants */}
+              <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+                <div className="px-6 py-4 border-b border-gray-100 flex items-center gap-2">
+                  <TrendingUp className="w-4 h-4 text-gray-400" />
+                  <h3 className="font-bold text-gray-800">Top 100 épargnants</h3>
+                  <span className="text-xs text-gray-400">(par solde)</span>
+                </div>
+                {s.topComptes.length === 0 ? (
+                  <p className="text-center py-10 text-gray-400 text-sm">Aucun compte actif.</p>
+                ) : (
+                  <div className="max-h-[460px] overflow-y-auto">
+                    <table className="w-full text-sm">
+                      <tbody className="divide-y divide-gray-50">
+                        {s.topComptes.map((c, i) => (
+                          <tr key={c.id} className="hover:bg-gray-50/60">
+                            <td className="px-4 py-2.5 text-gray-400 w-8 text-xs">{i + 1}</td>
+                            <td className="px-2 py-2.5">
+                              <p className="font-medium text-gray-800">{c.client}</p>
+                              <p className="text-[11px] text-gray-400 font-mono">{c.numeroCompte}</p>
+                            </td>
+                            <td className="px-2 py-2.5 text-right font-bold text-emerald-700">{formatCurrency(c.solde)}</td>
+                            <td className="px-3 py-2.5 text-right">
+                              <Link href={`/dashboard/admin/comptes-courants/${c.id}`} className="text-gray-300 hover:text-emerald-600">
+                                <ChevronRight className="w-4 h-4" />
+                              </Link>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
-              {s.topComptes.length === 0 ? (
-                <p className="text-center py-10 text-gray-400 text-sm">Aucun compte actif.</p>
-              ) : (
-                <table className="w-full text-sm">
-                  <tbody className="divide-y divide-gray-50">
-                    {s.topComptes.map((c, i) => (
-                      <tr key={c.id} className="hover:bg-gray-50/60">
-                        <td className="px-5 py-3 text-gray-400 w-8">{i + 1}</td>
-                        <td className="px-5 py-3">
-                          <p className="font-medium text-gray-800">{c.client}</p>
-                          <p className="text-[11px] text-gray-400 font-mono">{c.numeroCompte}</p>
-                        </td>
-                        <td className="px-5 py-3 text-center text-gray-500">{c.nbMouvements} mouv.</td>
-                        <td className="px-5 py-3 text-right font-bold text-emerald-700">{formatCurrency(c.solde)}</td>
-                        <td className="px-5 py-3 text-right">
-                          <Link href={`/dashboard/admin/comptes-courants/${c.id}`} className="text-gray-300 hover:text-emerald-600">
-                            <ChevronRight className="w-4 h-4" />
-                          </Link>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
+
+              {/* Top dépôts du mois */}
+              <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+                <div className="px-6 py-4 border-b border-gray-100 flex items-center gap-2">
+                  <TrendingUp className="w-4 h-4 text-teal-500" />
+                  <h3 className="font-bold text-gray-800">Top dépôts du mois</h3>
+                </div>
+                {s.topDepotsMois.length === 0 ? (
+                  <p className="text-center py-10 text-gray-400 text-sm">Aucun dépôt ce mois-ci.</p>
+                ) : (
+                  <div className="max-h-[460px] overflow-y-auto">
+                    <table className="w-full text-sm">
+                      <tbody className="divide-y divide-gray-50">
+                        {s.topDepotsMois.map((d, i) => (
+                          <tr key={d.id} className="hover:bg-gray-50/60">
+                            <td className="px-4 py-2.5 text-gray-400 w-8 text-xs">{i + 1}</td>
+                            <td className="px-2 py-2.5">
+                              <p className="font-medium text-gray-800">{d.client}</p>
+                              <p className="text-[11px] text-gray-400 font-mono">{d.numeroCompte} · {d.nb} dépôt(s)</p>
+                            </td>
+                            <td className="px-2 py-2.5 text-right font-bold text-teal-700">{formatCurrency(d.total)}</td>
+                            <td className="px-3 py-2.5 text-right">
+                              <Link href={`/dashboard/admin/comptes-courants/${d.id}`} className="text-gray-300 hover:text-teal-600">
+                                <ChevronRight className="w-4 h-4" />
+                              </Link>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
             </div>
           </>
         )}
