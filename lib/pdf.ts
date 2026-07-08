@@ -18,19 +18,28 @@ import chromium from "@sparticuz/chromium";
 
 const isProd = process.env.NODE_ENV === "production";
 
+// Timeout de lancement : sans ça, une incompatibilité de protocole entre
+// puppeteer-core et le Chromium @sparticuz laisse la fonction « en attente »
+// jusqu'au maxDuration Vercel. On échoue vite et proprement à la place.
+const LAUNCH_TIMEOUT_MS = 20_000;
+
+// En serverless : pas de WebGL/animations → démarrage plus léger et rapide.
+chromium.setGraphicsMode = false;
+
 async function launchBrowser(): Promise<Browser> {
   // Override explicite (ex. chemin Chrome custom) prioritaire.
   const exePath = process.env.PUPPETEER_EXECUTABLE_PATH;
 
   if (!isProd && !exePath) {
     // Dev local : utilise le Chrome/Chromium installé sur la machine.
-    return puppeteer.launch({ headless: true, channel: "chrome" });
+    return puppeteer.launch({ headless: true, channel: "chrome", timeout: LAUNCH_TIMEOUT_MS });
   }
 
   return puppeteer.launch({
     args:            chromium.args,
     executablePath:  exePath ?? (await chromium.executablePath()),
     headless:        true,
+    timeout:         LAUNCH_TIMEOUT_MS,
   });
 }
 
@@ -45,19 +54,27 @@ export interface PdfOptions {
  * `html` doit être un document HTML autonome (styles inline ou <style>).
  */
 export async function htmlToPdf(html: string, opts: PdfOptions = {}): Promise<Buffer> {
-  const browser = await launchBrowser();
+  let browser: Browser | null = null;
   try {
+    browser = await launchBrowser();
     const page = await browser.newPage();
-    await page.setContent(html, { waitUntil: "load" });
+    // Nos gabarits sont autonomes (aucune ressource distante) → "load" est immédiat ;
+    // le timeout borne malgré tout un éventuel blocage plutôt que d'attendre indéfiniment.
+    await page.setContent(html, { waitUntil: "load", timeout: 15_000 });
     const pdf = await page.pdf({
       format:          opts.format ?? "A4",
       landscape:       opts.landscape ?? false,
       printBackground: true,
       margin:          opts.margin ?? { top: "12mm", right: "12mm", bottom: "14mm", left: "12mm" },
+      timeout:         15_000,
     });
     return Buffer.from(pdf);
+  } catch (err) {
+    // Rendu visible dans les Runtime Logs Vercel (au lieu d'un « en attente » muet).
+    console.error("[htmlToPdf] génération PDF échouée :", err);
+    throw err;
   } finally {
-    await browser.close();
+    if (browser) await browser.close();
   }
 }
 

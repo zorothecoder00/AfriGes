@@ -146,10 +146,14 @@ Au niveau des montant attendus pour les crédits clients ( les échéances autom
 
 On va créer un compte client ( sorte de wallet) qui peut aussi être alimenté par les investisseurs RIA lors de financement etc etc et aussi les avances pour les clients
 
-Les documents ne fonctionnent pas sur vercel en production mais fonctionnent en local
+Les documents sur dashboard/admin/comptes-courants/id ( relevé de compte , attestation, carnet ) ne s'ouvrent pas sur vercel en production( à la placement du document , on a un message que c'est actuellement en attente un truc du genre ) mais ça fonctionne normalement en local
 Rendre la référence automatique pour les dépôts
 Pouvoir modifier un dépôt ( erreur faite )
 
 Au niveau des ventes directes côté admin , le champ montant reçu doit être égal au montant utilisé du compte courant
 
 Sur les factures de credit on veut voir aussi les mouvelents de son compte courant si utilisé ( avance , solde etc etc )
+
+Dans les crédits clients , on va essayer de faire des filtres par agent ( avec leur solde , retard , paiement etc etc)
+
+Sur /dashboard/admin/credits , essaie de faire pour que les stats des 12 mois restent sur une seule page ( même si y'a aucune opération on met le mois quand même avec ses chiffres nulles )
