@@ -4,6 +4,7 @@
 // En-tête / pied AFRISIME mutualisés pour une identité visuelle cohérente.
 
 import { escapeHtml } from "@/lib/pdf";
+import { SOCIETE_PIED } from "@/lib/societe";
 
 export const fcfa = (v: number) => `${Math.round(Number(v ?? 0)).toLocaleString("fr-FR")} FCFA`;
 export const dtLong = (d: Date | string) => new Date(d).toLocaleString("fr-FR", { dateStyle: "long", timeStyle: "short" });
@@ -78,6 +79,6 @@ export function renderDocumentCC(opts: DocumentOpts): string {
     <h1>${escapeHtml(opts.title)}</h1>
     ${opts.bodyHtml}
     ${signatures}
-    <div class="foot">Document généré le ${escapeHtml(dtLong(new Date()))} · AFRISIME — RCCM / NIF — document officiel à conserver</div>
+    <div class="foot">Document généré le ${escapeHtml(dtLong(new Date()))} · ${escapeHtml(SOCIETE_PIED)}</div>
   </body></html>`;
 }

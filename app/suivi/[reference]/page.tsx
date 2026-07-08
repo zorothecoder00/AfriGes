@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { buildCalendrier } from "@/lib/calendrierRemboursement";
+import { SOCIETE } from "@/lib/societe";
 
 export const dynamic = "force-dynamic"; // toujours à jour (pas de cache)
 
@@ -192,7 +193,7 @@ export default async function SuiviRemboursementPage({ params }: Ctx) {
         </section>
 
         <p className="text-center text-xs text-slate-400 mt-6">
-          AFRISIME — Réinventer la distribution pour une Afrique plus prospère.<br />
+          {SOCIETE.nom} — {SOCIETE.baseline}.<br />
           Ce suivi est fourni à titre informatif. Pour toute question, contactez votre agent.
         </p>
       </div>

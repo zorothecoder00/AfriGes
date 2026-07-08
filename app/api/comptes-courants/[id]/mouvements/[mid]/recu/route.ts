@@ -3,6 +3,7 @@ import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
 import { getCompteCourantSession } from "@/lib/authCompteCourant";
 import { htmlToPdf, pdfResponse, escapeHtml } from "@/lib/pdf";
+import { SOCIETE_PIED } from "@/lib/societe";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
@@ -133,7 +134,7 @@ export async function GET(req: Request, { params }: Ctx) {
       <div>Cachet AFRISIME</div>
     </div>
 
-    <div class="foot">Document généré le ${escapeHtml(dt(new Date()))} · AFRISIME — reçu à conserver</div>
+    <div class="foot">Document généré le ${escapeHtml(dt(new Date()))} · ${escapeHtml(SOCIETE_PIED)}</div>
     ${wantPrint ? `<script>window.onload=function(){setTimeout(function(){window.print()},250)}</script>` : ""}
   </body></html>`;
 

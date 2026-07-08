@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { X, Printer, FileText, Plus, Trash2, Loader2, Receipt, Search, ChevronDown, UserPlus } from "lucide-react";
 import { formatCurrency } from "@/lib/format";
+import { SOCIETE, SOCIETE_LEGAL, SOCIETE_SIEGE } from "@/lib/societe";
 import { toast } from "sonner";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -95,13 +96,10 @@ const AFRISIME = {
   logo:      "/afrisime-logo.svg",
   nom:       "AFRISIME SARL",
   slogan:    "La Grande Distribution Africaine",
-  activites: [
-    "Commerce Général | Vente en Gros | Vente au Détail",
-    "Vente à Crédit | Import-Export | Logistique & Livraison",
-  ],
-  siege:     "Siège : Adidogomé (Lomé) - Togo | Tél : +228 98 40 45 45 / 93 24 57 64 | afrisimea@afrisime.com | www.afrisime.com",
-  baseline:  "AFRISIME | Réinventer la distribution pour une Afrique plus prospère.",
-  legal:     "RCCM : TG-LFW-01-2026-B12-00649 | NIF : 1002122728",
+  activites: [...SOCIETE.activites],
+  siege:     SOCIETE_SIEGE,
+  baseline:  `${SOCIETE.nom} | ${SOCIETE.baseline}.`,
+  legal:     SOCIETE_LEGAL,
 };
 
 /** Couleur du badge de type de facture (pour l'impression HTML inline). */

@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { useApi } from "@/hooks/useApi";
 import { usePermissions } from "@/hooks/usePermissions";
+import PayerCreditsModal from "@/components/PayerCreditsModal";
 import { formatCurrency, formatDate } from "@/lib/format";
 import ClienteleTabBar from "@/components/ClienteleTabBar";
 
@@ -105,11 +106,8 @@ export default function CompteCourantDetailPage() {
   const [observation, setObservation] = useState("");
   const [saving, setSaving] = useState(false);
 
-  // ── Paiement d'un crédit depuis le CC ──
+  // ── Paiement d'un crédit depuis le CC (modal partagé multi-crédits) ──
   const [payOpen, setPayOpen] = useState(false);
-  const [payCreditId, setPayCreditId] = useState("");
-  const [payMontant, setPayMontant] = useState("");
-  const [paySaving, setPaySaving] = useState(false);
 
   // ── Changement de statut (CDC §3) ──
   const [statutOpen, setStatutOpen] = useState(false);
@@ -166,28 +164,6 @@ export default function CompteCourantDetailPage() {
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erreur");
     } finally { setSaving(false); }
-  };
-
-  const submitPaiement = async () => {
-    const m = Number(payMontant);
-    if (!payCreditId) { toast.error("Choisissez un crédit"); return; }
-    if (!m || m <= 0) { toast.error("Montant invalide"); return; }
-    setPaySaving(true);
-    try {
-      const r = await fetch(`/api/comptes-courants/${params.id}/paiements`, {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ creditId: Number(payCreditId), montant: m }),
-      });
-      const j = await r.json();
-      if (!r.ok) throw new Error(j.error ?? "Erreur");
-      toast.success(`Crédit payé : ${Number(j.data.montantApplique).toLocaleString("fr-FR")} FCFA`);
-      setPayOpen(false); setPayCreditId(""); setPayMontant("");
-      refetch(); refetchMvt(); refetchCred();
-      const mid = j.data?.mouvement?.id;
-      if (mid) window.open(`${recuUrl(mid)}?print=1`, "_blank");
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Erreur");
-    } finally { setPaySaving(false); }
   };
 
   const submitStatut = async () => {
@@ -284,7 +260,6 @@ export default function CompteCourantDetailPage() {
     setReleveOpen(false);
   };
 
-  const selectedCredit = creditsPayables.find((cr) => String(cr.creditId) === payCreditId);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -336,7 +311,7 @@ export default function CompteCourantDetailPage() {
                   </button>
                 )}
                 {canDeposit && c.statut === "ACTIF" && creditsPayables.length > 0 && (
-                  <button onClick={() => { setPayOpen(true); setPayCreditId(String(creditsPayables[0].creditId)); }}
+                  <button onClick={() => setPayOpen(true)}
                     className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-medium shadow-sm">
                     <CreditCard className="w-4 h-4" /> Payer un crédit
                   </button>
@@ -573,57 +548,13 @@ export default function CompteCourantDetailPage() {
         </div>
       )}
 
-      {/* Modal paiement crédit */}
+      {/* Paiement crédit(s) via compte courant — modal partagé multi-crédits */}
       {payOpen && c && (
-        <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
-              <h3 className="font-bold text-slate-800 flex items-center gap-2"><CreditCard className="w-4 h-4 text-blue-600" /> Payer un crédit</h3>
-              <button onClick={() => setPayOpen(false)} className="p-1.5 hover:bg-slate-100 rounded-lg"><X className="w-4 h-4 text-slate-500" /></button>
-            </div>
-            <div className="p-6 space-y-4">
-              <p className="text-xs text-gray-500">
-                Solde du compte courant : <span className="font-semibold text-emerald-700">{formatCurrency(N(c.solde))}</span>
-              </p>
-              <label className="block">
-                <span className="text-xs font-semibold text-slate-500">Crédit à payer</span>
-                <select value={payCreditId} onChange={(e) => setPayCreditId(e.target.value)}
-                  className="mt-1 w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                  {creditsPayables.map((cr) => (
-                    <option key={cr.creditId} value={cr.creditId}>
-                      {cr.reference} — reste {Math.round(cr.soldeRestant).toLocaleString("fr-FR")} FCFA
-                    </option>
-                  ))}
-                </select>
-              </label>
-              {selectedCredit && (
-                <p className="text-xs text-gray-500">
-                  Solde restant du crédit : <span className="font-semibold text-red-600">{formatCurrency(selectedCredit.soldeRestant)}</span>
-                  {selectedCredit.montantAttendu > 0 && <> · échéance du jour : {formatCurrency(selectedCredit.montantAttendu)}</>}
-                </p>
-              )}
-              <label className="block">
-                <span className="text-xs font-semibold text-slate-500">Montant à prélever (FCFA)</span>
-                <input type="number" min={0} value={payMontant} onChange={(e) => setPayMontant(e.target.value)}
-                  className="mt-1 w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                {selectedCredit && (
-                  <button type="button"
-                    onClick={() => setPayMontant(String(Math.round(Math.min(N(c.solde), selectedCredit.soldeRestant))))}
-                    className="mt-1 text-[11px] text-blue-600 hover:underline">
-                    Max ({formatCurrency(Math.min(N(c.solde), selectedCredit.soldeRestant))})
-                  </button>
-                )}
-              </label>
-            </div>
-            <div className="flex justify-end gap-2 px-6 py-4 border-t border-slate-100">
-              <button onClick={() => setPayOpen(false)} className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 rounded-xl">Annuler</button>
-              <button onClick={submitPaiement} disabled={paySaving}
-                className="inline-flex items-center gap-2 px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-xl text-sm font-semibold">
-                {paySaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <CreditCard className="w-4 h-4" />} Payer
-              </button>
-            </div>
-          </div>
-        </div>
+        <PayerCreditsModal
+          compte={{ id: Number(params.id), numeroCompte: c.numeroCompte, solde: c.solde, clientNom: `${c.client.prenom} ${c.client.nom}` }}
+          onClose={() => setPayOpen(false)}
+          onDone={() => { refetch(); refetchMvt(); refetchCred(); }}
+        />
       )}
 
       {/* Modal changement de statut */}

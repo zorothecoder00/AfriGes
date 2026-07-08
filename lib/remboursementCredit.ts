@@ -51,6 +51,7 @@ export interface CreditAEncaisser {
   clientNom: string;
   clientPrenom: string;
   telephone: string;
+  codeClient: string | null;
   creditId: number;
   reference: string;
   soldeRestant: number;
@@ -89,7 +90,7 @@ export async function chargerCreditsAEncaisser(
     select: {
       id: true, reference: true, soldeRestant: true, dureeJours: true,
       montantTotal: true, montantRembourse: true, montantJournalier: true, dateDebut: true,
-      client: { select: { id: true, nom: true, prenom: true, telephone: true } },
+      client: { select: { id: true, nom: true, prenom: true, telephone: true, codeClient: true } },
       echeances: {
         where: { statut: { not: StatutEcheanceCredit.PAYE } },
         orderBy: { numeroEcheance: "asc" },
@@ -109,6 +110,7 @@ export async function chargerCreditsAEncaisser(
       clientNom:    c.client.nom,
       clientPrenom: c.client.prenom,
       telephone:    c.client.telephone,
+      codeClient:   c.client.codeClient,
       creditId:     c.id,
       reference:    c.reference,
       soldeRestant: Number(c.soldeRestant),

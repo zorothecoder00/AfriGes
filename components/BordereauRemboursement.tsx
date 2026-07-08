@@ -5,6 +5,7 @@ import { X, Printer, ZoomIn, ZoomOut } from "lucide-react";
 import QRCode from "qrcode";
 import { toCanvas as barcodeToCanvas } from "bwip-js/browser";
 import { buildCalendrier } from "@/lib/calendrierRemboursement";
+import { SOCIETE_PIED } from "@/lib/societe";
 
 // ─── Types (sous-ensembles de CreditItem / Client de ClientDetails) ────────────
 
@@ -297,7 +298,7 @@ function buildBordereauHtml(credit: BordereauCredit, client: BordereauClient, or
   </div>
 
   <p style="text-align:center;font-size:9px;color:${c.faint};margin-top:14px;border-top:1px solid ${c.line};padding-top:8px">
-    Document généré le ${fmtDate(today.toISOString())} · AFRISIME — Réinventer la distribution pour une Afrique plus prospère · RCCM : TG-LFW-01-2026-B12-00649 | NIF : 1002122728
+    Document généré le ${fmtDate(today.toISOString())} · ${SOCIETE_PIED}
   </p>
 
 </body></html>`;
