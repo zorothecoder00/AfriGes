@@ -22,6 +22,17 @@ const gestionnaireDashboardMap: Record<string, string> = {
   RAPPORTEUR_COMMISSION_RIA: "/dashboard/user/gouvernance",
 }
 
+// Pages du dashboard admin ouvertes à certains gestionnaires (double casquette).
+// Le proxy n'autorise QUE la navigation ; l'autorisation fine reste appliquée en
+// aval par les capacités (ex. authCompteCourant : READ/DEPOSIT/VALIDATE selon le
+// rôle). Ex. : le caissier initie un retrait CC, le chef d'agence le valide.
+const sharedAdminPaths: { prefix: string; roles: string[] }[] = [
+  {
+    prefix: "/dashboard/admin/comptes-courants",
+    roles: ["CHEF_AGENCE", "CAISSIER", "RESPONSABLE_ECONOMIQUE", "AGENT_TERRAIN", "AUDITEUR_INTERNE"],
+  },
+]
+
 export async function proxy(request: NextRequest) {
   const token = await getToken({ req: request, secret })
   const { pathname } = request.nextUrl
@@ -95,6 +106,11 @@ export async function proxy(request: NextRequest) {
   // User qui tente d'acceder a /dashboard/admin → redirection vers son dashboard gestionnaire
   if (pathname.startsWith("/dashboard/admin") && role === "USER") {
     const gestionnaireRole = token?.gestionnaireRole as string | undefined
+    // Exception : pages admin partagées ouvertes à certains gestionnaires (ex. comptes courants).
+    const shared = sharedAdminPaths.find((s) => pathname.startsWith(s.prefix))
+    if (shared && gestionnaireRole && shared.roles.includes(gestionnaireRole)) {
+      return NextResponse.next()
+    }
     const destination = (gestionnaireRole && gestionnaireDashboardMap[gestionnaireRole]) || "/dashboard/user"
     return NextResponse.redirect(new URL(destination, request.url));
   }

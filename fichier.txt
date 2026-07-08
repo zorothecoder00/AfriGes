@@ -18,7 +18,7 @@
    const a = document.createElement("a");
    a.href = url;                          
    a.download = filename;                                                
-   a.click();                                                                  
+   a.click();                                                                     
    permet de créer un téléchargement via un clic sur une URL ( utile pour les exports)
 
 -import { randomUUID } from "crypto";  permet de générer des UUID(sorte d'identifiant unique aléatoire) par exemple pour des factures ou des pièces justificatives
@@ -146,3 +146,10 @@ Au niveau des montant attendus pour les crédits clients ( les échéances autom
 
 On va créer un compte client ( sorte de wallet) qui peut aussi être alimenté par les investisseurs RIA lors de financement etc etc et aussi les avances pour les clients
 
+Les documents ne fonctionnent pas sur vercel en production mais fonctionnent en local
+Rendre la référence automatique pour les dépôts
+Pouvoir modifier un dépôt ( erreur faite )
+
+Au niveau des ventes directes côté admin , le champ montant reçu doit être égal au montant utilisé du compte courant
+
+Sur les factures de credit on veut voir aussi les mouvelents de son compte courant si utilisé ( avance , solde etc etc )

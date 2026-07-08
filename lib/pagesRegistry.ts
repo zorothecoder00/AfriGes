@@ -44,6 +44,7 @@ export const PAGES_REGISTRY: RoleRegistry[] = [
       { key: "caisse",            label: "Caisse",            defaultAllowed: true, module: "caisse"     },
       { key: "equipe",            label: "Équipe",            defaultAllowed: true, module: null         },
       { key: "clients",           label: "Clients",           defaultAllowed: true, module: null         },
+      { key: "comptes-courants",  label: "Comptes courants",  defaultAllowed: true, module: null         },
       { key: "approvisionnement", label: "Approvisionnement", defaultAllowed: true, module: "logistique" },
       { key: "rapports",          label: "Rapports",          defaultAllowed: true, module: "rapports"   },
     ],
@@ -64,6 +65,7 @@ export const PAGES_REGISTRY: RoleRegistry[] = [
       { key: "recus",               label: "Reçus",                 defaultAllowed: true, module: "caisse" },
       { key: "factures",            label: "Factures",              defaultAllowed: true, module: "caisse" },
       { key: "cloture",             label: "Clôture",               defaultAllowed: true, module: "caisse" },
+      { key: "comptes-courants",    label: "Comptes courants",      defaultAllowed: true, module: null     },
     ],
   },
   {

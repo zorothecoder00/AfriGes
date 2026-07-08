@@ -2,12 +2,14 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useSession } from "next-auth/react";
 import {
-  Wallet, Search, Plus, Settings, RefreshCw, Loader2, X, ChevronRight, MapPin, Activity,
+  Wallet, Search, Plus, Settings, RefreshCw, Loader2, X, ChevronRight, MapPin, Activity, ArrowLeft, Clock,
 } from "lucide-react";
 import { useApi } from "@/hooks/useApi";
 import { formatCurrency, formatDate } from "@/lib/format";
 import ClienteleTabBar from "@/components/ClienteleTabBar";
+import CompteCourantActions from "@/components/CompteCourantActions";
 
 interface CompteRow {
   id: number;
@@ -48,6 +50,13 @@ const STATUT_CC_LABEL: Record<string, string> = {
 const N = (v: string | number) => Number(v ?? 0);
 
 export default function ComptesCourantsPage() {
+  const { data: session } = useSession();
+  const role = session?.user?.role;
+  const gest = session?.user?.gestionnaireRole;
+  const isAdmin = role === "ADMIN" || role === "SUPER_ADMIN";
+  // Capacités CC (miroir de authCompteCourant) : pilotent l'affichage des actions.
+  const canDeposit = isAdmin || gest === "CHEF_AGENCE" || gest === "CAISSIER";
+  const canValidate = isAdmin || gest === "CHEF_AGENCE" || gest === "RESPONSABLE_ECONOMIQUE";
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [statut, setStatut] = useState("");
@@ -64,9 +73,23 @@ export default function ComptesCourantsPage() {
   const comptes = res?.data ?? [];
   const meta = res?.meta;
 
+  // File d'attente des retraits à valider (uniquement pour les valideurs).
+  const { data: pendingRes } = useApi<{ data: unknown[] }>(
+    canValidate ? "/api/comptes-courants/retraits-en-attente" : null
+  );
+  const nbAValider = pendingRes?.data?.length ?? 0;
+
   return (
     <div className="min-h-screen bg-gray-50">
-      <ClienteleTabBar />
+      {isAdmin ? (
+        <ClienteleTabBar />
+      ) : (
+        <div className="bg-white border-b border-gray-200 px-6 py-3">
+          <Link href="/dashboard/user" className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700">
+            <ArrowLeft className="w-4 h-4" /> Mon tableau de bord
+          </Link>
+        </div>
+      )}
 
       <div className="p-6 space-y-6 max-w-screen-xl mx-auto">
         {/* En-tête */}
@@ -78,18 +101,35 @@ export default function ComptesCourantsPage() {
             <p className="text-sm text-gray-500 mt-0.5">Portefeuilles internes clients · épargne AfriSime</p>
           </div>
           <div className="flex items-center gap-2">
-            <Link href="/dashboard/admin/comptes-courants/tableau-de-bord"
-              className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl hover:bg-slate-50 text-sm font-medium">
-              <Activity className="w-4 h-4" /> Tableau de bord
-            </Link>
-            <Link href="/dashboard/admin/comptes-courants/parametres"
-              className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl hover:bg-slate-50 text-sm font-medium">
-              <Settings className="w-4 h-4" /> Paramètres
-            </Link>
-            <Link href="/dashboard/admin/comptes-courants/nouveau"
-              className="flex items-center gap-2 px-5 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 shadow-lg shadow-emerald-200 text-sm font-medium">
-              <Plus className="w-4 h-4" /> Nouveau compte
-            </Link>
+            {canValidate && (
+              <Link href="/dashboard/admin/comptes-courants/a-valider"
+                className="relative flex items-center gap-2 px-4 py-2.5 bg-amber-600 text-white rounded-xl hover:bg-amber-700 text-sm font-medium shadow-sm">
+                <Clock className="w-4 h-4" /> Retraits à valider
+                {nbAValider > 0 && (
+                  <span className="ml-1 inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 bg-white text-amber-700 rounded-full text-xs font-bold">
+                    {nbAValider}
+                  </span>
+                )}
+              </Link>
+            )}
+            {isAdmin && (
+              <Link href="/dashboard/admin/comptes-courants/tableau-de-bord"
+                className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl hover:bg-slate-50 text-sm font-medium">
+                <Activity className="w-4 h-4" /> Tableau de bord
+              </Link>
+            )}
+            {isAdmin && (
+              <Link href="/dashboard/admin/comptes-courants/parametres"
+                className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl hover:bg-slate-50 text-sm font-medium">
+                <Settings className="w-4 h-4" /> Paramètres
+              </Link>
+            )}
+            {isAdmin && (
+              <Link href="/dashboard/admin/comptes-courants/nouveau"
+                className="flex items-center gap-2 px-5 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 shadow-lg shadow-emerald-200 text-sm font-medium">
+                <Plus className="w-4 h-4" /> Nouveau compte
+              </Link>
+            )}
             <button onClick={refetch}
               className="flex items-center gap-2 px-3 py-2.5 text-sm text-gray-600 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 shadow-sm">
               <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
@@ -149,6 +189,7 @@ export default function ComptesCourantsPage() {
                     <th className="text-center px-5 py-3 font-semibold text-gray-500 uppercase text-xs tracking-wide">Mouv.</th>
                     <th className="text-center px-5 py-3 font-semibold text-gray-500 uppercase text-xs tracking-wide">Statut</th>
                     <th className="text-left px-5 py-3 font-semibold text-gray-500 uppercase text-xs tracking-wide">Ouvert le</th>
+                    {canDeposit && <th className="text-left px-5 py-3 font-semibold text-gray-500 uppercase text-xs tracking-wide">Opérations</th>}
                     <th className="px-5 py-3"></th>
                   </tr>
                 </thead>
@@ -178,6 +219,20 @@ export default function ComptesCourantsPage() {
                         </span>
                       </td>
                       <td className="px-5 py-3 text-xs text-gray-500">{formatDate(c.dateOuverture)}</td>
+                      {canDeposit && (
+                        <td className="px-5 py-3">
+                          <CompteCourantActions
+                            compte={{
+                              id: c.id,
+                              numeroCompte: c.numeroCompte,
+                              statut: c.statut,
+                              solde: c.solde,
+                              clientNom: `${c.client.prenom} ${c.client.nom}`,
+                            }}
+                            onDone={refetch}
+                          />
+                        </td>
+                      )}
                       <td className="px-5 py-3 text-right">
                         <Link href={`/dashboard/admin/comptes-courants/${c.id}`} className="text-gray-300 hover:text-emerald-600">
                           <ChevronRight className="w-4 h-4" />

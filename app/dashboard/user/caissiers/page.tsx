@@ -2040,6 +2040,13 @@ export default function CaissierPage() {
                 Encaisser
               </button>
               <UserPdvBadge />
+              {isAllowed("comptes-courants") && (
+                <a href="/dashboard/admin/comptes-courants"
+                  className="px-3 py-2 bg-white border border-emerald-200 text-emerald-700 rounded-xl text-sm font-semibold hover:bg-emerald-50 transition-all shadow-sm flex items-center gap-2">
+                  <Wallet size={16} />
+                  Comptes courants
+                </a>
+              )}
               <MessagesLink />
               <CongesNavButton />
               <NotificationBell href="/dashboard/user/notifications" />

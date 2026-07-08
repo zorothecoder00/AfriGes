@@ -19,11 +19,15 @@ export type CCCapability =
   | "VALIDATE"  // valider un retrait, suspendre/clôturer
   | "CONFIG";   // modifier le paramétrage général
 
-/** Capacités par rôle gestionnaire (hors admin, traité à part). */
+/**
+ * Capacités par rôle gestionnaire (hors admin, traité à part).
+ * L'ouverture de compte (CREATE) est réservée à l'admin/superadmin : aucun rôle
+ * gestionnaire ne la détient (décision métier — création centralisée).
+ */
 const CAPS_GESTIONNAIRE: Partial<Record<RoleGestionnaire, CCCapability[]>> = {
-  CHEF_AGENCE:            ["READ", "CREATE", "DEPOSIT", "VALIDATE"],
+  CHEF_AGENCE:            ["READ", "DEPOSIT", "VALIDATE"],
   RESPONSABLE_ECONOMIQUE: ["READ", "VALIDATE"],
-  CAISSIER:               ["READ", "CREATE", "DEPOSIT"],
+  CAISSIER:               ["READ", "DEPOSIT"],
   AGENT_TERRAIN:          ["READ"],
   AUDITEUR_INTERNE:       ["READ"],
 };

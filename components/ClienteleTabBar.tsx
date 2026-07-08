@@ -1,10 +1,23 @@
 "use client";
 
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { Users, AlertTriangle, Calendar, TrendingUp, ArrowLeft, LayoutDashboard, UserCheck, Bell, Shield, BarChart2, BellRing, CreditCard, Tag, Wallet } from "lucide-react";
 
-const TABS = [
+// sharedWithGestionnaires : onglet visible aussi par les gestionnaires à double
+// casquette (caissier, chef d'agence…) autorisés à naviguer sur cette page admin.
+// Les autres onglets restent réservés aux ADMIN/SUPER_ADMIN.
+type Tab = {
+  href: string;
+  label: string;
+  icon: ReactNode;
+  match: (p: string) => boolean;
+  sharedWithGestionnaires?: boolean;
+};
+
+const TABS: Tab[] = [
   {
     href:  "/dashboard/admin/clientele",
     label: "Tableau de bord",
@@ -46,6 +59,7 @@ const TABS = [
     label: "Comptes Courants",
     icon:  <Wallet className="w-4 h-4" />,
     match: (p: string) => p.startsWith("/dashboard/admin/comptes-courants"),
+    sharedWithGestionnaires: true,
   },
   {
     href:  "/dashboard/admin/tags",
@@ -87,28 +101,37 @@ const TABS = [
 
 export default function ClienteleTabBar() {
   const pathname = usePathname();
+  const { data: session } = useSession();
+  const role = session?.user?.role;
+  const isAdmin = role === "ADMIN" || role === "SUPER_ADMIN";
+
+  // Les gestionnaires (double casquette) ne voient que les onglets partagés :
+  // les autres pages admin leur sont inaccessibles (redirection proxy).
+  const tabs = isAdmin ? TABS : TABS.filter((t) => t.sharedWithGestionnaires);
 
   return (
     <div className="bg-white border-b border-gray-200">
       <div className="px-6 pt-4 pb-0">
-        {/* Breadcrumb */}
-        <div className="flex items-center gap-2 mb-3">
-          <Link
-            href="/dashboard/admin"
-            className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 transition-colors"
-          >
-            <ArrowLeft className="w-3 h-3" /> Dashboard
-          </Link>
-          <span className="text-gray-300 text-xs">/</span>
-          <span className="text-xs font-semibold text-gray-700">Gestion clientèle</span>
-        </div>
+        {/* Breadcrumb — le retour vers /dashboard/admin n'a de sens que pour un admin */}
+        {isAdmin && (
+          <div className="flex items-center gap-2 mb-3">
+            <Link
+              href="/dashboard/admin"
+              className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              <ArrowLeft className="w-3 h-3" /> Dashboard
+            </Link>
+            <span className="text-gray-300 text-xs">/</span>
+            <span className="text-xs font-semibold text-gray-700">Gestion clientèle</span>
+          </div>
+        )}
 
         {/* Module title */}
         <h1 className="text-xl font-bold text-gray-900 mb-3">Gestion de la clientèle</h1>
 
         {/* Tabs */}
         <nav className="flex gap-1 -mb-px overflow-x-auto scrollbar-hide">
-          {TABS.map((tab) => {
+          {tabs.map((tab) => {
             const active = tab.match(pathname);
             return (
               <Link
