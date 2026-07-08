@@ -601,6 +601,19 @@ export default function CreditsPage() {
   const credits = res?.data ?? [];
   const meta    = res?.meta;
 
+  // ── Activité des 12 derniers mois : toujours les 12 mois, zéros inclus ──
+  // Clés "YYYY-MM" générées en UTC pour matcher meta.parMois (agrégé côté serveur
+  // en UTC, sur tout le filtre courant et non la seule page visible).
+  const MOIS_COURT = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc'];
+  const derniers12Mois = (() => {
+    const now = new Date();
+    return Array.from({ length: 12 }, (_, i) => {
+      const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - (11 - i), 1));
+      const key = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
+      return { key, short: `${MOIS_COURT[d.getUTCMonth()]} ${String(d.getUTCFullYear()).slice(2)}` };
+    });
+  })();
+
   // Pliage des regroupements mensuels (liste des crédits + remboursements du détail)
   const credMonths = useCollapsedMonths();
   const rembMonths = useCollapsedMonths();
@@ -838,6 +851,36 @@ export default function CreditsPage() {
               </div>
             </button>
           ))}
+        </div>
+
+        {/* ── Activité des 12 derniers mois (tous les mois, zéros inclus) ──── */}
+        <div className="bg-white rounded-2xl border border-gray-200 p-5">
+          <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+            <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+              <Calendar className="w-4 h-4 text-blue-500" /> Activité des 12 derniers mois
+              <span className="text-xs font-normal text-gray-400">· nb crédits &amp; montant total</span>
+            </h3>
+            {(statut || search) && <span className="text-xs text-gray-400">selon le filtre actuel</span>}
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-2">
+            {derniers12Mois.map((m) => {
+              const stat = meta?.parMois?.[m.key];
+              const count = stat?.count ?? 0;
+              const total = stat?.total ?? 0;
+              const empty = count === 0;
+              return (
+                <div key={m.key}
+                  className={`rounded-xl border p-2.5 text-center ${empty ? 'border-gray-100 bg-gray-50/60' : 'border-blue-100 bg-blue-50/50'}`}>
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 whitespace-nowrap">{m.short}</p>
+                  <p className={`text-base font-bold mt-1 ${empty ? 'text-gray-300' : 'text-blue-700'}`}>{count}</p>
+                  <p className={`text-xs mt-0.5 font-medium tabular-nums ${empty ? 'text-gray-300' : 'text-gray-600'}`}
+                    title={`${count} crédit(s)`}>
+                    {formatCurrency(total)}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
         </div>
 
         {/* ── Filtres ────────────────────────────────────────────────────── */}
