@@ -2788,6 +2788,24 @@ model RolePageAccess {
   @@index([role])
 }
 
+/// RBAC granulaire : permission (action) accordée à un rôle sur un module.
+/// action ∈ LECTURE|CREATION|MODIFICATION|VALIDATION|EXPORT|SUPPRESSION_LOGIQUE
+/// (cf. lib/permissionsRegistry.ts). Les overrides par utilisateur passent par
+/// UserPermission avec permission = "ACTION:<module>:<action>".
+model RolePermission {
+  id        Int              @id @default(autoincrement())
+  role      RoleGestionnaire
+  module    String
+  action    String
+  allowed   Boolean          @default(true)
+  updatedBy Int?
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  @@unique([role, module, action])
+  @@index([role])
+}
+
 /// Modules de la plateforme — activation / désactivation
 model SystemModule {
   id          Int      @id @default(autoincrement())

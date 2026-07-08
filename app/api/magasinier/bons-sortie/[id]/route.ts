@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { PrioriteNotification, StatutBonSortie } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getMagasinierSession } from "@/lib/authMagasinier";
+import { requirePermission } from "@/lib/permissions";
 import { auditLog, notifyRoles } from "@/lib/notifications";
 
 type Ctx = { params: Promise<{ id: string }> };
@@ -58,6 +59,11 @@ export async function PATCH(req: Request, { params }: Ctx) {
     const validStatuts: StatutBonSortie[] = ["BROUILLON", "VALIDE", "ANNULE"];
     if (!statut || !validStatuts.includes(statut)) {
       return NextResponse.json({ error: "Statut invalide (BROUILLON|VALIDE|ANNULE)" }, { status: 400 });
+    }
+    // L'annulation d'un bon = suppression logique (RBAC granulaire).
+    if (statut === "ANNULE") {
+      const denied = await requirePermission(session, "stock", "SUPPRESSION_LOGIQUE");
+      if (denied) return denied;
     }
 
     const bon = await prisma.bonSortie.findUnique({

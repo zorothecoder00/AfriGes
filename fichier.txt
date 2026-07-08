@@ -115,23 +115,7 @@ Permettre d'envoyer les documents OGRH ( et tous les autres d'ailleurs) sur les 
 Pour les rh/audit tu es sûr d'avoir fait 
 
 
-Système RBAC (Role Based Access Control)
-Permissions :
-Lecture
-Création
-Modification
-Validation
-Export
-Suppression logique
-Gestion granulaire obligatoire.     A terminer (adminisatration système)
-
-
 Pour la gestion des commissions et le paramètre des profils de de collaborateur on doit revoir ça
-
-
-
-Créé un menu ou onglet " bordereau de remboursement" dans /dashboard/admin/clients/id
-
 
 Revoir les chiffres du dashboard/admin (tableau de bord)
 
@@ -152,4 +136,8 @@ Dans les crédits clients , on va essayer de faire des filtres par agent ( avec 
 
 Sur /dashboard/admin/credits , essaie de faire pour que les stats des 12 mois restent sur une seule page ( même si y'a aucune opération on met le mois quand même avec ses chiffres nulles )
 
-Au niveau des montant attendus pour les crédits clients ( les échéances automatiquement calculées au niveau du bordereau ou au niveau des encaissement et recouvrement de crédits), on ne veut pas les chiffres bizarres ( mais des chiffres arrondis sur 00, 25 , 50 , 75 vu qu'on utilise du CFA )
+
+Au niveau des comptes courant , au niveau de payer un crédit , on peut par exemple prendre un client , voir son solde et pouvoir prendre de l'argent sur son compte pour payer plusieurs crédits en même temps ( vu que chaque client peut avoir plusieurs crédits disponibles)
+En plus de ça , dans le modal , le choix de crédit n'est pas très clair ( essaie de donner plus d'infos comme les identifiants du client , le total , le reste à payer et la date à laquelle les échéances commencent)
+
+Au niveau des documents de compte courant(relevé de compte , attestation, carnet) , il n'ya pas : Document généré le ..... · AFRISIME — Réinventer la distribution pour une Afrique plus prospère · RCCM : TG-LFW-01-2026-B12-00649 | NIF : 1002122728  comme pour les bordereaux de remboursement de crédit

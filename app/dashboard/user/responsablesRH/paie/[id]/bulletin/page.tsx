@@ -2,6 +2,7 @@
 
 import { useParams } from "next/navigation";
 import { useApi, useMutation } from "@/hooks/useApi";
+import { usePermissions } from "@/hooks/usePermissions";
 import { RefreshCw, Printer, ArrowLeft, Download, Mail } from "lucide-react";
 import Link from "next/link";
 import { grouperComposantsPaie } from "@/lib/composantsPaie";
@@ -43,6 +44,8 @@ const formatDate = (iso: string | null) => {
 
 export default function RHBulletinPage() {
   const params = useParams<{ id: string }>();
+  const { can } = usePermissions();
+  const canExportPaie = can("paie", "EXPORT");
   const { data: res, loading } = useApi<{ data: FichePaie }>(`/api/responsableRH/paie/${params.id}`);
   const f = res?.data;
 
@@ -87,14 +90,16 @@ export default function RHBulletinPage() {
           <ArrowLeft className="w-4 h-4" /> Retour à la liste
         </Link>
         <div className="flex items-center gap-2">
-          <a
-            href={`/api/admin/rh/paie/${params.id}/pdf`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-2 px-4 py-2 bg-white border border-emerald-600 text-emerald-700 text-sm font-medium rounded-lg hover:bg-emerald-50"
-          >
-            <Download className="w-4 h-4" /> Télécharger PDF
-          </a>
+          {canExportPaie && (
+            <a
+              href={`/api/admin/rh/paie/${params.id}/pdf`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 px-4 py-2 bg-white border border-emerald-600 text-emerald-700 text-sm font-medium rounded-lg hover:bg-emerald-50"
+            >
+              <Download className="w-4 h-4" /> Télécharger PDF
+            </a>
+          )}
           <button
             onClick={() => envoyerEmail({})}
             disabled={envoi}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useApi } from "@/hooks/useApi";
 import { useMutation } from "@/hooks/useApi";
 import { toast } from "sonner";
@@ -8,7 +9,7 @@ import {
   Shield, Users, RefreshCw, CheckCircle2, XCircle, Eye,
   Lock, Unlock, ChevronDown, ChevronUp, Info, Save,
   Crown, FileText, Gavel, UserCheck,
-  ClipboardList, Search,
+  ClipboardList, Search, ShieldCheck,
 } from "lucide-react";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -370,10 +371,16 @@ export default function DroitsAccesPage() {
           </h1>
           <p className="text-sm text-slate-500">Contrôle des permissions par rôle et par utilisateur</p>
         </div>
-        <button onClick={() => setRefresh(r => r + 1)}
-          className="flex items-center gap-1.5 px-3 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50">
-          <RefreshCw className="w-4 h-4" /> Actualiser
-        </button>
+        <div className="flex items-center gap-2">
+          <Link href="/dashboard/admin/permissions"
+            className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700">
+            <ShieldCheck className="w-4 h-4" /> Permissions granulaires
+          </Link>
+          <button onClick={() => setRefresh(r => r + 1)}
+            className="flex items-center gap-1.5 px-3 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50">
+            <RefreshCw className="w-4 h-4" /> Actualiser
+          </button>
+        </div>
       </div>
 
       {/* Stats rapides */}

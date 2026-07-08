@@ -11,6 +11,7 @@ import {
   FileText, FileCheck, BookOpen,
 } from "lucide-react";
 import { useApi } from "@/hooks/useApi";
+import { usePermissions } from "@/hooks/usePermissions";
 import { formatCurrency, formatDate } from "@/lib/format";
 import ClienteleTabBar from "@/components/ClienteleTabBar";
 
@@ -81,6 +82,9 @@ export default function CompteCourantDetailPage() {
   const canDeposit = role === "ADMIN" || role === "SUPER_ADMIN" || gest === "CHEF_AGENCE" || gest === "CAISSIER";
   // Capacité VALIDATE (CDC §17) : gestion du statut du compte (blocage/clôture/réactivation).
   const canManageStatus = role === "ADMIN" || role === "SUPER_ADMIN" || gest === "CHEF_AGENCE" || gest === "RESPONSABLE_ECONOMIQUE";
+  // RBAC granulaire : les documents (relevé/attestation/carnet) sont un EXPORT.
+  const { can } = usePermissions();
+  const canExport = can("compte_courant", "EXPORT");
 
   const { data: res, loading, refetch } = useApi<{ data: CompteDetail }>(`/api/comptes-courants/${params.id}`);
   const { data: mvtRes, refetch: refetchMvt } = useApi<{ data: Mouvement[] }>(`/api/comptes-courants/${params.id}/mouvements?limit=50`);
@@ -388,7 +392,8 @@ export default function CompteCourantDetailPage() {
               </div>
             </div>
 
-            {/* Documents (CDC §14, Lot 5) */}
+            {/* Documents (CDC §14, Lot 5) — visible si permission EXPORT (RBAC granulaire) */}
+            {canExport && (
             <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
               <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2"><FileText className="w-4 h-4 text-gray-400" /> Documents</h3>
               <div className="flex flex-wrap gap-3">
@@ -413,6 +418,7 @@ export default function CompteCourantDetailPage() {
               </div>
               <p className="text-[11px] text-gray-400 mt-3">Documents PDF officiels AFRISIME · le relevé peut être filtré sur une période. L&apos;attestation de fermeture est disponible pour les comptes clôturés.</p>
             </div>
+            )}
 
             {/* Retraits en attente de validation (CDC §9, Lot 4) */}
             {retraitsPending.length > 0 && (

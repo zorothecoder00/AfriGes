@@ -17,6 +17,7 @@ import MessagesLink from '@/components/MessagesLink';
 import UserPdvBadge from '@/components/UserPdvBadge';
 import DashboardBackButton from '@/components/DashboardBackButton';
 import { useApi, useMutation } from '@/hooks/useApi';
+import { usePermissions } from '@/hooks/usePermissions';
 import { usePageAccess } from '@/hooks/usePageAccess';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { useT } from "@/contexts/AppSettingsContext";
@@ -183,6 +184,9 @@ const StatCard = ({ label, value, icon: Icon, color, lightBg, sub }: {
 export default function MagasinierPage() {
   const t = useT();
   const { isAllowed, allowedPages } = usePageAccess();
+  // RBAC granulaire : annuler un bon de sortie = suppression logique.
+  const { can } = usePermissions();
+  const canCancelBon = can("stock", "SUPPRESSION_LOGIQUE");
 
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -2193,7 +2197,7 @@ export default function MagasinierPage() {
                         {bon.statut === 'EN_COURS' && (
                           <>
                             <button onClick={() => handleUpdateBonStatut(bon.id, 'EXPEDIE')} className="ml-auto text-xs px-3 py-1.5 bg-amber-100 text-amber-700 rounded-lg hover:bg-amber-200 transition-colors font-medium flex items-center gap-1"><Send size={12} /> Marquer expédié</button>
-                            <button onClick={() => handleUpdateBonStatut(bon.id, 'ANNULE')} className="text-xs px-3 py-1.5 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors font-medium flex items-center gap-1"><XCircle size={12} /> {t('btn_cancel')}</button>
+                            {canCancelBon && <button onClick={() => handleUpdateBonStatut(bon.id, 'ANNULE')} className="text-xs px-3 py-1.5 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors font-medium flex items-center gap-1"><XCircle size={12} /> {t('btn_cancel')}</button>}
                           </>
                         )}
                         {bon.statut === 'EXPEDIE' && (

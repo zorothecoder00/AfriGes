@@ -5,6 +5,7 @@ import {
 } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getRVCSession } from "@/lib/authRVC";
+import { requirePermission } from "@/lib/permissions";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -24,6 +25,8 @@ export async function POST(req: Request, { params }: Ctx) {
   try {
     const session = await getRVCSession();
     if (!session) return NextResponse.json({ message: "Accès refusé" }, { status: 403 });
+    const denied = await requirePermission(session, "credits", "SUPPRESSION_LOGIQUE");
+    if (denied) return denied;
 
     const { id } = await params;
     const creditId = Number(id);

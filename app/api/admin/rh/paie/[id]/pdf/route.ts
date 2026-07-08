@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getRHSession, profilRHDansPerimetre } from "@/lib/authRH";
+import { requirePermission } from "@/lib/permissions";
 import { htmlToPdf, pdfResponse } from "@/lib/pdf";
 import { genBulletinHtml, type BulletinData } from "@/lib/bulletinHtml";
 
@@ -19,6 +20,8 @@ export async function GET(_req: Request, { params }: Ctx) {
   try {
     const session = await getRHSession();
     if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
+    const denied = await requirePermission(session, "paie", "EXPORT");
+    if (denied) return denied;
 
     const { id } = await params;
     const fiche = await prisma.fichePaie.findUnique({

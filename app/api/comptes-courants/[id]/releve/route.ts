@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCompteCourantSession } from "@/lib/authCompteCourant";
+import { requirePermission } from "@/lib/permissions";
 import { htmlToPdf, pdfResponse, escapeHtml } from "@/lib/pdf";
 import { renderDocumentCC, fcfa, dLong, row } from "@/lib/compteCourantPdf";
 
@@ -23,6 +24,8 @@ const NATURE_LABEL: Record<string, string> = {
 export async function GET(req: Request, { params }: Ctx) {
   const session = await getCompteCourantSession("READ");
   if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
+  const denied = await requirePermission(session, "compte_courant", "EXPORT");
+  if (denied) return denied;
 
   const { id } = await params;
   const compteId = Number(id);

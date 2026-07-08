@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { useApi } from '@/hooks/useApi';
+import { usePermissions } from '@/hooks/usePermissions';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { toast } from 'sonner';
 import { useT } from '@/contexts/AppSettingsContext';
@@ -601,6 +602,10 @@ export default function CreditsPage() {
   const credits = res?.data ?? [];
   const meta    = res?.meta;
 
+  // RBAC granulaire : l'annulation d'un crédit = suppression logique.
+  const { can } = usePermissions();
+  const canSoftDeleteCredit = can("credits", "SUPPRESSION_LOGIQUE");
+
   // ── Activité des 12 derniers mois : toujours les 12 mois, zéros inclus ──
   // Clés "YYYY-MM" générées en UTC pour matcher meta.parMois (agrégé côté serveur
   // en UTC, sur tout le filtre courant et non la seule page visible).
@@ -1111,8 +1116,8 @@ export default function CreditsPage() {
                                 </button>
                               )}
 
-                              {/* Annuler (si actif/en retard) */}
-                              {(credit.statut === 'ACTIF' || credit.statut === 'EN_RETARD') && (
+                              {/* Annuler (si actif/en retard) — permission suppression logique */}
+                              {canSoftDeleteCredit && (credit.statut === 'ACTIF' || credit.statut === 'EN_RETARD') && (
                                 <button onClick={() => openAction('annuler', credit)}
                                   className="p-2 text-red-400 hover:bg-red-50 rounded-lg transition-colors" title="Annuler">
                                   <Ban className="w-4 h-4" />
@@ -1213,10 +1218,12 @@ export default function CreditsPage() {
                         className="flex items-center gap-1.5 px-3 py-1.5 bg-teal-600 text-white rounded-lg text-xs font-medium hover:bg-teal-700">
                         <Banknote className="w-3.5 h-3.5" /> Rembourser
                       </button>
-                      <button onClick={() => openAction('annuler', detailCredit)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 bg-red-500 text-white rounded-lg text-xs font-medium hover:bg-red-600">
-                        <Ban className="w-3.5 h-3.5" /> Annuler
-                      </button>
+                      {canSoftDeleteCredit && (
+                        <button onClick={() => openAction('annuler', detailCredit)}
+                          className="flex items-center gap-1.5 px-3 py-1.5 bg-red-500 text-white rounded-lg text-xs font-medium hover:bg-red-600">
+                          <Ban className="w-3.5 h-3.5" /> Annuler
+                        </button>
+                      )}
                     </>
                   )}
                   {detailCredit.statut === 'REJETE' && (
