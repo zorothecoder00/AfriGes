@@ -140,20 +140,16 @@ Au niveau du dashboard/admin/credits des clients aussi le montant total des cred
 Permettre d'avoir des rapports de recouvrement (taux de recouvrement, restant , payé etc etc rsia par mois sur le dashboard admin ria et responsableRIA )
 
 
-Explique moi tous les chiffres de /dashboard/admin/rapports (chaque onglet : recouvrement , collectes, créances, perf agents, liste clients, retards;  j'ai l'impression que certains ne sont pas bien calculés)
-
-Au niveau des montant attendus pour les crédits clients ( les échéances automatiquement calculées au niveau du bordereau ou au niveau des encaissement et recouvrement de crédits), on ne veut pas les chiffres bizarres ( mais des chiffres arrondis sur 00, 25 , 50 , 75 vu qu'on utilise du CFA )
-
-On va créer un compte client ( sorte de wallet) qui peut aussi être alimenté par les investisseurs RIA lors de financement etc etc et aussi les avances pour les clients
-
 Les documents sur dashboard/admin/comptes-courants/id ( relevé de compte , attestation, carnet ) ne s'ouvrent pas sur vercel en production( à la placement du document , on a un message que c'est actuellement en attente un truc du genre ) mais ça fonctionne normalement en local
 Rendre la référence automatique pour les dépôts
 Pouvoir modifier un dépôt ( erreur faite )
 
 Au niveau des ventes directes côté admin , le champ montant reçu doit être égal au montant utilisé du compte courant
 
-Sur les factures de credit on veut voir aussi les mouvelents de son compte courant si utilisé ( avance , solde etc etc )
+Sur les factures de credit on veut voir aussi les mouvements de compte courant si utilisé ( avance , solde etc etc )
 
 Dans les crédits clients , on va essayer de faire des filtres par agent ( avec leur solde , retard , paiement etc etc)
 
 Sur /dashboard/admin/credits , essaie de faire pour que les stats des 12 mois restent sur une seule page ( même si y'a aucune opération on met le mois quand même avec ses chiffres nulles )
+
+Au niveau des montant attendus pour les crédits clients ( les échéances automatiquement calculées au niveau du bordereau ou au niveau des encaissement et recouvrement de crédits), on ne veut pas les chiffres bizarres ( mais des chiffres arrondis sur 00, 25 , 50 , 75 vu qu'on utilise du CFA )

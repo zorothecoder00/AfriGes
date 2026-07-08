@@ -66,7 +66,7 @@ interface CreditsResponse {
     total: number; page: number; limit: number; totalPages: number;
     // Sous-totaux mensuels calculés côté serveur sur tout le filtre (hors pagination),
     // clé "YYYY-MM". Sert à afficher le vrai total du mois en tête de groupe.
-    parMois?: Record<string, { total: number; count: number }>;
+    parMois?: Record<string, { total: number; rembourse: number; count: number }>;
   };
 }
 
@@ -858,7 +858,7 @@ export default function CreditsPage() {
           <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
             <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
               <Calendar className="w-4 h-4 text-blue-500" /> Activité des 12 derniers mois
-              <span className="text-xs font-normal text-gray-400">· nb crédits &amp; montant total</span>
+              <span className="text-xs font-normal text-gray-400">· nb crédits · émis &amp; remboursé</span>
             </h3>
             {(statut || search) && <span className="text-xs text-gray-400">selon le filtre actuel</span>}
           </div>
@@ -867,16 +867,25 @@ export default function CreditsPage() {
               const stat = meta?.parMois?.[m.key];
               const count = stat?.count ?? 0;
               const total = stat?.total ?? 0;
+              const rembourse = stat?.rembourse ?? 0;
               const empty = count === 0;
               return (
                 <div key={m.key}
                   className={`rounded-xl border p-2.5 text-center ${empty ? 'border-gray-100 bg-gray-50/60' : 'border-blue-100 bg-blue-50/50'}`}>
-                  <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 whitespace-nowrap">{m.short}</p>
-                  <p className={`text-base font-bold mt-1 ${empty ? 'text-gray-300' : 'text-blue-700'}`}>{count}</p>
-                  <p className={`text-xs mt-0.5 font-medium tabular-nums ${empty ? 'text-gray-300' : 'text-gray-600'}`}
-                    title={`${count} crédit(s)`}>
-                    {formatCurrency(total)}
-                  </p>
+                  <div className="flex items-center justify-center gap-1.5">
+                    <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 whitespace-nowrap">{m.short}</p>
+                    <span className={`text-[10px] font-bold ${empty ? 'text-gray-300' : 'text-blue-600'}`}>· {count}</span>
+                  </div>
+                  <div className="mt-1.5 space-y-1">
+                    <div className="flex items-center justify-between gap-1" title={`Montant émis · ${count} crédit(s)`}>
+                      <span className="text-[9px] uppercase tracking-wide text-gray-400">Émis</span>
+                      <span className={`text-xs font-semibold tabular-nums ${empty ? 'text-gray-300' : 'text-blue-700'}`}>{formatCurrency(total)}</span>
+                    </div>
+                    <div className="flex items-center justify-between gap-1" title="Total déjà remboursé sur les crédits émis ce mois-là">
+                      <span className="text-[9px] uppercase tracking-wide text-gray-400">Remb.</span>
+                      <span className={`text-xs font-semibold tabular-nums ${empty ? 'text-gray-300' : 'text-emerald-700'}`}>{formatCurrency(rembourse)}</span>
+                    </div>
+                  </div>
                 </div>
               );
             })}
