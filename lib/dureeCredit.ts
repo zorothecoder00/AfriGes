@@ -1,4 +1,5 @@
 import { Prisma, StatutCredit, StatutEcheanceCredit } from "@prisma/client";
+import { montantJournalierArrondi } from "@/lib/echeancierCredit";
 
 type TX = Omit<Prisma.TransactionClient, "$connect" | "$disconnect" | "$on" | "$transaction" | "$use" | "$extends">;
 
@@ -36,7 +37,7 @@ export async function appliquerNouvelleDureeCredit(
   // montantTotal peut être recalculé par l'appelant (ex. changement de frais/intérêt).
   const montantTotal      = input.montantTotal != null ? Number(input.montantTotal) : Number(credit.montantTotal);
   const dejaRembourse     = Number(credit.montantRembourse);
-  const montantJournalier = Number((montantTotal / duree).toFixed(2));
+  const montantJournalier = montantJournalierArrondi(montantTotal, duree);
   const dateEcheanceFin   = new Date(debut);
   dateEcheanceFin.setDate(dateEcheanceFin.getDate() + duree);
   const soldeRestant      = Math.max(0, Number((montantTotal - dejaRembourse).toFixed(2)));

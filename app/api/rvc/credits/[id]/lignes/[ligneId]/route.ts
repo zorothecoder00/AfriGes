@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getRVCSession } from "@/lib/authRVC";
+import { montantJournalierArrondi } from "@/lib/echeancierCredit";
 import { StatutLigneCreditClient, TypeMouvement, TypeSortieStock } from "@prisma/client";
 import { auditLog } from "@/lib/notifications";
 
@@ -26,7 +27,7 @@ async function recalcCredit(tx: Parameters<Parameters<typeof prisma.$transaction
     select: { dureeJours: true, dateDebut: true },
   });
   if (!credit) return;
-  const montantJournalier = Number((newTotal / credit.dureeJours).toFixed(2));
+  const montantJournalier = montantJournalierArrondi(newTotal, credit.dureeJours);
   const dateEcheanceFin   = new Date(credit.dateDebut);
   dateEcheanceFin.setDate(dateEcheanceFin.getDate() + credit.dureeJours);
   await tx.creditClient.update({

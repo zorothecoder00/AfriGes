@@ -4,6 +4,7 @@ import {
 } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getRVCSession } from "@/lib/authRVC";
+import { montantJournalierArrondi } from "@/lib/echeancierCredit";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -81,7 +82,7 @@ export async function POST(_req: Request, { params }: Ctx) {
       // ── 6. Calcul du montant journalier exact ─────────────────────────────
       const montantTotal      = Number(credit.montantTotal);
       const duree             = credit.dureeJours;
-      const montantJournalier = Number((montantTotal / duree).toFixed(2));
+      const montantJournalier = montantJournalierArrondi(montantTotal, duree);
       const totalCalculated   = Number((montantJournalier * duree).toFixed(2));
       const residuel          = Number((montantTotal - totalCalculated).toFixed(2));
 

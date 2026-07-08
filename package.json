@@ -9,7 +9,9 @@
     "lint": "eslint . --ext .ts,.tsx,.js,.jsx",
     "check": "npm run lint && tsc --noEmit && next build",
     "backfill:codes": "node scripts/backfill-code-client.js",
-    "backfill:codes:prod": "node scripts/backfill-code-client.js --prod"
+    "backfill:codes:prod": "node scripts/backfill-code-client.js --prod",
+    "backfill:echeances": "node scripts/backfill-echeances-arrondi.js",
+    "backfill:echeances:prod": "node scripts/backfill-echeances-arrondi.js --prod"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.2.0",

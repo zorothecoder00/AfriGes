@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getRVCSession } from "@/lib/authRVC";
+import { montantJournalierArrondi } from "@/lib/echeancierCredit";
 import { auditLog } from "@/lib/notifications";
 
 type Ctx = { params: Promise<{ id: string }> };
@@ -91,7 +92,7 @@ export async function POST(req: Request, { params }: Ctx) {
         select: { montantLigne: true },
       });
       const newTotal = Number(allLignes.reduce((s, l) => s + Number(l.montantLigne), 0).toFixed(2));
-      const montantJournalier = Number((newTotal / credit.dureeJours).toFixed(2));
+      const montantJournalier = montantJournalierArrondi(newTotal, credit.dureeJours);
       const dateEcheanceFin   = new Date(credit.dateDebut);
       dateEcheanceFin.setDate(dateEcheanceFin.getDate() + credit.dureeJours);
 

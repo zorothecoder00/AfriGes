@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAgentTerrainSession } from "@/lib/authAgentTerrain";
+import { montantJournalierArrondi } from "@/lib/echeancierCredit";
 
 /**
  * GET /api/agentTerrain/credits
@@ -190,7 +191,7 @@ export async function POST(req: Request) {
 
       const duree             = Number(dureeJours);
       const debut             = new Date(dateDebut);
-      const montantJournalier = Number((montantTotal / duree).toFixed(2));
+      const montantJournalier = montantJournalierArrondi(montantTotal, duree);
       const dateEcheanceFin   = new Date(debut);
       dateEcheanceFin.setDate(dateEcheanceFin.getDate() + duree);
 

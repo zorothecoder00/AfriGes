@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { MemberStatus, NiveauRisque, Prisma, PrioriteNotification, Role, StatutCredit } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getRVCSession } from "@/lib/authRVC";
+import { montantJournalierArrondi } from "@/lib/echeancierCredit";
 import { chargerParametrageCC, getCompteCourantParClient, preleverCompteCourant, extraireMetaRequete } from "@/lib/compteCourant";
 
 /**
@@ -215,7 +216,7 @@ export async function POST(req: Request) {
       // ── Calcul échéancier (stocké, échéances générées à la validation) ────
       const duree = Number(dureeJours);
       const debut = new Date(dateDebut);
-      const montantJournalier = Number((montantCredit / duree).toFixed(2));
+      const montantJournalier = montantJournalierArrondi(montantCredit, duree);
       const dateEcheanceFin   = new Date(debut);
       dateEcheanceFin.setDate(dateEcheanceFin.getDate() + duree);
 

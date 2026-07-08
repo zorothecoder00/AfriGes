@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { StatutCredit, StatutEcheanceCredit, TypeMouvement, TypeEntreeStock } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getRVCSession } from "@/lib/authRVC";
+import { montantJournalierArrondi } from "@/lib/echeancierCredit";
 import { resolveRvcPdv } from "@/lib/gestionnaireCredit";
 
 type Ctx = { params: Promise<{ id: string }> };
@@ -207,7 +208,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
       if (duree < 1) throw new Error("DUREE_INVALIDE");
 
       const debut = dateDebut !== undefined ? new Date(dateDebut) : credit.dateDebut;
-      const montantJournalier = Number((montantTotal / duree).toFixed(2));
+      const montantJournalier = montantJournalierArrondi(montantTotal, duree);
       const dateEcheanceFin   = new Date(debut);
       dateEcheanceFin.setDate(dateEcheanceFin.getDate() + duree);
 
