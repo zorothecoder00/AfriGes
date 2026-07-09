@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { X, Loader2, Save, Image as ImageIcon } from "lucide-react";
+import { X, Loader2, Save, Image as ImageIcon, FileText, Tags } from "lucide-react";
+import TarificationTab from "@/components/catalogue/TarificationTab";
 
 // ── Types des référentiels (chargés par la page parente) ────────────────────
 interface RefItem { id: number; nom: string; actif: boolean }
@@ -37,6 +38,7 @@ export default function ProduitFormModal({ produitId, refs, onClose, onSaved }:
   const [loading, setLoading] = useState(!!produitId);
   const [saving, setSaving] = useState(false);
   const [fournisseurs, setFournisseurs] = useState<FournisseurRef[]>([]);
+  const [tab, setTab] = useState<"fiche" | "tarification">("fiche");
   const isEdit = produitId != null;
 
   const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
@@ -105,13 +107,27 @@ export default function ProduitFormModal({ produitId, refs, onClose, onSaved }:
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => !saving && onClose()}>
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl max-h-[92vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-        <div className="sticky top-0 bg-white border-b border-gray-100 px-6 py-4 flex items-center justify-between z-10">
-          <h3 className="font-bold text-gray-800 text-lg">{isEdit ? "Modifier le produit" : "Nouveau produit"}</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+        <div className="sticky top-0 bg-white border-b border-gray-100 px-6 pt-4 z-10">
+          <div className="flex items-center justify-between pb-3">
+            <h3 className="font-bold text-gray-800 text-lg">{isEdit ? "Modifier le produit" : "Nouveau produit"}</h3>
+            <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+          </div>
+          {isEdit && (
+            <div className="flex gap-1">
+              <button onClick={() => setTab("fiche")} className={`inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 ${tab === "fiche" ? "border-blue-600 text-blue-600" : "border-transparent text-gray-500 hover:text-gray-700"}`}>
+                <FileText className="w-4 h-4" /> Fiche
+              </button>
+              <button onClick={() => setTab("tarification")} className={`inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 ${tab === "tarification" ? "border-blue-600 text-blue-600" : "border-transparent text-gray-500 hover:text-gray-700"}`}>
+                <Tags className="w-4 h-4" /> Tarification
+              </button>
+            </div>
+          )}
         </div>
 
         {loading ? (
           <div className="flex items-center justify-center py-24 text-gray-400"><Loader2 className="w-6 h-6 animate-spin mr-2" /> Chargement…</div>
+        ) : isEdit && tab === "tarification" ? (
+          <div className="p-6"><TarificationTab produitId={produitId} /></div>
         ) : (
           <div className="p-6 space-y-6">
             {/* Identification */}

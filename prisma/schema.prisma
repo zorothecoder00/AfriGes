@@ -744,6 +744,7 @@ model User {
   prelevementsAutoCrees        AutorisationPrelevement[] @relation("PrelevementAutoCreePar")
   transactionsFideliteCreees   TransactionFidelite[]    @relation("TransactionFideliteCreePar")
   blocagesEpargneCrees         BlocageEpargne[]         @relation("BlocageEpargneCreePar")
+  prixProduitsCrees            PrixProduit[]            @relation("PrixProduitCreePar")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -823,6 +824,7 @@ model PointDeVente {
   lignesSouscriptionProduits LigneSouscriptionProduit[]
   lignesCreditPDV            LigneCreditClient[]          @relation("LignesCreditPDV")
   facturesVente              FactureVente[]               @relation("FacturesVentePDV")
+  prixProduits               PrixProduit[]                @relation("PrixProduitPDV")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1550,6 +1552,8 @@ model Produit {
   lignesSouscriptionDemande   LigneSouscriptionProduit[] @relation("LigneProduitDemande")
   lignesSouscriptionSubstitut LigneSouscriptionProduit[] @relation("LigneProduitSubstitut")
 
+  prix         PrixProduit[]  // tarification multiple (Catalogue §4) — Phase 2
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -1558,6 +1562,85 @@ model Produit {
   @@index([categorieId])
   @@index([marqueId])
   @@index([fournisseurPrincipalId])
+}
+
+// ============================================================
+// CATALOGUE — TARIFICATION FLEXIBLE (Catalogue §4, Ent.#1/#2/#6) — Phase 2
+// ============================================================
+
+// Type / profil de prix. Un même produit peut avoir plusieurs prix simultanés,
+// éventuellement spécifiques à une agence, une ville ou une région (Ent.#1),
+// ou associés à un profil de client (Ent.#2).
+enum TypePrix {
+  ACHAT          // prix d'achat
+  FOURNISSEUR    // prix fournisseur (avant négociation/frais)
+  REVIENT        // prix de revient (calculé : achat + frais logistiques)
+  GROS           // prix de gros / grossiste
+  DETAIL         // prix de détail (= prix comptant public)
+  COMMUNAUTE     // prix Communauté AfriSime
+  VIP            // prix VIP
+  PROMOTION      // prix promotionnel (piloté aussi par le module Promotions)
+  PERSONNEL      // prix personnel (employés)
+  PARTENAIRE     // prix partenaire
+  REVENDEUR      // prix revendeur
+  CREDIT         // prix spécifique vente à crédit
+  NOUVEAU_CLIENT // profil fidélité : nouveau client
+  FIDELE         // profil fidélité : client fidèle
+}
+
+// Portée géographique d'un prix (Ent.#1 — tarification géographique).
+enum PorteePrix {
+  GLOBAL   // s'applique partout (défaut)
+  AGENCE   // spécifique à un point de vente
+  VILLE    // spécifique à une ville
+  REGION   // spécifique à une région
+}
+
+// Ligne de prix d'un produit. La combinaison (produit, type, portée, cible) est
+// unique parmi les lignes actives — l'unicité fine est gérée applicativement.
+model PrixProduit {
+  id           Int         @id @default(autoincrement())
+  produitId    Int
+  produit      Produit     @relation(fields: [produitId], references: [id], onDelete: Cascade)
+  type         TypePrix
+  montant      Decimal
+  devise       String      @default("XOF")
+
+  portee       PorteePrix  @default(GLOBAL)
+  pointDeVenteId Int?                       // si portee = AGENCE
+  pointDeVente PointDeVente? @relation("PrixProduitPDV", fields: [pointDeVenteId], references: [id])
+  ville        String?                      // si portee = VILLE
+  region       String?                      // si portee = REGION
+
+  // Origine du prix : MANUEL (saisi) ou AUTO (moteur de prix). Ent.#6.
+  auto         Boolean     @default(false)
+  actif        Boolean     @default(true)
+  dateDebut    DateTime?                    // début de validité (optionnel)
+  dateFin      DateTime?                    // fin de validité (optionnel)
+
+  creeParId    Int?
+  creePar      User?       @relation("PrixProduitCreePar", fields: [creeParId], references: [id])
+
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  @@index([produitId])
+  @@index([type])
+  @@index([produitId, type, portee])
+  @@index([pointDeVenteId])
+}
+
+// Paramétrage du moteur de prix automatique (Ent.#6) — enregistrement unique id=1.
+// prixVente = arrondi( (coûtAchat + fraisLogistiques) × (1 + margeCible%) ).
+model ParametragePrixAuto {
+  id                 Int      @id @default(1)
+  actif              Boolean  @default(false) // le recalcul auto n'écrase rien tant que désactivé
+  margeCiblePct      Decimal  @default(20)    // marge cible par défaut (% sur le prix de revient)
+  fraisLogistiquePct Decimal  @default(0)     // frais logistiques ajoutés au coût (% de l'achat)
+  arrondi            Int      @default(0)     // arrondir le prix au multiple de N (0 = pas d'arrondi)
+  appliquerSurCredit Boolean  @default(false) // recalcule aussi le prix CREDIT (avec marge crédit)
+  margeCreditPct     Decimal  @default(0)     // marge additionnelle appliquée au prix crédit
+  updatedAt          DateTime @updatedAt
 }
 
 // Stock d'un produit sur un site précis (PDV ou dépôt central)
