@@ -24,6 +24,9 @@ export async function GET() {
       approsEnAttente,
       versementsMontant,
       ventesMontant,
+      remboursementsMontant,
+      ventesCashAgg,
+      remboursementsAujourdhui,
     ] = await Promise.all([
       // Activité du jour
       prisma.versementPack.count({ where: { createdAt: todayRange } }),
@@ -34,9 +37,10 @@ export async function GET() {
       // Modules
       prisma.systemModule.findMany({ orderBy: { nom: "asc" } }),
 
-      // Stock en alerte (quantite <= alerte seuil)
+      // Stock en alerte (quantite <= seuil, ruptures à 0 INCLUSES).
+      // Pas de filtre `quantite > 0` : sinon les ruptures totales — les plus
+      // critiques — seraient exclues de l'alerte.
       prisma.stockSite.findMany({
-        where: { quantite: { gt: 0 } },
         include: {
           produit: { select: { nom: true, alerteStock: true } },
           pointDeVente: { select: { nom: true } },
@@ -49,23 +53,47 @@ export async function GET() {
       // Appros en attente (BROUILLON)
       prisma.receptionApprovisionnement.count({ where: { statut: "BROUILLON" } }),
 
-      // Montant versements du jour
+      // Montant versements packs du jour
       prisma.versementPack.aggregate({
         where: { createdAt: todayRange },
         _sum: { montant: true },
       }),
 
-      // Montant ventes du jour
+      // Montant ventes du jour (total commercial)
       prisma.venteDirecte.aggregate({
         where: { createdAt: todayRange },
         _sum: { montantTotal: true },
       }),
+
+      // Remboursements crédits du jour (pour l'encaissé réel)
+      prisma.remboursementCredit.aggregate({
+        where: { dateRemboursement: todayRange },
+        _sum: { montant: true },
+      }),
+
+      // Ventes directes du jour — cash net encaissé (payé − monnaie rendue)
+      prisma.venteDirecte.aggregate({
+        where: { createdAt: todayRange, statut: { notIn: ["ANNULEE", "BROUILLON"] } },
+        _sum: { montantPaye: true, monnaieRendue: true },
+      }),
+
+      // Remboursements crédits reçus du jour (activité du jour)
+      prisma.remboursementCredit.count({ where: { dateRemboursement: todayRange } }),
     ]);
 
-    // Filtrer les stocks vraiment en alerte en JS
+    // Encaissé réel du jour = versements packs + remboursements crédits + ventes (cash net).
+    const encaisseJour =
+      Number(versementsMontant._sum.montant ?? 0) +
+      Number(remboursementsMontant._sum.montant ?? 0) +
+      Math.max(0, Number(ventesCashAgg._sum.montantPaye ?? 0) - Number(ventesCashAgg._sum.monnaieRendue ?? 0));
+
+    // Filtrer les stocks vraiment en alerte en JS :
+    //  - rupture totale (quantite <= 0) : toujours alertée, même sans seuil défini ;
+    //  - stock faible : quantite <= seuil d'alerte du produit.
     const alertesStock = stockAlerts.filter(
-      (s) => s.produit.alerteStock !== null && s.quantite <= s.produit.alerteStock
+      (s) => s.quantite <= 0 || (s.produit.alerteStock !== null && s.quantite <= s.produit.alerteStock)
     );
+    const ruptures = alertesStock.filter((s) => s.quantite <= 0);
 
     const modulesActifs   = modules.filter((m) => m.actif).length;
     const modulesInactifs = modules.filter((m) => !m.actif).length;
@@ -75,10 +103,13 @@ export async function GET() {
     if (alertesStock.length > 0) {
       alertes.push({
         type: "stock",
-        niveau: alertesStock.length > 5 ? "critique" : "warning",
+        niveau: ruptures.length > 0 || alertesStock.length > 5 ? "critique" : "warning",
         alertKey: "alert_low_stock",
         count: alertesStock.length,
-        detail: alertesStock.slice(0, 3).map((s) => `${s.produit.nom} (${s.pointDeVente.nom})`).join(", "),
+        detail: [
+          ruptures.length > 0 ? `${ruptures.length} rupture(s)` : null,
+          alertesStock.slice(0, 3).map((s) => `${s.produit.nom} (${s.pointDeVente.nom})`).join(", "),
+        ].filter(Boolean).join(" · "),
       });
     }
     if (approsEnAttente > 0) {
@@ -107,6 +138,7 @@ export async function GET() {
           versements: versementsAujourdhui,
           souscriptions: souscriptionsAujourdhui,
           ventes: ventesAujourdhui,
+          remboursements: remboursementsAujourdhui,
           mouvementsStock: mouvementsAujourdhui,
         },
         modules: {
@@ -119,7 +151,8 @@ export async function GET() {
         rapports: {
           caisse: {
             sessionsOuvertes: sessionsCaisseOuvertes,
-            versementsMontant: Number(versementsMontant._sum.montant ?? 0),
+            // Encaissé réel du jour (packs + remboursements crédits + ventes cash net).
+            versementsMontant: encaisseJour,
           },
           stock: {
             alertes: alertesStock.length,

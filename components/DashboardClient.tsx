@@ -37,6 +37,7 @@ interface ActivityResponse {
       versements: number;
       souscriptions: number;
       ventes: number;
+      remboursements: number;
       mouvementsStock: number;
     };
     modules: {
@@ -197,8 +198,8 @@ export default function AfriGesDashboard() {
         { label: "Date",    key: "date",    type: "date", format: (v) => (v ? new Date(String(v)) : null) },
         { label: "Montant", key: "montant", type: "currency", format: (v) => Number(v) },
       ],
-      `dashboard-versements-${selectedPeriod}.xlsx`,
-      { sheetName: "Versements" }
+      `dashboard-credits-rembourses-${selectedPeriod}.xlsx`,
+      { sheetName: "Crédits remboursés" }
     );
   };
 
@@ -439,11 +440,12 @@ export default function AfriGesDashboard() {
                     <RefreshCw size={14} />
                   </button>
                 </div>
-                <div className="grid grid-cols-4 gap-3">
+                <div className="grid grid-cols-5 gap-3">
                   {[
                     { label: t('dash_versements'), value: act?.activiteJour.versements ?? '—', icon: Wallet,      color: 'text-purple-600', bg: 'bg-purple-50' },
                     { label: t('dash_souscription'), value: act?.activiteJour.souscriptions ?? '—', icon: Layers, color: 'text-blue-600', bg: 'bg-blue-50' },
                     { label: t('dash_vente_directe'), value: act?.activiteJour.ventes ?? '—', icon: ShoppingCart, color: 'text-emerald-600', bg: 'bg-emerald-50' },
+                    { label: 'Remboursements', value: act?.activiteJour.remboursements ?? '—', icon: CreditCard, color: 'text-rose-600', bg: 'bg-rose-50' },
                     { label: t('dash_mouvements_stock'), value: act?.activiteJour.mouvementsStock ?? '—', icon: Package, color: 'text-amber-600', bg: 'bg-amber-50' },
                   ].map((item) => {
                     const Icon = item.icon;
@@ -566,7 +568,7 @@ export default function AfriGesDashboard() {
                   <div className="p-3 bg-slate-50 rounded-xl">
                     <div className="flex items-center gap-1.5 mb-1.5">
                       <Wallet size={13} className="text-purple-500" />
-                      <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">{t('dash_caisse')}</span>
+                      <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">Encaissé (jour)</span>
                     </div>
                     <p className="text-sm font-bold text-slate-800">{act ? formatCurrency(act.rapports.caisse.versementsMontant) : '—'}</p>
                     <p className="text-[10px] text-slate-400">{act?.rapports.caisse.sessionsOuvertes ?? '—'} {t('admin_sessions_open')}</p>
@@ -611,7 +613,7 @@ export default function AfriGesDashboard() {
             <div className="col-span-2 bg-white rounded-2xl p-6 shadow-sm border border-slate-200/60">
               <div className="flex items-center justify-between mb-6">
                 <div>
-                  <h3 className="text-xl font-bold text-slate-800">{t('dash_evolution_versements')}</h3>
+                  <h3 className="text-xl font-bold text-slate-800">Évolution — crédits &amp; ventes directes</h3>
                   <p className="text-xs text-slate-400 mt-0.5">{t('dash_montants_journaliers')}</p>
                 </div>
                 <select
@@ -629,11 +631,11 @@ export default function AfriGesDashboard() {
               <div className="flex items-center gap-5 mb-4">
                 <div className="flex items-center gap-1.5">
                   <div className="w-3 h-3 rounded-full bg-emerald-500" />
-                  <span className="text-xs text-slate-500">{t('dash_versements_packs')}</span>
+                  <span className="text-xs text-slate-500">Crédits remboursés</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <div className="w-3 h-3 rounded-full bg-blue-400" />
-                  <span className="text-xs text-slate-500">{t('dash_souscriptions_creees')}</span>
+                  <span className="text-xs text-slate-500">Ventes directes</span>
                 </div>
               </div>
 

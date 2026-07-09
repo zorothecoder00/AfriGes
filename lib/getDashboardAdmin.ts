@@ -1,6 +1,9 @@
 import { prisma } from "@/lib/prisma";
 import { MemberStatus } from "@prisma/client";
 
+// Statuts de vente directe à ne pas compter comme activité réelle.
+const VENTE_EXCLUES = ["ANNULEE", "BROUILLON"] as const;
+
 // ─── Dashboard Décisionnel (Module 8) ────────────────────────────────────────
 
 export async function getDashboardDecisionnel() {
@@ -24,6 +27,7 @@ export async function getDashboardDecisionnel() {
     retardsCritiques,
     versementsJourAgg,
     remboursementsJourAgg,
+    ventesJourAgg,
     creditsAgg,
     pertesAgg,
     creancesARisque,
@@ -47,16 +51,22 @@ export async function getDashboardDecisionnel() {
     // Retards critiques = nombre de crédits EN_RETARD
     prisma.creditClient.count({ where: { statut: "EN_RETARD" } }),
 
-    // Collecte du jour — versements packs
+    // Cash du jour — versements packs
     prisma.versementPack.aggregate({
       where: { datePaiement: { gte: todayStart, lte: todayEnd } },
       _sum: { montant: true },
     }),
 
-    // Collecte du jour — remboursements crédits
+    // Cash du jour — remboursements crédits
     prisma.remboursementCredit.aggregate({
       where: { dateRemboursement: { gte: todayStart, lte: todayEnd } },
       _sum: { montant: true },
+    }),
+
+    // Cash du jour — ventes directes (cash net encaissé = payé − monnaie rendue)
+    prisma.venteDirecte.aggregate({
+      where: { createdAt: { gte: todayStart, lte: todayEnd }, statut: { notIn: [...VENTE_EXCLUES] } },
+      _sum: { montantPaye: true, monnaieRendue: true },
     }),
 
     // Taux remboursement global
@@ -92,9 +102,14 @@ export async function getDashboardDecisionnel() {
     }),
   ]);
 
+  const ventesCashJour =
+    Number(ventesJourAgg._sum.montantPaye ?? 0) - Number(ventesJourAgg._sum.monnaieRendue ?? 0);
+
+  // Cash encaissé du jour = packs + remboursements crédits + ventes directes (cash net).
   const montantCollecteJour =
     Number(versementsJourAgg._sum.montant ?? 0) +
-    Number(remboursementsJourAgg._sum.montant ?? 0);
+    Number(remboursementsJourAgg._sum.montant ?? 0) +
+    Math.max(0, ventesCashJour);
 
   const totalMontant = Number(creditsAgg._sum.montantTotal ?? 0);
   const totalRembourse = Number(creditsAgg._sum.montantRembourse ?? 0);
@@ -103,95 +118,57 @@ export async function getDashboardDecisionnel() {
     : 0;
 
   // ── Classement des agents (30 derniers jours) ────────────────────────────
-  // Toutes les sources : versements packs + remboursements crédits + ventes directes
+  // Sources au niveau enregistrement (chacune porte l'id de l'agent) :
+  //   versements packs (encaisseParId) + remboursements crédits (enregistreParId)
+  //   + ventes directes (vendeurId).
+  // NB : le modèle CollecteJournaliere n'est PLUS utilisé ici — son montantCollecte
+  // ne fait que ré-agréger ces mêmes versements/remboursements (double comptage).
 
-  // IDs des agents terrain actifs
   const agentTerrainRecords = await prisma.gestionnaire.findMany({
     where: { role: "AGENT_TERRAIN", actif: true },
     select: { memberId: true },
   });
   const agentTerrainIds = agentTerrainRecords.map((g) => g.memberId);
 
-  const [versementsParAgent, remboursementsParAgent, ventesParAgent, collectesParAgent] =
+  const [versementsParAgent, remboursementsParAgent, ventesParAgent] =
     agentTerrainIds.length > 0
       ? await Promise.all([
-          // Versements packs encaissés directement par l'agent (encaisseParId = agent)
-          // Note : les VersementPack issus de validation de collecte ont encaisseParId = admin
-          // → pas de double comptage avec collectesParAgent
           prisma.versementPack.groupBy({
             by: ["encaisseParId"],
-            where: {
-              encaisseParId: { in: agentTerrainIds },
-              datePaiement: { gte: since30 },
-              statut: "PAYE",
-            },
+            where: { encaisseParId: { in: agentTerrainIds }, datePaiement: { gte: since30 }, statut: "PAYE" },
             _sum: { montant: true },
           }),
-          // Remboursements crédits enregistrés par l'agent
           prisma.remboursementCredit.groupBy({
             by: ["enregistreParId"],
-            where: {
-              enregistreParId: { in: agentTerrainIds },
-              dateRemboursement: { gte: since30 },
-            },
+            where: { enregistreParId: { in: agentTerrainIds }, dateRemboursement: { gte: since30 } },
             _sum: { montant: true },
           }),
-          // Ventes directes réalisées par l'agent
           prisma.venteDirecte.groupBy({
             by: ["vendeurId"],
-            where: {
-              vendeurId: { in: agentTerrainIds },
-              createdAt: { gte: since30 },
-              statut: { notIn: ["ANNULEE", "BROUILLON"] },
-            },
+            where: { vendeurId: { in: agentTerrainIds }, createdAt: { gte: since30 }, statut: { notIn: [...VENTE_EXCLUES] } },
             _sum: { montantTotal: true },
           }),
-          // Collectes terrain validées (montant physiquement collecté par l'agent)
-          prisma.collecteJournaliere.groupBy({
-            by: ["agentId"],
-            where: {
-              agentId: { in: agentTerrainIds },
-              statut: "VALIDEE",
-              dateCollecte: { gte: since30 },
-            },
-            _sum: { montantCollecte: true },
-          }),
         ])
-      : [[], [], [], []];
+      : [[], [], []];
 
-  // Fusionner les 4 sources par agentId
   const totauxParAgent = new Map<number, number>();
   for (const v of versementsParAgent) {
     if (v.encaisseParId === null) continue;
-    const id = v.encaisseParId;
-    totauxParAgent.set(id, (totauxParAgent.get(id) ?? 0) + Number(v._sum.montant ?? 0));
+    totauxParAgent.set(v.encaisseParId, (totauxParAgent.get(v.encaisseParId) ?? 0) + Number(v._sum.montant ?? 0));
   }
   for (const r of remboursementsParAgent) {
     if (r.enregistreParId === null) continue;
-    const id = r.enregistreParId;
-    totauxParAgent.set(id, (totauxParAgent.get(id) ?? 0) + Number(r._sum.montant ?? 0));
+    totauxParAgent.set(r.enregistreParId, (totauxParAgent.get(r.enregistreParId) ?? 0) + Number(r._sum.montant ?? 0));
   }
   for (const v of ventesParAgent) {
     if (v.vendeurId === null) continue;
-    const id = v.vendeurId;
-    totauxParAgent.set(id, (totauxParAgent.get(id) ?? 0) + Number(v._sum.montantTotal ?? 0));
-  }
-  for (const c of collectesParAgent) {
-    const id = c.agentId;
-    totauxParAgent.set(id, (totauxParAgent.get(id) ?? 0) + Number(c._sum.montantCollecte ?? 0));
+    totauxParAgent.set(v.vendeurId, (totauxParAgent.get(v.vendeurId) ?? 0) + Number(v._sum.montantTotal ?? 0));
   }
 
-  // Trier et prendre les 5 premiers
-  const top5 = [...totauxParAgent.entries()]
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 5);
-
+  const top5 = [...totauxParAgent.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5);
   const top5Ids = top5.map(([id]) => id);
   const agentUsers = top5Ids.length > 0
-    ? await prisma.user.findMany({
-        where: { id: { in: top5Ids } },
-        select: { id: true, nom: true, prenom: true },
-      })
+    ? await prisma.user.findMany({ where: { id: { in: top5Ids } }, select: { id: true, nom: true, prenom: true } })
     : [];
   const userMap = Object.fromEntries(agentUsers.map((u) => [u.id, u]));
 
@@ -234,6 +211,8 @@ function isPositiveChange(curr: number, prev: number): boolean {
   return curr >= prev;
 }
 
+const jour = (d: Date) => d.toISOString().split("T")[0];
+
 // ─── Main export ─────────────────────────────────────────────────────────────
 
 export async function getDashboardAdmin(period: number = 30) {
@@ -253,53 +232,66 @@ export async function getDashboardAdmin(period: number = 30) {
     prisma.pack.count(),
   ]);
 
-  // ── 2. Agrégat global des versements ────────────────────────────────────
+  // ── 2. Séries & encaissements (crédits + ventes + packs) ─────────────────
+  // On ne se centre PLUS sur les packs : la courbe met en avant les crédits
+  // remboursés et les ventes directes (activité principale).
 
-  const versementsAgg = await prisma.versementPack.aggregate({
-    _sum: { montant: true },
-    _count: { id: true },
-  });
+  const [remboursements, ventes, versementsPacks] = await Promise.all([
+    prisma.remboursementCredit.findMany({
+      where: { dateRemboursement: { gte: prevSince } },
+      select: { dateRemboursement: true, montant: true },
+    }),
+    prisma.venteDirecte.findMany({
+      where: { createdAt: { gte: prevSince }, statut: { notIn: [...VENTE_EXCLUES] } },
+      select: { createdAt: true, montantTotal: true, montantPaye: true, monnaieRendue: true },
+    }),
+    prisma.versementPack.findMany({
+      where: { datePaiement: { gte: prevSince } },
+      select: { datePaiement: true, montant: true },
+    }),
+  ]);
 
-  // ── 3. Évolution des versements (par jour sur la période) ────────────────
+  // Maps journalières (période courante) — série 1 = crédits, série 2 = ventes.
+  const rembMap: Record<string, number> = {};
+  const ventesMap: Record<string, number> = {};
+  // Cumuls encaissements (cash net) période courante vs précédente.
+  let encCurr = 0, encPrev = 0, nbCurr = 0;
 
-  const versementsRecents = await prisma.versementPack.findMany({
-    where: { datePaiement: { gte: since } },
-    select: { datePaiement: true, montant: true },
-    orderBy: { datePaiement: "asc" },
-  });
+  const inCurr = (d: Date) => d >= since;
 
-  const versMap: Record<string, number> = {};
-  for (const v of versementsRecents) {
-    const k = v.datePaiement.toISOString().split("T")[0];
-    versMap[k] = (versMap[k] ?? 0) + Number(v.montant);
+  for (const r of remboursements) {
+    const m = Number(r.montant);
+    if (inCurr(r.dateRemboursement)) {
+      rembMap[jour(r.dateRemboursement)] = (rembMap[jour(r.dateRemboursement)] ?? 0) + m;
+      encCurr += m; nbCurr += 1;
+    } else { encPrev += m; }
+  }
+  for (const v of ventes) {
+    const total = Number(v.montantTotal);
+    const cashNet = Math.max(0, Number(v.montantPaye) - Number(v.monnaieRendue));
+    if (inCurr(v.createdAt)) {
+      ventesMap[jour(v.createdAt)] = (ventesMap[jour(v.createdAt)] ?? 0) + total;
+      encCurr += cashNet; nbCurr += 1;
+    } else { encPrev += cashNet; }
+  }
+  for (const p of versementsPacks) {
+    const m = Number(p.montant);
+    if (inCurr(p.datePaiement)) { encCurr += m; nbCurr += 1; }
+    else { encPrev += m; }
   }
 
-  // ── 4. Évolution des montants versés sur souscriptions créées ────────────
-
-  const souscRecentes = await prisma.souscriptionPack.findMany({
-    where: { createdAt: { gte: since } },
-    select: { createdAt: true, montantVerse: true },
-    orderBy: { createdAt: "asc" },
-  });
-
-  const souscMap: Record<string, number> = {};
-  for (const s of souscRecentes) {
-    const k = s.createdAt.toISOString().split("T")[0];
-    souscMap[k] = (souscMap[k] ?? 0) + Number(s.montantVerse);
-  }
-
-  // Tableau jour par jour
+  // Tableaux jour par jour (série 1 : crédits remboursés · série 2 : ventes directes)
   const evolutionVersements: { date: string; montant: number }[] = [];
   const evolutionSouscriptions: { date: string; montant: number }[] = [];
   for (let i = period; i >= 0; i--) {
     const d = new Date(now);
     d.setDate(d.getDate() - i);
-    const k = d.toISOString().split("T")[0];
-    evolutionVersements.push({ date: k, montant: versMap[k] ?? 0 });
-    evolutionSouscriptions.push({ date: k, montant: souscMap[k] ?? 0 });
+    const k = jour(d);
+    evolutionVersements.push({ date: k, montant: rembMap[k] ?? 0 });
+    evolutionSouscriptions.push({ date: k, montant: ventesMap[k] ?? 0 });
   }
 
-  // ── 5. Répartition des souscriptions par statut ──────────────────────────
+  // ── 3. Répartition des souscriptions par statut ──────────────────────────
 
   const [souscActives, souscCompletes, souscAnnulees] = await Promise.all([
     prisma.souscriptionPack.count({ where: { statut: "ACTIF" } }),
@@ -307,30 +299,25 @@ export async function getDashboardAdmin(period: number = 30) {
     prisma.souscriptionPack.count({ where: { statut: "ANNULE" } }),
   ]);
 
-  // ── 6. Comparaisons période actuelle vs précédente ───────────────────────
+  // ── 4. Comparaisons période actuelle vs précédente ───────────────────────
 
-  const [nouvMembresCurr, nouvMembresPrec, versCurr, versPrec] = await Promise.all([
+  const [nouvMembresCurr, nouvMembresPrec, souscCurr, souscPrec] = await Promise.all([
     prisma.client.count({ where: { createdAt: { gte: since } } }),
     prisma.client.count({ where: { createdAt: { gte: prevSince, lt: since } } }),
-    prisma.versementPack.aggregate({ where: { datePaiement: { gte: since } },             _sum: { montant: true } }),
-    prisma.versementPack.aggregate({ where: { datePaiement: { gte: prevSince, lt: since } }, _sum: { montant: true } }),
+    prisma.souscriptionPack.count({ where: { createdAt: { gte: since } } }),
+    prisma.souscriptionPack.count({ where: { createdAt: { gte: prevSince, lt: since } } }),
   ]);
 
-  const versCurrTotal = Number(versCurr._sum.montant ?? 0);
-  const versPrecTotal = Number(versPrec._sum.montant ?? 0);
-
-  // ── 7. Retour ────────────────────────────────────────────────────────────
+  // ── 5. Retour ────────────────────────────────────────────────────────────
 
   return {
     clientsActifs,
     souscriptionsActives,
     packsTotal,
-    versementsTotal: {
-      count:   versementsAgg._count.id,
-      montant: Number(versementsAgg._sum.montant ?? 0),
-    },
-    evolutionVersements,
-    evolutionSouscriptions,
+    // Encaissements réels de la période (crédits remboursés + ventes cash + packs)
+    versementsTotal: { count: nbCurr, montant: Math.round(encCurr) },
+    evolutionVersements,   // série 1 : crédits remboursés / jour
+    evolutionSouscriptions, // série 2 : ventes directes / jour
     repartitionSouscriptions: {
       actives:   souscActives,
       completes: souscCompletes,
@@ -338,8 +325,8 @@ export async function getDashboardAdmin(period: number = 30) {
     },
     comparaisons: {
       clients:    { pct: pctChange(nouvMembresCurr, nouvMembresPrec), positif: isPositiveChange(nouvMembresCurr, nouvMembresPrec) },
-      versements: { pct: pctChange(versCurrTotal, versPrecTotal),      positif: isPositiveChange(versCurrTotal, versPrecTotal) },
-      packs:      { pct: "—", positif: true },
+      versements: { pct: pctChange(encCurr, encPrev),                 positif: isPositiveChange(encCurr, encPrev) },
+      packs:      { pct: pctChange(souscCurr, souscPrec),             positif: isPositiveChange(souscCurr, souscPrec) },
     },
   };
 }
