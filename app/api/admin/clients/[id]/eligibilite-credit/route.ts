@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { MemberStatus, NiveauRisque, StatutCredit } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getAdminSession } from "@/lib/authAdmin";
+import { getFidelite } from "@/lib/fidelite";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -87,6 +88,15 @@ export async function GET(_req: Request, { params }: Ctx) {
       },
     });
 
+    // ── Avantages fidélité (CDC §19.D) : réduction frais de dossier + priorité ──
+    const fid = await getFidelite(clientId);
+    if (fid.avantages.reductionFraisDossier > 0) {
+      alertes.push(`Fidélité niveau ${fid.niveau} : réduction de ${fid.avantages.reductionFraisDossier}% sur les frais de dossier.`);
+    }
+    if (fid.avantages.prioriteCredit) {
+      alertes.push(`Fidélité niveau ${fid.niveau} : ce client bénéficie d'une priorité de traitement des crédits.`);
+    }
+
     return NextResponse.json({
       eligible: raisons.length === 0,
       raisons,
@@ -95,6 +105,11 @@ export async function GET(_req: Request, { params }: Ctx) {
       tauxUtilisation,
       creditsActifs,
       creditEnRetard,
+      fidelite: {
+        niveau: fid.niveau,
+        reductionFraisDossier: fid.avantages.reductionFraisDossier,
+        prioriteCredit: fid.avantages.prioriteCredit,
+      },
     });
   } catch (error) {
     console.error("GET /api/admin/clients/[id]/eligibilite-credit", error);

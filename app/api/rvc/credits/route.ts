@@ -4,6 +4,7 @@ import { getRVCSession } from "@/lib/authRVC";
 import { montantJournalierArrondi } from "@/lib/echeancierCredit";
 import { MemberStatus, NiveauRisque, Prisma, StatutCredit, PrioriteNotification, Role } from "@prisma/client";
 import { notifyRoles, notifyAdmins, auditLog } from "@/lib/notifications";
+import { getFidelite } from "@/lib/fidelite";
 import { randomUUID } from "crypto";
 
 /**
@@ -139,6 +140,10 @@ export async function POST(req: Request) {
       rvcPdvId = aff?.pointDeVenteId ?? null;
     }
 
+    // Avantages fidélité (CDC §19.D) : réduction frais de dossier selon le niveau.
+    const fidelite = await getFidelite(Number(clientId));
+    const reductionPct = fidelite.avantages.reductionFraisDossier;
+
     const result = await prisma.$transaction(async (tx) => {
       // Vérifier le client
       const client = await tx.client.findUnique({
@@ -170,7 +175,11 @@ export async function POST(req: Request) {
       const valeurProduits = Number(lignesCalc.reduce((s, l) => s + l.montantLigne, 0).toFixed(2));
       if (valeurProduits <= 0) throw new Error("MONTANT_INVALIDE");
 
-      const fraisDossierN   = Math.max(0, Number(fraisDossier ?? 0));
+      const fraisDossierBrut = Math.max(0, Number(fraisDossier ?? 0));
+      const reductionFideliteFrais = reductionPct > 0
+        ? Number((fraisDossierBrut * reductionPct / 100).toFixed(2))
+        : 0;
+      const fraisDossierN   = Number((fraisDossierBrut - reductionFideliteFrais).toFixed(2));
       const assuranceN      = Math.max(0, Number(assurance ?? 0));
       const autresFraisN    = Math.max(0, Number(autresFrais ?? 0));
       const fraisLivraisonN = Math.max(0, Number(fraisLivraison ?? 0));
@@ -244,6 +253,7 @@ export async function POST(req: Request) {
           dateEcheanceFin,
           montantJournalier,
           fraisDossier:   fraisDossierN,
+          reductionFideliteFrais,
           assurance:      assuranceN,
           autresFrais:    autresFraisN,
           fraisLivraison: fraisLivraisonN,

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { MemberStatus, NiveauRisque, StatutCredit } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getRVCSession } from "@/lib/authRVC";
+import { getFidelite } from "@/lib/fidelite";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -87,6 +88,15 @@ export async function GET(_req: Request, { params }: Ctx) {
       select: { id: true, reference: true, statut: true, montantTotal: true, soldeRestant: true },
     });
 
+    // Avantages fidélité (CDC §19.D)
+    const fid = await getFidelite(clientId);
+    if (fid.avantages.reductionFraisDossier > 0) {
+      alertes.push(`Fidélité niveau ${fid.niveau} : réduction de ${fid.avantages.reductionFraisDossier}% sur les frais de dossier.`);
+    }
+    if (fid.avantages.prioriteCredit) {
+      alertes.push(`Fidélité niveau ${fid.niveau} : client prioritaire.`);
+    }
+
     return NextResponse.json({
       eligible: raisons.length === 0,
       raisons,
@@ -96,6 +106,11 @@ export async function GET(_req: Request, { params }: Ctx) {
       client: {
         limiteCredit: client.limiteCredit,
         soldeActuel:  client.soldeActuel,
+      },
+      fidelite: {
+        niveau: fid.niveau,
+        reductionFraisDossier: fid.avantages.reductionFraisDossier,
+        prioriteCredit: fid.avantages.prioriteCredit,
       },
     });
   } catch (error) {

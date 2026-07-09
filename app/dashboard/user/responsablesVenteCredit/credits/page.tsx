@@ -130,6 +130,7 @@ interface EligibiliteResponse {
   raisons: string[];
   alertes: string[];
   client: { limiteCredit: number | null };
+  fidelite?: { niveau: string; reductionFraisDossier: number; prioriteCredit: boolean };
 }
 
 function NouveauCreditModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
@@ -399,6 +400,11 @@ function NouveauCreditModal({ onClose, onSuccess }: { onClose: () => void; onSuc
                       <label className="block text-xs font-medium text-gray-700 mb-1.5">Frais dossier</label>
                       <input type="number" min={0} step={100} value={fraisDossier} onChange={(e) => setFraisDossier(e.target.value)}
                         className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                      {(eligibilite?.fidelite?.reductionFraisDossier ?? 0) > 0 && (
+                        <p className="text-[11px] text-emerald-600 mt-1">
+                          Fidélité {eligibilite?.fidelite?.niveau} : −{eligibilite?.fidelite?.reductionFraisDossier}% appliquée à la création
+                        </p>
+                      )}
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-gray-700 mb-1.5">Assurance</label>

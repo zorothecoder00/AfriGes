@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getRVCSession } from "@/lib/authRVC";
 import { montantJournalierArrondi } from "@/lib/echeancierCredit";
 import { chargerParametrageCC, getCompteCourantParClient, preleverCompteCourant, extraireMetaRequete } from "@/lib/compteCourant";
+import { getFidelite } from "@/lib/fidelite";
 
 /**
  * ==========================
@@ -51,7 +52,7 @@ export async function GET(req: Request) {
           montantTotal: true, montantRembourse: true, soldeRestant: true,
           dureeJours: true, dateDebut: true, dateEcheanceFin: true,
           montantJournalier: true, tauxPenalite: true, delaiGraceJours: true,
-          fraisDossier: true, assurance: true, autresFrais: true, fraisLivraison: true, tauxInteret: true, montantInteret: true,
+          fraisDossier: true, reductionFideliteFrais: true, assurance: true, autresFrais: true, fraisLivraison: true, tauxInteret: true, montantInteret: true,
           garantie: true, observations: true, gestionnaireCreditId: true, dateValidation: true,
           garantNom: true, garantTelephone: true, garantAdresse: true, garantTypeGarantie: true, garantValeurEstimee: true,
           createdAt: true, updatedAt: true,
@@ -59,6 +60,7 @@ export async function GET(req: Request) {
             select: {
               id: true, nom: true, prenom: true, codeClient: true, telephone: true, segment: true,
               tags: { select: { tag: { select: { id: true, nom: true, couleur: true } } } },
+              compteFidelite: { select: { niveau: true } },
             },
           },
           creePar:  { select: { id: true, nom: true, prenom: true } },
@@ -148,6 +150,12 @@ export async function POST(req: Request) {
     const paramCC = ccMontantDemande > 0 ? await chargerParametrageCC() : null;
     const { ip: ipReq, userAgent } = extraireMetaRequete(req);
 
+    // Avantages fidélité (CDC §19.D) : réduction des frais de dossier + priorité
+    // crédit selon le niveau du client. Lu hors transaction (état stable).
+    const fidelite = await getFidelite(Number(clientId));
+    const reductionPct = fidelite.avantages.reductionFraisDossier;
+    const clientPrioritaire = fidelite.avantages.prioriteCredit;
+
     const result = await prisma.$transaction(async (tx) => {
       // ── Vérifier le client ────────────────────────────────────────────────
       const client = await tx.client.findUnique({
@@ -198,7 +206,12 @@ export async function POST(req: Request) {
       );
       if (valeurProduits <= 0) throw new Error("MONTANT_INVALIDE");
 
-      const fraisDossierN   = Math.max(0, Number(fraisDossier ?? 0));
+      // Frais de dossier : réduction fidélité (CDC §19.D) appliquée sur le montant brut saisi.
+      const fraisDossierBrut = Math.max(0, Number(fraisDossier ?? 0));
+      const reductionFideliteFrais = reductionPct > 0
+        ? Number((fraisDossierBrut * reductionPct / 100).toFixed(2))
+        : 0;
+      const fraisDossierN   = Number((fraisDossierBrut - reductionFideliteFrais).toFixed(2));
       const assuranceN      = Math.max(0, Number(assurance ?? 0));
       const autresFraisN    = Math.max(0, Number(autresFrais ?? 0));
       const fraisLivraisonN = Math.max(0, Number(fraisLivraison ?? 0));
@@ -264,6 +277,7 @@ export async function POST(req: Request) {
           dateEcheanceFin,
           montantJournalier,
           fraisDossier:   fraisDossierN,
+          reductionFideliteFrais,
           assurance:      assuranceN,
           autresFrais:    autresFraisN,
           fraisLivraison: fraisLivraisonN,
@@ -312,11 +326,18 @@ export async function POST(req: Request) {
           entite: "CreditClient",
           entiteId: credit.id,
           userId: Number(session.user.id),
+          ...(reductionFideliteFrais > 0
+            ? { details: { fidelite: fidelite.niveau, reductionFraisDossier: reductionFideliteFrais, reductionPct } }
+            : {}),
         },
       });
 
       // ── Notifications ──────────────────────────────────────────────────────
-      const msgNotif = `Un crédit de ${montantCredit.toLocaleString("fr-FR")} FCFA a été créé pour ${client.prenom} ${client.nom} (${reference})${apportCC > 0 ? ` (apport compte courant : ${apportCC.toLocaleString("fr-FR")} FCFA)` : ""}. En attente de validation.`;
+      // Priorité fidélité (CDC §19.D) : signalée aux valideurs pour traitement prioritaire.
+      const mentionFidelite =
+        (clientPrioritaire ? ` ⭐ Client prioritaire (fidélité ${fidelite.niveau})` : "") +
+        (reductionFideliteFrais > 0 ? ` — réduction frais de dossier ${reductionPct}% (−${reductionFideliteFrais.toLocaleString("fr-FR")} FCFA)` : "");
+      const msgNotif = `Un crédit de ${montantCredit.toLocaleString("fr-FR")} FCFA a été créé pour ${client.prenom} ${client.nom} (${reference})${apportCC > 0 ? ` (apport compte courant : ${apportCC.toLocaleString("fr-FR")} FCFA)` : ""}.${mentionFidelite} En attente de validation.`;
 
       // Admins → page admin
       const admins = await tx.user.findMany({

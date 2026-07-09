@@ -122,6 +122,7 @@ interface EligibiliteData {
   tauxUtilisation: number | null;
   creditsActifs: { id: number; reference: string; statut: string; montantTotal: string | number; soldeRestant: string | number }[];
   client: { limiteCredit: string | number | null; soldeActuel: string | number | null };
+  fidelite?: { niveau: string; reductionFraisDossier: number; prioriteCredit: boolean };
 }
 
 // ─── Helpers visuels ──────────────────────────────────────────────────────────
@@ -499,7 +500,12 @@ export default function CreditsPage() {
 
   const creditMontantTotal = creditLignes.reduce((s, l) => s + (l.prixUnitaire * l.quantite - l.remise), 0);
   const creditInteret        = Number(((creditMontantTotal * Number(creditParams.tauxInteret || 0)) / 100).toFixed(2));
-  const creditFraisTotal     = Number(creditParams.fraisDossier || 0) + Number(creditParams.assurance || 0) + Number(creditParams.autresFrais || 0) + Number(creditParams.fraisLivraison || 0) + creditInteret;
+  // Réduction fidélité sur les frais de dossier (CDC §19.D) — appliquée côté serveur, prévisualisée ici.
+  const fidReductionPct      = eligibilite?.fidelite?.reductionFraisDossier ?? 0;
+  const creditReductionFidelite = fidReductionPct > 0
+    ? Number(((Number(creditParams.fraisDossier || 0) * fidReductionPct) / 100).toFixed(2))
+    : 0;
+  const creditFraisTotal     = Number(creditParams.fraisDossier || 0) - creditReductionFidelite + Number(creditParams.assurance || 0) + Number(creditParams.autresFrais || 0) + Number(creditParams.fraisLivraison || 0) + creditInteret;
   const creditTotalARembourser = creditMontantTotal + creditFraisTotal;
   // Apport CC (CDC §8) : le crédit ne finance que le reste (total − apport).
   const creditCcSolde        = creditCcInfo && creditCcInfo.statut === 'ACTIF' ? creditCcInfo.solde : 0;
@@ -1954,6 +1960,11 @@ export default function CreditsPage() {
                       <input type="number" min={0} step={100} value={creditParams.fraisDossier}
                         onChange={e => setCreditParams(p => ({ ...p, fraisDossier: e.target.value }))}
                         className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50" />
+                      {creditReductionFidelite > 0 && (
+                        <p className="text-[11px] text-emerald-600 mt-1">
+                          Fidélité {eligibilite?.fidelite?.niveau} : −{fidReductionPct}% (−{formatCurrency(creditReductionFidelite)})
+                        </p>
+                      )}
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-slate-600 mb-1">Assurance</label>

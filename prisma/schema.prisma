@@ -1146,6 +1146,7 @@ model CreditClient {
 
   // Frais & intérêts (décomposition du montant total)
   fraisDossier     Decimal      @default(0)
+  reductionFideliteFrais Decimal @default(0) // réduction des frais de dossier accordée via la fidélité (CDC §19.D)
   assurance        Decimal      @default(0)
   autresFrais      Decimal      @default(0)
   fraisLivraison   Decimal      @default(0)
