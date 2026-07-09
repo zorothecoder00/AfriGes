@@ -1,13 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
 import {
   Wallet, ArrowLeft, Loader2, TrendingUp, TrendingDown, ShoppingCart,
-  Activity, Clock, MapPin, Phone, User, Hash, Plus, X, Printer, ArrowDownCircle, CreditCard, ShieldAlert,
+  Activity, Clock, MapPin, Phone, User, Users, UserPlus, Trash2, Search, Hash, Plus, X, Printer, ArrowDownCircle, CreditCard, ShieldAlert,
   FileText, FileCheck, BookOpen,
 } from "lucide-react";
 import { useApi } from "@/hooks/useApi";
@@ -29,6 +29,12 @@ interface CompteDetail {
     pointDeVente: { nom: string; code: string } | null;
   };
   agentCreateur: { nom: string; prenom: string } | null;
+  typeCompte: string; libelle: string | null;
+  membres: MembreCC[];
+}
+interface MembreCC {
+  id: number; role: string; quotePart: string | number | null; createdAt: string;
+  client: { id: number; nom: string; prenom: string; telephone: string; codeClient: string | null; photoUrl: string | null };
 }
 interface Mouvement {
   id: number; reference: string; nature: string; montant: string | number;
@@ -59,6 +65,12 @@ const STATUT_STYLE: Record<string, string> = {
 const STATUT_LABEL: Record<string, string> = {
   ACTIF: "Actif", SUSPENDU: "Suspendu", CLOTURE: "Clôturé",
   DECEDE: "Décédé", BLACKLIST: "Blacklisté", FRAUDULEUX: "Frauduleux",
+};
+const TYPE_COMPTE_LABEL: Record<string, string> = {
+  INDIVIDUEL: "Individuel", MENAGE: "Ménage", COMMUNAUTE: "Communauté", GROUPEMENT: "Groupement",
+};
+const ROLE_MEMBRE_LABEL: Record<string, string> = {
+  TITULAIRE: "Titulaire", MANDATAIRE: "Mandataire", MEMBRE: "Membre",
 };
 const NATURE_LABEL: Record<string, string> = {
   DEPOT: "Dépôt", RETRAIT: "Retrait", PAIEMENT_CREDIT: "Paiement crédit",
@@ -286,15 +298,23 @@ export default function CompteCourantDetailPage() {
                       : <span className="font-bold text-lg">{initials(c.client.prenom, c.client.nom)}</span>}
                   </div>
                   <div>
-                    <h2 className="text-xl font-bold">{c.client.prenom} {c.client.nom}</h2>
+                    <h2 className="text-xl font-bold">{c.libelle ?? `${c.client.prenom} ${c.client.nom}`}</h2>
+                    {c.libelle && <p className="text-xs text-white/85">Représentant : {c.client.prenom} {c.client.nom}</p>}
                     <p className="font-mono text-sm text-white/85">{c.numeroCompte}</p>
                     <p className="font-mono text-[11px] text-white/70">{c.ribComplet}</p>
                   </div>
                 </div>
                 <div className="text-right">
-                  <span className={`text-xs px-3 py-1 rounded-full border font-medium bg-white/90 ${STATUT_STYLE[c.statut] ?? ""}`}>
-                    {STATUT_LABEL[c.statut] ?? c.statut}
-                  </span>
+                  <div className="flex items-center gap-2 justify-end">
+                    {c.typeCompte !== "INDIVIDUEL" && (
+                      <span className="text-xs px-2.5 py-1 rounded-full border border-white/40 bg-white/15 text-white font-medium inline-flex items-center gap-1">
+                        <Users className="w-3 h-3" /> {TYPE_COMPTE_LABEL[c.typeCompte] ?? c.typeCompte}
+                      </span>
+                    )}
+                    <span className={`text-xs px-3 py-1 rounded-full border font-medium bg-white/90 ${STATUT_STYLE[c.statut] ?? ""}`}>
+                      {STATUT_LABEL[c.statut] ?? c.statut}
+                    </span>
+                  </div>
                   <p className="text-2xl font-extrabold mt-2">{formatCurrency(N(c.solde))}</p>
                   <p className="text-[11px] text-white/80">Solde actuel</p>
                 </div>
@@ -366,6 +386,17 @@ export default function CompteCourantDetailPage() {
                 </div>
               </div>
             </div>
+
+            {/* Membres du compte collectif (CDC §19.A) */}
+            {c.typeCompte !== "INDIVIDUEL" && (
+              <MembresSection
+                compteId={Number(params.id)}
+                membres={c.membres}
+                canManage={canDeposit}
+                excludeIds={c.membres.map((m) => m.client.id)}
+                onChanged={refetch}
+              />
+            )}
 
             {/* Documents (CDC §14, Lot 5) — visible si permission EXPORT (RBAC granulaire) */}
             {canExport && (
@@ -782,6 +813,153 @@ function Row({ icon, label, value, mono }: { icon: React.ReactNode; label: strin
     <div className="flex items-center justify-between gap-3">
       <span className="flex items-center gap-2 text-gray-500"><span className="text-gray-300">{icon}</span>{label}</span>
       <span className={`font-medium text-gray-800 text-right ${mono ? "font-mono text-xs" : ""}`}>{value}</span>
+    </div>
+  );
+}
+
+interface ClientHitMini {
+  id: number; nom: string; prenom: string; telephone: string; codeClient: string | null;
+}
+
+// Gestion des membres d'un compte courant collectif (CDC §19.A).
+function MembresSection({ compteId, membres, canManage, excludeIds, onChanged }:
+  { compteId: number; membres: MembreCC[]; canManage: boolean; excludeIds: number[]; onChanged: () => void }) {
+  const [search, setSearch] = useState("");
+  const [results, setResults] = useState<ClientHitMini[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [busyId, setBusyId] = useState<number | null>(null);
+  const [adding, setAdding] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!canManage || search.trim().length < 2) { setResults([]); return; }
+    setSearching(true);
+    const t = setTimeout(async () => {
+      try {
+        const r = await fetch(`/api/admin/clients?search=${encodeURIComponent(search)}&limit=8`);
+        const j = await r.json();
+        setResults((j.data ?? []).filter((c: ClientHitMini) => !excludeIds.includes(c.id)));
+      } catch { /* ignore */ }
+      finally { setSearching(false); }
+    }, 300);
+    return () => clearTimeout(t);
+  }, [search, canManage, excludeIds]);
+
+  const ajouter = async (clientId: number) => {
+    setAdding(clientId);
+    try {
+      const r = await fetch(`/api/comptes-courants/${compteId}/membres`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clientId, role: "MEMBRE" }),
+      });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error ?? "Erreur");
+      toast.success("Membre ajouté ✓");
+      setSearch(""); setResults([]); onChanged();
+    } catch (e) { toast.error(e instanceof Error ? e.message : "Erreur"); }
+    finally { setAdding(null); }
+  };
+
+  const modifier = async (mid: number, patch: { role?: string; quotePart?: string | null }) => {
+    setBusyId(mid);
+    try {
+      const r = await fetch(`/api/comptes-courants/${compteId}/membres/${mid}`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(patch),
+      });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error ?? "Erreur");
+      onChanged();
+    } catch (e) { toast.error(e instanceof Error ? e.message : "Erreur"); }
+    finally { setBusyId(null); }
+  };
+
+  const retirer = async (mid: number) => {
+    setBusyId(mid);
+    try {
+      const r = await fetch(`/api/comptes-courants/${compteId}/membres/${mid}`, { method: "DELETE" });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error ?? "Erreur");
+      toast.success("Membre retiré ✓");
+      onChanged();
+    } catch (e) { toast.error(e instanceof Error ? e.message : "Erreur"); }
+    finally { setBusyId(null); }
+  };
+
+  return (
+    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
+      <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
+        <Users className="w-4 h-4 text-indigo-500" /> Membres du compte
+        <span className="text-xs font-normal text-gray-400">({membres.length})</span>
+      </h3>
+
+      <ul className="space-y-2">
+        {membres.map((m) => {
+          const titulaire = m.role === "TITULAIRE";
+          return (
+            <li key={m.id} className="flex items-center gap-3 rounded-xl border border-slate-200 px-3 py-2">
+              <div className="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center overflow-hidden shrink-0">
+                {m.client.photoUrl
+                  // eslint-disable-next-line @next/next/no-img-element
+                  ? <img src={m.client.photoUrl} alt="" className="w-full h-full object-cover" />
+                  : <span className="text-xs font-bold text-slate-500">{initials(m.client.prenom, m.client.nom)}</span>}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-gray-800 truncate">{m.client.prenom} {m.client.nom}</p>
+                <p className="text-[11px] text-gray-400">{m.client.telephone}{m.client.codeClient ? ` · ${m.client.codeClient}` : ""}</p>
+              </div>
+              {titulaire ? (
+                <span className="text-xs px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 font-medium">Titulaire</span>
+              ) : canManage ? (
+                <>
+                  <select value={m.role} disabled={busyId === m.id}
+                    onChange={(e) => modifier(m.id, { role: e.target.value })}
+                    className="text-xs border border-slate-200 rounded-lg px-2 py-1.5 bg-slate-50 disabled:opacity-50">
+                    <option value="MEMBRE">Membre</option>
+                    <option value="MANDATAIRE">Mandataire</option>
+                  </select>
+                  <input type="number" min={0} max={100} defaultValue={m.quotePart != null ? String(m.quotePart) : ""}
+                    disabled={busyId === m.id} placeholder="% part" title="Quote-part (%)"
+                    onBlur={(e) => { const v = e.target.value.trim(); if (v !== (m.quotePart != null ? String(m.quotePart) : "")) modifier(m.id, { quotePart: v === "" ? null : v }); }}
+                    className="w-16 text-xs border border-slate-200 rounded-lg px-2 py-1.5 bg-slate-50 disabled:opacity-50" />
+                  <button onClick={() => retirer(m.id)} disabled={busyId === m.id} className="text-slate-400 hover:text-rose-500 disabled:opacity-50" title="Retirer">
+                    {busyId === m.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                  </button>
+                </>
+              ) : (
+                <span className="text-xs text-gray-500">
+                  {ROLE_MEMBRE_LABEL[m.role] ?? m.role}{m.quotePart != null ? ` · ${m.quotePart}%` : ""}
+                </span>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+
+      {canManage && (
+        <div className="mt-4">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <input value={search} onChange={(e) => setSearch(e.target.value)}
+              placeholder="Ajouter un membre par nom, téléphone ou code…"
+              className="w-full pl-9 pr-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+            {searching && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 animate-spin" />}
+          </div>
+          {results.length > 0 && (
+            <div className="mt-2 border border-slate-100 rounded-xl divide-y divide-slate-50 overflow-hidden">
+              {results.map((c) => (
+                <button key={c.id} type="button" onClick={() => ajouter(c.id)} disabled={adding === c.id}
+                  className="w-full text-left px-4 py-2.5 hover:bg-indigo-50/50 flex items-center justify-between disabled:opacity-50">
+                  <span>
+                    <span className="font-medium text-gray-800">{c.prenom} {c.nom}</span>
+                    <span className="text-xs text-gray-400 ml-2">{c.telephone}{c.codeClient ? ` · ${c.codeClient}` : ""}</span>
+                  </span>
+                  {adding === c.id ? <Loader2 className="w-4 h-4 animate-spin text-indigo-500" /> : <UserPlus className="w-4 h-4 text-indigo-500" />}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

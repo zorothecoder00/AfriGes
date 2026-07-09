@@ -21,6 +21,7 @@ export async function GET(_req: Request, { params }: Ctx) {
     select: {
       id: true, numeroCompte: true, ribComplet: true, cleRib: true,
       codeAgence: true, codeGuichet: true, statut: true, motifBlocage: true,
+      typeCompte: true, libelle: true,
       solde: true, totalDepose: true, totalRetire: true, totalUtilise: true,
       nbMouvements: true, dateOuverture: true, derniereOperationAt: true,
       createdAt: true,
@@ -31,6 +32,15 @@ export async function GET(_req: Request, { params }: Ctx) {
           photoUrl: true, etat: true, segment: true,
           agentTerrain: { select: { id: true, nom: true, prenom: true } },
           pointDeVente: { select: { id: true, nom: true, code: true } },
+        },
+      },
+      membres: {
+        orderBy: { role: "asc" },
+        select: {
+          id: true, role: true, quotePart: true, createdAt: true,
+          client: {
+            select: { id: true, nom: true, prenom: true, telephone: true, codeClient: true, photoUrl: true },
+          },
         },
       },
       agentCreateur: { select: { id: true, nom: true, prenom: true } },

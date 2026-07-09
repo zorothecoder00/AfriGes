@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { Prisma, StatutCompteCourant } from "@prisma/client";
+import { Prisma, StatutCompteCourant, TypeCompteCC, RoleMembreCC } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCompteCourantSession } from "@/lib/authCompteCourant";
 import {
@@ -32,14 +32,17 @@ export async function GET(req: Request) {
   const skip   = (page - 1) * limit;
   const search = (searchParams.get("search") || "").trim();
   const statut = searchParams.get("statut") as StatutCompteCourant | null;
+  const typeCompte = searchParams.get("type") as TypeCompteCC | null;
 
   const insensitive = { mode: "insensitive" as const };
   const where: Prisma.CompteCourantWhereInput = {
     ...(statut && { statut }),
+    ...(typeCompte && { typeCompte }),
     ...(search && {
       OR: [
         { numeroCompte: { contains: search } },
         { ribComplet:   { contains: search, ...insensitive } },
+        { libelle:      { contains: search, ...insensitive } },
         { client: { nom:        { contains: search, ...insensitive } } },
         { client: { prenom:     { contains: search, ...insensitive } } },
         { client: { telephone:  { contains: search } } },
@@ -60,10 +63,12 @@ export async function GET(req: Request) {
       where, skip, take: limit, orderBy: { createdAt: "desc" },
       select: {
         id: true, numeroCompte: true, ribComplet: true, statut: true,
+        typeCompte: true, libelle: true,
         solde: true, totalDepose: true, totalRetire: true, totalUtilise: true,
         nbMouvements: true, dateOuverture: true, derniereOperationAt: true,
         client: { select: clientSelect },
         agentCreateur: { select: { id: true, nom: true, prenom: true } },
+        _count: { select: { membres: true } },
       },
     }),
     prisma.compteCourant.count({ where }),
@@ -88,13 +93,55 @@ export async function POST(req: Request) {
   }
   const modePaiement = typeof body?.modePaiement === "string" && body.modePaiement.trim() ? body.modePaiement.trim() : null;
 
+  // Type de compte (CDC §19.A) : individuel ou collectif (ménage/communauté/groupement).
+  const TYPES_CC = ["INDIVIDUEL", "MENAGE", "COMMUNAUTE", "GROUPEMENT"] as const;
+  const typeCompte = TYPES_CC.includes(body?.typeCompte) ? (body.typeCompte as TypeCompteCC) : "INDIVIDUEL";
+  const estCollectif = typeCompte !== "INDIVIDUEL";
+  const libelle = typeof body?.libelle === "string" && body.libelle.trim() ? body.libelle.trim() : null;
+  if (estCollectif && !libelle) {
+    return NextResponse.json({ error: "Un libellé (nom du ménage / communauté / groupement) est requis pour un compte collectif" }, { status: 400 });
+  }
+
+  // Membres additionnels (comptes collectifs) : le titulaire principal est ajouté d'office.
+  // Seul le principal peut être TITULAIRE → les membres additionnels sont MANDATAIRE ou MEMBRE.
+  const ROLES_ADDITIONNELS = ["MANDATAIRE", "MEMBRE"] as const;
+  const membresBruts: Array<{ clientId: number; role: RoleMembreCC; quotePart: number | null }> = Array.isArray(body?.membres)
+    ? body.membres
+        .map((m: unknown) => {
+          const o = m as { clientId?: unknown; role?: unknown; quotePart?: unknown };
+          const mcid = Number(o?.clientId);
+          if (!mcid || mcid === clientId) return null; // le principal est géré séparément
+          const role = ROLES_ADDITIONNELS.includes(o?.role as "MANDATAIRE" | "MEMBRE") ? (o.role as RoleMembreCC) : "MEMBRE";
+          const qp = o?.quotePart != null && o.quotePart !== "" ? Number(o.quotePart) : null;
+          return { clientId: mcid, role, quotePart: qp != null && !isNaN(qp) ? qp : null };
+        })
+        .filter((m: unknown): m is { clientId: number; role: RoleMembreCC; quotePart: number | null } => m !== null)
+    : [];
+  // Dédoublonnage par clientId (garde la première occurrence).
+  const membres = [...new Map(membresBruts.map((m) => [m.clientId, m])).values()];
+
   const client = await prisma.client.findUnique({
     where: { id: clientId }, select: { id: true, nom: true, prenom: true },
   });
   if (!client) return NextResponse.json({ error: "Client introuvable" }, { status: 404 });
 
-  const deja = await prisma.compteCourant.findUnique({ where: { clientId }, select: { id: true } });
-  if (deja) return NextResponse.json({ error: "Ce client possède déjà un compte courant" }, { status: 409 });
+  // Vérifie l'existence des clients membres (comptes collectifs).
+  if (membres.length > 0) {
+    const ids = membres.map((m) => m.clientId);
+    const trouves = await prisma.client.count({ where: { id: { in: ids } } });
+    if (trouves !== ids.length) {
+      return NextResponse.json({ error: "Un ou plusieurs membres sont introuvables" }, { status: 404 });
+    }
+  }
+
+  // Unicité : un seul compte INDIVIDUEL par client. Les comptes collectifs ne sont
+  // pas limités (un client peut représenter plusieurs groupements) — CDC §19.A.
+  if (!estCollectif) {
+    const deja = await prisma.compteCourant.findFirst({
+      where: { clientId, typeCompte: "INDIVIDUEL" }, select: { id: true },
+    });
+    if (deja) return NextResponse.json({ error: "Ce client possède déjà un compte courant individuel" }, { status: 409 });
+  }
 
   const param = await chargerParametrageCC();
 
@@ -128,17 +175,33 @@ export async function POST(req: Request) {
           data: {
             numeroCompte, cleRib, ribComplet,
             codeAgence: param.codeAgence, codeGuichet: param.codeGuichet,
-            clientId,
+            clientId, typeCompte, libelle,
             agentCreateurId: userId,
           },
           select: {
             id: true, numeroCompte: true, ribComplet: true, cleRib: true,
             codeAgence: true, codeGuichet: true, statut: true, solde: true,
-            dateOuverture: true,
+            typeCompte: true, libelle: true, dateOuverture: true,
             client: { select: clientSelect },
             agentCreateur: { select: { id: true, nom: true, prenom: true } },
           },
         });
+
+        // Titulaire principal + membres additionnels (CDC §19.A). Le principal
+        // est toujours enregistré comme TITULAIRE ; les doublons éventuels du
+        // principal ont déjà été écartés côté parsing.
+        await tx.membreCompteCourant.create({
+          data: { compteId: created.id, clientId, role: "TITULAIRE", ajouteParId: userId },
+        });
+        if (membres.length > 0) {
+          await tx.membreCompteCourant.createMany({
+            data: membres.map((m) => ({
+              compteId: created.id, clientId: m.clientId, role: m.role,
+              quotePart: m.quotePart, ajouteParId: userId,
+            })),
+            skipDuplicates: true,
+          });
+        }
 
         await auditLog(tx, userId, "CREATION_COMPTE_COURANT", "CompteCourant", created.id, undefined, { ip, userAgent });
 
@@ -162,12 +225,10 @@ export async function POST(req: Request) {
 
       return NextResponse.json({ data: compte }, { status: 201 });
     } catch (e) {
-      // Collision sur le numéro → on retente avec le compteur réévalué
+      // Collision sur le numéro de compte (seule contrainte unique en jeu ici,
+      // clientId n'étant plus unique) → on retente avec le compteur réévalué.
       if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
-        const target = (e.meta?.target as string[] | string | undefined);
-        const onClient = Array.isArray(target) ? target.includes("clientId") : String(target).includes("clientId");
-        if (onClient) return NextResponse.json({ error: "Ce client possède déjà un compte courant" }, { status: 409 });
-        continue; // collision numeroCompte → retry
+        continue;
       }
       console.error("POST /api/comptes-courants", e);
       return NextResponse.json({ error: "Erreur lors de l'ouverture du compte" }, { status: 500 });

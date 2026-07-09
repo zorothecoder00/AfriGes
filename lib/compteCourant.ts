@@ -307,10 +307,15 @@ export async function alerterComptesAvantSuspension(): Promise<{ alertes: number
   return { alertes: candidats.length };
 }
 
-/** Compte courant d'un client (ou null), pour le pré-contrôle POS et le lookup. */
+/**
+ * Compte courant INDIVIDUEL d'un client (ou null), pour le pré-contrôle POS et le lookup.
+ * Les comptes collectifs (ménage/communauté/groupement) ne sont pas utilisés pour le
+ * paiement personnel automatique (CDC §19.A) : on cible le compte propre du client.
+ */
 export async function getCompteCourantParClient(clientId: number) {
-  return prisma.compteCourant.findUnique({
-    where: { clientId },
+  return prisma.compteCourant.findFirst({
+    where: { clientId, typeCompte: "INDIVIDUEL" },
+    orderBy: { createdAt: "asc" },
     select: {
       id: true, numeroCompte: true, ribComplet: true, statut: true, solde: true, codeAgence: true,
       client: { select: { prenom: true, nom: true } },
@@ -338,8 +343,9 @@ export async function preleverCompteCourant(
     param: { compteCourantClientNumero: string; compteVentesNumero: string; soldeMinObligatoire?: Prisma.Decimal | number | null };
   },
 ) {
-  const cc = await tx.compteCourant.findUnique({
-    where: { clientId: opts.clientId },
+  const cc = await tx.compteCourant.findFirst({
+    where: { clientId: opts.clientId, typeCompte: "INDIVIDUEL" },
+    orderBy: { createdAt: "asc" },
     select: {
       id: true, numeroCompte: true, statut: true, solde: true, codeAgence: true,
       client: { select: { prenom: true, nom: true } },

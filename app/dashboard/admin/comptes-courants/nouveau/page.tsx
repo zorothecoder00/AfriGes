@@ -2,14 +2,24 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import {
-  Wallet, Search, ArrowLeft, Loader2, CheckCircle2, User, MapPin, Phone, Hash, Building2, X, Banknote,
+  Wallet, Search, ArrowLeft, Loader2, CheckCircle2, User, Users, UserPlus, Trash2,
+  MapPin, Phone, Hash, Building2, X, Banknote,
 } from "lucide-react";
 import { toast } from "sonner";
 import ClienteleTabBar from "@/components/ClienteleTabBar";
 
 const MODES = ["Espèces", "Mobile Money", "Carte", "Virement"];
+
+type TypeCompte = "INDIVIDUEL" | "MENAGE" | "COMMUNAUTE" | "GROUPEMENT";
+const TYPES_COMPTE: { value: TypeCompte; label: string; desc: string; icon: typeof User }[] = [
+  { value: "INDIVIDUEL", label: "Individuel", desc: "Une seule personne",       icon: User },
+  { value: "MENAGE",     label: "Ménage",     desc: "Un foyer / une famille",    icon: Users },
+  { value: "COMMUNAUTE", label: "Communauté", desc: "Une communauté",           icon: Users },
+  { value: "GROUPEMENT", label: "Groupement", desc: "Tontine, coopérative…",     icon: Users },
+];
+
+type RoleMembre = "MANDATAIRE" | "MEMBRE";
 
 interface ClientHit {
   id: number; nom: string; prenom: string; telephone: string;
@@ -18,19 +28,54 @@ interface ClientHit {
   pointDeVente: { nom: string; code: string } | null;
 }
 
+interface MembreDraft { client: ClientHit; role: RoleMembre; quotePart: string }
+
 interface CompteCree {
   id: number; numeroCompte: string; ribComplet: string; cleRib: string;
-  codeAgence: string; codeGuichet: string;
+  codeAgence: string; codeGuichet: string; typeCompte: TypeCompte; libelle: string | null;
 }
 
 export default function NouveauCompteCourantPage() {
-  const router = useRouter();
   const [searchInput, setSearchInput] = useState("");
   const [results, setResults] = useState<ClientHit[]>([]);
   const [searching, setSearching] = useState(false);
   const [selected, setSelected] = useState<ClientHit | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [cree, setCree] = useState<CompteCree | null>(null);
+
+  // Type de compte (CDC §19.A) : individuel ou collectif + membres
+  const [typeCompte, setTypeCompte] = useState<TypeCompte>("INDIVIDUEL");
+  const [libelle, setLibelle] = useState("");
+  const [membres, setMembres] = useState<MembreDraft[]>([]);
+  const [memberSearch, setMemberSearch] = useState("");
+  const [memberResults, setMemberResults] = useState<ClientHit[]>([]);
+  const [memberSearching, setMemberSearching] = useState(false);
+  const estCollectif = typeCompte !== "INDIVIDUEL";
+
+  // Recherche de membres additionnels (comptes collectifs)
+  useEffect(() => {
+    if (!estCollectif || memberSearch.trim().length < 2) { setMemberResults([]); return; }
+    setMemberSearching(true);
+    const t = setTimeout(async () => {
+      try {
+        const r = await fetch(`/api/admin/clients?search=${encodeURIComponent(memberSearch)}&limit=8`);
+        const j = await r.json();
+        setMemberResults(j.data ?? []);
+      } catch { /* ignore */ }
+      finally { setMemberSearching(false); }
+    }, 300);
+    return () => clearTimeout(t);
+  }, [memberSearch, estCollectif]);
+
+  const ajouterMembre = (c: ClientHit) => {
+    if (c.id === selected?.id) { toast.error("Le titulaire est déjà membre du compte"); return; }
+    if (membres.some((m) => m.client.id === c.id)) { toast.error("Ce membre est déjà ajouté"); return; }
+    setMembres((prev) => [...prev, { client: c, role: "MEMBRE", quotePart: "" }]);
+    setMemberSearch(""); setMemberResults([]);
+  };
+  const retirerMembre = (id: number) => setMembres((prev) => prev.filter((m) => m.client.id !== id));
+  const majMembre = (id: number, patch: Partial<MembreDraft>) =>
+    setMembres((prev) => prev.map((m) => (m.client.id === id ? { ...m, ...patch } : m)));
 
   // Dépôt d'ouverture (optionnel) + montant minimum issu du paramétrage
   const [depotOuverture, setDepotOuverture] = useState("");
@@ -61,6 +106,9 @@ export default function NouveauCompteCourantPage() {
 
   const ouvrir = async () => {
     if (!selected) return;
+    if (estCollectif && !libelle.trim()) {
+      toast.error("Renseignez le nom du ménage / de la communauté / du groupement"); return;
+    }
     const depot = depotOuverture.trim() ? Number(depotOuverture) : 0;
     if (depotOuverture.trim() && (isNaN(depot) || depot < 0)) { toast.error("Dépôt d'ouverture invalide"); return; }
     if (depot > 0 && minOuverture != null && depot < minOuverture) {
@@ -72,6 +120,11 @@ export default function NouveauCompteCourantPage() {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           clientId: selected.id,
+          typeCompte,
+          ...(estCollectif ? { libelle: libelle.trim() } : {}),
+          ...(estCollectif && membres.length > 0
+            ? { membres: membres.map((m) => ({ clientId: m.client.id, role: m.role, quotePart: m.quotePart.trim() ? Number(m.quotePart) : null })) }
+            : {}),
           ...(depot > 0 ? { depotInitial: depot, modePaiement: modeOuverture } : {}),
         }),
       });
@@ -103,9 +156,13 @@ export default function NouveauCompteCourantPage() {
             <div className="w-16 h-16 rounded-2xl bg-emerald-50 flex items-center justify-center mx-auto">
               <CheckCircle2 className="w-9 h-9 text-emerald-600" />
             </div>
-            <h3 className="text-lg font-bold text-gray-900">Compte ouvert pour {selected?.prenom} {selected?.nom}</h3>
+            <h3 className="text-lg font-bold text-gray-900">
+              {cree.libelle ? `Compte « ${cree.libelle} » ouvert` : `Compte ouvert pour ${selected?.prenom} ${selected?.nom}`}
+            </h3>
             <div className="bg-slate-50 rounded-xl border border-slate-200 p-5 inline-block text-left">
               <div className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-2 text-sm">
+                <span className="text-gray-500">Type de compte</span>
+                <span className="font-semibold text-gray-800">{TYPES_COMPTE.find((t) => t.value === cree.typeCompte)?.label ?? cree.typeCompte}{cree.typeCompte !== "INDIVIDUEL" && membres.length > 0 ? ` · ${membres.length + 1} membres` : ""}</span>
                 <span className="text-gray-500">Numéro de compte</span>
                 <span className="font-mono font-bold text-emerald-700 text-base">{cree.numeroCompte}</span>
                 <span className="text-gray-500">RIB complet</span>
@@ -119,7 +176,7 @@ export default function NouveauCompteCourantPage() {
                 className="px-5 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 text-sm font-medium">
                 Voir le compte
               </Link>
-              <button onClick={() => { setCree(null); setSelected(null); setSearchInput(""); }}
+              <button onClick={() => { setCree(null); setSelected(null); setSearchInput(""); setTypeCompte("INDIVIDUEL"); setLibelle(""); setMembres([]); }}
                 className="px-5 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl hover:bg-slate-50 text-sm font-medium">
                 Ouvrir un autre compte
               </button>
@@ -127,8 +184,30 @@ export default function NouveauCompteCourantPage() {
           </div>
         ) : (
           <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-5">
+            {/* 1. Type de compte (CDC §19.A) */}
             <div>
-              <p className="text-sm font-semibold text-gray-700 mb-2">1. Sélectionner le client</p>
+              <p className="text-sm font-semibold text-gray-700 mb-2">1. Type de compte</p>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                {TYPES_COMPTE.map((t) => {
+                  const Icon = t.icon;
+                  const active = typeCompte === t.value;
+                  return (
+                    <button key={t.value} type="button"
+                      onClick={() => { setTypeCompte(t.value); if (t.value === "INDIVIDUEL") { setLibelle(""); setMembres([]); } }}
+                      className={`text-left p-3 rounded-xl border transition-all ${active ? "border-emerald-500 bg-emerald-50/60 ring-1 ring-emerald-500" : "border-slate-200 hover:border-slate-300 bg-white"}`}>
+                      <Icon className={`w-4 h-4 mb-1 ${active ? "text-emerald-600" : "text-slate-400"}`} />
+                      <p className={`text-sm font-semibold ${active ? "text-emerald-700" : "text-slate-700"}`}>{t.label}</p>
+                      <p className="text-[11px] text-slate-400 leading-tight">{t.desc}</p>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div>
+              <p className="text-sm font-semibold text-gray-700 mb-2">
+                2. {estCollectif ? "Titulaire principal (représentant)" : "Sélectionner le client"}
+              </p>
               {!selected ? (
                 <div className="relative">
                   <div className="relative">
@@ -177,11 +256,77 @@ export default function NouveauCompteCourantPage() {
               )}
             </div>
 
-            {/* 2. Dépôt d'ouverture (optionnel) */}
+            {/* 3. Compte collectif : libellé + membres (CDC §19.A) */}
+            {selected && estCollectif && (
+              <div className="rounded-xl border border-indigo-200 bg-indigo-50/30 p-4 space-y-4">
+                <p className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                  <Users className="w-4 h-4 text-indigo-600" /> 3. Compte collectif
+                </p>
+                <label className="block">
+                  <span className="text-xs font-semibold text-slate-500">Nom du {typeCompte === "MENAGE" ? "ménage" : typeCompte === "COMMUNAUTE" ? "de la communauté" : "groupement"} <span className="text-rose-500">*</span></span>
+                  <input value={libelle} onChange={(e) => setLibelle(e.target.value)}
+                    placeholder="Ex. Ménage Kouassi, Tontine des couturières…"
+                    className="mt-1 w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                </label>
+
+                <div>
+                  <span className="text-xs font-semibold text-slate-500">Membres additionnels <span className="font-normal text-slate-400">(optionnel — le titulaire est déjà membre)</span></span>
+                  {/* Recherche membre */}
+                  <div className="relative mt-1">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <input value={memberSearch} onChange={(e) => setMemberSearch(e.target.value)}
+                      placeholder="Ajouter un membre par nom, téléphone ou code…"
+                      className="w-full pl-9 pr-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                    {memberSearching && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 animate-spin" />}
+                  </div>
+                  {memberResults.length > 0 && (
+                    <div className="mt-2 border border-slate-100 rounded-xl divide-y divide-slate-50 overflow-hidden bg-white">
+                      {memberResults.filter((c) => c.id !== selected.id && !membres.some((m) => m.client.id === c.id)).map((c) => (
+                        <button key={c.id} type="button" onClick={() => ajouterMembre(c)}
+                          className="w-full text-left px-4 py-2.5 hover:bg-indigo-50/50 flex items-center justify-between">
+                          <span>
+                            <span className="font-medium text-gray-800">{c.prenom} {c.nom}</span>
+                            <span className="text-xs text-gray-400 ml-2">{c.telephone}{c.codeClient ? ` · ${c.codeClient}` : ""}</span>
+                          </span>
+                          <UserPlus className="w-4 h-4 text-indigo-500" />
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Liste des membres ajoutés */}
+                  {membres.length > 0 && (
+                    <ul className="mt-3 space-y-2">
+                      {membres.map((m) => (
+                        <li key={m.client.id} className="flex items-center gap-2 bg-white rounded-xl border border-slate-200 px-3 py-2">
+                          <span className="flex-1 min-w-0 text-sm text-gray-800 truncate">
+                            {m.client.prenom} {m.client.nom}
+                            <span className="text-xs text-gray-400 ml-1">{m.client.telephone}</span>
+                          </span>
+                          <select value={m.role} onChange={(e) => majMembre(m.client.id, { role: e.target.value as RoleMembre })}
+                            className="text-xs border border-slate-200 rounded-lg px-2 py-1.5 bg-slate-50">
+                            <option value="MEMBRE">Membre</option>
+                            <option value="MANDATAIRE">Mandataire</option>
+                          </select>
+                          <input type="number" min={0} max={100} value={m.quotePart} onChange={(e) => majMembre(m.client.id, { quotePart: e.target.value })}
+                            placeholder="% part" title="Quote-part (%)"
+                            className="w-20 text-xs border border-slate-200 rounded-lg px-2 py-1.5 bg-slate-50" />
+                          <button type="button" onClick={() => retirerMembre(m.client.id)} className="text-slate-400 hover:text-rose-500" title="Retirer">
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Dépôt d'ouverture (optionnel) */}
             {selected && (
               <div>
                 <p className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-                  <Banknote className="w-4 h-4 text-emerald-600" /> 2. Dépôt d&apos;ouverture <span className="font-normal text-gray-400">(optionnel)</span>
+                  <Banknote className="w-4 h-4 text-emerald-600" /> {estCollectif ? "4" : "3"}. Dépôt d&apos;ouverture <span className="font-normal text-gray-400">(optionnel)</span>
                 </p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <label className="block">

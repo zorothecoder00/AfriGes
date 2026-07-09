@@ -739,6 +739,7 @@ model User {
   // Comptes courants clients (module Compte Courant)
   comptesCourantsCrees         CompteCourant[]          @relation("CCCreateur")
   mouvementsCompteCourant      MouvementCompteCourant[] @relation("CCMouvementUser")
+  membresCCAjoutes             MembreCompteCourant[]    @relation("MembreCCAjoutePar")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -911,7 +912,8 @@ model Client {
   transactions       ClientTransaction[]
   scoreHistorique    ClientScoreHistorique[]
   facturesVente      FactureVente[]           @relation("FacturesVenteClient")
-  compteCourant      CompteCourant?
+  comptesCourants    CompteCourant[]                                   // titulaire principal (individuel ou collectif) — CDC §19.A
+  membreDeComptesCC  MembreCompteCourant[]    @relation("MembreCC")    // comptes collectifs dont ce client est membre
 
   // ── Validation RVC (tous nullable — données existantes non impactées) ───
   motifRejet       String?    // raison du rejet par le responsable crédit
@@ -5228,6 +5230,21 @@ enum StatutMouvementCC {
   ANNULE
 }
 
+// Nature du titulaire d'un compte courant (CDC §19.A : individuel ou collectif)
+enum TypeCompteCC {
+  INDIVIDUEL   // une seule personne
+  MENAGE       // un foyer / une famille
+  COMMUNAUTE   // une communauté
+  GROUPEMENT   // un groupement (tontine, coopérative, association…)
+}
+
+// Rôle d'un client au sein d'un compte courant collectif (CDC §19.A)
+enum RoleMembreCC {
+  TITULAIRE    // représentant principal du compte (obligatoire, unique par compte)
+  MANDATAIRE   // habilité à opérer sur le compte pour le compte du groupe
+  MEMBRE       // membre / bénéficiaire simple
+}
+
 // Paramétrage général du module (enregistrement unique, id = 1)
 model ParametrageCompteCourant {
   id                    Int      @id @default(1)
@@ -5260,8 +5277,15 @@ model CompteCourant {
   codeGuichet         String
   ribComplet          String                      // ex: "TG-228 Afrs001 12XXXXXXXXXX 87"
 
-  clientId            Int                 @unique
+  // Titulaire principal (représentant). N'est plus @unique : un client peut être
+  // titulaire de son compte individuel ET représentant d'un compte collectif (CDC §19.A).
+  // L'unicité « un seul compte INDIVIDUEL par client » est garantie au niveau applicatif.
+  clientId            Int
   client              Client              @relation(fields: [clientId], references: [id])
+
+  typeCompte          TypeCompteCC        @default(INDIVIDUEL) // individuel ou collectif (CDC §19.A)
+  libelle             String?                                  // nom du ménage / communauté / groupement (comptes collectifs)
+  membres             MembreCompteCourant[]                    // membres du compte (au moins le titulaire)
 
   dateOuverture       DateTime            @default(now())
   agentCreateurId     Int
@@ -5283,6 +5307,27 @@ model CompteCourant {
   updatedAt           DateTime            @updatedAt
 
   @@index([statut])
+  @@index([clientId])
+  @@index([typeCompte])
+}
+
+// Membre d'un compte courant (CDC §19.A — comptes collectifs : ménage, communauté, groupement).
+// Un compte individuel a un unique membre (le titulaire) ; un compte collectif en a plusieurs.
+model MembreCompteCourant {
+  id          Int           @id @default(autoincrement())
+  compteId    Int
+  compte      CompteCourant @relation(fields: [compteId], references: [id], onDelete: Cascade)
+  clientId    Int
+  client      Client        @relation("MembreCC", fields: [clientId], references: [id])
+  role        RoleMembreCC  @default(MEMBRE)
+  quotePart   Decimal?                       // quote-part indicative (%) du membre dans le compte collectif
+  ajouteParId Int?
+  ajoutePar   User?         @relation("MembreCCAjoutePar", fields: [ajouteParId], references: [id])
+  createdAt   DateTime      @default(now())
+
+  @@unique([compteId, clientId])             // un client n'apparaît qu'une fois par compte
+  @@index([compteId])
+  @@index([clientId])
 }
 
 // Grand livre des mouvements d'un compte courant

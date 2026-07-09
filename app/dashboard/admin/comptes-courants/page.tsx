@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import {
-  Wallet, Search, Plus, Settings, RefreshCw, Loader2, X, ChevronRight, MapPin, Activity, ArrowLeft, Clock,
+  Wallet, Search, Plus, Settings, RefreshCw, Loader2, X, ChevronRight, MapPin, Activity, ArrowLeft, Clock, Users,
 } from "lucide-react";
 import { useApi } from "@/hooks/useApi";
 import { formatCurrency, formatDate } from "@/lib/format";
@@ -16,6 +16,8 @@ interface CompteRow {
   numeroCompte: string;
   ribComplet: string;
   statut: string;
+  typeCompte: string;
+  libelle: string | null;
   solde: string | number;
   totalDepose: string | number;
   nbMouvements: number;
@@ -28,6 +30,7 @@ interface CompteRow {
     pointDeVente: { nom: string; code: string } | null;
   };
   agentCreateur: { nom: string; prenom: string } | null;
+  _count?: { membres: number };
 }
 interface ComptesResponse {
   data: CompteRow[];
@@ -46,6 +49,9 @@ const STATUT_CC_LABEL: Record<string, string> = {
   ACTIF: "Actif", SUSPENDU: "Suspendu", CLOTURE: "Clôturé",
   DECEDE: "Décédé", BLACKLIST: "Blacklisté", FRAUDULEUX: "Frauduleux",
 };
+const TYPE_CC_LABEL: Record<string, string> = {
+  INDIVIDUEL: "Individuel", MENAGE: "Ménage", COMMUNAUTE: "Communauté", GROUPEMENT: "Groupement",
+};
 
 const N = (v: string | number) => Number(v ?? 0);
 
@@ -60,6 +66,7 @@ export default function ComptesCourantsPage() {
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [statut, setStatut] = useState("");
+  const [typeCompte, setTypeCompte] = useState("");
   const [page, setPage] = useState(1);
   const LIMIT = 20;
 
@@ -67,6 +74,7 @@ export default function ComptesCourantsPage() {
     page: String(page), limit: String(LIMIT),
     ...(search && { search }),
     ...(statut && { statut }),
+    ...(typeCompte && { type: typeCompte }),
   }).toString();
 
   const { data: res, loading, refetch } = useApi<ComptesResponse>(`/api/comptes-courants?${query}`);
@@ -163,6 +171,11 @@ export default function ComptesCourantsPage() {
             <option value="">Tous les statuts</option>
             {Object.keys(STATUT_CC_LABEL).map((s) => <option key={s} value={s}>{STATUT_CC_LABEL[s]}</option>)}
           </select>
+          <select value={typeCompte} onChange={(e) => { setTypeCompte(e.target.value); setPage(1); }}
+            className="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-emerald-500 min-w-[150px]">
+            <option value="">Tous les types</option>
+            {Object.keys(TYPE_CC_LABEL).map((t) => <option key={t} value={t}>{TYPE_CC_LABEL[t]}</option>)}
+          </select>
         </div>
 
         {/* Table */}
@@ -203,8 +216,17 @@ export default function ComptesCourantsPage() {
                         <p className="text-[10px] text-gray-400 font-mono mt-0.5">{c.ribComplet}</p>
                       </td>
                       <td className="px-5 py-3">
-                        <p className="font-medium text-gray-800">{c.client.prenom} {c.client.nom}</p>
-                        <p className="text-xs text-gray-400">{c.client.telephone}{c.client.codeClient ? ` · ${c.client.codeClient}` : ""}</p>
+                        <p className="font-medium text-gray-800 flex items-center gap-1.5">
+                          {c.libelle ?? `${c.client.prenom} ${c.client.nom}`}
+                          {c.typeCompte !== "INDIVIDUEL" && (
+                            <span className="text-[9px] uppercase tracking-wide px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-600 border border-indigo-100 inline-flex items-center gap-0.5">
+                              <Users className="w-2.5 h-2.5" />{TYPE_CC_LABEL[c.typeCompte] ?? c.typeCompte}{c._count?.membres ? ` ·${c._count.membres}` : ""}
+                            </span>
+                          )}
+                        </p>
+                        <p className="text-xs text-gray-400">
+                          {c.libelle ? `Représentant : ${c.client.prenom} ${c.client.nom}` : `${c.client.telephone}${c.client.codeClient ? ` · ${c.client.codeClient}` : ""}`}
+                        </p>
                       </td>
                       <td className="px-5 py-3 text-xs text-gray-500">
                         <span className="flex items-center gap-1"><MapPin className="w-3 h-3 shrink-0" />
