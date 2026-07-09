@@ -1,0 +1,73 @@
+
+  🧭 Plan consolidé unique (Catalogue §1‑20 + Vues §21‑24 + Enterprise)
+
+  #: 1
+  Phase: Socle référentiel
+  Contenu: Produit enrichi (identification, classification, caractéristiques,
+  images) + modèles Famille/Sous‑famille/Catégorie/Marque/Unité + relation
+  Fournisseur
+  Réf. CDC: §2, §3
+  ────────────────────────────────────────
+  #: 2
+  Phase: Tarification flexible
+  Contenu: Table PrixProduit(produit × type × agence/ville/région) + profils de
+  prix (Communauté/VIP/Revendeur/Partenaire…) + prix crédit + prix de  revient
+  auto + moteur de prix auto (coût→marge)
+  Réf. CDC: §4, Ent.#1, #2, #6
+  ────────────────────────────────────────
+  #: 3
+  Phase: Agence + stock temps réel
+  Contenu: ProduitAgence (dispo, prix/promo spécifiques, stock min/max,
+  emplacement) + états stock
+  (dispo/réservé/vendu/commandé/transfert/endommagé/critique) + code couleur
+  Réf. CDC: §6, §7, §10
+  ────────────────────────────────────────
+  #: 4
+  Phase: Historique prix + sécurité
+  Contenu: Journalisation complète (ancien/nouveau, user, IP, agence, motif) +
+  workflow validation (Chef d'agence/Admin/Resp. Marketing + mot de passe)
+  Réf. CDC: §5, §15
+  ────────────────────────────────────────
+  #: 5
+  Phase: Promotions
+  Contenu: Par produit/catégorie/famille/marque/agence/communauté/client ·
+  fixe/%/lot · période
+  Réf. CDC: §9
+  ────────────────────────────────────────
+  #: 6
+  Phase: Fiche produit + tableau prix + recherche
+  Contenu: Fiche complète, tableau multi‑agences, moteur de recherche
+  Réf. CDC: §8, §11, §12
+  ────────────────────────────────────────
+  #: 7
+  Phase: Documents
+  Contenu: Catalogues PDF/Excel, étiquettes, codes‑barres, QR
+  Réf. CDC: §13
+  ────────────────────────────────────────
+  #: 8
+  Phase: Tableau de bord + stats + Catalogue intelligent
+  Contenu: KPIs + rotation, jours de stock, date probable rupture, suggestion
+  réappro
+  Réf. CDC: §14, §19, Ent.#3
+  ────────────────────────────────────────
+  #: 9
+  Phase: Import / Export (admins)
+  Contenu: Excel/CSV/ERP/Fournisseur ↔ PDF/Excel/CSV/API
+  Réf. CDC: §17, §18
+  ────────────────────────────────────────
+  #: 10
+  Phase: Lots & péremption (FEFO)
+  Contenu: N° lot, DLC/DLUO, alertes, déstockage FEFO
+  Réf. CDC: Ent.#5
+  ────────────────────────────────────────
+  #: 11
+  Phase: Substitution
+  Contenu: Produit en rupture → équivalents dispo
+  Réf. CDC: Ent.#4
+  ────────────────────────────────────────
+  #: 12
+  Phase: Vues personnalisées
+  Contenu: Moteur de vues configurables (§22) + vues par rôle A→J (§21) +
+  filtres
+  (§23) + synchro (§24)
+  Réf. CDC: §21‑24

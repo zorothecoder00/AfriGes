@@ -1373,10 +1373,96 @@ model Fournisseur {
   actif     Boolean  @default(true)
 
   receptions ReceptionApprovisionnement[]
+  produits   Produit[]                        // catalogue : produits dont il est le fournisseur principal (Catalogue §3)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-}     
+}
+
+// ============================================================
+// CATALOGUE — RÉFÉRENTIELS (Catalogue §2, §3) — Phase 1
+// ============================================================
+
+// Statut de commercialisation d'un produit (Catalogue §14, §21).
+enum StatutProduit {
+  ACTIF        // commercialisé normalement
+  EN_ATTENTE   // créé, en attente de validation / complétion
+  SUSPENDU     // temporairement retiré de la vente
+  MASQUE       // masqué des vues (non visible au catalogue) mais conservé
+  ARCHIVE      // archivé (fin de vie), conservé pour l'historique
+}
+
+model FamilleProduit {
+  id           Int                  @id @default(autoincrement())
+  nom          String               @unique
+  description  String?
+  actif        Boolean              @default(true)
+  sousFamilles SousFamilleProduit[]
+  produits     Produit[]
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
+}
+
+model SousFamilleProduit {
+  id        Int            @id @default(autoincrement())
+  nom       String
+  familleId Int
+  famille   FamilleProduit @relation(fields: [familleId], references: [id], onDelete: Cascade)
+  actif     Boolean        @default(true)
+  produits  Produit[]
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  @@unique([familleId, nom])
+  @@index([familleId])
+}
+
+model CategorieProduit {
+  id             Int                    @id @default(autoincrement())
+  nom            String                 @unique
+  description    String?
+  actif          Boolean                @default(true)
+  sousCategories SousCategorieProduit[]
+  produits       Produit[]
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
+}
+
+model SousCategorieProduit {
+  id          Int              @id @default(autoincrement())
+  nom         String
+  categorieId Int
+  categorie   CategorieProduit @relation(fields: [categorieId], references: [id], onDelete: Cascade)
+  actif       Boolean          @default(true)
+  produits    Produit[]
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@unique([categorieId, nom])
+  @@index([categorieId])
+}
+
+model MarqueProduit {
+  id        Int       @id @default(autoincrement())
+  nom       String    @unique
+  logoUrl   String?
+  actif     Boolean   @default(true)
+  produits  Produit[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+// Unité de mesure (vente ou achat) : "Kilogramme" (kg), "Carton", "Pièce"…
+model UniteProduit {
+  id             Int       @id @default(autoincrement())
+  nom            String    @unique
+  symbole        String?
+  actif          Boolean   @default(true)
+  produitsVente  Produit[] @relation("ProduitUniteVente")
+  produitsAchat  Produit[] @relation("ProduitUniteAchat")
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+}
 
 // ============================================================
 // PRODUITS & STOCK
@@ -1384,15 +1470,55 @@ model Fournisseur {
 
 model Produit {
   id           Int     @id @default(autoincrement())
-  reference    String? @unique // code interne produit
+  reference    String? @unique // référence interne (saisie manuelle)
   nom          String
   description  String?
-  categorie    String?
-  unite        String? // "kg", "litre", "unité", etc.
+  categorie    String? // legacy (texte libre) — conservé ; classification structurée ci-dessous
+  unite        String? // legacy ("kg", "litre"…) — conservé ; unités structurées ci-dessous
   prixUnitaire Decimal
   prixAchat    Decimal?  // 👈 nouveau champ (nullable conseillé)
   alerteStock  Int     @default(0) // seuil d'alerte global
   actif        Boolean @default(true)
+
+  // ── Catalogue §3 : identification enrichie ───────────────────────────────
+  codeProduit    String?       @unique  // code produit auto-généré (ex: PRD-000001)
+  codeBarre      String?       @unique  // code-barres (EAN/UPC)
+  qrCode         String?                // contenu/URL encodé dans le QR
+  nomCommercial  String?
+  statut         StatutProduit @default(ACTIF)
+
+  // ── Catalogue §3 : classification structurée ─────────────────────────────
+  familleId          Int?
+  famille            FamilleProduit?       @relation(fields: [familleId], references: [id])
+  sousFamilleId      Int?
+  sousFamille        SousFamilleProduit?   @relation(fields: [sousFamilleId], references: [id])
+  categorieId        Int?
+  categorieProduit   CategorieProduit?     @relation(fields: [categorieId], references: [id])
+  sousCategorieId    Int?
+  sousCategorie      SousCategorieProduit? @relation(fields: [sousCategorieId], references: [id])
+  marqueId           Int?
+  marque             MarqueProduit?        @relation(fields: [marqueId], references: [id])
+  fournisseurPrincipalId Int?
+  fournisseurPrincipal   Fournisseur?      @relation(fields: [fournisseurPrincipalId], references: [id])
+  paysOrigine        String?
+
+  // ── Catalogue §3 : caractéristiques ──────────────────────────────────────
+  poids           Decimal?   // en kg
+  volume          Decimal?   // en litres
+  dimensions      String?    // ex: "30x20x10 cm"
+  couleur         String?
+  saveur          String?
+  conditionnement String?    // ex: "Carton de 12"
+  uniteVenteId    Int?
+  uniteVente      UniteProduit? @relation("ProduitUniteVente", fields: [uniteVenteId], references: [id])
+  uniteAchatId    Int?
+  uniteAchat      UniteProduit? @relation("ProduitUniteAchat", fields: [uniteAchatId], references: [id])
+
+  // ── Catalogue §3 : images & documents ────────────────────────────────────
+  imagePrincipaleUrl String?
+  imagesSecondaires  String[]  // URLs / data-URIs (Postgres array)
+  ficheTechniqueUrl  String?
+  videoUrl           String?
 
   // Stock localisé par site (remplace l'ancien champ global stock)
   stocks               StockSite[]
@@ -1426,6 +1552,12 @@ model Produit {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([statut])
+  @@index([familleId])
+  @@index([categorieId])
+  @@index([marqueId])
+  @@index([fournisseurPrincipalId])
 }
 
 // Stock d'un produit sur un site précis (PDV ou dépôt central)
