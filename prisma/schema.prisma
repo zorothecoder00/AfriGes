@@ -745,6 +745,8 @@ model User {
   transactionsFideliteCreees   TransactionFidelite[]    @relation("TransactionFideliteCreePar")
   blocagesEpargneCrees         BlocageEpargne[]         @relation("BlocageEpargneCreePar")
   prixProduitsCrees            PrixProduit[]            @relation("PrixProduitCreePar")
+  demandesPrixSoumises         DemandeChangementPrix[]  @relation("DemandePrixDemandeur")
+  demandesPrixValidees         DemandeChangementPrix[]  @relation("DemandePrixValideur")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1553,6 +1555,7 @@ model Produit {
   lignesSouscriptionSubstitut LigneSouscriptionProduit[] @relation("LigneProduitSubstitut")
 
   prix         PrixProduit[]  // tarification multiple (Catalogue §4) — Phase 2
+  demandesPrix DemandeChangementPrix[]  // demandes de changement de prix (Catalogue §15) — Phase 4
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1640,7 +1643,50 @@ model ParametragePrixAuto {
   arrondi            Int      @default(0)     // arrondir le prix au multiple de N (0 = pas d'arrondi)
   appliquerSurCredit Boolean  @default(false) // recalcule aussi le prix CREDIT (avec marge crédit)
   margeCreditPct     Decimal  @default(0)     // marge additionnelle appliquée au prix crédit
+  // Gouvernance des prix (Catalogue §15) : si activé, tout changement de prix de
+  // vente/achat doit passer par une demande validée (Chef d'agence/Admin/Resp. Marketing).
+  validationPrixObligatoire Boolean @default(false)
   updatedAt          DateTime @updatedAt
+}
+
+// Statut d'une demande de changement de prix (Catalogue §15).
+enum StatutDemandePrix {
+  EN_ATTENTE
+  APPROUVE
+  REJETE
+}
+
+// Base de prix visée par une demande (les deux prix « socle » du produit).
+enum ChampPrixDemande {
+  VENTE   // prix de vente (Produit.prixUnitaire)
+  ACHAT   // prix d'achat (Produit.prixAchat)
+}
+
+// Demande de changement de prix soumise à validation (Catalogue §5, §15).
+model DemandeChangementPrix {
+  id           Int               @id @default(autoincrement())
+  produitId    Int
+  produit      Produit           @relation(fields: [produitId], references: [id], onDelete: Cascade)
+  champ        ChampPrixDemande
+  ancienPrix   Decimal?
+  nouveauPrix  Decimal
+  motif        String
+  statut       StatutDemandePrix @default(EN_ATTENTE)
+
+  // Traçabilité complète (Catalogue §15)
+  demandeParId Int
+  demandePar   User              @relation("DemandePrixDemandeur", fields: [demandeParId], references: [id])
+  ip           String?
+  agence       String?
+  createdAt    DateTime          @default(now())
+
+  valideParId  Int?
+  validePar    User?             @relation("DemandePrixValideur", fields: [valideParId], references: [id])
+  valideAt     DateTime?
+  motifRejet   String?
+
+  @@index([produitId])
+  @@index([statut])
 }
 
 // Stock d'un produit sur un site précis (PDV ou dépôt central)
@@ -1723,9 +1769,12 @@ model HistoriquePrixProduit {
   prixVente        Decimal            // prix de vente (prixUnitaire) effectif à partir de dateEffet
   marge            Decimal?           // vente - achat (valeur), figée au moment du changement
   type             TypeChangementPrix
-  source           String?            // MANUEL | APPRO | INITIAL | ...
+  source           String?            // MANUEL | APPRO | INITIAL | VALIDATION | ...
   motif            String?
   receptionApproId Int?               // réception d'appro à l'origine d'un changement de prix d'achat
+  ip               String?            // adresse IP de l'auteur (Catalogue §15)
+  agence           String?            // agence de l'auteur au moment du changement (Catalogue §15)
+  valideParId      Int?               // validateur si le changement a suivi le workflow (Catalogue §5)
   dateEffet        DateTime           @default(now())
   creeParId        Int?
   createdAt        DateTime           @default(now())

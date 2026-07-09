@@ -55,7 +55,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
   const id = Number((await params).id);
   if (!id) return NextResponse.json({ message: "Identifiant invalide" }, { status: 400 });
 
-  const existant = await prisma.produit.findUnique({ where: { id }, select: { id: true } });
+  const existant = await prisma.produit.findUnique({ where: { id }, select: { id: true, prixUnitaire: true, prixAchat: true } });
   if (!existant) return NextResponse.json({ message: "Produit introuvable" }, { status: 404 });
 
   const body = (await req.json().catch(() => null)) as Record<string, unknown> | null;
@@ -68,6 +68,22 @@ export async function PATCH(req: Request, { params }: Ctx) {
   const prixVente = body.prixUnitaire != null && body.prixUnitaire !== "" ? Number(body.prixUnitaire) : undefined;
   if (prixVente !== undefined && (isNaN(prixVente) || prixVente <= 0)) {
     return NextResponse.json({ message: "Le prix de vente doit être supérieur à 0" }, { status: 400 });
+  }
+
+  // Gouvernance des prix (Catalogue §15) : si la validation est obligatoire, un
+  // changement de prix de vente/achat doit passer par une demande validée.
+  const param = await prisma.parametragePrixAuto.findUnique({ where: { id: 1 }, select: { validationPrixObligatoire: true } });
+  if (param?.validationPrixObligatoire) {
+    const venteChange = prixVente !== undefined && prixVente !== Number(existant.prixUnitaire);
+    const achatActuel = existant.prixAchat != null ? Number(existant.prixAchat) : null;
+    const achatChange = data.prixAchat !== undefined && Number(data.prixAchat ?? NaN) !== (achatActuel ?? NaN)
+      && !(data.prixAchat == null && achatActuel == null);
+    if (venteChange || achatChange) {
+      return NextResponse.json(
+        { message: "Le changement de prix est soumis à validation : soumettez une demande de changement de prix (onglet Tarification). Les autres champs peuvent être enregistrés sans modifier le prix." },
+        { status: 422 },
+      );
+    }
   }
   const nom = typeof body.nom === "string" && body.nom.trim() ? body.nom.trim() : undefined;
   const motifPrix = typeof body.motifPrix === "string" && body.motifPrix.trim() ? body.motifPrix.trim() : "Modification catalogue";
