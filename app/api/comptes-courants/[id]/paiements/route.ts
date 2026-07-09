@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { PrioriteNotification } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCompteCourantSession } from "@/lib/authCompteCourant";
-import { chargerParametrageCC, extraireMetaRequete, alerterSoldeFaible, payerCreditDepuisCC } from "@/lib/compteCourant";
+import { chargerParametrageCC, extraireMetaRequete, alerterSoldeFaible, payerCreditDepuisCC, montantBloqueActif } from "@/lib/compteCourant";
 import { notifyAdmins, auditLog } from "@/lib/notifications";
 
 type Ctx = { params: Promise<{ id: string }> };
@@ -55,8 +55,15 @@ export async function POST(req: Request, { params }: Ctx) {
   if (compte.statut !== "ACTIF") {
     return NextResponse.json({ error: `Compte ${compte.statut.toLowerCase()} : opération impossible` }, { status: 422 });
   }
-  if (totalDemande > Number(compte.solde)) {
-    return NextResponse.json({ error: "Solde du compte courant insuffisant pour la totalité des paiements" }, { status: 422 });
+  // Épargne bloquée (CDC §19.E) : déduite du solde disponible pour les paiements.
+  const bloque = await montantBloqueActif(prisma, compteId);
+  if (totalDemande > Number(compte.solde) - bloque) {
+    return NextResponse.json(
+      { error: bloque > 0
+          ? `Solde disponible insuffisant : ${bloque.toLocaleString("fr-FR")} FCFA d'épargne bloquée.`
+          : "Solde du compte courant insuffisant pour la totalité des paiements" },
+      { status: 422 },
+    );
   }
 
   // Tous les crédits doivent appartenir au client du compte.

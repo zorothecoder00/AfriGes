@@ -9,7 +9,7 @@ import {
   Wallet, ArrowLeft, Loader2, TrendingUp, TrendingDown, ShoppingCart,
   Activity, Clock, MapPin, Phone, User, Users, UserPlus, Trash2, Search, Hash, Plus, X, Printer, ArrowDownCircle, CreditCard, ShieldAlert,
   FileText, FileCheck, BookOpen, Target, Calendar, PiggyBank, Ban, Repeat, Power,
-  Award, Gift, Star, Sparkles,
+  Award, Gift, Star, Sparkles, Lock, Unlock,
 } from "lucide-react";
 import { useApi } from "@/hooks/useApi";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -407,6 +407,9 @@ export default function CompteCourantDetailPage() {
 
             {/* Programme de fidélité / récompenses (CDC §19.D) */}
             <FideliteSection compteId={Number(params.id)} canManage={canDeposit} />
+
+            {/* Blocage volontaire de l'épargne (CDC §19.E) */}
+            <BlocageSection compteId={Number(params.id)} canManage={canDeposit} compteActif={c.statut === "ACTIF"} onChanged={() => { refetch(); refetchMvt(); }} />
 
             {/* Documents (CDC §14, Lot 5) — visible si permission EXPORT (RBAC granulaire) */}
             {canExport && (
@@ -1596,6 +1599,171 @@ function FideliteSection({ compteId, canManage }: { compteId: number; canManage:
               <button onClick={soumettre} disabled={saving}
                 className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-yellow-500 hover:bg-yellow-600 disabled:opacity-50 text-white rounded-xl text-sm font-semibold">
                 {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Award className="w-4 h-4" />} Valider
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Blocage volontaire de l'épargne (CDC §19.E) ─────────────────────────────
+
+const STATUT_BLOCAGE_STYLE: Record<string, string> = {
+  ACTIF: "bg-indigo-50 text-indigo-700 border-indigo-200",
+  LIBERE: "bg-emerald-50 text-emerald-700 border-emerald-200",
+  ANNULE: "bg-gray-100 text-gray-500 border-gray-200",
+};
+const STATUT_BLOCAGE_LABEL: Record<string, string> = { ACTIF: "Bloqué", LIBERE: "Libéré", ANNULE: "Annulé" };
+
+interface BlocageRow {
+  id: number; montant: number; motif: string | null; dateBlocage: string; dateDeblocage: string;
+  statut: string; libereLe: string | null; createdAt: string; creePar: { nom: string; prenom: string } | null;
+}
+interface BlocageData { solde: number; montantBloque: number; soldeDisponible: number; blocages: BlocageRow[] }
+
+function BlocageSection({ compteId, canManage, compteActif, onChanged }:
+  { compteId: number; canManage: boolean; compteActif: boolean; onChanged: () => void }) {
+  const { data, refetch } = useApi<{ data: BlocageData }>(`/api/comptes-courants/${compteId}/blocages`);
+  const d = data?.data;
+
+  const [open, setOpen] = useState(false);
+  const [montant, setMontant] = useState("");
+  const [dateDeblocage, setDateDeblocage] = useState("");
+  const [motif, setMotif] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [busyId, setBusyId] = useState<number | null>(null);
+
+  const reload = () => { refetch(); onChanged(); };
+
+  const bloquer = async () => {
+    if (!montant || Number(montant) <= 0) { toast.error("Montant invalide"); return; }
+    if (!dateDeblocage) { toast.error("Date de déblocage requise"); return; }
+    setSaving(true);
+    try {
+      const r = await fetch(`/api/comptes-courants/${compteId}/blocages`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ montant: Number(montant), dateDeblocage, motif: motif.trim() || undefined }),
+      });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error ?? "Erreur");
+      toast.success("Épargne bloquée ✓");
+      setOpen(false); setMontant(""); setDateDeblocage(""); setMotif(""); reload();
+    } catch (e) { toast.error(e instanceof Error ? e.message : "Erreur"); }
+    finally { setSaving(false); }
+  };
+
+  const agir = async (b: BlocageRow, action: "LIBERER" | "ANNULER") => {
+    setBusyId(b.id);
+    try {
+      const r = await fetch(`/api/comptes-courants/${compteId}/blocages/${b.id}`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action }),
+      });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error ?? "Erreur");
+      toast.success(action === "LIBERER" ? "Fonds débloqués ✓" : "Blocage annulé");
+      reload();
+    } catch (e) { toast.error(e instanceof Error ? e.message : "Erreur"); }
+    finally { setBusyId(null); }
+  };
+
+  if (!d) return null;
+
+  return (
+    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="font-bold text-gray-800 flex items-center gap-2">
+          <Lock className="w-4 h-4 text-indigo-500" /> Épargne bloquée
+        </h3>
+        {canManage && compteActif && d.soldeDisponible > 0 && (
+          <button onClick={() => { setMontant(""); setDateDeblocage(""); setMotif(""); setOpen(true); }}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-medium">
+            <Lock className="w-3.5 h-3.5" /> Bloquer une épargne
+          </button>
+        )}
+      </div>
+
+      {/* Synthèse disponible / bloqué */}
+      <div className="grid grid-cols-2 gap-3 mb-4">
+        <div className="rounded-xl border border-slate-200 p-3">
+          <p className="text-[11px] text-gray-400">Disponible</p>
+          <p className="text-lg font-bold text-emerald-600">{formatCurrency(d.soldeDisponible)}</p>
+        </div>
+        <div className="rounded-xl border border-slate-200 p-3">
+          <p className="text-[11px] text-gray-400">Bloqué</p>
+          <p className="text-lg font-bold text-indigo-600">{formatCurrency(d.montantBloque)}</p>
+        </div>
+      </div>
+
+      {d.blocages.length === 0 ? (
+        <p className="text-sm text-gray-400 py-4 text-center">Aucun blocage d&apos;épargne.</p>
+      ) : (
+        <div className="space-y-2">
+          {d.blocages.map((b) => {
+            const actif = b.statut === "ACTIF";
+            return (
+              <div key={b.id} className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 px-3 py-2.5">
+                <div className="min-w-0">
+                  <p className="font-semibold text-gray-800 flex items-center gap-1.5">
+                    {formatCurrency(b.montant)}
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full border font-medium ${STATUT_BLOCAGE_STYLE[b.statut] ?? ""}`}>
+                      {STATUT_BLOCAGE_LABEL[b.statut] ?? b.statut}
+                    </span>
+                  </p>
+                  <p className="text-[11px] text-gray-400">
+                    {actif ? `Jusqu'au ${formatDate(b.dateDeblocage)}` : `${b.statut === "LIBERE" ? "Libéré" : "Annulé"} le ${b.libereLe ? formatDate(b.libereLe) : "—"}`}
+                    {b.motif ? ` · ${b.motif}` : ""}
+                  </p>
+                </div>
+                {canManage && actif && (
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <button onClick={() => agir(b, "LIBERER")} disabled={busyId === b.id}
+                      title="Débloquer par anticipation"
+                      className="p-1.5 rounded-lg border border-emerald-200 text-emerald-600 hover:bg-emerald-50 disabled:opacity-50">
+                      {busyId === b.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Unlock className="w-4 h-4" />}
+                    </button>
+                    <button onClick={() => agir(b, "ANNULER")} disabled={busyId === b.id}
+                      title="Annuler le blocage" className="p-1.5 rounded-lg border border-slate-200 text-slate-400 hover:text-rose-500 hover:border-rose-200 disabled:opacity-50">
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Modal blocage */}
+      {open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => !saving && setOpen(false)}>
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-1">
+              <h4 className="font-bold text-gray-800 flex items-center gap-2"><Lock className="w-5 h-5 text-indigo-500" /> Bloquer une épargne</h4>
+              <button onClick={() => setOpen(false)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+            </div>
+            <p className="text-xs text-gray-500 mb-4">Disponible : {formatCurrency(d.soldeDisponible)}</p>
+            <div className="space-y-3">
+              <label className="block">
+                <span className="text-xs font-semibold text-slate-500">Montant à bloquer (FCFA)</span>
+                <input type="number" min={0} value={montant} onChange={(e) => setMontant(e.target.value)} autoFocus
+                  className="mt-1 w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+              </label>
+              <label className="block">
+                <span className="text-xs font-semibold text-slate-500">Débloqué le</span>
+                <input type="date" value={dateDeblocage} onChange={(e) => setDateDeblocage(e.target.value)}
+                  className="mt-1 w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+              </label>
+              <label className="block">
+                <span className="text-xs font-semibold text-slate-500">Motif <span className="font-normal text-slate-400">(optionnel)</span></span>
+                <input value={motif} onChange={(e) => setMotif(e.target.value)} placeholder="Ex. achat d'un terrain…"
+                  className="mt-1 w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+              </label>
+              <p className="text-[11px] text-gray-400">Les fonds bloqués restent indisponibles (retrait, paiement, prélèvement) jusqu&apos;à la date choisie.</p>
+              <button onClick={bloquer} disabled={saving}
+                className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-xl text-sm font-semibold">
+                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Lock className="w-4 h-4" />} Bloquer
               </button>
             </div>
           </div>

@@ -743,6 +743,7 @@ model User {
   plansEpargneCrees            PlanEpargne[]            @relation("PlanEpargneCreePar")
   prelevementsAutoCrees        AutorisationPrelevement[] @relation("PrelevementAutoCreePar")
   transactionsFideliteCreees   TransactionFidelite[]    @relation("TransactionFideliteCreePar")
+  blocagesEpargneCrees         BlocageEpargne[]         @relation("BlocageEpargneCreePar")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -5281,6 +5282,13 @@ enum TypeTransactionFidelite {
   AJUSTEMENT  // correction manuelle (+/−)
 }
 
+// Statut d'un blocage volontaire d'épargne (CDC §19.E)
+enum StatutBlocageEpargne {
+  ACTIF     // fonds indisponibles
+  LIBERE    // échéance atteinte ou déblocage anticipé
+  ANNULE    // blocage annulé (créé par erreur)
+}
+
 // Paramétrage général du module (enregistrement unique, id = 1)
 model ParametrageCompteCourant {
   id                    Int      @id @default(1)
@@ -5324,6 +5332,7 @@ model CompteCourant {
   membres             MembreCompteCourant[]                    // membres du compte (au moins le titulaire)
   plansEpargne        PlanEpargne[]                            // plans d'épargne programmée (CDC §19.B)
   autorisationsPrelevement AutorisationPrelevement[]           // prélèvements automatiques (CDC §19.C)
+  blocagesEpargne     BlocageEpargne[]                         // blocages volontaires d'épargne (CDC §19.E)
 
   dateOuverture       DateTime            @default(now())
   agentCreateurId     Int
@@ -5470,6 +5479,31 @@ model TransactionFidelite {
 
   @@index([compteFideliteId])
   @@index([createdAt])
+}
+
+// Blocage volontaire d'épargne (CDC §19.E) : le client rend une partie de son
+// solde indisponible jusqu'à une date (préparation d'un achat important). Le
+// montant bloqué actif est déduit du solde disponible pour toute sortie.
+model BlocageEpargne {
+  id            Int                 @id @default(autoincrement())
+  compteId      Int
+  compte        CompteCourant       @relation(fields: [compteId], references: [id], onDelete: Cascade)
+  montant       Decimal
+  motif         String?
+  dateBlocage   DateTime            @default(now())
+  dateDeblocage DateTime                                 // date d'échéance du blocage
+  statut        StatutBlocageEpargne @default(ACTIF)
+  libereLe      DateTime?                                // date effective de libération (auto ou anticipée)
+
+  creeParId     Int
+  creePar       User                @relation("BlocageEpargneCreePar", fields: [creeParId], references: [id])
+
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+
+  @@index([compteId])
+  @@index([statut])
+  @@index([dateDeblocage])
 }
 
 // Grand livre des mouvements d'un compte courant

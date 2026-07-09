@@ -34,6 +34,10 @@
     {
       "path": "/api/cron/comptes-courants/prelevements?secret=${CRON_SECRET}",
       "schedule": "0 4 * * *"
+    },
+    {
+      "path": "/api/cron/comptes-courants/blocages?secret=${CRON_SECRET}",
+      "schedule": "0 5 * * *"
     }
   ]
 }

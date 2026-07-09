@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { PrioriteNotification } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCompteCourantSession } from "@/lib/authCompteCourant";
-import { chargerParametrageCC, genererReferenceMouvementCC, extraireMetaRequete } from "@/lib/compteCourant";
+import { chargerParametrageCC, genererReferenceMouvementCC, extraireMetaRequete, montantBloqueActif } from "@/lib/compteCourant";
 import { notifyRoles, auditLog } from "@/lib/notifications";
 
 type Ctx = { params: Promise<{ id: string }> };
@@ -98,12 +98,23 @@ export async function POST(req: Request, { params }: Ctx) {
 
   const soldeAvant = Number(compte.solde);
   const soldeApres = soldeAvant - montant;
+
+  // Épargne bloquée (CDC §19.E) : indisponible pour un retrait, même si le solde
+  // négatif est autorisé — les fonds bloqués doivent rester intacts.
+  const bloque = await montantBloqueActif(prisma, compteId);
+  if (bloque > 0 && montant > soldeAvant - bloque) {
+    return NextResponse.json(
+      { error: `Épargne bloquée : ${bloque.toLocaleString("fr-FR")} FCFA indisponibles. Solde disponible : ${Math.max(0, soldeAvant - bloque).toLocaleString("fr-FR")} FCFA.` },
+      { status: 422 },
+    );
+  }
+
   if (!param.autoriserSoldeNegatif) {
     const soldeMin = Number(param.soldeMinObligatoire);
-    if (soldeApres < soldeMin) {
+    if (soldeApres < soldeMin + bloque) {
       return NextResponse.json(
         { error: soldeMin > 0
-            ? `Solde insuffisant : le solde minimum obligatoire (${soldeMin.toLocaleString("fr-FR")} FCFA) doit être conservé`
+            ? `Solde insuffisant : le solde minimum obligatoire (${soldeMin.toLocaleString("fr-FR")} FCFA)${bloque > 0 ? ` et l'épargne bloquée (${bloque.toLocaleString("fr-FR")} FCFA)` : ""} doivent être conservés`
             : "Solde insuffisant" },
         { status: 422 },
       );

@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { PrioriteNotification } from "@prisma/client";
 import { notifyAdmins, auditLog } from "@/lib/notifications";
-import { chargerParametrageCC, payerCreditDepuisCC } from "@/lib/compteCourant";
+import { chargerParametrageCC, payerCreditDepuisCC, montantBloqueActif } from "@/lib/compteCourant";
 
 /**
  * Prélèvement automatique des échéances de crédit (CDC §19.C).
@@ -60,7 +60,9 @@ export async function executerPrelevementsAuto(now: Date = new Date()): Promise<
     if (du <= 0) { ignores += 1; continue; } // rien d'exigible aujourd'hui
 
     const plancher = a.montantMinSolde != null ? Number(a.montantMinSolde) : seuilParDefaut;
-    const disponible = Number(a.compte.solde) - plancher;
+    // Épargne bloquée (CDC §19.E) : indisponible pour le prélèvement.
+    const bloque = await montantBloqueActif(prisma, a.compte.id, now);
+    const disponible = Number(a.compte.solde) - plancher - bloque;
     const plafond = a.montantMax != null ? Number(a.montantMax) : Infinity;
     const montant = Math.min(du, disponible, plafond, Number(a.credit.soldeRestant));
 

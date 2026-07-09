@@ -319,6 +319,54 @@ export async function alerterComptesAvantSuspension(): Promise<{ alertes: number
 }
 
 /**
+ * Montant d'épargne actuellement bloqué (indisponible) sur un compte (CDC §19.E) :
+ * somme des blocages ACTIF dont l'échéance n'est pas encore atteinte. Ce montant
+ * est déduit du solde disponible pour toute sortie (retrait, paiement, prélèvement).
+ * Accepte le client Prisma global ou une transaction.
+ */
+export async function montantBloqueActif(db: TxClient, compteId: number, now: Date = new Date()): Promise<number> {
+  const agg = await db.blocageEpargne.aggregate({
+    where: { compteId, statut: "ACTIF", dateDeblocage: { gt: now } },
+    _sum: { montant: true },
+  });
+  return Number(agg._sum.montant ?? 0);
+}
+
+/**
+ * Libération automatique des blocages d'épargne échus (CDC §19.E, cron / lazy) :
+ * passe en LIBERE tout blocage ACTIF dont l'échéance est atteinte, journalise et
+ * notifie les admins. Les fonds redeviennent alors disponibles.
+ */
+export async function libererBlocagesEchus(): Promise<{ liberes: number }> {
+  const now = new Date();
+  const echus = await prisma.blocageEpargne.findMany({
+    where: { statut: "ACTIF", dateDeblocage: { lte: now } },
+    select: {
+      id: true, montant: true,
+      compte: { select: { id: true, numeroCompte: true, libelle: true, client: { select: { prenom: true, nom: true } } } },
+    },
+  });
+
+  for (const b of echus) {
+    await prisma.$transaction(async (tx) => {
+      await tx.blocageEpargne.update({ where: { id: b.id }, data: { statut: "LIBERE", libereLe: now } });
+      await tx.auditLog.create({
+        data: { action: "LIBERATION_BLOCAGE_EPARGNE", entite: "BlocageEpargne", entiteId: b.id, details: { montant: Number(b.montant) } },
+      });
+      const nom = b.compte.libelle ?? `${b.compte.client.prenom} ${b.compte.client.nom}`;
+      await notifyAdmins(tx, {
+        titre: "Épargne bloquée libérée",
+        message: `${Number(b.montant).toLocaleString("fr-FR")} FCFA d'épargne bloquée arrivés à échéance sur le compte ${b.compte.numeroCompte} (${nom}) — fonds à nouveau disponibles.`,
+        priorite: PrioriteNotification.NORMAL,
+        actionUrl: `/dashboard/admin/comptes-courants/${b.compte.id}`,
+      });
+    });
+  }
+
+  return { liberes: echus.length };
+}
+
+/**
  * Compte courant INDIVIDUEL d'un client (ou null), pour le pré-contrôle POS et le lookup.
  * Les comptes collectifs (ménage/communauté/groupement) ne sont pas utilisés pour le
  * paiement personnel automatique (CDC §19.A) : on cible le compte propre du client.
@@ -365,7 +413,9 @@ export async function preleverCompteCourant(
   if (!cc) throw new Error("CC_ABSENT");
   if (cc.statut !== "ACTIF") throw new Error("CC_INACTIF");
   const avant = Number(cc.solde);
-  if (opts.montant > avant) throw new Error("CC_SOLDE_INSUFFISANT");
+  // Épargne bloquée (CDC §19.E) : indisponible pour un paiement.
+  const bloque = await montantBloqueActif(tx, cc.id);
+  if (opts.montant > avant - bloque) throw new Error("CC_SOLDE_INSUFFISANT");
   const apres = avant - opts.montant;
   const clientNom = `${cc.client.prenom} ${cc.client.nom}`;
 
