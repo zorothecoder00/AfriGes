@@ -740,6 +740,7 @@ model User {
   comptesCourantsCrees         CompteCourant[]          @relation("CCCreateur")
   mouvementsCompteCourant      MouvementCompteCourant[] @relation("CCMouvementUser")
   membresCCAjoutes             MembreCompteCourant[]    @relation("MembreCCAjoutePar")
+  plansEpargneCrees            PlanEpargne[]            @relation("PlanEpargneCreePar")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -5245,6 +5246,21 @@ enum RoleMembreCC {
   MEMBRE       // membre / bénéficiaire simple
 }
 
+// Fréquence de cotisation d'un plan d'épargne programmée (CDC §19.B)
+enum FrequenceEpargne {
+  QUOTIDIENNE
+  HEBDOMADAIRE
+  MENSUELLE
+}
+
+// Statut d'un plan d'épargne programmée (CDC §19.B)
+enum StatutPlanEpargne {
+  EN_COURS     // en cours de constitution
+  ATTEINT      // objectif atteint
+  ABANDONNE    // arrêté volontairement
+  EXPIRE       // échéance dépassée sans objectif atteint
+}
+
 // Paramétrage général du module (enregistrement unique, id = 1)
 model ParametrageCompteCourant {
   id                    Int      @id @default(1)
@@ -5286,6 +5302,7 @@ model CompteCourant {
   typeCompte          TypeCompteCC        @default(INDIVIDUEL) // individuel ou collectif (CDC §19.A)
   libelle             String?                                  // nom du ménage / communauté / groupement (comptes collectifs)
   membres             MembreCompteCourant[]                    // membres du compte (au moins le titulaire)
+  plansEpargne        PlanEpargne[]                            // plans d'épargne programmée (CDC §19.B)
 
   dateOuverture       DateTime            @default(now())
   agentCreateurId     Int
@@ -5330,6 +5347,36 @@ model MembreCompteCourant {
   @@index([clientId])
 }
 
+// Plan d'épargne programmée (CDC §19.B) : objectif chiffré + cotisation périodique.
+// Les cotisations sont des dépôts (MouvementCompteCourant.nature = DEPOT) fléchés
+// vers le plan via planEpargneId ; montantCumule est le cumul mis en cache.
+model PlanEpargne {
+  id                Int               @id @default(autoincrement())
+  compteId          Int
+  compte            CompteCourant     @relation(fields: [compteId], references: [id], onDelete: Cascade)
+  libelle           String                              // ex. « Achat moto », « Rentrée scolaire »
+  objectifMontant   Decimal
+  frequence         FrequenceEpargne
+  montantCotisation Decimal                             // montant conseillé par période
+  dateDebut         DateTime          @default(now())
+  dateEcheance      DateTime
+  montantCumule     Decimal           @default(0)       // cumul des cotisations fléchées (cache)
+  statut            StatutPlanEpargne @default(EN_COURS)
+  dateAtteint       DateTime?                           // date d'atteinte de l'objectif
+  observation       String?
+
+  creeParId         Int
+  creePar           User              @relation("PlanEpargneCreePar", fields: [creeParId], references: [id])
+
+  cotisations       MouvementCompteCourant[] @relation("CotisationsPlan")
+
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  @@index([compteId])
+  @@index([statut])
+}
+
 // Grand livre des mouvements d'un compte courant
 model MouvementCompteCourant {
   id           Int               @id @default(autoincrement())
@@ -5351,6 +5398,9 @@ model MouvementCompteCourant {
   ecritureId   Int?                             // lien Comptabilité (lots suivants)
   venteId      Int?                             // lien paiement comptant (lot suivant)
   creditId     Int?                             // lien paiement crédit (lot suivant)
+
+  planEpargneId Int?                            // cotisation fléchée vers un plan d'épargne (CDC §19.B)
+  planEpargne   PlanEpargne? @relation("CotisationsPlan", fields: [planEpargneId], references: [id])
 
   ip           String?                          // adresse IP de l'auteur (CDC §16)
   userAgent    String?                          // machine / navigateur de l'auteur (CDC §16)

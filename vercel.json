@@ -26,6 +26,10 @@
     {
       "path": "/api/cron/comptes-courants/alerte-suspension?secret=${CRON_SECRET}",
       "schedule": "45 3 * * *"
+    },
+    {
+      "path": "/api/cron/comptes-courants/epargne?secret=${CRON_SECRET}",
+      "schedule": "30 3 * * *"
     }
   ]
 }

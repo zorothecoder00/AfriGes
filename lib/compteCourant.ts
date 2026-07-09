@@ -145,6 +145,7 @@ export async function enregistrerDepotCC(
     ip?: string | null;
     userAgent?: string | null;
     ouverture?: boolean;
+    planEpargneId?: number | null; // cotisation fléchée vers un plan d'épargne programmée (CDC §19.B)
   },
 ) {
   // Relecture du solde dans la transaction (cohérence).
@@ -171,6 +172,7 @@ export async function enregistrerDepotCC(
       montant: opts.montant, soldeAvant: avant, soldeApres: apres,
       modePaiement: opts.modePaiement ?? null, observation: opts.observation ?? null,
       statut: "VALIDE", userId: opts.userId, agence: opts.codeAgence, ecritureId,
+      planEpargneId: opts.planEpargneId ?? null,
       ip: opts.ip ?? null, userAgent: opts.userAgent ?? null,
     },
     select: { id: true, reference: true, createdAt: true },
