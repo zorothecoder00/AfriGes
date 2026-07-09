@@ -324,6 +324,7 @@ export default function AfriGesDashboard() {
               <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">{t('commerce')}</h3>
               <nav className="space-y-1">
                 <Link href="/dashboard/admin/ventes" className="w-full flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-50 rounded-xl transition-all"><ShoppingCart size={20} /><span>{t('nav_ventes')}</span></Link>
+                <Link href="/dashboard/admin/catalogue/produits" className="w-full flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-50 rounded-xl transition-all"><Layers size={20} /><span>Catalogue produits</span></Link>
                 <Link href="/dashboard/admin/stock"             className="w-full flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-50 rounded-xl transition-all"><Package size={20} /><span>{t('nav_stock')}</span></Link>
                 <Link href="/dashboard/admin/pdv"              className="w-full flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-50 rounded-xl transition-all"><Store size={20} /><span>{t('nav_pdv')}</span></Link>
                 <Link href="/dashboard/admin/approvisionnements" className="w-full flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-50 rounded-xl transition-all"><Truck size={20} /><span>Approvisionnements</span></Link>
