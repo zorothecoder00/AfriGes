@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { X, Loader2, Save, Image as ImageIcon, FileText, Tags } from "lucide-react";
+import { X, Loader2, Save, Image as ImageIcon, FileText, Tags, MapPin } from "lucide-react";
 import TarificationTab from "@/components/catalogue/TarificationTab";
+import DisponibiliteTab from "@/components/catalogue/DisponibiliteTab";
 
 // ── Types des référentiels (chargés par la page parente) ────────────────────
 interface RefItem { id: number; nom: string; actif: boolean }
@@ -38,7 +39,7 @@ export default function ProduitFormModal({ produitId, refs, onClose, onSaved }:
   const [loading, setLoading] = useState(!!produitId);
   const [saving, setSaving] = useState(false);
   const [fournisseurs, setFournisseurs] = useState<FournisseurRef[]>([]);
-  const [tab, setTab] = useState<"fiche" | "tarification">("fiche");
+  const [tab, setTab] = useState<"fiche" | "tarification" | "disponibilite">("fiche");
   const isEdit = produitId != null;
 
   const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
@@ -120,6 +121,9 @@ export default function ProduitFormModal({ produitId, refs, onClose, onSaved }:
               <button onClick={() => setTab("tarification")} className={`inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 ${tab === "tarification" ? "border-blue-600 text-blue-600" : "border-transparent text-gray-500 hover:text-gray-700"}`}>
                 <Tags className="w-4 h-4" /> Tarification
               </button>
+              <button onClick={() => setTab("disponibilite")} className={`inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 ${tab === "disponibilite" ? "border-blue-600 text-blue-600" : "border-transparent text-gray-500 hover:text-gray-700"}`}>
+                <MapPin className="w-4 h-4" /> Disponibilité
+              </button>
             </div>
           )}
         </div>
@@ -128,6 +132,8 @@ export default function ProduitFormModal({ produitId, refs, onClose, onSaved }:
           <div className="flex items-center justify-center py-24 text-gray-400"><Loader2 className="w-6 h-6 animate-spin mr-2" /> Chargement…</div>
         ) : isEdit && tab === "tarification" ? (
           <div className="p-6"><TarificationTab produitId={produitId} /></div>
+        ) : isEdit && tab === "disponibilite" ? (
+          <div className="p-6"><DisponibiliteTab produitId={produitId} /></div>
         ) : (
           <div className="p-6 space-y-6">
             {/* Identification */}

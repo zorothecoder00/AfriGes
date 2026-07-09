@@ -87,7 +87,7 @@ pouvoir supprimer des factures et des ventes à crédit
 Upload multi-fichiers
 OCR automatique des documents
 
-
+  
 Êxplique moi comment fonctionne la réunion , la convocation et les présences entre président( superadmin aussi évidemment) et membres d'une commission 
 
 
@@ -125,3 +125,6 @@ Permettre d'avoir des rapports de recouvrement (taux de recouvrement, restant , 
 Sur les factures de credit on veut voir aussi les mouvements de compte courant si utilisé ( avance , solde etc etc )
 
 Dans les crédits clients , on va essayer de faire des filtres par agent ( avec leur solde , retard , paiement etc etc)
+
+
+Dans les dosseirs des collaborateurs pour leur information faut ajouter aussi personne à prévénir

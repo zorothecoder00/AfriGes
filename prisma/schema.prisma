@@ -1655,11 +1655,21 @@ model StockSite {
   // 4.5 stockTheorique = quantite + quantiteReservee + quantiteEnTransit - quantiteEndommagee (calculé)
   alerteStock    Int?         // seuil d'alerte spécifique au site (override global)
 
+  // ── Catalogue §6 : paramétrage par agence — Phase 3 ──────────────────────
+  disponible     Boolean      @default(true)  // produit commercialisé (Oui/Non) sur cette agence
+  stockMin       Int?         // stock minimum (déclenche le réapprovisionnement)
+  stockMax       Int?         // stock maximum (capacité cible)
+  seuilCritique  Int?         // seuil de rupture imminente (rouge) — sous ce niveau = critique
+  rayon          String?      // emplacement : rayon
+  etagere        String?      // emplacement : étagère
+  allee          String?      // emplacement : allée
+
   produit      Produit      @relation(fields: [produitId], references: [id])
   pointDeVente PointDeVente @relation(fields: [pointDeVenteId], references: [id])
 
   @@unique([produitId, pointDeVenteId])
   @@index([pointDeVenteId])
+  @@index([produitId])
 }
   
 // Journal de chaque mouvement de stock (entrée / sortie / ajustement)
