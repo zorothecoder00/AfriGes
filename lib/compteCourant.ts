@@ -168,12 +168,13 @@ export async function enregistrerDepotCC(
   });
 
   const reference = await genererReferenceMouvementCC(tx, "DEP");
+  const agenceOp = (await resoudreAgenceOperation(tx, opts.userId)) ?? opts.codeAgence;
   const mouvement = await tx.mouvementCompteCourant.create({
     data: {
       reference, compteId: opts.compteId, nature: "DEPOT",
       montant: opts.montant, soldeAvant: avant, soldeApres: apres,
       modePaiement: opts.modePaiement ?? null, observation: opts.observation ?? null,
-      statut: "VALIDE", userId: opts.userId, agence: opts.codeAgence, ecritureId,
+      statut: "VALIDE", userId: opts.userId, agence: agenceOp, ecritureId,
       planEpargneId: opts.planEpargneId ?? null,
       ip: opts.ip ?? null, userAgent: opts.userAgent ?? null,
     },
@@ -367,6 +368,22 @@ export async function libererBlocagesEchus(): Promise<{ liberes: number }> {
 }
 
 /**
+ * Agence où une opération est effectuée (CDC §19.F — multi-agences) : nom du
+ * point de vente d'affectation active de l'opérateur. Le compte est utilisable
+ * dans toutes les agences ; chaque mouvement mémorise l'agence d'exécution.
+ * Renvoie null si l'opérateur n'a pas d'affectation active (→ l'appelant retombe
+ * sur l'agence de domiciliation du compte).
+ */
+export async function resoudreAgenceOperation(db: TxClient, userId: number): Promise<string | null> {
+  const aff = await db.gestionnaireAffectation.findFirst({
+    where: { userId, actif: true },
+    orderBy: { dateDebut: "desc" },
+    select: { pointDeVente: { select: { nom: true } } },
+  });
+  return aff?.pointDeVente?.nom ?? null;
+}
+
+/**
  * Compte courant INDIVIDUEL d'un client (ou null), pour le pré-contrôle POS et le lookup.
  * Les comptes collectifs (ménage/communauté/groupement) ne sont pas utilisés pour le
  * paiement personnel automatique (CDC §19.A) : on cible le compte propre du client.
@@ -430,12 +447,13 @@ export async function preleverCompteCourant(
   });
 
   const reference = await genererReferenceMouvementCC(tx, "PAY");
+  const agenceOp = (await resoudreAgenceOperation(tx, opts.userId)) ?? cc.codeAgence;
   const mouvement = await tx.mouvementCompteCourant.create({
     data: {
       reference, compteId: cc.id, nature: opts.nature ?? "PAIEMENT_COMPTANT",
       montant: -opts.montant, soldeAvant: avant, soldeApres: apres,
       observation: opts.refLibelle,
-      statut: "VALIDE", userId: opts.userId, agence: cc.codeAgence,
+      statut: "VALIDE", userId: opts.userId, agence: agenceOp,
       ecritureId, venteId: opts.venteId ?? null, creditId: opts.creditId ?? null,
       ip: opts.ip ?? null, userAgent: opts.userAgent ?? null,
     },
@@ -515,12 +533,13 @@ export async function payerCreditDepuisCC(
   });
 
   const reference = await genererReferenceMouvementCC(tx, "PAY");
+  const agenceOp = (await resoudreAgenceOperation(tx, opts.userId)) ?? opts.codeAgence;
   const mouvement = await tx.mouvementCompteCourant.create({
     data: {
       reference, compteId: opts.compteId, nature: "PAIEMENT_CREDIT",
       montant: -applique, soldeAvant: avant, soldeApres: apres,
       observation: `Crédit ${opts.creditRef}${opts.observation ? ` · ${opts.observation}` : ""}`,
-      statut: "VALIDE", userId: opts.userId, agence: opts.codeAgence, ecritureId, creditId: opts.creditId,
+      statut: "VALIDE", userId: opts.userId, agence: agenceOp, ecritureId, creditId: opts.creditId,
       ip: opts.ip ?? null, userAgent: opts.userAgent ?? null,
     },
     select: { id: true, reference: true },

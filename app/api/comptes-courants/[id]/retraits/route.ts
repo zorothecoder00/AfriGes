@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { PrioriteNotification } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCompteCourantSession } from "@/lib/authCompteCourant";
-import { chargerParametrageCC, genererReferenceMouvementCC, extraireMetaRequete, montantBloqueActif } from "@/lib/compteCourant";
+import { chargerParametrageCC, genererReferenceMouvementCC, extraireMetaRequete, montantBloqueActif, resoudreAgenceOperation } from "@/lib/compteCourant";
 import { notifyRoles, auditLog } from "@/lib/notifications";
 
 type Ctx = { params: Promise<{ id: string }> };
@@ -144,12 +144,13 @@ export async function POST(req: Request, { params }: Ctx) {
   try {
     const result = await prisma.$transaction(async (tx) => {
       const reference = await genererReferenceMouvementCC(tx, "RET");
+      const agenceOp = (await resoudreAgenceOperation(tx, userId)) ?? compte.codeAgence;
       const mouvement = await tx.mouvementCompteCourant.create({
         data: {
           reference, compteId, nature: "RETRAIT",
           montant: -montant, soldeAvant, soldeApres,
           modePaiement, observation,
-          statut: "EN_ATTENTE", userId, agence: compte.codeAgence, ip, userAgent,
+          statut: "EN_ATTENTE", userId, agence: agenceOp, ip, userAgent,
         },
         select: { id: true, reference: true, createdAt: true },
       });

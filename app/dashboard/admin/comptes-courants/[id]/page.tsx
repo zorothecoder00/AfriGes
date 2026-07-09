@@ -9,7 +9,7 @@ import {
   Wallet, ArrowLeft, Loader2, TrendingUp, TrendingDown, ShoppingCart,
   Activity, Clock, MapPin, Phone, User, Users, UserPlus, Trash2, Search, Hash, Plus, X, Printer, ArrowDownCircle, CreditCard, ShieldAlert,
   FileText, FileCheck, BookOpen, Target, Calendar, PiggyBank, Ban, Repeat, Power,
-  Award, Gift, Star, Sparkles, Lock, Unlock,
+  Award, Gift, Star, Sparkles, Lock, Unlock, Building2,
 } from "lucide-react";
 import { useApi } from "@/hooks/useApi";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -410,6 +410,9 @@ export default function CompteCourantDetailPage() {
 
             {/* Blocage volontaire de l'épargne (CDC §19.E) */}
             <BlocageSection compteId={Number(params.id)} canManage={canDeposit} compteActif={c.statut === "ACTIF"} onChanged={() => { refetch(); refetchMvt(); }} />
+
+            {/* Activité multi-agences (CDC §19.F) */}
+            <AgencesSection compteId={Number(params.id)} agenceDomiciliation={c.codeAgence} />
 
             {/* Documents (CDC §14, Lot 5) — visible si permission EXPORT (RBAC granulaire) */}
             {canExport && (
@@ -1767,6 +1770,55 @@ function BlocageSection({ compteId, canManage, compteActif, onChanged }:
               </button>
             </div>
           </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Activité multi-agences (CDC §19.F) ──────────────────────────────────────
+
+interface AgenceRow { agence: string; nbOperations: number; totalEntrees: number; totalSorties: number }
+
+function AgencesSection({ compteId, agenceDomiciliation }: { compteId: number; agenceDomiciliation: string }) {
+  const { data } = useApi<{ data: AgenceRow[] }>(`/api/comptes-courants/${compteId}/agences`);
+  const lignes = data?.data ?? [];
+
+  return (
+    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
+      <h3 className="font-bold text-gray-800 mb-1 flex items-center gap-2">
+        <Building2 className="w-4 h-4 text-teal-500" /> Activité par agence
+      </h3>
+      <p className="text-[11px] text-gray-400 mb-4">
+        Compte domicilié à <span className="font-medium">{agenceDomiciliation}</span> — utilisable dans toutes les agences AfriSime (synchronisation temps réel).
+      </p>
+
+      {lignes.length === 0 ? (
+        <p className="text-sm text-gray-400 py-4 text-center">Aucune opération enregistrée.</p>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-gray-400 border-b border-gray-100">
+                <th className="text-left py-2 font-semibold">Agence d&apos;opération</th>
+                <th className="text-center py-2 font-semibold">Opérations</th>
+                <th className="text-right py-2 font-semibold">Entrées</th>
+                <th className="text-right py-2 font-semibold">Sorties</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-50">
+              {lignes.map((l) => (
+                <tr key={l.agence}>
+                  <td className="py-2.5 text-gray-800 font-medium flex items-center gap-1.5">
+                    <Building2 className="w-3.5 h-3.5 text-teal-400" /> {l.agence}
+                  </td>
+                  <td className="py-2.5 text-center text-gray-600">{l.nbOperations}</td>
+                  <td className="py-2.5 text-right text-emerald-600 font-medium">{formatCurrency(l.totalEntrees)}</td>
+                  <td className="py-2.5 text-right text-orange-600 font-medium">{formatCurrency(l.totalSorties)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
     </div>
