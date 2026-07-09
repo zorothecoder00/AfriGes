@@ -6,8 +6,9 @@
 //  - chargement du paramétrage (singleton)
 
 import { prisma } from "@/lib/prisma";
-import { Prisma, PrioriteNotification, type NatureMouvementCC, type TypeJournalComptable } from "@prisma/client";
+import { Prisma, PrioriteNotification, TypePaiement, type NatureMouvementCC, type TypeJournalComptable } from "@prisma/client";
 import { notifyAdmins } from "@/lib/notifications";
+import { enregistrerRemboursementCredit } from "@/lib/remboursementCredit";
 
 export type TxClient = Prisma.TransactionClient;
 
@@ -400,4 +401,82 @@ export async function preleverCompteCourant(
   });
 
   return { mouvement, compteId: cc.id, numeroCompte: cc.numeroCompte, soldeApres: apres, ecritureGeneree: ecritureId != null };
+}
+
+/**
+ * Paie UN crédit du client en tirant sur le solde du compte courant (CDC §8),
+ * dans une transaction fournie : applique le remboursement (échéances + cascade
+ * RIA via enregistrerRemboursementCredit), débite le CC (mouvement PAIEMENT_CREDIT
+ * + écriture Débit CC 419 / Crédit Ventes 701) et met à jour solde/totaux.
+ *
+ * Mutualisé entre le paiement manuel (POST /[id]/paiements) et le prélèvement
+ * automatique (§19.C). N'effectue PAS l'audit/notif de lot ni l'alerte « solde
+ * faible » : c'est à la charge de l'appelant (qui a le contexte global).
+ */
+export async function payerCreditDepuisCC(
+  tx: TxClient,
+  opts: {
+    compteId: number; numeroCompte: string; codeAgence: string; clientNom: string;
+    creditId: number; creditRef: string; montant: number; userId: number;
+    param: { compteCourantClientNumero: string; compteVentesNumero: string };
+    observation?: string | null; ip?: string | null; userAgent?: string | null;
+  },
+): Promise<{ montantApplique: number; estSolde: boolean; soldeApres: number | null; mouvement: { id: number; reference: string } | null; ecritureGeneree: boolean }> {
+  // 1) Applique le remboursement au crédit (montant capé au solde restant).
+  const remb = await enregistrerRemboursementCredit(tx, {
+    creditId: opts.creditId,
+    montant: opts.montant,
+    numeroJour: null,
+    observation: `Paiement depuis compte courant ${opts.numeroCompte}${opts.observation ? ` — ${opts.observation}` : ""}`,
+    modePaiement: TypePaiement.WALLET_GENERAL,
+    enregistreParId: opts.userId,
+    agentCollecteurId: opts.userId,
+    confirmer: true,
+  });
+  if (!remb.ok) throw new Error(remb.error);
+  const applique = remb.montantEffectif;
+  if (applique <= 0) {
+    return { montantApplique: 0, estSolde: remb.estSolde, soldeApres: null, mouvement: null, ecritureGeneree: true };
+  }
+
+  // 2) Débite le compte courant du montant réellement imputé.
+  const courant = await tx.compteCourant.findUnique({ where: { id: opts.compteId }, select: { solde: true } });
+  const avant = Number(courant?.solde ?? 0);
+  if (applique > avant) throw new Error("Solde du compte courant insuffisant");
+  const apres = avant - applique;
+
+  const ecritureId = await creerEcritureCC(tx, {
+    journal: "OD",
+    date: new Date(),
+    libelle: `Paiement crédit ${opts.creditRef} via compte courant ${opts.numeroCompte} — ${opts.clientNom}`,
+    userId: opts.userId,
+    lignes: [
+      { numero: opts.param.compteCourantClientNumero, debit:  applique, libelle: `Utilisation CC ${opts.numeroCompte}` },
+      { numero: opts.param.compteVentesNumero,        credit: applique, libelle: `Règlement crédit ${opts.creditRef}` },
+    ],
+  });
+
+  const reference = await genererReferenceMouvementCC(tx, "PAY");
+  const mouvement = await tx.mouvementCompteCourant.create({
+    data: {
+      reference, compteId: opts.compteId, nature: "PAIEMENT_CREDIT",
+      montant: -applique, soldeAvant: avant, soldeApres: apres,
+      observation: `Crédit ${opts.creditRef}${opts.observation ? ` · ${opts.observation}` : ""}`,
+      statut: "VALIDE", userId: opts.userId, agence: opts.codeAgence, ecritureId, creditId: opts.creditId,
+      ip: opts.ip ?? null, userAgent: opts.userAgent ?? null,
+    },
+    select: { id: true, reference: true },
+  });
+
+  await tx.compteCourant.update({
+    where: { id: opts.compteId },
+    data: {
+      solde: apres,
+      totalUtilise: { increment: applique },
+      nbMouvements: { increment: 1 },
+      derniereOperationAt: new Date(),
+    },
+  });
+
+  return { montantApplique: applique, estSolde: remb.estSolde, soldeApres: apres, mouvement, ecritureGeneree: ecritureId != null };
 }

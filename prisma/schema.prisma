@@ -741,6 +741,7 @@ model User {
   mouvementsCompteCourant      MouvementCompteCourant[] @relation("CCMouvementUser")
   membresCCAjoutes             MembreCompteCourant[]    @relation("MembreCCAjoutePar")
   plansEpargneCrees            PlanEpargne[]            @relation("PlanEpargneCreePar")
+  prelevementsAutoCrees        AutorisationPrelevement[] @relation("PrelevementAutoCreePar")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1181,6 +1182,7 @@ model CreditClient {
   livraisons       VenteDirecte[]
   facturesVente    FactureVente[]  @relation("CreditClientFactures")
   financementsRIA  OperationFinancementRIA[] @relation("FinancementsRIACredit")
+  autorisationPrelevement AutorisationPrelevement?  // prélèvement automatique CC (CDC §19.C)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -5303,6 +5305,7 @@ model CompteCourant {
   libelle             String?                                  // nom du ménage / communauté / groupement (comptes collectifs)
   membres             MembreCompteCourant[]                    // membres du compte (au moins le titulaire)
   plansEpargne        PlanEpargne[]                            // plans d'épargne programmée (CDC §19.B)
+  autorisationsPrelevement AutorisationPrelevement[]           // prélèvements automatiques (CDC §19.C)
 
   dateOuverture       DateTime            @default(now())
   agentCreateurId     Int
@@ -5375,6 +5378,31 @@ model PlanEpargne {
 
   @@index([compteId])
   @@index([statut])
+}
+
+// Autorisation de prélèvement automatique (CDC §19.C) : le client autorise le
+// système à débiter son compte courant pour régler les échéances d'un crédit.
+model AutorisationPrelevement {
+  id                   Int          @id @default(autoincrement())
+  compteId             Int
+  compte               CompteCourant @relation(fields: [compteId], references: [id], onDelete: Cascade)
+  creditId             Int          @unique          // une seule autorisation par crédit
+  credit               CreditClient @relation(fields: [creditId], references: [id], onDelete: Cascade)
+  actif                Boolean      @default(true)
+  montantMax           Decimal?                       // plafond prélevé par exécution (null = montant de l'échéance due)
+  montantMinSolde      Decimal?                       // solde plancher à préserver (null = soldeMinObligatoire du paramétrage)
+  dernierPrelevementAt DateTime?
+  totalPreleve         Decimal      @default(0)
+  nbPrelevements       Int          @default(0)
+
+  creeParId            Int
+  creePar              User         @relation("PrelevementAutoCreePar", fields: [creeParId], references: [id])
+
+  createdAt            DateTime     @default(now())
+  updatedAt            DateTime     @updatedAt
+
+  @@index([compteId])
+  @@index([actif])
 }
 
 // Grand livre des mouvements d'un compte courant

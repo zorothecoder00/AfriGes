@@ -1,9 +1,8 @@
 import { NextResponse } from "next/server";
-import { PrioriteNotification, TypePaiement } from "@prisma/client";
+import { PrioriteNotification } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCompteCourantSession } from "@/lib/authCompteCourant";
-import { chargerParametrageCC, genererReferenceMouvementCC, creerEcritureCC, extraireMetaRequete, alerterSoldeFaible } from "@/lib/compteCourant";
-import { enregistrerRemboursementCredit } from "@/lib/remboursementCredit";
+import { chargerParametrageCC, extraireMetaRequete, alerterSoldeFaible, payerCreditDepuisCC } from "@/lib/compteCourant";
 import { notifyAdmins, auditLog } from "@/lib/notifications";
 
 type Ctx = { params: Promise<{ id: string }> };
@@ -85,66 +84,20 @@ export async function POST(req: Request, { params }: Ctx) {
       for (const it of items) {
         const ref = refById.get(it.creditId)!;
 
-        // 1) Applique le remboursement au crédit (montant capé au solde restant).
-        const remb = await enregistrerRemboursementCredit(tx, {
-          creditId: it.creditId,
-          montant: it.montant,
-          numeroJour: null,
-          observation: `Paiement depuis compte courant ${compte.numeroCompte}${observationLibre ? ` — ${observationLibre}` : ""}`,
-          modePaiement: TypePaiement.WALLET_GENERAL,
-          enregistreParId: userId,
-          agentCollecteurId: userId,
-          confirmer: true,
+        // Paiement d'un crédit via le CC (remboursement + débit + écriture) — helper mutualisé.
+        const paye = await payerCreditDepuisCC(tx, {
+          compteId, numeroCompte: compte.numeroCompte, codeAgence: compte.codeAgence, clientNom,
+          creditId: it.creditId, creditRef: ref, montant: it.montant, userId, param,
+          observation: observationLibre, ip, userAgent,
         });
-        if (!remb.ok) throw new Error(remb.error);
-        const applique = remb.montantEffectif;
-        if (applique <= 0) {
-          results.push({ creditId: it.creditId, reference: ref, montantApplique: 0, estSolde: remb.estSolde, mouvement: null });
+        if (!paye.ecritureGeneree) ecritureManquante = true;
+        if (paye.montantApplique <= 0) {
+          results.push({ creditId: it.creditId, reference: ref, montantApplique: 0, estSolde: paye.estSolde, mouvement: null });
           continue;
         }
-
-        // 2) Débite le compte courant du montant réellement imputé.
-        const courant = await tx.compteCourant.findUnique({ where: { id: compteId }, select: { solde: true } });
-        const avant = Number(courant?.solde ?? 0);
-        if (applique > avant) throw new Error("Solde du compte courant insuffisant");
-        const apres = avant - applique;
-
-        const ecritureId = await creerEcritureCC(tx, {
-          journal: "OD",
-          date: new Date(),
-          libelle: `Paiement crédit ${ref} via compte courant ${compte.numeroCompte} — ${clientNom}`,
-          userId,
-          lignes: [
-            { numero: param.compteCourantClientNumero, debit:  applique, libelle: `Utilisation CC ${compte.numeroCompte}` },
-            { numero: param.compteVentesNumero,        credit: applique, libelle: `Règlement crédit ${ref}` },
-          ],
-        });
-        if (ecritureId == null) ecritureManquante = true;
-
-        const reference = await genererReferenceMouvementCC(tx, "PAY");
-        const mouvement = await tx.mouvementCompteCourant.create({
-          data: {
-            reference, compteId, nature: "PAIEMENT_CREDIT",
-            montant: -applique, soldeAvant: avant, soldeApres: apres,
-            observation: `Crédit ${ref}${observationLibre ? ` · ${observationLibre}` : ""}`,
-            statut: "VALIDE", userId, agence: compte.codeAgence, ecritureId, creditId: it.creditId, ip, userAgent,
-          },
-          select: { id: true, reference: true },
-        });
-
-        await tx.compteCourant.update({
-          where: { id: compteId },
-          data: {
-            solde: apres,
-            totalUtilise: { increment: applique },
-            nbMouvements: { increment: 1 },
-            derniereOperationAt: new Date(),
-          },
-        });
-
-        totalApplique += applique;
-        soldeApres = apres;
-        results.push({ creditId: it.creditId, reference: ref, montantApplique: applique, estSolde: remb.estSolde, mouvement });
+        totalApplique += paye.montantApplique;
+        soldeApres = paye.soldeApres ?? soldeApres;
+        results.push({ creditId: it.creditId, reference: ref, montantApplique: paye.montantApplique, estSolde: paye.estSolde, mouvement: paye.mouvement });
       }
 
       if (totalApplique <= 0) throw new Error("Aucun montant appliqué (crédits déjà soldés)");

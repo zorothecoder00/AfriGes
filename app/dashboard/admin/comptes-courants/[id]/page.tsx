@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import {
   Wallet, ArrowLeft, Loader2, TrendingUp, TrendingDown, ShoppingCart,
   Activity, Clock, MapPin, Phone, User, Users, UserPlus, Trash2, Search, Hash, Plus, X, Printer, ArrowDownCircle, CreditCard, ShieldAlert,
-  FileText, FileCheck, BookOpen, Target, Calendar, PiggyBank, Ban,
+  FileText, FileCheck, BookOpen, Target, Calendar, PiggyBank, Ban, Repeat, Power,
 } from "lucide-react";
 import { useApi } from "@/hooks/useApi";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -400,6 +400,9 @@ export default function CompteCourantDetailPage() {
 
             {/* Épargne programmée (CDC §19.B) */}
             <EpargneSection compteId={Number(params.id)} canManage={canDeposit} compteActif={c.statut === "ACTIF"} />
+
+            {/* Prélèvement automatique des échéances (CDC §19.C) */}
+            <PrelevementsSection compteId={Number(params.id)} canManage={canDeposit} compteActif={c.statut === "ACTIF"} creditsPayables={creditsPayables} />
 
             {/* Documents (CDC §14, Lot 5) — visible si permission EXPORT (RBAC granulaire) */}
             {canExport && (
@@ -1228,6 +1231,180 @@ function EpargneSection({ compteId, canManage, compteActif }:
               <button onClick={envoyerCotisation} disabled={cotSaving}
                 className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-pink-600 hover:bg-pink-700 disabled:opacity-50 text-white rounded-xl text-sm font-semibold">
                 {cotSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />} Enregistrer la cotisation
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Prélèvement automatique des échéances (CDC §19.C) ───────────────────────
+
+interface AutorisationRow {
+  id: number; actif: boolean; montantMax: number | null; montantMinSolde: number | null;
+  dernierPrelevementAt: string | null; totalPreleve: number; nbPrelevements: number; createdAt: string;
+  credit: { id: number; reference: string; statut: string; soldeRestant: number; montantTotal: number; montantJournalier: number };
+  creePar: { nom: string; prenom: string } | null;
+}
+
+function PrelevementsSection({ compteId, canManage, compteActif, creditsPayables }:
+  { compteId: number; canManage: boolean; compteActif: boolean; creditsPayables: CreditPayable[] }) {
+  const { data, refetch } = useApi<{ data: AutorisationRow[] }>(`/api/comptes-courants/${compteId}/prelevements`);
+  const autorisations = data?.data ?? [];
+
+  const [createOpen, setCreateOpen] = useState(false);
+  const [creditId, setCreditId] = useState("");
+  const [montantMax, setMontantMax] = useState("");
+  const [montantMinSolde, setMontantMinSolde] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [busyId, setBusyId] = useState<number | null>(null);
+
+  const dejaAutorises = new Set(autorisations.map((a) => a.credit.id));
+  const creditsDispo = creditsPayables.filter((c) => !dejaAutorises.has(c.creditId));
+
+  const creer = async () => {
+    if (!creditId) { toast.error("Sélectionnez un crédit"); return; }
+    setSaving(true);
+    try {
+      const r = await fetch(`/api/comptes-courants/${compteId}/prelevements`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          creditId: Number(creditId),
+          montantMax: montantMax.trim() ? Number(montantMax) : null,
+          montantMinSolde: montantMinSolde.trim() ? Number(montantMinSolde) : null,
+        }),
+      });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error ?? "Erreur");
+      toast.success("Prélèvement automatique activé ✓");
+      setCreateOpen(false); setCreditId(""); setMontantMax(""); setMontantMinSolde(""); refetch();
+    } catch (e) { toast.error(e instanceof Error ? e.message : "Erreur"); }
+    finally { setSaving(false); }
+  };
+
+  const basculer = async (a: AutorisationRow) => {
+    setBusyId(a.id);
+    try {
+      const r = await fetch(`/api/comptes-courants/${compteId}/prelevements/${a.id}`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: a.actif ? "DESACTIVER" : "ACTIVER" }),
+      });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error ?? "Erreur");
+      toast.success(a.actif ? "Prélèvement suspendu" : "Prélèvement réactivé ✓");
+      refetch();
+    } catch (e) { toast.error(e instanceof Error ? e.message : "Erreur"); }
+    finally { setBusyId(null); }
+  };
+
+  const supprimer = async (a: AutorisationRow) => {
+    setBusyId(a.id);
+    try {
+      const r = await fetch(`/api/comptes-courants/${compteId}/prelevements/${a.id}`, { method: "DELETE" });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error ?? "Erreur");
+      toast.success("Autorisation supprimée");
+      refetch();
+    } catch (e) { toast.error(e instanceof Error ? e.message : "Erreur"); }
+    finally { setBusyId(null); }
+  };
+
+  return (
+    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
+      <div className="flex items-center justify-between mb-1">
+        <h3 className="font-bold text-gray-800 flex items-center gap-2">
+          <Repeat className="w-4 h-4 text-indigo-500" /> Prélèvement automatique
+          <span className="text-xs font-normal text-gray-400">({autorisations.length})</span>
+        </h3>
+        {canManage && compteActif && creditsDispo.length > 0 && (
+          <button onClick={() => { setCreditId(""); setMontantMax(""); setMontantMinSolde(""); setCreateOpen(true); }}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-medium">
+            <Plus className="w-3.5 h-3.5" /> Autoriser un crédit
+          </button>
+        )}
+      </div>
+      <p className="text-[11px] text-gray-400 mb-4">Le système règle automatiquement les échéances dues en débitant le compte courant (exécution quotidienne).</p>
+
+      {autorisations.length === 0 ? (
+        <p className="text-sm text-gray-400 py-6 text-center">Aucun prélèvement automatique configuré.</p>
+      ) : (
+        <div className="space-y-2">
+          {autorisations.map((a) => (
+            <div key={a.id} className="rounded-xl border border-slate-200 p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="font-semibold text-gray-800 flex items-center gap-1.5">
+                    <CreditCard className="w-4 h-4 text-indigo-500" /> {a.credit.reference}
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full border font-medium ${a.actif ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-gray-100 text-gray-500 border-gray-200"}`}>
+                      {a.actif ? "Actif" : "Suspendu"}
+                    </span>
+                  </p>
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    Reste dû {formatCurrency(a.credit.soldeRestant)} · échéance/jour {formatCurrency(a.credit.montantJournalier)}
+                  </p>
+                  <p className="text-[11px] text-gray-400 mt-1">
+                    {a.montantMax != null ? `Plafond ${formatCurrency(a.montantMax)}/exécution · ` : ""}
+                    {a.montantMinSolde != null ? `garde ${formatCurrency(a.montantMinSolde)} · ` : ""}
+                    {a.nbPrelevements} prélèvement(s), {formatCurrency(a.totalPreleve)} au total
+                    {a.dernierPrelevementAt ? ` · dernier ${formatDate(a.dernierPrelevementAt)}` : ""}
+                  </p>
+                </div>
+                {canManage && (
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <button onClick={() => basculer(a)} disabled={busyId === a.id}
+                      title={a.actif ? "Suspendre" : "Réactiver"}
+                      className={`p-1.5 rounded-lg border disabled:opacity-50 ${a.actif ? "border-amber-200 text-amber-600 hover:bg-amber-50" : "border-emerald-200 text-emerald-600 hover:bg-emerald-50"}`}>
+                      {busyId === a.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Power className="w-4 h-4" />}
+                    </button>
+                    <button onClick={() => supprimer(a)} disabled={busyId === a.id}
+                      title="Supprimer" className="p-1.5 rounded-lg border border-slate-200 text-slate-400 hover:text-rose-500 hover:border-rose-200 disabled:opacity-50">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Modal création d'autorisation */}
+      {createOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => !saving && setCreateOpen(false)}>
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h4 className="font-bold text-gray-800 flex items-center gap-2"><Repeat className="w-5 h-5 text-indigo-500" /> Autoriser un prélèvement</h4>
+              <button onClick={() => setCreateOpen(false)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+            </div>
+            <div className="space-y-3">
+              <label className="block">
+                <span className="text-xs font-semibold text-slate-500">Crédit à prélever</span>
+                <select value={creditId} onChange={(e) => setCreditId(e.target.value)}
+                  className="mt-1 w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                  <option value="">— Sélectionner —</option>
+                  {creditsDispo.map((c) => (
+                    <option key={c.creditId} value={c.creditId}>{c.reference} — reste {formatCurrency(c.soldeRestant)}</option>
+                  ))}
+                </select>
+              </label>
+              <div className="grid grid-cols-2 gap-3">
+                <label className="block">
+                  <span className="text-xs font-semibold text-slate-500">Plafond / exécution</span>
+                  <input type="number" min={0} value={montantMax} onChange={(e) => setMontantMax(e.target.value)} placeholder="illimité"
+                    className="mt-1 w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                </label>
+                <label className="block">
+                  <span className="text-xs font-semibold text-slate-500">Solde à préserver</span>
+                  <input type="number" min={0} value={montantMinSolde} onChange={(e) => setMontantMinSolde(e.target.value)} placeholder="paramétrage"
+                    className="mt-1 w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                </label>
+              </div>
+              <p className="text-[11px] text-gray-400">Chaque jour, l&apos;échéance due est réglée depuis le compte courant, dans la limite du plafond et sans descendre sous le solde à préserver.</p>
+              <button onClick={creer} disabled={saving}
+                className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-xl text-sm font-semibold">
+                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Repeat className="w-4 h-4" />} Activer le prélèvement
               </button>
             </div>
           </div>
