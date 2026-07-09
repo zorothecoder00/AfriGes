@@ -21,7 +21,7 @@ export default function PrixAutoPage() {
         if (!r.ok) throw new Error(j.message ?? "Erreur");
         const p = j.data;
         setForm({
-          actif: !!p.actif, appliquerSurCredit: !!p.appliquerSurCredit,
+          actif: !!p.actif, appliquerSurCredit: !!p.appliquerSurCredit, validationPrixObligatoire: !!p.validationPrixObligatoire,
           margeCiblePct: s(p.margeCiblePct), fraisLogistiquePct: s(p.fraisLogistiquePct),
           margeCreditPct: s(p.margeCreditPct), arrondi: s(p.arrondi),
         });
@@ -63,6 +63,9 @@ export default function PrixAutoPage() {
             <div className="pt-2 border-t border-gray-100" />
             <Toggle label="Recalculer aussi le prix crédit" value={!!form.appliquerSurCredit} onChange={(v) => set("appliquerSurCredit", v)} color="violet" />
             <Num label="Marge additionnelle crédit (%)" k="margeCreditPct" form={form} set={set} placeholder="0" disabled={!form.appliquerSurCredit} />
+            <div className="pt-2 border-t border-gray-100" />
+            <Toggle label="Validation obligatoire des changements de prix (§15)" value={!!form.validationPrixObligatoire} onChange={(v) => set("validationPrixObligatoire", v)} color="violet" />
+            <p className="text-[11px] text-gray-400">Si activé, tout changement de prix de vente/achat doit passer par une demande approuvée (Chef d&apos;agence, Admin ou Resp. Marketing) avec mot de passe.</p>
             <div className="flex justify-end pt-2">
               <button onClick={save} disabled={saving}
                 className="inline-flex items-center gap-2 px-6 py-3 bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white rounded-xl text-sm font-semibold shadow-sm">

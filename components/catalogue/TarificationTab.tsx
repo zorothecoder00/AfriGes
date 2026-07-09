@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { toast } from "sonner";
-import { Loader2, Plus, Trash2, Calculator, Wand2, Building2, MapPin, Globe } from "lucide-react";
+import { Loader2, Plus, Trash2, Calculator, Wand2, Building2, MapPin, Globe, ShieldCheck, ArrowRight } from "lucide-react";
 import { formatCurrency } from "@/lib/format";
 
 const TYPES: { v: string; l: string }[] = [
@@ -38,9 +38,42 @@ export default function TarificationTab({ produitId }: { produitId: number }) {
   const [adding, setAdding] = useState(false);
 
   // Moteur de prix auto
-  const [autoParam, setAutoParam] = useState<{ actif: boolean; margeCiblePct: number; fraisLogistiquePct: number; arrondi: number; appliquerSurCredit: boolean; margeCreditPct: number } | null>(null);
+  const [autoParam, setAutoParam] = useState<{ actif: boolean; margeCiblePct: number; fraisLogistiquePct: number; arrondi: number; appliquerSurCredit: boolean; margeCreditPct: number; validationPrixObligatoire?: boolean } | null>(null);
   const [apercu, setApercu] = useState<{ prixRevient: number; prixVente: number; prixCredit: number | null } | null>(null);
   const [busyAuto, setBusyAuto] = useState(false);
+
+  // Demande de changement de prix (validation)
+  const [demandes, setDemandes] = useState<{ id: number; champ: string; ancienPrix: number | null; nouveauPrix: number; motif: string; statut: string; createdAt: string }[]>([]);
+  const [dChamp, setDChamp] = useState<"VENTE" | "ACHAT">("VENTE");
+  const [dPrix, setDPrix] = useState("");
+  const [dMotif, setDMotif] = useState("");
+  const [dBusy, setDBusy] = useState(false);
+
+  const loadDemandes = useCallback(async () => {
+    try {
+      const r = await fetch(`/api/admin/catalogue/produits/${produitId}/demandes-prix`);
+      const j = await r.json();
+      if (r.ok) setDemandes(j.data);
+    } catch { /* ignore */ }
+  }, [produitId]);
+  useEffect(() => { loadDemandes(); }, [loadDemandes]);
+
+  const soumettreDemande = async () => {
+    if (dPrix === "" || Number(dPrix) < 0) { toast.error("Prix invalide"); return; }
+    if (!dMotif.trim()) { toast.error("Motif obligatoire"); return; }
+    setDBusy(true);
+    try {
+      const r = await fetch(`/api/admin/catalogue/produits/${produitId}/demandes-prix`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ champ: dChamp, nouveauPrix: Number(dPrix), motif: dMotif.trim() }),
+      });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.message ?? "Erreur");
+      toast.success("Demande soumise à validation ✓");
+      setDPrix(""); setDMotif(""); loadDemandes();
+    } catch (e) { toast.error(e instanceof Error ? e.message : "Erreur"); }
+    finally { setDBusy(false); }
+  };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -59,6 +92,7 @@ export default function TarificationTab({ produitId }: { produitId: number }) {
     fetch("/api/admin/catalogue/prix-auto").then((r) => r.json()).then((j) => j?.data && setAutoParam({
       actif: j.data.actif, margeCiblePct: Number(j.data.margeCiblePct), fraisLogistiquePct: Number(j.data.fraisLogistiquePct),
       arrondi: j.data.arrondi, appliquerSurCredit: j.data.appliquerSurCredit, margeCreditPct: Number(j.data.margeCreditPct),
+      validationPrixObligatoire: j.data.validationPrixObligatoire,
     })).catch(() => {});
   }, []);
 
@@ -176,6 +210,43 @@ export default function TarificationTab({ produitId }: { produitId: number }) {
           className="mt-2 inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium disabled:opacity-50">
           {adding ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />} Ajouter
         </button>
+      </div>
+
+      {/* Demande de changement de prix (validation §15) */}
+      <div className="rounded-xl border border-emerald-200 bg-emerald-50/30 p-4">
+        <h4 className="text-sm font-bold text-emerald-700 mb-1 flex items-center gap-2"><ShieldCheck className="w-4 h-4" /> Changement de prix (validation)</h4>
+        <p className="text-[11px] text-gray-500 mb-3">
+          {autoParam?.validationPrixObligatoire
+            ? "La validation est obligatoire : le prix ne peut être modifié que via une demande approuvée."
+            : "Soumettre un changement de prix de vente/achat à validation (Chef d'agence, Admin ou Resp. Marketing)."}
+        </p>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          <select value={dChamp} onChange={(e) => setDChamp(e.target.value as "VENTE" | "ACHAT")} className={inputCls}>
+            <option value="VENTE">Prix de vente</option>
+            <option value="ACHAT">Prix d&apos;achat</option>
+          </select>
+          <input type="number" min={0} value={dPrix} onChange={(e) => setDPrix(e.target.value)} placeholder="Nouveau prix" className={inputCls} />
+          <input value={dMotif} onChange={(e) => setDMotif(e.target.value)} placeholder="Motif (obligatoire)" className={`${inputCls} sm:col-span-2`} />
+        </div>
+        <button onClick={soumettreDemande} disabled={dBusy}
+          className="mt-2 inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-medium disabled:opacity-50">
+          {dBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />} Soumettre à validation
+        </button>
+        {demandes.length > 0 && (
+          <ul className="mt-3 space-y-1.5">
+            {demandes.slice(0, 5).map((d) => (
+              <li key={d.id} className="flex items-center gap-2 text-xs bg-white rounded-lg border border-slate-100 px-3 py-1.5">
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 uppercase">{d.champ === "VENTE" ? "Vente" : "Achat"}</span>
+                <span className="text-gray-400">{d.ancienPrix != null ? formatCurrency(d.ancienPrix) : "—"}</span>
+                <ArrowRight className="w-3 h-3 text-gray-300" />
+                <span className="font-semibold text-gray-700">{formatCurrency(d.nouveauPrix)}</span>
+                <span className={`ml-auto text-[10px] px-2 py-0.5 rounded-full border font-medium ${d.statut === "EN_ATTENTE" ? "bg-amber-50 text-amber-700 border-amber-200" : d.statut === "APPROUVE" ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-rose-50 text-rose-600 border-rose-200"}`}>
+                  {d.statut === "EN_ATTENTE" ? "En attente" : d.statut === "APPROUVE" ? "Approuvé" : "Rejeté"}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
 
       {/* Grille des prix */}
