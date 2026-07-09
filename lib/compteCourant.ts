@@ -9,6 +9,7 @@ import { prisma } from "@/lib/prisma";
 import { Prisma, PrioriteNotification, TypePaiement, type NatureMouvementCC, type TypeJournalComptable } from "@prisma/client";
 import { notifyAdmins } from "@/lib/notifications";
 import { enregistrerRemboursementCredit } from "@/lib/remboursementCredit";
+import { attribuerPointsDepot } from "@/lib/fidelite";
 
 export type TxClient = Prisma.TransactionClient;
 
@@ -150,7 +151,7 @@ export async function enregistrerDepotCC(
   },
 ) {
   // Relecture du solde dans la transaction (cohérence).
-  const courant = await tx.compteCourant.findUnique({ where: { id: opts.compteId }, select: { solde: true } });
+  const courant = await tx.compteCourant.findUnique({ where: { id: opts.compteId }, select: { solde: true, clientId: true } });
   const avant = Number(courant?.solde ?? 0);
   const apres = avant + opts.montant;
 
@@ -189,7 +190,14 @@ export async function enregistrerDepotCC(
     },
   });
 
-  return { mouvement, soldeAvant: avant, soldeApres: apres, ecritureGeneree: ecritureId != null };
+  // Récompenses de fidélité (CDC §19.D) : le titulaire gagne des points sur le dépôt.
+  let fidelite: { points: number; niveauMonte: boolean } | null = null;
+  if (courant?.clientId != null) {
+    const r = await attribuerPointsDepot(tx, { clientId: courant.clientId, montant: opts.montant, mouvementId: mouvement.id });
+    if (r) fidelite = { points: r.points, niveauMonte: r.niveauMonte };
+  }
+
+  return { mouvement, soldeAvant: avant, soldeApres: apres, ecritureGeneree: ecritureId != null, fidelite };
 }
 
 /**

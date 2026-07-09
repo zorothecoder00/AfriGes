@@ -742,6 +742,7 @@ model User {
   membresCCAjoutes             MembreCompteCourant[]    @relation("MembreCCAjoutePar")
   plansEpargneCrees            PlanEpargne[]            @relation("PlanEpargneCreePar")
   prelevementsAutoCrees        AutorisationPrelevement[] @relation("PrelevementAutoCreePar")
+  transactionsFideliteCreees   TransactionFidelite[]    @relation("TransactionFideliteCreePar")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -916,6 +917,7 @@ model Client {
   facturesVente      FactureVente[]           @relation("FacturesVenteClient")
   comptesCourants    CompteCourant[]                                   // titulaire principal (individuel ou collectif) — CDC §19.A
   membreDeComptesCC  MembreCompteCourant[]    @relation("MembreCC")    // comptes collectifs dont ce client est membre
+  compteFidelite     CompteFidelite?                                   // programme de fidélité (CDC §19.D)
 
   // ── Validation RVC (tous nullable — données existantes non impactées) ───
   motifRejet       String?    // raison du rejet par le responsable crédit
@@ -5263,6 +5265,22 @@ enum StatutPlanEpargne {
   EXPIRE       // échéance dépassée sans objectif atteint
 }
 
+// Niveau de fidélité d'un client (CDC §19.D) — débloque des avantages croissants.
+enum NiveauFidelite {
+  BRONZE
+  ARGENT
+  OR
+  PLATINE
+}
+
+// Nature d'un mouvement de points de fidélité (CDC §19.D)
+enum TypeTransactionFidelite {
+  GAIN        // points gagnés sur un dépôt
+  BONUS       // bonus manuel (régularité, geste commercial)
+  DEPENSE     // points échangés (cadeau, avantage)
+  AJUSTEMENT  // correction manuelle (+/−)
+}
+
 // Paramétrage général du module (enregistrement unique, id = 1)
 model ParametrageCompteCourant {
   id                    Int      @id @default(1)
@@ -5403,6 +5421,55 @@ model AutorisationPrelevement {
 
   @@index([compteId])
   @@index([actif])
+}
+
+// Paramétrage du programme de fidélité (CDC §19.D) — enregistrement unique id=1.
+model ProgrammeFidelite {
+  id                    Int      @id @default(1)
+  actif                 Boolean  @default(true)
+  pointsParMontant      Int      @default(1000) // 1 point par tranche de X FCFA déposé
+  bonusParDepot         Int      @default(0)    // points bonus fixes par dépôt (récompense la régularité)
+  seuilArgent           Int      @default(500)  // points cumulés pour atteindre chaque niveau
+  seuilOr               Int      @default(2000)
+  seuilPlatine          Int      @default(5000)
+  reductionFraisArgent  Int      @default(0)     // % de réduction des frais de dossier par niveau
+  reductionFraisOr      Int      @default(5)
+  reductionFraisPlatine Int      @default(10)
+  updatedAt             DateTime @updatedAt
+}
+
+// Compte de fidélité d'un client (CDC §19.D) — solde de points + niveau.
+model CompteFidelite {
+  id            Int             @id @default(autoincrement())
+  clientId      Int             @unique
+  client        Client          @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  soldePoints   Int             @default(0) // points disponibles (gagnés − dépensés)
+  totalGagnes   Int             @default(0) // cumul gagné (détermine le niveau, jamais décrémenté)
+  totalUtilises Int             @default(0)
+  niveau        NiveauFidelite  @default(BRONZE)
+  transactions  TransactionFidelite[]
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  @@index([niveau])
+}
+
+// Grand livre des points de fidélité (CDC §19.D).
+model TransactionFidelite {
+  id               Int                     @id @default(autoincrement())
+  compteFideliteId Int
+  compteFidelite   CompteFidelite          @relation(fields: [compteFideliteId], references: [id], onDelete: Cascade)
+  type             TypeTransactionFidelite
+  points           Int                              // signé : + gain/bonus, − dépense
+  motif            String
+  source           String?                          // DEPOT, COTISATION, MANUEL, CADEAU…
+  mouvementId      Int?                             // lien vers le dépôt source éventuel
+  creeParId        Int?
+  creePar          User?                   @relation("TransactionFideliteCreePar", fields: [creeParId], references: [id])
+  createdAt        DateTime                @default(now())
+
+  @@index([compteFideliteId])
+  @@index([createdAt])
 }
 
 // Grand livre des mouvements d'un compte courant

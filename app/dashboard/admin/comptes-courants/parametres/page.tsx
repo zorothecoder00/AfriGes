@@ -144,6 +144,8 @@ export default function ParametrageCCPage() {
                 Enregistrer
               </button>
             </div>
+
+            <FideliteProgrammeSection />
           </div>
         )}
       </div>
@@ -187,6 +189,83 @@ function TextField({ label, k, form, set }: FieldProps) {
       <label className="text-sm text-gray-600">{label}</label>
       <input value={String(form[k] ?? "")} onChange={(e) => set(k, e.target.value)}
         className="w-48 px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+    </div>
+  );
+}
+
+// Paramétrage du programme de fidélité (CDC §19.D) — chargement/sauvegarde autonomes.
+function FideliteProgrammeSection() {
+  const [form, setForm] = useState<Record<string, string | boolean>>({});
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const set = (k: string, v: string | boolean) => setForm((f) => ({ ...f, [k]: v }));
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const r = await fetch("/api/comptes-courants/fidelite/programme");
+        const j = await r.json();
+        if (!r.ok) throw new Error(j.error ?? "Erreur");
+        const p = j.data;
+        setForm({
+          actif: !!p.actif,
+          pointsParMontant: s(p.pointsParMontant), bonusParDepot: s(p.bonusParDepot),
+          seuilArgent: s(p.seuilArgent), seuilOr: s(p.seuilOr), seuilPlatine: s(p.seuilPlatine),
+          reductionFraisArgent: s(p.reductionFraisArgent), reductionFraisOr: s(p.reductionFraisOr), reductionFraisPlatine: s(p.reductionFraisPlatine),
+        });
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "Chargement impossible");
+      } finally { setLoading(false); }
+    })();
+  }, []);
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      const r = await fetch("/api/comptes-courants/fidelite/programme", {
+        method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(form),
+      });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error ?? "Erreur");
+      toast.success("Programme de fidélité enregistré ✓");
+    } catch (e) { toast.error(e instanceof Error ? e.message : "Erreur"); }
+    finally { setSaving(false); }
+  };
+
+  if (loading) return null;
+
+  return (
+    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
+      <h3 className="font-bold text-gray-800 mb-4">Programme de fidélité (récompenses)</h3>
+      <div className="space-y-3">
+        <div className="flex items-center justify-between py-1.5">
+          <span className="text-sm text-gray-600">Programme actif</span>
+          <button onClick={() => set("actif", !form.actif)}
+            className={`relative w-11 h-6 rounded-full transition-colors ${form.actif ? "bg-yellow-500" : "bg-gray-300"}`}>
+            <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${form.actif ? "translate-x-5" : ""}`} />
+          </button>
+        </div>
+        <NumField label="1 point tous les … FCFA déposés" k="pointsParMontant" form={form} set={set} placeholder="1000" />
+        <NumField label="Bonus fixe par dépôt (points)" k="bonusParDepot" form={form} set={set} placeholder="0" />
+        <div className="pt-2 border-t border-gray-100" />
+        <NumField label="Seuil niveau Argent (points cumulés)" k="seuilArgent" form={form} set={set} />
+        <NumField label="Seuil niveau Or (points cumulés)" k="seuilOr" form={form} set={set} />
+        <NumField label="Seuil niveau Platine (points cumulés)" k="seuilPlatine" form={form} set={set} />
+        <div className="pt-2 border-t border-gray-100" />
+        <NumField label="Réduction frais de dossier — Argent (%)" k="reductionFraisArgent" form={form} set={set} />
+        <NumField label="Réduction frais de dossier — Or (%)" k="reductionFraisOr" form={form} set={set} />
+        <NumField label="Réduction frais de dossier — Platine (%)" k="reductionFraisPlatine" form={form} set={set} />
+        <p className="text-xs text-gray-400">
+          Les points sont attribués automatiquement à chaque dépôt (dépôt courant, ouverture, cotisation épargne). La priorité crédit est acquise dès le niveau Or, les cadeaux au niveau Platine.
+        </p>
+      </div>
+      <div className="flex justify-end mt-4">
+        <button onClick={save} disabled={saving}
+          className="inline-flex items-center gap-2 px-6 py-3 bg-yellow-500 hover:bg-yellow-600 disabled:opacity-50 text-white rounded-xl text-sm font-semibold shadow-sm">
+          {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+          Enregistrer le programme
+        </button>
+      </div>
     </div>
   );
 }

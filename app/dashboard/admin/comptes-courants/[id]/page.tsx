@@ -9,6 +9,7 @@ import {
   Wallet, ArrowLeft, Loader2, TrendingUp, TrendingDown, ShoppingCart,
   Activity, Clock, MapPin, Phone, User, Users, UserPlus, Trash2, Search, Hash, Plus, X, Printer, ArrowDownCircle, CreditCard, ShieldAlert,
   FileText, FileCheck, BookOpen, Target, Calendar, PiggyBank, Ban, Repeat, Power,
+  Award, Gift, Star, Sparkles,
 } from "lucide-react";
 import { useApi } from "@/hooks/useApi";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -403,6 +404,9 @@ export default function CompteCourantDetailPage() {
 
             {/* Prélèvement automatique des échéances (CDC §19.C) */}
             <PrelevementsSection compteId={Number(params.id)} canManage={canDeposit} compteActif={c.statut === "ACTIF"} creditsPayables={creditsPayables} />
+
+            {/* Programme de fidélité / récompenses (CDC §19.D) */}
+            <FideliteSection compteId={Number(params.id)} canManage={canDeposit} />
 
             {/* Documents (CDC §14, Lot 5) — visible si permission EXPORT (RBAC granulaire) */}
             {canExport && (
@@ -1405,6 +1409,193 @@ function PrelevementsSection({ compteId, canManage, compteActif, creditsPayables
               <button onClick={creer} disabled={saving}
                 className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-xl text-sm font-semibold">
                 {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Repeat className="w-4 h-4" />} Activer le prélèvement
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Programme de fidélité / récompenses (CDC §19.D) ─────────────────────────
+
+const NIVEAU_STYLE: Record<string, string> = {
+  BRONZE: "bg-amber-100 text-amber-800 border-amber-300",
+  ARGENT: "bg-slate-100 text-slate-600 border-slate-300",
+  OR: "bg-yellow-100 text-yellow-700 border-yellow-300",
+  PLATINE: "bg-violet-100 text-violet-700 border-violet-300",
+};
+const NIVEAU_LABEL: Record<string, string> = { BRONZE: "Bronze", ARGENT: "Argent", OR: "Or", PLATINE: "Platine" };
+const FID_TYPE_LABEL: Record<string, string> = { GAIN: "Gain", BONUS: "Bonus", DEPENSE: "Dépense", AJUSTEMENT: "Ajustement" };
+
+interface FideliteData {
+  soldePoints: number; totalGagnes: number; totalUtilises: number; niveau: string;
+  avantages: { reductionFraisDossier: number; prioriteCredit: boolean; cadeaux: boolean };
+  progression: { prochainNiveau: string | null; seuilProchain: number | null; restant: number; pct: number };
+  bareme: { pointsParMontant: number; bonusParDepot: number };
+  historique: { id: number; type: string; points: number; motif: string; source: string | null; createdAt: string; creePar: { nom: string; prenom: string } | null }[];
+}
+
+function FideliteSection({ compteId, canManage }: { compteId: number; canManage: boolean }) {
+  const { data, refetch } = useApi<{ data: FideliteData }>(`/api/comptes-courants/${compteId}/fidelite`);
+  const f = data?.data;
+
+  const [open, setOpen] = useState(false);
+  const [type, setType] = useState<"BONUS" | "DEPENSE" | "AJUSTEMENT">("BONUS");
+  const [points, setPoints] = useState("");
+  const [signe, setSigne] = useState("+");
+  const [motif, setMotif] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const soumettre = async () => {
+    if (!points || Number(points) <= 0) { toast.error("Nombre de points invalide"); return; }
+    if (!motif.trim()) { toast.error("Motif requis"); return; }
+    setSaving(true);
+    try {
+      const r = await fetch(`/api/comptes-courants/${compteId}/fidelite/ajuster`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type, points: Number(points), motif: motif.trim(), ...(type === "AJUSTEMENT" ? { signe } : {}) }),
+      });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error ?? "Erreur");
+      toast.success("Points mis à jour ✓");
+      setOpen(false); setPoints(""); setMotif(""); refetch();
+    } catch (e) { toast.error(e instanceof Error ? e.message : "Erreur"); }
+    finally { setSaving(false); }
+  };
+
+  if (!f) return null;
+
+  return (
+    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="font-bold text-gray-800 flex items-center gap-2">
+          <Award className="w-4 h-4 text-yellow-500" /> Fidélité &amp; récompenses
+        </h3>
+        {canManage && (
+          <button onClick={() => { setType("BONUS"); setPoints(""); setSigne("+"); setMotif(""); setOpen(true); }}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-yellow-500 hover:bg-yellow-600 text-white rounded-lg text-xs font-medium">
+            <Sparkles className="w-3.5 h-3.5" /> Attribuer / utiliser
+          </button>
+        )}
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        {/* Solde de points + niveau */}
+        <div className="rounded-xl border border-slate-200 p-4">
+          <div className="flex items-center gap-2 mb-1">
+            <Star className="w-4 h-4 text-yellow-500" />
+            <span className="text-2xl font-extrabold text-gray-900">{f.soldePoints.toLocaleString("fr-FR")}</span>
+            <span className="text-xs text-gray-400">points</span>
+          </div>
+          <span className={`text-xs px-2.5 py-0.5 rounded-full border font-semibold ${NIVEAU_STYLE[f.niveau] ?? ""}`}>
+            Niveau {NIVEAU_LABEL[f.niveau] ?? f.niveau}
+          </span>
+          <p className="text-[11px] text-gray-400 mt-2">Gagnés {f.totalGagnes.toLocaleString("fr-FR")} · utilisés {f.totalUtilises.toLocaleString("fr-FR")}</p>
+        </div>
+
+        {/* Progression niveau suivant */}
+        <div className="rounded-xl border border-slate-200 p-4">
+          <p className="text-xs font-semibold text-slate-500 mb-2">Progression</p>
+          {f.progression.prochainNiveau ? (
+            <>
+              <div className="h-2.5 rounded-full bg-slate-100 overflow-hidden">
+                <div className="h-full rounded-full bg-yellow-400" style={{ width: `${f.progression.pct}%` }} />
+              </div>
+              <p className="text-[11px] text-gray-500 mt-1.5">
+                {f.progression.restant.toLocaleString("fr-FR")} pts pour {NIVEAU_LABEL[f.progression.prochainNiveau]}
+              </p>
+            </>
+          ) : (
+            <p className="text-sm font-semibold text-violet-600 flex items-center gap-1"><Sparkles className="w-4 h-4" /> Niveau maximum atteint</p>
+          )}
+          <p className="text-[10px] text-gray-400 mt-2">1 pt / {f.bareme.pointsParMontant.toLocaleString("fr-FR")} FCFA{f.bareme.bonusParDepot > 0 ? ` · +${f.bareme.bonusParDepot} pts/dépôt` : ""}</p>
+        </div>
+
+        {/* Avantages du niveau */}
+        <div className="rounded-xl border border-slate-200 p-4">
+          <p className="text-xs font-semibold text-slate-500 mb-2">Avantages</p>
+          <ul className="space-y-1 text-xs text-gray-600">
+            <li className="flex items-center gap-1.5">
+              <span className={f.avantages.reductionFraisDossier > 0 ? "text-emerald-500" : "text-slate-300"}>●</span>
+              Réduction frais de dossier {f.avantages.reductionFraisDossier > 0 ? `−${f.avantages.reductionFraisDossier}%` : "—"}
+            </li>
+            <li className="flex items-center gap-1.5">
+              <span className={f.avantages.prioriteCredit ? "text-emerald-500" : "text-slate-300"}>●</span>
+              Priorité sur les crédits {f.avantages.prioriteCredit ? "✓" : "—"}
+            </li>
+            <li className="flex items-center gap-1.5">
+              <Gift className={`w-3.5 h-3.5 ${f.avantages.cadeaux ? "text-pink-500" : "text-slate-300"}`} />
+              Cadeaux {f.avantages.cadeaux ? "✓" : "—"}
+            </li>
+          </ul>
+        </div>
+      </div>
+
+      {/* Historique des points */}
+      {f.historique.length > 0 && (
+        <div className="mt-4">
+          <p className="text-xs font-semibold text-slate-500 mb-2">Derniers mouvements de points</p>
+          <div className="divide-y divide-slate-50 border border-slate-100 rounded-xl overflow-hidden">
+            {f.historique.slice(0, 8).map((t) => (
+              <div key={t.id} className="flex items-center justify-between px-3 py-2 text-xs">
+                <div className="min-w-0">
+                  <span className="text-gray-700">{t.motif}</span>
+                  <span className="text-gray-400 ml-2">{FID_TYPE_LABEL[t.type] ?? t.type} · {formatDate(t.createdAt)}</span>
+                </div>
+                <span className={`font-semibold shrink-0 ${t.points >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
+                  {t.points >= 0 ? "+" : ""}{t.points}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Modal attribution / utilisation */}
+      {open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => !saving && setOpen(false)}>
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h4 className="font-bold text-gray-800 flex items-center gap-2"><Sparkles className="w-5 h-5 text-yellow-500" /> Points de fidélité</h4>
+              <button onClick={() => setOpen(false)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+            </div>
+            <div className="space-y-3">
+              <label className="block">
+                <span className="text-xs font-semibold text-slate-500">Opération</span>
+                <select value={type} onChange={(e) => setType(e.target.value as "BONUS" | "DEPENSE" | "AJUSTEMENT")}
+                  className="mt-1 w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-yellow-500">
+                  <option value="BONUS">Attribuer un bonus (+)</option>
+                  <option value="DEPENSE">Utiliser des points (cadeau / avantage) (−)</option>
+                  <option value="AJUSTEMENT">Ajustement (+/−)</option>
+                </select>
+              </label>
+              <div className="flex gap-2">
+                {type === "AJUSTEMENT" && (
+                  <select value={signe} onChange={(e) => setSigne(e.target.value)}
+                    className="px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50">
+                    <option value="+">+</option>
+                    <option value="-">−</option>
+                  </select>
+                )}
+                <label className="block flex-1">
+                  <span className="text-xs font-semibold text-slate-500">Points</span>
+                  <input type="number" min={0} value={points} onChange={(e) => setPoints(e.target.value)} autoFocus
+                    className="mt-1 w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-yellow-500" />
+                </label>
+              </div>
+              <label className="block">
+                <span className="text-xs font-semibold text-slate-500">Motif</span>
+                <input value={motif} onChange={(e) => setMotif(e.target.value)} placeholder="Ex. cadeau anniversaire, geste commercial…"
+                  className="mt-1 w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-yellow-500" />
+              </label>
+              {type === "DEPENSE" && f.soldePoints > 0 && (
+                <p className="text-[11px] text-gray-400">Solde disponible : {f.soldePoints.toLocaleString("fr-FR")} points.</p>
+              )}
+              <button onClick={soumettre} disabled={saving}
+                className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-yellow-500 hover:bg-yellow-600 disabled:opacity-50 text-white rounded-xl text-sm font-semibold">
+                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Award className="w-4 h-4" />} Valider
               </button>
             </div>
           </div>
