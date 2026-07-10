@@ -5,7 +5,7 @@ import Link from "next/link";
 import { toast } from "sonner";
 import {
   Package, Plus, Search, ArrowLeft, Loader2, Pencil, Archive, Filter, Boxes, Layers, ShieldCheck, Tag, Eye,
-  FileDown, FileSpreadsheet, Printer, ChevronDown, LayoutDashboard,
+  FileDown, FileSpreadsheet, Printer, ChevronDown, LayoutDashboard, Upload,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/format";
 import { exportToXlsx } from "@/lib/exportXlsx";
@@ -160,6 +160,15 @@ export default function CatalogueProduitsPage() {
                     className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50">
                     <Tag className="w-4 h-4 text-blue-600" /> Étiquettes (codes-barres / QR)
                   </Link>
+                  <div className="my-1 border-t border-gray-100" />
+                  <Link href="/dashboard/admin/catalogue/import" onMouseDown={(e) => e.preventDefault()}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50">
+                    <Upload className="w-4 h-4 text-violet-600" /> Importer des produits
+                  </Link>
+                  <a href="/api/admin/catalogue/export?format=csv" onMouseDown={(e) => e.preventDefault()}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50">
+                    <FileDown className="w-4 h-4 text-slate-500" /> Exporter en CSV
+                  </a>
                 </div>
               )}
             </div>
