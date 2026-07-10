@@ -37,6 +37,9 @@ export async function GET(req: Request) {
         { OR: [
           { nom:         { contains: search, mode: "insensitive" } },
           { description: { contains: search, mode: "insensitive" } },
+          { reference:   { contains: search, mode: "insensitive" } },
+          { codeBarre:   { contains: search } }, // scan douchette au comptoir (§11)
+          { qrCode:      { contains: search } },
         ]},
       ];
       delete where.stocks;

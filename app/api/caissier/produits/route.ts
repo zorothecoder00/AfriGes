@@ -28,6 +28,8 @@ export async function GET(req: Request) {
             { nom:         { contains: search, mode: "insensitive" } },
             { description: { contains: search, mode: "insensitive" } },
             { reference:   { contains: search, mode: "insensitive" } },
+            { codeBarre:   { contains: search } }, // scan douchette au comptoir (§11)
+            { qrCode:      { contains: search } },
           ],
         }
       : {};
