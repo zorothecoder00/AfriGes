@@ -63,7 +63,10 @@ export interface PromotionEvaluable {
 }
 
 /** Le périmètre produit de la promo couvre-t-il ce produit ? */
-export function couvreProduit(promo: PromotionEvaluable, produit: ProduitCiblable): boolean {
+export function couvreProduit(
+  promo: Pick<PromotionEvaluable, "cible" | "produitId" | "categorieId" | "familleId" | "marqueId">,
+  produit: ProduitCiblable,
+): boolean {
   switch (promo.cible) {
     case "TOUS":      return true;
     case "PRODUIT":   return promo.produitId === produit.id;

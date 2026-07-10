@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
 import {
-  Package, Plus, Search, ArrowLeft, Loader2, Pencil, Archive, Filter, Boxes, Layers, ShieldCheck, Tag,
+  Package, Plus, Search, ArrowLeft, Loader2, Pencil, Archive, Filter, Boxes, Layers, ShieldCheck, Tag, Eye,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/format";
 import ProduitFormModal, { type Referentiels } from "@/components/catalogue/ProduitFormModal";
@@ -38,6 +38,9 @@ export default function CatalogueProduitsPage() {
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [statut, setStatut] = useState("");
+  const [familleId, setFamilleId] = useState("");
+  const [categorieId, setCategorieId] = useState("");
+  const [marqueId, setMarqueId] = useState("");
   const [refs, setRefs] = useState<Referentiels | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [editId, setEditId] = useState<number | null>(null);
@@ -47,14 +50,18 @@ export default function CatalogueProduitsPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const q = new URLSearchParams({ page: String(page), limit: String(LIMIT), ...(search && { search }), ...(statut && { statut }) });
+      const q = new URLSearchParams({
+        page: String(page), limit: String(LIMIT),
+        ...(search && { search }), ...(statut && { statut }),
+        ...(familleId && { familleId }), ...(categorieId && { categorieId }), ...(marqueId && { marqueId }),
+      });
       const r = await fetch(`/api/admin/catalogue/produits?${q}`);
       const j = await r.json();
       if (!r.ok) throw new Error(j.message ?? "Erreur");
       setRows(j.data); setTotal(j.meta.total);
     } catch (e) { toast.error(e instanceof Error ? e.message : "Chargement impossible"); }
     finally { setLoading(false); }
-  }, [page, search, statut]);
+  }, [page, search, statut, familleId, categorieId, marqueId]);
 
   useEffect(() => { load(); }, [load]);
   useEffect(() => {
@@ -121,6 +128,25 @@ export default function CatalogueProduitsPage() {
             <option value="">Tous les statuts</option>
             {Object.keys(STATUT_LABEL).map((s) => <option key={s} value={s}>{STATUT_LABEL[s]}</option>)}
           </select>
+          <select value={familleId} onChange={(e) => { setFamilleId(e.target.value); setPage(1); }}
+            className="px-3 py-2.5 border border-gray-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <option value="">Toutes familles</option>
+            {refs?.familles.map((f) => <option key={f.id} value={f.id}>{f.nom}</option>)}
+          </select>
+          <select value={categorieId} onChange={(e) => { setCategorieId(e.target.value); setPage(1); }}
+            className="px-3 py-2.5 border border-gray-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <option value="">Toutes catégories</option>
+            {refs?.categories.map((c) => <option key={c.id} value={c.id}>{c.nom}</option>)}
+          </select>
+          <select value={marqueId} onChange={(e) => { setMarqueId(e.target.value); setPage(1); }}
+            className="px-3 py-2.5 border border-gray-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <option value="">Toutes marques</option>
+            {refs?.marques.map((m) => <option key={m.id} value={m.id}>{m.nom}</option>)}
+          </select>
+          {(statut || familleId || categorieId || marqueId || search) && (
+            <button onClick={() => { setStatut(""); setFamilleId(""); setCategorieId(""); setMarqueId(""); setSearchInput(""); setPage(1); }}
+              className="px-3 py-2.5 text-sm text-gray-500 hover:text-gray-700">Réinitialiser</button>
+          )}
         </div>
 
         {/* Table */}
@@ -154,7 +180,7 @@ export default function CatalogueProduitsPage() {
                               : <Boxes className="w-5 h-5 text-slate-300" />}
                           </div>
                           <div className="min-w-0">
-                            <p className="font-medium text-gray-800 truncate">{p.nom}</p>
+                            <Link href={`/dashboard/admin/catalogue/produits/${p.id}`} className="font-medium text-gray-800 truncate hover:text-blue-600 hover:underline block">{p.nom}</Link>
                             <p className="text-[11px] text-gray-400 font-mono">{p.codeProduit ?? "—"}{p.reference ? ` · ${p.reference}` : ""}</p>
                           </div>
                         </div>
@@ -169,6 +195,7 @@ export default function CatalogueProduitsPage() {
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-center gap-1.5">
+                          <Link href={`/dashboard/admin/catalogue/produits/${p.id}`} title="Voir la fiche" className="p-1.5 text-gray-400 hover:text-blue-600 rounded-lg hover:bg-blue-50"><Eye className="w-4 h-4" /></Link>
                           <button onClick={() => { setEditId(p.id); setModalOpen(true); }} title="Modifier" className="p-1.5 text-gray-400 hover:text-blue-600 rounded-lg hover:bg-blue-50"><Pencil className="w-4 h-4" /></button>
                           {p.statut !== "ARCHIVE" && (
                             <button onClick={() => archiver(p)} title="Archiver" className="p-1.5 text-gray-400 hover:text-rose-500 rounded-lg hover:bg-rose-50"><Archive className="w-4 h-4" /></button>
