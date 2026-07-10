@@ -140,3 +140,7 @@ Cahier de charge ResponsableApprovisionnement supply chain
 
 Permettre à tous les user de pouvoir discuter ( pas juste l'admin )
 
+
+
+Je dois corriger la relation entre les approvisionnements et les lots surtout chez l'admin qui peut lancer des approvisionnents lui même
+

@@ -2056,12 +2056,18 @@ model ReceptionApprovisionnement {
 model LigneReceptionAppro {
   id               Int     @id @default(autoincrement())
   receptionId      Int
-  produitId        Int   
+  produitId        Int
   quantiteAttendue Int
   quantiteRecue    Int?
   prixUnitaire     Decimal?
   etatQualite      String? // "BON" | "DEFECTUEUX" | "PARTIEL"
   notes            String?
+
+  // Lot & péremption (Enterprise #5) : si renseignés à la réception, un LotProduit
+  // est créé automatiquement à la validation (traçabilité FEFO). Optionnels.
+  numeroLot        String?
+  dlc              DateTime? // date limite de consommation
+  dluo             DateTime? // date de durabilité minimale
 
   reception ReceptionApprovisionnement @relation(fields: [receptionId], references: [id], onDelete: Cascade)
   produit   Produit                    @relation(fields: [produitId], references: [id])

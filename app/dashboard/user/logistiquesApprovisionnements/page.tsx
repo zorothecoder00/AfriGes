@@ -535,8 +535,9 @@ export default function LogistiqueApprovisionnementPage() {
   const [cmdForm, setCmdForm] = useState({
     type: "FOURNISSEUR", pointDeVenteId: "", fournisseurNom: "", datePrevisionnelle: "", notes: "",
   });
-  type CmdLigne = { produitId: string; quantiteAttendue: string; prixUnitaire: string };
-  const [cmdLignes, setCmdLignes] = useState<CmdLigne[]>([{ produitId: "", quantiteAttendue: "", prixUnitaire: "" }]);
+  type CmdLigne = { produitId: string; quantiteAttendue: string; prixUnitaire: string; numeroLot: string; dlc: string; dluo: string };
+  const ligneVide: CmdLigne = { produitId: "", quantiteAttendue: "", prixUnitaire: "", numeroLot: "", dlc: "", dluo: "" };
+  const [cmdLignes, setCmdLignes] = useState<CmdLigne[]>([{ ...ligneVide }]);
 
   const { mutate: createCommande, loading: cmdLoading } =
     useMutation<unknown, object>("/api/logistique/receptions", "POST", {
@@ -546,7 +547,7 @@ export default function LogistiqueApprovisionnementPage() {
   const openCommandeModal = () => {
     const d = new Date(); d.setDate(d.getDate() + 7);
     setCmdForm({ type: "FOURNISSEUR", pointDeVenteId: userPdvId ? String(userPdvId) : "", fournisseurNom: "", datePrevisionnelle: d.toISOString().slice(0, 10), notes: "" });
-    setCmdLignes([{ produitId: "", quantiteAttendue: "", prixUnitaire: "" }]);
+    setCmdLignes([{ ...ligneVide }]);
     setCommandeModal(true);
   };
 
@@ -558,6 +559,9 @@ export default function LogistiqueApprovisionnementPage() {
         produitId: Number(l.produitId),
         quantiteAttendue: Number(l.quantiteAttendue),
         ...(l.prixUnitaire !== "" && { prixUnitaire: Number(l.prixUnitaire) }),
+        ...(l.numeroLot.trim() && { numeroLot: l.numeroLot.trim() }),
+        ...(l.dlc  && { dlc: l.dlc }),
+        ...(l.dluo && { dluo: l.dluo }),
       }));
     if (!lignes.length) return;
     const result = await createCommande({
@@ -2577,7 +2581,7 @@ export default function LogistiqueApprovisionnementPage() {
                     </label>
                     <button
                       type="button"
-                      onClick={() => setCmdLignes(l => [...l, { produitId: "", quantiteAttendue: "", prixUnitaire: "" }])}
+                      onClick={() => setCmdLignes(l => [...l, { ...ligneVide }])}
                       className="flex items-center gap-1.5 text-xs text-emerald-600 hover:text-emerald-700 font-medium"
                     >
                       <Plus size={14} /> Ajouter un produit
@@ -2585,46 +2589,75 @@ export default function LogistiqueApprovisionnementPage() {
                   </div>
                   <div className="space-y-2">
                     {cmdLignes.map((ligne, i) => (
-                      <div key={i} className="flex items-center gap-2 bg-slate-50 rounded-xl px-3 py-2.5">
-                        <select
-                          required
-                          value={ligne.produitId}
-                          onChange={e => setCmdLignes(ls => ls.map((l, j) => j === i ? { ...l, produitId: e.target.value } : l))}
-                          className="flex-1 px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white text-sm"
-                        >
-                          <option value="">— Produit —</option>
-                          {allProduits.map(p => (
-                            <option key={p.id} value={p.id}>
-                              {p.nom}{p.reference ? ` (${p.reference})` : ""}
-                            </option>
-                          ))}
-                        </select>
-                        <input
-                          type="number"
-                          min="1"
-                          required
-                          placeholder="Qté"
-                          value={ligne.quantiteAttendue}
-                          onChange={e => setCmdLignes(ls => ls.map((l, j) => j === i ? { ...l, quantiteAttendue: e.target.value } : l))}
-                          className="w-24 px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white text-sm text-center"
-                        />
-                        <input
-                          type="number"
-                          min="0"
-                          placeholder="Prix achat"
-                          value={ligne.prixUnitaire}
-                          onChange={e => setCmdLignes(ls => ls.map((l, j) => j === i ? { ...l, prixUnitaire: e.target.value } : l))}
-                          className="w-28 px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white text-sm"
-                        />
-                        {cmdLignes.length > 1 && (
-                          <button
-                            type="button"
-                            onClick={() => setCmdLignes(ls => ls.filter((_, j) => j !== i))}
-                            className="p-1.5 text-slate-400 hover:text-red-500 rounded-lg transition-colors"
+                      <div key={i} className="bg-slate-50 rounded-xl px-3 py-2.5 space-y-2">
+                        <div className="flex items-center gap-2">
+                          <select
+                            required
+                            value={ligne.produitId}
+                            onChange={e => setCmdLignes(ls => ls.map((l, j) => j === i ? { ...l, produitId: e.target.value } : l))}
+                            className="flex-1 px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white text-sm"
                           >
-                            <X size={14} />
-                          </button>
-                        )}
+                            <option value="">— Produit —</option>
+                            {allProduits.map(p => (
+                              <option key={p.id} value={p.id}>
+                                {p.nom}{p.reference ? ` (${p.reference})` : ""}
+                              </option>
+                            ))}
+                          </select>
+                          <input
+                            type="number"
+                            min="1"
+                            required
+                            placeholder="Qté"
+                            value={ligne.quantiteAttendue}
+                            onChange={e => setCmdLignes(ls => ls.map((l, j) => j === i ? { ...l, quantiteAttendue: e.target.value } : l))}
+                            className="w-24 px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white text-sm text-center"
+                          />
+                          <input
+                            type="number"
+                            min="0"
+                            placeholder="Prix achat"
+                            value={ligne.prixUnitaire}
+                            onChange={e => setCmdLignes(ls => ls.map((l, j) => j === i ? { ...l, prixUnitaire: e.target.value } : l))}
+                            className="w-28 px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white text-sm"
+                          />
+                          {cmdLignes.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => setCmdLignes(ls => ls.filter((_, j) => j !== i))}
+                              className="p-1.5 text-slate-400 hover:text-red-500 rounded-lg transition-colors"
+                            >
+                              <X size={14} />
+                            </button>
+                          )}
+                        </div>
+                        {/* Lot & péremption (optionnel) — si renseigné, crée un lot FEFO à la validation */}
+                        <div className="flex items-center gap-2 pl-0.5">
+                          <span className="text-[10px] uppercase tracking-wide text-slate-400 shrink-0">Lot / péremption (optionnel)</span>
+                          <input
+                            type="text"
+                            placeholder="N° lot"
+                            value={ligne.numeroLot}
+                            onChange={e => setCmdLignes(ls => ls.map((l, j) => j === i ? { ...l, numeroLot: e.target.value } : l))}
+                            className="w-28 px-2 py-1.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white text-xs"
+                          />
+                          <label className="text-[10px] text-slate-400">DLC
+                            <input
+                              type="date"
+                              value={ligne.dlc}
+                              onChange={e => setCmdLignes(ls => ls.map((l, j) => j === i ? { ...l, dlc: e.target.value } : l))}
+                              className="ml-1 px-2 py-1 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white text-xs"
+                            />
+                          </label>
+                          <label className="text-[10px] text-slate-400">DLUO
+                            <input
+                              type="date"
+                              value={ligne.dluo}
+                              onChange={e => setCmdLignes(ls => ls.map((l, j) => j === i ? { ...l, dluo: e.target.value } : l))}
+                              className="ml-1 px-2 py-1 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white text-xs"
+                            />
+                          </label>
+                        </div>
                       </div>
                     ))}
                   </div>

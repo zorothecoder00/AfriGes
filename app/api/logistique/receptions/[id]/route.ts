@@ -7,6 +7,7 @@ import { getAuthSession } from "@/lib/auth";
 import { randomUUID } from "crypto";
 import { notifyRoles, notifyAdmins, auditLog } from "@/lib/notifications";
 import { enregistrerChangementPrix } from "@/lib/prixProduit";
+import { creerLotDepuisReception } from "@/lib/lotsFefo";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -229,6 +230,21 @@ export async function PATCH(req: Request, { params }: Ctx) {
               operateurId:     parseInt(session.user.id),
               receptionApproId:Number(id),
             },
+          });
+
+          // Création auto du lot si n° de lot / DLC saisis (traçabilité FEFO, Enterprise #5).
+          await creerLotDepuisReception(tx, {
+            produitId:        ligne.produitId,
+            pointDeVenteId:   reception.pointDeVenteId,
+            quantite:         qte,
+            numeroLot:        ligne.numeroLot,
+            dlc:              ligne.dlc,
+            dluo:             ligne.dluo,
+            prixAchat:        ligne.prixUnitaire != null ? Number(ligne.prixUnitaire) : null,
+            fournisseurId:    reception.fournisseurId,
+            receptionApproId: Number(id),
+            referenceReception: reception.reference,
+            operateurId:      parseInt(session.user.id),
           });
         }
 

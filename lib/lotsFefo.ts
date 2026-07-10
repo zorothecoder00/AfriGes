@@ -119,3 +119,62 @@ async function allouerLots(
   }
   return allocations;
 }
+
+/**
+ * Crée (ou ré-alimente) un lot lors d'une réception d'approvisionnement
+ * (Enterprise #5). Ne fait rien si aucune info lot/péremption n'est fournie
+ * (produit non périssable). Si le numéro de lot existe déjà pour ce produit×site,
+ * on cumule la quantité (même arrivage réceptionné en plusieurs fois) ; sinon on
+ * crée le lot. Journalise un MouvementLot ENTREE. À appeler dans la transaction
+ * de validation de la réception, après la mise en stock de la ligne.
+ */
+export async function creerLotDepuisReception(
+  tx: TxClient,
+  args: {
+    produitId: number; pointDeVenteId: number; quantite: number;
+    numeroLot?: string | null; dlc?: Date | null; dluo?: Date | null;
+    prixAchat?: number | null; fournisseurId?: number | null;
+    receptionApproId?: number | null; referenceReception: string; operateurId?: number | null;
+  },
+): Promise<number | null> {
+  const { produitId, pointDeVenteId, quantite, numeroLot, dlc, dluo, prixAchat, fournisseurId, receptionApproId, referenceReception, operateurId } = args;
+  // Pas de lot à tracer si ni numéro ni date de péremption (produit non suivi).
+  if ((!numeroLot || !numeroLot.trim()) && !dlc && !dluo) return null;
+  if (quantite <= 0) return null;
+
+  // Numéro : celui saisi, sinon dérivé de la réception (garantit l'unicité + la traçabilité).
+  const numero = numeroLot?.trim() || `${referenceReception}-P${produitId}`;
+
+  const existant = await tx.lotProduit.findUnique({
+    where: { produitId_pointDeVenteId_numeroLot: { produitId, pointDeVenteId, numeroLot: numero } },
+    select: { id: true, quantite: true, quantiteInitiale: true },
+  });
+
+  if (existant) {
+    await tx.lotProduit.update({
+      where: { id: existant.id },
+      data: { quantite: existant.quantite + quantite, quantiteInitiale: existant.quantiteInitiale + quantite, statut: "ACTIF" },
+    });
+    await tx.mouvementLot.create({
+      data: { lotId: existant.id, type: "ENTREE", quantite, motif: `Réception ${referenceReception}`, operateurId: operateurId ?? null },
+    });
+    return existant.id;
+  }
+
+  const lot = await tx.lotProduit.create({
+    data: {
+      numeroLot: numero, produitId, pointDeVenteId,
+      quantiteInitiale: quantite, quantite,
+      dlc: dlc ?? null, dluo: dluo ?? null,
+      prixAchat: prixAchat ?? null,
+      fournisseurId: fournisseurId ?? null,
+      receptionApproId: receptionApproId ?? null,
+      creeParId: operateurId ?? null,
+    },
+    select: { id: true },
+  });
+  await tx.mouvementLot.create({
+    data: { lotId: lot.id, type: "ENTREE", quantite, motif: `Réception ${referenceReception}`, operateurId: operateurId ?? null },
+  });
+  return lot.id;
+}
