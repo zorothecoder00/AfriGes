@@ -9,6 +9,9 @@ import {
   getCompteCourantParClient, chargerParametrageCC, preleverCompteCourant, extraireMetaRequete,
 } from "@/lib/compteCourant";
 import { tariferLigne } from "@/lib/venteTarification";
+import { consommerFEFOBestEffort } from "@/lib/lotsFefo";
+import { substitutsDisponibles } from "@/lib/substitutsServer";
+import { resoudrePrixBatch } from "@/lib/tarificationBatch";
 
 /**
  * GET /api/agentTerrain/ventes
@@ -79,9 +82,18 @@ export async function GET(req: NextRequest) {
           include: { produit: { select: { id: true, nom: true, reference: true, unite: true, prixUnitaire: true } } },
         })
       : [];
-    const produitsDispo = allStocks
+    const produitsDispoBrut = allStocks
       .map(s => ({ ...s, quantite: s.quantite - s.quantiteReservee }))
       .filter(s => s.quantite > 0);
+    // Prix DETAIL résolu par agence (§8) pour afficher le bon tarif à la sélection.
+    const prixMapV = await resoudrePrixBatch(
+      produitsDispoBrut.map(s => s.produit.id), ["DETAIL"],
+      { pointDeVenteId: affectation?.pointDeVente.id ?? null },
+    );
+    const produitsDispo = produitsDispoBrut.map(s => ({
+      ...s,
+      produit: { ...s.produit, prixDetail: prixMapV.get(s.produit.id)?.DETAIL ?? Number(s.produit.prixUnitaire) },
+    }));
 
     // Clients du PDV
     const clients = affectation
@@ -172,8 +184,10 @@ export async function POST(req: Request) {
       });
       const qteDispoReelle = (stock?.quantite ?? 0) - (stock?.quantiteReservee ?? 0);
       if (!stock || qteDispoReelle < qte) {
+        // Rupture → proposer des équivalents disponibles au PDV (Catalogue Ent.#4).
+        const substituts = await substitutsDisponibles(Number(l.produitId), pdvId);
         return NextResponse.json(
-          { error: `Stock insuffisant pour "${stock?.produit.nom ?? `produit #${l.produitId}`}". Disponible : ${Math.max(0, qteDispoReelle)}` },
+          { error: `Stock insuffisant pour "${stock?.produit.nom ?? `produit #${l.produitId}`}". Disponible : ${Math.max(0, qteDispoReelle)}`, substituts },
           { status: 400 }
         );
       }
@@ -256,6 +270,11 @@ export async function POST(req: Request) {
             operateurId:    userId,
             venteDirecteId: v.id,
           },
+        });
+        // Déstockage FEFO best-effort (traçabilité lots/péremption, Enterprise #5).
+        await consommerFEFOBestEffort(tx, {
+          produitId: ligne.produitId, pointDeVenteId: pdvId, quantite: ligne.quantite,
+          operateurId: userId, motif: `Vente directe comptant ${ref}`,
         });
       }
 

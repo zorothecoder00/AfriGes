@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getRVCSession } from "@/lib/authRVC";
+import { resoudrePrixBatch } from "@/lib/tarificationBatch";
 
 /**
  * GET /api/rvc/credits/init
@@ -45,7 +46,7 @@ export async function GET() {
         : [],
     ]);
 
-    const produitsDispo = stocks
+    const produitsBase = stocks
       .map((s) => ({
         id:           s.produit.id,
         nom:          s.produit.nom,
@@ -55,6 +56,13 @@ export async function GET() {
         quantite:     s.quantite - s.quantiteReservee,
       }))
       .filter((p) => p.quantite > 0);
+
+    // Prix CRÉDIT résolu (§4) pour pré-remplir la modale au bon montant (repli DETAIL puis miroir).
+    const prixMap = await resoudrePrixBatch(produitsBase.map((p) => p.id), ["CREDIT", "DETAIL"], { pointDeVenteId: pdvId });
+    const produitsDispo = produitsBase.map((p) => {
+      const r = prixMap.get(p.id) ?? {};
+      return { ...p, prixCredit: r.CREDIT ?? r.DETAIL ?? p.prixUnitaire };
+    });
 
     return NextResponse.json({ clients, produitsDispo });
   } catch (error) {

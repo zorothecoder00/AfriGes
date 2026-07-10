@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getAdminSession } from "@/lib/authAdmin";
 import { StatutLigneCreditClient, TypeMouvement, TypeSortieStock } from "@prisma/client";
 import { auditLog } from "@/lib/notifications";
+import { consommerFEFOBestEffort } from "@/lib/lotsFefo";
 
 type Ctx = { params: Promise<{ id: string; ligneId: string }> };
 
@@ -105,6 +106,11 @@ export async function PATCH(req: Request, { params }: Ctx) {
               reference:      `MVT-LIV-${creditId}-L${ligneIdN}-${dateStr}`,
               operateurId:    userId,
             },
+          });
+          // Déstockage FEFO best-effort (traçabilité lots/péremption, Enterprise #5).
+          await consommerFEFOBestEffort(tx, {
+            produitId: ligne.produitId, pointDeVenteId: pdvId, quantite: ligne.quantite,
+            operateurId: userId, motif: `Livraison crédit — ${ligne.credit.reference}`,
           });
         } else if (prevStatut === "EN_ATTENTE" && (statut === "INDISPONIBLE" || statut === "SUBSTITUE" || statut === "ANNULE")) {
           await tx.stockSite.updateMany({

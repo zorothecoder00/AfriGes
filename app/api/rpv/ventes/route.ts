@@ -6,6 +6,9 @@ import { randomUUID } from "crypto";
 import { notifyRoles, auditLog } from "@/lib/notifications";
 import { resolveViewAs } from "@/lib/viewAs";
 import { tariferLigne } from "@/lib/venteTarification";
+import { consommerFEFOBestEffort } from "@/lib/lotsFefo";
+import { substitutsDisponibles } from "@/lib/substitutsServer";
+import { resoudrePrixBatch } from "@/lib/tarificationBatch";
    
 /**
  * GET /api/rpv/ventes
@@ -88,7 +91,13 @@ export async function GET(req: NextRequest) {
       where: { pointDeVenteId: pdv.id, quantite: { gt: 0 } },
       include: { produit: { select: { id: true, nom: true, reference: true, unite: true, prixUnitaire: true } } },
     });
-    const produitsDispo = allStocks.filter(s => (s.quantite - s.quantiteReservee) > 0);
+    const produitsDispoBrut = allStocks.filter(s => (s.quantite - s.quantiteReservee) > 0);
+    // Prix DETAIL résolu par agence (§8) pour afficher le bon tarif à la sélection.
+    const prixMapV = await resoudrePrixBatch(produitsDispoBrut.map(s => s.produit.id), ["DETAIL"], { pointDeVenteId: pdv.id });
+    const produitsDispo = produitsDispoBrut.map(s => ({
+      ...s,
+      produit: { ...s.produit, prixDetail: prixMapV.get(s.produit.id)?.DETAIL ?? Number(s.produit.prixUnitaire) },
+    }));
 
     // Clients du PDV
     const clients = await prisma.client.findMany({
@@ -148,8 +157,10 @@ export async function POST(req: Request) {
       });
       const qteDispo = (stock?.quantite ?? 0) - (stock?.quantiteReservee ?? 0);
       if (!stock || qteDispo < Number(l.quantite)) {
+        // Rupture → proposer des équivalents disponibles au PDV (Catalogue Ent.#4).
+        const substituts = await substitutsDisponibles(Number(l.produitId), pdv.id);
         return NextResponse.json(
-          { error: `Stock insuffisant pour "${stock?.produit.nom ?? l.produitId}". Disponible : ${qteDispo}, demandé : ${l.quantite}` },
+          { error: `Stock insuffisant pour "${stock?.produit.nom ?? l.produitId}". Disponible : ${qteDispo}, demandé : ${l.quantite}`, substituts },
           { status: 400 }
         );
       }
@@ -216,6 +227,11 @@ export async function POST(req: Request) {
             operateurId:   userId,
             venteDirecteId:v.id,
           },
+        });
+        // Déstockage FEFO best-effort (traçabilité lots/péremption, Enterprise #5).
+        await consommerFEFOBestEffort(tx, {
+          produitId: ligne.produitId, pointDeVenteId: pdv.id, quantite: ligne.quantite,
+          operateurId: userId, motif: `Vente directe ${ref}`,
         });
       }
 

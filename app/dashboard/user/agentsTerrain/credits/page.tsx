@@ -67,6 +67,7 @@ interface ProduitOption {
   reference: string;
   unite: string | null;
   prixUnitaire: number;
+  prixCredit?: number;
 }
 
 interface NouveauCreditForm {
@@ -455,7 +456,7 @@ function NouveauCreditModal({
       if (field === "produitId" && val) {
         const p = produits.find((p) => p.id === Number(val));
         if (p) lignes[i].produitNomSaisi = p.nom;
-        if (p) lignes[i].prixUnitaire    = String(p.prixUnitaire);
+        if (p) lignes[i].prixUnitaire    = String(p.prixCredit ?? p.prixUnitaire);
       }
       return { ...f, lignes };
     });

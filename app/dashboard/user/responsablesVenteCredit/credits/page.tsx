@@ -124,7 +124,7 @@ const LIGNE_STATUT_LABEL: Record<string, string> = {
 // ─── NouveauCreditModal ────────────────────────────────────────────────────────
 
 interface ClientOption { id: number; nom: string; prenom: string; telephone: string }
-interface ProduitOption { id: number; nom: string; reference: string; unite: string | null; prixUnitaire: number; quantite: number }
+interface ProduitOption { id: number; nom: string; reference: string; unite: string | null; prixUnitaire: number; prixCredit?: number; quantite: number }
 interface EligibiliteResponse {
   eligible: boolean;
   raisons: string[];
@@ -207,7 +207,7 @@ function NouveauCreditModal({ onClose, onSuccess }: { onClose: () => void; onSuc
       next[i] = { ...next[i], [field]: val };
       if (field === "produitId" && val) {
         const p = produits.find((p) => p.id === Number(val));
-        if (p) { next[i].produitNom = p.nom; next[i].prixUnitaire = String(p.prixUnitaire); }
+        if (p) { next[i].produitNom = p.nom; next[i].prixUnitaire = String(p.prixCredit ?? p.prixUnitaire); }
       }
       return next;
     });

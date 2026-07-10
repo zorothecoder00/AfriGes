@@ -6,6 +6,8 @@ import { randomUUID } from "crypto";
 import { notifyRoles, auditLog } from "@/lib/notifications";
 import { chargerParametrageCC, getCompteCourantParClient, preleverCompteCourant, extraireMetaRequete } from "@/lib/compteCourant";
 import { tariferLigne } from "@/lib/venteTarification";
+import { consommerFEFOBestEffort } from "@/lib/lotsFefo";
+import { substitutsDisponibles } from "@/lib/substitutsServer";
 
 async function getAdminSession() {
   const s = await getAuthSession();
@@ -148,8 +150,10 @@ export async function POST(req: Request) {
       });
       const qteDispo = (stock?.quantite ?? 0) - (stock?.quantiteReservee ?? 0);
       if (!stock || qteDispo < Number(l.quantite)) {
+        // Rupture → proposer des équivalents disponibles au PDV (Catalogue Ent.#4).
+        const substituts = await substitutsDisponibles(Number(l.produitId), Number(pointDeVenteId));
         return NextResponse.json(
-          { error: `Stock insuffisant pour "${stock?.produit.nom ?? l.produitId}". Disponible : ${qteDispo}, demandé : ${l.quantite}` },
+          { error: `Stock insuffisant pour "${stock?.produit.nom ?? l.produitId}". Disponible : ${qteDispo}, demandé : ${l.quantite}`, substituts },
           { status: 400 }
         );
       }
@@ -232,6 +236,11 @@ export async function POST(req: Request) {
             operateurId:   userId,
             venteDirecteId:v.id,
           },
+        });
+        // Déstockage FEFO best-effort (traçabilité lots/péremption, Enterprise #5).
+        await consommerFEFOBestEffort(tx, {
+          produitId: ligne.produitId, pointDeVenteId: Number(pointDeVenteId), quantite: ligne.quantite,
+          operateurId: userId, motif: `Vente admin ${ref}`,
         });
       }
 

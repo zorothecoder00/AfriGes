@@ -66,6 +66,41 @@ export async function consommerFEFO(
     throw new Error(`Stock par lots insuffisant (${totalDispo} disponible, ${quantite} demandé)`);
   }
 
+  return allouerLots(tx, lots, quantite, operateurId, motif);
+}
+
+/**
+ * Variante **best-effort** de `consommerFEFO` pour brancher les lots au flux de
+ * vente : ne lève JAMAIS. Si le produit n'a aucun lot sur le site, la couche FEFO
+ * est simplement inactive (renvoie `[]`) et la vente suit son cours via StockSite.
+ * Si des lots existent mais ne couvrent pas toute la quantité, on consomme ce qui
+ * est disponible (traçabilité partielle) sans bloquer.
+ */
+export async function consommerFEFOBestEffort(
+  tx: TxClient,
+  args: { produitId: number; pointDeVenteId: number; quantite: number; operateurId?: number | null; motif?: string },
+): Promise<AllocationLot[]> {
+  const { produitId, pointDeVenteId, quantite, operateurId, motif } = args;
+  if (quantite <= 0) return [];
+
+  const lots = await tx.lotProduit.findMany({
+    where: { produitId, pointDeVenteId, statut: "ACTIF", quantite: { gt: 0 } },
+    orderBy: [{ dlc: { sort: "asc", nulls: "last" } }, { dateReception: "asc" }],
+    select: { id: true, numeroLot: true, quantite: true },
+  });
+  if (lots.length === 0) return []; // produit non suivi par lots → couche FEFO inactive
+
+  return allouerLots(tx, lots, quantite, operateurId, motif);
+}
+
+/** Pioche FEFO commune : décrémente les lots (déjà triés) et journalise les sorties. */
+async function allouerLots(
+  tx: TxClient,
+  lots: { id: number; numeroLot: string; quantite: number }[],
+  quantite: number,
+  operateurId?: number | null,
+  motif?: string,
+): Promise<AllocationLot[]> {
   const allocations: AllocationLot[] = [];
   let reste = quantite;
   for (const lot of lots) {

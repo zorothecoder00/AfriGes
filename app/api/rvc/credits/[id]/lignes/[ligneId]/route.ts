@@ -4,6 +4,8 @@ import { getRVCSession } from "@/lib/authRVC";
 import { montantJournalierArrondi } from "@/lib/echeancierCredit";
 import { StatutLigneCreditClient, TypeMouvement, TypeSortieStock } from "@prisma/client";
 import { auditLog } from "@/lib/notifications";
+import { tariferLigne } from "@/lib/venteTarification";
+import { consommerFEFOBestEffort } from "@/lib/lotsFefo";
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
@@ -162,6 +164,11 @@ export async function PATCH(req: Request, { params }: Ctx) {
               operateurId:    userId,
             },
           });
+          // Déstockage FEFO best-effort (traçabilité lots/péremption, Enterprise #5).
+          await consommerFEFOBestEffort(tx, {
+            produitId: ligne.produitId, pointDeVenteId: pdvId, quantite: ligne.quantite,
+            operateurId: userId, motif: `Livraison crédit — ${ligne.credit.reference}`,
+          });
         } else if (prevStatut === "EN_ATTENTE" && (statut === "INDISPONIBLE" || statut === "SUBSTITUE" || statut === "ANNULE")) {
           // Produit non livré : libère uniquement la réservation
           await tx.stockSite.updateMany({
@@ -233,9 +240,8 @@ export async function PUT(req: Request, { params }: Ctx) {
       if (rvcPdvId !== null && ligne.credit.pointDeVenteId !== rvcPdvId) throw new Error("ACCES_REFUSE");
 
       const qte = quantite != null ? Number(quantite) : ligne.quantite;
-      const pu  = prixUnitaire != null ? Number(prixUnitaire) : Number(ligne.prixUnitaire);
       const rem = remise != null ? Number(remise) : Number(ligne.remise);
-      const montantLigne = Number((pu * qte - rem).toFixed(2));
+      let pu  = prixUnitaire != null ? Number(prixUnitaire) : Number(ligne.prixUnitaire);
 
       let nomProduit = produitNomSaisi ?? ligne.produitNom;
       let newProduitId: number | null = ligne.produitId;
@@ -252,6 +258,20 @@ export async function PUT(req: Request, { params }: Ctx) {
         newProduitId = null;
         nomProduit = produitNomSaisi ?? ligne.produitNomSaisi ?? ligne.produitNom;
       }
+
+      // Prix CRÉDIT résolu depuis le catalogue (§4) dès que la ligne pointe un
+      // produit référencé — autoritaire (§15). Hors catalogue → prix saisi conservé.
+      if (newProduitId != null) {
+        const produitTarif = await tx.produit.findUnique({
+          where: { id: newProduitId },
+          select: { id: true, prixUnitaire: true, categorieId: true, familleId: true, marqueId: true },
+        });
+        if (produitTarif) {
+          const tarif = await tariferLigne(produitTarif, qte, { pointDeVenteId: ligne.credit.pointDeVenteId, aCredit: true });
+          pu = tarif.prixUnitaire;
+        }
+      }
+      const montantLigne = Number((pu * qte - rem).toFixed(2));
 
       const updated = await tx.ligneCreditClient.update({
         where: { id: ligneIdN },

@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getMagasinierSession } from "@/lib/authMagasinier";
 import { auditLog, notifyRoles } from "@/lib/notifications";
 import { PrioriteNotification, TypeMouvement, TypeSortieStock } from "@prisma/client";
+import { consommerFEFOBestEffort } from "@/lib/lotsFefo";
 
 type Ctx = { params: Promise<{ id: string; ligneId: string }> };
 
@@ -95,6 +96,11 @@ export async function PATCH(req: Request, { params }: Ctx) {
             reference:      `MVT-LIV-${creditId}-L${ligneIdN}-${dateStr}`,
             operateurId:    userId,
           },
+        });
+        // Déstockage FEFO best-effort (traçabilité lots/péremption, Enterprise #5).
+        await consommerFEFOBestEffort(tx, {
+          produitId: ligne.produitId, pointDeVenteId: ligne.credit.pointDeVenteId, quantite: ligne.quantite,
+          operateurId: userId, motif: `Livraison crédit — ${ligne.credit.reference}`,
         });
       }
 
