@@ -36,7 +36,7 @@ type StatutLiv   = "BROUILLON" | "EN_COURS" | "RECU" | "VALIDE" | "ANNULE";
 
 interface Produit {
   id: number; nom: string; description: string | null;
-  prixUnitaire: number; prixAchat?: number | null;
+  prixUnitaire: number; prixDetail?: number; prixAchat?: number | null;
   stock: number; totalStock?: number;
   quantiteReservee?: number; quantiteEnTransit?: number; quantiteEndommagee?: number; stockTheorique?: number;
   alerteStock: number;

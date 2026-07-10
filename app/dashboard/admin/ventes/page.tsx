@@ -32,7 +32,7 @@ interface LigneVente {
 interface StockItem {
   produitId: number; quantite: number;
   quantiteReservee: number; quantiteEnTransit: number; quantiteEndommagee: number; stockTheorique: number;
-  produit: { id: number; nom: string; reference?: string; prixUnitaire: string; prixAchat?: string | null; unite?: string };
+  produit: { id: number; nom: string; reference?: string; prixUnitaire: string; prixDetail?: number; prixAchat?: string | null; unite?: string };
 }
 interface VenteDirecte {
   id: number; reference: string; statut: 'BROUILLON' | 'CONFIRMEE' | 'ANNULEE';
@@ -414,7 +414,7 @@ export default function VentesPage() {
       produitId:    stock.produitId,
       nom:          stock.produit.nom,
       quantite:     1,
-      prixUnitaire: Number(stock.produit.prixUnitaire),
+      prixUnitaire: stock.produit.prixDetail ?? Number(stock.produit.prixUnitaire),
       prixAchat:    stock.produit.prixAchat != null ? Number(stock.produit.prixAchat) : null,
       stockDispo:   dispoReel,
     }]);
@@ -450,7 +450,7 @@ export default function VentesPage() {
           produitId:    stock.produitId,
           nom:          stock.produit.nom,
           quantite:     1,
-          prixUnitaire: Number(stock.produit.prixUnitaire),
+          prixUnitaire: stock.produit.prixDetail ?? Number(stock.produit.prixUnitaire),
           prixAchat:    stock.produit.prixAchat != null ? Number(stock.produit.prixAchat) : null,
           stockDispo:   dispoReel,
         };

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCaissierSession, getCaissierPdvId } from "@/lib/authCaissier";
+import { resoudrePrixBatch } from "@/lib/tarificationBatch";
 
 /**
  * GET /api/caissier/produits
@@ -50,9 +51,14 @@ export async function GET(req: Request) {
       },
     });
 
+    // Prix DETAIL résolu par agence (§8) pour l'affichage vente comptant / pro-forma.
+    const prixMap = await resoudrePrixBatch(produits.map(p => p.id), ["DETAIL"], { pointDeVenteId: pdvId });
     return NextResponse.json({
       success: true,
-      data: produits.map(p => ({ ...p, prixUnitaire: Number(p.prixUnitaire) })),
+      data: produits.map(p => {
+        const pu = Number(p.prixUnitaire);
+        return { ...p, prixUnitaire: pu, prixDetail: prixMap.get(p.id)?.DETAIL ?? pu };
+      }),
     });
   } catch (error) {
     console.error("GET /api/caissier/produits", error);

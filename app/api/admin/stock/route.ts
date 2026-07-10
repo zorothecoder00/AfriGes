@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getAuthSession } from "@/lib/auth";
 import { auditLog } from "@/lib/notifications";
+import { resoudrePrixBatch } from "@/lib/tarificationBatch";
 import { randomUUID } from "crypto";
 
 async function getAdminSession() {
@@ -237,8 +238,11 @@ export async function GET(req: Request) {
       }
     }
 
+    // Prix DETAIL résolu par agence (§8) sur `produit` — pour l'affichage vente comptant admin.
+    const prixMap = await resoudrePrixBatch(stocks.map(s => s.produit.id), ["DETAIL"], { pointDeVenteId: pdvId ? Number(pdvId) : null });
     const stocksWithAppros = stocks.map(s => ({
       ...s,
+      produit:        { ...s.produit, prixDetail: prixMap.get(s.produit.id)?.DETAIL ?? Number(s.produit.prixUnitaire) },
       valeurStock:    s.quantite * Number(s.produit.prixAchat ?? s.produit.prixUnitaire),
       stockTheorique: s.quantite + s.quantiteReservee + s.quantiteEnTransit - s.quantiteEndommagee,
       appros: approsMap.get(`${s.produitId}_${s.pointDeVenteId}`) ?? [],

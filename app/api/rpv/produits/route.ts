@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getRPVSession } from "@/lib/authRPV";
+import { resoudrePrixBatch } from "@/lib/tarificationBatch";
 
 /**
  * GET /api/rpv/produits
@@ -80,9 +81,13 @@ export async function GET(req: Request) {
     const stockFaible  = produitsAvecStock.filter((p) => p.totalStock > 0 && p.totalStock <= p.alerteStock).length;
     const valeurTotale = produitsAvecStock.reduce((s, p) => s + Number(p.prixAchat ?? p.prixUnitaire) * p.totalStock, 0);
 
+    // Prix DETAIL résolu par agence (§8) sur la page courante — pour l'affichage vente comptant.
+    const pageItems = paginated.map(({ stocks: _stocks, totalStock, ...p }) => ({ ...p, stock: totalStock, prixUnitaire: Number(p.prixUnitaire) }));
+    const prixMap = await resoudrePrixBatch(pageItems.map((p) => p.id), ["DETAIL"], { pointDeVenteId: pdv.id });
+
     return NextResponse.json({
       success: true,
-      data: paginated.map(({ stocks: _stocks, totalStock, ...p }) => ({ ...p, stock: totalStock, prixUnitaire: Number(p.prixUnitaire) })),
+      data: pageItems.map((p) => ({ ...p, prixDetail: prixMap.get(p.id)?.DETAIL ?? p.prixUnitaire })),
       stats: {
         totalProduits: produitsAvecStock.length,
         enRupture,

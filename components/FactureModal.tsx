@@ -470,6 +470,7 @@ interface ProduitSuggestion {
   nom: string;
   unite: string | null;
   prixUnitaire: number;
+  prixDetail?: number;   // prix DETAIL résolu par agence (Catalogue §8) — prioritaire si présent
   reference: string | null;
 }
 
@@ -513,11 +514,12 @@ function ProduitCombobox({
           if (res.ok) {
             const json = await res.json();
             const items: ProduitSuggestion[] = (json.data ?? []).map(
-              (p: { id: number; nom: string; unite?: string | null; prixUnitaire: number; reference?: string | null }) => ({
+              (p: { id: number; nom: string; unite?: string | null; prixUnitaire: number; prixDetail?: number; reference?: string | null }) => ({
                 id:           p.id,
                 nom:          p.nom,
                 unite:        p.unite ?? null,
                 prixUnitaire: p.prixUnitaire,
+                prixDetail:   p.prixDetail,
                 reference:    p.reference ?? null,
               })
             );
@@ -596,7 +598,7 @@ function ProduitCombobox({
                 <div className="flex items-center justify-between gap-2">
                   <span className="font-medium text-slate-800 text-sm truncate">{p.nom}</span>
                   <span className="text-xs text-emerald-600 font-semibold shrink-0">
-                    {new Intl.NumberFormat("fr-FR").format(p.prixUnitaire)} FCFA
+                    {new Intl.NumberFormat("fr-FR").format(p.prixDetail ?? p.prixUnitaire)} FCFA
                     {p.unite ? ` / ${p.unite}` : ""}
                   </span>
                 </div>
@@ -1066,7 +1068,7 @@ export default function FactureModal({
                                   ...x,
                                   designation:  p.nom,
                                   unite:        p.unite ?? x.unite,
-                                  prixUnitaire: p.prixUnitaire.toString(),
+                                  prixUnitaire: (p.prixDetail ?? p.prixUnitaire).toString(),
                                 }
                               : x
                           ))}

@@ -290,7 +290,7 @@ interface PortefeuilleCreditResponse {
 }
 interface StockDispoItem {
   id: number; quantite: number;
-  produit: { id: number; nom: string; unite: string | null; prixUnitaire: string };
+  produit: { id: number; nom: string; unite: string | null; prixUnitaire: string; prixDetail?: number };
 }
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
@@ -1631,7 +1631,8 @@ export default function AgentTerrainPage() {
     const lignesValides = vLignes.filter(l => l.produitId && l.quantite);
     if (!lignesValides.length) return;
     const montantTotal = lignesValides.reduce((s, l) => {
-      const prix = Number(produitsDispo.find(p => p.produit.id === Number(l.produitId))?.produit.prixUnitaire ?? 0);
+      const pr = produitsDispo.find(p => p.produit.id === Number(l.produitId))?.produit;
+      const prix = pr?.prixDetail ?? Number(pr?.prixUnitaire ?? 0);
       return s + Number(l.quantite) * prix;
     }, 0);
     // Part réglée via le compte courant (plafonnée au total et au solde) + reste en espèces.
@@ -1681,7 +1682,8 @@ export default function AgentTerrainPage() {
 
   const vMontantCalcule = vLignes.reduce((s, l) => {
     if (!l.produitId || !l.quantite) return s;
-    const prix = Number(produitsDispo.find(p => p.produit.id === Number(l.produitId))?.produit.prixUnitaire ?? 0);
+    const pr = produitsDispo.find(p => p.produit.id === Number(l.produitId))?.produit;
+    const prix = pr?.prixDetail ?? Number(pr?.prixUnitaire ?? 0);
     return s + Number(l.quantite) * prix;
   }, 0);
 
@@ -2688,7 +2690,7 @@ export default function AgentTerrainPage() {
                             <select value={l.produitId}
                               onChange={e => {
                                 const p = produitsDispo.find(p => p.produit.id === Number(e.target.value));
-                                setVLignes(prev => prev.map((x, j) => j === i ? { ...x, produitId: e.target.value, prixUnitaire: p ? String(p.produit.prixUnitaire) : "" } : x));
+                                setVLignes(prev => prev.map((x, j) => j === i ? { ...x, produitId: e.target.value, prixUnitaire: p ? String(p.produit.prixDetail ?? p.produit.prixUnitaire) : "" } : x));
                               }}
                               className="flex-1 px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-teal-500">
                               <option value="">Choisir un produit…</option>
@@ -2703,7 +2705,7 @@ export default function AgentTerrainPage() {
                               className="w-20 px-2 py-2.5 border border-slate-200 rounded-xl text-sm text-center focus:outline-none focus:ring-2 focus:ring-teal-500" />
                             {produitSel && (
                               <span className="w-28 text-center text-xs font-semibold text-teal-700 bg-teal-50 border border-teal-200 rounded-xl px-2 py-2.5">
-                                {formatCurrency(produitSel.produit.prixUnitaire)}
+                                {formatCurrency(produitSel.produit.prixDetail ?? produitSel.produit.prixUnitaire)}
                               </span>
                             )}
                             {vLignes.length > 1 && (
