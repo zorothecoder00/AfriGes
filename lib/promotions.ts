@@ -1,8 +1,10 @@
-import { prisma } from "@/lib/prisma";
-import { Prisma, TypeRemisePromotion, CiblePromotion, SegmentClient } from "@prisma/client";
+import type { Prisma, TypeRemisePromotion, CiblePromotion, SegmentClient } from "@prisma/client";
 
 /**
- * Promotions commerciales (Catalogue §9).
+ * Promotions commerciales (Catalogue §9). — MODULE PUR (client-safe)
+ * Aucune dépendance à `@/lib/prisma` : ce module ne contient que des types, des
+ * constantes et des fonctions pures, afin d'être importable côté client (labels,
+ * calcul de remise). La résolution en base vit dans `lib/promotionsServer.ts`.
  * Une promotion porte sur un périmètre produit (produit / catégorie / famille /
  * marque / tout le catalogue) et peut être restreinte à une agence, un segment
  * (communauté) ou un client précis, sur une période donnée. Ce module résout la
@@ -84,34 +86,6 @@ export function respecteRestrictions(promo: PromotionEvaluable, ctx: ContextePro
   return true;
 }
 
-/**
- * Résout la meilleure promotion applicable à un produit dans un contexte donné.
- * Parmi les promos actives et dans leur fenêtre de dates, on retient celles qui
- * couvrent le produit et respectent les restrictions, puis on privilégie la
- * priorité la plus haute (départage : la plus récente).
- */
-export async function promotionApplicable(
-  produit: ProduitCiblable,
-  ctx: ContextePromotion = {},
-  now: Date = new Date(),
-): Promise<PromotionEvaluable | null> {
-  const promos = await prisma.promotion.findMany({
-    where: { actif: true, dateDebut: { lte: now }, dateFin: { gte: now } },
-    orderBy: [{ priorite: "desc" }, { createdAt: "desc" }],
-    select: {
-      id: true, code: true, nom: true, cible: true, produitId: true, categorieId: true,
-      familleId: true, marqueId: true, typeRemise: true, valeur: true, lotAchete: true,
-      lotPaye: true, pointDeVenteId: true, segment: true, clientId: true, priorite: true,
-    },
-  });
-
-  const candidates = promos
-    .map((p) => ({ ...p, valeur: Number(p.valeur) }))
-    .filter((p) => couvreProduit(p, produit) && respecteRestrictions(p, ctx));
-
-  return candidates[0] ?? null;
-}
-
 export interface ResultatPromotion {
   prixInitial: number;      // prix unitaire avant remise
   prixRemise: number;       // prix unitaire après remise (offres LOT : prix moyen unitaire)
@@ -168,22 +142,6 @@ export function appliquerPromotion(
     quantiteFacturee,
     promotion: { id: promo.id, code: promo.code, nom: promo.nom, typeRemise: promo.typeRemise },
   };
-}
-
-/**
- * Prix promotionnel applicable à un produit dans un contexte donné (résolution +
- * calcul en une passe). Renvoie null si aucune promo ne s'applique.
- */
-export async function prixPromotionnel(
-  produit: ProduitCiblable,
-  prixUnitaire: number,
-  ctx: ContextePromotion = {},
-  quantite = 1,
-  now: Date = new Date(),
-): Promise<ResultatPromotion | null> {
-  const promo = await promotionApplicable(produit, ctx, now);
-  if (!promo) return null;
-  return appliquerPromotion(prixUnitaire, promo, quantite);
 }
 
 /** Résumé lisible de la remise d'une promotion (pour l'UI / notifications). */

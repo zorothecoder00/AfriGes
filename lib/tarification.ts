@@ -1,26 +1,20 @@
 import { prisma } from "@/lib/prisma";
 import { Prisma, TypePrix, PorteePrix } from "@prisma/client";
 import type { TxClient } from "@/lib/compteCourant";
+import { TYPES_PRIX, TYPE_PRIX_LABEL } from "@/lib/tarificationLabels";
 
 /**
  * Tarification flexible (Catalogue §4, Enterprise #1/#2/#6).
  * Un produit porte plusieurs lignes de prix (PrixProduit), par type/profil et,
  * optionnellement, spécifiques à une agence / ville / région. Ce module résout
  * le prix applicable dans un contexte donné et pilote le moteur de prix auto.
+ *
+ * NB : `TYPES_PRIX` / `TYPE_PRIX_LABEL` vivent dans `lib/tarificationLabels.ts`
+ * (module pur) pour être importables côté client. On les ré-exporte ici pour ne
+ * pas casser les appelants serveur existants.
  */
 
-export const TYPES_PRIX = [
-  "ACHAT", "FOURNISSEUR", "REVIENT", "GROS", "DETAIL", "COMMUNAUTE", "VIP",
-  "PROMOTION", "PERSONNEL", "PARTENAIRE", "REVENDEUR", "CREDIT", "NOUVEAU_CLIENT", "FIDELE",
-] as const;
-
-export const TYPE_PRIX_LABEL: Record<TypePrix, string> = {
-  ACHAT: "Prix d'achat", FOURNISSEUR: "Prix fournisseur", REVIENT: "Prix de revient",
-  GROS: "Prix de gros", DETAIL: "Prix de détail (comptant)", COMMUNAUTE: "Prix Communauté",
-  VIP: "Prix VIP", PROMOTION: "Prix promotion", PERSONNEL: "Prix personnel",
-  PARTENAIRE: "Prix partenaire", REVENDEUR: "Prix revendeur", CREDIT: "Prix crédit",
-  NOUVEAU_CLIENT: "Prix nouveau client", FIDELE: "Prix fidèle",
-};
+export { TYPES_PRIX, TYPE_PRIX_LABEL };
 
 // Priorité de portée : plus la portée est précise, plus le prix prime.
 const PRIORITE_PORTEE: Record<PorteePrix, number> = { AGENCE: 3, VILLE: 2, REGION: 1, GLOBAL: 0 };

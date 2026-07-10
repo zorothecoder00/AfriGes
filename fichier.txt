@@ -133,4 +133,7 @@ Dans les dosseirs des collaborateurs pour leur information faut ajouter aussi pe
 
 DocumentsRH
 Catalogue et annexe Prix
-Cahier de charge ResponsableApprovisionnement supply chain
+Cahier de charge ResponsableApprovisionnement supply chain  
+
+
+Donner accès à tous les user de pouvoir discuter ( pas juste l'admin )
