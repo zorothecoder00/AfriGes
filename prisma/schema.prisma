@@ -750,6 +750,7 @@ model User {
   promotionsCreees             Promotion[]              @relation("PromotionCreePar")
   lotsProduitsCrees            LotProduit[]             @relation("LotProduitCreePar")
   mouvementsLot                MouvementLot[]           @relation("MouvementLotOperateur")
+  produitsSubstitutsCrees      ProduitSubstitut[]       @relation("ProduitSubstitutCreePar")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1570,6 +1571,8 @@ model Produit {
   demandesPrix DemandeChangementPrix[]  // demandes de changement de prix (Catalogue §15) — Phase 4
   promotions   Promotion[]    @relation("PromotionProduit")  // promotions ciblant ce produit (Catalogue §9) — Phase 5
   lots         LotProduit[]   // lots & péremption FEFO (Catalogue Ent.#5) — Phase 10
+  substituts     ProduitSubstitut[] @relation("ProduitSubstituts")      // équivalents proposés pour CE produit (Ent.#4) — Phase 11
+  estSubstitutDe ProduitSubstitut[] @relation("ProduitEstSubstitutDe")  // produits dont CE produit est l'équivalent
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1848,6 +1851,31 @@ model MouvementLot {
 
   @@index([lotId])
   @@index([type])
+}
+
+// ============================================================
+// CATALOGUE — PRODUITS DE SUBSTITUTION (Enterprise #4) — Phase 11
+// ============================================================
+
+// Lien de substitution : `substitut` est un équivalent proposé pour `produit`
+// (typiquement quand `produit` est en rupture). Relation dirigée + option
+// `bidirectionnel` pour proposer aussi l'inverse. Priorité = ordre de préférence.
+model ProduitSubstitut {
+  id             Int      @id @default(autoincrement())
+  produitId      Int
+  produit        Produit  @relation("ProduitSubstituts", fields: [produitId], references: [id], onDelete: Cascade)
+  substitutId    Int
+  substitut      Produit  @relation("ProduitEstSubstitutDe", fields: [substitutId], references: [id], onDelete: Cascade)
+  priorite       Int      @default(0)    // ordre de préférence (décroissant)
+  bidirectionnel Boolean  @default(true) // si vrai, l'inverse est aussi un substitut
+  note           String?
+  creeParId      Int?
+  creePar        User?    @relation("ProduitSubstitutCreePar", fields: [creeParId], references: [id])
+  createdAt      DateTime @default(now())
+
+  @@unique([produitId, substitutId])
+  @@index([produitId])
+  @@index([substitutId])
 }
 
 // Stock d'un produit sur un site précis (PDV ou dépôt central)

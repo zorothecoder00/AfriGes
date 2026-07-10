@@ -6,12 +6,13 @@ import Link from "next/link";
 import { toast } from "sonner";
 import {
   ArrowLeft, Loader2, Boxes, Pencil, Info, Tag, MapPin, DollarSign, History as HistoryIcon,
-  Package, Barcode, QrCode, Truck, PackageCheck,
+  Package, Barcode, QrCode, Truck, PackageCheck, Repeat,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/format";
 import { TYPE_PRIX_LABEL } from "@/lib/tarificationLabels";
 import HistoriquePrixProduit from "@/components/HistoriquePrixProduit";
 import LotsProduit from "@/components/catalogue/LotsProduit";
+import SubstitutsProduit from "@/components/catalogue/SubstitutsProduit";
 import ProduitFormModal, { type Referentiels } from "@/components/catalogue/ProduitFormModal";
 
 interface Ref { id: number; nom: string; symbole?: string }
@@ -62,7 +63,7 @@ const PROMO_STYLE: Record<string, string> = {
 };
 const PORTEE_LABEL: Record<string, string> = { GLOBAL: "Global", AGENCE: "Agence", VILLE: "Ville", REGION: "Région" };
 
-type Tab = "infos" | "prix" | "dispo" | "lots" | "promos" | "historique";
+type Tab = "infos" | "prix" | "dispo" | "lots" | "substituts" | "promos" | "historique";
 
 function Ligne({ label, value }: { label: string; value: React.ReactNode }) {
   if (value == null || value === "") return null;
@@ -129,6 +130,7 @@ export default function FicheProduitPage() {
     { key: "prix", label: "Prix", icon: <DollarSign className="w-4 h-4" />, count: prix.length },
     { key: "dispo", label: "Disponibilité", icon: <MapPin className="w-4 h-4" />, count: dispo.filter((d) => d.configure).length },
     { key: "lots", label: "Lots & péremption", icon: <PackageCheck className="w-4 h-4" /> },
+    { key: "substituts", label: "Substituts", icon: <Repeat className="w-4 h-4" /> },
     { key: "promos", label: "Promotions", icon: <Tag className="w-4 h-4" />, count: promos.length },
     { key: "historique", label: "Historique prix", icon: <HistoryIcon className="w-4 h-4" />, count: fiche._count.historiquePrix },
   ];
@@ -386,6 +388,9 @@ export default function FicheProduitPage() {
 
         {/* Onglet Lots & péremption */}
         {tab === "lots" && <LotsProduit produitId={fiche.id} />}
+
+        {/* Onglet Substituts */}
+        {tab === "substituts" && <SubstitutsProduit produitId={fiche.id} />}
 
         {/* Onglet Historique */}
         {tab === "historique" && <HistoriquePrixProduit produitId={fiche.id} />}
