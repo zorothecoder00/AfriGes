@@ -1,73 +1,87 @@
+Verdict global
 
-  🧭 Plan consolidé unique (Catalogue §1‑20 + Vues §21‑24 + Enterprise)
+  Ton module Catalogue est excellent en tant que référentiel (PIM) : les 20
+  sections du CDC + les 6 reco Enterprise sont bâties (schéma, APIs admin, UI,
+  moteurs de calcul). Mais la toute première ligne de ton CDC — « connecté en
+  temps réel aux modules : Stock, Achats, Ventes, Crédit, Promotions, Agences,
+  Caisse, Comptabilité… » — est le trou principal : le catalogue est aujourd'hui
+  une île bien construite mais peu branchée. Les moteurs (resoudrePrix,
+  prixPromotionnel, consommerFEFO, projeterProduit) existent et sont testés côté
+  admin, mais les modules opérationnels ne les consomment pas.
 
-  #: 1
-  Phase: Socle référentiel
-  Contenu: Produit enrichi (identification, classification, caractéristiques,
-  images) + modèles Famille/Sous‑famille/Catégorie/Marque/Unité + relation
-  Fournisseur
-  Réf. CDC: §2, §3
-  ────────────────────────────────────────
-  #: 2
-  Phase: Tarification flexible
-  Contenu: Table PrixProduit(produit × type × agence/ville/région) + profils de
-  prix (Communauté/VIP/Revendeur/Partenaire…) + prix crédit + prix de  revient
-  auto + moteur de prix auto (coût→marge)
-  Réf. CDC: §4, Ent.#1, #2, #6
-  ────────────────────────────────────────
-  #: 3
-  Phase: Agence + stock temps réel
-  Contenu: ProduitAgence (dispo, prix/promo spécifiques, stock min/max,
-  emplacement) + états stock
-  (dispo/réservé/vendu/commandé/transfert/endommagé/critique) + code couleur
-  Réf. CDC: §6, §7, §10
-  ────────────────────────────────────────
-  #: 4
-  Phase: Historique prix + sécurité
-  Contenu: Journalisation complète (ancien/nouveau, user, IP, agence, motif) +
-  workflow validation (Chef d'agence/Admin/Resp. Marketing + mot de passe)
-  Réf. CDC: §5, §15
-  ────────────────────────────────────────
-  #: 5
-  Phase: Promotions
-  Contenu: Par produit/catégorie/famille/marque/agence/communauté/client ·
-  fixe/%/lot · période
-  Réf. CDC: §9
-  ────────────────────────────────────────
-  #: 6
-  Phase: Fiche produit + tableau prix + recherche
-  Contenu: Fiche complète, tableau multi‑agences, moteur de recherche
-  Réf. CDC: §8, §11, §12
-  ────────────────────────────────────────
-  #: 7
-  Phase: Documents
-  Contenu: Catalogues PDF/Excel, étiquettes, codes‑barres, QR
-  Réf. CDC: §13
-  ────────────────────────────────────────
-  #: 8
-  Phase: Tableau de bord + stats + Catalogue intelligent
-  Contenu: KPIs + rotation, jours de stock, date probable rupture, suggestion
-  réappro
-  Réf. CDC: §14, §19, Ent.#3
-  ────────────────────────────────────────
-  #: 9
-  Phase: Import / Export (admins)
-  Contenu: Excel/CSV/ERP/Fournisseur ↔ PDF/Excel/CSV/API
-  Réf. CDC: §17, §18
-  ────────────────────────────────────────
-  #: 10
-  Phase: Lots & péremption (FEFO)
-  Contenu: N° lot, DLC/DLUO, alertes, déstockage FEFO
-  Réf. CDC: Ent.#5
-  ────────────────────────────────────────
-  #: 11
-  Phase: Substitution
-  Contenu: Produit en rupture → équivalents dispo
-  Réf. CDC: Ent.#4
-  ────────────────────────────────────────
-  #: 12
-  Phase: Vues personnalisées
-  Contenu: Moteur de vues configurables (§22) + vues par rôle A→J (§21) +
-  filtres
-  (§23) + synchro (§24)
-  Réf. CDC: §21‑24
+  La liste « connexion temps réel » — état réel
+
+  ┌───────────────┬──────────┬──────────────────────────────────────────────┐
+  │    Module     │  Statut  │                Détail vérifié                │
+  ├───────────────┼──────────┼──────────────────────────────────────────────┤
+  │               │          │ Catalogue et ventes partagent la table       │
+  │ Stock         │ 🟢  Réel  │ StockSite → dispo/réservé/critique en        │  
+  │               │          │ direct, couleurs §7 OK.                      │
+  ├───────────────┼──────────┼──────────────────────────────────────────────┤
+  │ Agences       │ 🟢  Réel  │ Dispo + seuils + emplacement par PDV (onglet │  
+  │               │          │  Disponibilité, tableau prix multi-agences). │
+  ├───────────────┼──────────┼──────────────────────────────────────────────┤
+  │ Achats /      │ 🟠        │ Réception → historique prix câblé ; mais pas │  
+  │ Appro         │ Partiel  │  de création de lot FEFO auto                │
+  │               │          │ (receptionApproId prévu, non branché).       │
+  ├───────────────┼──────────┼──────────────────────────────────────────────┤
+  │               │ 🟠        │ Valeur stock/catalogue calculée dans le      │  
+  │ Comptabilité  │ Partiel  │ tableau de bord ; pas de flux comptable      │
+  │               │          │ poussé.                                      │
+  ├───────────────┼──────────┼──────────────────────────────────────────────┤
+  │               │ 🔴 Non   │ Moteur prixPromotionnel prêt, jamais appelé  │
+  │ Promotions    │ branché  │ au checkout. Le « 2 achetés 1 offert » ne    │
+  │               │          │ s'applique pas en caisse.                    │
+  ├───────────────┼──────────┼──────────────────────────────────────────────┤
+  │ Ventes        │ 🔴 Non   │ Lit prixUnitaire (miroir DÉTAIL global).     │
+  │               │ branché  │ Ignore prix agence/profil/VIP/gros + promos. │
+  ├───────────────┼──────────┼──────────────────────────────────────────────┤
+  │ Caisse        │ 🔴 Non   │ Idem ventes ; le caissier ne voit pas le     │
+  │               │ branché  │ prix résolu ni la promo.                     │
+  ├───────────────┼──────────┼──────────────────────────────────────────────┤
+  │               │ 🔴 Non   │ Pas de prixCredit lu : la vente à crédit     │
+  │ Crédit        │ branché  │ facture le prix comptant, pas la ligne       │
+  │               │          │ PrixProduit CREDIT.                          │
+  ├───────────────┼──────────┼──────────────────────────────────────────────┤
+  │ Application   │ ⚪  À     │ Aucune surface ne consomme                   │  
+  │ mobile        │ terme    │ projeterProduit+vueEffective (vue CLIENT     │
+  │               │          │ prête, non exposée).                         │
+  ├───────────────┼──────────┼──────────────────────────────────────────────┤
+  │ Site          │ ⚪  À     │ Idem (vue VISITEUR/CLIENT_COMMUNAUTE prêtes, │  
+  │ e-commerce    │ terme    │  pas de front).                              │
+  └───────────────┴──────────┴──────────────────────────────────────────────┘
+
+  CDC §1‑20 + Enterprise — couverture référentiel
+
+  Tout le reste est conforme :
+  identification/classification/caractéristiques/images (§3), prix multiples
+  flexibles (§4), historique jamais supprimé avec IP/agence/motif/validation
+  (§5/§15), paramétrage par agence + emplacement (§6), couleurs stock (§7),
+  tableau prix multi-agences (§8/§11), promotions %/montant/lot (§9), dispo par
+  agence (§10), fiche produit multi-onglets (§12), documents
+  PDF/Excel/étiquettes/code-barres/QR (§13), tableau de bord + catalogue
+  intelligent (§14/§19), import/export admin (§17/§18), vues §21‑24, +
+  Enterprise (tarif géo, prix par profil, FEFO, substituts, moteur prix auto).
+  Build Vercel OK.
+
+  Le seul manque côté référentiel : §12 « Mouvements » et « Statistiques » par
+  produit dans la fiche restent légers, et les images secondaires ne sont pas
+  éditables (schéma prêt).
+
+  Ce qu'il faut faire pour tenir la promesse « temps réel »
+
+  Le gros du travail restant est un seul chantier : brancher le flux de vente
+  sur le moteur catalogue. Concrètement, dans caissier/ventes, admin/ventes,
+  agentTerrain/ventes, rpv/ventes et les routes credits/*/lignes :
+
+  1. Remplacer prixUnitaire ?? stock.produit.prixUnitaire par
+  resoudrePrix(produitId, type, { pointDeVenteId, clientId }) — type
+  DETAIL/CREDIT/VIP/GROS selon le contexte de vente et le profil client.
+  2. Appliquer prixPromotionnel(...) sur chaque ligne au checkout (une promo, la
+  plus prioritaire).
+  3. Pour le crédit : lire la ligne PrixProduit type CREDIT (le §4 « 10 000 / 10
+  800 »).
+  4. Après validation, appeler consommerFEFO(tx, …) pour décrémenter les lots
+  par DLC, et proposer les substituts si rupture.
+  5. Exposer projeterProduit+vueEffective sur une future surface client/borne
+  (mobile/e-commerce « à terme »).

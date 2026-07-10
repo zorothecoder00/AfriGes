@@ -5,7 +5,7 @@ import Link from "next/link";
 import { toast } from "sonner";
 import {
   Package, Plus, Search, ArrowLeft, Loader2, Pencil, Archive, Filter, Boxes, Layers, ShieldCheck, Tag, Eye,
-  FileDown, FileSpreadsheet, Printer, ChevronDown, LayoutDashboard, Upload, CalendarClock,
+  FileDown, FileSpreadsheet, Printer, ChevronDown, LayoutDashboard, Upload, CalendarClock, Users,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/format";
 import { exportToXlsx } from "@/lib/exportXlsx";
@@ -179,6 +179,10 @@ export default function CatalogueProduitsPage() {
             <Link href="/dashboard/admin/catalogue/peremptions"
               className="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl text-sm font-medium hover:bg-gray-50">
               <CalendarClock className="w-4 h-4" /> Péremptions
+            </Link>
+            <Link href="/dashboard/admin/catalogue/vues"
+              className="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl text-sm font-medium hover:bg-gray-50">
+              <Users className="w-4 h-4" /> Vues
             </Link>
             <Link href="/dashboard/admin/catalogue/promotions"
               className="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl text-sm font-medium hover:bg-gray-50">

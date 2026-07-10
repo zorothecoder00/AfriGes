@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint . --ext .ts,.tsx,.js,.jsx",
     "check": "npm run lint && tsc --noEmit && next build",
+    "migrate:deploy:prod": "node scripts/migrate-deploy-prod.js",
     "backfill:codes": "node scripts/backfill-code-client.js",
     "backfill:codes:prod": "node scripts/backfill-code-client.js --prod",
     "backfill:echeances": "node scripts/backfill-echeances-arrondi.js",

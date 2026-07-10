@@ -1878,6 +1878,37 @@ model ProduitSubstitut {
   @@index([substitutId])
 }
 
+// ============================================================
+// CATALOGUE — VUES PERSONNALISÉES (Catalogue §21-24) — Phase 12
+// ============================================================
+
+// Mode d'affichage du stock dans une vue (§21.H : le client ne voit jamais la
+// quantité exacte, seulement un palier).
+enum ModeStockVue {
+  EXACT  // quantité exacte (personnel interne)
+  PALIER // tranche « Plus de 50 / Disponible / Stock limité / Sur commande »
+  AUCUN  // stock masqué
+}
+
+// Configuration d'une vue catalogue par profil/rôle (§22 — moteur de vues).
+// Décrit, pour un rôle (Admin, Caissier, Client, Visiteur…), quels CHAMPS du
+// produit sont visibles, comment le stock est affiché, et des filtres par
+// défaut. Distinct du RBAC d'actions : ici on pilote la VISIBILITÉ des données.
+// La configuration est centralisée (source unique) → cohérence entre surfaces
+// mobile / web / borne / QR (§24 synchro).
+model VueCatalogue {
+  id             Int          @id @default(autoincrement())
+  cle            String       @unique // ADMIN, CAISSIER, CLIENT, VISITEUR, ...
+  nom            String
+  description    String?
+  champsVisibles String[]             // clés de champs visibles (voir lib/vuesCatalogue)
+  modeStock      ModeStockVue @default(EXACT)
+  filtres        Json?                // filtres par défaut (statut, famille, agence…) — §23
+  actif          Boolean      @default(true)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+}
+
 // Stock d'un produit sur un site précis (PDV ou dépôt central)
 model StockSite {
   id             Int          @id @default(autoincrement())

@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getRVCSession } from "@/lib/authRVC";
 import { montantJournalierArrondi } from "@/lib/echeancierCredit";
 import { auditLog } from "@/lib/notifications";
+import { tariferLigne } from "@/lib/venteTarification";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -56,19 +57,24 @@ export async function POST(req: Request, { params }: Ctx) {
       if (rvcPdvId !== null && credit.pointDeVenteId !== rvcPdvId) throw new Error("ACCES_REFUSE");
 
       const qte = Number(quantite);
-      const pu  = Number(prixUnitaire || 0);
       const rem = Number(remise || 0);
-      const montantLigne = Number((pu * qte - rem).toFixed(2));
 
+      // Prix : pour un produit référencé, on résout le PRIX CRÉDIT du catalogue
+      // (§4 : prix crédit distinct du comptant) — autoritaire (§15). Pour un
+      // produit saisi libre (hors catalogue), on garde le prix fourni.
       let produitNom = produitNomSaisi ?? "";
+      let pu = Number(prixUnitaire || 0);
       if (produitId) {
         const produit = await tx.produit.findUnique({
           where: { id: Number(produitId) },
-          select: { nom: true },
+          select: { id: true, nom: true, prixUnitaire: true, categorieId: true, familleId: true, marqueId: true },
         });
         if (!produit) throw new Error("PRODUIT_INTROUVABLE");
         produitNom = produit.nom;
+        const tarif = await tariferLigne(produit, qte, { pointDeVenteId: credit.pointDeVenteId, aCredit: true });
+        pu = tarif.prixUnitaire;
       }
+      const montantLigne = Number((pu * qte - rem).toFixed(2));
 
       const ligne = await tx.ligneCreditClient.create({
         data: {

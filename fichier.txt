@@ -10,8 +10,10 @@
 
 -jose pour le JWT, bcryptjs pour le hash
 
--une petite dépendance (qrcode / bwip-js) pour QR scannable (et un vrai code-barres Code128)  
- 
+-une petite dépendance (qrcode / bwip-js) pour QR scannable (et un vrai code-barres Code128) 
+
+-Ecrire toujours un script npm migrate:deploy:prod pour migrer via l'endpoint direct (host sans -pooler) pour éviter d'utiliser le pooler Neon et empêcher les locks
+
   
 -On peut aussi utiliser du SVG pour les graphiques ( sans forcément dépendance externe)  
 -Ce code :      
@@ -136,4 +138,5 @@ Catalogue et annexe Prix
 Cahier de charge ResponsableApprovisionnement supply chain  
 
 
-Donner accès à tous les user de pouvoir discuter ( pas juste l'admin )
+Permettre à tous les user de pouvoir discuter ( pas juste l'admin )
+

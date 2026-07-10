@@ -6,6 +6,7 @@ import { randomUUID } from "crypto";
 import { notifyRoles, auditLog } from "@/lib/notifications";
 import { resolveViewAs } from "@/lib/viewAs";
 import { chargerParametrageCC, getCompteCourantParClient, preleverCompteCourant, extraireMetaRequete } from "@/lib/compteCourant";
+import { tariferLigne } from "@/lib/venteTarification";
 
 /**  
  * GET /api/caissier/ventes
@@ -154,12 +155,19 @@ export async function POST(req: Request) {
       );
     }
 
-    // Vérifier stocks et calculer montant total
+    // Segment du client enregistré (profil tarifaire / promos ciblées).
+    const clientSegment = clientId
+      ? (await prisma.client.findUnique({ where: { id: Number(clientId) }, select: { segment: true } }))?.segment ?? null
+      : null;
+
+    // Vérifier stocks et TARIFER côté serveur (Catalogue §4/§9 : prix résolu +
+    // promotion — le prix envoyé par le client n'est plus autoritaire, cf. §15).
     let montantTotal = 0;
-    for (const l of lignes as Array<{ produitId: number; quantite: number; prixUnitaire?: number }>) {
+    const lignesTarifees: Array<{ produitId: number; quantite: number; prixUnitaire: number; montant: number }> = [];
+    for (const l of lignes as Array<{ produitId: number; quantite: number }>) {
       const stock = await prisma.stockSite.findUnique({
         where: { produitId_pointDeVenteId: { produitId: Number(l.produitId), pointDeVenteId: pdvId } },
-        include: { produit: { select: { nom: true, prixUnitaire: true } } },
+        include: { produit: { select: { id: true, nom: true, prixUnitaire: true, categorieId: true, familleId: true, marqueId: true } } },
       });
       const qteDispo = (stock?.quantite ?? 0) - (stock?.quantiteReservee ?? 0);
       if (!stock || qteDispo < Number(l.quantite)) {
@@ -168,7 +176,19 @@ export async function POST(req: Request) {
           { status: 400 }
         );
       }
-      montantTotal += Number(l.quantite) * Number(l.prixUnitaire ?? stock.produit.prixUnitaire);
+      const tarif = await tariferLigne(stock.produit, Number(l.quantite), {
+        pointDeVenteId: pdvId,
+        clientId: clientId ? Number(clientId) : null,
+        segment: clientSegment,
+        aCredit: false,
+      });
+      montantTotal += tarif.montant;
+      lignesTarifees.push({
+        produitId: Number(l.produitId),
+        quantite: Number(l.quantite),
+        prixUnitaire: tarif.prixUnitaire,
+        montant: tarif.montant,
+      });
     }
 
     // Part CC (plafonnée au total) et reste à encaisser en caisse (espèces/autre).
@@ -211,15 +231,7 @@ export async function POST(req: Request) {
           clientNom:       clientNom       || null,
           clientTelephone: clientTelephone || null,
           sessionCaisseId: sessionCaisse.id,
-          lignes: {
-            create: await Promise.all(
-              (lignes as Array<{ produitId: number; quantite: number; prixUnitaire?: number }>).map(async l => {
-                const produit = await tx.produit.findUnique({ where: { id: Number(l.produitId) } });
-                const prix = Number(l.prixUnitaire ?? produit?.prixUnitaire ?? 0);
-                return { produitId: Number(l.produitId), quantite: Number(l.quantite), prixUnitaire: prix, montant: Number(l.quantite) * prix };
-              })
-            ),
-          },
+          lignes: { create: lignesTarifees },
         },
         include: { lignes: true },
       });
