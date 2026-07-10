@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
 import {
-  Package, Plus, Search, ArrowLeft, Loader2, Pencil, Archive, Filter, Boxes, Layers, ShieldCheck,
+  Package, Plus, Search, ArrowLeft, Loader2, Pencil, Archive, Filter, Boxes, Layers, ShieldCheck, Tag,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/format";
 import ProduitFormModal, { type Referentiels } from "@/components/catalogue/ProduitFormModal";
@@ -89,6 +89,10 @@ export default function CatalogueProduitsPage() {
             <p className="text-sm text-gray-400">{total} produit(s) au catalogue.</p>
           </div>
           <div className="flex gap-2">
+            <Link href="/dashboard/admin/catalogue/promotions"
+              className="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl text-sm font-medium hover:bg-gray-50">
+              <Tag className="w-4 h-4" /> Promotions
+            </Link>
             <Link href="/dashboard/admin/catalogue/prix-validation"
               className="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl text-sm font-medium hover:bg-gray-50">
               <ShieldCheck className="w-4 h-4" /> Validation prix

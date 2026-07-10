@@ -747,6 +747,7 @@ model User {
   prixProduitsCrees            PrixProduit[]            @relation("PrixProduitCreePar")
   demandesPrixSoumises         DemandeChangementPrix[]  @relation("DemandePrixDemandeur")
   demandesPrixValidees         DemandeChangementPrix[]  @relation("DemandePrixValideur")
+  promotionsCreees             Promotion[]              @relation("PromotionCreePar")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -827,6 +828,7 @@ model PointDeVente {
   lignesCreditPDV            LigneCreditClient[]          @relation("LignesCreditPDV")
   facturesVente              FactureVente[]               @relation("FacturesVentePDV")
   prixProduits               PrixProduit[]                @relation("PrixProduitPDV")
+  promotions                 Promotion[]                  @relation("PromotionPDV")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -934,6 +936,9 @@ model Client {
   affectationsRIA  AffectationClientRIA[]
   financementsRIA  OperationFinancementRIA[] @relation("FinancementsRIAClient")
   eligibiliteRIA   EligibiliteClientRIA?
+
+  // Promotions ciblant nommément ce client (Catalogue §9) — Phase 5
+  promotions       Promotion[]               @relation("PromotionClient")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1403,6 +1408,7 @@ model FamilleProduit {
   actif        Boolean              @default(true)
   sousFamilles SousFamilleProduit[]
   produits     Produit[]
+  promotions   Promotion[]
   createdAt    DateTime             @default(now())
   updatedAt    DateTime             @updatedAt
 }
@@ -1428,6 +1434,7 @@ model CategorieProduit {
   actif          Boolean                @default(true)
   sousCategories SousCategorieProduit[]
   produits       Produit[]
+  promotions     Promotion[]
   createdAt      DateTime               @default(now())
   updatedAt      DateTime               @updatedAt
 }
@@ -1448,12 +1455,13 @@ model SousCategorieProduit {
 
 model MarqueProduit {
   id        Int       @id @default(autoincrement())
-  nom       String    @unique
-  logoUrl   String?
-  actif     Boolean   @default(true)
-  produits  Produit[]
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  nom        String      @unique
+  logoUrl    String?
+  actif      Boolean     @default(true)
+  produits   Produit[]
+  promotions Promotion[]
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
 }
 
 // Unité de mesure (vente ou achat) : "Kilogramme" (kg), "Carton", "Pièce"…
@@ -1556,6 +1564,7 @@ model Produit {
 
   prix         PrixProduit[]  // tarification multiple (Catalogue §4) — Phase 2
   demandesPrix DemandeChangementPrix[]  // demandes de changement de prix (Catalogue §15) — Phase 4
+  promotions   Promotion[]    @relation("PromotionProduit")  // promotions ciblant ce produit (Catalogue §9) — Phase 5
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1687,6 +1696,79 @@ model DemandeChangementPrix {
 
   @@index([produitId])
   @@index([statut])
+}
+
+// ============================================================
+// CATALOGUE — PROMOTIONS (Catalogue §9) — Phase 5
+// ============================================================
+
+// Nature de la remise appliquée par une promotion (§9 : fixe / % / lot).
+enum TypeRemisePromotion {
+  POURCENTAGE // remise en % du prix (ex : -15 %)
+  MONTANT     // remise d'un montant fixe (ex : -500 XOF)
+  LOT         // offre par lot (ex : acheté N, payé M)
+}
+
+// Périmètre produit d'une promotion : sur quoi elle porte (§9).
+enum CiblePromotion {
+  PRODUIT   // un produit précis
+  CATEGORIE // toute une catégorie
+  FAMILLE   // toute une famille
+  MARQUE    // toute une marque
+  TOUS      // tout le catalogue
+}
+
+// Promotion commerciale (Catalogue §9). Une promo porte sur un périmètre produit
+// (produit/catégorie/famille/marque/tous) et peut être restreinte à une agence,
+// un segment (communauté) ou un client précis, sur une période donnée.
+model Promotion {
+  id          Int    @id @default(autoincrement())
+  code        String @unique // auto : PROMO-000001
+  nom         String
+  description String?
+
+  // ── Périmètre produit (Catalogue §9) ─────────────────────────────────────
+  cible       CiblePromotion    @default(PRODUIT)
+  produitId   Int?
+  produit     Produit?          @relation("PromotionProduit", fields: [produitId], references: [id])
+  categorieId Int?
+  categorie   CategorieProduit? @relation(fields: [categorieId], references: [id])
+  familleId   Int?
+  famille     FamilleProduit?   @relation(fields: [familleId], references: [id])
+  marqueId    Int?
+  marque      MarqueProduit?    @relation(fields: [marqueId], references: [id])
+
+  // ── Nature de la remise (fixe / % / lot) ─────────────────────────────────
+  typeRemise TypeRemisePromotion
+  valeur     Decimal             @default(0) // % (POURCENTAGE) ou montant XOF (MONTANT)
+  lotAchete  Int?                            // LOT : quantité à acheter
+  lotPaye    Int?                            // LOT : quantité facturée
+
+  // ── Restrictions bénéficiaires (agence / communauté / client) ────────────
+  pointDeVenteId Int?
+  pointDeVente   PointDeVente?  @relation("PromotionPDV", fields: [pointDeVenteId], references: [id])
+  segment        SegmentClient? // limite à un segment (communauté) — null = tous
+  clientId       Int?
+  client         Client?        @relation("PromotionClient", fields: [clientId], references: [id])
+
+  // ── Période & activation ─────────────────────────────────────────────────
+  dateDebut DateTime
+  dateFin   DateTime
+  actif     Boolean  @default(true)
+  priorite  Int      @default(0) // départage si plusieurs promos matchent (plus haut = prioritaire)
+
+  creeParId Int?
+  creePar   User?    @relation("PromotionCreePar", fields: [creeParId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([actif, dateDebut, dateFin])
+  @@index([cible])
+  @@index([produitId])
+  @@index([categorieId])
+  @@index([familleId])
+  @@index([marqueId])
+  @@index([pointDeVenteId])
 }
 
 // Stock d'un produit sur un site précis (PDV ou dépôt central)

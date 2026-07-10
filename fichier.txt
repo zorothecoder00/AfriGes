@@ -3,7 +3,7 @@
 -exceljs est une lib pour styliser les exports
 
 -Chromium headless est une lib qui permet le rendu pdf
-
+  
 -Print CSS et window.print() pour les export PDF/Excel
 
 -Resend est une lib permettant l'envoi d'email 
@@ -128,3 +128,9 @@ Dans les crédits clients , on va essayer de faire des filtres par agent ( avec 
 
 
 Dans les dosseirs des collaborateurs pour leur information faut ajouter aussi personne à prévénir
+
+
+
+DocumentsRH
+Catalogue et annexe Prix
+Cahier de charge ResponsableApprovisionnement supply chain
