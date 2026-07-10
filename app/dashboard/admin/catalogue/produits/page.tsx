@@ -5,8 +5,10 @@ import Link from "next/link";
 import { toast } from "sonner";
 import {
   Package, Plus, Search, ArrowLeft, Loader2, Pencil, Archive, Filter, Boxes, Layers, ShieldCheck, Tag, Eye,
+  FileDown, FileSpreadsheet, Printer, ChevronDown,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/format";
+import { exportToXlsx } from "@/lib/exportXlsx";
 import ProduitFormModal, { type Referentiels } from "@/components/catalogue/ProduitFormModal";
 
 interface ProduitRow {
@@ -44,8 +46,52 @@ export default function CatalogueProduitsPage() {
   const [refs, setRefs] = useState<Referentiels | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [editId, setEditId] = useState<number | null>(null);
+  const [docsOpen, setDocsOpen] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   const LIMIT = 20;
+
+  // Query string des filtres courants (pour la page d'impression du catalogue).
+  const filtresQuery = new URLSearchParams({
+    ...(search && { search }), ...(statut && { statut }),
+    ...(familleId && { familleId }), ...(categorieId && { categorieId }), ...(marqueId && { marqueId }),
+  }).toString();
+
+  const exporterExcel = async () => {
+    setExporting(true); setDocsOpen(false);
+    try {
+      const q = new URLSearchParams({
+        page: "1", limit: "1000",
+        ...(search && { search }), ...(statut && { statut }),
+        ...(familleId && { familleId }), ...(categorieId && { categorieId }), ...(marqueId && { marqueId }),
+      });
+      const r = await fetch(`/api/admin/catalogue/produits?${q}`);
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.message ?? "Erreur");
+      const data = j.data as ProduitRow[];
+      if (data.length === 0) { toast.error("Aucun produit à exporter"); return; }
+      await exportToXlsx(
+        data,
+        [
+          { label: "Code produit", key: "codeProduit", type: "text" },
+          { label: "Référence", key: "reference", type: "text" },
+          { label: "Nom", key: "nom", type: "text" },
+          { label: "Nom commercial", key: "nomCommercial", type: "text" },
+          { label: "Famille", key: "famille", type: "text", format: (v) => (v as ProduitRow["famille"])?.nom ?? "" },
+          { label: "Catégorie", key: "categorieProduit", type: "text", format: (v) => (v as ProduitRow["categorieProduit"])?.nom ?? "" },
+          { label: "Marque", key: "marque", type: "text", format: (v) => (v as ProduitRow["marque"])?.nom ?? "" },
+          { label: "Code-barres", key: "codeBarre", type: "text" },
+          { label: "Prix vente", key: "prixUnitaire", type: "currency" },
+          { label: "Prix achat", key: "prixAchat", type: "currency" },
+          { label: "Statut", key: "statut", type: "text", format: (v) => STATUT_LABEL[v as string] ?? String(v) },
+        ],
+        `catalogue-${new Date().toISOString().slice(0, 10)}.xlsx`,
+        { sheetName: "Catalogue", title: "Catalogue produits", currency: "XOF" },
+      );
+      toast.success(`${data.length} produit(s) exporté(s)`);
+    } catch (e) { toast.error(e instanceof Error ? e.message : "Export impossible"); }
+    finally { setExporting(false); }
+  };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -96,6 +142,27 @@ export default function CatalogueProduitsPage() {
             <p className="text-sm text-gray-400">{total} produit(s) au catalogue.</p>
           </div>
           <div className="flex gap-2">
+            <div className="relative">
+              <button onClick={() => setDocsOpen((o) => !o)} onBlur={() => setTimeout(() => setDocsOpen(false), 150)}
+                className="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl text-sm font-medium hover:bg-gray-50">
+                {exporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileDown className="w-4 h-4" />} Documents <ChevronDown className="w-3.5 h-3.5" />
+              </button>
+              {docsOpen && (
+                <div className="absolute right-0 mt-1 w-56 bg-white border border-gray-200 rounded-xl shadow-lg z-20 py-1">
+                  <button onClick={exporterExcel} className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50">
+                    <FileSpreadsheet className="w-4 h-4 text-emerald-600" /> Exporter en Excel
+                  </button>
+                  <Link href={`/dashboard/admin/catalogue/impression${filtresQuery ? `?${filtresQuery}` : ""}`} onMouseDown={(e) => e.preventDefault()}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50">
+                    <Printer className="w-4 h-4 text-blue-600" /> Imprimer le catalogue
+                  </Link>
+                  <Link href="/dashboard/admin/catalogue/etiquettes" onMouseDown={(e) => e.preventDefault()}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50">
+                    <Tag className="w-4 h-4 text-blue-600" /> Étiquettes (codes-barres / QR)
+                  </Link>
+                </div>
+              )}
+            </div>
             <Link href="/dashboard/admin/catalogue/promotions"
               className="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl text-sm font-medium hover:bg-gray-50">
               <Tag className="w-4 h-4" /> Promotions

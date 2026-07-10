@@ -36,7 +36,7 @@ export async function GET(_req: Request, { params }: Ctx) {
   });
 
   const applicables = promos
-    .filter((p) => couvreProduit({ ...p, valeur: Number(p.valeur) }, produit))
+    .filter((p) => couvreProduit(p, produit))
     .map((p) => ({
       ...p,
       valeur: Number(p.valeur),
