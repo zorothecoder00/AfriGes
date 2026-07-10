@@ -748,6 +748,8 @@ model User {
   demandesPrixSoumises         DemandeChangementPrix[]  @relation("DemandePrixDemandeur")
   demandesPrixValidees         DemandeChangementPrix[]  @relation("DemandePrixValideur")
   promotionsCreees             Promotion[]              @relation("PromotionCreePar")
+  lotsProduitsCrees            LotProduit[]             @relation("LotProduitCreePar")
+  mouvementsLot                MouvementLot[]           @relation("MouvementLotOperateur")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -829,6 +831,7 @@ model PointDeVente {
   facturesVente              FactureVente[]               @relation("FacturesVentePDV")
   prixProduits               PrixProduit[]                @relation("PrixProduitPDV")
   promotions                 Promotion[]                  @relation("PromotionPDV")
+  lots                       LotProduit[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1383,6 +1386,7 @@ model Fournisseur {
 
   receptions ReceptionApprovisionnement[]
   produits   Produit[]                        // catalogue : produits dont il est le fournisseur principal (Catalogue §3)
+  lots       LotProduit[]                     // lots réceptionnés de ce fournisseur (Catalogue Ent.#5)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1565,6 +1569,7 @@ model Produit {
   prix         PrixProduit[]  // tarification multiple (Catalogue §4) — Phase 2
   demandesPrix DemandeChangementPrix[]  // demandes de changement de prix (Catalogue §15) — Phase 4
   promotions   Promotion[]    @relation("PromotionProduit")  // promotions ciblant ce produit (Catalogue §9) — Phase 5
+  lots         LotProduit[]   // lots & péremption FEFO (Catalogue Ent.#5) — Phase 10
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1769,6 +1774,80 @@ model Promotion {
   @@index([familleId])
   @@index([marqueId])
   @@index([pointDeVenteId])
+}
+
+// ============================================================
+// CATALOGUE — LOTS & PÉREMPTION (FEFO) (Enterprise #5) — Phase 10
+// ============================================================
+
+// Cycle de vie d'un lot.
+enum StatutLot {
+  ACTIF  // en stock, vendable
+  EPUISE // quantité épuisée
+  PERIME // DLC dépassée, retiré de la vente
+  RETIRE // retiré manuellement (rappel, casse, don…)
+}
+
+// Nature d'un mouvement de lot (traçabilité FEFO).
+enum TypeMouvementLot {
+  ENTREE     // réception / création du lot
+  SORTIE     // déstockage (vente/livraison) — FEFO
+  AJUSTEMENT // correction de quantité
+  PEREMPTION // retrait pour péremption
+  RETRAIT    // retrait manuel (rappel, casse)
+}
+
+// Lot d'un produit sur un site : quantité tracée avec date de péremption (DLC)
+// et/ou durabilité minimale (DLUO). Le déstockage suit le principe FEFO
+// (First Expired, First Out) : on consomme d'abord le lot qui périme le plus tôt.
+model LotProduit {
+  id               Int          @id @default(autoincrement())
+  numeroLot        String
+  produitId        Int
+  produit          Produit      @relation(fields: [produitId], references: [id], onDelete: Cascade)
+  pointDeVenteId   Int
+  pointDeVente     PointDeVente @relation(fields: [pointDeVenteId], references: [id])
+
+  quantiteInitiale Int
+  quantite         Int          @default(0) // quantité restante dans le lot
+  dlc              DateTime?    // date limite de consommation (péremption stricte)
+  dluo             DateTime?    // date de durabilité minimale (qualité optimale)
+  dateReception    DateTime     @default(now())
+  prixAchat        Decimal?
+  statut           StatutLot    @default(ACTIF)
+
+  fournisseurId    Int?
+  fournisseur      Fournisseur? @relation(fields: [fournisseurId], references: [id])
+  receptionApproId Int?         // réception d'appro à l'origine du lot (traçabilité)
+  notes            String?
+
+  creeParId        Int?
+  creePar          User?        @relation("LotProduitCreePar", fields: [creeParId], references: [id])
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  mouvements       MouvementLot[]
+
+  @@unique([produitId, pointDeVenteId, numeroLot])
+  @@index([produitId, pointDeVenteId, statut])
+  @@index([dlc])
+  @@index([statut])
+}
+
+// Journal des mouvements d'un lot (entrées / sorties FEFO / ajustements).
+model MouvementLot {
+  id          Int              @id @default(autoincrement())
+  lotId       Int
+  lot         LotProduit       @relation(fields: [lotId], references: [id], onDelete: Cascade)
+  type        TypeMouvementLot
+  quantite    Int              // valeur positive ; le sens dépend du type
+  motif       String?
+  operateurId Int?
+  operateur   User?            @relation("MouvementLotOperateur", fields: [operateurId], references: [id])
+  createdAt   DateTime         @default(now())
+
+  @@index([lotId])
+  @@index([type])
 }
 
 // Stock d'un produit sur un site précis (PDV ou dépôt central)
