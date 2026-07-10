@@ -5,6 +5,7 @@ import { montantJournalierArrondi } from "@/lib/echeancierCredit";
 import { MemberStatus, NiveauRisque, Prisma, StatutCredit, PrioriteNotification, Role } from "@prisma/client";
 import { notifyRoles, notifyAdmins, auditLog } from "@/lib/notifications";
 import { getFidelite } from "@/lib/fidelite";
+import { tariferLigne } from "@/lib/venteTarification";
 import { randomUUID } from "crypto";
 
 /**
@@ -165,12 +166,24 @@ export async function POST(req: Request) {
 
       // Calcul montant
       const lignesInput = lignes as { produitId?: number; produitNom: string; quantite: number; prixUnitaire: number; remise?: number }[];
-      const lignesCalc = lignesInput.map((l) => {
+      // Prix CRÉDIT résolu depuis le catalogue (§4) pour les produits référencés —
+      // autoritaire (§15) ; les produits saisis libres gardent le prix fourni.
+      const lignesCalc = await Promise.all(lignesInput.map(async (l) => {
         const qte = Number(l.quantite);
-        const pu  = Number(l.prixUnitaire);
         const rem = Number(l.remise || 0);
+        let pu    = Number(l.prixUnitaire);
+        if (l.produitId) {
+          const produit = await tx.produit.findUnique({
+            where: { id: Number(l.produitId) },
+            select: { id: true, prixUnitaire: true, categorieId: true, familleId: true, marqueId: true },
+          });
+          if (produit) {
+            const tarif = await tariferLigne(produit, qte, { pointDeVenteId: rvcPdvId, aCredit: true });
+            pu = tarif.prixUnitaire;
+          }
+        }
         return { ...l, qte, pu, rem, montantLigne: Number((pu * qte - rem).toFixed(2)) };
-      });
+      }));
 
       const valeurProduits = Number(lignesCalc.reduce((s, l) => s + l.montantLigne, 0).toFixed(2));
       if (valeurProduits <= 0) throw new Error("MONTANT_INVALIDE");

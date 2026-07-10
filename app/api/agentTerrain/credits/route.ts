@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAgentTerrainSession } from "@/lib/authAgentTerrain";
 import { montantJournalierArrondi } from "@/lib/echeancierCredit";
+import { tariferLigne } from "@/lib/venteTarification";
 
 /**
  * GET /api/agentTerrain/credits
@@ -180,12 +181,24 @@ export async function POST(req: Request) {
       if (client.etat !== "ACTIF")               throw new Error("CLIENT_INACTIF");
 
       // ── Calcul montant ────────────────────────────────────────────────────
-      const lignesCalc = lignesInput.map((l) => {
+      // Prix CRÉDIT résolu depuis le catalogue (§4) pour les produits référencés —
+      // autoritaire (§15) ; les produits saisis libres gardent le prix fourni.
+      const lignesCalc = await Promise.all(lignesInput.map(async (l) => {
         const qte = Number(l.quantite);
-        const pu  = Number(l.prixUnitaire);
         const rem = Number(l.remise || 0);
+        let pu    = Number(l.prixUnitaire);
+        if (l.produitId) {
+          const produit = await tx.produit.findUnique({
+            where: { id: Number(l.produitId) },
+            select: { id: true, prixUnitaire: true, categorieId: true, familleId: true, marqueId: true },
+          });
+          if (produit) {
+            const tarif = await tariferLigne(produit, qte, { pointDeVenteId: client.pointDeVenteId, aCredit: true });
+            pu = tarif.prixUnitaire;
+          }
+        }
         return { ...l, qte, pu, rem, montantLigne: Number((pu * qte - rem).toFixed(2)) };
-      });
+      }));
       const montantTotal = Number(lignesCalc.reduce((s, l) => s + l.montantLigne, 0).toFixed(2));
       if (montantTotal <= 0) throw new Error("MONTANT_INVALIDE");
 

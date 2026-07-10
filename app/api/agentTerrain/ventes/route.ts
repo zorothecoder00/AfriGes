@@ -8,6 +8,7 @@ import { resolveViewAs } from "@/lib/viewAs";
 import {
   getCompteCourantParClient, chargerParametrageCC, preleverCompteCourant, extraireMetaRequete,
 } from "@/lib/compteCourant";
+import { tariferLigne } from "@/lib/venteTarification";
 
 /**
  * GET /api/agentTerrain/ventes
@@ -142,7 +143,12 @@ export async function POST(req: Request) {
     // Part réglée depuis le compte courant client (CDC §8) — 0 par défaut.
     const ccMontantDemande = Math.max(0, Number(body.montantCompteCourant) || 0);
 
-    // ── Vérification stocks + calcul montant ──────────────────────────────────
+    // Segment du client enregistré (profil tarifaire / promos ciblées).
+    const clientSegment = clientId
+      ? (await prisma.client.findUnique({ where: { id: Number(clientId) }, select: { segment: true } }))?.segment ?? null
+      : null;
+
+    // ── Vérification stocks + TARIFICATION serveur (Catalogue §4/§9) ───────────
     type LigneInput = { produitId: number; quantite: number };
     let montantTotal = 0;
     const lignesData: Array<{
@@ -162,7 +168,7 @@ export async function POST(req: Request) {
 
       const stock = await prisma.stockSite.findUnique({
         where: { produitId_pointDeVenteId: { produitId: Number(l.produitId), pointDeVenteId: pdvId } },
-        include: { produit: { select: { nom: true, prixUnitaire: true } } },
+        include: { produit: { select: { id: true, nom: true, prixUnitaire: true, categorieId: true, familleId: true, marqueId: true } } },
       });
       const qteDispoReelle = (stock?.quantite ?? 0) - (stock?.quantiteReservee ?? 0);
       if (!stock || qteDispoReelle < qte) {
@@ -171,10 +177,14 @@ export async function POST(req: Request) {
           { status: 400 }
         );
       }
-      const prix = Number(stock.produit.prixUnitaire);
-      const montantLigne = qte * prix;
-      montantTotal += montantLigne;
-      lignesData.push({ produitId: Number(l.produitId), produitNom: null, quantite: qte, prixUnitaire: prix, montant: montantLigne });
+      const tarif = await tariferLigne(stock.produit, qte, {
+        pointDeVenteId: pdvId,
+        clientId: clientId ? Number(clientId) : null,
+        segment: clientSegment,
+        aCredit: false,
+      });
+      montantTotal += tarif.montant;
+      lignesData.push({ produitId: Number(l.produitId), produitNom: null, quantite: qte, prixUnitaire: tarif.prixUnitaire, montant: tarif.montant });
     }
 
     // Part CC (plafonnée au total) et reste à régler en espèces.

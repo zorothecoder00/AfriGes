@@ -5,6 +5,7 @@ import { getRVCSession } from "@/lib/authRVC";
 import { montantJournalierArrondi } from "@/lib/echeancierCredit";
 import { chargerParametrageCC, getCompteCourantParClient, preleverCompteCourant, extraireMetaRequete } from "@/lib/compteCourant";
 import { getFidelite } from "@/lib/fidelite";
+import { tariferLigne } from "@/lib/venteTarification";
 
 /**
  * ==========================
@@ -186,19 +187,31 @@ export async function POST(req: Request) {
       }
 
       // ── Calcul du montant total ───────────────────────────────────────────
-      const lignesCalculees = (lignes as {
+      // Prix CRÉDIT résolu depuis le catalogue (§4) pour les produits référencés —
+      // autoritaire (§15) ; les produits saisis libres gardent le prix fourni.
+      const lignesCalculees = await Promise.all((lignes as {
         produitId?: number;
         produitNom: string;
         quantite: number;
         prixUnitaire: number;
         remise?: number;
-      }[]).map((l) => {
+      }[]).map(async (l) => {
         const qte = Number(l.quantite);
-        const pu  = Number(l.prixUnitaire);
         const rem = Number(l.remise || 0);
+        let pu    = Number(l.prixUnitaire);
+        if (l.produitId) {
+          const produit = await tx.produit.findUnique({
+            where: { id: Number(l.produitId) },
+            select: { id: true, prixUnitaire: true, categorieId: true, familleId: true, marqueId: true },
+          });
+          if (produit) {
+            const tarif = await tariferLigne(produit, qte, { pointDeVenteId: pointDeVenteId ? Number(pointDeVenteId) : null, aCredit: true });
+            pu = tarif.prixUnitaire;
+          }
+        }
         const montantLigne = Number((pu * qte - rem).toFixed(2));
         return { ...l, qte, pu, rem, montantLigne };
-      });
+      }));
 
       // Valeur des produits (somme des lignes) + frais/assurance/intérêts = montant total à rembourser.
       const valeurProduits = Number(
