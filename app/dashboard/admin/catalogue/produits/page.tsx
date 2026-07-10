@@ -5,7 +5,7 @@ import Link from "next/link";
 import { toast } from "sonner";
 import {
   Package, Plus, Search, ArrowLeft, Loader2, Pencil, Archive, Filter, Boxes, Layers, ShieldCheck, Tag, Eye,
-  FileDown, FileSpreadsheet, Printer, ChevronDown,
+  FileDown, FileSpreadsheet, Printer, ChevronDown, LayoutDashboard,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/format";
 import { exportToXlsx } from "@/lib/exportXlsx";
@@ -163,6 +163,10 @@ export default function CatalogueProduitsPage() {
                 </div>
               )}
             </div>
+            <Link href="/dashboard/admin/catalogue/tableau-bord"
+              className="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl text-sm font-medium hover:bg-gray-50">
+              <LayoutDashboard className="w-4 h-4" /> Tableau de bord
+            </Link>
             <Link href="/dashboard/admin/catalogue/promotions"
               className="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl text-sm font-medium hover:bg-gray-50">
               <Tag className="w-4 h-4" /> Promotions
