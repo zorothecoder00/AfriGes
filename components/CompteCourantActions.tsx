@@ -113,11 +113,11 @@ export default function CompteCourantActions({
     return <span className="text-[11px] text-gray-400 italic">Compte {compte.statut.toLowerCase()} · opérations bloquées</span>;
   }
 
-  const btn = "inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors disabled:opacity-50";
+  const btn ="flex-1 sm:flex-none inline-flex justify-center items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-colors disabled:opacity-50";
 
   return (
     <>
-      <div className="flex items-center gap-1.5 flex-wrap">
+      <div className="flex flex-wrap gap-2">
         <button onClick={openDepot} className={`${btn} bg-emerald-600 hover:bg-emerald-700 text-white`}>
           <Plus className="w-3.5 h-3.5" /> Dépôt
         </button>
@@ -132,43 +132,52 @@ export default function CompteCourantActions({
 
       {/* Modal dépôt */}
       {depotOpen && (
-        <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
-              <h3 className="font-bold text-slate-800 flex items-center gap-2"><Plus className="w-4 h-4 text-emerald-600" /> Faire un dépôt</h3>
-              <button onClick={() => setDepotOpen(false)} className="p-1.5 hover:bg-slate-100 rounded-lg"><X className="w-4 h-4 text-slate-500" /></button>
-            </div>
-            <div className="p-6 space-y-4">
-              <p className="text-xs text-gray-500">Compte {compte.numeroCompte} · {compte.clientNom}</p>
-              <label className="block">
-                <span className="text-xs font-semibold text-slate-500">Montant (FCFA)</span>
-                <input type="number" min={0} autoFocus value={montant} onChange={(e) => setMontant(e.target.value)}
-                  className="mt-1 w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500" />
-              </label>
-              <label className="block">
-                <span className="text-xs font-semibold text-slate-500">Mode de paiement</span>
-                <select value={mode} onChange={(e) => setMode(e.target.value)}
-                  className="mt-1 w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500">
-                  {MODES.map((m) => <option key={m} value={m}>{m}</option>)}
-                </select>
-              </label>
-              <label className="block">
-                <span className="text-xs font-semibold text-slate-500">Référence (optionnel)</span>
-                <input value={reference} onChange={(e) => setReference(e.target.value)}
-                  className="mt-1 w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500" />
-              </label>
-              <label className="block">
-                <span className="text-xs font-semibold text-slate-500">Observation (optionnel)</span>
-                <input value={observation} onChange={(e) => setObservation(e.target.value)}
-                  className="mt-1 w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500" />
-              </label>
-            </div>
-            <div className="flex justify-end gap-2 px-6 py-4 border-t border-slate-100">
-              <button onClick={() => setDepotOpen(false)} className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 rounded-xl">Annuler</button>
-              <button onClick={submitDepot} disabled={saving}
-                className="inline-flex items-center gap-2 px-5 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-xl text-sm font-semibold">
-                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />} Valider le dépôt
-              </button>
+        <div
+          className="fixed inset-0 z-[300] bg-black/40 backdrop-blur-sm overflow-y-auto"
+          onClick={() => setDepotOpen(false)}>
+          <div
+            className="min-h-screen flex items-start sm:items-center justify-center p-2 sm:p-4"
+            onClick={(e) => e.stopPropagation()}>
+            <div className="bg-white rounded-xl sm:rounded-2xl shadow-2xl w-full max-w-md h-[95dvh] sm:h-auto max-h-[95dvh] sm:max-h-[90vh] flex flex-col">
+              <div className="sticky top-0 z-20 flex items-center justify-between px-4 sm:px-6 py-4 bg-white border-b border-slate-100">
+                <h3 className="font-bold text-slate-800 flex items-center gap-2"><Plus className="w-4 h-4 text-emerald-600" /> Faire un dépôt</h3>
+                <button onClick={() => setDepotOpen(false)} className="p-1.5 hover:bg-slate-100 rounded-lg"><X className="w-4 h-4 text-slate-500" /></button>
+              </div>
+              <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 space-y-4">
+                <p className="text-xs text-gray-500">Compte {compte.numeroCompte} · {compte.clientNom}</p>
+                <label className="block">
+                  <span className="text-xs font-semibold text-slate-500">Montant (FCFA)</span>
+                  <input type="number" min={0} autoFocus value={montant} onChange={(e) => setMontant(e.target.value)}
+                    className="mt-1 w-full px-3 py-3 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                </label>
+                <label className="block">
+                  <span className="text-xs font-semibold text-slate-500">Mode de paiement</span>
+                  <select value={mode} onChange={(e) => setMode(e.target.value)}
+                    className="mt-1 w-full px-3 py-3 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                    {MODES.map((m) => <option key={m} value={m}>{m}</option>)}
+                  </select>
+                </label>
+                <label className="block">
+                  <span className="text-xs font-semibold text-slate-500">Référence (optionnel)</span>
+                  <input value={reference} onChange={(e) => setReference(e.target.value)}
+                    className="mt-1 w-full px-3 py-3 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                </label>
+                <label className="block">
+                  <span className="text-xs font-semibold text-slate-500">Observation (optionnel)</span>
+                  <input value={observation} onChange={(e) => setObservation(e.target.value)}
+                    className="mt-1 w-full px-3 py-3 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                </label>
+              </div>
+              <div className="sticky bottom-0 bg-white border-t border-slate-100 px-4 sm:px-6 py-4 z-20">
+                <div className="flex flex-col-reverse sm:flex-row gap-2 sm:justify-end">
+                  <button onClick={() => setDepotOpen(false)} 
+                  className="w-full sm:w-auto px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 rounded-xl">Annuler</button>
+                  <button onClick={submitDepot} disabled={saving}
+                  className="w-full sm:w-auto inline-flex justify-center items-center gap-2 px-5 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-xl text-sm font-semibold">
+                      {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />} Valider le dépôt
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -176,62 +185,71 @@ export default function CompteCourantActions({
 
       {/* Modal retrait */}
       {retraitOpen && (
-        <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
-              <h3 className="font-bold text-slate-800 flex items-center gap-2"><TrendingDown className="w-4 h-4 text-orange-600" /> Demander un retrait</h3>
-              <button onClick={() => setRetraitOpen(false)} className="p-1.5 hover:bg-slate-100 rounded-lg"><X className="w-4 h-4 text-slate-500" /></button>
-            </div>
-            <div className="p-6 space-y-4">
-              <p className="text-xs text-gray-500">
-                {compte.numeroCompte} · {compte.clientNom} — solde : <span className="font-semibold text-emerald-700">{formatCurrency(N(compte.solde))}</span>
-              </p>
-              <label className="block">
-                <span className="text-xs font-semibold text-slate-500">Montant (FCFA)</span>
-                <input type="number" min={0} autoFocus value={retMontant} onChange={(e) => setRetMontant(e.target.value)}
-                  className="mt-1 w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-orange-500" />
-              </label>
-              <label className="block">
-                <span className="text-xs font-semibold text-slate-500">Mode de décaissement</span>
-                <select value={retMode} onChange={(e) => setRetMode(e.target.value)}
-                  className="mt-1 w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-orange-500">
-                  {MODES.map((m) => <option key={m} value={m}>{m}</option>)}
-                </select>
-              </label>
-              <label className="block">
-                <span className="text-xs font-semibold text-slate-500">Motif (optionnel)</span>
-                <input value={retMotif} onChange={(e) => setRetMotif(e.target.value)}
-                  className="mt-1 w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-orange-500" />
-              </label>
-              <div className="rounded-xl border border-orange-200 bg-orange-50/60 p-3 space-y-2">
-                <p className="text-xs font-semibold text-orange-700 flex items-center gap-1.5">
-                  <ShieldAlert className="w-3.5 h-3.5" /> Contrôles de sécurité (obligatoires)
-                </p>
-                <label className="flex items-start gap-2 text-xs text-slate-700 cursor-pointer">
-                  <input type="checkbox" checked={retVerifPiece} onChange={(e) => setRetVerifPiece(e.target.checked)}
-                    className="mt-0.5 w-4 h-4 accent-orange-600" />
-                  <span>Pièce d&apos;identité du client vérifiée</span>
-                </label>
-                <label className="flex items-start gap-2 text-xs text-slate-700 cursor-pointer">
-                  <input type="checkbox" checked={retVerifPhoto} onChange={(e) => setRetVerifPhoto(e.target.checked)}
-                    className="mt-0.5 w-4 h-4 accent-orange-600" />
-                  <span>Correspondance de la photo confirmée</span>
-                </label>
-                <label className="flex items-start gap-2 text-xs text-slate-700 cursor-pointer">
-                  <input type="checkbox" checked={retVerifSignature} onChange={(e) => setRetVerifSignature(e.target.checked)}
-                    className="mt-0.5 w-4 h-4 accent-orange-600" />
-                  <span>Signature du client recueillie</span>
-                </label>
+        <div
+          className="fixed inset-0 z-300 bg-black/40 backdrop-blur-sm overflow-y-auto"
+          onClick={() => setRetraitOpen(false)}>
+          <div
+            className="min-h-screen flex items-start sm:items-center justify-center p-2 sm:p-4"
+            onClick={(e) => e.stopPropagation()}>
+            <div className="bg-white rounded-xl sm:rounded-2xl shadow-2xl w-full max-w-md h-[95dvh] sm:h-auto max-h-[95dvh] sm:max-h-[90vh] flex flex-col">
+              <div className="sticky top-0 z-20 flex items-center justify-between px-4 sm:px-6 py-4 bg-white border-b border-slate-100">
+                <h3 className="font-bold text-slate-800 flex items-center gap-2"><TrendingDown className="w-4 h-4 text-orange-600" /> Demander un retrait</h3>
+                <button onClick={() => setRetraitOpen(false)} className="p-1.5 hover:bg-slate-100 rounded-lg"><X className="w-4 h-4 text-slate-500" /></button>
               </div>
-              <p className="text-[11px] text-amber-600">Le retrait sera exécuté après validation d&apos;un responsable (Chef d&apos;agence).</p>
-            </div>
-            <div className="flex justify-end gap-2 px-6 py-4 border-t border-slate-100">
-              <button onClick={() => setRetraitOpen(false)} className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 rounded-xl">Annuler</button>
-              <button onClick={submitRetrait} disabled={retSaving || !retVerifOk}
-                className="inline-flex items-center gap-2 px-5 py-2 bg-orange-600 hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl text-sm font-semibold">
-                {retSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <TrendingDown className="w-4 h-4" />} Envoyer la demande
-              </button>
-            </div>
+              <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 space-y-4">
+                <p className="text-xs text-gray-500">
+                  {compte.numeroCompte} · {compte.clientNom} — solde : <span className="font-semibold text-emerald-700">{formatCurrency(N(compte.solde))}</span>
+                </p>
+                <label className="block">
+                  <span className="text-xs font-semibold text-slate-500">Montant (FCFA)</span>
+                  <input type="number" min={0} autoFocus value={retMontant} onChange={(e) => setRetMontant(e.target.value)}
+                    className="mt-1 w-full px-3 py-3 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-orange-500" />
+                </label>
+                <label className="block">
+                  <span className="text-xs font-semibold text-slate-500">Mode de décaissement</span>
+                  <select value={retMode} onChange={(e) => setRetMode(e.target.value)}
+                    className="mt-1 w-full px-3 py-3 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-orange-500">
+                    {MODES.map((m) => <option key={m} value={m}>{m}</option>)}
+                  </select>
+                </label>
+                <label className="block">
+                  <span className="text-xs font-semibold text-slate-500">Motif (optionnel)</span>
+                  <input value={retMotif} onChange={(e) => setRetMotif(e.target.value)}
+                    className="mt-1 w-full px-3 py-3 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-orange-500" />
+                </label>
+                <div className="rounded-xl border border-orange-200 bg-orange-50/60 p-4 space-y-3">
+                  <p className="text-xs font-semibold text-orange-700 flex items-center gap-1.5">
+                    <ShieldAlert className="w-3.5 h-3.5" /> Contrôles de sécurité (obligatoires)
+                  </p>
+                  <label className="flex items-start gap-2 text-xs text-slate-700 cursor-pointer">
+                    <input type="checkbox" checked={retVerifPiece} onChange={(e) => setRetVerifPiece(e.target.checked)}
+                      className="mt-0.5 w-4 h-4 accent-orange-600" />
+                    <span>Pièce d&apos;identité du client vérifiée</span>
+                  </label>
+                  <label className="flex items-start gap-2 text-xs text-slate-700 cursor-pointer">
+                    <input type="checkbox" checked={retVerifPhoto} onChange={(e) => setRetVerifPhoto(e.target.checked)}
+                      className="mt-0.5 w-4 h-4 accent-orange-600" />
+                    <span>Correspondance de la photo confirmée</span>
+                  </label>
+                  <label className="flex items-start gap-2 text-xs text-slate-700 cursor-pointer">
+                    <input type="checkbox" checked={retVerifSignature} onChange={(e) => setRetVerifSignature(e.target.checked)}
+                      className="mt-0.5 w-4 h-4 accent-orange-600" />
+                    <span>Signature du client recueillie</span>
+                  </label>
+                </div>
+                <p className="text-[11px] text-amber-600">Le retrait sera exécuté après validation d&apos;un responsable (Chef d&apos;agence).</p>
+              </div>
+              <div className="sticky bottom-0 bg-white border-t border-slate-100 px-4 sm:px-6 py-4 z-20">
+                <div
+                  className="flex flex-col-reverse sm:flex-row gap-2 sm:justify-end">
+                  <button onClick={() => setRetraitOpen(false)} className="w-full sm:w-auto px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 rounded-xl">Annuler</button>
+                  <button onClick={submitRetrait} disabled={retSaving || !retVerifOk}
+                    className="w-full sm:w-auto inline-flex justify-center items-center gap-2 px-5 py-2 bg-orange-600 hover:bg-orange-700 disabled:opacity-50 text-white rounded-xl text-sm font-semibold">
+                    {retSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <TrendingDown className="w-4 h-4" />} Envoyer la demande
+                  </button>
+                </div>
+             </div>
+             </div>
           </div>
         </div>
       )}

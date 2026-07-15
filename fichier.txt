@@ -3,7 +3,7 @@
 -exceljs est une lib pour styliser les exports
 
 -Chromium headless est une lib qui permet le rendu pdf
-  
+
 -Print CSS et window.print() pour les export PDF/Excel
 
 -Resend est une lib permettant l'envoi d'email 
@@ -14,14 +14,14 @@
 
 -Ecrire toujours un script npm migrate:deploy:prod pour migrer via l'endpoint direct (host sans -pooler) pour éviter d'utiliser le pooler Neon et empêcher les locks
 
-  
+
 -On peut aussi utiliser du SVG pour les graphiques ( sans forcément dépendance externe)  
 -Ce code :      
-   const a = document.createElement("a");
-   a.href = url;                          
-   a.download = filename;                                                
-   a.click();                                                                     
-   permet de créer un téléchargement via un clic sur une URL ( utile pour les exports)
+ const a = document.createElement("a");
+ a.href = url;                          
+ a.download = filename;                                                
+ a.click();                                                                     
+ permet de créer un téléchargement via un clic sur une URL ( utile pour les exports)
 
 -import { randomUUID } from "crypto";  permet de générer des UUID(sorte d'identifiant unique aléatoire) par exemple pour des factures ou des pièces justificatives
 -Prisma 7 est une breaking change majeure : url dans schema.prisma n'est plus
@@ -143,4 +143,13 @@ Permettre à tous les user de pouvoir discuter ( pas juste l'admin )
 
 
 Je dois corriger la relation entre les approvisionnements et les lots surtout chez l'admin qui peut lancer des approvisionnents lui même
+
+L'export sur le dashboard admin n'exporte pas toutes les données du dashboard
+
+Retoucher le logo
+
+Revoir le dashboard financier
+
+Les modales ne sont pas vraiment adpatées pour chaque écran ( sur plusieurs écrans les boutons fermer ne se font pas voir )
+
 

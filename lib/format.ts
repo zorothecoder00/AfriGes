@@ -4,7 +4,7 @@ export function formatCurrency(amount: number | string): string {
 
   // Lecture dynamique de la devise et de la locale (client uniquement)
   let iso = "XOF";
-  let label = "FCFA";
+  let label = "FCFA";    
   let locale = "fr-FR";
 
   if (typeof window !== "undefined") {

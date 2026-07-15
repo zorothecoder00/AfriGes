@@ -11,7 +11,7 @@
  *   - déduction absences  (calcDeductionsPointage)→ retenue
  *   - remboursements prêts + avances (paieRetenues, décrémente les soldes) → retenues
  * Chaque bloc est activable/désactivable via les flags `auto*` (défaut : activé).
- */
+ */  
 
 import { prisma } from "@/lib/prisma";
 import { StatutFichePaie, TypeComposantSalaire } from "@prisma/client";

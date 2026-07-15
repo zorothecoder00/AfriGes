@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { toast } from "sonner";
-import {
+import {      
   ShoppingCart, Receipt, TrendingUp, Search, RefreshCw,
   Plus, X, CheckCircle, Clock, Banknote, Printer, BarChart3,
   Users, Hash, AlertTriangle, AlertCircle, Info, ChevronLeft, ChevronRight,
@@ -10,6 +10,7 @@ import {
   Wallet, Power, Pause, Play, ArrowDownCircle, ArrowUpCircle,
   ArrowLeftRight, CreditCard, Building2, Send, ShoppingBag, Pencil, Loader2, FolderTree,
 } from "lucide-react";     
+import Link from "next/link";
 import NotificationBell from "@/components/NotificationBell";
 import CongesNavButton from "@/components/CongesNavButton";
 import FactureModal from "@/components/FactureModal";
@@ -2041,11 +2042,11 @@ export default function CaissierPage() {
               </button>
               <UserPdvBadge />
               {isAllowed("comptes-courants") && (
-                <a href="/dashboard/admin/comptes-courants"
+                <Link href="/dashboard/admin/comptes-courants"
                   className="px-3 py-2 bg-white border border-emerald-200 text-emerald-700 rounded-xl text-sm font-semibold hover:bg-emerald-50 transition-all shadow-sm flex items-center gap-2">
                   <Wallet size={16} />
                   Comptes courants
-                </a>
+                </Link>
               )}
               <MessagesLink />
               <CongesNavButton />

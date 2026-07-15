@@ -12,8 +12,8 @@ import ClienteleTabBar from "@/components/ClienteleTabBar";
 import CompteCourantActions from "@/components/CompteCourantActions";
 
 interface CompteRow {
-  id: number;
-  numeroCompte: string;
+  id: number;  
+  numeroCompte: string;  
   ribComplet: string;
   statut: string;
   typeCompte: string;

@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import { useApi } from "@/hooks/useApi";
 import { usePermissions } from "@/hooks/usePermissions";
-import PayerCreditsModal from "@/components/PayerCreditsModal";
+import PayerCreditsModal from "@/components/PayerCreditsModal";   
 import { formatCurrency, formatDate } from "@/lib/format";
 import ClienteleTabBar from "@/components/ClienteleTabBar";
 

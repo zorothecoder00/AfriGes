@@ -531,16 +531,16 @@ export default function ChefAgenceDashboard() {
             </button>
             {isAllowed("comptes-courants") && (
               <>
-                <a href="/dashboard/admin/comptes-courants/a-valider"
+                <Link href="/dashboard/admin/comptes-courants/a-valider"
                   className="px-3 py-2 bg-amber-600 text-white rounded-xl text-sm font-semibold hover:bg-amber-700 transition-all shadow-sm flex items-center gap-2">
                   <Clock className="w-4 h-4" />
                   Retraits à valider
-                </a>
-                <a href="/dashboard/admin/comptes-courants"
+                </Link>
+                <Link href="/dashboard/admin/comptes-courants"
                   className="px-3 py-2 bg-white border border-emerald-200 text-emerald-700 rounded-xl text-sm font-semibold hover:bg-emerald-50 transition-all shadow-sm flex items-center gap-2">
                   <Wallet className="w-4 h-4" />
                   Comptes courants
-                </a>
+                </Link>
               </>
             )}
             <MessagesLink />

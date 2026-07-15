@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getAuthSession } from "@/lib/auth";
 import { notifyAdmins, notify, auditLog } from "@/lib/notifications";
+import { creerLotDepuisReception } from "@/lib/lotsFefo";
 import { randomUUID } from "crypto";
 
 /**
@@ -139,7 +140,7 @@ export async function POST(req: Request) {
           receptionneParId: adminId,
           valideParId:      adminId,
           lignes: {
-            create: lignes.map((l: { produitId: number; quantite: number; prixUnitaire?: number | string | null }) => {
+            create: lignes.map((l: { produitId: number; quantite: number; prixUnitaire?: number | string | null; numeroLot?: string | null; dlc?: string | null; dluo?: string | null }) => {
               const hasPrixUnitaire = l.prixUnitaire !== undefined && l.prixUnitaire !== null && l.prixUnitaire !== "";
               return {
                 produitId:        Number(l.produitId),
@@ -147,6 +148,10 @@ export async function POST(req: Request) {
                 quantiteRecue:    Number(l.quantite),
                 prixUnitaire:     hasPrixUnitaire ? new Prisma.Decimal(Number(l.prixUnitaire)) : null,
                 etatQualite:      "BON",
+                // Lot & péremption optionnels (créent un LotProduit ci-dessous).
+                numeroLot:        l.numeroLot?.trim() || null,
+                dlc:              l.dlc  ? new Date(l.dlc)  : null,
+                dluo:             l.dluo ? new Date(l.dluo) : null,
               };
             }),
           },
@@ -177,7 +182,7 @@ export async function POST(req: Request) {
           data: {
             produitId,
             pointDeVenteId:    Number(pointDeVenteId),
-            type:              "ENTREE",  
+            type:              "ENTREE",
             typeEntree:        typeEntree as never,
             quantite:          Number(ligne.quantite),
             motif:             typeAppro === "FOURNISSEUR"
@@ -187,6 +192,21 @@ export async function POST(req: Request) {
             operateurId:       adminId,
             receptionApproId:  newReception.id,
           },
+        });
+
+        // Création auto du lot si n° de lot / DLC saisis (traçabilité FEFO, Enterprise #5).
+        await creerLotDepuisReception(tx, {
+          produitId,
+          pointDeVenteId:     Number(pointDeVenteId),
+          quantite:           Number(ligne.quantite),
+          numeroLot:          ligne.numeroLot,
+          dlc:                ligne.dlc  ? new Date(ligne.dlc)  : null,
+          dluo:               ligne.dluo ? new Date(ligne.dluo) : null,
+          prixAchat:          hasPrixUnitaire ? Number(ligne.prixUnitaire) : null,
+          fournisseurId:      null,
+          receptionApproId:   newReception.id,
+          referenceReception: ref,
+          operateurId:        adminId,
         });
       }
 
