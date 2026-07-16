@@ -127,11 +127,11 @@ Permettre d'avoir des rapports de recouvrement (taux de recouvrement, restant , 
 Sur les factures de credit on veut voir aussi les mouvements de compte courant si utilisé ( avance , solde etc etc )
 
 Dans les crédits clients , on va essayer de faire des filtres par agent ( avec leur solde , retard , paiement etc etc)
+    
 
+Dans les dossiers des collaborateurs pour leurs informations, faut ajouter aussi la personne à prévénir
 
-Dans les dosseirs des collaborateurs pour leur information faut ajouter aussi personne à prévénir
-
-
+  
 
 DocumentsRH
 Catalogue et annexe Prix
@@ -139,7 +139,7 @@ Cahier de charge ResponsableApprovisionnement supply chain
 
 
 Permettre à tous les user de pouvoir discuter ( pas juste l'admin )
-
+   
 
 
 Je dois corriger la relation entre les approvisionnements et les lots surtout chez l'admin qui peut lancer des approvisionnents lui même
@@ -148,8 +148,10 @@ L'export sur le dashboard admin n'exporte pas toutes les données du dashboard
 
 Retoucher le logo
 
-Revoir le dashboard financier
+Revoir le dashboard financier et même les autres ( tableau de bord admin/SUPERADMIN)
 
 Les modales ne sont pas vraiment adpatées pour chaque écran ( sur plusieurs écrans les boutons fermer ne se font pas voir )
+
+On doit refaire le responsive de toute l'application (plusieurs pages, dashboards admin, user, components , plusieurs formulaires , plusieurs modals ne sont pas adpatés pour les petits écrans)
 
 
