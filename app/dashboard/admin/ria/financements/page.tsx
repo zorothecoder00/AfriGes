@@ -8,7 +8,7 @@ import {
   ChevronDown, ChevronUp, TrendingDown, Activity, Wallet,
   Users, BarChart3, Link2, CreditCard, ShieldCheck, Info,
 } from "lucide-react";
-
+  
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 interface FinancementItem {
@@ -135,13 +135,20 @@ function CreateModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-        <div className="px-6 py-4 border-b border-slate-200 flex justify-between">
+    <div className="fixed inset-0 z-[300] bg-black/40 backdrop-blur-sm overflow-y-auto"
+      onClick={onClose}>
+      <div className="min-h-screen flex items-start sm:items-center justify-center p-2 sm:p-4"
+        onClick={(e) => e.stopPropagation()}>
+        <div className="bg-white rounded-xl sm:rounded-2xl shadow-2xl w-full max-w-2xl h-[95dvh] sm:h-auto max-h-[95dvh] sm:max-h-[90vh] flex flex-col">
+        <div className="sticky top-0 z-20 flex items-center justify-between px-4 sm:px-6 py-4 bg-white border-b border-slate-200">
           <h3 className="font-semibold text-slate-900">Nouveau financement client</h3>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 font-bold text-lg">&times;</button>
+          <button
+            onClick={onClose}
+            className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-600">
+            &times;
+          </button>
         </div>
-        <div className="p-6 space-y-4">
+        <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 space-y-4">
           <div>
             <label className="block text-xs font-medium text-slate-600 mb-1">Portefeuille *</label>
             <select value={form.portefeuilleId} onChange={(e) => set("portefeuilleId", e.target.value)}
@@ -181,7 +188,7 @@ function CreateModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
                   <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
                   Ligne de crédit — Classe {ligne.classeRisque} ({toNum(ligne.pourcentage).toFixed(1)}% du portefeuille)
                 </div>
-                <div className="grid grid-cols-3 gap-2 text-xs text-center">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs text-center">
                   <div className="bg-white rounded-lg py-1.5 px-2 border border-slate-100">
                     <p className="text-slate-400">Limite</p>
                     <p className="font-bold text-slate-700">{fmt(toNum(ligne.montantAlloue))} F</p>
@@ -224,7 +231,7 @@ function CreateModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
               className={`w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 ${depasseLigne ? "border-red-300 focus:ring-red-400" : "border-slate-200 focus:ring-emerald-500"}`} />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-medium text-slate-600 mb-1">Crédit client associé</label>
               <select value={form.creditClientId} onChange={(e) => set("creditClientId", e.target.value)}
@@ -254,15 +261,18 @@ function CreateModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
               className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500" />
           </div>
         </div>
-        <div className="px-6 py-4 border-t border-slate-200 flex justify-end gap-3">
-          <button onClick={onClose} className="px-4 py-2 text-sm border border-slate-200 rounded-lg hover:bg-slate-50">Annuler</button>
-          <button onClick={submit} disabled={loading}
-            className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50">
-            {loading ? "Création…" : "Créer le financement"}
-          </button>
+        <div className="sticky bottom-0 bg-white border-t border-slate-200 px-4 sm:px-6 py-4 z-20">
+          <div className="flex flex-col-reverse sm:flex-row gap-2 sm:justify-end">
+            <button onClick={onClose} className="w-full sm:w-auto px-4 py-2 border border-slate-200 rounded-lg hover:bg-slate-50">Annuler</button>
+            <button onClick={submit} disabled={loading}
+              className="w-full sm:w-auto px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg">
+              {loading ? "Création…" : "Créer le financement"}
+            </button>
+          </div>  
         </div>
       </div>
     </div>
+  </div>
   );
 }
 
