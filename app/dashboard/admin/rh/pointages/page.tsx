@@ -4,7 +4,7 @@ import { useState, useCallback, useRef, useEffect } from "react";
 import {
   RefreshCw, ChevronLeft, ChevronRight,
   CheckCircle, XCircle, Clock, CalendarDays,
-  Plane, Sun, AlertTriangle, Search, ArrowLeft,
+  Plane, Sun, AlertTriangle, Search, ArrowLeft,  
   BarChart2, Settings, Check, X, Edit2, ShieldCheck,
   Timer, TrendingUp, Users, UserCheck,
 } from "lucide-react";
@@ -115,10 +115,10 @@ export default function PointagesPage() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <div className="p-6 max-w-[1400px] mx-auto space-y-6">
+      <div className="p-3 sm:p-4 lg:p-6 max-w-[1400px] mx-auto space-y-4 sm:space-y-6">
 
         {/* En-tête */}
-        <div className="flex items-center justify-between flex-wrap gap-3">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <Link href="/dashboard/admin/rh" className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700 mb-2">
               <ArrowLeft size={15} /> Dashboard RH
@@ -128,35 +128,37 @@ export default function PointagesPage() {
           </div>
           <div className="flex items-center gap-2">
             <Link href="/dashboard/admin/rh/horaires"
-              className="inline-flex items-center gap-2 px-3 py-2 text-sm bg-white border border-slate-200 rounded-lg hover:bg-slate-50 text-slate-600">
+              className="w-full sm:w-auto inline-flex justify-center items-center gap-2 px-3 py-2 text-sm bg-white border border-slate-200 rounded-lg hover:bg-slate-50 text-slate-600">
               <Settings className="w-4 h-4" /> Horaires
             </Link>
           </div>
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-1 bg-white border border-slate-200 rounded-xl p-1 w-fit">
-          {([["calendrier", CalendarDays, "Calendrier individuel"], ["saisie", UserCheck, "Saisie du jour"], ["rapport", BarChart2, "Rapport mensuel"]] as const).map(([tab, Icon, label]) => (
-            <button key={tab} onClick={() => setActiveTab(tab)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                activeTab === tab ? "bg-emerald-600 text-white shadow-sm" : "text-slate-500 hover:text-slate-700"
-              }`}>
-              <Icon className="w-4 h-4" /> {label}
-            </button>
-          ))}
+        <div className="overflow-x-auto">
+          <div className="flex w-max gap-1 bg-white border border-slate-200 rounded-xl p-1">
+            {([["calendrier", CalendarDays, "Calendrier individuel"], ["saisie", UserCheck, "Saisie du jour"], ["rapport", BarChart2, "Rapport mensuel"]] as const).map(([tab, Icon, label]) => (
+              <button key={tab} onClick={() => setActiveTab(tab)}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                  activeTab === tab ? "bg-emerald-600 text-white shadow-sm" : "text-slate-500 hover:text-slate-700"
+                }`}>
+                <Icon className="w-4 h-4" /> {label}
+              </button>
+            ))}
+          </div>
         </div>
 
         {activeTab === "calendrier" ? (
-          <div className="flex gap-6">
+          <div className="flex flex-col lg:flex-row gap-4 lg:gap-6">
             {/* Sidebar collaborateurs */}
-            <div className="w-64 flex-shrink-0 space-y-3">
+            <div className="w-full lg:w-64 lg:flex-shrink-0 space-y-3">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                 <input value={search} onChange={(e) => handleSearch(e.target.value)}
                   placeholder="Rechercher…"
                   className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500" />
               </div>
-              <div className="bg-white rounded-xl border border-slate-200 overflow-hidden max-h-[75vh] overflow-y-auto">
+              <div className="bg-white rounded-xl border border-slate-200 overflow-hidden max-h-64 lg:max-h-[75vh] overflow-y-auto">
                 {loadingCollabs ? (
                   <div className="flex justify-center py-8 text-slate-400"><RefreshCw className="w-5 h-5 animate-spin" /></div>
                 ) : (
@@ -351,7 +353,7 @@ function PointageCalendar({ collab, year, month, onPrev, onNext }: {
   const selectedPointage = selectedDay ? (byDate[selectedDay] ?? null) : null;
 
   return (
-    <div className="flex gap-4">
+    <div className="flex flex-col xl:flex-row gap-4">
       {/* Grille principale */}
       <div className="flex-1 bg-white rounded-xl border border-slate-200 overflow-hidden">
         {/* En-tête */}
