@@ -338,13 +338,22 @@ export default function BordereauRemboursement({ credit, client, onClose }: {
   }, [dossierUrl]);
 
   // Code-barres Code128 (data URL) de la référence du crédit — généré côté navigateur.
-  const [barcode, setBarcode] = useState("");
-  useEffect(() => {
+  const barcode = useMemo(() => {
     try {
       const canvas = document.createElement("canvas");
-      barcodeToCanvas(canvas, { bcid: "code128", text: credit.reference, scale: 2, height: 9, includetext: false });
-      setBarcode(canvas.toDataURL("image/png"));
-    } catch { /* lib indispo → repli SVG décoratif */ }
+
+      barcodeToCanvas(canvas, {
+        bcid: "code128",
+        text: credit.reference,
+        scale: 2,
+        height: 9,
+        includetext: false,
+      });
+
+      return canvas.toDataURL("image/png");
+    } catch {
+      return "";
+    }
   }, [credit.reference]);
 
   const previewHtml = useMemo(

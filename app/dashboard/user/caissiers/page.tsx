@@ -2,14 +2,14 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { toast } from "sonner";
-import {      
+import {        
   ShoppingCart, Receipt, TrendingUp, Search, RefreshCw,
   Plus, X, CheckCircle, Clock, Banknote, Printer, BarChart3,
   Users, Hash, AlertTriangle, AlertCircle, Info, ChevronLeft, ChevronRight,
   Lock, Calendar, FileText, Filter, Layers, Eye, XCircle, Package,
   Wallet, Power, Pause, Play, ArrowDownCircle, ArrowUpCircle,
   ArrowLeftRight, CreditCard, Building2, Send, ShoppingBag, Pencil, Loader2, FolderTree,
-} from "lucide-react";     
+} from "lucide-react";       
 import Link from "next/link";
 import NotificationBell from "@/components/NotificationBell";
 import CongesNavButton from "@/components/CongesNavButton";

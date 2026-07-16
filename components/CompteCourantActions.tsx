@@ -177,7 +177,7 @@ export default function CompteCourantActions({
                       {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />} Valider le dépôt
                   </button>
                 </div>
-              </div>
+              </div>  
             </div>
           </div>
         </div>
