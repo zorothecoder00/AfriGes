@@ -640,70 +640,150 @@ function NouvelleDemandeModal({ onClose, onCreated }: { onClose: () => void; onC
   };
 
   return (
-    <div className="fixed inset-0 bg-black/40 z-[200] flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
-          <h3 className="font-semibold text-slate-800">Nouvelle demande de congé</h3>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X className="w-5 h-5" /></button>
-        </div>
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+    <div className="fixed inset-0 z-[200] bg-black/50 backdrop-blur-sm flex items-center justify-center p-3 sm:p-5">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xl max-h-[95vh] flex flex-col overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 sm:px-6 py-4 border-b border-slate-200 flex-shrink-0">
           <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1.5">Collaborateur</label>
-            <select value={profilRHId} onChange={(e) => setProfilRHId(e.target.value)} required
-              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
-              <option value="">— Sélectionner —</option>
+            <h3 className="text-lg font-semibold text-slate-800">
+              Nouvelle demande de congé
+            </h3>
+            <p className="text-xs text-slate-500 mt-1">
+              Créer une nouvelle demande pour un collaborateur
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            className="rounded-lg p-2 hover:bg-slate-100 transition">
+            <X className="w-5 h-5 text-slate-500" />
+          </button>
+        </div>
+        {/* Body */}
+        <form
+          onSubmit={handleSubmit}
+          className="flex-1 overflow-y-auto px-5 sm:px-6 py-5 space-y-5"
+        >
+          {/* Collaborateur */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-600 mb-2">
+              Collaborateur
+            </label>
+            <select
+              value={profilRHId}
+              onChange={(e) => setProfilRHId(e.target.value)}
+              required
+              className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            >
+              <option value="">
+                — Sélectionner —
+              </option>
               {collabs.map((c) => (
                 <option key={c.id} value={c.id}>
-                  {c.gestionnaire.member.prenom} {c.gestionnaire.member.nom} ({c.matricule})
+                  {c.gestionnaire.member.prenom}{" "}
+                  {c.gestionnaire.member.nom} ({c.matricule})
                 </option>
               ))}
             </select>
           </div>
+          {/* Type */}
           <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1.5">Type de congé</label>
-            <select value={type} onChange={(e) => setType(e.target.value)}
-              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
-              {Object.entries(TYPE_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+            <label className="block text-xs font-semibold text-slate-600 mb-2">
+              Type de congé
+            </label>
+            <select
+              value={type}
+              onChange={(e) => setType(e.target.value)}
+              className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            >
+              {Object.entries(TYPE_LABEL).map(([k, v]) => (
+                <option key={k} value={k}>
+                  {v}
+                </option>
+              ))}
             </select>
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          {/* Dates */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1.5">Date début</label>
-              <input type="date" value={dateDebut} onChange={(e) => setDateDebut(e.target.value)} required
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+              <label className="block text-xs font-semibold text-slate-600 mb-2">
+                Date début
+              </label>
+              <input
+                type="date"
+                required
+                value={dateDebut}
+                onChange={(e) => setDateDebut(e.target.value)}
+                className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1.5">Date fin</label>
-              <input type="date" value={dateFin} onChange={(e) => setDateFin(e.target.value)} required min={dateDebut}
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+              <label className="block text-xs font-semibold text-slate-600 mb-2">
+                Date fin
+              </label>
+              <input
+                type="date"
+                required
+                min={dateDebut}
+                value={dateFin}
+                onChange={(e) => setDateFin(e.target.value)}
+                className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              />
             </div>
           </div>
+          {/* Statut */}
           <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1.5">Statut initial</label>
-            <select value={statut} onChange={(e) => setStatutD(e.target.value)}
-              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
-              <option value="EN_ATTENTE">En attente (workflow normal)</option>
-              <option value="APPROUVE">Approuvé directement</option>
+            <label className="block text-xs font-semibold text-slate-600 mb-2">
+              Statut initial
+            </label>
+            <select
+              value={statut}
+              onChange={(e) => setStatutD(e.target.value)}
+              className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            >
+              <option value="EN_ATTENTE">
+                En attente (workflow normal)
+              </option>
+              <option value="APPROUVE">
+                Approuvé directement
+              </option>
             </select>
           </div>
+          {/* Motif */}
           <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1.5">Motif (optionnel)</label>
-            <textarea value={motif} onChange={(e) => setMotif(e.target.value)} rows={2}
-              placeholder="Raison du congé…"
-              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none" />
-          </div>
-          <div className="flex gap-2 pt-1">
-            <button type="button" onClick={onClose}
-              className="flex-1 py-2 border border-slate-200 rounded-lg text-sm text-slate-600 hover:bg-slate-50">
-              Annuler
-            </button>
-            <button type="submit" disabled={saving}
-              className="flex-1 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-lg disabled:opacity-50 flex items-center justify-center gap-2">
-              {saving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-              Créer la demande
-            </button>
+            <label className="block text-xs font-semibold text-slate-600 mb-2">
+              Motif (optionnel)
+            </label>
+            <textarea
+              rows={3}
+              value={motif}
+              onChange={(e) => setMotif(e.target.value)}
+              placeholder="Raison du congé..."
+              className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            />
           </div>
         </form>
+        {/* Footer */}
+        <div className="border-t border-slate-200 px-5 sm:px-6 py-4 bg-slate-50 flex flex-col-reverse sm:flex-row gap-3 flex-shrink-0">
+          <button
+            type="button"
+            onClick={onClose}
+            className="w-full sm:flex-1 py-2.5 rounded-xl border border-slate-300 text-sm hover:bg-white transition"
+          >
+            Annuler
+          </button>
+          <button
+            onClick={handleSubmit}
+            disabled={saving}
+            className="w-full sm:flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium disabled:opacity-50 flex items-center justify-center gap-2 transition"
+          >
+            {saving ? (
+              <RefreshCw className="w-4 h-4 animate-spin" />
+            ) : (
+              <Save className="w-4 h-4" />
+            )}
+            Créer la demande
+          </button>
+        </div>
       </div>
     </div>
   );
