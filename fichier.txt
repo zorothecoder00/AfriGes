@@ -132,7 +132,7 @@ Dans les crédits clients , on va essayer de faire des filtres par agent ( avec 
 Dans les dossiers des collaborateurs pour leurs informations, faut ajouter aussi la personne à prévénir
 
   
-
+  
 DocumentsRH
 Catalogue et annexe Prix
 Cahier de charge ResponsableApprovisionnement supply chain  

@@ -4541,7 +4541,7 @@ model EtapeTemplate {
   description String?
   type        TypeEtapeOnboarding @default(AUTRE)
   delaiJours  Int                 @default(0)   // délai max en jours depuis le début de l'onboarding
-  obligatoire Boolean             @default(true) // si false : peut être IGNORE sans bloquer la progression        
+  obligatoire Boolean             @default(true) // si false : peut être IGNORE sans bloquer la progression          
 
   template TemplateOnboarding @relation(fields: [templateId], references: [id], onDelete: Cascade)
 
