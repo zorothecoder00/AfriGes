@@ -117,20 +117,20 @@ export default function CompetencesPage() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <div className="p-6 max-w-[1400px] mx-auto space-y-6">
+      <div className="px-4 py-5 sm:p-6 max-w-[1400px] mx-auto space-y-6">
 
         {/* En-tête */}
-        <div className="flex items-center justify-between flex-wrap gap-3">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
           <div>
             <Link href="/dashboard/admin/rh" className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700 mb-2">
               <ArrowLeft size={15} /> Dashboard RH
             </Link>
-            <h1 className="text-2xl font-bold text-slate-900">Gestion des compétences</h1>
+            <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Gestion des compétences</h1>
             <p className="text-sm text-slate-500 mt-0.5">Référentiel, niveaux et matrice des compétences collaborateurs</p>
           </div>
           {activeTab === "referentiel" && (
             <button onClick={() => setShowCreate(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-lg transition-colors">
+              className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-lg transition-colors">
               <Plus className="w-4 h-4" /> Nouvelle compétence
             </button>
           )}
@@ -138,7 +138,7 @@ export default function CompetencesPage() {
 
         {/* Stats */}
         {refRes?.stats && (
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
             {[
               { label: "Total compétences", value: refRes.stats.total,      icon: <BookOpen className="w-5 h-5" />, color: "bg-slate-100 text-slate-600" },
               { label: "Hard Skills",        value: refRes.stats.hardSkills, icon: <Zap      className="w-5 h-5" />, color: "bg-blue-100 text-blue-700"   },
@@ -157,7 +157,8 @@ export default function CompetencesPage() {
         )}
 
         {/* Tabs */}
-        <div className="flex gap-1 bg-white border border-slate-200 rounded-xl p-1 w-fit">
+        <div className="bg-white border border-slate-200 rounded-xl p-1 overflow-x-auto">
+          <div className="flex min-w-max gap-1">
           {([
             ["referentiel", BookOpen,     "Référentiel"],
             ["matrice",     LayoutGrid,   "Matrice"],
@@ -170,13 +171,14 @@ export default function CompetencesPage() {
               <Icon className="w-4 h-4" /> {label}
             </button>
           ))}
+          </div>
         </div>
 
         {/* ── TAB : RÉFÉRENTIEL ── */}
         {activeTab === "referentiel" && (
           <>
             {/* Filtres */}
-            <div className="flex gap-3 flex-wrap items-center">
+            <div className="grid grid-cols-1 md:grid-cols-[1fr_auto_auto] gap-3">
               <div className="relative flex-1 min-w-48">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                 <input value={filterSearch} onChange={(e) => setFilterSearch(e.target.value)}
@@ -238,7 +240,7 @@ export default function CompetencesPage() {
         {activeTab === "matrice" && (
           <>
             {/* Filtres */}
-            <div className="flex gap-3 flex-wrap items-center">
+            <div className="grid grid-cols-1 lg:grid-cols-[220px_220px_auto_1fr] gap-3 items-center">
               <input value={matriceDept} onChange={(e) => setMatriceDept(e.target.value)}
                 placeholder="Filtrer par département…"
                 className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 w-48" />
@@ -270,7 +272,7 @@ export default function CompetencesPage() {
             ) : (
               <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
                 <div className="overflow-x-auto">
-                  <table className="text-xs">
+                  <table className="min-w-[1100px] w-full text-xs">
                     <thead className="bg-slate-50 border-b border-slate-200">
                       <tr>
                         <th className="text-left px-4 py-3 font-semibold text-slate-600 sticky left-0 bg-slate-50 min-w-[180px]">Collaborateur</th>
@@ -321,16 +323,16 @@ export default function CompetencesPage() {
 
         {/* ── TAB : PAR COLLABORATEUR ── */}
         {activeTab === "collaborateur" && (
-          <div className="flex gap-6">
+          <div className="flex flex-col xl:flex-row gap-6">
             {/* Sidebar */}
-            <div className="w-64 flex-shrink-0 space-y-3">
+            <div className="w-full xl:w-72 flex-shrink-0 space-y-3">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                 <input value={collabSearch} onChange={(e) => setCollabSearch(e.target.value)}
                   placeholder="Rechercher…"
                   className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500" />
               </div>
-              <div className="bg-white rounded-xl border border-slate-200 overflow-hidden max-h-[70vh] overflow-y-auto">
+              <div className="bg-white rounded-xl border border-slate-200 overflow-hidden max-h-80 xl:max-h-[70vh] overflow-y-auto">
                 <div className="divide-y divide-slate-100">
                   {collabs.map((c) => {
                     const m = c.gestionnaire.member;
@@ -353,7 +355,7 @@ export default function CompetencesPage() {
             </div>
 
             {/* Compétences du collaborateur sélectionné */}
-            <div className="flex-1 min-w-0">
+            <div className="flex-1 min-w-0 w-full">
               {selectedCollab ? (
                 <CollaborateurCompetences
                   collab={selectedCollab}
@@ -404,35 +406,107 @@ function CategoryGroup({ categorie, items, onEdit, onRefetch }: {
 
   return (
     <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-      <button onClick={() => setOpen((v) => !v)}
+      {/* Header */}
+      <button
+        onClick={() => setOpen((v) => !v)}
         className="w-full flex items-center justify-between px-4 py-3 hover:bg-slate-50 transition-colors">
-        <div className="flex items-center gap-2">
-          {open ? <ChevronDown className="w-4 h-4 text-slate-400" /> : <ChevronRight className="w-4 h-4 text-slate-400" />}
-          <span className="text-sm font-semibold text-slate-700">{categorie}</span>
-          <span className="text-xs text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded-full">{items.length}</span>
+        <div className="flex items-center gap-2 min-w-0">
+          {open ? (
+            <ChevronDown className="w-4 h-4 text-slate-400 flex-shrink-0" />
+          ) : (
+            <ChevronRight className="w-4 h-4 text-slate-400 flex-shrink-0" />
+          )}
+          <span className="text-sm font-semibold text-slate-700 truncate">
+            {categorie}
+          </span>
+          <span className="text-xs text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full flex-shrink-0">
+            {items.length}
+          </span>
         </div>
       </button>
       {open && (
         <div className="border-t border-slate-100 divide-y divide-slate-100">
           {items.map((item) => (
-            <div key={item.id} className={`flex items-center gap-4 px-4 py-3 group ${!item.actif ? "opacity-50" : ""}`}>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium text-slate-800">{item.nom}</span>
-                  {!item.actif && <span className="text-[10px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded">Inactif</span>}
+            <div
+              key={item.id}
+              className={`p-4 ${
+                !item.actif ? "opacity-50" : ""
+              }`}>
+              {/* Desktop */}
+              <div className="hidden md:flex items-center gap-4 group">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-sm font-medium text-slate-800">
+                      {item.nom}
+                    </span>
+                    {!item.actif && (
+                      <span className="text-[10px] bg-red-100 text-red-600 px-2 py-0.5 rounded">
+                        Inactif
+                      </span>
+                    )}
+                  </div>
+                  {item.description && (
+                    <p className="text-xs text-slate-400 mt-1 truncate">
+                      {item.description}
+                    </p>
+                  )}
                 </div>
-                {item.description && <p className="text-xs text-slate-400 mt-0.5 truncate">{item.description}</p>}
+                <span className="text-xs text-slate-500 bg-slate-100 px-2 py-1 rounded flex items-center gap-1 whitespace-nowrap">
+                  <Users className="w-3 h-3" />
+                  {item._count.collaborateurCompetences}
+                </span>
+                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button
+                    onClick={() => onEdit(item)}
+                    className="p-2 rounded-lg hover:bg-slate-100">
+                    <Edit2 className="w-4 h-4 text-slate-500" />
+                  </button>
+                  <button
+                    onClick={() => handleDelete(item)}
+                    className="p-2 rounded-lg hover:bg-red-50">
+                    <Trash2 className="w-4 h-4 text-red-500" />
+                  </button>
+                </div>
               </div>
-              <span className="text-xs text-slate-400 bg-slate-50 px-2 py-0.5 rounded flex items-center gap-1">
-                <Users className="w-3 h-3" /> {item._count.collaborateurCompetences}
-              </span>
-              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                <button onClick={() => onEdit(item)} className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-600">
-                  <Edit2 className="w-3.5 h-3.5" />
-                </button>
-                <button onClick={() => handleDelete(item)} className="p-1.5 hover:bg-red-50 rounded-lg text-slate-400 hover:text-red-500">
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
+              {/* Mobile */}
+              <div className="md:hidden space-y-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-medium text-slate-800 break-words">
+                        {item.nom}
+                      </span>
+                      {!item.actif && (
+                        <span className="text-[10px] bg-red-100 text-red-600 px-2 py-0.5 rounded">
+                          Inactif
+                        </span>
+                      )}
+                    </div>
+                    {item.description && (
+                      <p className="text-xs text-slate-400 mt-1 break-words">
+                        {item.description}
+                      </p>
+                    )}
+                  </div>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-slate-500 bg-slate-100 px-2 py-1 rounded flex items-center gap-1">
+                    <Users className="w-3 h-3" />
+                    {item._count.collaborateurCompetences} collaborateurs
+                  </span>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => onEdit(item)}
+                      className="p-2 rounded-lg bg-slate-100 hover:bg-slate-200">
+                      <Edit2 className="w-4 h-4 text-slate-600" />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(item)}
+                      className="p-2 rounded-lg bg-red-50 hover:bg-red-100">
+                      <Trash2 className="w-4 h-4 text-red-600" />
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           ))}
@@ -485,7 +559,7 @@ function CollaborateurCompetences({ collab, referentiel }: { collab: ProfilRH; r
   return (
     <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
       {/* En-tête */}
-      <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 px-4 sm:px-5 py-4 border-b border-slate-200">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-full bg-emerald-500 flex items-center justify-center text-white text-sm font-bold">
             {m.prenom[0]}{m.nom[0]}
@@ -495,12 +569,12 @@ function CollaborateurCompetences({ collab, referentiel }: { collab: ProfilRH; r
             <p className="text-xs text-slate-400 font-mono">{collab.matricule}</p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex w-full sm:w-auto items-center justify-end gap-2">
           <button onClick={refetch} className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400">
             {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
           </button>
           <button onClick={() => setShowAdd(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg">
+            className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-2 text-sm bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg">
             <Plus className="w-3.5 h-3.5" /> Ajouter
           </button>
         </div>
@@ -514,7 +588,7 @@ function CollaborateurCompetences({ collab, referentiel }: { collab: ProfilRH; r
           <p className="text-sm">Aucune compétence enregistrée</p>
         </div>
       ) : (
-        <div className="p-5 space-y-5">
+        <div className="p-4 sm:p-5 space-y-5">
           {(["HARD_SKILL", "SOFT_SKILL"] as const).map((type) => {
             const items = grouped[type];
             if (!items?.length) return null;
@@ -528,7 +602,7 @@ function CollaborateurCompetences({ collab, referentiel }: { collab: ProfilRH; r
                     const nCfg = NIVEAU_MAP[c.niveau];
                     const isEditing = editComp?.competenceId === c.competenceId;
                     return (
-                      <div key={c.id} className="flex items-center gap-3 p-3 rounded-lg border border-slate-100 hover:border-slate-200 group">
+                      <div key={c.id} className="flex flex-col lg:flex-row lg:items-center gap-4 p-4 rounded-lg border border-slate-100 hover:border-slate-200">
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
                             <span className="text-sm font-medium text-slate-800">{c.competence.nom}</span>
@@ -540,16 +614,16 @@ function CollaborateurCompetences({ collab, referentiel }: { collab: ProfilRH; r
                           )}
                         </div>
                         {isEditing ? (
-                          <div className="flex items-center gap-2">
+                          <div className="w-full lg:w-auto flex flex-col sm:flex-row gap-2">
                             <select value={editComp.niveau}
                               onChange={(e) => setEditComp((prev) => prev ? { ...prev, niveau: e.target.value } : null)}
-                              className="px-2 py-1 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                              className="w-full sm:w-auto px-2 py-1 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500">
                               {NIVEAUX.map((n) => <option key={n.key} value={n.key}>{n.label}</option>)}
                             </select>
                             <input value={editComp.notes}
                               onChange={(e) => setEditComp((prev) => prev ? { ...prev, notes: e.target.value } : null)}
-                              placeholder="Notes…" className="px-2 py-1 border border-slate-200 rounded-lg text-xs w-28 focus:outline-none focus:ring-2 focus:ring-emerald-500" />
-                            <button onClick={handleSaveEdit} className="p-1 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700">
+                              placeholder="Notes…" className="w-full sm:w-40 px-2 py-1 border border-slate-200 rounded-lg text-xs w-28 focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                            <button onClick={handleSaveEdit} className="flex items-center justify-center p-2 p-1 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700">
                               <Save className="w-3.5 h-3.5" />
                             </button>
                             <button onClick={() => setEditComp(null)} className="p-1 hover:bg-slate-100 rounded-lg text-slate-400">
@@ -557,11 +631,11 @@ function CollaborateurCompetences({ collab, referentiel }: { collab: ProfilRH; r
                             </button>
                           </div>
                         ) : (
-                          <>
+                          <div className="w-full lg:w-auto flex flex-col sm:flex-row sm:items-center gap-3">
                             <span className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${nCfg.bg} ${nCfg.color}`}>
                               <span className={`w-1.5 h-1.5 rounded-full ${nCfg.dot}`} />{nCfg.label}
                             </span>
-                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <div className="flex items-center gap-1">
                               <button onClick={() => setEditComp({ competenceId: c.competenceId, niveau: c.niveau, notes: c.notes ?? "" })}
                                 className="p-1 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-600">
                                 <Edit2 className="w-3.5 h-3.5" />
@@ -571,7 +645,7 @@ function CollaborateurCompetences({ collab, referentiel }: { collab: ProfilRH; r
                                 <Trash2 className="w-3.5 h-3.5" />
                               </button>
                             </div>
-                          </>
+                          </div>
                         )}
                       </div>
                     );
@@ -637,64 +711,123 @@ function AddCompetenceModal({ profilRHId, referentiel, onClose, onAdded }: {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
-          <h3 className="font-semibold text-slate-800">Ajouter une compétence</h3>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X className="w-4 h-4" /></button>
+    <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-3 sm:p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] flex flex-col overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-slate-200 flex-shrink-0">
+          <h3 className="text-base sm:text-lg font-semibold text-slate-800">
+            Ajouter une compétence
+          </h3>
+          <button
+            onClick={onClose}
+            className="p-1 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+          >
+            <X className="w-5 h-5" />
+          </button>
         </div>
-        <div className="p-6 space-y-4">
+        {/* Corps */}
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5">
+          {/* Compétence */}
           <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1.5">Compétence</label>
-            <select value={competenceId} onChange={(e) => setCompetenceId(e.target.value)}
-              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
+            <label className="block text-xs font-semibold text-slate-600 mb-1.5">
+              Compétence
+            </label>
+            <select
+              value={competenceId}
+              onChange={(e) => setCompetenceId(e.target.value)}
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            >
               <option value="">— Sélectionner —</option>
               {(["HARD_SKILL", "SOFT_SKILL"] as const).map((type) => {
                 const items = groupedRef[type];
                 if (!items?.length) return null;
                 return (
-                  <optgroup key={type} label={type === "HARD_SKILL" ? "⚡ Hard Skills" : "⭐ Soft Skills"}>
-                    {items.sort((a, b) => (a.categorie ?? "").localeCompare(b.categorie ?? "") || a.nom.localeCompare(b.nom)).map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.categorie ? `[${c.categorie}] ` : ""}{c.nom}
-                      </option>
-                    ))}
+                  <optgroup
+                    key={type}
+                    label={type === "HARD_SKILL" ? "⚡ Hard Skills" : "⭐ Soft Skills"}
+                  >
+                    {items
+                      .sort(
+                        (a, b) =>
+                          (a.categorie ?? "").localeCompare(b.categorie ?? "") ||
+                          a.nom.localeCompare(b.nom)
+                      )
+                      .map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.categorie ? `[${c.categorie}] ` : ""}
+                          {c.nom}
+                        </option>
+                      ))}
                   </optgroup>
                 );
               })}
             </select>
           </div>
+          {/* Niveau */}
           <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1.5">Niveau</label>
-            <div className="grid grid-cols-2 gap-2">
+            <label className="block text-xs font-semibold text-slate-600 mb-2">
+              Niveau
+            </label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {NIVEAUX.map((n) => (
-                <button key={n.key} type="button" onClick={() => setNiveau(n.key)}
-                  className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm transition-all ${
-                    niveau === n.key ? `${n.bg} ${n.color} border-transparent font-semibold` : "border-slate-200 text-slate-600 hover:bg-slate-50"
+                <button
+                  key={n.key}
+                  type="button"
+                  onClick={() => setNiveau(n.key)}
+                  className={`flex items-center justify-center sm:justify-start gap-2 px-3 py-2.5 rounded-lg border text-sm transition-all ${
+                    niveau === n.key
+                      ? `${n.bg} ${n.color} border-transparent font-semibold`
+                      : "border-slate-200 text-slate-600 hover:bg-slate-50"
                   }`}>
-                  <span className={`w-2 h-2 rounded-full ${n.dot}`} />{n.label}
+                  <span className={`w-2 h-2 rounded-full ${n.dot}`} />
+                  {n.label}
                 </button>
               ))}
             </div>
           </div>
+          {/* Date */}
           <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1.5">Date d&apos;acquisition (optionnel)</label>
-            <input type="date" value={dateAcquisition} onChange={(e) => setDateAcquisition(e.target.value)}
-              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+            <label className="block text-xs font-semibold text-slate-600 mb-1.5">
+              Date d&apos;acquisition (optionnel)
+            </label>
+            <input
+              type="date"
+              value={dateAcquisition}
+              onChange={(e) => setDateAcquisition(e.target.value)}
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            />
           </div>
+          {/* Notes */}
           <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1.5">Notes (optionnel)</label>
-            <input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Contexte d'acquisition…"
-              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+            <label className="block text-xs font-semibold text-slate-600 mb-1.5">
+              Notes (optionnel)
+            </label>
+            <input
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Contexte d'acquisition…"
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            />
           </div>
-          <div className="flex gap-2 pt-1">
-            <button onClick={onClose} className="flex-1 py-2 border border-slate-200 rounded-lg text-sm text-slate-600 hover:bg-slate-50">Annuler</button>
-            <button onClick={handleSave} disabled={saving || !competenceId}
-              className="flex-1 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-lg disabled:opacity-50 flex items-center justify-center gap-2">
-              {saving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-              Enregistrer
-            </button>
-          </div>
+        </div>
+        {/* Footer */}
+        <div className="border-t border-slate-200 p-4 sm:p-6 flex flex-col-reverse sm:flex-row gap-3 flex-shrink-0">
+          <button
+            onClick={onClose}
+            className="w-full sm:flex-1 py-2.5 border border-slate-200 rounded-lg text-sm text-slate-600 hover:bg-slate-50">
+            Annuler
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={saving || !competenceId}
+            className="w-full sm:flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-lg disabled:opacity-50 flex items-center justify-center gap-2">
+            {saving ? (
+              <RefreshCw className="w-4 h-4 animate-spin" />
+            ) : (
+              <Save className="w-4 h-4" />
+            )}
+            Enregistrer
+          </button>
         </div>
       </div>
     </div>
@@ -730,55 +863,116 @@ function CompetenceModal({ initial, onClose, onSaved }: {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
-          <h3 className="font-semibold text-slate-800">{isEdit ? "Modifier la compétence" : "Nouvelle compétence"}</h3>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X className="w-4 h-4" /></button>
+    <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-3 sm:p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] flex flex-col overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-slate-200 flex-shrink-0">
+          <h3 className="text-base sm:text-lg font-semibold text-slate-800">
+            {isEdit ? "Modifier la compétence" : "Nouvelle compétence"}
+          </h3>
+          <button
+            onClick={onClose}
+            className="p-1 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600">
+            <X className="w-5 h-5" />
+          </button>
         </div>
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+        {/* Corps */}
+        <form
+          onSubmit={handleSubmit}
+          className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5">
+          {/* Type */}
           <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1.5">Type</label>
-            <div className="grid grid-cols-2 gap-2">
-              {[["HARD_SKILL", "⚡ Hard Skill"], ["SOFT_SKILL", "⭐ Soft Skill"]].map(([k, l]) => (
-                <button key={k} type="button" onClick={() => { setType(k); setCategorie(""); }}
-                  className={`py-2 rounded-lg border text-sm font-medium transition-all ${
-                    type === k ? (k === "HARD_SKILL" ? "bg-blue-100 text-blue-700 border-blue-200" : "bg-violet-100 text-violet-700 border-violet-200") : "border-slate-200 text-slate-600 hover:bg-slate-50"
+            <label className="block text-xs font-semibold text-slate-600 mb-2">
+              Type
+            </label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {[
+                ["HARD_SKILL", "⚡ Hard Skill"],
+                ["SOFT_SKILL", "⭐ Soft Skill"],
+              ].map(([k, l]) => (
+                <button
+                  key={k}
+                  type="button"
+                  onClick={() => {
+                    setType(k);
+                    setCategorie("");
+                  }}
+                  className={`py-2.5 rounded-lg border text-sm font-medium transition-all ${
+                    type === k
+                      ? k === "HARD_SKILL"
+                        ? "bg-blue-100 text-blue-700 border-blue-200"
+                        : "bg-violet-100 text-violet-700 border-violet-200"
+                      : "border-slate-200 text-slate-600 hover:bg-slate-50"
                   }`}>
                   {l}
                 </button>
               ))}
             </div>
           </div>
+          {/* Catégorie */}
           <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1.5">Catégorie</label>
-            <select value={categorie} onChange={(e) => setCategorie(e.target.value)}
+            <label className="block text-xs font-semibold text-slate-600 mb-1.5">
+              Catégorie
+            </label>
+            <select
+              value={categorie}
+              onChange={(e) => setCategorie(e.target.value)}
               className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
               <option value="">— Sans catégorie —</option>
-              {categories.map((c) => <option key={c} value={c}>{c}</option>)}
+              {categories.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
             </select>
           </div>
+          {/* Nom */}
           <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1.5">Nom *</label>
-            <input value={nom} onChange={(e) => setNom(e.target.value)} required
-              placeholder="Ex: Excel avancé, Prise de parole…"
-              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+            <label className="block text-xs font-semibold text-slate-600 mb-1.5">
+              Nom *
+            </label>
+            <input
+              value={nom}
+              onChange={(e) => setNom(e.target.value)}
+              required
+              placeholder="Ex : Excel avancé, Prise de parole…"
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"/>
           </div>
+          {/* Description */}
           <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1.5">Description (optionnel)</label>
-            <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2}
+            <label className="block text-xs font-semibold text-slate-600 mb-1.5">
+              Description (optionnel)
+            </label>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows={3}
               placeholder="Ce que cette compétence implique…"
-              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none" />
-          </div>
-          <div className="flex gap-2 pt-1">
-            <button type="button" onClick={onClose} className="flex-1 py-2 border border-slate-200 rounded-lg text-sm text-slate-600 hover:bg-slate-50">Annuler</button>
-            <button type="submit" disabled={saving}
-              className="flex-1 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-lg disabled:opacity-50 flex items-center justify-center gap-2">
-              {saving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-              {isEdit ? "Enregistrer" : "Créer"}
-            </button>
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm resize-none focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            />
           </div>
         </form>
+        {/* Footer */}
+        <div className="border-t border-slate-200 p-4 sm:p-6 flex flex-col-reverse sm:flex-row gap-3 flex-shrink-0">
+          <button
+            type="button"
+            onClick={onClose}
+            className="w-full sm:flex-1 py-2.5 border border-slate-200 rounded-lg text-sm text-slate-600 hover:bg-slate-50">
+            Annuler
+          </button>
+          <button
+            type="submit"
+            onClick={handleSubmit}
+            disabled={saving}
+            className="w-full sm:flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-lg disabled:opacity-50 flex items-center justify-center gap-2">
+            {saving ? (
+              <RefreshCw className="w-4 h-4 animate-spin" />
+            ) : (
+              <Save className="w-4 h-4" />
+            )}
+            {isEdit ? "Enregistrer" : "Créer"}
+          </button>
+        </div>
       </div>
     </div>
   );
