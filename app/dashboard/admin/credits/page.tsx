@@ -11,6 +11,7 @@ import Link from 'next/link';
 import { useApi } from '@/hooks/useApi';
 import { usePermissions } from '@/hooks/usePermissions';
 import { formatCurrency, formatDate } from '@/lib/format';
+import { dureeJoursPourFormule } from '@/lib/formuleCredit';
 import { toast } from 'sonner';
 import { useT } from '@/contexts/AppSettingsContext';
 import ClienteleTabBar from '@/components/ClienteleTabBar';
@@ -235,7 +236,8 @@ export default function CreditsPage() {
     { produitId: null, produitNom: '', quantite: 1, prixUnitaire: 0, remise: 0, stockDisponible: Infinity },
   ]);
   const [creditParams,    setCreditParams]    = useState({
-    dureeJours: '', dateDebut: new Date().toISOString().slice(0, 10),
+    formule: 'TRENTAINE' as 'QUINZAINE' | 'TRENTAINE',
+    dateDebut: new Date().toISOString().slice(0, 10),
     fraisDossier: '0', assurance: '0', autresFrais: '0', fraisLivraison: '0', tauxInteret: '0', delaiGraceJours: '0',
     garantNom: '', garantTelephone: '', garantAdresse: '', garantTypeGarantie: '', garantValeurEstimee: '0',
     tauxPenalite: '0', garantie: '', observations: '',
@@ -468,7 +470,7 @@ export default function CreditsPage() {
     setCreditSelectedClient(null); setEligibilite(null); setShowSetLimite(false); setLimiteInput(''); setCreditError('');
     setCreditPdvId(''); setCreditStockPdv([]); setCreditClientResults([]);
     setCreditLignes([{ produitId: null, produitNom: '', quantite: 1, prixUnitaire: 0, remise: 0, stockDisponible: Infinity }]);
-    setCreditParams({ dureeJours: '', dateDebut: new Date().toISOString().slice(0, 10), fraisDossier: '0', assurance: '0', autresFrais: '0', fraisLivraison: '0', tauxInteret: '0', delaiGraceJours: '0', garantNom: '', garantTelephone: '', garantAdresse: '', garantTypeGarantie: '', garantValeurEstimee: '0', tauxPenalite: '0', garantie: '', observations: '' });
+    setCreditParams({ formule: 'TRENTAINE', dateDebut: new Date().toISOString().slice(0, 10), fraisDossier: '0', assurance: '0', autresFrais: '0', fraisLivraison: '0', tauxInteret: '0', delaiGraceJours: '0', garantNom: '', garantTelephone: '', garantAdresse: '', garantTypeGarantie: '', garantValeurEstimee: '0', tauxPenalite: '0', garantie: '', observations: '' });
   };
 
   const checkEligibilite = async (clientId: number) => {
@@ -518,18 +520,19 @@ export default function CreditsPage() {
     (l.stockDisponible !== Infinity && l.quantite > l.stockDisponible)
   );
   const creditDateDebutInvalid = !!creditParams.dateDebut && creditParams.dateDebut < new Date().toISOString().slice(0, 10);
-  const creditMontantJournalier = creditParams.dureeJours
-    ? Number((creditResteAFinancer / Number(creditParams.dureeJours)).toFixed(2)) : 0;
+  // Durée dérivée de la formule (module POPC) : QUINZAINE → 16, TRENTAINE → 31.
+  const creditDureeJours = dureeJoursPourFormule(creditParams.formule);
+  const creditMontantJournalier = Number((creditResteAFinancer / creditDureeJours).toFixed(2));
   const creditDateFin = (() => {
-    if (!creditParams.dureeJours || !creditParams.dateDebut) return '';
+    if (!creditParams.dateDebut) return '';
     const d = new Date(creditParams.dateDebut);
-    d.setDate(d.getDate() + Number(creditParams.dureeJours));
+    d.setDate(d.getDate() + creditDureeJours);
     return d.toISOString().slice(0, 10);
   })();
 
   const handleCreditSubmit = async () => {
     setCreditError('');
-    if (!creditClientId || !creditLignes.some(l => l.produitNom.trim()) || !creditParams.dureeJours || !creditParams.dateDebut) {
+    if (!creditClientId || !creditLignes.some(l => l.produitNom.trim()) || !creditParams.dateDebut) {
       setCreditError('Veuillez compléter toutes les étapes'); return;
     }
     setCreditSubmitting(true);
@@ -547,7 +550,7 @@ export default function CreditsPage() {
             prixUnitaire: l.prixUnitaire,
             remise: l.remise,
           })),
-          dureeJours:   Number(creditParams.dureeJours),
+          formule:      creditParams.formule,
           dateDebut:    creditParams.dateDebut,
           montantCompteCourant: creditApportCC,
           fraisDossier:    Number(creditParams.fraisDossier || 0),
@@ -1866,10 +1869,13 @@ export default function CreditsPage() {
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-xs font-medium text-slate-600 mb-1">Durée (jours) <span className="text-red-500">*</span></label>
-                      <input type="number" min={1} value={creditParams.dureeJours}
-                        onChange={e => setCreditParams(p => ({ ...p, dureeJours: e.target.value }))} placeholder="ex: 30"
-                        className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50 ${creditParams.dureeJours && Number(creditParams.dureeJours) < 1 ? 'border-red-300' : 'border-slate-200'}`} />
+                      <label className="block text-xs font-medium text-slate-600 mb-1">Formule <span className="text-red-500">*</span></label>
+                      <select value={creditParams.formule}
+                        onChange={e => setCreditParams(p => ({ ...p, formule: e.target.value as 'QUINZAINE' | 'TRENTAINE' }))}
+                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50">
+                        <option value="QUINZAINE">Quinzaine — 15 mises + 16ème</option>
+                        <option value="TRENTAINE">Trentaine — 30 mises + 31ème</option>
+                      </select>
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-slate-600 mb-1">Date de début <span className="text-red-500">*</span></label>
@@ -1882,7 +1888,7 @@ export default function CreditsPage() {
                   <div className="grid grid-cols-2 gap-3">
                     <div className="bg-slate-50 rounded-lg px-3 py-2.5 border border-slate-100">
                       <p className="text-xs text-slate-400">Montant/jour (AUTO)</p>
-                      <p className="text-sm font-bold text-slate-700 mt-0.5">{creditParams.dureeJours ? formatCurrency(creditMontantJournalier) : '—'}</p>
+                      <p className="text-sm font-bold text-slate-700 mt-0.5">{formatCurrency(creditMontantJournalier)}</p>
                     </div>
                     <div className="bg-slate-50 rounded-lg px-3 py-2.5 border border-slate-100">
                       <p className="text-xs text-slate-400">Fin d&apos;échéance (AUTO)</p>
@@ -2064,7 +2070,7 @@ export default function CreditsPage() {
                     </div>
                   </div>
                   <div className="grid grid-cols-3 gap-3">
-                    {[{ label: creditApportCC > 0 ? 'Crédit à rembourser' : 'Total à rembourser', value: formatCurrency(creditResteAFinancer) }, { label: 'Durée', value: `${creditParams.dureeJours} jours` }, { label: 'Montant/jour', value: formatCurrency(creditMontantJournalier) }].map(s => (
+                    {[{ label: creditApportCC > 0 ? 'Crédit à rembourser' : 'Total à rembourser', value: formatCurrency(creditResteAFinancer) }, { label: 'Durée', value: `${creditDureeJours} jours` }, { label: 'Montant/jour', value: formatCurrency(creditMontantJournalier) }].map(s => (
                       <div key={s.label} className="bg-blue-50 rounded-lg p-3 text-center">
                         <p className="text-xs text-blue-500">{s.label}</p>
                         <p className="text-sm font-bold text-blue-700 mt-0.5">{s.value}</p>
@@ -2112,7 +2118,7 @@ export default function CreditsPage() {
                   disabled={
                     (creditStep === 1 && (!creditClientId || !creditPdvId || eligibiliteLoading || showSetLimite || eligibilite?.eligible === false)) ||
                     (creditStep === 2 && (creditMontantTotal <= 0 || !creditLignes.some(l => l.produitNom.trim()) || creditLignesInvalid)) ||
-                    (creditStep === 3 && (!creditParams.dureeJours || Number(creditParams.dureeJours) < 1 || !creditParams.dateDebut || creditCcCouvreTout))
+                    (creditStep === 3 && (!creditParams.dateDebut || creditCcCouvreTout))
                   }
                   onClick={() => { setCreditError(''); setCreditStep(s => s + 1); }}
                   className="flex items-center gap-1 px-5 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-40">

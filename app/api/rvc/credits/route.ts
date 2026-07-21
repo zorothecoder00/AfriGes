@@ -6,6 +6,7 @@ import { MemberStatus, NiveauRisque, Prisma, StatutCredit, PrioriteNotification,
 import { notifyRoles, notifyAdmins, auditLog } from "@/lib/notifications";
 import { getFidelite } from "@/lib/fidelite";
 import { tariferLigne } from "@/lib/venteTarification";
+import { estFormuleValide, dureeJoursPourFormule } from "@/lib/formuleCredit";
 import { randomUUID } from "crypto";
 
 /**
@@ -116,19 +117,25 @@ export async function POST(req: Request) {
 
     const userId = parseInt(session.user.id);
     const body = await req.json();
-    const { clientId, pointDeVenteId, lignes, dureeJours, dateDebut, tauxPenalite, garantie, observations,
+    const { clientId, pointDeVenteId, lignes, formule, dateDebut, tauxPenalite, garantie, observations,
       fraisDossier, assurance, autresFrais, fraisLivraison, tauxInteret, delaiGraceJours,
       garantNom, garantTelephone, garantAdresse, garantTypeGarantie, garantValeurEstimee } = body;
 
-    if (!clientId || !lignes?.length || !dureeJours || !dateDebut) {
+    if (!clientId || !lignes?.length || !dateDebut) {
       return NextResponse.json(
-        { error: "Champs obligatoires manquants (clientId, lignes, dureeJours, dateDebut)" },
+        { error: "Champs obligatoires manquants (clientId, lignes, dateDebut)" },
         { status: 400 }
       );
     }
-    if (Number(dureeJours) < 1) {
-      return NextResponse.json({ error: "La durée doit être d'au moins 1 jour" }, { status: 400 });
+    // Formule commerciale obligatoire (module POPC) : elle détermine la durée et la
+    // collecte de rémunération (16ème / 31ème). QUINZAINE → 16 échéances, TRENTAINE → 31.
+    if (!estFormuleValide(formule)) {
+      return NextResponse.json(
+        { error: "Formule requise : QUINZAINE ou TRENTAINE" },
+        { status: 400 }
+      );
     }
+    const dureeJours = dureeJoursPourFormule(formule);
 
     // Résoudre le PDV du RVC (nécessaire pour vérifier les stocks)
     const isAdmin = session.user.role === "ADMIN" || session.user.role === "SUPER_ADMIN";
@@ -258,6 +265,7 @@ export async function POST(req: Request) {
           clientId: client.id,
           pointDeVenteId: rvcPdvId,
           statut: StatutCredit.ACTIF,
+          formule,
           montantTotal,
           montantRembourse: 0,
           soldeRestant: montantTotal,

@@ -150,7 +150,9 @@ function NouveauCreditModal({ onClose, onSuccess }: { onClose: () => void; onSuc
   const [limiteLoading, setLimiteLoading] = useState(false);
 
   // ── Formulaire crédit ─────────────────────────────────────────────────────
-  const [dureeJours,   setDureeJours]   = useState("30");
+  // Formule commerciale (module POPC) : QUINZAINE (16 échéances) ou TRENTAINE (31).
+  // La durée est déterminée par la formule côté serveur.
+  const [formule, setFormule] = useState<"QUINZAINE" | "TRENTAINE">("TRENTAINE");
   const [dateDebut,    setDateDebut]    = useState(new Date().toISOString().slice(0, 10));
   const [garantie,     setGarantie]     = useState("");
   const [observations, setObservations] = useState("");
@@ -232,7 +234,7 @@ function NouveauCreditModal({ onClose, onSuccess }: { onClose: () => void; onSuc
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           clientId:     Number(clientId),
-          dureeJours:   Number(dureeJours),
+          formule,
           dateDebut,
           fraisDossier:    Number(fraisDossier || 0),
           assurance:       Number(assurance || 0),
@@ -369,9 +371,15 @@ function NouveauCreditModal({ onClose, onSuccess }: { onClose: () => void; onSuc
                   {/* Durée + Date */}
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1.5">Durée (jours) *</label>
-                      <input type="number" min={1} value={dureeJours} onChange={(e) => setDureeJours(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                      <label className="block text-sm font-medium text-gray-700 mb-1.5">Formule *</label>
+                      <select value={formule} onChange={(e) => setFormule(e.target.value as "QUINZAINE" | "TRENTAINE")}
+                        className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        <option value="QUINZAINE">Quinzaine — 15 mises + 16ème</option>
+                        <option value="TRENTAINE">Trentaine — 30 mises + 31ème</option>
+                      </select>
+                      <p className="mt-1 text-xs text-gray-400">
+                        {formule === "QUINZAINE" ? "16 échéances (dont la 16ème collecte)" : "31 échéances (dont la 31ème collecte)"}
+                      </p>
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1.5">Date de début *</label>

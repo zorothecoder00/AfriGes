@@ -354,6 +354,15 @@ enum StatutRecompense {
 // ENUMS — Crédits clients
 // ============================================================
 
+// Formule commerciale d'un crédit (module POPC).
+// QUINZAINE : 15 mises journalières + une 16ème collecte de rémunération (16 échéances).
+// TRENTAINE : 30 mises journalières + une 31ème collecte de rémunération (31 échéances).
+// Nullable sur CreditClient : les crédits antérieurs à POPC restent valides sans formule.
+enum FormuleCredit {
+  QUINZAINE
+  TRENTAINE
+}
+
 enum StatutCredit {
   EN_ATTENTE_VALIDATION  // créé, en attente d'approbation superviseur
   VALIDE                 // approuvé mais pas encore démarré
@@ -1145,6 +1154,11 @@ model CreditClient {
   // pas de relation directe ici — PointDeVente n'a pas de backlink crédit (optionnel)
 
   statut           StatutCredit @default(EN_ATTENTE_VALIDATION)
+
+  // Formule commerciale (module POPC). Obligatoire pour les nouveaux crédits ;
+  // détermine la durée (QUINZAINE → 16 échéances, TRENTAINE → 31), la dernière
+  // échéance étant la collecte de rémunération (« 16ème » / « 31ème »).
+  formule          FormuleCredit?
 
   // Montants
   montantTotal     Decimal
@@ -6160,4 +6174,121 @@ model MouvementCompteCourant {
   @@index([nature])
   @@index([createdAt])
   @@index([agentApporteurId])
+}
+
+// ============================================================
+// MODULE POPC — Planification des Objectifs & Pilotage des Collectes
+// ============================================================
+// Aucune ressaisie : les réalisations (16èmes/31èmes, encaissements) sont lues
+// des modules Crédit (CreditClient/EcheanceCredit/RemboursementCredit) et des
+// ventes de carnets. Ce module ne stocke QUE le paramétrage et les objectifs
+// générés (historisés par mois pour comparaison — CDC §15.5).
+// FK stockées en Int sans relation Prisma (même parti-pris que
+// CreditClient.pointDeVenteId) pour rester isolé des modèles User/PDV/Client.
+
+enum StatutParametragePOPC {
+  BROUILLON // saisi, objectifs recalculés à la volée, non figé
+  VALIDE    // objectifs figés pour le mois (référence de pilotage)
+}
+
+// Paramétrage mensuel (CDC §3) : charges + paramètres commerciaux.
+// Unicité (annee, mois, pointDeVenteId) : un paramétrage global (pointDeVenteId null)
+// et/ou un paramétrage par agence.
+model ParametragePOPC {
+  id             Int                    @id @default(autoincrement())
+  annee          Int
+  mois           Int                    // 1..12
+  pointDeVenteId Int                    @default(0) // 0 = global (toutes agences), sinon PDV
+  statut         StatutParametragePOPC  @default(BROUILLON)
+
+  // ── 3.1 Charges mensuelles (FCFA) ──────────────────────────────────────────
+  salaireAgents       Decimal @default(0)
+  salaireSuperviseurs Decimal @default(0)
+  salaireControleurs  Decimal @default(0)
+  salaireResponsables Decimal @default(0)
+  carburant           Decimal @default(0)
+  entretienMotos      Decimal @default(0)
+  telephone           Decimal @default(0)
+  internet            Decimal @default(0)
+  loyer               Decimal @default(0)
+  eau                 Decimal @default(0)
+  electricite         Decimal @default(0)
+  fournitures         Decimal @default(0)
+  publicite           Decimal @default(0)
+  divers              Decimal @default(0)
+
+  // ── 3.2 Paramètres commerciaux ─────────────────────────────────────────────
+  objectifBenefice     Decimal @default(0) // objectif de bénéfice du mois
+  commissionSeizieme   Decimal @default(0) // commission minimum du 16ème
+  commissionTrentaine  Decimal @default(0) // commission minimum du 31ème
+  prixCarnet           Decimal @default(300)
+  joursOuvrables       Int     @default(26)
+  nombreAgentsTerrain  Int     @default(1)
+  nombreAgences        Int     @default(1)
+
+  // ── Hypothèses de planification (mix de revenu) ────────────────────────────
+  // Répartition du revenu-cible entre les 3 sources (somme ≈ 100). Éditable :
+  // le CDC ne fixe pas le mix, la Direction le calibre.
+  partRevenu16      Decimal @default(50) // % du revenu attendu via les 16èmes
+  partRevenu31      Decimal @default(40) // % du revenu attendu via les 31èmes
+  partRevenuCarnet  Decimal @default(10) // % du revenu attendu via les carnets
+  creditsParClient  Decimal @default(1)  // nb moyen de crédits par client (recrutement)
+
+  // ── Traçabilité (CDC §15.6) ────────────────────────────────────────────────
+  creeParId      Int
+  valideParId    Int?
+  dateValidation DateTime?
+
+  objectif ObjectifPOPC?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([annee, mois, pointDeVenteId])
+  @@index([annee, mois])
+  @@index([pointDeVenteId])
+}
+
+// Tableau de synthèse généré (CDC §4). Snapshot des objectifs calculés à partir
+// du paramétrage — conservé pour l'historique et les comparaisons.
+model ObjectifPOPC {
+  id             Int @id @default(autoincrement())
+  parametrageId  Int @unique
+
+  chargesTotales      Decimal @default(0)
+  objectifBenefice    Decimal @default(0)
+  revenuMinimum       Decimal @default(0)
+  nbSeiziemes         Int     @default(0)
+  nbTrentiemes        Int     @default(0)
+  nbCarnets           Int     @default(0)
+  nbNouveauxCredits   Int     @default(0)
+  nbClientsRecruter   Int     @default(0)
+  objectifQuotidien   Decimal @default(0)
+  objectifHebdomadaire Decimal @default(0)
+  objectifMensuel     Decimal @default(0)
+
+  parametrage ParametragePOPC @relation(fields: [parametrageId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Vente d'un carnet de crédit (300 FCFA — CDC §1). Source des « carnets vendus »
+// des tableaux §8/§9/§11. Traçabilité agent + agence sans ressaisie.
+model VenteCarnet {
+  id             Int      @id @default(autoincrement())
+  reference      String   @unique // ex: CAR-20260721-0001
+  montant        Decimal  @default(300)
+  agentId        Int?     // AGENT_TERRAIN ayant vendu (commercial)
+  pointDeVenteId Int?     // agence concernée
+  clientId       Int?     // client acheteur (optionnel)
+  dateVente      DateTime @default(now())
+  enregistreParId Int
+  notes          String?
+
+  createdAt DateTime @default(now())
+
+  @@index([agentId])
+  @@index([pointDeVenteId])
+  @@index([dateVente])
 }

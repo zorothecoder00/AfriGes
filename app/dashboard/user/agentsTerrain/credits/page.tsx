@@ -72,7 +72,7 @@ interface ProduitOption {
 
 interface NouveauCreditForm {
   clientId: string;
-  dureeJours: string;
+  formule: "QUINZAINE" | "TRENTAINE";
   dateDebut: string;
   garantie: string;
   observations: string;
@@ -423,7 +423,7 @@ function NouveauCreditModal({
 
   const [form, setForm] = useState<NouveauCreditForm>({
     clientId: "",
-    dureeJours: "30",
+    formule: "TRENTAINE",
     dateDebut: new Date().toISOString().slice(0, 10),
     garantie: "",
     observations: "",
@@ -478,7 +478,7 @@ function NouveauCreditModal({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           clientId:     Number(form.clientId),
-          dureeJours:   Number(form.dureeJours),
+          formule:      form.formule,
           dateDebut:    form.dateDebut,
           garantie:     form.garantie || undefined,
           observations: form.observations || undefined,
@@ -546,12 +546,15 @@ function NouveauCreditModal({
           {/* Durée + Date */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Durée (jours) *</label>
-              <input
-                type="number" min={1} value={form.dureeJours}
-                onChange={(e) => setForm((f) => ({ ...f, dureeJours: e.target.value }))}
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Formule *</label>
+              <select
+                value={form.formule}
+                onChange={(e) => setForm((f) => ({ ...f, formule: e.target.value as "QUINZAINE" | "TRENTAINE" }))}
                 className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
+              >
+                <option value="QUINZAINE">Quinzaine — 15 mises + 16ème</option>
+                <option value="TRENTAINE">Trentaine — 30 mises + 31ème</option>
+              </select>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">Date de début *</label>

@@ -6,6 +6,7 @@ import { montantJournalierArrondi } from "@/lib/echeancierCredit";
 import { chargerParametrageCC, getCompteCourantParClient, preleverCompteCourant, extraireMetaRequete } from "@/lib/compteCourant";
 import { getFidelite } from "@/lib/fidelite";
 import { tariferLigne } from "@/lib/venteTarification";
+import { estFormuleValide, dureeJoursPourFormule } from "@/lib/formuleCredit";
 
 /**
  * ==========================
@@ -129,22 +130,25 @@ export async function POST(req: Request) {
     const {
       clientId, pointDeVenteId,
       lignes,
-      dureeJours, dateDebut,
+      formule, dateDebut,
       tauxPenalite, garantie, observations,
       fraisDossier, assurance, autresFrais, fraisLivraison, tauxInteret, delaiGraceJours,
       garantNom, garantTelephone, garantAdresse, garantTypeGarantie, garantValeurEstimee,
     } = body;
 
     // ── Validation de base ────────────────────────────────────────────────────
-    if (!clientId || !lignes?.length || !dureeJours || !dateDebut) {
+    if (!clientId || !lignes?.length || !dateDebut) {
       return NextResponse.json(
-        { message: "Champs obligatoires manquants (clientId, lignes, dureeJours, dateDebut)" },
+        { message: "Champs obligatoires manquants (clientId, lignes, dateDebut)" },
         { status: 400 }
       );
     }
-    if (Number(dureeJours) < 1) {
-      return NextResponse.json({ message: "La durée doit être d'au moins 1 jour" }, { status: 400 });
+    // Formule commerciale obligatoire (module POPC) : détermine la durée et la
+    // collecte de rémunération (16ème / 31ème). QUINZAINE → 16 échéances, TRENTAINE → 31.
+    if (!estFormuleValide(formule)) {
+      return NextResponse.json({ message: "Formule requise : QUINZAINE ou TRENTAINE" }, { status: 400 });
     }
+    const dureeJours = dureeJoursPourFormule(formule);
 
     // Apport via compte courant (CDC §8) : réduit le montant financé (« reste à crédit »).
     const ccMontantDemande = Math.max(0, Number(body.montantCompteCourant) || 0);
@@ -281,6 +285,7 @@ export async function POST(req: Request) {
           clientId: client.id,
           pointDeVenteId: pointDeVenteId ? Number(pointDeVenteId) : null,
           statut: StatutCredit.EN_ATTENTE_VALIDATION,
+          formule,
           montantTotal: montantCredit,
           montantRembourse: 0,
           soldeRestant: montantCredit,

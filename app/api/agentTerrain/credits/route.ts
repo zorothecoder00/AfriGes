@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getAgentTerrainSession } from "@/lib/authAgentTerrain";
 import { montantJournalierArrondi } from "@/lib/echeancierCredit";
 import { tariferLigne } from "@/lib/venteTarification";
+import { estFormuleValide, dureeJoursPourFormule } from "@/lib/formuleCredit";
 
 /**
  * GET /api/agentTerrain/credits
@@ -145,17 +146,20 @@ export async function POST(req: Request) {
     const agentNom = `${session.user.prenom ?? ""} ${session.user.nom ?? ""}`.trim();
 
     const body = await req.json();
-    const { clientId, dureeJours, dateDebut, garantie, observations, lignes } = body;
+    const { clientId, formule, dateDebut, garantie, observations, lignes } = body;
 
-    if (!clientId || !Array.isArray(lignes) || lignes.length === 0 || !dureeJours || !dateDebut) {
+    if (!clientId || !Array.isArray(lignes) || lignes.length === 0 || !dateDebut) {
       return NextResponse.json(
-        { error: "Champs obligatoires : clientId, lignes (≥ 1), dureeJours, dateDebut" },
+        { error: "Champs obligatoires : clientId, lignes (≥ 1), dateDebut" },
         { status: 400 }
       );
     }
-    if (Number(dureeJours) < 1) {
-      return NextResponse.json({ error: "dureeJours doit être ≥ 1" }, { status: 400 });
+    // Formule commerciale obligatoire (module POPC) : détermine la durée et la
+    // collecte de rémunération (16ème / 31ème). QUINZAINE → 16 échéances, TRENTAINE → 31.
+    if (!estFormuleValide(formule)) {
+      return NextResponse.json({ error: "Formule requise : QUINZAINE ou TRENTAINE" }, { status: 400 });
     }
+    const dureeJours = dureeJoursPourFormule(formule);
 
     type LigneInput = {
       produitId?:      number;
@@ -220,6 +224,7 @@ export async function POST(req: Request) {
           clientId:       client.id,
           pointDeVenteId: client.pointDeVenteId ?? null,
           statut:         "EN_ATTENTE_VALIDATION",
+          formule,
           montantTotal,
           montantRembourse: 0,
           soldeRestant:   montantTotal,
