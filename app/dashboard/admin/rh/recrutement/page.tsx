@@ -8,7 +8,7 @@ import {
   Clock, ChevronDown, ChevronUp, UserPlus, FileText, Star,
   Phone, Mail, ArrowLeft, Filter, Database, Banknote,
   Award, RefreshCw, X, KeyRound, AlertCircle, ExternalLink,
-  Copy, Check,
+  Copy, Check, Printer, Eye,
 } from "lucide-react";
 import Link from "next/link";
 import { formatDate } from "@/lib/format";
@@ -74,6 +74,18 @@ interface ATSResponse {
   meta: { total: number; totalPages: number };
   ats: { totalCandidats: number; moyenneScore: number; parStatut: Partial<Record<StatutCandidature, number>> };
 }
+
+/* ─── Documents de recrutement ───────────────────────────── */
+interface DocFieldSpec {
+  name: string;
+  label: string;
+  type: "text" | "date" | "number" | "textarea" | "select";
+  required?: boolean;
+  placeholder?: string;
+  options?: { value: string; label: string }[];
+}
+interface DocTypeMeta { type: string; label: string; scope: "poste" | "candidature"; fields: DocFieldSpec[]; }
+interface RecrutDoc { id: number; type: string; titre: string; version: number; contenu: string | null; notes: string | null; archive: boolean; createdAt: string; }
 
 /* ─── Constantes ─────────────────────────────────────────── */
 const STATUT_POSTE_LABELS: Record<StatutPoste, string> = {
@@ -220,6 +232,7 @@ function CandidatureModal({
     experienceAnnees:cand.experienceAnnees ?? "",
     sourceCandidat:  cand.sourceCandidat  ?? "",
   });
+  const [showDocs, setShowDocs] = useState(false);
 
   async function handleAction(action: string) {
     if (action === "ACCEPTER") {
@@ -387,6 +400,18 @@ function CandidatureModal({
               </button>
             )}
           </div>
+        )}
+
+        {/* Documents de recrutement (convocation, offre, refus, promesse) */}
+        <div className="mt-3 border-t pt-3">
+          <button onClick={() => setShowDocs(true)}
+            className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg border border-indigo-200 text-indigo-600 text-sm hover:bg-indigo-50">
+            <FileText size={14} /> Documents
+          </button>
+        </div>
+        {showDocs && (
+          <DocGenModal scope="candidature" targetId={cand.id}
+            label={`${cand.prenomCandidat} ${cand.nomCandidat}`} onClose={() => setShowDocs(false)} />
         )}
 
         <div className="flex justify-end gap-2 mt-4">
@@ -565,9 +590,152 @@ function CopyLinkButton({ posteId }: { posteId: number }) {
   );
 }
 
+/* ─── DocGenModal : génération de documents de recrutement ─── */
+function DocGenModal({
+  scope, targetId, label, onClose,
+}: { scope: "poste" | "candidature"; targetId: number; label: string; onClose: () => void }) {
+  const key = scope === "poste" ? "posteId" : "candidatureId";
+  const { data: typesRes } = useApi<{ data: DocTypeMeta[] }>("/api/admin/rh/recrutement/documents/types");
+  const { data: docsRes, refetch } = useApi<{ data: RecrutDoc[] }>(`/api/admin/rh/recrutement/documents?${key}=${targetId}`);
+  const { mutate, loading } = useMutation("/api/admin/rh/recrutement/documents/generer", "POST");
+
+  const types = (typesRes?.data ?? []).filter((t) => t.scope === scope);
+  const docs  = docsRes?.data ?? [];
+
+  const [docType, setDocType]         = useState("");
+  const [fieldValues, setFieldValues] = useState<Record<string, string>>({});
+  const [notes, setNotes]             = useState("");
+  const [preview, setPreview]         = useState<RecrutDoc | null>(null);
+
+  const currentFields = types.find((t) => t.type === docType)?.fields ?? [];
+  const selectType = (t: string) => { setDocType(t); setFieldValues({}); };
+  const setField   = (n: string, v: string) => setFieldValues((f) => ({ ...f, [n]: v }));
+
+  async function generate() {
+    if (!docType) { toast.error("Choisissez un type de document"); return; }
+    const missing = currentFields.find((f) => f.required && !(fieldValues[f.name] ?? "").trim());
+    if (missing) { toast.error(`Champ requis : ${missing.label}`); return; }
+    const payload = Object.fromEntries(Object.entries(fieldValues).filter(([, v]) => v.trim() !== ""));
+    const res = await mutate({ type: docType, notes: notes || null, [key]: targetId, ...payload });
+    if (res) { toast.success("Document généré"); setDocType(""); setFieldValues({}); setNotes(""); refetch(); }
+  }
+
+  function printDoc(d: RecrutDoc) {
+    const win = window.open("", "_blank");
+    if (!win) return;
+    win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${d.titre}</title><style>@media print{body{margin:0}}</style></head><body>${d.contenu ?? ""}</body></html>`);
+    win.document.close(); win.print();
+  }
+
+  const inputCls = "w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500";
+
+  return (
+    <div className="fixed inset-0 bg-black/40 z-[60] flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[92vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 shrink-0">
+          <div className="flex items-center gap-2 min-w-0">
+            <FileText size={16} className="text-indigo-600 shrink-0" />
+            <div className="min-w-0">
+              <h3 className="font-semibold text-slate-800 truncate">Documents — {label}</h3>
+              <p className="text-xs text-slate-400">{scope === "poste" ? "Poste" : "Candidature"}</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="p-1.5 hover:bg-slate-100 rounded-lg"><X size={16} className="text-slate-500" /></button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-5 space-y-5">
+          {/* Génération */}
+          <div className="space-y-3">
+            <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Générer un document</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {types.map((t) => (
+                <button key={t.type} onClick={() => selectType(t.type)}
+                  className={`px-3 py-2 rounded-lg border text-left text-sm transition-all ${docType === t.type ? "border-indigo-400 bg-indigo-50 ring-1 ring-indigo-300" : "border-slate-200 hover:border-slate-300 bg-slate-50"}`}>
+                  {t.label}
+                </button>
+              ))}
+            </div>
+
+            {docType && (
+              <div className="space-y-3 border border-slate-100 rounded-xl p-3 bg-slate-50/50">
+                {currentFields.length > 0 && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {currentFields.map((f) => (
+                      <div key={f.name} className={f.type === "textarea" ? "sm:col-span-2" : ""}>
+                        <label className="block text-xs font-medium text-slate-600 mb-1">{f.required ? `${f.label} *` : f.label}</label>
+                        {f.type === "textarea" ? (
+                          <textarea rows={2} value={fieldValues[f.name] ?? ""} onChange={(e) => setField(f.name, e.target.value)} placeholder={f.placeholder} className={`${inputCls} resize-none`} />
+                        ) : f.type === "select" ? (
+                          <select value={fieldValues[f.name] ?? ""} onChange={(e) => setField(f.name, e.target.value)} className={`${inputCls} bg-white`}>
+                            <option value="">—</option>
+                            {(f.options ?? []).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                          </select>
+                        ) : (
+                          <input type={f.type === "date" ? "date" : f.type === "number" ? "number" : "text"} value={fieldValues[f.name] ?? ""} onChange={(e) => setField(f.name, e.target.value)} placeholder={f.placeholder} className={inputCls} />
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">Notes internes (optionnel)</label>
+                  <input value={notes} onChange={(e) => setNotes(e.target.value)} className={inputCls} />
+                </div>
+                <button onClick={generate} disabled={loading}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700 disabled:opacity-50">
+                  {loading ? <><RefreshCw size={14} className="animate-spin" /> Génération…</> : <>Générer le document</>}
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Documents existants */}
+          <div className="space-y-2">
+            <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Documents générés ({docs.length})</p>
+            {docs.length === 0 ? (
+              <p className="text-sm text-slate-400 italic">Aucun document pour le moment.</p>
+            ) : docs.map((d) => (
+              <div key={d.id} className="flex items-center justify-between gap-2 border border-slate-100 rounded-lg px-3 py-2">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-slate-800 truncate">{d.titre}</p>
+                  <p className="text-xs text-slate-400">v{d.version} · {formatDate(d.createdAt)}</p>
+                </div>
+                <div className="flex items-center gap-1 shrink-0">
+                  <button onClick={() => setPreview(d)} className="p-1.5 text-slate-500 hover:bg-slate-100 rounded-lg" title="Aperçu"><Eye size={14} /></button>
+                  <button onClick={() => printDoc(d)} className="p-1.5 text-slate-500 hover:bg-slate-100 rounded-lg" title="Imprimer"><Printer size={14} /></button>
+                  <a href={`/api/admin/rh/recrutement/documents/${d.id}/pdf`} target="_blank" rel="noreferrer" className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg" title="PDF"><ExternalLink size={14} /></a>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Aperçu */}
+      {preview && (
+        <div className="fixed inset-0 bg-black/50 z-[70] flex items-center justify-center p-4" onClick={() => setPreview(null)}>
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl max-h-[92vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 py-3 border-b border-slate-100 shrink-0">
+              <h3 className="text-sm font-semibold text-slate-700 truncate">{preview.titre}</h3>
+              <div className="flex items-center gap-2">
+                <a href={`/api/admin/rh/recrutement/documents/${preview.id}/pdf`} target="_blank" rel="noreferrer" className="px-3 py-1.5 text-xs font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700">PDF</a>
+                <button onClick={() => setPreview(null)} className="p-1.5 hover:bg-slate-100 rounded-lg"><X size={16} className="text-slate-500" /></button>
+              </div>
+            </div>
+            <div className="flex-1 overflow-auto p-4 bg-slate-50">
+              <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden" dangerouslySetInnerHTML={{ __html: preview.contenu ?? "" }} />
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ─── PosteCard ──────────────────────────────────────────── */
 function PosteCard({ poste, onRefresh }: { poste: PosteOuvert; onRefresh: () => void }) {
   const [expanded, setExpanded] = useState(false);
+  const [showDocs, setShowDocs] = useState(false);
   const { mutate, loading } = useMutation(`/api/admin/rh/recrutement/postes/${poste.id}`, "PATCH");
 
   async function handleAction(action: string) {
@@ -625,6 +793,10 @@ function PosteCard({ poste, onRefresh }: { poste: PosteOuvert; onRefresh: () => 
 
         {/* Actions workflow poste */}
         <div className="flex gap-2 mt-3 flex-wrap">
+          <button onClick={() => setShowDocs(true)}
+            className="px-3 py-1.5 text-xs rounded-lg bg-indigo-50 text-indigo-700 hover:bg-indigo-100 flex items-center gap-1">
+            <FileText size={12} /> Documents
+          </button>
           {poste.statut === "BROUILLON" && (
             <button onClick={() => handleAction("VALIDER_INTERNE")} disabled={loading}
               className="px-3 py-1.5 text-xs rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200">
@@ -656,6 +828,10 @@ function PosteCard({ poste, onRefresh }: { poste: PosteOuvert; onRefresh: () => 
             </button>
           )}
         </div>
+
+        {showDocs && (
+          <DocGenModal scope="poste" targetId={poste.id} label={poste.titre} onClose={() => setShowDocs(false)} />
+        )}
       </div>
 
       {expanded && (
