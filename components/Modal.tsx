@@ -30,7 +30,7 @@ export default function Modal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
       {/* Click outside */}
       <div
         className="absolute inset-0"
@@ -38,17 +38,17 @@ export default function Modal({
       />
 
       {/* Modal */}
-      <div className="relative bg-white w-full max-w-lg max-h-[90vh] rounded-2xl shadow-xl overflow-hidden animate-[slideUp_0.3s_ease-out]">
-        
+      <div className="relative bg-white w-full max-w-lg max-h-[90vh] flex flex-col rounded-2xl shadow-xl overflow-hidden animate-[slideUp_0.3s_ease-out]">
+
         {/* Header */}
         {title && (
-          <div className="flex items-center justify-between px-6 py-4 border-b">
-            <h2 className="text-lg font-semibold text-slate-800">
+          <div className="flex items-center justify-between gap-3 px-4 sm:px-6 py-4 border-b shrink-0">
+            <h2 className="text-base sm:text-lg font-semibold text-slate-800 min-w-0 truncate">
               {title}
             </h2>
             <button
               onClick={onClose}
-              className="text-slate-400 hover:text-slate-700 text-xl"
+              className="text-slate-400 hover:text-slate-700 text-xl shrink-0"
             >
               ✕
             </button>
@@ -56,13 +56,13 @@ export default function Modal({
         )}
 
         {/* Body */}
-        <div className="px-6 py-4 overflow-y-auto max-h-[60vh]">
+        <div className="px-4 sm:px-6 py-4 overflow-y-auto flex-1">
           {children}
         </div>
 
         {/* Footer */}
         {footer && (
-          <div className="px-6 py-4 border-t bg-gray-50">
+          <div className="px-4 sm:px-6 py-4 border-t bg-gray-50 shrink-0">
             {footer}
           </div>
         )}

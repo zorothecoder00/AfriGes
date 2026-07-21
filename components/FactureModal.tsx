@@ -974,7 +974,7 @@ export default function FactureModal({
         <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[92vh] flex flex-col">
 
           {/* Header */}
-          <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 shrink-0">
+          <div className="flex items-center justify-between gap-3 px-4 sm:px-6 py-4 border-b border-slate-100 shrink-0">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 bg-amber-100 rounded-xl flex items-center justify-center">
                 <FileText size={16} className="text-amber-600" />
@@ -987,7 +987,7 @@ export default function FactureModal({
           </div>
 
           {/* Body */}
-          <div className="overflow-y-auto flex-1 px-6 py-4 space-y-5">
+          <div className="overflow-y-auto flex-1 px-4 sm:px-6 py-4 space-y-5">
             {/* Client */}
             <div className="space-y-3">
               <div>
@@ -1011,7 +1011,7 @@ export default function FactureModal({
                   />
                 )}
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-medium text-slate-600 mb-1">Téléphone</label>
                   <input
@@ -1045,18 +1045,18 @@ export default function FactureModal({
                 </button>
               </div>
 
-              {/* Header colonnes */}
-              <div className="grid grid-cols-12 gap-2 mb-1 text-xs text-slate-400 font-medium px-1">
+              {/* Header colonnes (masqué sur mobile : les champs s'empilent) */}
+              <div className="hidden sm:grid grid-cols-12 gap-2 mb-1 text-xs text-slate-400 font-medium px-1">
                 <span className="col-span-4">Désignation *</span>
                 <span className="col-span-2">Unité</span>
                 <span className="col-span-2">Qté *</span>
                 <span className="col-span-3">Prix de vente *</span>
               </div>
 
-              <div className="space-y-2">
+              <div className="space-y-3 sm:space-y-2">
                 {pfLignes.map((l, i) => (
-                  <div key={i} className="grid grid-cols-12 gap-2 items-start">
-                    <div className="col-span-4">
+                  <div key={i} className="grid grid-cols-2 sm:grid-cols-12 gap-2 items-start border sm:border-0 border-slate-100 rounded-xl sm:rounded-none p-2 sm:p-0">
+                    <div className="col-span-2 sm:col-span-4">
                       {searchProduitsUrl ? (
                         <ProduitCombobox
                           searchProduitsUrl={searchProduitsUrl}
@@ -1085,21 +1085,22 @@ export default function FactureModal({
                     <input
                       value={l.unite}
                       onChange={e => updatePfLigne(i, "unite", e.target.value)}
-                      placeholder="kg, L…"
-                      className="col-span-2 border border-slate-200 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-amber-300"
+                      placeholder="Unité (kg, L…)"
+                      className="col-span-1 sm:col-span-2 border border-slate-200 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-amber-300"
                     />
                     <input
                       type="number" min="1"
                       value={l.quantite}
                       onChange={e => updatePfLigne(i, "quantite", e.target.value)}
-                      className="col-span-2 border border-slate-200 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-amber-300"
+                      placeholder="Qté"
+                      className="col-span-1 sm:col-span-2 border border-slate-200 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-amber-300"
                     />
                     <input
                       type="number" min="0"
                       value={l.prixUnitaire}
                       onChange={e => updatePfLigne(i, "prixUnitaire", e.target.value)}
-                      placeholder="FCFA"
-                      className="col-span-3 border border-slate-200 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-amber-300"
+                      placeholder="Prix (FCFA)"
+                      className="col-span-1 sm:col-span-3 border border-slate-200 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-amber-300"
                     />
                     <button
                       type="button"
@@ -1120,7 +1121,7 @@ export default function FactureModal({
             </div>
 
             {/* Date + notes */}
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1">Date d&apos;échéance</label>
                 <input
@@ -1143,14 +1144,14 @@ export default function FactureModal({
           </div>
 
           {/* Footer */}
-          <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-slate-100 shrink-0">
-            <button onClick={onClose} className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 rounded-xl transition-colors">
+          <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-2 sm:gap-3 px-4 sm:px-6 py-4 border-t border-slate-100 shrink-0">
+            <button onClick={onClose} className="w-full sm:w-auto px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 rounded-xl transition-colors">
               Annuler
             </button>
             <button
               onClick={generateProForma}
               disabled={loading}
-              className="flex items-center gap-2 px-5 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-sm font-medium transition-colors disabled:opacity-50">
+              className="w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-sm font-medium transition-colors disabled:opacity-50">
               {loading ? <Loader2 size={14} className="animate-spin" /> : <FileText size={14} />}
               Générer la pro-forma
             </button>
@@ -1170,7 +1171,7 @@ export default function FactureModal({
         <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[92vh] flex flex-col">
 
           {/* Header */}
-          <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 shrink-0">
+          <div className="flex items-center justify-between gap-3 px-4 sm:px-6 py-4 border-b border-slate-100 shrink-0">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 bg-emerald-100 rounded-xl flex items-center justify-center">
                 <Receipt size={16} className="text-emerald-600" />
@@ -1183,17 +1184,20 @@ export default function FactureModal({
                 <p className="text-xs text-slate-400">{facture.numero}</p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
               <button
                 onClick={() => printInvoice(facture, { mono: true })}
                 title="Impression noir & blanc, économe en encre"
-                className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-sm font-medium transition-colors shadow-sm">
-                <Printer size={14} /> Imprimer en N/B
+                className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-sm font-medium transition-colors shadow-sm">
+                <Printer size={14} />
+                <span className="hidden sm:inline">Imprimer en N/B</span>
+                <span className="sm:hidden">N/B</span>
               </button>
               <button
                 onClick={() => printInvoice(facture)}
-                className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-medium transition-colors shadow-sm">
-                <Printer size={14} /> Imprimer
+                className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-medium transition-colors shadow-sm">
+                <Printer size={14} />
+                <span className="hidden sm:inline">Imprimer</span>
               </button>
               <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-xl transition-colors">
                 <X size={16} className="text-slate-500" />
@@ -1202,7 +1206,7 @@ export default function FactureModal({
           </div>
 
           {/* Aperçu scrollable */}
-          <div className="overflow-y-auto flex-1 p-8">
+          <div className="overflow-auto flex-1 p-4 sm:p-8">
             <InvoiceLayout f={facture} />
           </div>
         </div>

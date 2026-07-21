@@ -152,8 +152,6 @@ Revoir le dashboard financier et même les autres ( tableau de bord admin/SUPERA
 
 Les modales ne sont pas vraiment adpatées pour chaque écran ( sur plusieurs écrans les boutons fermer ne se font pas voir )
 
-On doit refaire le responsive de toute l'application (plusieurs pages, dashboards admin, user, components , plusieurs formulaires , plusieurs modals ne sont pas adpatés pour les petits écrans)
-
 
 Vérifie si tu avais déjà traité ce prompt : Pour les dépots de compte courant , on doit pouvoir renseigner les jours comme on le fait pour les crédits clients ( jour 1, jour 2 , etc etc), l'agent qui a collecté le dépôt et la date de dépôt bien sûr tous ces champs seront optionnels et aussi Tous les utilisateurs(admin/superadmin déjà mais aussi les user par role) doivent pouvoir voir le catalogue des produits
 
