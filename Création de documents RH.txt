@@ -109,7 +109,7 @@ Analyse — Création de documents RH
   - Nature D : compléter l'enum TypeDocumentCollaborateur + une vue « dossier administratif complet » (checklist des pièces attendues vs présentes — le CDC
   liste précisément les pièces obligatoires).
   - Nature E : DocumentBibliotheque (ou modèle PolitiqueRH si versionning/signature requis).
-  - Signatures / mentions légales : les contrats et engagements OHADA ont des clauses obligatoires → à cadrer (voir décisions).
+  - Signatures / mentions légales : les contrats et engagements OHADA ont des clauses obligatoires → à cadrer (voir décisions).   
 
   5. Découpage en phases (proposition)
 

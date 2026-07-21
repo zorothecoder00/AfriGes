@@ -1796,6 +1796,12 @@ export default function AgentTerrainPage() {
           </div>
           <div className="flex items-center gap-2">
             <Link
+              href="/dashboard/user/agentsTerrain/tournee"
+              className="px-4 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl text-sm font-semibold hover:bg-slate-50 transition-colors flex items-center gap-2 shadow-sm"
+            >
+              <Navigation size={16} /> Ma tournée
+            </Link>
+            <Link
               href="/dashboard/user/agentsTerrain/objectifs"
               className="px-4 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl text-sm font-semibold hover:bg-slate-50 transition-colors flex items-center gap-2 shadow-sm"
             >
