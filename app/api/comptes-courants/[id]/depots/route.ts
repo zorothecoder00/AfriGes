@@ -24,7 +24,6 @@ export async function POST(req: Request, { params }: Ctx) {
   const montant = Number(body?.montant);
   const modePaiement = typeof body?.modePaiement === "string" && body.modePaiement.trim() ? body.modePaiement.trim() : null;
   const observation  = typeof body?.observation === "string" && body.observation.trim() ? body.observation.trim() : null;
-  const refExterne   = typeof body?.reference === "string" && body.reference.trim() ? body.reference.trim() : null;
 
   if (!montant || isNaN(montant) || montant <= 0) {
     return NextResponse.json({ error: "Montant invalide" }, { status: 400 });
@@ -52,9 +51,9 @@ export async function POST(req: Request, { params }: Ctx) {
     if (Number.isInteger(aid) && aid > 0) agentApporteurId = aid;
   }
 
-  // Observation finale = observation libre + éventuelle référence externe.
-  const observationFinale =
-    [observation, refExterne ? `Réf: ${refExterne}` : null].filter(Boolean).join(" · ") || null;
+  // La référence du mouvement est générée automatiquement (genererReferenceMouvementCC) ;
+  // l'utilisateur n'a plus à la saisir. L'observation reste libre.
+  const observationFinale = observation;
 
   const compte = await prisma.compteCourant.findUnique({
     where: { id: compteId },

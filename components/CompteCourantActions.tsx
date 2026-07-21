@@ -36,7 +36,6 @@ export default function CompteCourantActions({
   const [depotOpen, setDepotOpen] = useState(false);
   const [montant, setMontant] = useState("");
   const [mode, setMode] = useState(MODES[0]);
-  const [reference, setReference] = useState("");
   const [observation, setObservation] = useState("");
   const [saving, setSaving] = useState(false);
   // Métadonnées de collecte optionnelles (parité avec les crédits).
@@ -71,7 +70,7 @@ export default function CompteCourantActions({
   const inactif = compte.statut !== "ACTIF";
 
   const openDepot = () => {
-    setMontant(""); setMode(MODES[0]); setReference(""); setObservation("");
+    setMontant(""); setMode(MODES[0]); setObservation("");
     setNumeroJour(""); setDateDepot(""); setAgentApporteur("");
     setDepotOpen(true);
   };
@@ -88,7 +87,7 @@ export default function CompteCourantActions({
       const r = await fetch(`/api/comptes-courants/${compte.id}/depots`, {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          montant: m, modePaiement: mode, reference: reference || undefined, observation: observation || undefined,
+          montant: m, modePaiement: mode, observation: observation || undefined,
           numeroJour: numeroJour || undefined, dateDepot: dateDepot || undefined, agentApporteurId: agentApporteur || undefined,
         }),
       });
@@ -174,11 +173,6 @@ export default function CompteCourantActions({
                     className="mt-1 w-full px-3 py-3 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500">
                     {MODES.map((m) => <option key={m} value={m}>{m}</option>)}
                   </select>
-                </label>
-                <label className="block">
-                  <span className="text-xs font-semibold text-slate-500">Référence (optionnel)</span>
-                  <input value={reference} onChange={(e) => setReference(e.target.value)}
-                    className="mt-1 w-full px-3 py-3 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500" />
                 </label>
                 <label className="block">
                   <span className="text-xs font-semibold text-slate-500">Observation (optionnel)</span>

@@ -4453,7 +4453,8 @@ model PosteOuvert {
   notes               String?
   createdById         Int         // User.id
 
-  candidatures Candidature[]
+  candidatures     Candidature[]
+  documentsGeneres DocumentRecrutementGenere[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -4485,8 +4486,9 @@ model Candidature {
   sourceCandidat   String?           // ex: "LinkedIn", "Recommandation", "Site web"
   dateCandidature  DateTime          @default(now())
 
-  poste      PosteOuvert        @relation(fields: [posteId], references: [id], onDelete: Cascade)
-  onboarding OnboardingEmploye?
+  poste            PosteOuvert        @relation(fields: [posteId], references: [id], onDelete: Cascade)
+  onboarding       OnboardingEmploye?
+  documentsGeneres DocumentRecrutementGenere[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -4494,6 +4496,41 @@ model Candidature {
   @@index([posteId])
   @@index([statut])
   @@index([scoreCandidat])
+}
+
+enum TypeDocumentRecrutement {
+  AVIS_RECRUTEMENT       // rattaché au poste
+  CONVOCATION_ENTRETIEN  // rattaché à la candidature
+  LETTRE_OFFRE           // rattaché à la candidature
+  LETTRE_REFUS           // rattaché à la candidature
+  PROMESSE_EMBAUCHE      // rattaché à la candidature
+  PV_SELECTION           // rattaché au poste
+}
+
+/// Document de recrutement généré (nature A) — rattaché à un PosteOuvert OU une
+/// Candidature (exactement l'un des deux selon le type). Versionné par cible+type,
+/// contenu HTML réutilisé pour l'export PDF. Miroir de DocumentRHGenere côté recrutement.
+model DocumentRecrutementGenere {
+  id            Int                     @id @default(autoincrement())
+  type          TypeDocumentRecrutement
+  titre         String
+  version       Int                     @default(1)
+  contenu       String?                 // HTML généré
+  fileUrl       String?
+  generePar     Int                     // User.id
+  notes         String?
+  archive       Boolean                 @default(false)
+
+  posteId       Int?
+  candidatureId Int?
+  poste         PosteOuvert? @relation(fields: [posteId], references: [id], onDelete: Cascade)
+  candidature   Candidature? @relation(fields: [candidatureId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([posteId])
+  @@index([candidatureId])
+  @@index([type])
 }
 
 // ============================================================
