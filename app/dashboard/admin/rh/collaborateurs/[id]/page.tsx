@@ -261,8 +261,30 @@ const STATUT_LABEL: Record<string, string> = {
 const DOC_TYPE_LABEL: Record<string, string> = {
   CNI: "Carte nationale d'identité", PASSEPORT: "Passeport",
   DIPLOME: "Diplôme", CERTIFICAT: "Certificat", CV: "CV",
-  ATTESTATION: "Attestation", CONTRAT: "Contrat", PHOTO_IDENTITE: "Photo d'identité", AUTRE: "Autre",
+  ATTESTATION: "Attestation", CONTRAT: "Contrat", PHOTO_IDENTITE: "Photo d'identité",
+  LETTRE_MOTIVATION: "Lettre de motivation", ACTE_NAISSANCE: "Acte de naissance",
+  CASIER_JUDICIAIRE: "Casier judiciaire", CERTIFICAT_MEDICAL: "Certificat médical",
+  ATTESTATION_CNSS: "Attestation CNSS", COORDONNEES_BANCAIRES: "Coordonnées bancaires (RIB)",
+  CONTACT_URGENCE: "Contact d'urgence", CORRESPONDANCE: "Correspondance administrative",
+  AUTRE: "Autre",
 };
+
+// Checklist du dossier administratif (CDC §3) : pièces attendues vs présentes.
+const DOSSIER_CHECKLIST: { label: string; types: string[]; required: boolean }[] = [
+  { label: "Contrat de travail",     types: ["CONTRAT"],               required: true },
+  { label: "Curriculum Vitae",       types: ["CV"],                    required: true },
+  { label: "Lettre de motivation",   types: ["LETTRE_MOTIVATION"],     required: false },
+  { label: "Diplômes",               types: ["DIPLOME"],               required: true },
+  { label: "Pièce d'identité",       types: ["CNI", "PASSEPORT"],      required: true },
+  { label: "Photo d'identité",       types: ["PHOTO_IDENTITE"],        required: true },
+  { label: "Acte de naissance",      types: ["ACTE_NAISSANCE"],        required: true },
+  { label: "Casier judiciaire",      types: ["CASIER_JUDICIAIRE"],     required: true },
+  { label: "Certificat médical",     types: ["CERTIFICAT_MEDICAL"],    required: true },
+  { label: "Attestation CNSS",       types: ["ATTESTATION_CNSS"],      required: false },
+  { label: "Coordonnées bancaires",  types: ["COORDONNEES_BANCAIRES"], required: true },
+  { label: "Contact d'urgence",      types: ["CONTACT_URGENCE"],       required: false },
+  { label: "Attestations de travail",types: ["ATTESTATION"],           required: false },
+];
 
 const DOC_TYPE_COLOR: Record<string, string> = {
   CNI:           "bg-blue-100 text-blue-700",
@@ -273,6 +295,14 @@ const DOC_TYPE_COLOR: Record<string, string> = {
   ATTESTATION:   "bg-amber-100 text-amber-700",
   CONTRAT:       "bg-rose-100 text-rose-700",
   PHOTO_IDENTITE:"bg-pink-100 text-pink-700",
+  LETTRE_MOTIVATION:     "bg-violet-100 text-violet-700",
+  ACTE_NAISSANCE:        "bg-cyan-100 text-cyan-700",
+  CASIER_JUDICIAIRE:     "bg-red-100 text-red-700",
+  CERTIFICAT_MEDICAL:    "bg-lime-100 text-lime-700",
+  ATTESTATION_CNSS:      "bg-sky-100 text-sky-700",
+  COORDONNEES_BANCAIRES: "bg-green-100 text-green-700",
+  CONTACT_URGENCE:       "bg-orange-100 text-orange-700",
+  CORRESPONDANCE:        "bg-slate-100 text-slate-700",
   AUTRE:         "bg-gray-100 text-gray-600",
 };
 
@@ -704,6 +734,15 @@ function DocumentsTab({
     }
   };
 
+  const openAddWithType = (type: string) => { setForm({ type, nom: "", fileUrl: "", notes: "" }); setShowForm(true); };
+
+  // Checklist : pièces présentes vs attendues
+  const presentTypes = new Set(documents.map((d) => d.type));
+  const itemPresent = (item: { types: string[] }) => item.types.some((t) => presentTypes.has(t));
+  const requiredItems = DOSSIER_CHECKLIST.filter((i) => i.required);
+  const requiredPresent = requiredItems.filter(itemPresent).length;
+  const dossierComplet = requiredPresent === requiredItems.length;
+
   // Grouper par type
   const grouped = documents.reduce<Record<string, DocumentCollab[]>>((acc, d) => {
     if (!acc[d.type]) acc[d.type] = [];
@@ -713,6 +752,41 @@ function DocumentsTab({
 
   return (
     <div className="space-y-4">
+      {/* Checklist du dossier administratif */}
+      <div className="bg-white rounded-xl border border-slate-200 p-5">
+        <div className="flex items-center justify-between mb-3 gap-2">
+          <h3 className="text-sm font-semibold text-slate-700">Dossier administratif</h3>
+          <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${dossierComplet ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}>
+            {requiredPresent}/{requiredItems.length} pièces requises
+          </span>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+          {DOSSIER_CHECKLIST.map((item) => {
+            const present = itemPresent(item);
+            return (
+              <button
+                key={item.label}
+                onClick={() => { if (!present) openAddWithType(item.types[0]); }}
+                title={present ? "Pièce présente" : "Ajouter cette pièce"}
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-left text-sm transition-colors ${
+                  present
+                    ? "border-emerald-200 bg-emerald-50 cursor-default"
+                    : item.required
+                    ? "border-red-200 bg-red-50 hover:bg-red-100"
+                    : "border-slate-200 bg-slate-50 hover:bg-slate-100"
+                }`}
+              >
+                {present
+                  ? <CheckCircle className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                  : <span className={`w-4 h-4 rounded-full border-2 flex-shrink-0 ${item.required ? "border-red-400" : "border-slate-300"}`} />}
+                <span className="flex-1 min-w-0 truncate text-slate-700">{item.label}</span>
+                {!item.required && <span className="text-[10px] text-slate-400 flex-shrink-0">facultatif</span>}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       {/* Bouton ajouter */}
       <div className="flex justify-end">
         <button onClick={() => setShowForm((v) => !v)}
