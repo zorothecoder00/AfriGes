@@ -139,6 +139,8 @@ export async function proxy(request: NextRequest) {
       "/dashboard/user/notifications",
       "/dashboard/user/investisseurs",
       "/dashboard/user/gouvernance",
+      // Catalogue produits en lecture seule : ouvert à tous les gestionnaires.
+      "/dashboard/user/catalogue",
     ];
     const isCommonPath = commonPaths.some(p => pathname.startsWith(p));
 

@@ -148,6 +148,9 @@ export async function enregistrerDepotCC(
     userAgent?: string | null;
     ouverture?: boolean;
     planEpargneId?: number | null; // cotisation fléchée vers un plan d'épargne programmée (CDC §19.B)
+    numeroJour?: number | null;    // n° de jour de collecte (optionnel, parité crédits)
+    dateOperation?: Date | null;   // date effective du dépôt si différente (optionnel)
+    agentApporteurId?: number | null; // agent ayant physiquement apporté le dépôt (optionnel)
   },
 ) {
   // Relecture du solde dans la transaction (cohérence).
@@ -176,6 +179,9 @@ export async function enregistrerDepotCC(
       modePaiement: opts.modePaiement ?? null, observation: opts.observation ?? null,
       statut: "VALIDE", userId: opts.userId, agence: agenceOp, ecritureId,
       planEpargneId: opts.planEpargneId ?? null,
+      numeroJour: opts.numeroJour ?? null,
+      dateOperation: opts.dateOperation ?? null,
+      agentApporteurId: opts.agentApporteurId ?? null,
       ip: opts.ip ?? null, userAgent: opts.userAgent ?? null,
     },
     select: { id: true, reference: true, createdAt: true },

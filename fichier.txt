@@ -9,11 +9,11 @@
 -Resend est une lib permettant l'envoi d'email 
 
 -jose pour le JWT, bcryptjs pour le hash
-
+    
 -une petite dépendance (qrcode / bwip-js) pour QR scannable (et un vrai code-barres Code128) 
 
 -Ecrire toujours un script npm migrate:deploy:prod pour migrer via l'endpoint direct (host sans -pooler) pour éviter d'utiliser le pooler Neon et empêcher les locks
-
+  
 
 -On peut aussi utiliser du SVG pour les graphiques ( sans forcément dépendance externe)  
 -Ce code :      
@@ -67,13 +67,13 @@ netsh wlan show profile name="NomDuWifi" key=clear affiche toutes les propriét�
 
   
 
-Inventaire doit se faire chez L'admin et magasinier(validation inventaire et appro)
+L'Inventaire doit se faire chez L'admin et le magasinier (validation inventaire et approvisionnement)
 
-créer un gestionnaire commercial(responsable marketing)
+créer un gestionnaire commercial (responsable marketing)
 
-choisir les taux de marge des produits(admin)
+choisir les taux de marge des produits (admin)
 
-établir les méthodes de FIFO(first in first out)
+établir les méthodes de FIFO (first in first out)
 
 générer automatiquement des vignettes pour les produits( étiquettes )
 
@@ -130,7 +130,7 @@ Dans les crédits clients , on va essayer de faire des filtres par agent ( avec 
     
 
 Dans les dossiers des collaborateurs pour leurs informations, faut ajouter aussi la personne à prévénir
-
+  
   
   
 DocumentsRH
@@ -140,7 +140,7 @@ Cahier de charge ResponsableApprovisionnement supply chain
 
 Permettre à tous les user de pouvoir discuter ( pas juste l'admin )
    
-
+  
 
 Je dois corriger la relation entre les approvisionnements et les lots surtout chez l'admin qui peut lancer des approvisionnents lui même
 
@@ -155,3 +155,7 @@ Les modales ne sont pas vraiment adpatées pour chaque écran ( sur plusieurs é
 On doit refaire le responsive de toute l'application (plusieurs pages, dashboards admin, user, components , plusieurs formulaires , plusieurs modals ne sont pas adpatés pour les petits écrans)
 
 
+Vérifie si tu avais déjà traité ce prompt : Pour les dépots de compte courant , on doit pouvoir renseigner les jours comme on le fait pour les crédits clients ( jour 1, jour 2 , etc etc), l'agent qui a collecté le dépôt et la date de dépôt bien sûr tous ces champs seront optionnels et aussi Tous les utilisateurs(admin/superadmin déjà mais aussi les user par role) doivent pouvoir voir le catalogue des produits
+
+
+   

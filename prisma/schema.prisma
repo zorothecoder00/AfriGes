@@ -739,6 +739,7 @@ model User {
   // Comptes courants clients (module Compte Courant)
   comptesCourantsCrees         CompteCourant[]          @relation("CCCreateur")
   mouvementsCompteCourant      MouvementCompteCourant[] @relation("CCMouvementUser")
+  mouvementsCCApportes         MouvementCompteCourant[] @relation("CCMouvementAgentApporteur")
   membresCCAjoutes             MembreCompteCourant[]    @relation("MembreCCAjoutePar")
   plansEpargneCrees            PlanEpargne[]            @relation("PlanEpargneCreePar")
   prelevementsAutoCrees        AutorisationPrelevement[] @relation("PrelevementAutoCreePar")
@@ -6025,6 +6026,13 @@ model MouvementCompteCourant {
   user         User?             @relation("CCMouvementUser", fields: [userId], references: [id])
   agence       String?
 
+  // Métadonnées de collecte optionnelles (parité avec les remboursements de crédit) :
+  // n° de jour de collecte, date effective du dépôt, et agent l'ayant physiquement apporté.
+  numeroJour       Int?
+  dateOperation    DateTime?
+  agentApporteurId Int?
+  agentApporteur   User?             @relation("CCMouvementAgentApporteur", fields: [agentApporteurId], references: [id])
+
   ecritureId   Int?                             // lien Comptabilité (lots suivants)
   venteId      Int?                             // lien paiement comptant (lot suivant)
   creditId     Int?                             // lien paiement crédit (lot suivant)
@@ -6040,4 +6048,5 @@ model MouvementCompteCourant {
   @@index([compteId])
   @@index([nature])
   @@index([createdAt])
+  @@index([agentApporteurId])
 }

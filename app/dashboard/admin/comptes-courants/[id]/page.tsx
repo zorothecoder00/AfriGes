@@ -41,7 +41,9 @@ interface Mouvement {
   id: number; reference: string; nature: string; montant: string | number;
   soldeAvant: string | number; soldeApres: string | number; modePaiement: string | null;
   observation: string | null; statut: string; agence: string | null; createdAt: string;
+  numeroJour: number | null; dateOperation: string | null;
   user: { nom: string; prenom: string } | null;
+  agentApporteur: { nom: string; prenom: string } | null;
 }
 interface CreditPayable {
   creditId: number; reference: string; soldeRestant: number;
@@ -118,6 +120,14 @@ export default function CompteCourantDetailPage() {
   const [reference, setReference] = useState("");
   const [observation, setObservation] = useState("");
   const [saving, setSaving] = useState(false);
+  // Métadonnées de collecte optionnelles (parité avec les crédits).
+  const [numeroJour, setNumeroJour] = useState("");
+  const [dateDepot, setDateDepot] = useState("");
+  const [agentApporteur, setAgentApporteur] = useState("");
+  const { data: collData } = useApi<{ data: { id: number; nom: string; prenom: string }[] }>(
+    depotOpen ? "/api/comptes-courants/collecteurs" : null,
+  );
+  const collecteurs = collData?.data ?? [];
 
   // ── Paiement d'un crédit depuis le CC (modal partagé multi-crédits) ──
   const [payOpen, setPayOpen] = useState(false);
@@ -161,12 +171,16 @@ export default function CompteCourantDetailPage() {
     try {
       const r = await fetch(`/api/comptes-courants/${params.id}/depots`, {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ montant: m, modePaiement: mode, reference: reference || undefined, observation: observation || undefined }),
+        body: JSON.stringify({
+          montant: m, modePaiement: mode, reference: reference || undefined, observation: observation || undefined,
+          numeroJour: numeroJour || undefined, dateDepot: dateDepot || undefined, agentApporteurId: agentApporteur || undefined,
+        }),
       });
       const j = await r.json();
       if (!r.ok) throw new Error(j.error ?? "Erreur");
       toast.success("Dépôt enregistré ✓");
       setDepotOpen(false); setMontant(""); setReference(""); setObservation("");
+      setNumeroJour(""); setDateDepot(""); setAgentApporteur("");
       refetch(); refetchMvt();
       // Édition automatique du reçu (CDC §5)
       const mid = j.data?.mouvement?.id;
@@ -517,11 +531,20 @@ export default function CompteCourantDetailPage() {
                         const annule = m.statut === "ANNULE";
                         return (
                           <tr key={m.id} className={`hover:bg-gray-50/60 ${annule ? "opacity-60" : ""}`}>
-                            <td className="px-5 py-3 text-xs text-gray-500">{new Date(m.createdAt).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" })}</td>
+                            <td className="px-5 py-3 text-xs text-gray-500">
+                              {/* Date d'opération saisie (dépôt antérieur) prioritaire ; sinon horodatage système. */}
+                              {m.dateOperation
+                                ? <span title={`Saisi le ${new Date(m.createdAt).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" })}`}>
+                                    {new Date(m.dateOperation).toLocaleDateString("fr-FR", { dateStyle: "short" })}
+                                    <span className="ml-1 text-[10px] text-amber-600">(antérieure)</span>
+                                  </span>
+                                : new Date(m.createdAt).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" })}
+                            </td>
                             <td className="px-5 py-3">
                               <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${NATURE_STYLE[m.nature] ?? "bg-gray-100 text-gray-600"}`}>
                                 {NATURE_LABEL[m.nature] ?? m.nature}
                               </span>
+                              {m.numeroJour != null && <span className="text-[10px] px-1.5 py-0.5 ml-1 rounded-full bg-blue-100 text-blue-700 font-medium">J{m.numeroJour}</span>}
                               {annule && <span className="text-[10px] px-1.5 py-0.5 ml-1 rounded-full bg-gray-200 text-gray-500 font-medium">Rejeté</span>}
                             </td>
                             <td className={`px-5 py-3 text-right font-semibold ${annule ? "text-gray-400 line-through" : neg ? "text-orange-600" : "text-emerald-600"}`}>
@@ -529,7 +552,10 @@ export default function CompteCourantDetailPage() {
                             </td>
                             <td className="px-5 py-3 text-right text-gray-600">{formatCurrency(N(m.soldeAvant))}</td>
                             <td className="px-5 py-3 text-right text-gray-800">{annule ? "—" : formatCurrency(N(m.soldeApres))}</td>
-                            <td className="px-5 py-3 text-xs text-gray-600">{m.user ? `${m.user.prenom} ${m.user.nom}` : "—"}</td>
+                            <td className="px-5 py-3 text-xs text-gray-600">
+                              {m.user ? `${m.user.prenom} ${m.user.nom}` : "—"}
+                              {m.agentApporteur && <span className="block text-[10px] text-gray-400">apporté par {m.agentApporteur.prenom} {m.agentApporteur.nom}</span>}
+                            </td>
                             <td className="px-5 py-3 text-xs text-gray-500">{m.agence ?? "—"}</td>
                             <td className="px-5 py-3 font-mono text-[11px] text-gray-500">{m.reference}</td>
                             <td className="px-5 py-3 text-[11px] text-gray-500 max-w-[200px] truncate" title={m.observation ?? ""}>{m.observation ?? "—"}</td>
@@ -582,6 +608,26 @@ export default function CompteCourantDetailPage() {
                 <span className="text-xs font-semibold text-slate-500">Observation (optionnel)</span>
                 <input value={observation} onChange={(e) => setObservation(e.target.value)}
                   className="mt-1 w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+              </label>
+              <div className="grid grid-cols-2 gap-3">
+                <label className="block">
+                  <span className="text-xs font-semibold text-slate-500">N° de jour (optionnel)</span>
+                  <input type="number" min={1} value={numeroJour} onChange={(e) => setNumeroJour(e.target.value)} placeholder="Ex. 1, 2…"
+                    className="mt-1 w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                </label>
+                <label className="block">
+                  <span className="text-xs font-semibold text-slate-500">Date du dépôt (optionnel)</span>
+                  <input type="date" value={dateDepot} onChange={(e) => setDateDepot(e.target.value)}
+                    className="mt-1 w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                </label>
+              </div>
+              <label className="block">
+                <span className="text-xs font-semibold text-slate-500">Agent apporteur (optionnel)</span>
+                <select value={agentApporteur} onChange={(e) => setAgentApporteur(e.target.value)}
+                  className="mt-1 w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                  <option value="">— Aucun —</option>
+                  {collecteurs.map((a) => <option key={a.id} value={a.id}>{a.prenom} {a.nom}</option>)}
+                </select>
               </label>
             </div>
             <div className="flex justify-end gap-2 px-6 py-4 border-t border-slate-100">

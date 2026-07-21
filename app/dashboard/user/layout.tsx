@@ -7,7 +7,7 @@ export default function UserDashboardLayout({ children }: { children: ReactNode 
   return (
     <>
       {children}
-      <AccountMenuButton settingsHref="/dashboard/user/parametres" />
+      <AccountMenuButton settingsHref="/dashboard/user/parametres" catalogueHref="/dashboard/user/catalogue" />
       <PointageWidget />
       <RiaAccessShortcuts />
     </>

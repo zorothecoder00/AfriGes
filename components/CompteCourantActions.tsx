@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Plus, TrendingDown, CreditCard, X, Loader2, ShieldAlert } from "lucide-react";
 import { formatCurrency } from "@/lib/format";
@@ -39,6 +39,20 @@ export default function CompteCourantActions({
   const [reference, setReference] = useState("");
   const [observation, setObservation] = useState("");
   const [saving, setSaving] = useState(false);
+  // Métadonnées de collecte optionnelles (parité avec les crédits).
+  const [numeroJour, setNumeroJour] = useState("");
+  const [dateDepot, setDateDepot] = useState("");
+  const [agentApporteur, setAgentApporteur] = useState("");
+  const [collecteurs, setCollecteurs] = useState<{ id: number; nom: string; prenom: string }[]>([]);
+
+  // Charge la liste des agents de terrain à la première ouverture du dépôt.
+  useEffect(() => {
+    if (!depotOpen || collecteurs.length > 0) return;
+    fetch("/api/comptes-courants/collecteurs")
+      .then((r) => (r.ok ? r.json() : { data: [] }))
+      .then((j) => setCollecteurs(j.data ?? []))
+      .catch(() => {});
+  }, [depotOpen, collecteurs.length]);
 
   // ── Retrait ──
   const [retraitOpen, setRetraitOpen] = useState(false);
@@ -58,6 +72,7 @@ export default function CompteCourantActions({
 
   const openDepot = () => {
     setMontant(""); setMode(MODES[0]); setReference(""); setObservation("");
+    setNumeroJour(""); setDateDepot(""); setAgentApporteur("");
     setDepotOpen(true);
   };
   const openRetrait = () => {
@@ -72,7 +87,10 @@ export default function CompteCourantActions({
     try {
       const r = await fetch(`/api/comptes-courants/${compte.id}/depots`, {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ montant: m, modePaiement: mode, reference: reference || undefined, observation: observation || undefined }),
+        body: JSON.stringify({
+          montant: m, modePaiement: mode, reference: reference || undefined, observation: observation || undefined,
+          numeroJour: numeroJour || undefined, dateDepot: dateDepot || undefined, agentApporteurId: agentApporteur || undefined,
+        }),
       });
       const j = await r.json();
       if (!r.ok) throw new Error(j.error ?? "Erreur");
@@ -166,6 +184,26 @@ export default function CompteCourantActions({
                   <span className="text-xs font-semibold text-slate-500">Observation (optionnel)</span>
                   <input value={observation} onChange={(e) => setObservation(e.target.value)}
                     className="mt-1 w-full px-3 py-3 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <label className="block">
+                    <span className="text-xs font-semibold text-slate-500">N° de jour (optionnel)</span>
+                    <input type="number" min={1} value={numeroJour} onChange={(e) => setNumeroJour(e.target.value)} placeholder="Ex. 1, 2…"
+                      className="mt-1 w-full px-3 py-3 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                  </label>
+                  <label className="block">
+                    <span className="text-xs font-semibold text-slate-500">Date du dépôt (optionnel)</span>
+                    <input type="date" value={dateDepot} onChange={(e) => setDateDepot(e.target.value)}
+                      className="mt-1 w-full px-3 py-3 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                  </label>
+                </div>
+                <label className="block">
+                  <span className="text-xs font-semibold text-slate-500">Agent apporteur (optionnel)</span>
+                  <select value={agentApporteur} onChange={(e) => setAgentApporteur(e.target.value)}
+                    className="mt-1 w-full px-3 py-3 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                    <option value="">— Aucun —</option>
+                    {collecteurs.map((a) => <option key={a.id} value={a.id}>{a.prenom} {a.nom}</option>)}
+                  </select>
                 </label>
               </div>
               <div className="sticky bottom-0 bg-white border-t border-slate-100 px-4 sm:px-6 py-4 z-20">

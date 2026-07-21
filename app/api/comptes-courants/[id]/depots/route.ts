@@ -30,6 +30,28 @@ export async function POST(req: Request, { params }: Ctx) {
     return NextResponse.json({ error: "Montant invalide" }, { status: 400 });
   }
 
+  // ── Métadonnées de collecte optionnelles (parité avec les crédits) ───────────
+  // N° de jour : entier positif libre (le compte courant n'a pas d'échéancier borné).
+  let numeroJour: number | null = null;
+  if (body?.numeroJour != null && body.numeroJour !== "") {
+    numeroJour = parseInt(String(body.numeroJour), 10);
+    if (!Number.isInteger(numeroJour) || numeroJour < 1) {
+      return NextResponse.json({ error: "N° de jour invalide (entier positif)" }, { status: 400 });
+    }
+  }
+  // Date de dépôt : ISO ou yyyy-mm-dd ; ignorée si invalide.
+  let dateOperation: Date | null = null;
+  if (typeof body?.dateDepot === "string" && body.dateDepot.trim()) {
+    const d = new Date(body.dateDepot);
+    if (!isNaN(d.getTime())) dateOperation = d;
+  }
+  // Agent apporteur : id User (validé ci-dessous contre les agents de terrain actifs).
+  let agentApporteurId: number | null = null;
+  if (body?.agentApporteurId != null && body.agentApporteurId !== "") {
+    const aid = parseInt(String(body.agentApporteurId), 10);
+    if (Number.isInteger(aid) && aid > 0) agentApporteurId = aid;
+  }
+
   // Observation finale = observation libre + éventuelle référence externe.
   const observationFinale =
     [observation, refExterne ? `Réf: ${refExterne}` : null].filter(Boolean).join(" · ") || null;
@@ -60,6 +82,12 @@ export async function POST(req: Request, { params }: Ctx) {
     return NextResponse.json({ error: `Solde maximum autorisé dépassé (${Number(param.soldeMaxAutorise)} FCFA)` }, { status: 422 });
   }
 
+  // L'agent apporteur doit exister (évite une violation de clé étrangère → 500).
+  if (agentApporteurId != null) {
+    const agent = await prisma.user.findUnique({ where: { id: agentApporteurId }, select: { id: true } });
+    if (!agent) return NextResponse.json({ error: "Agent apporteur introuvable" }, { status: 400 });
+  }
+
   const { ip, userAgent } = extraireMetaRequete(req);
   const clientNom = `${compte.client.prenom} ${compte.client.nom}`;
   const userId = Number(session.user.id);
@@ -70,6 +98,7 @@ export async function POST(req: Request, { params }: Ctx) {
         compteId, numeroCompte: compte.numeroCompte, codeAgence: compte.codeAgence,
         clientNom, montant, userId, param,
         modePaiement, observation: observationFinale, ip, userAgent,
+        numeroJour, dateOperation, agentApporteurId,
       });
 
       await auditLog(tx, userId, "DEPOT_COMPTE_COURANT", "CompteCourant", compteId,

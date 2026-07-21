@@ -44,7 +44,9 @@ export async function GET(req: Request, { params }: Ctx) {
     select: {
       reference: true, nature: true, montant: true, soldeAvant: true, soldeApres: true,
       modePaiement: true, observation: true, createdAt: true,
+      numeroJour: true, dateOperation: true,
       user: { select: { nom: true, prenom: true } },
+      agentApporteur: { select: { nom: true, prenom: true } },
       compte: {
         select: {
           numeroCompte: true, ribComplet: true, codeAgence: true,
@@ -117,6 +119,9 @@ export async function GET(req: Request, { params }: Ctx) {
       ${row("RIB", c.ribComplet)}
       ${row("Agence", c.codeAgence)}
       ${mouvement.modePaiement ? row("Mode de paiement", mouvement.modePaiement) : ""}
+      ${mouvement.numeroJour != null ? row("N° de jour", `Jour ${mouvement.numeroJour}`) : ""}
+      ${mouvement.dateOperation ? row("Date du dépôt", new Date(mouvement.dateOperation).toLocaleDateString("fr-FR", { dateStyle: "long" })) : ""}
+      ${mouvement.agentApporteur ? row("Agent apporteur", `${mouvement.agentApporteur.prenom} ${mouvement.agentApporteur.nom}`) : ""}
       ${row("Solde avant", fcfa(Number(mouvement.soldeAvant)))}
       ${row("Solde après", fcfa(Number(mouvement.soldeApres)))}
       ${row("Opérateur", mouvement.user ? `${mouvement.user.prenom} ${mouvement.user.nom}` : "—")}

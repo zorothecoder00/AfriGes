@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useSession, signOut } from "next-auth/react";
-import { Settings, LogOut, UserCircle2, ChevronDown } from "lucide-react";
+import { Settings, LogOut, UserCircle2, ChevronDown, Package } from "lucide-react";
 
 const prettifyRole = (r?: string | null) =>
   r ? r.replace(/_/g, " ").toLowerCase().replace(/^\w/, (c) => c.toUpperCase()) : null;
@@ -15,8 +15,10 @@ const initials = (prenom?: string, nom?: string) =>
  * Avatar flottant (haut-droite) présent sur tous les dashboards.
  * Point d'entrée clair vers les paramètres du compte + déconnexion.
  * `settingsHref` diffère selon l'espace (user vs admin).
+ * `catalogueHref` (optionnel) ajoute un accès au catalogue produits en lecture
+ * seule — utilisé dans l'espace gestionnaire pour que tous les rôles y accèdent.
  */
-export default function AccountMenuButton({ settingsHref }: { settingsHref: string }) {
+export default function AccountMenuButton({ settingsHref, catalogueHref }: { settingsHref: string; catalogueHref?: string }) {
   const { data: session, status } = useSession();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -91,6 +93,15 @@ export default function AccountMenuButton({ settingsHref }: { settingsHref: stri
             >
               <UserCircle2 className="w-4 h-4 text-slate-400" /> Mon profil &amp; photo
             </Link>
+            {catalogueHref && (
+              <Link
+                href={catalogueHref}
+                onClick={() => setOpen(false)}
+                className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+              >
+                <Package className="w-4 h-4 text-slate-400" /> Catalogue produits
+              </Link>
+            )}
             <div className="my-1 border-t border-slate-100" />
             <button
               onClick={() => signOut({ callbackUrl: "/auth/login?logout=success" })}
