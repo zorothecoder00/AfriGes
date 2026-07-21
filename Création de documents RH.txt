@@ -1,0 +1,124 @@
+Analyse — Création de documents RH
+  1. L'existant (ne pas repartir de zéro)
+  Le module RH est déjà mature. Un moteur de génération de documents existe et fonctionne :
+
+  ┌────────────────────────────────────┬────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+  │          Brique existante          │                                                        Rôle                                                        │
+  ├────────────────────────────────────┼────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ DocumentRHGenere + enum            │ Documents générés & versionnés par collaborateur (HTML stocké dans contenu) — mais seulement 4 types aujourd'hui : │
+  │ TypeDocumentRHGenere               │  attestation travail, certificat présence, décision affectation, lettre mission                                    │
+  ├────────────────────────────────────┼────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ POST /documents-rh/generer         │ Moteur : 1 fonction template HTML par type, alimentée par ProfilRH → stocke + audit + versionning                  │
+  ├────────────────────────────────────┼────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ GET /documents-rh/[id]/pdf +       │ Rendu PDF (Chromium headless)                                                                                      │
+  │ lib/pdf.ts                         │                                                                                                                    │
+  ├────────────────────────────────────┼────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ DocumentCollaborateur (enum CNI,   │ Pièces uploadées du dossier administratif                                                                          │
+  │ DIPLOME, CV…)                      │                                                                                                                    │
+  ├────────────────────────────────────┼────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ DocumentBibliotheque               │ Documents société (fichier + année + public)                                                                       │
+  ├────────────────────────────────────┼────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ ProfilRH                           │ Hub central relié à tout : congés, missions, paie, avances/prêts, formations, pointages, évaluations,              │
+  │                                    │ disciplinaire, carrière, onboarding, compétences…                                                                  │
+  ├────────────────────────────────────┼────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ Modules déjà là                    │ recrutement (postes/candidatures), onboarding, disciplinaire, carrières, évaluations, formations, congés, paie,    │
+  │                                    │ pointages, missions, avantages, organigramme, dashboard RH                                                         │
+  └────────────────────────────────────┴────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+  Conséquence : la quasi-totalité des données requises par le CDC existent déjà. Le chantier n'est pas « construire le RH », c'est « produire des documents » à
+  partir de données majoritairement présentes.
+
+  2. L'insight clé : les ~150 documents ne sont pas de même nature
+
+  Les traiter uniformément serait une erreur. Ils se répartissent en 5 natures, chacune avec un traitement différent :
+
+  ┌────────────────────────┬──────────────────────────────────────────────┬────────────────────────────────┬────────────────────────────────────────────────┐
+  │         Nature         │                 Description                  │        Mécanisme cible         │                  Exemples CDC                  │
+  ├────────────────────────┼──────────────────────────────────────────────┼────────────────────────────────┼────────────────────────────────────────────────┤
+  │ A. Générés templatés   │ Lettre/contrat/attestation/décision/PV       │ Étendre DocumentRHGenere :     │ Contrats, avenants, attestations, certificats, │
+  │ (par personne/entité)  │ produit à partir de données                  │ enum + registre de templates   │  convocations, lettres offre/refus, PV,        │
+  │                        │                                              │                                │ promesse d'embauche                            │
+  ├────────────────────────┼──────────────────────────────────────────────┼────────────────────────────────┼────────────────────────────────────────────────┤
+  │ B. Vue imprimable d'un │ Le « document » = impression d'un record     │ Bouton « imprimer/PDF » sur le │ Demande de congé, demande de formation,        │
+  │  enregistrement        │ déjà géré par un module                      │  module existant               │ demande d'avance, demande de recrutement,      │
+  │ existant               │                                              │                                │ fiche d'évaluation                             │
+  ├────────────────────────┼──────────────────────────────────────────────┼────────────────────────────────┼────────────────────────────────────────────────┤
+  │ C. Registres &         │                                              │ Page liste + export PDF/Excel  │ Catégorie 14 entière, registres                │
+  │ tableaux (agrégats)    │ Liste/état sur des données existantes        │ (pas de doc stocké par         │ présences/absences/retards, registre/journal   │
+  │                        │                                              │ personne)                      │ de paie, états CNSS/fiscal, plannings          │
+  ├────────────────────────┼──────────────────────────────────────────────┼────────────────────────────────┼────────────────────────────────────────────────┤
+  │ D. Pièces uploadées    │ Documents fournis par le salarié             │ DocumentCollaborateur          │ Catégorie 3 : CV, diplômes, CNI, casier, acte  │
+  │                        │                                              │ (existant)                     │ de naissance…                                  │
+  ├────────────────────────┼──────────────────────────────────────────────┼────────────────────────────────┼────────────────────────────────────────────────┤
+  │ E. Documents société   │ Politiques/manuels/règlement, pas par        │ DocumentBibliotheque ou modèle │ Catégorie 13 entière                           │
+  │ (une instance)         │ personne                                     │  dédié                         │                                                │
+  └────────────────────────┴──────────────────────────────────────────────┴────────────────────────────────┴────────────────────────────────────────────────┘
+
+  3. Cartographie des 14 catégories
+
+  ┌─────┬───────────────────┬──────────────┬───────────────────────────────────┬───────────────────────────────────────────────────────────────────────────┐
+  │  #  │     Catégorie     │   Nature     │         Données déjà là ?         │                               À construire                                │
+  │     │                   │  dominante   │                                   │                                                                           │
+  ├─────┼───────────────────┼──────────────┼───────────────────────────────────┼───────────────────────────────────────────────────────────────────────────┤
+  │ 1   │ Recrutement       │ A + B        │ PosteOuvert, Candidature ✅       │ Templates (avis, convocation, offre, refus, promesse, PV sélection,       │
+  │     │                   │              │                                   │ grilles)                                                                  │
+  ├─────┼───────────────────┼──────────────┼───────────────────────────────────┼───────────────────────────────────────────────────────────────────────────┤
+  │ 2   │ Embauche          │ A            │ ProfilRH, TypeContrat ✅          │ Templates contrats (CDI/CDD/stage/apprentissage/prestation), avenant,     │
+  │     │                   │              │                                   │ engagements, fiches                                                       │
+  ├─────┼───────────────────┼──────────────┼───────────────────────────────────┼───────────────────────────────────────────────────────────────────────────┤
+  │ 3   │ Dossier           │ D            │ DocumentCollaborateur ✅          │ Compléter l'enum (casier, CNSS, coord. bancaires, urgence) + vue «        │
+  │     │ administratif     │              │                                   │ dossier complet »                                                         │
+  ├─────┼───────────────────┼──────────────┼───────────────────────────────────┼───────────────────────────────────────────────────────────────────────────┤
+  │ 4   │ Présences         │ C            │ Pointage, horaires, plannings ✅  │ Registres/exports (retards, absences, heures sup), feuille de pointage    │
+  │     │                   │              │                                   │ imprimable                                                                │
+  ├─────┼───────────────────┼──────────────┼───────────────────────────────────┼───────────────────────────────────────────────────────────────────────────┤
+  │ 5   │ Congés            │ B + C        │ Module congés complet ✅          │ Vue imprimable (demande/autorisation), planning annuel, états             │
+  │     │                   │              │                                   │ maternité/paternité/maladie                                               │
+  ├─────┼───────────────────┼──────────────┼───────────────────────────────────┼───────────────────────────────────────────────────────────────────────────┤
+  │ 6   │ Paie              │ B + C        │ Module paie complet ✅            │ Registre/journal de paie, états CNSS/fiscal/retenues/avances (exports)    │
+  ├─────┼───────────────────┼──────────────┼───────────────────────────────────┼───────────────────────────────────────────────────────────────────────────┤
+  │ 7   │ Évaluation        │ B            │ EvaluationRH, CritereEvaluation   │ Vues imprimables + templates (plan progression, PDI)                      │
+  │     │                   │              │ ✅                                │                                                                           │
+  ├─────┼───────────────────┼──────────────┼───────────────────────────────────┼───────────────────────────────────────────────────────────────────────────┤
+  │ 8   │ Formation         │ A + B        │ Formation, Participation ✅       │ Templates (convocation, attestation, certificat), feuille présence        │
+  ├─────┼───────────────────┼──────────────┼───────────────────────────────────┼───────────────────────────────────────────────────────────────────────────┤
+  │ 9   │ Discipline        │ A            │ ProcedureDisciplinaire ✅         │ Templates (avertissement, mise en demeure, convocation, PV, décision,     │
+  │     │                   │              │                                   │ licenciement)                                                             │
+  ├─────┼───────────────────┼──────────────┼───────────────────────────────────┼───────────────────────────────────────────────────────────────────────────┤
+  │ 10  │ Santé & sécurité  │ A + C        │ ⚠️  Partiel/absent                 │ Registre accidents, déclaration/rapport, visite/aptitude médicale         │
+  │     │                   │              │                                   │ (nouveaux modèles)                                                        │
+  ├─────┼───────────────────┼──────────────┼───────────────────────────────────┼───────────────────────────────────────────────────────────────────────────┤
+  │ 11  │ Carrières         │ A + C        │ HistoriquePoste, PlanCarriere,    │ Templates (décision promotion/mutation/affectation), organigramme         │
+  │     │                   │              │ mouvements ✅                     │ (existe)                                                                  │
+  ├─────┼───────────────────┼──────────────┼───────────────────────────────────┼───────────────────────────────────────────────────────────────────────────┤
+  │ 12  │ Fin de contrat    │ A            │ StatutCollaborateur ✅            │ Templates (certificat travail, solde tout compte, attestation emploi, PV  │
+  │     │                   │              │                                   │ sortie, quitus, restitution)                                              │
+  ├─────┼───────────────────┼──────────────┼───────────────────────────────────┼───────────────────────────────────────────────────────────────────────────┤
+  │ 13  │ RH stratégiques   │ E            │ DocumentBibliotheque ✅           │ Espace politiques/manuels + éventuel modèle PolitiqueRH versionné         │
+  ├─────┼───────────────────┼──────────────┼───────────────────────────────────┼───────────────────────────────────────────────────────────────────────────┤
+  │ 14  │ Tableaux de bord  │ C            │ Dashboard RH + stats partout ✅   │ Registres/tableaux consolidés + export                                    │
+  └─────┴───────────────────┴──────────────┴───────────────────────────────────┴───────────────────────────────────────────────────────────────────────────┘
+
+  4. Architecture proposée
+
+  - Ne pas créer 150 modèles. Le cœur (nature A) = étendre l'enum TypeDocumentRHGenere + un registre de templates lib/rhDocTemplates/ (1 fichier par famille),
+  au lieu du gros switch actuel. Chaque template = fonction pure (données) → HTML, réutilisant l'en-tête/pied société (lib/societe.ts, déjà standardisé pour les  factures).
+  - Champs de saisie : beaucoup de documents (offre, contrat, mise en demeure) ont des champs libres (montant, motif, dates). Prévoir un schéma de champs par
+  type (le generer accepte déjà destination, objet… ad hoc) → généraliser en payload JSON typé par template.
+  - Nature C (registres/états) : réutiliser lib/exportPdf.ts + pages listes, pas DocumentRHGenere.
+  - Nature D : compléter l'enum TypeDocumentCollaborateur + une vue « dossier administratif complet » (checklist des pièces attendues vs présentes — le CDC
+  liste précisément les pièces obligatoires).
+  - Nature E : DocumentBibliotheque (ou modèle PolitiqueRH si versionning/signature requis).
+  - Signatures / mentions légales : les contrats et engagements OHADA ont des clauses obligatoires → à cadrer (voir décisions).
+
+  5. Découpage en phases (proposition)
+
+  1. Socle génération : refactor du moteur generer en registre de templates + payload typé + en-tête/pied société. (base de tout le reste)
+  2. Embauche & fin de contrat (nature A) — contrats CDI/CDD/stage, avenant, certificat de travail, solde de tout compte, attestation. Fort impact légal,
+  données présentes.
+  3. Discipline & carrières (A) — avertissements, mise en demeure, PV, décisions promotion/mutation.
+  4. Recrutement & formation (A+B) — avis, convocation, offre/refus, attestation/certificat formation.
+  5. Dossier administratif (D) — enum complété + vue dossier + checklist pièces.
+  6. Registres & états (C) — présences, paie (registre/journal/CNSS/fiscal), tableaux catégorie 14.
+  7. Santé & sécurité (nouveau) — modèles + registres accidents/visites.
+  8. Documents stratégiques (E) — espace politiques/manuels.
