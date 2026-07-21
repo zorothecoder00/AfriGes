@@ -179,3 +179,90 @@ export async function calculerConsolidationDirection(annee: number, mois: number
     objectifAtteint,
   };
 }
+
+/**
+ * §9 — Tableau de bord personnel d'un commercial (AGENT_TERRAIN) sur un mois.
+ * Ses données uniquement, alimentées automatiquement :
+ *  - affectés : ClientAgentAffectation actif ∪ Client.agentTerrainId ;
+ *  - visités : VisiteClient (REALISEE) ; recrutés : clients créés dans le mois ;
+ *  - crédits livrés : crédits créés par l'agent ;
+ *  - 16/31 collectés : remboursements confirmés de l'agent sur la dernière échéance
+ *    (numeroJour === dureeJours) d'un crédit à formule ;
+ *  - carnets : VenteCarnet de l'agent.
+ */
+export async function calculerTableauCommercial(agentId: number, annee: number, mois: number) {
+  const { debut, fin } = fenetreMois(annee, mois);
+
+  // Portefeuille de l'agent (affectation dédiée ∪ agent legacy).
+  const clientsPortefeuille = await prisma.client.findMany({
+    where: {
+      OR: [
+        { agentTerrainId: agentId },
+        { agentAffectations: { some: { agentId, actif: true } } },
+      ],
+    },
+    select: { id: true, createdAt: true },
+  });
+  const clientsAffectes = clientsPortefeuille.length;
+  const nouveauxClientsRecrutes = clientsPortefeuille.filter(
+    (c) => c.createdAt >= debut && c.createdAt < fin,
+  ).length;
+
+  // Visites réalisées dans le mois (clients distincts).
+  const visites = await prisma.visiteClient.findMany({
+    where: { agentId, statut: "REALISEE", dateVisite: { gte: debut, lt: fin } },
+    select: { clientId: true },
+  });
+  const clientsVisites = new Set(visites.map((v) => v.clientId)).size;
+  const clientsRestants = Math.max(0, clientsAffectes - clientsVisites);
+
+  // Crédits livrés (créés par l'agent) dans le mois.
+  const creditsLivres = await prisma.creditClient.count({
+    where: { creeParId: agentId, dateDebut: { gte: debut, lt: fin } },
+  });
+
+  // Collectes de rémunération (16/31) réalisées par l'agent : remboursement confirmé
+  // sur la dernière échéance (numeroJour === dureeJours) d'un crédit à formule.
+  const remb = await prisma.remboursementCredit.findMany({
+    where: {
+      agentCollecteurId: agentId, statut: CONFIRME,
+      dateRemboursement: { gte: debut, lt: fin },
+      credit: { formule: { not: null } },
+    },
+    select: { numeroJour: true, credit: { select: { formule: true, dureeJours: true } } },
+  });
+  let seiziemesCollectes = 0, trentiemesCollectes = 0;
+  for (const x of remb) {
+    if (x.numeroJour == null || x.numeroJour !== x.credit.dureeJours) continue;
+    if (x.credit.formule === "QUINZAINE") seiziemesCollectes += 1;
+    else if (x.credit.formule === "TRENTAINE") trentiemesCollectes += 1;
+  }
+
+  // Montant total collecté par l'agent (toutes mises) → taux de réalisation.
+  const montantAgg = await prisma.remboursementCredit.aggregate({
+    where: { agentCollecteurId: agentId, statut: CONFIRME, dateRemboursement: { gte: debut, lt: fin } },
+    _sum: { montant: true },
+  });
+  const montantCollecte = Number(montantAgg._sum.montant ?? 0);
+
+  // Carnets vendus par l'agent.
+  const carnets = await prisma.venteCarnet.count({
+    where: { agentId, dateVente: { gte: debut, lt: fin } },
+  });
+
+  // Objectif individuel = objectif mensuel / nombre d'agents terrain (ObjectifPOPC global).
+  const param = await objectifsDuMois(annee, mois, 0);
+  const objectifMensuel = param?.objectif ? Number(param.objectif.objectifMensuel) : 0;
+  const nbAgents = param?.nombreAgentsTerrain && param.nombreAgentsTerrain > 0 ? param.nombreAgentsTerrain : 1;
+  const objectifAgent = Number((objectifMensuel / nbAgents).toFixed(2));
+  const tauxRealisation = objectifAgent > 0
+    ? Number(((montantCollecte / objectifAgent) * 100).toFixed(1)) : 0;
+
+  return {
+    agentId, annee, mois,
+    clientsAffectes, clientsVisites, clientsRestants, nouveauxClientsRecrutes,
+    creditsLivres, seiziemesCollectes, trentiemesCollectes, carnetsVendus: carnets,
+    montantCollecte: Number(montantCollecte.toFixed(2)),
+    objectifAgent, tauxRealisation, objectifsGeneres: !!param?.objectif,
+  };
+}

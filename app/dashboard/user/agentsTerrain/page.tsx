@@ -7,7 +7,7 @@ import {
   Banknote, Calendar, LucideIcon, Layers, Plus,
   Loader2, Truck, Package, ShoppingCart, X, Send, XCircle,
   ClipboardList, CreditCard, Navigation, PlayCircle, ChevronDown, ChevronUp,
-  Wallet, TrendingDown, UserPlus, Receipt, FileText, Pencil,
+  Wallet, TrendingDown, UserPlus, Receipt, FileText, Pencil, Target,
 } from "lucide-react";
 import Link from "next/link";      
 import NotificationBell from "@/components/NotificationBell";
@@ -1795,6 +1795,12 @@ export default function AgentTerrainPage() {
             <p className="text-slate-500 text-sm">{t('field_dash_subtitle')}</p>
           </div>
           <div className="flex items-center gap-2">
+            <Link
+              href="/dashboard/user/agentsTerrain/objectifs"
+              className="px-4 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl text-sm font-semibold hover:bg-slate-50 transition-colors flex items-center gap-2 shadow-sm"
+            >
+              <Target size={16} /> Mes objectifs
+            </Link>
             <Link
               href="/dashboard/user/agentsTerrain/credits"
               className="px-4 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-semibold hover:bg-indigo-700 transition-colors flex items-center gap-2 shadow-sm"
