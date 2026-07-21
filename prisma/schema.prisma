@@ -3236,6 +3236,52 @@ model DocumentBibliotheque {
   updatedAt DateTime @updatedAt
 }
 
+// ── Documents RH stratégiques (CDC §13) — nature E, à l'échelle société ─────────
+enum TypeDocumentStrategiqueRH {
+  MANUEL_RH
+  POLITIQUE_RH
+  REGLEMENT_INTERIEUR
+  CODE_CONDUITE
+  CODE_ETHIQUE
+  POLITIQUE_REMUNERATION
+  POLITIQUE_DISCIPLINAIRE
+  POLITIQUE_RECRUTEMENT
+  POLITIQUE_FORMATION
+  POLITIQUE_PROMOTION
+  POLITIQUE_DIVERSITE
+  POLITIQUE_SANTE_SECURITE
+  POLITIQUE_CONFIDENTIALITE
+  AUTRE
+}
+
+enum StatutDocumentStrategique {
+  BROUILLON
+  EN_VIGUEUR
+  ARCHIVE
+}
+
+/// Document RH stratégique (manuel, politique, règlement, code) — une instance
+/// société, versionnée par type ; une seule version EN_VIGUEUR par type à la fois.
+model DocumentStrategiqueRH {
+  id          Int                       @id @default(autoincrement())
+  type        TypeDocumentStrategiqueRH
+  titre       String
+  reference   String?
+  version     Int                       @default(1)
+  description String?
+  contenu     String?                   // texte/HTML éditable (optionnel)
+  fichierUrl  String?                   // fichier uploadé (optionnel)
+  statut      StatutDocumentStrategique @default(BROUILLON)
+  dateEffet   DateTime?
+  creePar     Int                       // User.id
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([type])
+  @@index([statut])
+}
+
 // ============================================================
 // SUPER ADMIN — SYSTÈME
 // ============================================================

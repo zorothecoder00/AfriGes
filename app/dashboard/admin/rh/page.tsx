@@ -340,6 +340,19 @@ export default function RHDashboardPage() {
               />
             </div>
 
+            {/* ── Référentiel & Politiques ── */}
+            <SectionTitle>Référentiel &amp; Politiques</SectionTitle>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <StatCard
+                href="/dashboard/admin/rh/documents-strategiques"
+                icon={<FileText size={20} />}
+                title="Documents stratégiques"
+                value="Gérer"
+                sub="Manuel, politiques, règlement, codes"
+                color="text-indigo-600 bg-indigo-50"
+              />
+            </div>
+
             {/* ── Performance & Disciplinaire ── */}
             <SectionTitle>Performance & Disciplinaire</SectionTitle>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
