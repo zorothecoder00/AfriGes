@@ -252,7 +252,7 @@ export default function TontineDetails({ tontineId }: { tontineId: string }) {
                 </p>
               )}
 
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
                   <div className="flex items-center gap-2 text-white/80 text-sm mb-2">
                     <Users className="w-4 h-4" />
@@ -575,8 +575,8 @@ export default function TontineDetails({ tontineId }: { tontineId: string }) {
                         </button>
 
                         {isExpanded && (
-                          <div className="border-t border-gray-200 p-4 bg-gray-50">
-                            <table className="w-full text-sm">
+                          <div className="border-t border-gray-200 p-4 bg-gray-50 overflow-x-auto">
+                            <table className="w-full min-w-[480px] text-sm">
                               <thead>
                                 <tr className="border-b border-gray-200">
                                   <th className="text-left py-2 px-2 text-gray-500 font-medium text-xs">#</th>

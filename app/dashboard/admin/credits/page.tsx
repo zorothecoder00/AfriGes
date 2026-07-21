@@ -1512,15 +1512,15 @@ export default function CreditsPage() {
       ══════════════════════════════════════════════════════════════════ */}
       {modalRembOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[160] p-4">
-          <div className="bg-white rounded-2xl w-full max-w-md shadow-xl">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+          <div className="bg-white rounded-2xl w-full max-w-md shadow-xl flex flex-col max-h-[90vh]">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 shrink-0">
               <div className="flex items-center gap-2">
                 <Banknote className="w-5 h-5 text-teal-600" />
                 <h3 className="text-base font-bold text-gray-900">Enregistrer un remboursement</h3>
               </div>
               <button onClick={() => setModalRembOpen(false)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
             </div>
-            <div className="px-6 py-5 space-y-4">
+            <div className="px-6 py-5 space-y-4 flex-1 overflow-y-auto">
               {rembError && (
                 <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-lg px-3 py-2 text-red-700 text-sm">
                   <AlertCircle className="w-4 h-4 flex-shrink-0" />{rembError}
@@ -1537,7 +1537,7 @@ export default function CreditsPage() {
                   soldeRestant={Number(rembCredit.soldeRestant)}
                 />
               )}
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-medium text-gray-600 mb-1">Date de collecte</label>
                   <input type="date" value={rembDate} onChange={(e) => setRembDate(e.target.value)}
@@ -1596,7 +1596,7 @@ export default function CreditsPage() {
                 />
               </div>
             </div>
-            <div className="flex justify-end gap-3 px-6 py-4 border-t border-gray-100">
+            <div className="flex justify-end gap-3 px-6 py-4 border-t border-gray-100 shrink-0">
               <button onClick={() => setModalRembOpen(false)}
                 className="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">
                 Annuler

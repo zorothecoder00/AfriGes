@@ -131,7 +131,7 @@ export default function CreditAlimentaireDetails({ credit, onClose, onEdit }: Cr
 
         {/* Stats strip */}
         <div className="px-6 py-4 bg-slate-50/80 border-b border-slate-100 flex-shrink-0">
-          <div className="grid grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {/* Plafond */}
             <div className="bg-white rounded-xl border border-slate-200 px-3 py-3">
               <div className="flex items-center gap-1.5 mb-1">

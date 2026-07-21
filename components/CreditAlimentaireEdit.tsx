@@ -161,7 +161,7 @@ export default function CreditAlimentaireEdit({ credit, onClose, onSave }: Credi
 
         {/* Current state banner */}
         <div className="px-6 py-3 bg-slate-50 border-b border-slate-100 flex-shrink-0">
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className="flex items-center gap-2">
               <div className="w-7 h-7 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
                 <Wallet size={13} className="text-blue-600" />
@@ -223,7 +223,7 @@ export default function CreditAlimentaireEdit({ credit, onClose, onSave }: Credi
           )}
 
           {/* Plafond + Statut */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2">
                 Plafond
@@ -257,7 +257,7 @@ export default function CreditAlimentaireEdit({ credit, onClose, onSave }: Credi
           </div>
 
           {/* Source + sourceId */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2">
                 Source
@@ -340,7 +340,7 @@ export default function CreditAlimentaireEdit({ credit, onClose, onSave }: Credi
                   </p>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2">
                       Montant d&apos;ajustement

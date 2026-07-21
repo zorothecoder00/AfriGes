@@ -299,7 +299,7 @@ const CotisationEdit: React.FC<CotisationEditProps> = ({ cotisation, onClose, on
           </div>
 
           {/* Dates */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {/* Date de paiement — verrouillée si PAYEE */}
             <div>
               <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2">

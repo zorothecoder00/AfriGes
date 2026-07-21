@@ -101,7 +101,7 @@ const CotisationDetails: React.FC<CotisationDetailsProps> = ({ cotisation, onClo
           </div>
 
           {/* Montant + Période */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="bg-emerald-50 border border-emerald-100 rounded-xl px-4 py-4 text-center">
               <p className="text-[10px] text-emerald-600 font-semibold uppercase tracking-wider mb-1">Montant</p>
               <p className="text-2xl font-extrabold text-emerald-700">{formatCurrency(cotisation.montant)}</p>

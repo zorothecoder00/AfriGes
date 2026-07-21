@@ -411,7 +411,7 @@ export default function GestionnaireDetails({ gestionnaireId }: GestionnaireDeta
         {isAgentTerrain && (
           <>
             {/* Stats CA */}
-            <div className="grid grid-cols-4 gap-5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
               <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/60">
                 <div className="flex items-center gap-3 mb-3">
                   <div className="bg-blue-50 p-2.5 rounded-xl">

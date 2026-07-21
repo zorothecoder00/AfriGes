@@ -444,7 +444,7 @@ export default function ClientDetails({
 
               {/* Métriques financières */}
               {(client.limiteCredit != null || client.soldeActuel != null) && (
-                <div className="mt-4 grid grid-cols-3 gap-4">
+                <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div className="bg-gray-50 rounded-lg p-3">
                     <p className="text-xs text-gray-500 flex items-center gap-1"><CreditCard className="w-3 h-3" />Limite crédit</p>
                     <p className="text-sm font-bold text-gray-800 mt-0.5">{client.limiteCredit != null ? formatCurrency(Number(client.limiteCredit)) : '—'}</p>
