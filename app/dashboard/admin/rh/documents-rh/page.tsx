@@ -92,6 +92,15 @@ const TYPE_CONFIG: Record<string, { label: string; color: string; icon: React.El
   CERTIFICAT_TRAVAIL:   { label: "Certificat de travail",   color: "bg-slate-100 text-slate-700",   icon: FileCheck   },
   SOLDE_TOUT_COMPTE:    { label: "Solde de tout compte",    color: "bg-rose-100 text-rose-700",     icon: FileText    },
   ATTESTATION_EMPLOI:   { label: "Attestation d'emploi",    color: "bg-sky-100 text-sky-700",       icon: Mail        },
+  AVERTISSEMENT_ECRIT:      { label: "Avertissement écrit",       color: "bg-amber-100 text-amber-700", icon: ScrollText },
+  MISE_EN_DEMEURE:          { label: "Mise en demeure",           color: "bg-red-100 text-red-700",     icon: ScrollText },
+  DEMANDE_EXPLICATION:      { label: "Demande d'explication",     color: "bg-orange-100 text-orange-700",icon: FileText  },
+  CONVOCATION_DISCIPLINAIRE:{ label: "Convocation disciplinaire", color: "bg-orange-100 text-orange-700",icon: Mail      },
+  PV_AUDITION:              { label: "Procès-verbal d'audition",  color: "bg-slate-100 text-slate-700", icon: FileText  },
+  DECISION_DISCIPLINAIRE:   { label: "Décision disciplinaire",    color: "bg-red-100 text-red-700",     icon: ScrollText },
+  MISE_A_PIED:              { label: "Mise à pied",               color: "bg-rose-100 text-rose-700",   icon: ScrollText },
+  LETTRE_LICENCIEMENT:      { label: "Lettre de licenciement",    color: "bg-red-100 text-red-700",     icon: Mail      },
+  PV_RUPTURE:               { label: "Procès-verbal de rupture",  color: "bg-slate-100 text-slate-700", icon: FileText  },
   AUTRE:                { label: "Autre",                   color: "bg-gray-100 text-gray-600",     icon: Mail        },
 };
 

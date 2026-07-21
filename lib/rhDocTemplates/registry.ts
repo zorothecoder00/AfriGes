@@ -7,11 +7,13 @@ import type { RhDocTemplate, FieldSpec } from "./types";
 import { templatesDivers } from "./divers";
 import { templatesEmbauche } from "./embauche";
 import { templatesFinContrat } from "./finContrat";
+import { templatesDiscipline } from "./discipline";
 
 const ALL: RhDocTemplate[] = [
   ...templatesDivers,
   ...templatesEmbauche,
   ...templatesFinContrat,
+  ...templatesDiscipline,
 ];
 
 const BY_TYPE = new Map<string, RhDocTemplate>(ALL.map((t) => [t.type, t]));
