@@ -132,7 +132,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
         where: { id: creditId },
         select: {
           id: true, statut: true, pointDeVenteId: true, clientId: true,
-          montantTotal: true, montantRembourse: true, dureeJours: true, dateDebut: true,
+          montantTotal: true, montantRembourse: true, dureeJours: true, dateDebut: true, formule: true,
           fraisDossier: true, assurance: true, autresFrais: true, fraisLivraison: true, tauxInteret: true, montantInteret: true,
         },
       });

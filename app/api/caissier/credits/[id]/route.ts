@@ -96,7 +96,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
       const credit = await tx.creditClient.findUnique({
         where: { id: creditId },
         select: {
-          id: true, statut: true, montantTotal: true, montantRembourse: true, dureeJours: true, dateDebut: true,
+          id: true, statut: true, montantTotal: true, montantRembourse: true, dureeJours: true, dateDebut: true, formule: true,
           client: { select: { pointDeVenteId: true } },
         },
       });

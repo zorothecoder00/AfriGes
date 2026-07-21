@@ -1,5 +1,6 @@
-import { Prisma, StatutCredit, StatutEcheanceCredit } from "@prisma/client";
+import { Prisma, StatutCredit, StatutEcheanceCredit, FormuleCredit } from "@prisma/client";
 import { montantJournalierArrondi } from "@/lib/echeancierCredit";
+import { dureeJoursPourFormule } from "@/lib/formuleCredit";
 
 type TX = Omit<Prisma.TransactionClient, "$connect" | "$disconnect" | "$on" | "$transaction" | "$use" | "$extends">;
 
@@ -10,6 +11,10 @@ export interface CreditPourDuree {
   montantRembourse: Prisma.Decimal | number | string;
   dureeJours: number;
   dateDebut: Date;
+  // Formule commerciale (module POPC). Si renseignée, la durée est VERROUILLÉE
+  // à celle de la formule (QUINZAINE → 16, TRENTAINE → 31) : la saisie libre de
+  // jours est ignorée, pour préserver la logique du 16ème / 31ème.
+  formule?: FormuleCredit | null;
 }
 
 /**
@@ -28,9 +33,15 @@ export interface CreditPourDuree {
 export async function appliquerNouvelleDureeCredit(
   tx: TX,
   credit: CreditPourDuree,
-  input: { dureeJours?: number | null; dateDebut?: string | null; garantie?: string | null; observations?: string | null; montantTotal?: number | null },
+  input: { dureeJours?: number | null; dateDebut?: string | null; garantie?: string | null; observations?: string | null; montantTotal?: number | null; formule?: FormuleCredit | null },
 ) {
-  const duree = input.dureeJours != null ? Number(input.dureeJours) : credit.dureeJours;
+  // Formule effective : celle demandée (changement Quinzaine↔Trentaine) sinon
+  // celle du crédit. Si une formule est active, la durée est imposée par elle et
+  // toute valeur `dureeJours` fournie est ignorée (verrou du 16ème / 31ème).
+  const formuleEff = (input.formule ?? credit.formule) ?? null;
+  const duree = formuleEff
+    ? dureeJoursPourFormule(formuleEff)
+    : (input.dureeJours != null ? Number(input.dureeJours) : credit.dureeJours);
   if (duree < 1) throw new Error("DUREE_INVALIDE");
   const debut = input.dateDebut ? new Date(input.dateDebut) : credit.dateDebut;
 
@@ -51,6 +62,7 @@ export async function appliquerNouvelleDureeCredit(
       dateEcheanceFin,
       soldeRestant,
       ...(input.montantTotal != null && { montantTotal }),
+      ...(input.formule      != null && { formule: input.formule }),
       ...(input.garantie     !== undefined && { garantie:     input.garantie }),
       ...(input.observations !== undefined && { observations: input.observations }),
     },
