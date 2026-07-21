@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Target, CalendarCheck, LayoutDashboard } from "lucide-react";
+import { Target, CalendarCheck, LayoutDashboard, Bell } from "lucide-react";
 
 const TABS = [
   { href: "/dashboard/admin/popc", label: "Objectifs", icon: Target },
   { href: "/dashboard/admin/popc/suivi", label: "Suivi journalier", icon: CalendarCheck },
   { href: "/dashboard/admin/popc/direction", label: "Pilotage Direction", icon: LayoutDashboard },
+  { href: "/dashboard/admin/popc/alertes", label: "Alertes", icon: Bell },
 ];
 
 export default function PopcTabs() {

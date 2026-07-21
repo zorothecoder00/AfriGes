@@ -20,6 +20,10 @@
       "schedule": "30 6 * * *"
     },
     {
+      "path": "/api/cron/popc-alertes?secret=${CRON_SECRET}",
+      "schedule": "0 9 * * *"
+    },
+    {
       "path": "/api/cron/comptes-courants/inactivite?secret=${CRON_SECRET}",
       "schedule": "15 3 * * *"
     },
