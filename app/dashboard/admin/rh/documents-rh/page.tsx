@@ -69,12 +69,30 @@ interface HistoriqueResponse {
 
 // ── Constantes ─────────────────────────────────────────────────────────────────
 
-const TYPE_CONFIG: Record<string, { label: string; color: string; icon: React.ElementType; needsMissionFields: boolean }> = {
-  ATTESTATION_TRAVAIL:  { label: "Attestation de travail",  color: "bg-blue-100 text-blue-700",    icon: FileCheck,   needsMissionFields: false },
-  CERTIFICAT_PRESENCE:  { label: "Certificat de présence",  color: "bg-teal-100 text-teal-700",    icon: FileText,    needsMissionFields: false },
-  DECISION_AFFECTATION: { label: "Décision d'affectation",  color: "bg-indigo-100 text-indigo-700",icon: ScrollText,  needsMissionFields: false },
-  LETTRE_MISSION:       { label: "Lettre de mission",       color: "bg-amber-100 text-amber-700",  icon: Briefcase,   needsMissionFields: true  },
-  AUTRE:                { label: "Autre",                   color: "bg-gray-100 text-gray-600",    icon: Mail,        needsMissionFields: false },
+/** Spécification d'un champ libre d'un type de document (renvoyée par /documents-rh/types). */
+interface DocFieldSpec {
+  name: string;
+  label: string;
+  type: "text" | "date" | "number" | "textarea" | "select";
+  required?: boolean;
+  placeholder?: string;
+  options?: { value: string; label: string }[];
+}
+interface DocTypeMeta { type: string; label: string; fields: DocFieldSpec[]; }
+
+const TYPE_CONFIG: Record<string, { label: string; color: string; icon: React.ElementType }> = {
+  ATTESTATION_TRAVAIL:  { label: "Attestation de travail",  color: "bg-blue-100 text-blue-700",     icon: FileCheck   },
+  CERTIFICAT_PRESENCE:  { label: "Certificat de présence",  color: "bg-teal-100 text-teal-700",     icon: FileText    },
+  DECISION_AFFECTATION: { label: "Décision d'affectation",  color: "bg-indigo-100 text-indigo-700", icon: ScrollText  },
+  LETTRE_MISSION:       { label: "Lettre de mission",       color: "bg-amber-100 text-amber-700",   icon: Briefcase   },
+  CONTRAT_CDI:          { label: "Contrat de travail (CDI)",color: "bg-emerald-100 text-emerald-700",icon: FileCheck  },
+  CONTRAT_CDD:          { label: "Contrat de travail (CDD)",color: "bg-cyan-100 text-cyan-700",     icon: FileText    },
+  CONTRAT_STAGE:        { label: "Contrat de stage",        color: "bg-violet-100 text-violet-700", icon: Briefcase   },
+  AVENANT_CONTRAT:      { label: "Avenant au contrat",      color: "bg-orange-100 text-orange-700", icon: ScrollText  },
+  CERTIFICAT_TRAVAIL:   { label: "Certificat de travail",   color: "bg-slate-100 text-slate-700",   icon: FileCheck   },
+  SOLDE_TOUT_COMPTE:    { label: "Solde de tout compte",    color: "bg-rose-100 text-rose-700",     icon: FileText    },
+  ATTESTATION_EMPLOI:   { label: "Attestation d'emploi",    color: "bg-sky-100 text-sky-700",       icon: Mail        },
+  AUTRE:                { label: "Autre",                   color: "bg-gray-100 text-gray-600",     icon: Mail        },
 };
 
 type TabKey = "documents" | "generer" | "historique";
@@ -442,38 +460,43 @@ function PreviewModal({ doc, onClose }: { doc: DocRH; onClose: () => void }) {
 function GenererTab({ onGenerated }: { onGenerated: () => void }) {
   const { mutate, loading } = useMutation("/api/admin/rh/documents-rh/generer", "POST");
   const { data: collabRes } = useApi<CollabsResponse>("/api/admin/rh/collaborateurs?limit=200&statut=ACTIF");
+  const { data: typesRes }  = useApi<{ data: DocTypeMeta[] }>("/api/admin/rh/documents-rh/types");
   const collabs = collabRes?.data ?? [];
+  const types   = typesRes?.data ?? [];
 
-  const [form, setForm] = useState({
-    profilRHId:       "",
-    type:             "",
-    notes:            "",
-    destination:      "",
-    dateDebutMission: "",
-    dateFinMission:   "",
-    objet:            "",
-  });
-  const [generated, setGenerated] = useState<DocRH | null>(null);
+  const [profilRHId,  setProfilRHId]  = useState("");
+  const [docType,     setDocType]     = useState("");
+  const [notes,       setNotes]       = useState("");
+  const [fieldValues, setFieldValues] = useState<Record<string, string>>({});
+  const [generated,   setGenerated]   = useState<DocRH | null>(null);
 
-  const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
+  const currentFields = types.find((t) => t.type === docType)?.fields ?? [];
+  const selectedCollab = collabs.find((c) => String(c.id) === profilRHId);
 
-  const cfg             = form.type ? TYPE_CONFIG[form.type] : null;
-  const needsMission    = cfg?.needsMissionFields ?? false;
-  const selectedCollab  = collabs.find((c) => String(c.id) === form.profilRHId);
+  // Changer de type réinitialise les champs libres (évite de traîner des valeurs d'un autre type).
+  const selectType = (t: string) => { setDocType(t); setFieldValues({}); };
+  const setField   = (name: string, v: string) => setFieldValues((f) => ({ ...f, [name]: v }));
+  const resetAll   = () => { setGenerated(null); setProfilRHId(""); setDocType(""); setNotes(""); setFieldValues({}); };
 
   const handleGenerate = async () => {
-    if (!form.profilRHId || !form.type) {
+    if (!profilRHId || !docType) {
       toast.error("Collaborateur et type sont obligatoires");
       return;
     }
+    const missing = currentFields.find((f) => f.required && !(fieldValues[f.name] ?? "").trim());
+    if (missing) {
+      toast.error(`Champ requis : ${missing.label}`);
+      return;
+    }
+    // On n'envoie que les champs libres non vides, en plus des méta.
+    const payloadFields = Object.fromEntries(
+      Object.entries(fieldValues).filter(([, v]) => v.trim() !== ""),
+    );
     const result = await mutate({
-      profilRHId:       Number(form.profilRHId),
-      type:             form.type,
-      notes:            form.notes            || null,
-      destination:      form.destination      || undefined,
-      dateDebutMission: form.dateDebutMission || undefined,
-      dateFinMission:   form.dateFinMission   || undefined,
-      objet:            form.objet            || undefined,
+      profilRHId: Number(profilRHId),
+      type:       docType,
+      notes:      notes || null,
+      ...payloadFields,
     });
     if (result) {
       toast.success("Document généré avec succès !");
@@ -492,7 +515,7 @@ function GenererTab({ onGenerated }: { onGenerated: () => void }) {
           </div>
           <div className="ml-auto flex gap-2">
             <button
-              onClick={() => { setGenerated(null); setForm({ profilRHId: "", type: "", notes: "", destination: "", dateDebutMission: "", dateFinMission: "", objet: "" }); }}
+              onClick={resetAll}
               className="px-3 py-1.5 text-sm text-emerald-700 bg-white border border-emerald-200 rounded-lg hover:bg-emerald-50"
             >
               Nouveau
@@ -548,21 +571,22 @@ function GenererTab({ onGenerated }: { onGenerated: () => void }) {
         {/* Type */}
         <div>
           <label className="block text-xs font-semibold text-slate-600 mb-2">Type de document *</label>
-          <div className="grid grid-cols-2 gap-3">
-            {Object.entries(TYPE_CONFIG).filter(([k]) => k !== "AUTRE").map(([k, c]) => {
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {types.map((t) => {
+              const c = TYPE_CONFIG[t.type] ?? { label: t.label, color: "bg-gray-100 text-gray-600", icon: FileText };
               const Icon = c.icon;
               return (
                 <button
-                  key={k}
-                  onClick={() => set("type", k)}
+                  key={t.type}
+                  onClick={() => selectType(t.type)}
                   className={`flex items-center gap-3 p-3 rounded-xl border text-left transition-all ${
-                    form.type === k
+                    docType === t.type
                       ? "border-emerald-400 bg-emerald-50 ring-1 ring-emerald-400"
                       : "border-slate-200 hover:border-slate-300 bg-slate-50"
                   }`}
                 >
                   <div className={`p-2 rounded-lg ${c.color} flex-shrink-0`}><Icon className="w-4 h-4" /></div>
-                  <span className="text-sm font-medium text-slate-800">{c.label}</span>
+                  <span className="text-sm font-medium text-slate-800">{t.label}</span>
                 </button>
               );
             })}
@@ -572,8 +596,8 @@ function GenererTab({ onGenerated }: { onGenerated: () => void }) {
         {/* Collaborateur */}
         <GField label="Collaborateur *">
           <select
-            value={form.profilRHId}
-            onChange={(e) => set("profilRHId", e.target.value)}
+            value={profilRHId}
+            onChange={(e) => setProfilRHId(e.target.value)}
             className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
           >
             <option value="">— Sélectionner —</option>
@@ -591,42 +615,45 @@ function GenererTab({ onGenerated }: { onGenerated: () => void }) {
           )}
         </GField>
 
-        {/* Champs spécifiques lettre de mission */}
-        {needsMission && (
-          <>
-            <GField label="Destination / Lieu de la mission">
-              <input value={form.destination} onChange={(e) => set("destination", e.target.value)}
-                placeholder="Ex: Abidjan, Dakar, Douala…"
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
-            </GField>
-            <div className="grid grid-cols-2 gap-4">
-              <GField label="Date de début">
-                <input type="date" value={form.dateDebutMission} onChange={(e) => set("dateDebutMission", e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
-              </GField>
-              <GField label="Date de fin">
-                <input type="date" value={form.dateFinMission} onChange={(e) => set("dateFinMission", e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
-              </GField>
-            </div>
-            <GField label="Objet de la mission">
-              <input value={form.objet} onChange={(e) => set("objet", e.target.value)}
-                placeholder="Ex: Audit terrain, Formation clientèle…"
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
-            </GField>
-          </>
+        {/* Champs libres propres au type sélectionné (formulaire par type) */}
+        {docType && currentFields.length > 0 && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {currentFields.map((f) => {
+              const inputCls = "w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500";
+              const val = fieldValues[f.name] ?? "";
+              return (
+                <div key={f.name} className={f.type === "textarea" ? "sm:col-span-2" : ""}>
+                  <GField label={f.required ? `${f.label} *` : f.label}>
+                    {f.type === "textarea" ? (
+                      <textarea rows={2} value={val} onChange={(e) => setField(f.name, e.target.value)}
+                        placeholder={f.placeholder} className={`${inputCls} resize-none`} />
+                    ) : f.type === "select" ? (
+                      <select value={val} onChange={(e) => setField(f.name, e.target.value)} className={`${inputCls} bg-white`}>
+                        <option value="">— Sélectionner —</option>
+                        {(f.options ?? []).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                      </select>
+                    ) : (
+                      <input type={f.type === "date" ? "date" : f.type === "number" ? "number" : "text"}
+                        value={val} onChange={(e) => setField(f.name, e.target.value)}
+                        placeholder={f.placeholder} className={inputCls} />
+                    )}
+                  </GField>
+                </div>
+              );
+            })}
+          </div>
         )}
 
         {/* Notes */}
         <GField label="Notes internes (optionnel)">
-          <input value={form.notes} onChange={(e) => set("notes", e.target.value)}
+          <input value={notes} onChange={(e) => setNotes(e.target.value)}
             placeholder="Ex: Demandé par l'intéressé, dossier banque…"
             className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
         </GField>
 
         <button
           onClick={handleGenerate}
-          disabled={loading || !form.profilRHId || !form.type}
+          disabled={loading || !profilRHId || !docType}
           className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-emerald-600 text-white text-sm font-semibold rounded-xl hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed"
         >
           {loading
