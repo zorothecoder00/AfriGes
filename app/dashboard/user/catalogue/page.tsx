@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useApi } from "@/hooks/useApi";
 import { Search, Package, Tag, ChevronLeft, ChevronRight, Boxes } from "lucide-react";
 import { formatCurrency } from "@/lib/format";
+import DashboardBackButton from "@/components/DashboardBackButton";
 
 /**
  * Catalogue produits en lecture seule, accessible à tous les gestionnaires (tous
@@ -23,6 +24,7 @@ interface ProduitInterne {
   famille: string | null;
   image: string | null;
   stockTotal: number;
+  parPdv: { pdvId: number; pdvNom: string; pdvCode: string; quantite: number }[];
   dispo: "DISPONIBLE" | "LIMITE" | "RUPTURE";
 }
 interface Reponse {
@@ -42,6 +44,7 @@ export default function CatalogueInternePage() {
   const [debounced, setDebounced] = useState("");
   const [familleId, setFamilleId] = useState("");
   const [marqueId, setMarqueId]   = useState("");
+  const [pdvId, setPdvId]         = useState("");
   const [page, setPage]           = useState(1);
 
   // Debounce recherche
@@ -55,10 +58,13 @@ export default function CatalogueInternePage() {
     ...(debounced && { search: debounced }),
     ...(familleId && { familleId }),
     ...(marqueId && { marqueId }),
+    ...(pdvId && { pointDeVenteId: pdvId }),
   }).toString();
 
   const { data: res, loading } = useApi<Reponse>(`/api/catalogue/interne?${query}`);
   const { data: refs } = useApi<{ familles: Ref[]; marques: Ref[] }>("/api/catalogue/public/referentiels");
+  const { data: pdvRes } = useApi<{ data: Ref[] }>("/api/catalogue/interne/pdv");
+  const pdvs = pdvRes?.data ?? [];
 
   const produits = res?.data ?? [];
   const meta = res?.meta;
@@ -67,6 +73,7 @@ export default function CatalogueInternePage() {
     <div className="p-4 sm:p-6 max-w-7xl mx-auto">
       {/* En-tête */}
       <div className="flex items-center gap-3 mb-1">
+        <DashboardBackButton exitViewAsOnBack={false} />
         <div className="p-2 rounded-xl bg-emerald-50 text-emerald-600"><Package className="w-5 h-5" /></div>
         <div>
           <h1 className="text-xl font-bold text-slate-800">Catalogue des produits</h1>
@@ -92,6 +99,13 @@ export default function CatalogueInternePage() {
           <option value="">Toutes les marques</option>
           {(refs?.marques ?? []).map((m) => <option key={m.id} value={m.id}>{m.nom}</option>)}
         </select>
+        {pdvs.length > 1 && (
+          <select value={pdvId} onChange={(e) => { setPdvId(e.target.value); setPage(1); }}
+            className="px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
+            <option value="">Tous les points de vente</option>
+            {pdvs.map((p) => <option key={p.id} value={p.id}>{p.nom}</option>)}
+          </select>
+        )}
       </div>
 
       {/* Grille produits */}
@@ -128,8 +142,24 @@ export default function CatalogueInternePage() {
                       <p className="text-[10px] text-slate-400">Prix de vente</p>
                       <p className="text-base font-bold text-emerald-700">{formatCurrency(p.prixUnitaire)}{p.unite ? <span className="text-[11px] font-normal text-slate-400"> /{p.unite}</span> : null}</p>
                     </div>
-                    <p className="text-[11px] text-slate-500">Stock : <span className="font-semibold text-slate-700">{p.stockTotal}</span></p>
+                    <p className="text-[11px] text-slate-500">{pdvId ? "Stock PDV" : "Stock total"} : <span className="font-semibold text-slate-700">{p.stockTotal}</span></p>
                   </div>
+
+                  {/* Ventilation par point de vente — seulement en périmètre multi-PDV
+                      (chef d'agence, compte transverse) ; superflu pour un mono-PDV. */}
+                  {pdvs.length > 1 && p.parPdv.length > 0 && (
+                    <div className="mt-2 pt-2 border-t border-slate-100">
+                      <p className="text-[10px] text-slate-400 mb-1">Disponibilité par PDV</p>
+                      <div className="flex flex-wrap gap-1">
+                        {p.parPdv.map((s) => (
+                          <span key={s.pdvId} title={s.pdvCode}
+                            className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
+                            {s.pdvNom} <span className="font-semibold text-slate-800">{s.quantite}</span>
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             );
