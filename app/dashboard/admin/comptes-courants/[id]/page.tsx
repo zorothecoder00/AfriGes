@@ -620,16 +620,24 @@ export default function CompteCourantDetailPage() {
                       {mouvementsVisibles.map((m) => {
                         const neg = N(m.montant) < 0;
                         const annule = m.statut === "ANNULE";
+                        // « Antérieure » seulement si la date d'opération est réellement
+                        // avant le JOUR d'enregistrement — pas juste parce qu'elle existe.
+                        const dateOp = m.dateOperation ? new Date(m.dateOperation) : null;
+                        const created = new Date(m.createdAt);
+                        const anterieure = dateOp
+                          ? Date.UTC(dateOp.getUTCFullYear(), dateOp.getUTCMonth(), dateOp.getUTCDate())
+                            < Date.UTC(created.getUTCFullYear(), created.getUTCMonth(), created.getUTCDate())
+                          : false;
                         return (
                           <tr key={m.id} className={`hover:bg-gray-50/60 ${annule ? "opacity-60" : ""}`}>
                             <td className="px-5 py-3 text-xs text-gray-500">
-                              {/* Date d'opération saisie (dépôt antérieur) prioritaire ; sinon horodatage système. */}
-                              {m.dateOperation
-                                ? <span title={`Saisi le ${new Date(m.createdAt).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" })}`}>
-                                    {new Date(m.dateOperation).toLocaleDateString("fr-FR", { dateStyle: "short" })}
-                                    <span className="ml-1 text-[10px] text-amber-600">(antérieure)</span>
+                              {/* Date d'opération saisie prioritaire ; « antérieure » uniquement si backdatée. */}
+                              {dateOp
+                                ? <span title={`Saisi le ${created.toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" })}`}>
+                                    {dateOp.toLocaleDateString("fr-FR")}
+                                    {anterieure && <span className="ml-1 text-[10px] text-amber-600">(antérieure)</span>}
                                   </span>
-                                : new Date(m.createdAt).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" })}
+                                : created.toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" })}
                             </td>
                             <td className="px-5 py-3">
                               <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${NATURE_STYLE[m.nature] ?? "bg-gray-100 text-gray-600"}`}>
