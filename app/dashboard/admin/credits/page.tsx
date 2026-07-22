@@ -11,7 +11,7 @@ import Link from 'next/link';
 import { useApi } from '@/hooks/useApi';
 import { usePermissions } from '@/hooks/usePermissions';
 import { formatCurrency, formatDate } from '@/lib/format';
-import { dureeJoursPourFormule } from '@/lib/formuleCredit';
+import { dureeJoursPourFormule, remunerationFormule } from '@/lib/formuleCredit';
 import { toast } from 'sonner';
 import { useT } from '@/contexts/AppSettingsContext';
 import ClienteleTabBar from '@/components/ClienteleTabBar';
@@ -501,7 +501,8 @@ export default function CreditsPage() {
   };
 
   const creditMontantTotal = creditLignes.reduce((s, l) => s + (l.prixUnitaire * l.quantite - l.remise), 0);
-  const creditInteret        = Number(((creditMontantTotal * Number(creditParams.tauxInteret || 0)) / 100).toFixed(2));
+  // Rémunération (CDC : 1 mise supplémentaire) — auto-calculée selon la formule, comme côté serveur.
+  const creditInteret        = remunerationFormule(creditMontantTotal, creditParams.formule);
   // Réduction fidélité sur les frais de dossier (CDC §19.D) — appliquée côté serveur, prévisualisée ici.
   const fidReductionPct      = eligibilite?.fidelite?.reductionFraisDossier ?? 0;
   const creditReductionFidelite = fidReductionPct > 0
@@ -1991,10 +1992,13 @@ export default function CreditsPage() {
                         className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50" />
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-slate-600 mb-1">Taux d&apos;intérêt (%)</label>
-                      <input type="number" min={0} step={0.1} value={creditParams.tauxInteret}
-                        onChange={e => setCreditParams(p => ({ ...p, tauxInteret: e.target.value }))}
-                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50" />
+                      <label className="block text-xs font-medium text-slate-600 mb-1">
+                        Rémunération ({creditParams.formule === 'TRENTAINE' ? '31ème' : '16ème'})
+                      </label>
+                      <div className="w-full px-3 py-2 border border-emerald-100 rounded-lg text-sm bg-emerald-50 text-emerald-700 font-medium"
+                        title="1 mise supplémentaire — calculée automatiquement selon la formule (CDC)">
+                        {formatCurrency(creditInteret)}
+                      </div>
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-slate-600 mb-1">Délai de grâce (jours)</label>

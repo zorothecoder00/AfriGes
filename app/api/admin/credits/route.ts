@@ -6,7 +6,7 @@ import { montantJournalierArrondi } from "@/lib/echeancierCredit";
 import { chargerParametrageCC, getCompteCourantParClient, preleverCompteCourant, extraireMetaRequete } from "@/lib/compteCourant";
 import { getFidelite } from "@/lib/fidelite";
 import { tariferLigne } from "@/lib/venteTarification";
-import { estFormuleValide, dureeJoursPourFormule } from "@/lib/formuleCredit";
+import { estFormuleValide, dureeJoursPourFormule, remunerationFormule } from "@/lib/formuleCredit";
 
 /**
  * ==========================
@@ -132,7 +132,7 @@ export async function POST(req: Request) {
       lignes,
       formule, dateDebut,
       tauxPenalite, garantie, observations,
-      fraisDossier, assurance, autresFrais, fraisLivraison, tauxInteret, delaiGraceJours,
+      fraisDossier, assurance, autresFrais, fraisLivraison, delaiGraceJours,
       garantNom, garantTelephone, garantAdresse, garantTypeGarantie, garantValeurEstimee,
     } = body;
 
@@ -232,8 +232,11 @@ export async function POST(req: Request) {
       const assuranceN      = Math.max(0, Number(assurance ?? 0));
       const autresFraisN    = Math.max(0, Number(autresFrais ?? 0));
       const fraisLivraisonN = Math.max(0, Number(fraisLivraison ?? 0));
-      const tauxInteretN    = Math.max(0, Number(tauxInteret ?? 0));
-      const montantInteret = Number((valeurProduits * tauxInteretN / 100).toFixed(2));
+      // Rémunération (CDC : 1 mise supplémentaire), auto-calculée depuis la formule
+      // et intégrée au montant total. Remplace la saisie manuelle du taux d'intérêt.
+      const montantInteret = remunerationFormule(valeurProduits, formule);
+      const tauxInteretN = valeurProduits > 0
+        ? Number((montantInteret / valeurProduits * 100).toFixed(4)) : 0;
       const montantTotal = Number(
         (valeurProduits + fraisDossierN + assuranceN + autresFraisN + fraisLivraisonN + montantInteret).toFixed(2)
       );

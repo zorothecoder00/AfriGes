@@ -6,7 +6,7 @@ import { MemberStatus, NiveauRisque, Prisma, StatutCredit, PrioriteNotification,
 import { notifyRoles, notifyAdmins, auditLog } from "@/lib/notifications";
 import { getFidelite } from "@/lib/fidelite";
 import { tariferLigne } from "@/lib/venteTarification";
-import { estFormuleValide, dureeJoursPourFormule } from "@/lib/formuleCredit";
+import { estFormuleValide, dureeJoursPourFormule, remunerationFormule } from "@/lib/formuleCredit";
 import { randomUUID } from "crypto";
 
 /**
@@ -118,7 +118,7 @@ export async function POST(req: Request) {
     const userId = parseInt(session.user.id);
     const body = await req.json();
     const { clientId, pointDeVenteId, lignes, formule, dateDebut, tauxPenalite, garantie, observations,
-      fraisDossier, assurance, autresFrais, fraisLivraison, tauxInteret, delaiGraceJours,
+      fraisDossier, assurance, autresFrais, fraisLivraison, delaiGraceJours,
       garantNom, garantTelephone, garantAdresse, garantTypeGarantie, garantValeurEstimee } = body;
 
     if (!clientId || !lignes?.length || !dateDebut) {
@@ -203,8 +203,11 @@ export async function POST(req: Request) {
       const assuranceN      = Math.max(0, Number(assurance ?? 0));
       const autresFraisN    = Math.max(0, Number(autresFrais ?? 0));
       const fraisLivraisonN = Math.max(0, Number(fraisLivraison ?? 0));
-      const tauxInteretN    = Math.max(0, Number(tauxInteret ?? 0));
-      const montantInteret = Number((valeurProduits * tauxInteretN / 100).toFixed(2));
+      // Rémunération (CDC : 1 mise supplémentaire), auto-calculée depuis la formule
+      // et intégrée au montant total. Remplace la saisie manuelle du taux d'intérêt.
+      const montantInteret = remunerationFormule(valeurProduits, formule);
+      const tauxInteretN = valeurProduits > 0
+        ? Number((montantInteret / valeurProduits * 100).toFixed(4)) : 0;
       const montantTotal = Number((valeurProduits + fraisDossierN + assuranceN + autresFraisN + fraisLivraisonN + montantInteret).toFixed(2));
 
       const duree = Number(dureeJours);

@@ -72,9 +72,23 @@ const n = (v: number | null | undefined): number => {
   return Number.isFinite(x) ? x : 0;
 };
 
-/** Somme des 14 lignes de charges (CDC §3.1 « Charges Totales »). */
+/**
+ * Charges totales (CDC §3.1) avec effectifs :
+ *  - Salaire Agents Terrain est un salaire UNITAIRE → × Nombre d'agents terrain.
+ *  - Les autres lignes (superviseurs, contrôleurs, responsables, loyer, carburant…)
+ *    sont des montants globaux « par agence ».
+ *  - L'ensemble est répliqué × Nombre d'agences.
+ *  charges = (salaireAgents × nbAgents + autres) × nbAgences
+ */
 export function calculerChargesTotales(p: ParametresPOPC): number {
-  return Number(CHARGES_KEYS.reduce((s, k) => s + n(p[k] as number), 0).toFixed(2));
+  const nbAgents = n(p.nombreAgentsTerrain);
+  const nbAgences = n(p.nombreAgences) > 0 ? n(p.nombreAgences) : 1;
+  const chargeAgents = n(p.salaireAgents) * nbAgents;
+  const autres = CHARGES_KEYS.reduce(
+    (s, k) => s + (k === "salaireAgents" ? 0 : n(p[k] as number)),
+    0,
+  );
+  return Number(((chargeAgents + autres) * nbAgences).toFixed(2));
 }
 
 /** ceil sécurisé : division par 0 → 0 (paramètre non saisi). */

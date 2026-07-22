@@ -57,6 +57,23 @@ export function estEcheanceRemuneration(
   return numeroEcheance === dureeJours;
 }
 
+/**
+ * Rémunération de l'entreprise sur un crédit (CDC : le « 16ème / 31ème » = UNE mise
+ * journalière supplémentaire). = valeur des produits ÷ nombre de mises principales
+ * (÷15 pour Quinzaine, ÷30 pour Trentaine). C'est le profit intégré au montant total.
+ */
+export function remunerationFormule(valeurProduits: number, f: Formule): number {
+  const mises = FORMULE_CONFIG[f].misesPrincipal;
+  if (mises <= 0) return 0;
+  return Number((Number(valeurProduits) / mises).toFixed(2));
+}
+
+/** Taux de rémunération équivalent (%) : 100 ÷ mises principales (≈6,67 % / 3,33 %). */
+export function tauxRemuneration(f: Formule): number {
+  const mises = FORMULE_CONFIG[f].misesPrincipal;
+  return mises > 0 ? Number((100 / mises).toFixed(4)) : 0;
+}
+
 /** Libellé lisible d'une formule (fallback pour les crédits historiques sans formule). */
 export function libelleFormule(f: Formule | null | undefined): string {
   if (!f) return "—";

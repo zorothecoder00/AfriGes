@@ -15,6 +15,7 @@ import FactureModal from "@/components/FactureModal";
 import { useApi } from "@/hooks/useApi";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { groupByMonth } from "@/lib/groupByMonth";
+import { remunerationFormule } from "@/lib/formuleCredit";
 import { MonthGroupHeaderRow, useCollapsedMonths } from "@/components/MonthGroupHeaderRow";
 import { CreditRappelInfo } from "@/components/CreditRappelInfo";
 import BordereauRemboursement, { type BordereauCredit, type BordereauClient } from "@/components/BordereauRemboursement";
@@ -160,7 +161,7 @@ function NouveauCreditModal({ onClose, onSuccess }: { onClose: () => void; onSuc
   const [assurance,       setAssurance]       = useState("0");
   const [autresFrais,     setAutresFrais]     = useState("0");
   const [fraisLivraison,  setFraisLivraison]  = useState("0");
-  const [tauxInteret,     setTauxInteret]     = useState("0");
+  const [tauxInteret] = useState("0"); // rémunération auto-calculée (formule) — saisie manuelle retirée
   const [delaiGraceJours, setDelaiGraceJours] = useState("0");
   const [garantNom,          setGarantNom]          = useState("");
   const [garantTelephone,    setGarantTelephone]    = useState("");
@@ -221,6 +222,8 @@ function NouveauCreditModal({ onClose, onSuccess }: { onClose: () => void; onSuc
     const rem = Number(l.remise) || 0;
     return s + Math.max(0, qte * pu - rem);
   }, 0);
+  // Rémunération (CDC : 1 mise supplémentaire) — auto selon la formule, comme le serveur.
+  const remuneration = remunerationFormule(montantTotal, formule);
 
   const handleSubmit = async () => {
     if (!clientId) return toast.error("Sélectionnez un client");
@@ -430,9 +433,13 @@ function NouveauCreditModal({ onClose, onSuccess }: { onClose: () => void; onSuc
                         className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1.5">Taux intérêt (%)</label>
-                      <input type="number" min={0} step={0.1} value={tauxInteret} onChange={(e) => setTauxInteret(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                      <label className="block text-xs font-medium text-gray-700 mb-1.5">
+                        Rémunération ({formule === "TRENTAINE" ? "31ème" : "16ème"})
+                      </label>
+                      <div className="w-full px-3 py-2 border border-emerald-100 rounded-xl text-sm bg-emerald-50 text-emerald-700 font-medium"
+                        title="1 mise supplémentaire — calculée automatiquement selon la formule (CDC)">
+                        {formatCurrency(remuneration)}
+                      </div>
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-gray-700 mb-1.5">Délai grâce (j)</label>
@@ -500,9 +507,18 @@ function NouveauCreditModal({ onClose, onSuccess }: { onClose: () => void; onSuc
                   </div>
 
                   {/* Total */}
-                  <div className="flex items-center justify-between p-3 bg-indigo-50 rounded-xl">
-                    <span className="text-sm font-semibold text-indigo-800">Montant total</span>
-                    <span className="text-lg font-bold text-indigo-900">{formatCurrency(montantTotal)}</span>
+                  <div className="p-3 bg-indigo-50 rounded-xl space-y-1">
+                    <div className="flex items-center justify-between text-sm text-indigo-700">
+                      <span>Montant produits</span><span>{formatCurrency(montantTotal)}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm text-emerald-700">
+                      <span>Rémunération ({formule === "TRENTAINE" ? "31ème" : "16ème"})</span>
+                      <span>+{formatCurrency(remuneration)}</span>
+                    </div>
+                    <div className="flex items-center justify-between pt-1 border-t border-indigo-100">
+                      <span className="text-sm font-semibold text-indigo-800">Total à rembourser</span>
+                      <span className="text-lg font-bold text-indigo-900">{formatCurrency(montantTotal + remuneration)}</span>
+                    </div>
                   </div>
 
                   {/* Actions */}

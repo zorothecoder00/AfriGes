@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getAgentTerrainSession } from "@/lib/authAgentTerrain";
 import { montantJournalierArrondi } from "@/lib/echeancierCredit";
 import { tariferLigne } from "@/lib/venteTarification";
-import { estFormuleValide, dureeJoursPourFormule } from "@/lib/formuleCredit";
+import { estFormuleValide, dureeJoursPourFormule, remunerationFormule } from "@/lib/formuleCredit";
 
 /**
  * GET /api/agentTerrain/credits
@@ -203,8 +203,12 @@ export async function POST(req: Request) {
         }
         return { ...l, qte, pu, rem, montantLigne: Number((pu * qte - rem).toFixed(2)) };
       }));
-      const montantTotal = Number(lignesCalc.reduce((s, l) => s + l.montantLigne, 0).toFixed(2));
-      if (montantTotal <= 0) throw new Error("MONTANT_INVALIDE");
+      const valeurProduits = Number(lignesCalc.reduce((s, l) => s + l.montantLigne, 0).toFixed(2));
+      if (valeurProduits <= 0) throw new Error("MONTANT_INVALIDE");
+      // Rémunération (CDC : 1 mise supplémentaire), auto-calculée depuis la formule
+      // et intégrée au montant total à rembourser.
+      const montantInteret = remunerationFormule(valeurProduits, formule);
+      const montantTotal = Number((valeurProduits + montantInteret).toFixed(2));
 
       const duree             = Number(dureeJours);
       const debut             = new Date(dateDebut);
@@ -232,6 +236,8 @@ export async function POST(req: Request) {
           dateDebut:      debut,
           dateEcheanceFin,
           montantJournalier,
+          montantInteret,
+          tauxInteret:    valeurProduits > 0 ? Number((montantInteret / valeurProduits * 100).toFixed(4)) : 0,
           tauxPenalite:   0,
           garantie:       garantie || null,
           observations:   observations || null,

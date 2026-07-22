@@ -31,10 +31,6 @@ interface CollecteLigne {
   date: string; nbSeiziemes: number; valeur16: number; realises16: number;
   nbTrentiemes: number; valeur31: number; realises31: number;
 }
-interface SalairesPaieMeta {
-  salaireAgents: number; salaireSuperviseurs: number; salaireResponsables: number;
-  source: "aucune" | "mois" | "fallback"; anneeSource: number | null; moisSource: number | null;
-}
 interface CollecteDetail {
   creditId: number; date: string; type: "16ème" | "31ème"; montant: number; paye: boolean;
   agentId: number | null; agent: string | null; pointDeVenteId: number | null; agence: string | null;
@@ -77,12 +73,6 @@ const COMMERCIAUX: { key: keyof FormState; label: string; suffix?: string }[] = 
 // sens métier pour eux) ; les dénombrements non plus.
 const TAUX_KEYS = new Set<keyof FormState>(["objectifBenefice"]);
 
-// §3.1 : lignes de salaire alimentées automatiquement par le module Paie (lecture
-// seule). Salaire Contrôleurs reste en saisie manuelle.
-const PAIE_KEYS = new Set<keyof FormState>([
-  "salaireAgents", "salaireSuperviseurs", "salaireResponsables",
-]);
-
 const HYPOTHESES: { key: keyof FormState; label: string; suffix?: string }[] = [
   { key: "partRevenu16", label: "Part du revenu via 16èmes", suffix: "%" },
   { key: "partRevenu31", label: "Part du revenu via 31èmes", suffix: "%" },
@@ -124,8 +114,7 @@ export default function POPCPage() {
   const [form, setForm] = useState<FormState>(DEFAUTS);
 
   const url = `/api/popc/parametrage?annee=${annee}&mois=${mois}`;
-  const { data: paramResp, refetch } = useApi<{ data: Parametrage | null; meta?: { salairesPaie?: SalairesPaieMeta } }>(url);
-  const salairesPaie = paramResp?.meta?.salairesPaie ?? null;
+  const { data: paramResp, refetch } = useApi<{ data: Parametrage | null }>(url);
   const { data: collectes } = useApi<CollectesResp>(`/api/popc/collectes?annee=${annee}&mois=${mois}`);
 
   const param = paramResp?.data ?? null;
@@ -144,23 +133,26 @@ export default function POPCPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [param?.id, annee, mois]);
 
-  // Les 3 lignes de salaire câblées sont toujours pilotées par la Paie (lecture
-  // seule) — on écrase le formulaire dès que la source Paie change.
-  useEffect(() => {
-    if (!salairesPaie) return;
-    setForm((f) => ({
-      ...f,
-      salaireAgents: String(salairesPaie.salaireAgents),
-      salaireSuperviseurs: String(salairesPaie.salaireSuperviseurs),
-      salaireResponsables: String(salairesPaie.salaireResponsables),
-    }));
-  }, [salairesPaie?.salaireAgents, salairesPaie?.salaireSuperviseurs, salairesPaie?.salaireResponsables]);
-
-  const chargesTotales = useMemo(
-    () => CHARGES.reduce((s, c) => s + (Number(form[c.key]) || 0), 0),
+  // Charges avec effectifs (CDC §3.1) : « Salaire Agents Terrain » est un salaire
+  // UNITAIRE → × Nombre d'agents. Les autres lignes sont globales. L'ensemble est
+  // répliqué × Nombre d'agences.  charges = (salaireAgents×nbAgents + autres) × nbAgences
+  const nbAgents = Math.max(0, Number(form.nombreAgentsTerrain) || 0);
+  const nbAgences = Math.max(1, Number(form.nombreAgences) || 1);
+  const chargeLigne = (k: keyof FormState) =>
+    k === "salaireAgents" ? (Number(form.salaireAgents) || 0) * nbAgents : (Number(form[k]) || 0);
+  const chargesParAgence = useMemo(
+    () => CHARGES.reduce((s, c) => s + (c.key === "salaireAgents"
+      ? (Number(form.salaireAgents) || 0) * (Number(form.nombreAgentsTerrain) || 0)
+      : (Number(form[c.key]) || 0)), 0),
     [form],
   );
+  const chargesTotales = chargesParAgence * nbAgences;
   const sommeParts = Number(form.partRevenu16) + Number(form.partRevenu31) + Number(form.partRevenuCarnet);
+
+  // Taux d'une ligne de charge = sa part dans le total (le nb d'agences se simplifie
+  // dans le ratio → on raisonne sur le total « par agence »).
+  const tauxCharge = (k: keyof FormState) =>
+    chargesParAgence > 0 ? (chargeLigne(k) / chargesParAgence) * 100 : 0;
 
   // Conversion Valeur ⇄ Taux (§3.2). Base = Charges Totales. La valeur reste la
   // donnée persistée ; le taux n'est qu'une aide à la saisie / un affichage.
@@ -249,40 +241,43 @@ export default function POPCPage() {
               </thead>
               <tbody>
                 {CHARGES.map((c) => {
-                  const auto = PAIE_KEYS.has(c.key);
+                  const estAgent = c.key === "salaireAgents";
                   return (
                     <tr key={c.key} className="border-t border-gray-50">
                       <td className="py-1.5 text-gray-600">
                         {c.label}
-                        {auto && <span className="ml-1.5 text-[10px] font-medium text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">Paie</span>}
+                        {estAgent && (
+                          <span className="ml-1.5 text-[10px] text-indigo-500">× {nbAgents} agent{nbAgents > 1 ? "s" : ""}</span>
+                        )}
                       </td>
                       <td className="py-1.5">
                         <input type="number" min={0} value={form[c.key]}
                           onChange={(e) => setField(c.key, e.target.value)}
-                          disabled={auto} readOnly={auto}
-                          title={auto ? "Alimenté automatiquement par le module Paie (lecture seule)" : undefined}
-                          className={`w-full px-2 py-1.5 border rounded-lg text-sm text-right tabular-nums focus:outline-none focus:ring-2 focus:ring-indigo-400 ${
-                            auto ? "border-gray-100 bg-gray-50 text-gray-500 cursor-not-allowed" : "border-gray-200"
-                          }`} />
+                          title={estAgent ? "Salaire d'UN agent — multiplié par le nombre d'agents" : undefined}
+                          className="w-full px-2 py-1.5 border border-gray-200 rounded-lg text-sm text-right tabular-nums focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+                        {estAgent && nbAgents !== 1 && (
+                          <p className="text-[10px] text-gray-400 text-right mt-0.5">= {fmt(chargeLigne("salaireAgents"))} pour {nbAgents} agents</p>
+                        )}
                       </td>
-                      <td className="py-1.5 text-right text-gray-400 tabular-nums">{fmtTaux(tauxDe(c.key))}%</td>
+                      <td className="py-1.5 text-right text-gray-400 tabular-nums">{fmtTaux(tauxCharge(c.key))}%</td>
                     </tr>
                   );
                 })}
               </tbody>
             </table>
-            {salairesPaie && (
-              <p className="mt-2 text-xs text-gray-400">
-                {salairesPaie.source === "aucune"
-                  ? "Aucune fiche de paie disponible — salaires câblés à 0. (Salaire Contrôleurs = saisie manuelle.)"
-                  : salairesPaie.source === "fallback"
-                    ? `Salaires (brut) issus de la Paie de ${MOIS[(salairesPaie.moisSource ?? 1) - 1]} ${salairesPaie.anneeSource} — dernier mois disponible. Salaire Contrôleurs = saisie manuelle.`
-                    : "Salaires (brut) issus de la Paie du mois. Salaire Contrôleurs = saisie manuelle."}
-              </p>
-            )}
-            <div className="mt-4 flex items-center justify-between px-4 py-3 bg-indigo-50 rounded-xl">
-              <span className="text-sm font-medium text-indigo-900">Charges totales</span>
-              <span className="text-lg font-bold text-indigo-700">{fmt(chargesTotales)} FCFA</span>
+            <div className="mt-4 space-y-2">
+              {nbAgences > 1 && (
+                <div className="flex items-center justify-between px-4 py-2 bg-gray-50 rounded-xl text-sm">
+                  <span className="text-gray-500">Charges par agence</span>
+                  <span className="font-medium text-gray-700">{fmt(chargesParAgence)} FCFA</span>
+                </div>
+              )}
+              <div className="flex items-center justify-between px-4 py-3 bg-indigo-50 rounded-xl">
+                <span className="text-sm font-medium text-indigo-900">
+                  Charges totales{nbAgences > 1 ? ` (× ${nbAgences} agences)` : ""}
+                </span>
+                <span className="text-lg font-bold text-indigo-700">{fmt(chargesTotales)} FCFA</span>
+              </div>
             </div>
           </section>
 
