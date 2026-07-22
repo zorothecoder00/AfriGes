@@ -152,28 +152,9 @@ Revoir le dashboard financier et même les autres ( tableau de bord admin/SUPERA
 
 
 
-
-Le vrai point à vérifier : leur durée
-
-  La formule impose : Quinzaine = 16 échéances (la 16ème = rémunération), Trentaine = 31. Deux cas pour tes crédits legacy :
-
-  - Crédit legacy avec dureeJours = 16 ou 31 → il a structurellement une 16ème/31ème échéance. On peut le reclasser (backfill de formule) et il rentrera dans le comptage
-  16/31.
-  - Crédit legacy avec dureeJours = 15 ou 30 (ou autre) → il n'a pas de 16ème/31ème échéance du tout : il ne peut pas produire de rémunération, c'est une réalité de la
-  donnée, pas un bug POPC.
-
-  Ce que je te propose
-
-  1. Un diagnostic : je te donne une requête pour voir combien de crédits legacy tu as, et avec quelles durées.
-  2. Si beaucoup ont dureeJours ∈ {16, 31} → un backfill qui leur pose formule = QUINZAINE/TRENTAINE, et ils réintègrent aussitôt le comptage 16/31.
-
-  Veux-tu que je te prépare (a) la requête de diagnostic, puis (b) le script de backfill ? Dis-moi, et confirme au passage : à l'époque, tes crédits « 15 jours » étaient
-  saisis avec 15 ou 16 jours de durée ?
-
-✻ Crunched for 1m 40s
-
-❯ Prépare la requête de diagnostic et le backfill ( mais tu dois prendre en compte les données en production tu peux y accéder grâce à l'url dans .env.production  et non en   local ou je fais juste quelqules exemples)
-
+je veux quelque chose d'un peu technique maintenant . Je veux que tu créés une zone de scan qui va permettre à un agent de pouvoir tomber directement sur les objectifs    
+  qu'il doit réaliser dans la journée ( carnet qu'il doit vendre + qunizaine + trentaine)  et des clients qu'il doit visiter(ceux qui doivent cotiser) sans avoir besoin de  
+  login ( du genre je viens je scanne et je vois mon tableau d'objectif et de clients à visiter
 
 
 

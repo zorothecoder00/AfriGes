@@ -4,9 +4,10 @@ import React, { useState, useCallback } from 'react';
 import {
   UserCheck, Search, RefreshCw, Users, Wallet,
   Phone, MapPin, Calendar, AlertTriangle,
-  BarChart2, Eye, ArrowRightLeft, X, CheckCircle2,
+  BarChart2, Eye, ArrowRightLeft, X, CheckCircle2, QrCode, Printer,
 } from 'lucide-react';
 import Link from 'next/link';
+import { toast } from 'sonner';
 import { useApi } from '@/hooks/useApi';
 import { formatCurrency, formatDate } from '@/lib/format';
 import ClienteleTabBar from '@/components/ClienteleTabBar';
@@ -85,6 +86,28 @@ export default function AgentsTerrainPage() {
   const [transferError,    setTransferError]    = useState('');
   const [transferSuccess,  setTransferSuccess]  = useState('');
 
+  // QR de tournée (accès sans login)
+  const [qrAgent,   setQrAgent]   = useState<Agent | null>(null);
+  const [qrData,    setQrData]    = useState<{ url: string; qr: string } | null>(null);
+  const [qrLoading, setQrLoading] = useState(false);
+  const [qrRegen,   setQrRegen]   = useState(false);
+
+  const openQr = (agent: Agent) => {
+    setQrAgent(agent); setQrData(null); setQrLoading(true);
+    fetch(`/api/admin/agents-terrain/${agent.memberId}/scan-qr`)
+      .then(async (r) => { const j = await r.json(); if (!r.ok) throw new Error(j.error ?? 'Erreur'); setQrData(j.data); })
+      .catch((e) => toast.error(e instanceof Error ? e.message : 'Erreur'))
+      .finally(() => setQrLoading(false));
+  };
+  const regenererQr = () => {
+    if (!qrAgent || !confirm("Régénérer le QR ? L'ancien QR imprimé de cet agent ne fonctionnera plus.")) return;
+    setQrRegen(true);
+    fetch(`/api/admin/agents-terrain/${qrAgent.memberId}/scan-qr`, { method: 'POST' })
+      .then(async (r) => { const j = await r.json(); if (!r.ok) throw new Error(j.error ?? 'Erreur'); setQrData(j.data); toast.success("Nouveau QR généré — l'ancien ne marche plus"); })
+      .catch((e) => toast.error(e instanceof Error ? e.message : 'Erreur'))
+      .finally(() => setQrRegen(false));
+  };
+
   const query = new URLSearchParams({
     ...(search      && { search }),
     ...(actifFilter && { actif: actifFilter }),
@@ -143,11 +166,17 @@ export default function AgentsTerrainPage() {
             <h2 className="text-2xl font-bold text-gray-900">Supervision agents de terrain</h2>
             <p className="text-sm text-gray-500 mt-0.5">Performance, recouvrement et activité par agent</p>
           </div>
-          <button onClick={refetch}
-            className="flex items-center gap-2 px-4 py-2 text-sm text-gray-600 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 shadow-sm">
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-            Actualiser
-          </button>
+          <div className="flex items-center gap-2">
+            <Link href="/dashboard/admin/agents-terrain/qr-planche"
+              className="flex items-center gap-2 px-4 py-2 text-sm text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-sm">
+              <QrCode className="w-4 h-4" /> Imprimer tous les QR
+            </Link>
+            <button onClick={refetch}
+              className="flex items-center gap-2 px-4 py-2 text-sm text-gray-600 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 shadow-sm">
+              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+              Actualiser
+            </button>
+          </div>
         </div>
 
         {/* KPIs */}
@@ -353,6 +382,13 @@ export default function AgentsTerrainPage() {
                               <Eye className="w-3 h-3" /> Détail
                             </Link>
                             <button
+                              onClick={() => openQr(agent)}
+                              title="QR de tournée (accès sans login)"
+                              className="inline-flex items-center gap-1 text-xs text-emerald-600 hover:text-emerald-800 px-2 py-1 rounded hover:bg-emerald-50"
+                            >
+                              <QrCode className="w-3 h-3" /> QR
+                            </button>
+                            <button
                               onClick={() => openTransfer(agent)}
                               title="Transférer le portefeuille"
                               className="inline-flex items-center gap-1 text-xs text-violet-600 hover:text-violet-800 px-2 py-1 rounded hover:bg-violet-50"
@@ -370,6 +406,47 @@ export default function AgentsTerrainPage() {
           )}
         </div>
       </div>
+
+      {/* Modal QR de tournée (accès sans login) */}
+      {qrAgent && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl w-full max-w-sm shadow-xl overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+              <div>
+                <h3 className="font-bold text-gray-900 flex items-center gap-2"><QrCode className="w-5 h-5 text-emerald-600" /> QR de tournée</h3>
+                <p className="text-sm text-gray-500 mt-0.5">{qrAgent.member.prenom} {qrAgent.member.nom}</p>
+              </div>
+              <button onClick={() => setQrAgent(null)} className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"><X className="w-5 h-5" /></button>
+            </div>
+            <div className="p-6 flex flex-col items-center">
+              {qrLoading ? (
+                <div className="py-16 text-gray-400"><RefreshCw className="w-6 h-6 animate-spin" /></div>
+              ) : qrData ? (
+                <>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={qrData.qr} alt="QR de tournée" className="w-52 h-52" />
+                  <a href={qrData.url} target="_blank" rel="noopener noreferrer" className="mt-2 text-xs text-blue-600 break-all text-center hover:underline">{qrData.url}</a>
+                  <p className="text-[11px] text-gray-400 text-center mt-3">
+                    L&apos;agent scanne ce code pour voir ses objectifs du jour et ses clients à visiter, <strong>sans se connecter</strong>. Ce QR est personnel.
+                  </p>
+                </>
+              ) : (
+                <p className="text-sm text-gray-400 py-16">QR indisponible.</p>
+              )}
+            </div>
+            <div className="px-6 py-4 border-t border-gray-100 flex gap-3">
+              <button onClick={() => window.print()} disabled={!qrData}
+                className="flex-1 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center gap-2">
+                <Printer className="w-4 h-4" /> Imprimer
+              </button>
+              <button onClick={regenererQr} disabled={qrRegen || !qrData}
+                className="py-2.5 px-4 bg-white border border-gray-200 text-gray-700 rounded-xl text-sm font-medium hover:bg-gray-50 disabled:opacity-50 flex items-center justify-center gap-2">
+                <RefreshCw className={`w-4 h-4 ${qrRegen ? 'animate-spin' : ''}`} /> Régénérer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal transfert portefeuille */}
       {transferSource && (

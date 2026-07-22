@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
 import QRCode from "qrcode";
 import { getAgentTerrainSession } from "@/lib/authAgentTerrain";
-import { getOrCreateScanToken, regenerateScanToken } from "@/lib/agentScan";
+import { getOrCreateScanToken, regenerateScanToken, scanUrl } from "@/lib/agentScan";
 
 export const runtime = "nodejs";
 
 async function qrPayload(req: Request, token: string) {
-  const url = `${new URL(req.url).origin}/scan/${token}`;
+  const url = scanUrl(req, token);
   const qr = await QRCode.toDataURL(url, { width: 320, margin: 1 });
   return { url, qr };
 }

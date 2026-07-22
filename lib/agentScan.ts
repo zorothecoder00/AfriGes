@@ -11,6 +11,23 @@ function nouveauJeton(): string {
   return randomBytes(24).toString("base64url");
 }
 
+/**
+ * Base publique pour les liens de scan. Priorité à une URL configurée
+ * (NEXT_PUBLIC_APP_URL / APP_URL) — INDISPENSABLE en prod et pour tester depuis un
+ * téléphone (sinon `origin` vaut « localhost », injoignable hors du PC). Fallback :
+ * l'origine de la requête.
+ */
+export function baseUrlPourScan(req: Request): string {
+  const configuree = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL;
+  if (configuree) return configuree.replace(/\/+$/, "");
+  return new URL(req.url).origin;
+}
+
+/** URL complète du scan d'un agent. */
+export function scanUrl(req: Request, token: string): string {
+  return `${baseUrlPourScan(req)}/scan/${token}`;
+}
+
 /** Retourne le jeton de l'agent, en le générant + persistant s'il n'existe pas. */
 export async function getOrCreateScanToken(userId: number): Promise<string> {
   const u = await prisma.user.findUnique({ where: { id: userId }, select: { scanTokenTournee: true } });
