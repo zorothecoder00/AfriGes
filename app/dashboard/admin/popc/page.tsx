@@ -61,6 +61,13 @@ const COMMERCIAUX: { key: keyof FormState; label: string; suffix?: string }[] = 
   { key: "nombreAgentsTerrain", label: "Nombre d'agents terrain" },
   { key: "nombreAgences", label: "Nombre d'agences" },
 ];
+// §3.2 : paramètres pour lesquels la saisie bidirectionnelle Valeur⇄Taux a un sens
+// (montants). Le taux est exprimé en % des Charges Totales. Les paramètres de
+// dénombrement (jours, agents, agences) n'ont pas de taux.
+const TAUX_KEYS = new Set<keyof FormState>([
+  "objectifBenefice", "commissionSeizieme", "commissionTrentaine", "prixCarnet",
+]);
+
 const HYPOTHESES: { key: keyof FormState; label: string; suffix?: string }[] = [
   { key: "partRevenu16", label: "Part du revenu via 16èmes", suffix: "%" },
   { key: "partRevenu31", label: "Part du revenu via 31èmes", suffix: "%" },
@@ -127,6 +134,17 @@ export default function POPCPage() {
   );
   const sommeParts = Number(form.partRevenu16) + Number(form.partRevenu31) + Number(form.partRevenuCarnet);
 
+  // Conversion Valeur ⇄ Taux (§3.2). Base = Charges Totales. La valeur reste la
+  // donnée persistée ; le taux n'est qu'une aide à la saisie / un affichage.
+  const tauxDe = (k: keyof FormState) =>
+    chargesTotales > 0 ? ((Number(form[k]) || 0) / chargesTotales) * 100 : 0;
+  const fmtTaux = (x: number) => (Number.isFinite(x) ? String(Number(x.toFixed(2))) : "0");
+  const setViaTaux = (k: keyof FormState, tauxStr: string) => {
+    const taux = Number(tauxStr) || 0;
+    const val = chargesTotales > 0 ? (taux / 100) * chargesTotales : 0;
+    setField(k, String(Math.round(val * 100) / 100));
+  };
+
   const save = useMutation<{ data: Parametrage }, Record<string, number>>(
     "/api/popc/parametrage", "POST",
     { successMessage: "Paramétrage enregistré et objectifs générés", invalidate: "/api/popc/parametrage" },
@@ -184,16 +202,28 @@ export default function POPCPage() {
             <h2 className="text-sm font-semibold text-gray-800 mb-4 flex items-center gap-2">
               <Wallet className="w-4 h-4 text-indigo-500" /> Charges mensuelles (§3.1)
             </h2>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-              {CHARGES.map((c) => (
-                <label key={c.key} className="block">
-                  <span className="text-xs text-gray-500">{c.label}</span>
-                  <input type="number" min={0} value={form[c.key]}
-                    onChange={(e) => setField(c.key, e.target.value)}
-                    className="mt-1 w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400" />
-                </label>
-              ))}
-            </div>
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-xs text-gray-400 text-left">
+                  <th className="pb-2 font-medium">Paramètre</th>
+                  <th className="pb-2 font-medium text-right w-32">Valeur (FCFA)</th>
+                  <th className="pb-2 font-medium text-right w-24">Taux / charges</th>
+                </tr>
+              </thead>
+              <tbody>
+                {CHARGES.map((c) => (
+                  <tr key={c.key} className="border-t border-gray-50">
+                    <td className="py-1.5 text-gray-600">{c.label}</td>
+                    <td className="py-1.5">
+                      <input type="number" min={0} value={form[c.key]}
+                        onChange={(e) => setField(c.key, e.target.value)}
+                        className="w-full px-2 py-1.5 border border-gray-200 rounded-lg text-sm text-right tabular-nums focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+                    </td>
+                    <td className="py-1.5 text-right text-gray-400 tabular-nums">{fmtTaux(tauxDe(c.key))}%</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
             <div className="mt-4 flex items-center justify-between px-4 py-3 bg-indigo-50 rounded-xl">
               <span className="text-sm font-medium text-indigo-900">Charges totales</span>
               <span className="text-lg font-bold text-indigo-700">{fmt(chargesTotales)} FCFA</span>
@@ -204,16 +234,44 @@ export default function POPCPage() {
             <h2 className="text-sm font-semibold text-gray-800 mb-4 flex items-center gap-2">
               <TrendingUp className="w-4 h-4 text-indigo-500" /> Paramètres commerciaux (§3.2)
             </h2>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-              {COMMERCIAUX.map((c) => (
-                <label key={c.key} className="block">
-                  <span className="text-xs text-gray-500">{c.label}{c.suffix ? ` (${c.suffix})` : ""}</span>
-                  <input type="number" min={0} value={form[c.key]}
-                    onChange={(e) => setField(c.key, e.target.value)}
-                    className="mt-1 w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400" />
-                </label>
-              ))}
-            </div>
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-xs text-gray-400 text-left">
+                  <th className="pb-2 font-medium">Paramètre</th>
+                  <th className="pb-2 font-medium text-right w-32">Valeur</th>
+                  <th className="pb-2 font-medium text-right w-28">Taux / charges</th>
+                </tr>
+              </thead>
+              <tbody>
+                {COMMERCIAUX.map((c) => {
+                  const hasTaux = TAUX_KEYS.has(c.key);
+                  return (
+                    <tr key={c.key} className="border-t border-gray-50">
+                      <td className="py-1.5 text-gray-600">{c.label}{c.suffix ? ` (${c.suffix})` : ""}</td>
+                      <td className="py-1.5">
+                        <input type="number" min={0} value={form[c.key]}
+                          onChange={(e) => setField(c.key, e.target.value)}
+                          className="w-full px-2 py-1.5 border border-gray-200 rounded-lg text-sm text-right tabular-nums focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+                      </td>
+                      <td className="py-1.5">
+                        {hasTaux ? (
+                          <input type="number" min={0} value={fmtTaux(tauxDe(c.key))}
+                            onChange={(e) => setViaTaux(c.key, e.target.value)}
+                            disabled={chargesTotales <= 0}
+                            title="% des charges totales — la valeur se calcule automatiquement"
+                            className="w-full px-2 py-1.5 border border-gray-200 rounded-lg text-sm text-right tabular-nums focus:outline-none focus:ring-2 focus:ring-indigo-400 disabled:bg-gray-50 disabled:text-gray-300" />
+                        ) : (
+                          <span className="block text-right text-gray-300 pr-2">—</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+            <p className="mt-3 text-xs text-gray-400">
+              Saisissez la valeur <em>ou</em> le taux (% des charges totales) : l&apos;autre se calcule automatiquement.
+            </p>
           </section>
 
           <section className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">

@@ -156,6 +156,9 @@ Les modales ne sont pas vraiment adpatées pour chaque écran ( sur plusieurs é
 Vérifie si tu avais déjà traité ce prompt : Pour les dépots de compte courant , on doit pouvoir renseigner les jours comme on le fait pour les crédits clients ( jour 1, jour 2 , etc etc), l'agent qui a collecté le dépôt et la date de dépôt bien sûr tous ces champs seront optionnels et aussi Tous les utilisateurs(admin/superadmin déjà mais aussi les user par role) doivent pouvoir voir le catalogue des produits
 
 
+Lorsqu'on est va sur /dashboard/user/agentsTerrain/credits (en cliquant sur vente à crédit de la page /dashboard/user/agentsTerrain , onglet Ventes comptant  et à crédit) et sur /dashboard/user/agentsTerrain/credits/saisie-rapide , y'a aucun lien ou moyen de retourner sur le dashboard/user/agentsTerrain
+
+
 
 
    
