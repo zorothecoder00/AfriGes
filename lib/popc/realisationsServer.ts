@@ -6,6 +6,7 @@
 // Serveur uniquement (accès Prisma). Les objectifs viennent d'ObjectifPOPC.
 
 import { prisma } from "@/lib/prisma";
+import { chargesReellesComptables } from "@/lib/popc/comptabiliteServer";
 
 const CONFIRME = "CONFIRME";
 
@@ -177,6 +178,23 @@ export async function calculerConsolidationDirection(annee: number, mois: number
   const beneficeEstime = Number((revenusEncaisses - chargesTotales).toFixed(2));
   const objectifAtteint = revenuMinimum > 0 && revenusEncaisses >= revenuMinimum;
 
+  // §15.1 — Comparaison charges budget/réel. La compta n'étant pas ventilée par
+  // PDV, la comparaison n'est fournie qu'au niveau global (pdv=0).
+  let comparaisonChargesDisponible = false;
+  let chargesReelles = 0;
+  let ecartCharges = 0;
+  let tauxConsommationCharges = 0;
+  let chargesParCompte: { numero: string; libelle: string; montant: number }[] = [];
+  if (!pdv) {
+    const cr = await chargesReellesComptables(annee, mois);
+    comparaisonChargesDisponible = true;
+    chargesReelles = cr.reel;
+    chargesParCompte = cr.parCompte;
+    ecartCharges = Number((chargesReelles - chargesTotales).toFixed(2));
+    tauxConsommationCharges = chargesTotales > 0
+      ? Number(((chargesReelles / chargesTotales) * 100).toFixed(1)) : 0;
+  }
+
   return {
     annee, mois, pointDeVenteId: pdv, objectifsGeneres: !!o,
     chargesTotales, revenuMinimum,
@@ -189,6 +207,8 @@ export async function calculerConsolidationDirection(annee: number, mois: number
     revenusAttendus, revenusEncaisses,
     carnetsVendus: r.carnetsVendus,
     objectifAtteint,
+    // §15.1 — budget vs réel (charges comptables), global uniquement.
+    comparaisonChargesDisponible, chargesReelles, ecartCharges, tauxConsommationCharges, chargesParCompte,
   };
 }
 

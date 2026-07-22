@@ -86,7 +86,7 @@ export default function RapportsPage() {
         <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
           <FileText className="w-6 h-6 text-indigo-600" /> Rapports
         </h1>
-        <p className="text-sm text-gray-500 mt-1">Génération automatique, export PDF et Excel (§13)</p>
+        <p className="text-sm text-gray-500 mt-1">Génération automatique, export PDF et Excel</p>
       </div>
 
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-5">

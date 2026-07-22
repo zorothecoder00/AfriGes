@@ -16,6 +16,10 @@ interface DirectionData {
   seiziemesAttendus: number; trentiemesAttendus: number;
   revenusAttendus: number; revenusEncaisses: number;
   carnetsVendus: number; objectifAtteint: boolean;
+  // §15.1 — comparaison charges budget/réel (global uniquement)
+  comparaisonChargesDisponible: boolean; chargesReelles: number; ecartCharges: number;
+  tauxConsommationCharges: number;
+  chargesParCompte: { numero: string; libelle: string; montant: number }[];
 }
 
 const fmt = (v: number) => new Intl.NumberFormat("fr-FR").format(Math.round(v));
@@ -40,7 +44,7 @@ export default function DirectionPage() {
           <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
             <LayoutDashboard className="w-6 h-6 text-indigo-600" /> Pilotage de la Direction
           </h1>
-          <p className="text-sm text-gray-500 mt-1">Tableau de bord consolidé — {MOIS[mois - 1]} {annee} (§11)</p>
+          <p className="text-sm text-gray-500 mt-1">Tableau de bord consolidé — {MOIS[mois - 1]} {annee}</p>
         </div>
         <div className="flex items-center gap-2">
           <select value={mois} onChange={(e) => setMois(Number(e.target.value))}
@@ -96,8 +100,64 @@ export default function DirectionPage() {
         <Kpi icon={<BookOpen className="w-4 h-4" />} label="Carnets vendus" value={fmt(d?.carnetsVendus ?? 0)} />
       </div>
 
+      {/* §15.1 — Charges budget vs réel (Comptabilité), global uniquement */}
+      {d?.comparaisonChargesDisponible && (
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+          <h3 className="text-sm font-semibold text-gray-800 mb-1 flex items-center gap-2">
+            <Wallet className="w-4 h-4 text-indigo-500" /> Charges : budget vs réel (Comptabilité)
+          </h3>
+          <p className="text-xs text-gray-400 mb-4">Charges réelles = comptes de type CHARGES du mois (grand livre), sans ressaisie.</p>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+            <Kpi icon={<Target className="w-4 h-4" />} label="Charges budgétées" value={`${fmt(d.chargesTotales)} F`} />
+            <Kpi icon={<BookOpen className="w-4 h-4" />} label="Charges réelles" value={`${fmt(d.chargesReelles)} F`} highlight />
+            <div className={`rounded-2xl p-4 border shadow-sm ${d.ecartCharges > 0 ? "bg-red-50 border-red-100" : "bg-emerald-50 border-emerald-100"}`}>
+              <div className="flex items-center gap-1.5 text-gray-400 text-xs">
+                {d.ecartCharges > 0 ? <AlertTriangle className="w-4 h-4" /> : <CheckCircle2 className="w-4 h-4" />} Écart
+              </div>
+              <div className={`text-lg font-bold mt-1 ${d.ecartCharges > 0 ? "text-red-600" : "text-emerald-600"}`}>
+                {d.ecartCharges > 0 ? "+" : ""}{fmt(d.ecartCharges)} F
+              </div>
+            </div>
+            <Kpi icon={<TrendingUp className="w-4 h-4" />} label="Consommation" value={`${d.tauxConsommationCharges}%`} />
+          </div>
+          <div className="h-2.5 bg-gray-100 rounded-full overflow-hidden mb-1">
+            <div className={`h-full rounded-full ${d.tauxConsommationCharges > 100 ? "bg-red-500" : "bg-emerald-500"}`}
+              style={{ width: `${Math.min(100, d.tauxConsommationCharges)}%` }} />
+          </div>
+          <p className="text-xs text-gray-400 mb-4">
+            {d.ecartCharges > 0
+              ? `Dépassement de ${fmt(d.ecartCharges)} FCFA sur le budget de charges.`
+              : `Charges réelles sous le budget de ${fmt(Math.abs(d.ecartCharges))} FCFA.`}
+          </p>
+          {d.chargesParCompte.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead className="text-gray-400 text-left">
+                  <tr>
+                    <th className="py-1 font-medium">Compte</th>
+                    <th className="py-1 font-medium">Libellé</th>
+                    <th className="py-1 font-medium text-right">Montant réel</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {d.chargesParCompte.slice(0, 8).map((c) => (
+                    <tr key={c.numero} className="border-t border-gray-50">
+                      <td className="py-1.5 font-mono text-gray-500">{c.numero}</td>
+                      <td className="py-1.5 text-gray-700">{c.libelle}</td>
+                      <td className="py-1.5 text-right text-gray-800 tabular-nums">{fmt(c.montant)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="text-xs text-gray-400">Aucune charge comptabilisée ce mois (aucune écriture sur un compte de charges).</p>
+          )}
+        </div>
+      )}
+
       <p className="text-xs text-gray-400">
-        Consolidation alimentée automatiquement par les modules Crédit et Collecte (remboursements confirmés), sans ressaisie.
+        Consolidation alimentée automatiquement par les modules Crédit, Collecte et Comptabilité, sans ressaisie.
       </p>
     </div>
   );

@@ -48,7 +48,7 @@ export default function AlertesPage() {
           <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
             <Bell className="w-6 h-6 text-indigo-600" /> Alertes automatiques
           </h1>
-          <p className="text-sm text-gray-500 mt-1">Risques détectés — {MOIS[mois - 1]} {annee} (§12)</p>
+          <p className="text-sm text-gray-500 mt-1">Risques détectés — {MOIS[mois - 1]} {annee}</p>
         </div>
         <div className="flex items-center gap-2">
           <select value={mois} onChange={(e) => setMois(Number(e.target.value))}

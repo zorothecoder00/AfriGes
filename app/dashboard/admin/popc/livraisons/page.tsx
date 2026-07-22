@@ -44,7 +44,7 @@ export default function LivraisonsPage() {
             <PackagePlus className="w-6 h-6 text-indigo-600" /> Planification des crédits à livrer
           </h1>
           <p className="text-sm text-gray-500 mt-1">
-            Nombre minimum de <strong>nouveaux crédits</strong> à accorder pour atteindre les objectifs — {MOIS[mois - 1]} {annee} (§7)
+            Nombre minimum de <strong>nouveaux crédits</strong> à accorder pour atteindre les objectifs — {MOIS[mois - 1]} {annee}
           </p>
         </div>
         <div className="flex items-center gap-2">

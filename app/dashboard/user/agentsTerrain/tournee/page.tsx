@@ -49,7 +49,7 @@ export default function TourneePage() {
             <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
               <Navigation className="w-6 h-6 text-indigo-600" /> Ma tournée du jour
             </h1>
-            <p className="text-sm text-slate-500 mt-0.5">Clients à visiter, triés par priorité (§10)</p>
+            <p className="text-sm text-slate-500 mt-0.5">Clients à visiter, triés par priorité</p>
           </div>
           <input type="date" value={date} onChange={(e) => setDate(e.target.value)}
             className="px-3 py-2 border border-slate-200 rounded-xl text-sm bg-white" />

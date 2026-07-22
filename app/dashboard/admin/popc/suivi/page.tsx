@@ -34,7 +34,7 @@ export default function SuiviJournalierPage() {
           <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
             <CalendarCheck className="w-6 h-6 text-indigo-600" /> Suivi journalier
           </h1>
-          <p className="text-sm text-gray-500 mt-1">Objectif vs réalisé — mis à jour en temps réel (§8)</p>
+          <p className="text-sm text-gray-500 mt-1">Objectif vs réalisé — mis à jour en temps réel</p>
         </div>
         <input type="date" value={date} onChange={(e) => setDate(e.target.value)}
           className="px-3 py-2 border border-gray-200 rounded-xl text-sm bg-white" />

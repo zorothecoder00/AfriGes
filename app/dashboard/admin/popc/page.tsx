@@ -237,7 +237,7 @@ export default function POPCPage() {
         <div className="lg:col-span-2 space-y-6">
           <section className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
             <h2 className="text-sm font-semibold text-gray-800 mb-4 flex items-center gap-2">
-              <Wallet className="w-4 h-4 text-indigo-500" /> Charges mensuelles (§3.1)
+              <Wallet className="w-4 h-4 text-indigo-500" /> Charges mensuelles
             </h2>
             <table className="w-full text-sm">
               <thead>
@@ -288,7 +288,7 @@ export default function POPCPage() {
 
           <section className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
             <h2 className="text-sm font-semibold text-gray-800 mb-4 flex items-center gap-2">
-              <TrendingUp className="w-4 h-4 text-indigo-500" /> Paramètres commerciaux (§3.2)
+              <TrendingUp className="w-4 h-4 text-indigo-500" /> Paramètres commerciaux
             </h2>
             <table className="w-full text-sm">
               <thead>
@@ -370,7 +370,7 @@ export default function POPCPage() {
         <div className="space-y-6">
           <section className="bg-gradient-to-br from-indigo-600 to-indigo-800 rounded-2xl p-5 text-white shadow-sm">
             <h2 className="text-sm font-semibold mb-1 flex items-center gap-2">
-              <Target className="w-4 h-4" /> Objectifs générés (§4)
+              <Target className="w-4 h-4" /> Objectifs générés
             </h2>
             <p className="text-indigo-200 text-xs mb-4">
               {statut === "VALIDE" && objectif ? "Valeurs figées ce mois — l'aperçu suit vos modifications en direct."
@@ -396,7 +396,7 @@ export default function POPCPage() {
           {/* Aperçu collectes prévisionnelles (§6) */}
           <section className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
             <h2 className="text-sm font-semibold text-gray-800 mb-4 flex items-center gap-2">
-              <CalendarDays className="w-4 h-4 text-indigo-500" /> Collectes 16/31 du mois (§6)
+              <CalendarDays className="w-4 h-4 text-indigo-500" /> Collectes 16/31 du mois
             </h2>
             {collectes && collectes.data.length > 0 ? (
               <>
