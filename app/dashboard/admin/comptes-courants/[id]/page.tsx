@@ -9,7 +9,7 @@ import {
   Wallet, ArrowLeft, Loader2, TrendingUp, TrendingDown, ShoppingCart,
   Activity, Clock, MapPin, Phone, User, Users, UserPlus, Trash2, Search, Hash, Plus, X, Printer, ArrowDownCircle, CreditCard, ShieldAlert,
   FileText, FileCheck, BookOpen, Target, Calendar, PiggyBank, Ban, Repeat, Power,
-  Award, Gift, Star, Sparkles, Lock, Unlock, Building2,
+  Award, Gift, Star, Sparkles, Lock, Unlock, Building2, Pencil,
 } from "lucide-react";
 import { useApi } from "@/hooks/useApi";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -98,6 +98,8 @@ export default function CompteCourantDetailPage() {
   const canDeposit = role === "ADMIN" || role === "SUPER_ADMIN" || gest === "CHEF_AGENCE" || gest === "CAISSIER";
   // Capacité VALIDATE (CDC §17) : gestion du statut du compte (blocage/clôture/réactivation).
   const canManageStatus = role === "ADMIN" || role === "SUPER_ADMIN" || gest === "CHEF_AGENCE" || gest === "RESPONSABLE_ECONOMIQUE";
+  // Édition/correction des données (compte + mouvements) : réservée à l'admin.
+  const isAdmin = role === "ADMIN" || role === "SUPER_ADMIN";
   // RBAC granulaire : les documents (relevé/attestation/carnet) sont un EXPORT.
   const { can } = usePermissions();
   const canExport = can("compte_courant", "EXPORT");
@@ -161,6 +163,25 @@ export default function CompteCourantDetailPage() {
   const [releveOpen, setReleveOpen] = useState(false);
   const [releveFrom, setReleveFrom] = useState("");
   const [releveTo, setReleveTo] = useState("");
+
+  // ── Édition admin : informations du compte ──
+  const [editCompteOpen, setEditCompteOpen] = useState(false);
+  const [ecLibelle, setEcLibelle] = useState("");
+  const [ecAgence, setEcAgence] = useState("");
+  const [ecGuichet, setEcGuichet] = useState("");
+  const [ecType, setEcType] = useState("INDIVIDUEL");
+  const [ecSaving, setEcSaving] = useState(false);
+
+  // ── Édition admin : correction d'un mouvement ──
+  const [editMvt, setEditMvt] = useState<Mouvement | null>(null);
+  const [emObservation, setEmObservation] = useState("");
+  const [emMode, setEmMode] = useState("");
+  const [emAgence, setEmAgence] = useState("");
+  const [emNumeroJour, setEmNumeroJour] = useState("");
+  const [emDate, setEmDate] = useState("");
+  const [emMontant, setEmMontant] = useState("");
+  const [emSaving, setEmSaving] = useState(false);
+  const emMontantEditable = editMvt ? (editMvt.nature === "DEPOT" || editMvt.nature === "RETRAIT") : false;
 
   const recuUrl = (mid: number) => `/api/comptes-courants/${params.id}/mouvements/${mid}/recu`;
 
@@ -287,6 +308,63 @@ export default function CompteCourantDetailPage() {
     setReleveOpen(false);
   };
 
+  const openEditCompte = () => {
+    if (!c) return;
+    setEcLibelle(c.libelle ?? "");
+    setEcAgence(c.codeAgence);
+    setEcGuichet(c.codeGuichet);
+    setEcType(c.typeCompte);
+    setEditCompteOpen(true);
+  };
+
+  const submitEditCompte = async () => {
+    setEcSaving(true);
+    try {
+      const r = await fetch(`/api/comptes-courants/${params.id}`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ libelle: ecLibelle, codeAgence: ecAgence, codeGuichet: ecGuichet, typeCompte: ecType }),
+      });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error ?? "Erreur");
+      toast.success("Compte mis à jour ✓");
+      setEditCompteOpen(false); refetch();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erreur");
+    } finally { setEcSaving(false); }
+  };
+
+  const openEditMvt = (m: Mouvement) => {
+    setEmObservation(m.observation ?? "");
+    setEmMode(m.modePaiement ?? "");
+    setEmAgence(m.agence ?? "");
+    setEmNumeroJour(m.numeroJour != null ? String(m.numeroJour) : "");
+    setEmDate(m.dateOperation ? m.dateOperation.slice(0, 10) : "");
+    setEmMontant(String(Math.abs(N(m.montant))));
+    setEditMvt(m);
+  };
+
+  const submitEditMvt = async () => {
+    if (!editMvt) return;
+    setEmSaving(true);
+    try {
+      const body: Record<string, unknown> = {
+        observation: emObservation, modePaiement: emMode || null, agence: emAgence || null,
+        numeroJour: emNumeroJour || null, dateOperation: emDate || null,
+      };
+      if (emMontantEditable && emMontant) body.montant = Number(emMontant);
+      const r = await fetch(`/api/comptes-courants/${params.id}/mouvements/${editMvt.id}`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error ?? "Erreur");
+      toast.success("Mouvement corrigé ✓");
+      setEditMvt(null); refetch(); refetchMvt();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erreur");
+    } finally { setEmSaving(false); }
+  };
+
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -390,7 +468,15 @@ export default function CompteCourantDetailPage() {
                 </div>
               </div>
               <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
-                <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2"><Wallet className="w-4 h-4 text-gray-400" /> Informations compte</h3>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-bold text-gray-800 flex items-center gap-2"><Wallet className="w-4 h-4 text-gray-400" /> Informations compte</h3>
+                  {isAdmin && (
+                    <button onClick={openEditCompte}
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-slate-600 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg">
+                      <Pencil className="w-3.5 h-3.5" /> Modifier
+                    </button>
+                  )}
+                </div>
                 <div className="space-y-2.5 text-sm">
                   <Row icon={<Hash className="w-4 h-4" />} label="N° de compte" value={c.numeroCompte} mono />
                   <Row icon={<Hash className="w-4 h-4" />} label="RIB complet" value={c.ribComplet} mono />
@@ -560,10 +646,18 @@ export default function CompteCourantDetailPage() {
                             <td className="px-5 py-3 font-mono text-[11px] text-gray-500">{m.reference}</td>
                             <td className="px-5 py-3 text-[11px] text-gray-500 max-w-[200px] truncate" title={m.observation ?? ""}>{m.observation ?? "—"}</td>
                             <td className="px-5 py-3 text-right">
-                              <a href={recuUrl(m.id)} target="_blank" rel="noopener noreferrer" title="Reçu PDF"
-                                className="inline-flex items-center gap-1 text-xs text-gray-400 hover:text-emerald-600">
-                                <Printer className="w-3.5 h-3.5" /> Reçu
-                              </a>
+                              <div className="flex items-center justify-end gap-2">
+                                {isAdmin && !annule && (
+                                  <button onClick={() => openEditMvt(m)} title="Corriger ce mouvement"
+                                    className="inline-flex items-center gap-1 text-xs text-gray-400 hover:text-indigo-600">
+                                    <Pencil className="w-3.5 h-3.5" /> Corriger
+                                  </button>
+                                )}
+                                <a href={recuUrl(m.id)} target="_blank" rel="noopener noreferrer" title="Reçu PDF"
+                                  className="inline-flex items-center gap-1 text-xs text-gray-400 hover:text-emerald-600">
+                                  <Printer className="w-3.5 h-3.5" /> Reçu
+                                </a>
+                              </div>
                             </td>
                           </tr>
                         );
@@ -853,6 +947,119 @@ export default function CompteCourantDetailPage() {
               <button onClick={openReleve}
                 className="inline-flex items-center gap-2 px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-semibold">
                 <FileText className="w-4 h-4" /> Générer le PDF
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal édition des informations du compte (admin) */}
+      {editCompteOpen && c && (
+        <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+              <h3 className="font-bold text-slate-800 flex items-center gap-2"><Pencil className="w-4 h-4 text-slate-600" /> Modifier le compte</h3>
+              <button onClick={() => setEditCompteOpen(false)} className="p-1.5 hover:bg-slate-100 rounded-lg"><X className="w-4 h-4 text-slate-500" /></button>
+            </div>
+            <div className="p-6 space-y-4">
+              <p className="text-xs text-gray-500">Compte {c.numeroCompte} · le solde et les totaux ne sont pas modifiables (dérivés des mouvements).</p>
+              <label className="block">
+                <span className="text-xs font-semibold text-slate-500">Libellé {c.typeCompte !== "INDIVIDUEL" ? "(nom du ménage / communauté)" : "(optionnel)"}</span>
+                <input value={ecLibelle} onChange={(e) => setEcLibelle(e.target.value)}
+                  className="mt-1 w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-400" />
+              </label>
+              <div className="grid grid-cols-2 gap-3">
+                <label className="block">
+                  <span className="text-xs font-semibold text-slate-500">Code agence</span>
+                  <input value={ecAgence} onChange={(e) => setEcAgence(e.target.value)}
+                    className="mt-1 w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-400" />
+                </label>
+                <label className="block">
+                  <span className="text-xs font-semibold text-slate-500">Code guichet</span>
+                  <input value={ecGuichet} onChange={(e) => setEcGuichet(e.target.value)}
+                    className="mt-1 w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-400" />
+                </label>
+              </div>
+              <label className="block">
+                <span className="text-xs font-semibold text-slate-500">Type de compte</span>
+                <select value={ecType} onChange={(e) => setEcType(e.target.value)}
+                  className="mt-1 w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-400">
+                  {Object.keys(TYPE_COMPTE_LABEL).map((t) => <option key={t} value={t}>{TYPE_COMPTE_LABEL[t]}</option>)}
+                </select>
+              </label>
+              <p className="text-[11px] text-gray-400">Modifier les codes agence/guichet régénère le RIB complet.</p>
+            </div>
+            <div className="flex justify-end gap-2 px-6 py-4 border-t border-slate-100">
+              <button onClick={() => setEditCompteOpen(false)} className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 rounded-xl">Annuler</button>
+              <button onClick={submitEditCompte} disabled={ecSaving}
+                className="inline-flex items-center gap-2 px-5 py-2 bg-slate-800 hover:bg-slate-900 disabled:opacity-50 text-white rounded-xl text-sm font-semibold">
+                {ecSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Pencil className="w-4 h-4" />} Enregistrer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal correction d'un mouvement (admin) */}
+      {editMvt && c && (
+        <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+              <h3 className="font-bold text-slate-800 flex items-center gap-2"><Pencil className="w-4 h-4 text-indigo-600" /> Corriger le mouvement</h3>
+              <button onClick={() => setEditMvt(null)} className="p-1.5 hover:bg-slate-100 rounded-lg"><X className="w-4 h-4 text-slate-500" /></button>
+            </div>
+            <div className="p-6 space-y-4">
+              <p className="text-xs text-gray-500">{NATURE_LABEL[editMvt.nature] ?? editMvt.nature} · {editMvt.reference}</p>
+              {emMontantEditable ? (
+                <label className="block">
+                  <span className="text-xs font-semibold text-slate-500">Montant (FCFA)</span>
+                  <input type="number" min={0} value={emMontant} onChange={(e) => setEmMontant(e.target.value)}
+                    className="mt-1 w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                  <span className="text-[11px] text-amber-600 mt-1 block">Corriger le montant recalcule le solde du compte et tout l&apos;historique postérieur.</span>
+                </label>
+              ) : (
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-[11px] text-slate-500">
+                  Montant : <b>{formatCurrency(Math.abs(N(editMvt.montant)))}</b> — non modifiable pour ce type. Pour corriger le montant d&apos;un paiement crédit, annulez-le puis re-saisissez-le.
+                </div>
+              )}
+              <label className="block">
+                <span className="text-xs font-semibold text-slate-500">Observation</span>
+                <input value={emObservation} onChange={(e) => setEmObservation(e.target.value)}
+                  className="mt-1 w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+              </label>
+              <div className="grid grid-cols-2 gap-3">
+                <label className="block">
+                  <span className="text-xs font-semibold text-slate-500">Mode de paiement</span>
+                  <select value={emMode} onChange={(e) => setEmMode(e.target.value)}
+                    className="mt-1 w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    <option value="">— Aucun —</option>
+                    {MODES.map((mm) => <option key={mm} value={mm}>{mm}</option>)}
+                  </select>
+                </label>
+                <label className="block">
+                  <span className="text-xs font-semibold text-slate-500">Agence</span>
+                  <input value={emAgence} onChange={(e) => setEmAgence(e.target.value)}
+                    className="mt-1 w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                </label>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <label className="block">
+                  <span className="text-xs font-semibold text-slate-500">N° de jour</span>
+                  <input type="number" min={1} value={emNumeroJour} onChange={(e) => setEmNumeroJour(e.target.value)}
+                    className="mt-1 w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                </label>
+                <label className="block">
+                  <span className="text-xs font-semibold text-slate-500">Date d&apos;opération</span>
+                  <input type="date" value={emDate} onChange={(e) => setEmDate(e.target.value)}
+                    className="mt-1 w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                </label>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 px-6 py-4 border-t border-slate-100">
+              <button onClick={() => setEditMvt(null)} className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 rounded-xl">Annuler</button>
+              <button onClick={submitEditMvt} disabled={emSaving}
+                className="inline-flex items-center gap-2 px-5 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-xl text-sm font-semibold">
+                {emSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Pencil className="w-4 h-4" />} Enregistrer
               </button>
             </div>
           </div>
