@@ -7,7 +7,7 @@ import {
   Banknote, Calendar, LucideIcon, Layers, Plus,
   Loader2, Truck, Package, ShoppingCart, X, Send, XCircle,
   ClipboardList, CreditCard, Navigation, PlayCircle, ChevronDown, ChevronUp,
-  Wallet, TrendingDown, UserPlus, Receipt, FileText, Pencil, Target,
+  Wallet, TrendingDown, UserPlus, Receipt, FileText, Pencil, Target, QrCode,
 } from "lucide-react";
 import Link from "next/link";      
 import NotificationBell from "@/components/NotificationBell";
@@ -1806,6 +1806,12 @@ export default function AgentTerrainPage() {
               className="px-4 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl text-sm font-semibold hover:bg-slate-50 transition-colors flex items-center gap-2 shadow-sm"
             >
               <Target size={16} /> Mes objectifs
+            </Link>
+            <Link
+              href="/dashboard/user/agentsTerrain/mon-qr"
+              className="px-4 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl text-sm font-semibold hover:bg-slate-50 transition-colors flex items-center gap-2 shadow-sm"
+            >
+              <QrCode size={16} /> Mon QR
             </Link>
             <Link
               href="/dashboard/user/agentsTerrain/credits"

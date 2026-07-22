@@ -625,6 +625,10 @@ model User {
   mustChangePassword  Boolean      @default(false)
   dateAdhesion        DateTime     @default(now())
 
+  // Jeton opaque pour l'accès SANS login à la tournée/objectifs du jour de l'agent
+  // (QR « capability URL » — le jeton EST la clé). Régénérable pour invalider un QR.
+  scanTokenTournee    String?      @unique
+
   // Profil gestionnaire (rôle opérationnel)
   gestionnaire         Gestionnaire?
 
