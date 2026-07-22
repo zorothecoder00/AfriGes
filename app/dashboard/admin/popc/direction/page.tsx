@@ -12,7 +12,7 @@ interface DirectionData {
   objectifsGeneres: boolean;
   chargesTotales: number; revenuMinimum: number;
   chargesCouvertes: number; resultatPrevisionnel: number; beneficeEstime: number;
-  clientsActifs: number; nouveauxCredits: number;
+  clientsActifs: number; clientsEnRetard: number; clientsSoldes: number; nouveauxCredits: number;
   seiziemesAttendus: number; trentiemesAttendus: number;
   revenusAttendus: number; revenusEncaisses: number;
   carnetsVendus: number; objectifAtteint: boolean;
@@ -88,6 +88,8 @@ export default function DirectionPage() {
         <Kpi icon={<ShieldCheck className="w-4 h-4" />} label="Revenus encaissés" value={`${fmt(d?.revenusEncaisses ?? 0)} F`} highlight />
         <Kpi icon={<FileText className="w-4 h-4" />} label="Revenus attendus" value={`${fmt(d?.revenusAttendus ?? 0)} F`} />
         <Kpi icon={<Users className="w-4 h-4" />} label="Clients actifs" value={fmt(d?.clientsActifs ?? 0)} />
+        <Kpi icon={<AlertTriangle className="w-4 h-4" />} label="Clients en retard" value={fmt(d?.clientsEnRetard ?? 0)} />
+        <Kpi icon={<CheckCircle2 className="w-4 h-4" />} label="Clients soldés" value={fmt(d?.clientsSoldes ?? 0)} />
         <Kpi icon={<FileText className="w-4 h-4" />} label="Nouveaux crédits" value={fmt(d?.nouveauxCredits ?? 0)} />
         <Kpi icon={<BookOpen className="w-4 h-4" />} label="16èmes attendus" value={fmt(d?.seiziemesAttendus ?? 0)} />
         <Kpi icon={<BookOpen className="w-4 h-4" />} label="31èmes attendus" value={fmt(d?.trentiemesAttendus ?? 0)} />

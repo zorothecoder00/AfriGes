@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useApi, useMutation } from "@/hooks/useApi";
 import { toast } from "sonner";
 import PopcTabs from "./PopcTabs";
+import { calculerObjectifs, type ParametresPOPC } from "@/lib/popc/moteurObjectifs";
 import {
   Target, TrendingUp, Wallet, Users, CalendarDays, BookOpen,
   CheckCircle2, RefreshCw, Save, Lock,
@@ -30,8 +31,13 @@ interface CollecteLigne {
   date: string; nbSeiziemes: number; valeur16: number; realises16: number;
   nbTrentiemes: number; valeur31: number; realises31: number;
 }
+interface CollecteDetail {
+  creditId: number; date: string; type: "16ème" | "31ème"; montant: number; paye: boolean;
+  agentId: number | null; agent: string | null; pointDeVenteId: number | null; agence: string | null;
+}
 interface CollectesResp {
   data: CollecteLigne[];
+  details: CollecteDetail[];
   meta: { totaux: { seiziemes: number; trentiemes: number; valeurPrevue: number; realises: number; valeurEncaissee: number } };
 }
 
@@ -109,7 +115,7 @@ export default function POPCPage() {
   const [form, setForm] = useState<FormState>(DEFAUTS);
 
   const url = `/api/popc/parametrage?annee=${annee}&mois=${mois}`;
-  const { data: paramResp, loading, refetch } = useApi<{ data: Parametrage | null }>(url);
+  const { data: paramResp, refetch } = useApi<{ data: Parametrage | null }>(url);
   const { data: collectes } = useApi<CollectesResp>(`/api/popc/collectes?annee=${annee}&mois=${mois}`);
 
   const param = paramResp?.data ?? null;
@@ -144,6 +150,15 @@ export default function POPCPage() {
     const val = chargesTotales > 0 ? (taux / 100) * chargesTotales : 0;
     setField(k, String(Math.round(val * 100) / 100));
   };
+
+  // §4 — Aperçu de la synthèse recalculé EN TEMPS RÉEL depuis le formulaire, via le
+  // moteur pur (mêmes formules que le serveur). Évite d'attendre l'enregistrement.
+  const apercu = useMemo(() => {
+    const p = Object.fromEntries(
+      CHAMPS_NUM.map((k) => [k, Number(form[k]) || 0]),
+    ) as unknown as ParametresPOPC;
+    return calculerObjectifs(p);
+  }, [form]);
 
   const save = useMutation<{ data: Parametrage }, Record<string, number>>(
     "/api/popc/parametrage", "POST",
@@ -313,32 +328,28 @@ export default function POPCPage() {
         {/* ── Synthèse générée (§4) ─────────────────────────────────────────── */}
         <div className="space-y-6">
           <section className="bg-gradient-to-br from-indigo-600 to-indigo-800 rounded-2xl p-5 text-white shadow-sm">
-            <h2 className="text-sm font-semibold mb-4 flex items-center gap-2">
+            <h2 className="text-sm font-semibold mb-1 flex items-center gap-2">
               <Target className="w-4 h-4" /> Objectifs générés (§4)
             </h2>
-            {loading ? (
-              <p className="text-indigo-100 text-sm">Chargement…</p>
-            ) : objectif ? (
-              <dl className="space-y-2.5 text-sm">
-                <Row label="Charges mensuelles" value={`${fmt(objectif.chargesTotales)} FCFA`} />
-                <Row label="Objectif de bénéfice" value={`${fmt(objectif.objectifBenefice)} FCFA`} />
-                <Row label="Revenu minimum à générer" value={`${fmt(objectif.revenuMinimum)} FCFA`} strong />
-                <div className="border-t border-white/20 my-2" />
-                <Row label="16èmes à encaisser" value={fmt(objectif.nbSeiziemes)} />
-                <Row label="31èmes à encaisser" value={fmt(objectif.nbTrentiemes)} />
-                <Row label="Carnets à vendre" value={fmt(objectif.nbCarnets)} />
-                <Row label="Nouveaux crédits à livrer" value={fmt(objectif.nbNouveauxCredits)} />
-                <Row label="Clients à recruter" value={fmt(objectif.nbClientsRecruter)} />
-                <div className="border-t border-white/20 my-2" />
-                <Row label="Objectif quotidien" value={`${fmt(objectif.objectifQuotidien)} FCFA`} />
-                <Row label="Objectif hebdomadaire" value={`${fmt(objectif.objectifHebdomadaire)} FCFA`} />
-                <Row label="Objectif mensuel" value={`${fmt(objectif.objectifMensuel)} FCFA`} strong />
-              </dl>
-            ) : (
-              <p className="text-indigo-100 text-sm">
-                Aucun objectif encore généré. Renseignez le paramétrage puis cliquez sur « Enregistrer & générer ».
-              </p>
-            )}
+            <p className="text-indigo-200 text-xs mb-4">
+              {statut === "VALIDE" && objectif ? "Valeurs figées ce mois — l'aperçu suit vos modifications en direct."
+                : "Aperçu recalculé en temps réel. Cliquez sur « Enregistrer » pour figer."}
+            </p>
+            <dl className="space-y-2.5 text-sm">
+              <Row label="Charges mensuelles" value={`${fmt(apercu.chargesTotales)} FCFA`} />
+              <Row label="Objectif de bénéfice" value={`${fmt(apercu.objectifBenefice)} FCFA`} />
+              <Row label="Revenu minimum à générer" value={`${fmt(apercu.revenuMinimum)} FCFA`} strong />
+              <div className="border-t border-white/20 my-2" />
+              <Row label="16èmes à encaisser" value={fmt(apercu.nbSeiziemes)} />
+              <Row label="31èmes à encaisser" value={fmt(apercu.nbTrentiemes)} />
+              <Row label="Carnets à vendre" value={fmt(apercu.nbCarnets)} />
+              <Row label="Nouveaux crédits à livrer" value={fmt(apercu.nbNouveauxCredits)} />
+              <Row label="Clients à recruter" value={fmt(apercu.nbClientsRecruter)} />
+              <div className="border-t border-white/20 my-2" />
+              <Row label="Objectif quotidien" value={`${fmt(apercu.objectifQuotidien)} FCFA`} />
+              <Row label="Objectif hebdomadaire" value={`${fmt(apercu.objectifHebdomadaire)} FCFA`} />
+              <Row label="Objectif mensuel" value={`${fmt(apercu.objectifMensuel)} FCFA`} strong />
+            </dl>
           </section>
 
           {/* Aperçu collectes prévisionnelles (§6) */}
@@ -372,6 +383,37 @@ export default function POPCPage() {
                   </table>
                 </div>
                 <p className="mt-2 text-xs text-gray-400">Entre parenthèses : collectes déjà réalisées (payées).</p>
+
+                {/* §6 — détail par collecte : agent chargé + agence concernée */}
+                {collectes.details.length > 0 && (
+                  <div className="mt-4">
+                    <h3 className="text-xs font-semibold text-gray-600 mb-2">Détail par collecte (agent / agence)</h3>
+                    <div className="max-h-64 overflow-y-auto">
+                      <table className="w-full text-xs">
+                        <thead className="text-gray-400 sticky top-0 bg-white">
+                          <tr>
+                            <th className="text-left py-1">Date</th>
+                            <th className="text-left">Type</th>
+                            <th className="text-right">Montant</th>
+                            <th className="text-left pl-2">Agent</th>
+                            <th className="text-left">Agence</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {collectes.details.map((x, i) => (
+                            <tr key={`${x.creditId}-${i}`} className="border-t border-gray-50">
+                              <td className="py-1.5 text-gray-700">{new Date(x.date).toLocaleDateString("fr-FR")}</td>
+                              <td className={x.type === "16ème" ? "text-indigo-600" : "text-purple-600"}>{x.type}</td>
+                              <td className="text-right text-gray-700">{fmt(x.montant)}</td>
+                              <td className="pl-2 text-gray-600">{x.agent ?? <span className="text-amber-500">non affecté</span>}</td>
+                              <td className="text-gray-600">{x.agence ?? <span className="text-gray-300">—</span>}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
               </>
             ) : (
               <p className="text-sm text-gray-400">

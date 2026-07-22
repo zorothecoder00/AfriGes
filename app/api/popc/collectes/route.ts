@@ -50,10 +50,30 @@ export async function GET(req: Request) {
     },
     select: {
       numeroEcheance: true, dateEcheance: true, montantDu: true, montantPaye: true, statut: true,
-      credit: { select: { id: true, formule: true, dureeJours: true, pointDeVenteId: true } },
+      // §6 : agent chargé de la collecte (agent terrain du client) + agence concernée.
+      credit: {
+        select: {
+          id: true, formule: true, dureeJours: true, pointDeVenteId: true,
+          client: {
+            select: {
+              agentTerrainId: true,
+              agentTerrain: { select: { id: true, nom: true, prenom: true } },
+            },
+          },
+        },
+      },
     },
     orderBy: { dateEcheance: "asc" },
   });
+
+  // Noms des agences concernées (CreditClient.pointDeVenteId n'a pas de relation directe).
+  const pdvIds = Array.from(new Set(
+    echeances.map((e) => e.credit.pointDeVenteId).filter((v): v is number => v != null),
+  ));
+  const agences = pdvIds.length
+    ? await prisma.pointDeVente.findMany({ where: { id: { in: pdvIds } }, select: { id: true, nom: true } })
+    : [];
+  const nomAgence = new Map(agences.map((a) => [a.id, a.nom]));
 
   // Agrégation par date (YYYY-MM-DD) × formule.
   type Bucket = { seiziemes: number; valeur16: number; trentiemes: number; valeur31: number;
@@ -62,6 +82,13 @@ export async function GET(req: Request) {
   const vide = (): Bucket => ({ seiziemes: 0, valeur16: 0, trentiemes: 0, valeur31: 0, realises16: 0, realises31: 0 });
 
   let totalSeiziemes = 0, totalTrentiemes = 0, totalValeur = 0, totalRealises = 0, totalEncaisse = 0;
+
+  // Détail par collecte (§6) : date, type, montant, agent chargé, agence.
+  type Detail = {
+    creditId: number; date: string; type: "16ème" | "31ème"; montant: number; paye: boolean;
+    agentId: number | null; agent: string | null; pointDeVenteId: number | null; agence: string | null;
+  };
+  const details: Detail[] = [];
 
   for (const e of echeances) {
     const f = e.credit.formule;
@@ -84,6 +111,16 @@ export async function GET(req: Request) {
     totalEncaisse += paye;
     if (estPaye) totalRealises += 1;
     parDate.set(key, b);
+
+    const ag = e.credit.client.agentTerrain;
+    const pdvId = e.credit.pointDeVenteId;
+    details.push({
+      creditId: e.credit.id, date: key, type: f === "QUINZAINE" ? "16ème" : "31ème",
+      montant: Number(du.toFixed(2)), paye: estPaye,
+      agentId: e.credit.client.agentTerrainId ?? null,
+      agent: ag ? `${ag.prenom} ${ag.nom}`.trim() : null,
+      pointDeVenteId: pdvId, agence: pdvId != null ? (nomAgence.get(pdvId) ?? null) : null,
+    });
   }
 
   const lignes = Array.from(parDate.entries())
@@ -96,6 +133,7 @@ export async function GET(req: Request) {
 
   return NextResponse.json({
     data: lignes,
+    details,
     meta: {
       annee, mois, pointDeVenteId,
       totaux: {

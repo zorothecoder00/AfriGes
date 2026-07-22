@@ -152,14 +152,24 @@ export async function calculerConsolidationDirection(annee: number, mois: number
   const revenusAttendus = Number((r.revenu16Prevu + r.revenu31Prevu + r.revenuCarnets).toFixed(2));
   const revenusEncaisses = r.revenuGenere;
 
-  // Clients actifs (au moins un crédit ACTIF/EN_RETARD), scopé PDV si fourni.
-  const clientsActifs = await prisma.creditClient.findMany({
-    where: {
-      statut: { in: ["ACTIF", "EN_RETARD"] },
-      ...(pdv ? { pointDeVenteId: pdv } : {}),
-    },
-    select: { clientId: true }, distinct: ["clientId"],
-  });
+  // Portrait clientèle crédit (snapshot courant, scopé PDV) : actifs / en retard /
+  // soldés — comptés en clients DISTINCTS (un client peut cumuler plusieurs crédits).
+  // §5 exige de récupérer automatiquement les clients soldés et en retard.
+  const scopePDV = pdv ? { pointDeVenteId: pdv } : {};
+  const [clientsActifs, clientsEnRetardRows, clientsSoldesRows] = await Promise.all([
+    prisma.creditClient.findMany({
+      where: { statut: { in: ["ACTIF", "EN_RETARD"] }, ...scopePDV },
+      select: { clientId: true }, distinct: ["clientId"],
+    }),
+    prisma.creditClient.findMany({
+      where: { statut: "EN_RETARD", ...scopePDV },
+      select: { clientId: true }, distinct: ["clientId"],
+    }),
+    prisma.creditClient.findMany({
+      where: { statut: "SOLDE", ...scopePDV },
+      select: { clientId: true }, distinct: ["clientId"],
+    }),
+  ]);
 
   const chargesCouvertes = chargesTotales > 0
     ? Number(((revenusEncaisses / chargesTotales) * 100).toFixed(1)) : 0;
@@ -172,6 +182,8 @@ export async function calculerConsolidationDirection(annee: number, mois: number
     chargesTotales, revenuMinimum,
     chargesCouvertes, resultatPrevisionnel, beneficeEstime,
     clientsActifs: clientsActifs.length,
+    clientsEnRetard: clientsEnRetardRows.length,
+    clientsSoldes: clientsSoldesRows.length,
     nouveauxCredits: r.nbNouveauxCredits,
     seiziemesAttendus: r.nb16, trentiemesAttendus: r.nb31,
     revenusAttendus, revenusEncaisses,
