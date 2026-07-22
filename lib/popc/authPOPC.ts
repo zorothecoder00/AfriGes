@@ -5,7 +5,7 @@
 //   Directeur Général    → ADMIN / SUPER_ADMIN            (précisé par le métier)
 //   Directeur Commercial → RESPONSABLE_ECONOMIQUE         (rôle le plus proche ; ajustable)
 //   Comptabilité         → COMPTABLE
-//   Chef d'Agence        → CHEF_AGENCE / RESPONSABLE_COMMUNAUTE (consultation, scope agence)
+//   Chef d'Agence        → CHEF_AGENCE / RESPONSABLE_COMMUNAUTE (modif limitée à son agence, §14)
 //   Superviseur          → CONTROLEUR_TERRAIN             (consultation)
 //   Commercial           → AGENT_TERRAIN                  (ses données uniquement)
 //   Auditeur             → AUDITEUR_INTERNE               (lecture seule)
@@ -59,11 +59,13 @@ export function capacitesPour(
     case "COMPTABLE":
       return { consulter: true, modifier: true, valider: true, portee: "global" };
 
-    // Chef d'agence : consultation seule, limitée à son agence (CDC §3 : le
-    // paramétrage n'est modifiable QUE par DG / Directeur Commercial / Comptabilité).
+    // Chef d'agence (CDC §14) : consultation + modification LIMITÉE À SON AGENCE
+    // (le POST force pointDeVenteId au PDV du chef → il ne peut jamais toucher le
+    // paramétrage global PDV=0, réservé à DG/Dir. Commercial/Comptabilité par §3).
+    // Pas de validation.
     case "CHEF_AGENCE":
     case "RESPONSABLE_COMMUNAUTE":
-      return { consulter: true, modifier: false, valider: false, portee: "agence" };
+      return { consulter: true, modifier: true, valider: false, portee: "agence" };
 
     // Superviseur : consultation seule.
     case "CONTROLEUR_TERRAIN":

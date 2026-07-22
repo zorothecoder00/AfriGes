@@ -31,6 +31,10 @@ interface CollecteLigne {
   date: string; nbSeiziemes: number; valeur16: number; realises16: number;
   nbTrentiemes: number; valeur31: number; realises31: number;
 }
+interface SalairesPaieMeta {
+  salaireAgents: number; salaireSuperviseurs: number; salaireResponsables: number;
+  source: "aucune" | "mois" | "fallback"; anneeSource: number | null; moisSource: number | null;
+}
 interface CollecteDetail {
   creditId: number; date: string; type: "16ème" | "31ème"; montant: number; paye: boolean;
   agentId: number | null; agent: string | null; pointDeVenteId: number | null; agence: string | null;
@@ -67,11 +71,16 @@ const COMMERCIAUX: { key: keyof FormState; label: string; suffix?: string }[] = 
   { key: "nombreAgentsTerrain", label: "Nombre d'agents terrain" },
   { key: "nombreAgences", label: "Nombre d'agences" },
 ];
-// §3.2 : paramètres pour lesquels la saisie bidirectionnelle Valeur⇄Taux a un sens
-// (montants). Le taux est exprimé en % des Charges Totales. Les paramètres de
-// dénombrement (jours, agents, agences) n'ont pas de taux.
-const TAUX_KEYS = new Set<keyof FormState>([
-  "objectifBenefice", "commissionSeizieme", "commissionTrentaine", "prixCarnet",
+// §3.2 : seul l'Objectif de bénéfice a une saisie bidirectionnelle Valeur⇄Taux
+// (taux = % des Charges Totales = marge sur charges). Les commissions 16/31 et le
+// prix du carnet se saisissent en montant seul (un taux sur charges n'a pas de
+// sens métier pour eux) ; les dénombrements non plus.
+const TAUX_KEYS = new Set<keyof FormState>(["objectifBenefice"]);
+
+// §3.1 : lignes de salaire alimentées automatiquement par le module Paie (lecture
+// seule). Salaire Contrôleurs reste en saisie manuelle.
+const PAIE_KEYS = new Set<keyof FormState>([
+  "salaireAgents", "salaireSuperviseurs", "salaireResponsables",
 ]);
 
 const HYPOTHESES: { key: keyof FormState; label: string; suffix?: string }[] = [
@@ -115,7 +124,8 @@ export default function POPCPage() {
   const [form, setForm] = useState<FormState>(DEFAUTS);
 
   const url = `/api/popc/parametrage?annee=${annee}&mois=${mois}`;
-  const { data: paramResp, refetch } = useApi<{ data: Parametrage | null }>(url);
+  const { data: paramResp, refetch } = useApi<{ data: Parametrage | null; meta?: { salairesPaie?: SalairesPaieMeta } }>(url);
+  const salairesPaie = paramResp?.meta?.salairesPaie ?? null;
   const { data: collectes } = useApi<CollectesResp>(`/api/popc/collectes?annee=${annee}&mois=${mois}`);
 
   const param = paramResp?.data ?? null;
@@ -133,6 +143,18 @@ export default function POPCPage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [param?.id, annee, mois]);
+
+  // Les 3 lignes de salaire câblées sont toujours pilotées par la Paie (lecture
+  // seule) — on écrase le formulaire dès que la source Paie change.
+  useEffect(() => {
+    if (!salairesPaie) return;
+    setForm((f) => ({
+      ...f,
+      salaireAgents: String(salairesPaie.salaireAgents),
+      salaireSuperviseurs: String(salairesPaie.salaireSuperviseurs),
+      salaireResponsables: String(salairesPaie.salaireResponsables),
+    }));
+  }, [salairesPaie?.salaireAgents, salairesPaie?.salaireSuperviseurs, salairesPaie?.salaireResponsables]);
 
   const chargesTotales = useMemo(
     () => CHARGES.reduce((s, c) => s + (Number(form[c.key]) || 0), 0),
@@ -226,19 +248,38 @@ export default function POPCPage() {
                 </tr>
               </thead>
               <tbody>
-                {CHARGES.map((c) => (
-                  <tr key={c.key} className="border-t border-gray-50">
-                    <td className="py-1.5 text-gray-600">{c.label}</td>
-                    <td className="py-1.5">
-                      <input type="number" min={0} value={form[c.key]}
-                        onChange={(e) => setField(c.key, e.target.value)}
-                        className="w-full px-2 py-1.5 border border-gray-200 rounded-lg text-sm text-right tabular-nums focus:outline-none focus:ring-2 focus:ring-indigo-400" />
-                    </td>
-                    <td className="py-1.5 text-right text-gray-400 tabular-nums">{fmtTaux(tauxDe(c.key))}%</td>
-                  </tr>
-                ))}
+                {CHARGES.map((c) => {
+                  const auto = PAIE_KEYS.has(c.key);
+                  return (
+                    <tr key={c.key} className="border-t border-gray-50">
+                      <td className="py-1.5 text-gray-600">
+                        {c.label}
+                        {auto && <span className="ml-1.5 text-[10px] font-medium text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">Paie</span>}
+                      </td>
+                      <td className="py-1.5">
+                        <input type="number" min={0} value={form[c.key]}
+                          onChange={(e) => setField(c.key, e.target.value)}
+                          disabled={auto} readOnly={auto}
+                          title={auto ? "Alimenté automatiquement par le module Paie (lecture seule)" : undefined}
+                          className={`w-full px-2 py-1.5 border rounded-lg text-sm text-right tabular-nums focus:outline-none focus:ring-2 focus:ring-indigo-400 ${
+                            auto ? "border-gray-100 bg-gray-50 text-gray-500 cursor-not-allowed" : "border-gray-200"
+                          }`} />
+                      </td>
+                      <td className="py-1.5 text-right text-gray-400 tabular-nums">{fmtTaux(tauxDe(c.key))}%</td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
+            {salairesPaie && (
+              <p className="mt-2 text-xs text-gray-400">
+                {salairesPaie.source === "aucune"
+                  ? "Aucune fiche de paie disponible — salaires câblés à 0. (Salaire Contrôleurs = saisie manuelle.)"
+                  : salairesPaie.source === "fallback"
+                    ? `Salaires (brut) issus de la Paie de ${MOIS[(salairesPaie.moisSource ?? 1) - 1]} ${salairesPaie.anneeSource} — dernier mois disponible. Salaire Contrôleurs = saisie manuelle.`
+                    : "Salaires (brut) issus de la Paie du mois. Salaire Contrôleurs = saisie manuelle."}
+              </p>
+            )}
             <div className="mt-4 flex items-center justify-between px-4 py-3 bg-indigo-50 rounded-xl">
               <span className="text-sm font-medium text-indigo-900">Charges totales</span>
               <span className="text-lg font-bold text-indigo-700">{fmt(chargesTotales)} FCFA</span>

@@ -3,7 +3,12 @@ import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { getPOPCSession } from "@/lib/popc/authPOPC";
 import { calculerObjectifs, type ParametresPOPC } from "@/lib/popc/moteurObjectifs";
+import { salairesDepuisPaie } from "@/lib/popc/salairesPaie";
 import { auditLog } from "@/lib/notifications";
+
+// Lignes de salaire §3.1 câblées automatiquement depuis la Paie (lecture seule).
+// Contrôleurs = saisie manuelle → non listé ici.
+const SALAIRES_PAIE = ["salaireAgents", "salaireSuperviseurs", "salaireResponsables"] as const;
 
 export const runtime = "nodejs";
 
@@ -95,9 +100,19 @@ export async function GET(req: Request) {
     include: { objectif: true },
   });
 
+  // Salaires câblés depuis la Paie (source unique, lecture seule côté UI).
+  const salairesPaie = await salairesDepuisPaie(annee, mois, pointDeVenteId);
+
+  // Overlay des salaires Paie sur l'enregistrement retourné (cohérence des consommateurs).
+  const data = param ? serialiser(param) : null;
+  if (data) {
+    const rec = data as Record<string, unknown>;
+    for (const c of SALAIRES_PAIE) rec[c] = salairesPaie[c];
+  }
+
   return NextResponse.json({
-    data: param ? serialiser(param) : null,
-    meta: { annee, mois, pointDeVenteId },
+    data,
+    meta: { annee, mois, pointDeVenteId, salairesPaie },
   });
 }
 
@@ -140,6 +155,12 @@ export async function POST(req: Request) {
   if (!data.nombreAgentsTerrain) data.nombreAgentsTerrain = 1;
   if (!data.nombreAgences) data.nombreAgences = 1;
   if (!data.creditsParClient) data.creditsParClient = 1;
+
+  // Les 3 lignes de salaire câblées viennent EXCLUSIVEMENT de la Paie (aucune
+  // ressaisie §1) : on ignore les valeurs du client et on les recalcule serveur.
+  // Salaire Contrôleurs reste la valeur saisie (manuel).
+  const salairesPaie = await salairesDepuisPaie(annee, mois, pointDeVenteId);
+  for (const c of SALAIRES_PAIE) data[c] = salairesPaie[c];
 
   try {
     const result = await prisma.$transaction(async (tx) => {
