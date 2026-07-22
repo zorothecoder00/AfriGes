@@ -7,15 +7,18 @@ import {
 } from "lucide-react";
 import PopcTabs from "../PopcTabs";
 
-interface LigneLivraison { date: string; quinzaine: number; trentaine: number; total: number }
+interface LigneLivraison { date: string; quinzaine: number; trentaine: number; carnets: number; total: number }
 interface PlanResp {
   data: {
     objectifsGeneres: boolean;
     lignes: LigneLivraison[];
     resume: {
-      objectifQuinzaine: number; objectifTrentaine: number;
-      dejaQuinzaine: number; dejaTrentaine: number;
-      resteQuinzaine: number; resteTrentaine: number;
+      objectifQuinzaine: number; objectifTrentaine: number; objectifCarnets: number;
+      dejaQuinzaine: number; dejaTrentaine: number; dejaCarnets: number;
+      resteQuinzaine: number; resteTrentaine: number; resteCarnets: number;
+      cadenceQuinzaine: number; cadenceTrentaine: number; cadenceCarnets: number;
+      joursOuvrables: number;
+      nbNouveauxCredits: number; nbClientsRecruter: number; revenuMinimum: number;
       seiziemesAttendus: number; trentiemesAttendus: number;
       revenusAttendus: number; revenusEncaisses: number;
       joursRestants: number;
@@ -63,22 +66,53 @@ export default function LivraisonsPage() {
         </div>
       )}
 
-      {/* Résumé du reste à livrer */}
-      {r && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <RecapCard label="Quinzaine à livrer" reste={r.resteQuinzaine} objectif={r.objectifQuinzaine} deja={r.dejaQuinzaine} />
-          <RecapCard label="Trentaine à livrer" reste={r.resteTrentaine} objectif={r.objectifTrentaine} deja={r.dejaTrentaine} />
-          <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
-            <div className="flex items-center gap-1.5 text-gray-400 text-xs"><CalendarDays className="w-4 h-4" /> Crédits arrivant à échéance</div>
-            <div className="text-lg font-bold text-gray-800 mt-1">{fmt(r.seiziemesAttendus + r.trentiemesAttendus)}</div>
-            <p className="text-xs text-gray-400 mt-0.5">{r.seiziemesAttendus} × 16e · {r.trentiemesAttendus} × 31e</p>
+      {/* Cadence quotidienne à tenir (le minimum/jour pour une marge ≥ 0) */}
+      {r && d?.objectifsGeneres && (
+        <div className="bg-gradient-to-br from-indigo-600 to-indigo-800 rounded-2xl p-5 text-white">
+          <p className="text-sm text-indigo-100 flex items-center gap-1.5">
+            <TrendingUp className="w-4 h-4" /> Cadence quotidienne à tenir par les agents — minimum pour couvrir les charges (marge ≥ 0)
+          </p>
+          <div className="grid grid-cols-3 gap-4 mt-3">
+            <div>
+              <p className="text-3xl font-bold">{fmt(r.cadenceQuinzaine)}</p>
+              <p className="text-xs text-indigo-100">Quinzaine / jour</p>
+            </div>
+            <div>
+              <p className="text-3xl font-bold">{fmt(r.cadenceTrentaine)}</p>
+              <p className="text-xs text-indigo-100">Trentaine / jour</p>
+            </div>
+            <div>
+              <p className="text-3xl font-bold">{fmt(r.cadenceCarnets)}</p>
+              <p className="text-xs text-indigo-100">Carnets / jour</p>
+            </div>
           </div>
-          <div className="bg-indigo-50 rounded-2xl p-4 border border-indigo-100 shadow-sm">
-            <div className="flex items-center gap-1.5 text-indigo-500 text-xs"><TrendingUp className="w-4 h-4" /> Revenus attendus</div>
-            <div className="text-lg font-bold text-indigo-700 mt-1">{fmt(r.revenusAttendus)} F</div>
-            <p className="text-xs text-indigo-400 mt-0.5">encaissé : {fmt(r.revenusEncaisses)} F</p>
-          </div>
+          <p className="text-[11px] text-indigo-200 mt-3">
+            Objectif du mois : {fmt(r.objectifQuinzaine)} Quinzaine · {fmt(r.objectifTrentaine)} Trentaine · {fmt(r.objectifCarnets)} carnets · {fmt(r.nbClientsRecruter)} clients à recruter — réparti sur {r.joursOuvrables} jours ouvrables (revenu minimum {fmt(r.revenuMinimum)} F).
+          </p>
         </div>
+      )}
+
+      {/* Réalisé vs objectif (reste à livrer + progression) */}
+      {r && (
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <RecapCard label="Quinzaine à livrer" reste={r.resteQuinzaine} objectif={r.objectifQuinzaine} deja={r.dejaQuinzaine} />
+            <RecapCard label="Trentaine à livrer" reste={r.resteTrentaine} objectif={r.objectifTrentaine} deja={r.dejaTrentaine} />
+            <RecapCard label="Carnets à vendre" reste={r.resteCarnets} objectif={r.objectifCarnets} deja={r.dejaCarnets} />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
+              <div className="flex items-center gap-1.5 text-gray-400 text-xs"><CalendarDays className="w-4 h-4" /> Crédits arrivant à échéance</div>
+              <div className="text-lg font-bold text-gray-800 mt-1">{fmt(r.seiziemesAttendus + r.trentiemesAttendus)}</div>
+              <p className="text-xs text-gray-400 mt-0.5">{r.seiziemesAttendus} × 16e · {r.trentiemesAttendus} × 31e</p>
+            </div>
+            <div className="bg-indigo-50 rounded-2xl p-4 border border-indigo-100 shadow-sm">
+              <div className="flex items-center gap-1.5 text-indigo-500 text-xs"><TrendingUp className="w-4 h-4" /> Revenus attendus</div>
+              <div className="text-lg font-bold text-indigo-700 mt-1">{fmt(r.revenusAttendus)} F</div>
+              <p className="text-xs text-indigo-400 mt-0.5">encaissé : {fmt(r.revenusEncaisses)} F</p>
+            </div>
+          </div>
+        </>
       )}
 
       {/* Tableau §7 : Date | Quinzaine | Trentaine | Total */}
@@ -89,14 +123,15 @@ export default function LivraisonsPage() {
               <th className="text-left px-5 py-3 font-medium">Date</th>
               <th className="text-right px-5 py-3 font-medium">Quinzaine</th>
               <th className="text-right px-5 py-3 font-medium">Trentaine</th>
-              <th className="text-right px-5 py-3 font-medium">Total</th>
+              <th className="text-right px-5 py-3 font-medium">Carnets</th>
+              <th className="text-right px-5 py-3 font-medium">Total crédits</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={4} className="px-5 py-8 text-center text-gray-400">Chargement…</td></tr>
+              <tr><td colSpan={5} className="px-5 py-8 text-center text-gray-400">Chargement…</td></tr>
             ) : !d || d.lignes.length === 0 ? (
-              <tr><td colSpan={4} className="px-5 py-8 text-center text-gray-400">
+              <tr><td colSpan={5} className="px-5 py-8 text-center text-gray-400">
                 {d && !d.objectifsGeneres ? "Objectifs non générés." : "Aucun jour restant à planifier ce mois."}
               </td></tr>
             ) : d.lignes.map((l) => {
@@ -109,6 +144,7 @@ export default function LivraisonsPage() {
                   </td>
                   <td className="px-5 py-2.5 text-right text-gray-700">{l.quinzaine}</td>
                   <td className="px-5 py-2.5 text-right text-gray-700">{l.trentaine}</td>
+                  <td className="px-5 py-2.5 text-right text-emerald-600">{l.carnets}</td>
                   <td className="px-5 py-2.5 text-right font-semibold text-gray-900">{l.total}</td>
                 </tr>
               );
@@ -120,6 +156,7 @@ export default function LivraisonsPage() {
                 <td className="px-5 py-3">Total à livrer</td>
                 <td className="px-5 py-3 text-right">{fmt(d.lignes.reduce((s, l) => s + l.quinzaine, 0))}</td>
                 <td className="px-5 py-3 text-right">{fmt(d.lignes.reduce((s, l) => s + l.trentaine, 0))}</td>
+                <td className="px-5 py-3 text-right text-emerald-700">{fmt(d.lignes.reduce((s, l) => s + l.carnets, 0))}</td>
                 <td className="px-5 py-3 text-right">{fmt(d.lignes.reduce((s, l) => s + l.total, 0))}</td>
               </tr>
             </tfoot>
@@ -136,11 +173,19 @@ export default function LivraisonsPage() {
 }
 
 function RecapCard({ label, reste, objectif, deja }: { label: string; reste: number; objectif: number; deja: number }) {
+  const pct = objectif > 0 ? Math.min(100, Math.round((deja / objectif) * 100)) : 0;
+  const atteint = objectif > 0 && deja >= objectif;
   return (
     <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
       <div className="text-gray-400 text-xs">{label}</div>
-      <div className="text-2xl font-bold text-gray-800 mt-1">{fmt(reste)}</div>
-      <p className="text-xs text-gray-400 mt-0.5">{fmt(deja)} / {fmt(objectif)} déjà accordés</p>
+      <div className="flex items-baseline gap-1.5 mt-1">
+        <span className="text-2xl font-bold text-gray-800">{fmt(reste)}</span>
+        <span className="text-xs text-gray-400">reste</span>
+      </div>
+      <div className="mt-2 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+        <div className={`h-full rounded-full ${atteint ? "bg-emerald-500" : "bg-indigo-500"}`} style={{ width: `${pct}%` }} />
+      </div>
+      <p className="text-xs text-gray-400 mt-1">{fmt(deja)} / {fmt(objectif)} réalisés ({pct}%)</p>
     </div>
   );
 }

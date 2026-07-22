@@ -6,8 +6,8 @@ import { toast } from "sonner";
 import PopcTabs from "./PopcTabs";
 import { calculerObjectifs, type ParametresPOPC } from "@/lib/popc/moteurObjectifs";
 import {
-  Target, TrendingUp, Wallet, Users, CalendarDays, BookOpen,
-  CheckCircle2, RefreshCw, Save, Lock,
+  Target, TrendingUp, Wallet, CalendarDays, BookOpen,
+  CheckCircle2, RefreshCw, Save, Lock, AlertTriangle,
 } from "lucide-react";
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -386,6 +386,24 @@ export default function POPCPage() {
               <Row label="Objectif hebdomadaire" value={`${fmt(apercu.objectifHebdomadaire)} FCFA`} />
               <Row label="Objectif mensuel" value={`${fmt(apercu.objectifMensuel)} FCFA`} strong />
             </dl>
+
+            {/* Diagnostic : explique un objectif 16/31 à 0 (cause la plus fréquente : commission non renseignée) */}
+            {apercu.revenuMinimum > 0 && (apercu.nbSeiziemes === 0 || apercu.nbTrentiemes === 0) && (
+              <div className="mt-3 flex items-start gap-2 rounded-xl bg-amber-400/20 border border-amber-300/40 px-3 py-2 text-[11px] text-amber-50">
+                <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                <span>
+                  {(!Number(form.commissionSeizieme) || !Number(form.commissionTrentaine))
+                    ? "Quinzaine / Trentaine à 0 : renseignez « Commission minimum du 16ème » et « du 31ème » (rémunération par crédit, ex. 1 000 FCFA) dans les Paramètres commerciaux — sans elles, le système ne peut pas calculer combien de crédits sont nécessaires."
+                    : "Quinzaine / Trentaine à 0 : la part du revenu via 16èmes/31èmes est à 0 dans les Hypothèses de planification."}
+                </span>
+              </div>
+            )}
+            {apercu.revenuMinimum === 0 && (
+              <div className="mt-3 flex items-start gap-2 rounded-xl bg-amber-400/20 border border-amber-300/40 px-3 py-2 text-[11px] text-amber-50">
+                <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                <span>Tous les objectifs sont à 0 : renseignez d&apos;abord les charges (ou un objectif de bénéfice) pour définir un revenu minimum à générer.</span>
+              </div>
+            )}
           </section>
 
           {/* Aperçu collectes prévisionnelles (§6) */}
