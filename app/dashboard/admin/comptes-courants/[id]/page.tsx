@@ -345,6 +345,9 @@ export default function CompteCourantDetailPage() {
 
   const submitEditMvt = async () => {
     if (!editMvt) return;
+    // Le solde du compte ne change QUE si le montant a été corrigé : on évite alors
+    // le refetch (lourd) du compte pour une simple modification de métadonnée.
+    const montantModifie = emMontantEditable && emMontant !== "" && Number(emMontant) !== Math.abs(N(editMvt.montant));
     setEmSaving(true);
     try {
       const body: Record<string, unknown> = {
@@ -359,7 +362,9 @@ export default function CompteCourantDetailPage() {
       const j = await r.json();
       if (!r.ok) throw new Error(j.error ?? "Erreur");
       toast.success("Mouvement corrigé ✓");
-      setEditMvt(null); refetch(); refetchMvt();
+      setEditMvt(null);
+      refetchMvt();
+      if (montantModifie) refetch();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erreur");
     } finally { setEmSaving(false); }

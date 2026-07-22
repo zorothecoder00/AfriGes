@@ -45,7 +45,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
     const result = await prisma.$transaction(async (tx) => {
       const mvt = await tx.mouvementCompteCourant.findUnique({
         where: { id: mvtId },
-        select: { id: true, compteId: true, nature: true, montant: true, statut: true, ecritureId: true },
+        select: { id: true, compteId: true, nature: true, montant: true, soldeAvant: true, statut: true, ecritureId: true },
       });
       if (!mvt || mvt.compteId !== compteId) throw httpError("Mouvement introuvable", 404);
       if (mvt.statut !== "VALIDE") {
@@ -83,7 +83,10 @@ export async function PATCH(req: Request, { params }: Ctx) {
         const signe = mvt.nature === "DEPOT" ? 1 : -1;
         nouveauMontant = signe * Math.abs(m);
         montantChange = nouveauMontant !== ancienMontant;
-        if (montantChange) data.montant = nouveauMontant;
+        if (montantChange) {
+          data.montant = nouveauMontant;
+          data.soldeApres = Number(mvt.soldeAvant) + nouveauMontant; // soldeAvant inchangé
+        }
       }
 
       if (Object.keys(data).length > 0) {
@@ -104,30 +107,35 @@ export async function PATCH(req: Request, { params }: Ctx) {
         }
       }
 
-      // Recalcule TOUTE la chaîne des soldes (mouvements VALIDE) depuis 0 : source
-      // de vérité, auto-corrige d'éventuelles dérives. Puis solde + total du bucket.
+      // Décale la chaîne des soldes en O(1) : le running-balance étant cumulatif,
+      // le mouvement édité (déjà mis à jour) ET tous les mouvements POSTÉRIEURS se
+      // décalent exactement du même delta signé → un seul updateMany suffit.
+      // (l'ordre de la chaîne = ordre d'insertion = ordre des id, croissant.)
       if (montantChange) {
-        const chaine = await tx.mouvementCompteCourant.findMany({
-          where: { compteId, statut: "VALIDE" },
-          orderBy: [{ createdAt: "asc" }, { id: "asc" }],
-          select: { id: true, montant: true },
+        const delta = nouveauMontant - ancienMontant;
+        const editedApres = Number(mvt.soldeAvant) + nouveauMontant;
+
+        // Garde-fou : aucun solde ne doit devenir négatif (mouvement édité + suivants).
+        const aggSub = await tx.mouvementCompteCourant.aggregate({
+          where: { compteId, statut: "VALIDE", id: { gt: mvtId } },
+          _min: { soldeApres: true },
         });
-        let running = 0;
-        for (const m of chaine) {
-          const avant = running;
-          running += Number(m.montant);
-          if (running < -0.009) {
-            throw httpError("Cette correction rendrait le solde négatif à un moment de l'historique.", 422);
-          }
-          await tx.mouvementCompteCourant.update({
-            where: { id: m.id }, data: { soldeAvant: avant, soldeApres: running },
-          });
+        const minSuivants = aggSub._min.soldeApres != null ? Number(aggSub._min.soldeApres) + delta : Infinity;
+        if (Math.min(editedApres, minSuivants) < -0.009) {
+          throw httpError("Cette correction rendrait le solde négatif à un moment de l'historique.", 422);
         }
+
+        // Un seul UPDATE pour tous les mouvements postérieurs.
+        await tx.mouvementCompteCourant.updateMany({
+          where: { compteId, statut: "VALIDE", id: { gt: mvtId } },
+          data: { soldeAvant: { increment: delta }, soldeApres: { increment: delta } },
+        });
+
         const deltaAbs = Math.abs(nouveauMontant) - Math.abs(ancienMontant);
         await tx.compteCourant.update({
           where: { id: compteId },
           data: {
-            solde: running,
+            solde: { increment: delta },
             ...(mvt.nature === "DEPOT" ? { totalDepose: { increment: deltaAbs } } : {}),
             ...(mvt.nature === "RETRAIT" ? { totalRetire: { increment: deltaAbs } } : {}),
           },
@@ -139,9 +147,12 @@ export async function PATCH(req: Request, { params }: Ctx) {
       }, { ip, userAgent });
 
       const mouvement = await tx.mouvementCompteCourant.findUnique({ where: { id: mvtId } });
-      const compte = await tx.compteCourant.findUnique({ where: { id: compteId }, select: { solde: true } });
+      // Solde relu uniquement si le montant a changé (sinon inutile).
+      const compte = montantChange
+        ? await tx.compteCourant.findUnique({ where: { id: compteId }, select: { solde: true } })
+        : null;
       return { mouvement, solde: compte?.solde ?? null };
-    });
+    }, { timeout: 15000 });
 
     return NextResponse.json({ data: result });
   } catch (e) {
