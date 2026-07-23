@@ -155,4 +155,8 @@ je veux quelque chose d'un peu technique maintenant . Je veux que tu créés une
   qu'il doit réaliser dans la journée ( carnet qu'il doit vendre + qunizaine + trentaine)  et des clients qu'il doit visiter(ceux qui doivent cotiser) sans avoir besoin de  
   login ( du genre je viens je scanne et je vois mon tableau d'objectif et de clients à visiter
 
+
+Sur les impressions de QR Code ( dashboard/admin ou dashboard/agent) on va enlever les informations sur le haut et le bas de page ( ce sont des infos personnelles et inutles pour un QR code ; ce n'est que le QR code qui est important ici)
+
+
    

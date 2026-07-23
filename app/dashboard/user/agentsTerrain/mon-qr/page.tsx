@@ -41,11 +41,11 @@ export default function MonQrPage() {
   return (
     <div className="min-h-screen bg-slate-50">
       <div className="max-w-md mx-auto px-4 py-8 space-y-5">
-        <Link href="/dashboard/user/agentsTerrain" className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700">
+        <Link href="/dashboard/user/agentsTerrain" className="no-print inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700">
           <ArrowLeft className="w-4 h-4" /> Tableau de bord
         </Link>
 
-        <div>
+        <div className="no-print">
           <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
             <QrCode className="w-6 h-6 text-indigo-600" /> Mon QR de tournée
           </h1>
@@ -54,7 +54,7 @@ export default function MonQrPage() {
           </p>
         </div>
 
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 flex flex-col items-center">
+        <div className="qr-card bg-white rounded-2xl border border-slate-200 shadow-sm p-6 flex flex-col items-center">
           {loading ? (
             <div className="flex items-center justify-center py-16 text-slate-400"><Loader2 className="w-6 h-6 animate-spin" /></div>
           ) : qr ? (
@@ -69,7 +69,7 @@ export default function MonQrPage() {
           )}
         </div>
 
-        <div className="flex gap-3">
+        <div className="no-print flex gap-3">
           <button onClick={() => window.print()} disabled={!qr}
             className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-xl text-sm font-medium">
             <Printer className="w-4 h-4" /> Imprimer
@@ -81,11 +81,19 @@ export default function MonQrPage() {
           </button>
         </div>
 
-        <div className="flex items-start gap-2 rounded-xl bg-amber-50 border border-amber-200 px-3 py-2.5 text-xs text-amber-700">
+        <div className="no-print flex items-start gap-2 rounded-xl bg-amber-50 border border-amber-200 px-3 py-2.5 text-xs text-amber-700">
           <ShieldAlert className="w-4 h-4 mt-0.5 shrink-0" />
           <span>Ce QR est <strong>personnel</strong> : quiconque le scanne voit vos clients et montants. Ne le partagez pas. En cas de perte, cliquez sur « Régénérer ».</span>
         </div>
       </div>
+
+      <style jsx global>{`
+        @media print {
+          .no-print { display: none !important; }
+          body { background: white; }
+          .qr-card { border: none !important; box-shadow: none !important; padding: 0 !important; }
+        }
+      `}</style>
     </div>
   );
 }

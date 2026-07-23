@@ -251,7 +251,7 @@ export default function SuperAdminPage() {
       ...logsRes.data.map((l) => [
         new Date(l.createdAt).toLocaleString("fr-FR"),
         l.action,
-        l.entite ?? l.details ?? "",
+        l.entite ?? (typeof l.details === "string" ? l.details : l.details ? JSON.stringify(l.details) : "") ?? "",
         l.user ? `${l.user.prenom} ${l.user.nom}` : l.userEmail ?? "—",
         l.user?.role ?? "—",
       ]),

@@ -60,8 +60,8 @@ export default function QrPlanchePage() {
               <div key={a.id} className="qr-card border border-slate-200 rounded-xl p-3 flex flex-col items-center bg-white break-inside-avoid">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={a.qr} alt={`QR ${a.prenom} ${a.nom}`} className="w-40 h-40" />
-                <p className="mt-2 text-sm font-semibold text-slate-800 text-center">{a.prenom} {a.nom}</p>
-                <p className="text-[10px] text-slate-400">Objectifs & tournée du jour</p>
+                <p className="no-print mt-2 text-sm font-semibold text-slate-800 text-center">{a.prenom} {a.nom}</p>
+                <p className="no-print text-[10px] text-slate-400">Objectifs & tournée du jour</p>
               </div>
             ))}
           </div>

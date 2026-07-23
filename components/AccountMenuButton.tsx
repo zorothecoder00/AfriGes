@@ -42,7 +42,7 @@ export default function AccountMenuButton({ settingsHref, catalogueHref }: { set
   const role = prettifyRole(u.gestionnaireRole ?? u.role);
 
   return (
-    <div ref={ref} className="fixed top-3 right-3 z-[190]">
+    <div ref={ref} className="no-print fixed top-3 right-3 z-[190]">
       <button
         onClick={() => setOpen((o) => !o)}
         title="Mon compte"
