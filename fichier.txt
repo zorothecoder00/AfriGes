@@ -131,7 +131,7 @@ Dans les crédits clients , on va essayer de faire des filtres par agent ( avec 
 
 Dans les dossiers des collaborateurs pour leurs informations, faut ajouter aussi la personne à prévénir
   
-  
+    
   
 DocumentsRH
 Catalogue et annexe Prix
@@ -149,7 +149,6 @@ L'export sur le dashboard admin n'exporte pas toutes les données du dashboard
 Retoucher le logo
 
 Revoir le dashboard financier et même les autres ( tableau de bord admin/SUPERADMIN)
-
 
 
 je veux quelque chose d'un peu technique maintenant . Je veux que tu créés une zone de scan qui va permettre à un agent de pouvoir tomber directement sur les objectifs    

@@ -56,7 +56,7 @@ interface ModuleItem { id: number; key: string; nom: string; description: string
 interface ModulesResponse { success: boolean; data: ModuleItem[] }
 interface LogItem {
   id: number; action: string; entite?: string; entiteId?: number | null;
-  userEmail?: string; details?: string | null; ipAddress?: string | null;
+  userEmail?: string; details?: string | Record<string, unknown> | null; ipAddress?: string | null;
   createdAt: string;
   user: { nom: string; prenom: string; email?: string; role: string | null } | null;
 }
@@ -1021,7 +1021,9 @@ export default function SuperAdminPage() {
                           }`}>{l.action}</span>
                         </td>
                         <td className="px-4 py-2.5 text-xs text-slate-500">
-                          {logType === "audit" ? `${l.entite ?? ""}${l.entiteId ? ` #${l.entiteId}` : ""}` : (l.details ?? "—")}
+                          {logType === "audit"
+                            ? `${l.entite ?? ""}${l.entiteId ? ` #${l.entiteId}` : ""}`
+                            : (typeof l.details === "string" ? l.details : l.details ? JSON.stringify(l.details) : "—")}
                         </td>
                         <td className="px-4 py-2.5 text-xs">
                           {l.user ? (
