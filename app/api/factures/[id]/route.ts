@@ -5,6 +5,7 @@ import { getCaissierSession } from "@/lib/authCaissier";
 import { getRPVSession } from "@/lib/authRPV";
 import { getAgentTerrainSession } from "@/lib/authAgentTerrain";
 import { getRVCSession } from "@/lib/authRVC";
+import { requirePermission } from "@/lib/permissions";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -109,6 +110,8 @@ export async function PATCH(req: Request, { params }: Ctx) {
   try {
     const session = await getSession();
     if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
+    const denied = await requirePermission(session, "factures", "SUPPRESSION_LOGIQUE");
+    if (denied) return denied;
 
     const { id } = await params;
     const factureId = parseInt(id);
@@ -123,10 +126,16 @@ export async function PATCH(req: Request, { params }: Ctx) {
     if (facture.statut === "ANNULEE")
       return NextResponse.json({ error: "Facture déjà annulée" }, { status: 400 });
 
-    const updated = await prisma.factureVente.update({
-      where: { id: factureId },
-      data: { statut: "ANNULEE" },
-      select: { id: true, numero: true, statut: true },
+    const updated = await prisma.$transaction(async (tx) => {
+      const u = await tx.factureVente.update({
+        where: { id: factureId },
+        data: { statut: "ANNULEE" },
+        select: { id: true, numero: true, statut: true },
+      });
+      await tx.auditLog.create({
+        data: { userId: Number(session.user.id), action: "ANNULATION_FACTURE", entite: "FactureVente", entiteId: factureId },
+      });
+      return u;
     });
 
     return NextResponse.json({ data: updated });

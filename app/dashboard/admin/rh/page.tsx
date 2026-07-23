@@ -8,6 +8,7 @@ import {
   CalendarDays, MapPin, Star, UserCheck, FileWarning,
   Building2, TrendingUp, AlertTriangle, CheckCircle2,
   ArrowRight, ArrowLeft, RefreshCw, ClipboardList, Brain, Rocket, FileText, Bell,
+  CalendarClock,
 } from "lucide-react";
 
 /* ─── Types ─────────────────────────────────────────────── */
@@ -407,6 +408,7 @@ export default function RHDashboardPage() {
                   { href: "/dashboard/admin/rh/recrutement",    icon: <UserCheck size={16} />, label: "Recrutement" },
                   { href: "/dashboard/admin/rh/disciplinaire",  icon: <FileWarning size={16} />, label: "Disciplinaire" },
                   { href: "/dashboard/admin/rh/organigramme",   icon: <Building2 size={16} />, label: "Organigramme" },
+                  { href: "/dashboard/admin/rh/planning",       icon: <CalendarClock size={16} />, label: "Planning d'équipe" },
                   { href: "/dashboard/admin/rh/documents-rh",  icon: <FileText  size={16} />, label: "Documents RH" },
                   { href: "/dashboard/admin/rh/audit",         icon: <Clock     size={16} />, label: "Audit & Traçabilité" },
                 ].map(({ href, icon, label }) => (

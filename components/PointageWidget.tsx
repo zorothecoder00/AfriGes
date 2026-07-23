@@ -3,7 +3,7 @@
 import { useState, useCallback, useEffect } from "react";
 import {
   Clock, LogIn, LogOut, CheckCircle, XCircle, AlertTriangle,
-  ChevronDown, ChevronUp, Sun, Plane, X, CalendarDays, ChevronRight, Wallet,
+  ChevronDown, ChevronUp, Sun, Plane, X, CalendarDays, ChevronRight, Wallet, GraduationCap, CalendarClock,
 } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
@@ -297,6 +297,30 @@ export default function PointageWidget() {
             >
               <span className="flex items-center gap-2 text-sm font-medium">
                 <Wallet className="w-4 h-4" /> Avances &amp; prêts
+              </span>
+              <ChevronRight className="w-4 h-4" />
+            </Link>
+
+            {/* Accès Formations */}
+            <Link
+              href="/dashboard/user/collaborateur/formations"
+              onClick={() => setOpen(false)}
+              className="flex items-center justify-between w-full px-3 py-2.5 rounded-xl bg-blue-50 border border-blue-100 text-blue-700 hover:bg-blue-100 transition-colors"
+            >
+              <span className="flex items-center gap-2 text-sm font-medium">
+                <GraduationCap className="w-4 h-4" /> Formations
+              </span>
+              <ChevronRight className="w-4 h-4" />
+            </Link>
+
+            {/* Accès Planning d'équipe */}
+            <Link
+              href="/dashboard/user/collaborateur/planning"
+              onClick={() => setOpen(false)}
+              className="flex items-center justify-between w-full px-3 py-2.5 rounded-xl bg-violet-50 border border-violet-100 text-violet-700 hover:bg-violet-100 transition-colors"
+            >
+              <span className="flex items-center gap-2 text-sm font-medium">
+                <CalendarClock className="w-4 h-4" /> Mon planning
               </span>
               <ChevronRight className="w-4 h-4" />
             </Link>

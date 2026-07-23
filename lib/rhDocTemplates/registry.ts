@@ -8,12 +8,14 @@ import { templatesDivers } from "./divers";
 import { templatesEmbauche } from "./embauche";
 import { templatesFinContrat } from "./finContrat";
 import { templatesDiscipline } from "./discipline";
+import { templatesFormation } from "./formation";
 
 const ALL: RhDocTemplate[] = [
   ...templatesDivers,
   ...templatesEmbauche,
   ...templatesFinContrat,
   ...templatesDiscipline,
+  ...templatesFormation,
 ];
 
 const BY_TYPE = new Map<string, RhDocTemplate>(ALL.map((t) => [t.type, t]));

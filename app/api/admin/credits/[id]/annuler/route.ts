@@ -5,9 +5,14 @@ import {
 } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getRVCSession } from "@/lib/authRVC";
+import { getCaissierSession } from "@/lib/authCaissier";
 import { requirePermission } from "@/lib/permissions";
 
 type Ctx = { params: Promise<{ id: string }> };
+
+async function getSession() {
+  return (await getRVCSession()) ?? (await getCaissierSession());
+}
 
 /**
  * ==========================
@@ -23,7 +28,7 @@ type Ctx = { params: Promise<{ id: string }> };
  */
 export async function POST(req: Request, { params }: Ctx) {
   try {
-    const session = await getRVCSession();
+    const session = await getSession();
     if (!session) return NextResponse.json({ message: "Accès refusé" }, { status: 403 });
     const denied = await requirePermission(session, "credits", "SUPPRESSION_LOGIQUE");
     if (denied) return denied;

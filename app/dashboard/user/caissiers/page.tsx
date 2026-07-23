@@ -8,8 +8,8 @@ import {
   Users, Hash, AlertTriangle, AlertCircle, Info, ChevronLeft, ChevronRight,
   Lock, Calendar, FileText, Filter, Layers, Eye, XCircle, Package,
   Wallet, Power, Pause, Play, ArrowDownCircle, ArrowUpCircle,
-  ArrowLeftRight, CreditCard, Building2, Send, ShoppingBag, Pencil, Loader2, FolderTree,
-} from "lucide-react";       
+  ArrowLeftRight, CreditCard, Building2, Send, ShoppingBag, Pencil, Loader2, FolderTree, Ban,
+} from "lucide-react";
 import Link from "next/link";
 import NotificationBell from "@/components/NotificationBell";
 import CongesNavButton from "@/components/CongesNavButton";
@@ -18,6 +18,7 @@ import MessagesLink from "@/components/MessagesLink";
 import UserPdvBadge from "@/components/UserPdvBadge";
 import DashboardBackButton from "@/components/DashboardBackButton";
 import { useApi, useMutation } from "@/hooks/useApi";
+import { usePermissions } from "@/hooks/usePermissions";
 import { formatCurrency, formatDate, formatDateTime } from "@/lib/format";
 import { useT } from "@/contexts/AppSettingsContext";
 import { usePageAccess } from "@/hooks/usePageAccess";
@@ -846,6 +847,9 @@ export default function CaissierPage() {
   const [vcPage,               setVcPage]               = useState(1);
   const [vcSearch,             setVcSearch]             = useState("");
   const [vcSearchDebounced,    setVcSearchDebounced]    = useState("");
+  const { can } = usePermissions();
+  const canAnnulerCredit = can("credits", "SUPPRESSION_LOGIQUE");
+  const [annulationCreditId, setAnnulationCreditId] = useState<number | null>(null);
   const [rembCreditId,         setRembCreditId]         = useState<number | null>(null);
   const [rembCredit,           setRembCredit]           = useState<{ reference: string; clientNom: string; montantTotal: number; montantRembourse: number; soldeRestant: number; montantJournalier: number | null; dateDebut: string } | null>(null);
   const [rembMontant,          setRembMontant]          = useState("");
@@ -1121,6 +1125,22 @@ export default function CaissierPage() {
       setRembCreditId(null);
       refetchCredits();
     }
+  };
+
+  const handleAnnulerCreditCaissier = async (creditId: number) => {
+    if (!confirm("Annuler ce crédit ? Les échéances non payées seront supprimées et le stock/solde réversés.")) return;
+    setAnnulationCreditId(creditId);
+    try {
+      const r = await fetch(`/api/admin/credits/${creditId}/annuler`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "ANNULE" }),
+      });
+      const j = await r.json();
+      if (r.ok) { toast.success("Crédit annulé"); refetchCredits(); }
+      else toast.error(j.message ?? "Erreur lors de l'annulation");
+    } catch { toast.error("Erreur réseau"); }
+    finally { setAnnulationCreditId(null); }
   };
 
   // ── Bordereau de remboursement (accès direct depuis la liste) ───────────────
@@ -3824,6 +3844,16 @@ export default function CaissierPage() {
                                 >
                                   <Receipt size={13} />
                                 </button>
+                                {canAnnulerCredit && (
+                                  <button
+                                    onClick={() => handleAnnulerCreditCaissier(c.id)}
+                                    disabled={annulationCreditId === c.id}
+                                    className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+                                    title="Annuler le crédit"
+                                  >
+                                    {annulationCreditId === c.id ? <Loader2 size={13} className="animate-spin" /> : <Ban size={13} />}
+                                  </button>
+                                )}
                               </div>
                             </td>
                           </tr>

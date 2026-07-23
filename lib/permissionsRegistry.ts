@@ -38,6 +38,7 @@ export const PERMISSION_MODULES: PermissionModule[] = [
   { key: "stock",          label: "Stock" },
   { key: "ventes",         label: "Ventes" },
   { key: "caisse",         label: "Caisse" },
+  { key: "factures",       label: "Factures" },
 ];
 
 export const MODULE_KEYS = PERMISSION_MODULES.map((m) => m.key);
@@ -63,10 +64,10 @@ export const DEFAULT_MATRIX: Record<string, Partial<Record<string, PermissionAct
     credits: [L, V, E], compte_courant: [L, V, E], ventes: ROE, caisse: ROE, stock: ROE, paie: ROE,
   },
   CAISSIER: {
-    caisse: RW, ventes: [L, C, E], compte_courant: [L, C, E], credits: RO, stock: RO,
+    caisse: RW, ventes: [L, C, E], compte_courant: [L, C, E], credits: [L, S], stock: RO, factures: [L, S],
   },
   RESPONSABLE_VENTE_CREDIT: {
-    credits: FULL, compte_courant: RO, ventes: ROE,
+    credits: FULL, compte_courant: RO, ventes: ROE, factures: [L, E, S],
   },
   AGENT_TERRAIN: {
     credits: [L, C], ventes: [L, C], compte_courant: ROE,

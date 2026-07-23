@@ -13,6 +13,7 @@ import Link from "next/link";
 import { useApi, useMutation } from "@/hooks/useApi";
 import { formatDate } from "@/lib/format";
 import { toast } from "sonner";
+import { exportToXlsx } from "@/lib/exportXlsx";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -146,6 +147,7 @@ const TABS = [
   { id: "avances",  label: "Avances & Prêts",icon: <Banknote   className="w-4 h-4" /> },
   { id: "ordres",   label: "Paiements",       icon: <Send       className="w-4 h-4" /> },
   { id: "historique",label: "Historique",     icon: <Archive    className="w-4 h-4" /> },
+  { id: "retenues", label: "État des retenues", icon: <FileText className="w-4 h-4" /> },
   { id: "config",   label: "Configuration",   icon: <Settings   className="w-4 h-4" /> },
   { id: "dashboard",label: "Tableau de bord", icon: <TrendingUp className="w-4 h-4" /> },
 ];
@@ -189,6 +191,7 @@ export default function PaiePage() {
         {activeTab === "avances"    && <AvancesPretsTab />}
         {activeTab === "ordres"     && <OrdresPaiementTab />}
         {activeTab === "historique" && <HistoriqueTab />}
+        {activeTab === "retenues"   && <RetenuesTab />}
         {activeTab === "config"     && <ConfigTab />}
         {activeTab === "dashboard"  && <DashboardTab />}
 
@@ -1347,6 +1350,40 @@ function HistoriqueTab() {
           <option value="TOUS">Tous statuts</option>
         </select>
         <button onClick={refetch} className="p-2 text-slate-500 hover:text-slate-700 bg-white border border-slate-200 rounded-lg"><RefreshCw className="w-4 h-4" /></button>
+        <button
+          onClick={() => exportToXlsx(
+            fiches.map((f) => ({
+              Collaborateur: `${f.profilRH.gestionnaire.member.prenom} ${f.profilRH.gestionnaire.member.nom}`,
+              Matricule: f.profilRH.matricule,
+              Departement: f.profilRH.departement ?? "",
+              Mois: MOIS_LABELS[f.mois],
+              Annee: f.annee,
+              NetAPayer: f.netAPayer,
+              Statut: f.statut,
+              ModePaiement: f.modePaiement ?? "",
+              DateMiseEnPaiement: f.dateMiseEnPaiement ? new Date(f.dateMiseEnPaiement) : null,
+              BulletinSigne: f.fichierUrl ? "Oui" : "Non",
+            })),
+            [
+              { label: "Collaborateur", key: "Collaborateur" },
+              { label: "Matricule", key: "Matricule" },
+              { label: "Département", key: "Departement" },
+              { label: "Mois", key: "Mois" },
+              { label: "Année", key: "Annee" },
+              { label: "Net payé", key: "NetAPayer", type: "currency" },
+              { label: "Statut", key: "Statut" },
+              { label: "Mode de paiement", key: "ModePaiement" },
+              { label: "Date de mise en paiement", key: "DateMiseEnPaiement", type: "date" },
+              { label: "Bulletin signé", key: "BulletinSigne" },
+            ],
+            `journal-paie-${annee || "toutes-annees"}.xlsx`,
+            { sheetName: "Journal de paie", title: "Journal de paie" },
+          )}
+          disabled={fiches.length === 0}
+          className="flex items-center gap-1.5 px-3 py-2 text-sm border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed bg-white"
+        >
+          <Download className="w-4 h-4" /> Exporter
+        </button>
       </div>
 
       {/* Stats */}
@@ -1370,6 +1407,121 @@ function HistoriqueTab() {
         <div className="bg-white rounded-xl border border-slate-200 overflow-hidden divide-y divide-slate-100">
           {fiches.map((f) => <ArchiveRow key={f.id} fiche={f} onRefetch={refetch} />)}
         </div>
+      )}
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// TAB — ÉTAT DES RETENUES (agrégat des composants isRetenue=true déjà en base)
+// ════════════════════════════════════════════════════════════════════════════
+
+interface RetenuesRes {
+  totalRetenues: number;
+  parType: { type: string; libelle: string; total: number; nombre: number }[];
+  parCollaborateur: {
+    profilRH: { id: number; matricule: string; departement: string | null; nom: string; prenom: string };
+    total: number;
+    detail: { type: string; libelle: string; montant: number }[];
+  }[];
+  periode: { mois: number | null; annee: number };
+}
+
+function RetenuesTab() {
+  const [mois,  setMois]  = useState("");
+  const [annee, setAnnee] = useState(String(ANNEE_COURANTE));
+
+  const params = new URLSearchParams({ annee });
+  if (mois) params.set("mois", mois);
+
+  const { data, loading, refetch } = useApi<RetenuesRes>(`/api/admin/rh/paie/retenues?${params}`);
+  const parType = data?.parType ?? [];
+  const parCollab = data?.parCollaborateur ?? [];
+
+  return (
+    <div className="space-y-5">
+      {/* Filtres */}
+      <div className="flex gap-3 flex-wrap items-center">
+        <select value={mois} onChange={(e) => setMois(e.target.value)}
+          className="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
+          <option value="">Tous les mois</option>
+          {MOIS_LABELS.slice(1).map((l, i) => <option key={i+1} value={i+1}>{l}</option>)}
+        </select>
+        <select value={annee} onChange={(e) => setAnnee(e.target.value)}
+          className="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
+          {ANNEES.map((a) => <option key={a} value={a}>{a}</option>)}
+        </select>
+        <button onClick={refetch} className="p-2 text-slate-500 hover:text-slate-700 bg-white border border-slate-200 rounded-lg"><RefreshCw className="w-4 h-4" /></button>
+        <button
+          onClick={() => exportToXlsx(
+            parCollab.map((c) => ({
+              Collaborateur: `${c.profilRH.prenom} ${c.profilRH.nom}`,
+              Matricule: c.profilRH.matricule,
+              Departement: c.profilRH.departement ?? "",
+              TotalRetenues: c.total,
+              Detail: c.detail.map((d) => `${d.libelle}: ${fmt(d.montant)}`).join(" | "),
+            })),
+            [
+              { label: "Collaborateur", key: "Collaborateur" },
+              { label: "Matricule", key: "Matricule" },
+              { label: "Département", key: "Departement" },
+              { label: "Total retenues", key: "TotalRetenues", type: "currency" },
+              { label: "Détail", key: "Detail" },
+            ],
+            `etat-retenues-${annee}${mois ? `-${mois}` : ""}.xlsx`,
+            { sheetName: "État des retenues", title: "État des retenues" },
+          )}
+          disabled={parCollab.length === 0}
+          className="flex items-center gap-1.5 px-3 py-2 text-sm border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed bg-white ml-auto"
+        >
+          <Download className="w-4 h-4" /> Exporter
+        </button>
+      </div>
+
+      {loading ? (
+        <div className="flex items-center justify-center py-16 text-slate-400"><RefreshCw className="w-5 h-5 animate-spin mr-2" /> Chargement…</div>
+      ) : parCollab.length === 0 ? (
+        <div className="bg-white rounded-xl border border-slate-200 flex flex-col items-center justify-center py-16 text-slate-400">
+          <FileText className="w-10 h-10 mb-2 opacity-30" />
+          <p className="text-sm">Aucune retenue sur cette période</p>
+        </div>
+      ) : (
+        <>
+          {/* Total + répartition par type */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="bg-white rounded-xl border border-slate-200 p-4">
+              <p className="text-xs text-slate-500 mb-1">Total des retenues</p>
+              <p className="text-2xl font-bold text-red-600">{fmt(data?.totalRetenues ?? 0)} FCFA</p>
+            </div>
+            <div className="bg-white rounded-xl border border-slate-200 p-4">
+              <p className="text-xs font-semibold text-slate-500 uppercase mb-2">Répartition par type</p>
+              <div className="space-y-1.5">
+                {parType.map((t) => (
+                  <div key={t.type} className="flex justify-between text-sm">
+                    <span className="text-slate-600">{t.libelle} <span className="text-slate-400 text-xs">×{t.nombre}</span></span>
+                    <span className="font-medium text-red-600">{fmt(t.total)} FCFA</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Détail par collaborateur */}
+          <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+            <div className="divide-y divide-slate-100">
+              {parCollab.map((c) => (
+                <div key={c.profilRH.id} className="px-5 py-3.5 flex items-center justify-between gap-4">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-slate-800">{c.profilRH.prenom} {c.profilRH.nom}</p>
+                    <p className="text-xs text-slate-400 font-mono">{c.profilRH.matricule}{c.profilRH.departement ? ` · ${c.profilRH.departement}` : ""}</p>
+                    <p className="text-xs text-slate-400 mt-0.5">{c.detail.map((d) => d.libelle).join(", ")}</p>
+                  </div>
+                  <span className="text-sm font-bold text-red-600 flex-shrink-0">-{fmt(c.total)} FCFA</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </>
       )}
     </div>
   );

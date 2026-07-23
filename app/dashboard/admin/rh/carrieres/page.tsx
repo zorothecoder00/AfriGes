@@ -66,6 +66,25 @@ interface Talent {
   postes:    { id: number; titre: string; departement: string | null }[];
 }
 
+interface DemandeCarriere {
+  id:                 number;
+  type:               string;
+  nouvelleFonction:   string | null;
+  nouveauService:     string | null;
+  nouveauDepartement: string | null;
+  nouveauSalaire:     number | null;
+  motif:              string | null;
+  statut:             string;
+  commentaireRefus:   string | null;
+  createdAt:          string;
+  profilRH: {
+    id: number; matricule: string; fonction: string | null; departement: string | null;
+    gestionnaire: { member: { nom: string; prenom: string } };
+  };
+}
+
+interface DemandesRes { data: DemandeCarriere[]; meta: { total: number; page: number; totalPages: number }; stats: Record<string, number> }
+
 interface MouvementsRes  { data: Mouvement[];    meta: { total: number; page: number; totalPages: number }; stats: Record<string, number> }
 interface SuccessionRes  { data: PosteCritique[]; stats: { total: number; couverts: number; critiques: number; talents: number } }
 interface TalentsRes     { data: Talent[]; total: number }
@@ -90,6 +109,14 @@ const READINESS_CONFIG: Record<string, { label: string; badge: string; short: st
 const ANNEE_COURANTE = new Date().getFullYear();
 const ANNEES         = Array.from({ length: 4 }, (_, i) => ANNEE_COURANTE - i);
 
+const STATUT_DEMANDE_CONFIG: Record<string, { label: string; badge: string }> = {
+  EN_ATTENTE: { label: "En attente",  badge: "bg-amber-100 text-amber-700" },
+  VALIDE_RH:  { label: "Validée RH",  badge: "bg-blue-100 text-blue-700" },
+  APPROUVE:   { label: "Approuvée",   badge: "bg-emerald-100 text-emerald-700" },
+  REJETE:     { label: "Rejetée",     badge: "bg-red-100 text-red-700" },
+  ANNULE:     { label: "Annulée",     badge: "bg-slate-100 text-slate-500" },
+};
+
 // ── Composants utilitaires ─────────────────────────────────────────────────────
 
 function EField({ label, children }: { label: string; children: React.ReactNode }) {
@@ -113,12 +140,14 @@ function Avatar({ nom, prenom, size = "md" }: { nom: string; prenom: string; siz
 // ── Page ───────────────────────────────────────────────────────────────────────
 
 export default function CarrieresPage() {
-  const [activeTab, setActiveTab] = useState<"parcours" | "succession" | "talents">("parcours");
+  const [activeTab, setActiveTab] = useState<"parcours" | "demandes" | "succession" | "talents">("parcours");
   const [typeFilt,  setTypeFilt]  = useState("");
   const [anneeFilt, setAnneeFilt] = useState(String(ANNEE_COURANTE));
   const [search,    setSearch]    = useState("");
   const [page,      setPage]      = useState(1);
+  const [demandeStatutFilt, setDemandeStatutFilt] = useState("");
   const [showNewMouvement,  setShowNewMouvement]  = useState(false);
+  const [showNewDemande,    setShowNewDemande]    = useState(false);
   const [showNewPoste,      setShowNewPoste]       = useState(false);
   const [selectedPoste,     setSelectedPoste]      = useState<PosteCritique | null>(null);
 
@@ -136,6 +165,17 @@ export default function CarrieresPage() {
   const mouvMeta   = mouvRes?.meta;
   const mouvStats  = mouvRes?.stats ?? {};
 
+  // ── Demandes de mouvement de carrière ──
+  const demandeParams = new URLSearchParams();
+  if (demandeStatutFilt) demandeParams.set("statut", demandeStatutFilt);
+  demandeParams.set("limit", "50");
+
+  const { data: demandesRes, loading: demandesLoading, refetch: refetchDemandes } = useApi<DemandesRes>(
+    activeTab === "demandes" ? `/api/admin/rh/carrieres/demandes?${demandeParams}` : null
+  );
+  const demandes      = demandesRes?.data ?? [];
+  const demandesStats = demandesRes?.stats ?? {};
+
   // ── Succession ──
   const { data: succRes, loading: succLoading, refetch: refetchSucc } = useApi<SuccessionRes>(
     activeTab === "succession" ? "/api/admin/rh/carrieres/plan-succession" : null
@@ -149,7 +189,7 @@ export default function CarrieresPage() {
   );
   const talents = talentsRes?.data ?? [];
 
-  const refetchAll = () => { refetchMouv(); refetchSucc(); refetchTalents(); };
+  const refetchAll = () => { refetchMouv(); refetchDemandes(); refetchSucc(); refetchTalents(); };
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -174,6 +214,12 @@ export default function CarrieresPage() {
                 <Plus className="w-4 h-4" /> Nouveau mouvement
               </button>
             )}
+            {activeTab === "demandes" && (
+              <button onClick={() => setShowNewDemande(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-xl hover:bg-indigo-700">
+                <Plus className="w-4 h-4" /> Nouvelle demande
+              </button>
+            )}
             {activeTab === "succession" && (
               <button onClick={() => setShowNewPoste(true)}
                 className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-xl hover:bg-indigo-700">
@@ -187,6 +233,7 @@ export default function CarrieresPage() {
         <div className="flex gap-1 bg-white border border-slate-200 rounded-xl p-1 w-fit">
           {[
             { key: "parcours",   label: "Parcours",         icon: <TrendingUp className="w-3.5 h-3.5" /> },
+            { key: "demandes",   label: "Demandes",         icon: <Award      className="w-3.5 h-3.5" /> },
             { key: "succession", label: "Plan de succession",icon: <Shield     className="w-3.5 h-3.5" /> },
             { key: "talents",    label: "Talents clés",     icon: <Star       className="w-3.5 h-3.5" /> },
           ].map(({ key, label, icon }) => (
@@ -255,6 +302,39 @@ export default function CarrieresPage() {
                   <span className="px-3 py-1.5 text-sm text-slate-600">{page}/{mouvMeta.totalPages}</span>
                   <button disabled={page >= mouvMeta.totalPages} onClick={() => setPage((p) => p + 1)}
                     className="px-3 py-1.5 text-sm border border-slate-200 rounded-lg disabled:opacity-40 hover:bg-slate-50">Suivant</button>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* ════════════ DEMANDES DE MOUVEMENT ════════════ */}
+        {activeTab === "demandes" && (
+          <>
+            <div className="flex gap-2 flex-wrap">
+              {Object.entries(STATUT_DEMANDE_CONFIG).map(([key, cfg]) => (
+                <button key={key} onClick={() => setDemandeStatutFilt(demandeStatutFilt === key ? "" : key)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                    demandeStatutFilt === key ? "ring-1 ring-indigo-400 " + cfg.badge : cfg.badge + " opacity-60 hover:opacity-100"
+                  }`}>
+                  {cfg.label} ({demandesStats[key] ?? 0})
+                </button>
+              ))}
+            </div>
+
+            {demandesLoading ? (
+              <div className="flex items-center justify-center py-20 text-slate-400">
+                <RefreshCw className="w-5 h-5 animate-spin mr-2" /> Chargement…
+              </div>
+            ) : demandes.length === 0 ? (
+              <div className="bg-white rounded-xl border border-slate-200 flex flex-col items-center justify-center py-20 text-slate-400">
+                <Award className="w-10 h-10 mb-2 opacity-30" />
+                <p className="text-sm">Aucune demande de mouvement de carrière</p>
+              </div>
+            ) : (
+              <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+                <div className="divide-y divide-slate-100">
+                  {demandes.map((d) => <DemandeRow key={d.id} demande={d} onRefetch={refetchDemandes} />)}
                 </div>
               </div>
             )}
@@ -332,6 +412,11 @@ export default function CarrieresPage() {
         <MouvementModal
           onClose={() => setShowNewMouvement(false)}
           onCreated={() => { setShowNewMouvement(false); refetchMouv(); }} />
+      )}
+      {showNewDemande && (
+        <DemandeModal
+          onClose={() => setShowNewDemande(false)}
+          onCreated={() => { setShowNewDemande(false); refetchDemandes(); }} />
       )}
       {showNewPoste && (
         <PosteModal
@@ -625,6 +710,151 @@ function MouvementModal({ onClose, onCreated }: { onClose: () => void; onCreated
           <button onClick={handleSubmit} disabled={loading}
             className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 disabled:opacity-50">
             {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Enregistrer
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Ligne demande de mouvement de carrière ─────────────────────────────────────
+
+function DemandeRow({ demande: d, onRefetch }: { demande: DemandeCarriere; onRefetch: () => void }) {
+  const { mutate, loading } = useMutation(`/api/admin/rh/carrieres/demandes/${d.id}`, "PATCH");
+  const cfg    = TYPE_CONFIG[d.type] ?? null;
+  const statutCfg = STATUT_DEMANDE_CONFIG[d.statut] ?? STATUT_DEMANDE_CONFIG.EN_ATTENTE;
+  const member = d.profilRH.gestionnaire.member;
+
+  const doAction = async (action: string) => {
+    let commentaire: string | undefined;
+    if (action === "REJETER") {
+      commentaire = window.prompt("Motif du refus (facultatif) :") ?? undefined;
+    }
+    const result = await mutate({ action, commentaire });
+    if (result) { toast.success("Demande mise à jour"); onRefetch(); }
+  };
+
+  return (
+    <div className="flex items-center gap-4 px-5 py-3.5 hover:bg-slate-50">
+      <Avatar nom={member.nom} prenom={member.prenom} />
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-sm font-semibold text-slate-800">{member.prenom} {member.nom}</span>
+          <span className="text-xs text-slate-400 font-mono">{d.profilRH.matricule}</span>
+          {cfg && <span className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${cfg.badge}`}>{cfg.icon} {cfg.label}</span>}
+          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${statutCfg.badge}`}>{statutCfg.label}</span>
+        </div>
+        <div className="flex items-center gap-3 mt-0.5 text-xs text-slate-500">
+          {d.nouvelleFonction && <span>→ {d.nouvelleFonction}</span>}
+          {d.nouveauDepartement && <span>→ {d.nouveauDepartement}</span>}
+          {d.nouveauSalaire != null && <span>→ {new Intl.NumberFormat("fr-FR").format(d.nouveauSalaire)} FCFA</span>}
+        </div>
+        {d.motif && <p className="text-xs text-slate-400 mt-0.5 italic">{d.motif}</p>}
+        {d.commentaireRefus && <p className="text-xs text-red-500 mt-0.5">Motif refus : {d.commentaireRefus}</p>}
+      </div>
+      <div className="flex items-center gap-2 flex-shrink-0">
+        {d.statut === "EN_ATTENTE" && (
+          <button disabled={loading} onClick={() => doAction("VALIDER_RH")}
+            className="px-3 py-1.5 text-xs font-medium bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 disabled:opacity-50">Valider RH</button>
+        )}
+        {(d.statut === "EN_ATTENTE" || d.statut === "VALIDE_RH") && (
+          <>
+            <button disabled={loading} onClick={() => doAction("APPROUVER")}
+              className="px-3 py-1.5 text-xs font-medium bg-emerald-50 text-emerald-700 rounded-lg hover:bg-emerald-100 disabled:opacity-50">Approuver</button>
+            <button disabled={loading} onClick={() => doAction("REJETER")}
+              className="px-3 py-1.5 text-xs font-medium bg-red-50 text-red-600 rounded-lg hover:bg-red-100 disabled:opacity-50">Rejeter</button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Modal nouvelle demande de mouvement de carrière ────────────────────────────
+
+function DemandeModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
+  const { mutate, loading } = useMutation("/api/admin/rh/carrieres/demandes", "POST");
+  const { data: collabRes } = useApi<CollabsRes>("/api/admin/rh/collaborateurs?limit=200&statut=ACTIF");
+  const collabs = collabRes?.data ?? [];
+
+  const [form, setForm] = useState({
+    profilRHId: "", type: "PROMOTION",
+    nouvelleFonction: "", nouveauDepartement: "", nouveauSalaire: "",
+    motif: "",
+  });
+  const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
+
+  const handleSubmit = async () => {
+    if (!form.profilRHId || !form.type) { toast.error("Collaborateur et type requis"); return; }
+    const result = await mutate({
+      profilRHId:         Number(form.profilRHId),
+      type:               form.type,
+      nouvelleFonction:   form.nouvelleFonction   || undefined,
+      nouveauDepartement: form.nouveauDepartement || undefined,
+      nouveauSalaire:     form.nouveauSalaire     ? Number(form.nouveauSalaire) : undefined,
+      motif:              form.motif              || undefined,
+    });
+    if (result) { toast.success("Demande soumise"); onCreated(); }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] flex flex-col">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
+          <h2 className="font-semibold text-slate-900">Nouvelle demande de mouvement</h2>
+          <button onClick={onClose} className="p-1.5 hover:bg-slate-100 rounded-lg"><X className="w-4 h-4" /></button>
+        </div>
+        <div className="overflow-y-auto flex-1 p-6 space-y-4">
+          <EField label="Collaborateur *">
+            <select value={form.profilRHId} onChange={(e) => set("profilRHId", e.target.value)}
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+              <option value="">— Sélectionner —</option>
+              {collabs.map((c) => <option key={c.id} value={c.id}>{c.gestionnaire.member.prenom} {c.gestionnaire.member.nom} ({c.matricule})</option>)}
+            </select>
+          </EField>
+
+          <EField label="Type de mouvement *">
+            <div className="grid grid-cols-2 gap-2">
+              {Object.entries(TYPE_CONFIG).map(([k, cfg]) => (
+                <button key={k} type="button" onClick={() => set("type", k)}
+                  className={`flex items-center gap-2 px-3 py-2 border rounded-lg text-sm transition-all ${
+                    form.type === k ? "border-indigo-500 bg-indigo-50 text-indigo-700 font-medium" : "border-slate-200 text-slate-600 hover:border-slate-300"
+                  }`}>
+                  {cfg.icon} {cfg.label}
+                </button>
+              ))}
+            </div>
+          </EField>
+
+          <div className="grid grid-cols-2 gap-3">
+            <EField label="Nouvelle fonction">
+              <input value={form.nouvelleFonction} onChange={(e) => set("nouvelleFonction", e.target.value)}
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                placeholder="Ex: Chef d'équipe" />
+            </EField>
+            <EField label="Nouveau département">
+              <input value={form.nouveauDepartement} onChange={(e) => set("nouveauDepartement", e.target.value)}
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                placeholder="Ex: Direction" />
+            </EField>
+            <EField label="Nouveau salaire (FCFA)">
+              <input type="number" value={form.nouveauSalaire} onChange={(e) => set("nouveauSalaire", e.target.value)}
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                placeholder="200000" />
+            </EField>
+          </div>
+
+          <EField label="Motif / Contexte">
+            <textarea value={form.motif} onChange={(e) => set("motif", e.target.value)} rows={2}
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+              placeholder="Raison de la demande, contexte…" />
+          </EField>
+        </div>
+        <div className="flex justify-end gap-3 px-6 py-4 border-t border-slate-200">
+          <button onClick={onClose} className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 rounded-lg border border-slate-200">Annuler</button>
+          <button onClick={handleSubmit} disabled={loading}
+            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 disabled:opacity-50">
+            {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Soumettre
           </button>
         </div>
       </div>

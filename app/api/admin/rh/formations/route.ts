@@ -86,7 +86,7 @@ export async function POST(req: NextRequest) {
     if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
 
     const body = await req.json();
-    const { titre, type, objectifs, lieu, formateur, dateDebut, dateFin, dureeHeures, cout, budgetAlloue, certificationNom, notes, participantIds = [] } = body;
+    const { titre, type, objectifs, lieu, formateur, dateDebut, dateFin, dureeHeures, cout, budgetAlloue, certificationNom, notes, participantIds = [], planFormationId } = body;
 
     if (!titre || !dateDebut) {
       return NextResponse.json({ error: "titre et dateDebut sont obligatoires" }, { status: 400 });
@@ -107,6 +107,7 @@ export async function POST(req: NextRequest) {
         certificationNom:certificationNom?? null,
         notes:           notes           ?? null,
         createdById:     parseInt(session.user.id),
+        planFormationId: planFormationId ? Number(planFormationId) : null,
         statut:          "PLANIFIEE",
         participations: participantIds.length > 0 ? {
           create: participantIds.map((pid: number) => ({ profilRHId: pid, statut: "INSCRIT" })),

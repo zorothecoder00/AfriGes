@@ -3637,6 +3637,9 @@ model ProfilRH {
   successions             SuccesseurPotentiel[]
   onboarding              OnboardingEmploye?
   competences             CollaborateurCompetence[]
+  demandesMouvementCarriere DemandeMouvementCarriere[]
+  demandesFormation         DemandeFormation[]
+  affectationsPlanning      AffectationPlanning[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -3711,6 +3714,46 @@ model PlanCarriere {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+enum StatutDemandeRH {
+  EN_ATTENTE
+  VALIDE_MANAGER
+  VALIDE_RH
+  APPROUVE
+  REJETE
+  ANNULE
+}
+
+/// Demande de mouvement de carrière (promotion, mutation, évolution, reclassement)
+/// — formalise l'approbation avant l'écriture dans HistoriquePoste (Phase 2 OGRH).
+model DemandeMouvementCarriere {
+  id         Int                   @id @default(autoincrement())
+  profilRHId Int
+  type       TypeMouvementCarriere
+
+  nouvelleFonction   String?
+  nouveauService     String?
+  nouveauDepartement String?
+  nouveauSalaire     Decimal?
+  nouveauManagerId   Int?
+
+  motif        String?
+  demandeParId Int             // User.id de l'auteur de la demande
+  statut       StatutDemandeRH @default(EN_ATTENTE)
+
+  commentaireRefus   String?
+  dateValidationRH   DateTime?
+  dateDecisionFinale DateTime?
+  historiquePosteId  Int?      // renseigné à l'approbation (HistoriquePoste créé)
+
+  profilRH ProfilRH @relation(fields: [profilRHId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([profilRHId])
+  @@index([statut])
 }
 
 /// Poste stratégique nécessitant un plan de succession
@@ -3914,10 +3957,28 @@ enum TypeDocumentRHGenere {
   CONTRAT_CDD
   CONTRAT_STAGE
   AVENANT_CONTRAT
+  CONTRAT_APPRENTISSAGE
+  CONTRAT_PRESTATION
+  FICHE_INDIVIDUELLE_SALARIE
+  FICHE_RENSEIGNEMENTS_PERSONNEL
+  DECLARATION_PRISE_SERVICE
+  ACCUSE_RECEPTION_DOCUMENTS
+  LISTE_PIECES_ADMINISTRATIVES
+  CHARTE_CONFIDENTIALITE
+  ENGAGEMENT_CONFIDENTIALITE
+  ENGAGEMENT_NON_CONCURRENCE
+  ENGAGEMENT_REGLEMENT_INTERIEUR
+  FICHE_REMISE_MATERIEL
   // Fin de contrat
   CERTIFICAT_TRAVAIL
   SOLDE_TOUT_COMPTE
   ATTESTATION_EMPLOI
+  ACCEPTATION_DEMISSION
+  NOTIFICATION_LICENCIEMENT
+  MAINLEVEE_MATERIEL
+  FICHE_RESTITUTION_BIENS
+  QUITUS_ADMINISTRATIF
+  PV_SORTIE
   // Discipline
   AVERTISSEMENT_ECRIT
   MISE_EN_DEMEURE
@@ -3928,6 +3989,9 @@ enum TypeDocumentRHGenere {
   MISE_A_PIED
   LETTRE_LICENCIEMENT
   PV_RUPTURE
+  // Formation
+  ATTESTATION_FORMATION
+  CERTIFICAT_PARTICIPATION
   AUTRE
 }
 
@@ -4182,6 +4246,22 @@ enum StatutParticipationFormation {
   CERTIFIE
 }
 
+/// Plan de formation annuel — agrège plusieurs Formation sous un budget/axes prioritaires.
+model PlanFormationAnnuel {
+  id               Int              @id @default(autoincrement())
+  annee            Int              @unique
+  budgetTotal      Decimal?
+  axesPrioritaires String?
+  notes            String?
+  statut           StatutPlanAnnuel @default(BROUILLON)
+  createdById      Int              // User.id
+
+  formations Formation[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 model Formation {
   id               Int             @id @default(autoincrement())
   titre            String
@@ -4198,8 +4278,11 @@ model Formation {
   statut           StatutFormation @default(PLANIFIEE)
   notes            String?
   createdById      Int             // User.id
+  planFormationId  Int?
 
-  participations ParticipationFormation[]
+  participations  ParticipationFormation[]
+  demandes        DemandeFormation[]
+  planFormation   PlanFormationAnnuel?     @relation(fields: [planFormationId], references: [id])
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -4207,6 +4290,7 @@ model Formation {
   @@index([statut])
   @@index([type])
   @@index([dateDebut])
+  @@index([planFormationId])
 }
 
 model ParticipationFormation {
@@ -4225,6 +4309,30 @@ model ParticipationFormation {
   updatedAt DateTime @updatedAt
 
   @@unique([formationId, profilRHId])
+  @@index([profilRHId])
+  @@index([statut])
+}
+
+/// Demande de formation self-service (collaborateur → Manager → RH), calquée sur DemandeConge.
+model DemandeFormation {
+  id              Int             @id @default(autoincrement())
+  profilRHId      Int
+  intituleSouhaite String
+  formationId     Int?            // si liée à une session déjà planifiée
+  motif           String?
+  statut          StatutDemandeRH @default(EN_ATTENTE)
+
+  commentaireRefus   String?
+  dateValidationMgr  DateTime?
+  dateValidationRH   DateTime?
+  dateDecisionFinale DateTime?
+
+  profilRH  ProfilRH   @relation(fields: [profilRHId], references: [id])
+  formation Formation? @relation(fields: [formationId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([profilRHId])
   @@index([statut])
 }
@@ -4310,6 +4418,50 @@ model ConfigHoraire {
 
   @@index([estDefaut])
   @@index([actif])
+}
+
+enum StatutPlanningEquipe {
+  BROUILLON
+  PUBLIE
+}
+
+/// Planning d'équipe hebdomadaire (staffing/roulement) — indépendant de ConfigHoraire,
+/// qui reste le gabarit horaire individuel de référence.
+model PlanningEquipe {
+  id            Int                  @id @default(autoincrement())
+  semaineDebut  DateTime             // lundi de la semaine planifiée
+  statut        StatutPlanningEquipe @default(BROUILLON)
+  responsableId Int                  // User.id créateur
+  notes         String?
+
+  affectations AffectationPlanning[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([semaineDebut])
+  @@index([statut])
+}
+
+/// Ligne d'affectation d'un collaborateur sur un créneau donné du planning d'équipe.
+model AffectationPlanning {
+  id         Int      @id @default(autoincrement())
+  planningId Int
+  profilRHId Int
+  date       DateTime
+  heureDebut String
+  heureFin   String
+  role       String?
+  notes      String?
+
+  planning PlanningEquipe @relation(fields: [planningId], references: [id], onDelete: Cascade)
+  profilRH ProfilRH       @relation(fields: [profilRHId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@index([planningId])
+  @@index([profilRHId])
+  @@index([date])
 }
 
 // ============================================================
@@ -4493,6 +4645,7 @@ model EvaluationRH {
   evaluateur ProfilRH? @relation("EvaluationsEffectuees",    fields: [evaluateurId], references: [id])
   criteres   CritereEvaluation[]
   objectifs  ObjectifKPI[]
+  actionsDeveloppement ActionDeveloppement[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -4534,6 +4687,35 @@ model ObjectifKPI {
   @@index([evaluationId])
 }
 
+enum StatutActionDeveloppement {
+  A_FAIRE
+  EN_COURS
+  REALISE
+  ANNULE
+}
+
+/// Action structurée du plan de développement individuel (PDI), rattachée à une
+/// évaluation. Le champ EvaluationRH.planAmelioration (texte libre) reste la
+/// synthèse ; ces actions apportent le détail objectif/échéance/statut.
+model ActionDeveloppement {
+  id           Int                       @id @default(autoincrement())
+  evaluationId Int
+  profilRHId   Int                       // dénormalisé, pour requêtes directes par collaborateur
+  objectif     String
+  actionPrevue String?
+  echeance     DateTime?
+  statut       StatutActionDeveloppement @default(A_FAIRE)
+  notes        String?
+
+  evaluation EvaluationRH @relation(fields: [evaluationId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([evaluationId])
+  @@index([profilRHId])
+}
+
 // ============================================================
 // OGRH — MODULE 5 : RECRUTEMENT
 // ============================================================
@@ -4559,6 +4741,28 @@ enum StatutCandidature {
   REJETE
 }
 
+enum StatutPlanAnnuel {
+  BROUILLON
+  VALIDE
+  CLOTURE
+}
+
+/// Plan de recrutement annuel — agrège plusieurs PosteOuvert sous un budget/effectif cible.
+model PlanRecrutementAnnuel {
+  id            Int              @id @default(autoincrement())
+  annee         Int              @unique
+  budgetTotal   Decimal?
+  effectifCible Int?
+  notes         String?
+  statut        StatutPlanAnnuel @default(BROUILLON)
+  createdById   Int              // User.id
+
+  postes PosteOuvert[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 model PosteOuvert {
   id                  Int         @id @default(autoincrement())
   reference           String?     @unique // ex: REC-2026-0001 (auto-généré)
@@ -4582,15 +4786,18 @@ model PosteOuvert {
   dateValidation      DateTime?   // date de validation interne
   notes               String?
   createdById         Int         // User.id
+  planRecrutementId   Int?
 
   candidatures     Candidature[]
   documentsGeneres DocumentRecrutementGenere[]
+  planRecrutement  PlanRecrutementAnnuel? @relation(fields: [planRecrutementId], references: [id])
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([statut])
   @@index([createdById])
+  @@index([planRecrutementId])
 }
 
 model Candidature {
@@ -4629,12 +4836,20 @@ model Candidature {
 }
 
 enum TypeDocumentRecrutement {
-  AVIS_RECRUTEMENT       // rattaché au poste
-  CONVOCATION_ENTRETIEN  // rattaché à la candidature
-  LETTRE_OFFRE           // rattaché à la candidature
-  LETTRE_REFUS           // rattaché à la candidature
-  PROMESSE_EMBAUCHE      // rattaché à la candidature
-  PV_SELECTION           // rattaché au poste
+  AVIS_RECRUTEMENT             // rattaché au poste
+  CONVOCATION_ENTRETIEN        // rattaché à la candidature
+  LETTRE_OFFRE                 // rattaché à la candidature
+  LETTRE_REFUS                 // rattaché à la candidature
+  PROMESSE_EMBAUCHE            // rattaché à la candidature
+  PV_SELECTION                 // rattaché au poste
+  FICHE_CREATION_POSTE         // rattaché au poste
+  DESCRIPTION_POSTE            // rattaché au poste
+  PROFIL_POSTE                 // rattaché au poste
+  DEMANDE_RECRUTEMENT          // rattaché au poste
+  GRILLE_PRESELECTION          // rattaché au poste
+  GUIDE_ENTRETIEN              // rattaché au poste
+  GRILLE_EVALUATION_CANDIDATS  // rattaché à la candidature
+  RAPPORT_ENTRETIEN            // rattaché à la candidature
 }
 
 /// Document de recrutement généré (nature A) — rattaché à un PosteOuvert OU une

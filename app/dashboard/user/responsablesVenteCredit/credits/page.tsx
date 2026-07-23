@@ -5,7 +5,7 @@ import {
   CreditCard, Search, RefreshCw, Loader2, Plus, X, Eye, Pencil,
   CheckCircle2, AlertCircle, TrendingDown, Calendar, Banknote,
   ChevronLeft, ChevronRight, ChevronDown, ChevronUp, User,
-  PackageCheck, ArrowLeftRight, XCircle, Receipt, Edit3, Trash2, FolderTree, FileText,
+  PackageCheck, ArrowLeftRight, XCircle, Receipt, Edit3, Trash2, FolderTree, FileText, Ban,
 } from "lucide-react";
 import Link from "next/link";
 import NotificationBell from "@/components/NotificationBell";
@@ -13,6 +13,7 @@ import MessagesLink from "@/components/MessagesLink";
 import DashboardBackButton from "@/components/DashboardBackButton";
 import FactureModal from "@/components/FactureModal";
 import { useApi } from "@/hooks/useApi";
+import { usePermissions } from "@/hooks/usePermissions";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { groupByMonth } from "@/lib/groupByMonth";
 import { remunerationFormule } from "@/lib/formuleCredit";
@@ -571,7 +572,10 @@ export default function RVCCreditsPage() {
   const [editRembForm, setEditRembForm] = useState({ montant: '', dateCollecte: '' });
   const [editRembSaving, setEditRembSaving] = useState(false);
   const [factureId,       setFactureId]       = useState<number | null>(null);
+  const { can } = usePermissions();
+  const canAnnulerCredit = can("credits", "SUPPRESSION_LOGIQUE");
   const [validationLoading, setValidationLoading] = useState(false);
+  const [annulationLoading, setAnnulationLoading] = useState(false);
 
   // Ligne action states
   const [ligneActionOpen,        setLigneActionOpen]        = useState(false);
@@ -721,6 +725,27 @@ export default function RVCCreditsPage() {
       }
     } catch { toast.error("Erreur réseau"); }
     finally { setValidationLoading(false); }
+  };
+
+  const handleAnnulerCredit = async (creditId: number) => {
+    if (!confirm("Annuler ce crédit ? Les échéances non payées seront supprimées et le stock/solde réversés.")) return;
+    setAnnulationLoading(true);
+    try {
+      const r = await fetch(`/api/admin/credits/${creditId}/annuler`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "ANNULE" }),
+      });
+      const j = await r.json();
+      if (r.ok) {
+        toast.success("Crédit annulé");
+        setDetailCredit(null);
+        refetch();
+      } else {
+        toast.error(j.message ?? "Erreur lors de l'annulation");
+      }
+    } catch { toast.error("Erreur réseau"); }
+    finally { setAnnulationLoading(false); }
   };
 
   const handleRefuserCredit = async () => {
@@ -1249,6 +1274,12 @@ export default function RVCCreditsPage() {
                   <button onClick={() => openEncaisser(detailCredit)}
                     className="flex items-center gap-1 px-2.5 py-1.5 text-xs bg-indigo-600 text-white hover:bg-indigo-700 rounded-lg font-medium">
                     <Banknote className="w-3.5 h-3.5" /> Encaisser
+                  </button>
+                )}
+                {canAnnulerCredit && detailCredit && (detailCredit.statut === "ACTIF" || detailCredit.statut === "EN_RETARD") && (
+                  <button onClick={() => handleAnnulerCredit(detailCredit.id)} disabled={annulationLoading}
+                    className="flex items-center gap-1 px-2.5 py-1.5 text-xs bg-red-50 text-red-700 hover:bg-red-100 disabled:opacity-50 rounded-lg font-medium">
+                    {annulationLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Ban className="w-3.5 h-3.5" />} Annuler
                   </button>
                 )}
                 {detailCredit && detailCredit.statut !== "EN_ATTENTE_VALIDATION" && (

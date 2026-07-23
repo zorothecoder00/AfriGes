@@ -93,6 +93,7 @@ export async function POST(req: NextRequest) {
         dateLimite:   body.dateLimite   ? new Date(body.dateLimite) : null,
         notes:        body.notes        ?? null,
         createdById:  parseInt(session.user.id),
+        planRecrutementId: body.planRecrutementId ? Number(body.planRecrutementId) : null,
         statut:       "BROUILLON",
       },
     });

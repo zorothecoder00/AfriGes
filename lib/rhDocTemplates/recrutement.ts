@@ -294,6 +294,264 @@ const pvSelection: RecrutementDocTemplate = {
     }),
 };
 
+// ── Fiche de création de poste (poste) ────────────────────────────────────────
+const ficheCreationPoste: RecrutementDocTemplate = {
+  type: "FICHE_CREATION_POSTE",
+  label: "Fiche de création de poste",
+  scope: "poste",
+  refSuffix: "FCP",
+  fields: [
+    { name: "justification", label: "Justification de la création", type: "textarea", placeholder: "ex : surcroît d'activité, remplacement, nouveau projet…" },
+    { name: "rattachementHierarchique", label: "Rattachement hiérarchique", type: "text", placeholder: "ex : rapporte au Chef d'agence" },
+    { name: "budgetPrevu", label: "Budget prévu", type: "text", placeholder: "facultatif" },
+  ],
+  render: (c, p) =>
+    docShell({
+      titre: "Fiche de Création de Poste",
+      sousTitre: c.posteRef ? `Réf. ${c.posteRef}` : undefined,
+      refCode: rc(c, "FCP"),
+      body: `
+  ${blocInfos(
+    ligne("Intitulé du poste", c.posteTitre) +
+    ligne("Département", c.departement) +
+    ligne("Service", c.service) +
+    ligne("Lieu", c.lieu) +
+    ligne("Type de contrat envisagé", c.typeContrat) +
+    ligne("Rattachement hiérarchique", p.rattachementHierarchique),
+  )}
+  ${p.justification ? `<p style="line-height:1.8; text-align:justify;"><strong>Justification.</strong> ${p.justification}</p>` : ""}
+  ${p.budgetPrevu ? `<p style="line-height:1.8; text-align:justify;"><strong>Budget prévu.</strong> ${p.budgetPrevu}</p>` : ""}
+  ${signatures({ role: "Demandeur", sousTitre: "Responsable de service" }, { role: "Validation", sousTitre: "Direction Générale / RH" })}`,
+    }),
+};
+
+// ── Description de poste (poste) ──────────────────────────────────────────────
+const descriptionPoste: RecrutementDocTemplate = {
+  type: "DESCRIPTION_POSTE",
+  label: "Description de poste",
+  scope: "poste",
+  refSuffix: "DES",
+  fields: [
+    { name: "missionPrincipale", label: "Mission principale", type: "textarea" },
+    { name: "activitesPrincipales", label: "Activités principales (une par ligne)", type: "textarea", placeholder: "ex : Gérer la caisse\nSuperviser l'équipe…" },
+    { name: "liaisonsFonctionnelles", label: "Liaisons fonctionnelles", type: "text", placeholder: "ex : en lien avec le service Comptabilité" },
+  ],
+  render: (c, p) =>
+    docShell({
+      titre: "Description de Poste",
+      sousTitre: c.posteRef ? `Réf. ${c.posteRef}` : undefined,
+      refCode: rc(c, "DES"),
+      body: `
+  <h2 style="text-align:center; font-size:18px; margin:16px 0;">${c.posteTitre}</h2>
+  ${blocInfos(
+    ligne("Département", c.departement) +
+    ligne("Service", c.service) +
+    ligne("Lieu", c.lieu) +
+    ligne("Type de contrat", c.typeContrat),
+  )}
+  ${p.missionPrincipale ? `<p style="line-height:1.8; text-align:justify;"><strong>Mission principale.</strong> ${p.missionPrincipale}</p>` : (c.description ? `<p style="line-height:1.8; text-align:justify;"><strong>Mission principale.</strong> ${c.description}</p>` : "")}
+  ${p.activitesPrincipales ? `<p style="line-height:1.8; text-align:justify;"><strong>Activités principales :</strong></p><p style="white-space:pre-line; line-height:1.8;">${p.activitesPrincipales}</p>` : ""}
+  ${p.liaisonsFonctionnelles ? `<p style="line-height:1.8; text-align:justify;"><strong>Liaisons fonctionnelles.</strong> ${p.liaisonsFonctionnelles}</p>` : ""}
+  <div style="margin-top:40px; text-align:right;"><p style="margin:0;">Établi le <strong>${formatDateFr(c.today)}</strong></p></div>`,
+    }),
+};
+
+// ── Profil de poste (poste) ───────────────────────────────────────────────────
+const profilPoste: RecrutementDocTemplate = {
+  type: "PROFIL_POSTE",
+  label: "Profil de poste",
+  scope: "poste",
+  refSuffix: "PRO",
+  fields: [
+    { name: "diplomeRequis", label: "Diplôme / niveau requis", type: "text" },
+    { name: "competencesTechniques", label: "Compétences techniques requises", type: "textarea" },
+    { name: "qualitesPersonnelles", label: "Qualités personnelles attendues", type: "textarea" },
+  ],
+  render: (c, p) =>
+    docShell({
+      titre: "Profil de Poste",
+      sousTitre: c.posteRef ? `Réf. ${c.posteRef}` : undefined,
+      refCode: rc(c, "PRO"),
+      body: `
+  <h2 style="text-align:center; font-size:18px; margin:16px 0;">${c.posteTitre}</h2>
+  ${blocInfos(
+    ligne("Diplôme / niveau requis", p.diplomeRequis) +
+    ligne("Expérience minimale", c.experienceMin != null ? `${c.experienceMin} an(s)` : null),
+  )}
+  ${p.competencesTechniques ? `<p style="line-height:1.8; text-align:justify;"><strong>Compétences techniques.</strong> ${p.competencesTechniques}</p>` : (c.exigences ? `<p style="line-height:1.8; text-align:justify;"><strong>Compétences techniques.</strong> ${c.exigences}</p>` : "")}
+  ${p.qualitesPersonnelles ? `<p style="line-height:1.8; text-align:justify;"><strong>Qualités personnelles.</strong> ${p.qualitesPersonnelles}</p>` : ""}
+  <div style="margin-top:40px; text-align:right;"><p style="margin:0;">Établi le <strong>${formatDateFr(c.today)}</strong></p></div>`,
+    }),
+};
+
+// ── Demande de recrutement (poste) ────────────────────────────────────────────
+const demandeRecrutement: RecrutementDocTemplate = {
+  type: "DEMANDE_RECRUTEMENT",
+  label: "Demande de recrutement",
+  scope: "poste",
+  refSuffix: "DMD",
+  fields: [
+    { name: "demandeur", label: "Nom du demandeur", type: "text", required: true },
+    { name: "motifDemande", label: "Motif de la demande", type: "textarea", placeholder: "ex : remplacement, création, surcroît d'activité" },
+    { name: "dateSouhaitee", label: "Date d'entrée en fonction souhaitée", type: "date" },
+  ],
+  render: (c, p) =>
+    docShell({
+      titre: "Demande de Recrutement",
+      sousTitre: c.posteRef ? `Réf. ${c.posteRef}` : undefined,
+      refCode: rc(c, "DMD"),
+      body: `
+  ${blocInfos(
+    ligne("Poste demandé", c.posteTitre) +
+    ligne("Département", c.departement) +
+    ligne("Service", c.service) +
+    ligne("Demandeur", p.demandeur) +
+    ligne("Date d'entrée en fonction souhaitée", p.dateSouhaitee ? formatDateFr(p.dateSouhaitee) : null),
+  )}
+  ${p.motifDemande ? `<p style="line-height:1.8; text-align:justify;"><strong>Motif.</strong> ${p.motifDemande}</p>` : ""}
+  ${signatures({ role: "Demandeur", nom: p.demandeur }, { role: "Validation Direction Générale / RH" })}`,
+    }),
+};
+
+// ── Grille de présélection des candidatures (poste) ───────────────────────────
+const grillePreselection: RecrutementDocTemplate = {
+  type: "GRILLE_PRESELECTION",
+  label: "Grille de présélection des candidatures",
+  scope: "poste",
+  refSuffix: "GPS",
+  fields: [
+    { name: "criteres", label: "Critères de présélection (un par ligne)", type: "textarea", placeholder: "ex : Diplôme requis\nExpérience minimale\nMaîtrise de l'outil X" },
+  ],
+  render: (c, p) => {
+    const criteresListe = (p.criteres || "Diplôme requis\nExpérience\nCompétences techniques\nDisponibilité")
+      .split("\n")
+      .filter((l) => l.trim())
+      .map(
+        (crit) => `
+    <tr>
+      <td style="border:1px solid #ccc; padding:8px;">${crit}</td>
+      <td style="border:1px solid #ccc; padding:8px; text-align:center;">☐ Oui&nbsp;&nbsp;☐ Non</td>
+      <td style="border:1px solid #ccc; padding:8px;"></td>
+    </tr>`,
+      )
+      .join("");
+    return docShell({
+      titre: "Grille de Présélection des Candidatures",
+      sousTitre: c.posteRef ? `Réf. ${c.posteRef} — ${c.posteTitre}` : c.posteTitre,
+      refCode: rc(c, "GPS"),
+      body: `
+  <table style="width:100%; border-collapse:collapse; margin-top:12px;">
+    <thead>
+      <tr>
+        <th style="border:1px solid #ccc; padding:8px; background:#f0f0f0; text-align:left;">Critère</th>
+        <th style="border:1px solid #ccc; padding:8px; background:#f0f0f0;">Satisfait</th>
+        <th style="border:1px solid #ccc; padding:8px; background:#f0f0f0; text-align:left;">Observations</th>
+      </tr>
+    </thead>
+    <tbody>${criteresListe}</tbody>
+  </table>
+  <div style="margin-top:40px; text-align:right;"><p style="margin:0;">Établi le <strong>${formatDateFr(c.today)}</strong></p></div>`,
+    });
+  },
+};
+
+// ── Guide d'entretien (poste) ─────────────────────────────────────────────────
+const guideEntretien: RecrutementDocTemplate = {
+  type: "GUIDE_ENTRETIEN",
+  label: "Guide d'entretien",
+  scope: "poste",
+  refSuffix: "GDE",
+  fields: [
+    { name: "questions", label: "Questions à poser (une par ligne)", type: "textarea", placeholder: "ex : Parlez-nous de votre parcours…\nPourquoi ce poste ?" },
+    { name: "pointsEvaluation", label: "Points clés à évaluer (une par ligne)", type: "textarea", placeholder: "ex : Communication\nMotivation\nCompétences techniques" },
+  ],
+  render: (c, p) =>
+    docShell({
+      titre: "Guide d'Entretien",
+      sousTitre: c.posteRef ? `Réf. ${c.posteRef} — ${c.posteTitre}` : c.posteTitre,
+      refCode: rc(c, "GDE"),
+      body: `
+  ${blocInfos(ligne("Poste", c.posteTitre) + ligne("Département", c.departement))}
+  ${p.questions ? `<p style="line-height:1.8;"><strong>Questions suggérées :</strong></p><p style="white-space:pre-line; line-height:1.8;">${p.questions}</p>` : ""}
+  ${p.pointsEvaluation ? `<p style="line-height:1.8;"><strong>Points clés à évaluer :</strong></p><p style="white-space:pre-line; line-height:1.8;">${p.pointsEvaluation}</p>` : ""}
+  <div style="margin-top:40px; text-align:right;"><p style="margin:0;">Établi le <strong>${formatDateFr(c.today)}</strong></p></div>`,
+    }),
+};
+
+// ── Grille d'évaluation des candidats (candidature) ───────────────────────────
+const grilleEvaluationCandidats: RecrutementDocTemplate = {
+  type: "GRILLE_EVALUATION_CANDIDATS",
+  label: "Grille d'évaluation des candidats",
+  scope: "candidature",
+  refSuffix: "GEC",
+  fields: [
+    { name: "evaluateur", label: "Évaluateur", type: "text" },
+    { name: "noteCompetences", label: "Note - Compétences techniques (/5)", type: "text", placeholder: "ex : 4" },
+    { name: "noteExperience", label: "Note - Expérience (/5)", type: "text", placeholder: "ex : 3" },
+    { name: "noteCommunication", label: "Note - Communication (/5)", type: "text", placeholder: "ex : 5" },
+    { name: "noteMotivation", label: "Note - Motivation (/5)", type: "text", placeholder: "ex : 4" },
+    { name: "appreciationGlobale", label: "Appréciation globale", type: "textarea" },
+  ],
+  render: (c, p) =>
+    docShell({
+      titre: "Grille d'Évaluation du Candidat",
+      refCode: rc(c, "GEC"),
+      confidentiel: true,
+      body: `
+  ${blocInfos(
+    ligne("Candidat(e)", candidat(c)) +
+    ligne("Poste", c.posteTitre) +
+    ligne("Évaluateur", p.evaluateur),
+  )}
+  <table style="width:100%; border-collapse:collapse; margin-top:12px;">
+    <thead>
+      <tr>
+        <th style="border:1px solid #ccc; padding:8px; background:#f0f0f0; text-align:left;">Critère</th>
+        <th style="border:1px solid #ccc; padding:8px; background:#f0f0f0;">Note / 5</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td style="border:1px solid #ccc; padding:8px;">Compétences techniques</td><td style="border:1px solid #ccc; padding:8px; text-align:center;">${p.noteCompetences || "-"}</td></tr>
+      <tr><td style="border:1px solid #ccc; padding:8px;">Expérience</td><td style="border:1px solid #ccc; padding:8px; text-align:center;">${p.noteExperience || "-"}</td></tr>
+      <tr><td style="border:1px solid #ccc; padding:8px;">Communication</td><td style="border:1px solid #ccc; padding:8px; text-align:center;">${p.noteCommunication || "-"}</td></tr>
+      <tr><td style="border:1px solid #ccc; padding:8px;">Motivation</td><td style="border:1px solid #ccc; padding:8px; text-align:center;">${p.noteMotivation || "-"}</td></tr>
+    </tbody>
+  </table>
+  ${p.appreciationGlobale ? `<p style="line-height:1.8; text-align:justify; margin-top:16px;"><strong>Appréciation globale.</strong> ${p.appreciationGlobale}</p>` : ""}
+  <div style="margin-top:40px; text-align:right;"><p style="margin:0;">Établi le <strong>${formatDateFr(c.today)}</strong></p></div>`,
+    }),
+};
+
+// ── Rapport d'entretien (candidature) ─────────────────────────────────────────
+const rapportEntretien: RecrutementDocTemplate = {
+  type: "RAPPORT_ENTRETIEN",
+  label: "Rapport d'entretien",
+  scope: "candidature",
+  refSuffix: "RAE",
+  fields: [
+    { name: "dateEntretienRealise", label: "Date de l'entretien réalisé", type: "date", required: true },
+    { name: "interlocuteurs", label: "Interlocuteurs présents", type: "text" },
+    { name: "synthese", label: "Synthèse de l'entretien", type: "textarea" },
+    { name: "recommandation", label: "Recommandation", type: "text", placeholder: "ex : Favorable, à retenir pour la suite du processus" },
+  ],
+  render: (c, p) =>
+    docShell({
+      titre: "Rapport d'Entretien",
+      refCode: rc(c, "RAE"),
+      confidentiel: true,
+      body: `
+  ${blocInfos(
+    ligne("Candidat(e)", candidat(c)) +
+    ligne("Poste", c.posteTitre) +
+    ligne("Date de l'entretien", formatDateFr(p.dateEntretienRealise)) +
+    ligne("Interlocuteurs présents", p.interlocuteurs),
+  )}
+  ${p.synthese ? `<p style="line-height:1.8; text-align:justify;"><strong>Synthèse.</strong> ${p.synthese}</p>` : ""}
+  ${p.recommandation ? `<p style="line-height:1.8; text-align:justify;"><strong>Recommandation.</strong> ${p.recommandation}</p>` : ""}
+  <div style="margin-top:40px; text-align:right;"><p style="margin:0;">Établi le <strong>${formatDateFr(c.today)}</strong></p></div>`,
+    }),
+};
+
 const ALL: RecrutementDocTemplate[] = [
   avisRecrutement,
   convocationEntretien,
@@ -301,6 +559,14 @@ const ALL: RecrutementDocTemplate[] = [
   lettreRefus,
   promesseEmbauche,
   pvSelection,
+  ficheCreationPoste,
+  descriptionPoste,
+  profilPoste,
+  demandeRecrutement,
+  grillePreselection,
+  guideEntretien,
+  grilleEvaluationCandidats,
+  rapportEntretien,
 ];
 
 const BY_TYPE = new Map<string, RecrutementDocTemplate>(ALL.map((t) => [t.type, t]));

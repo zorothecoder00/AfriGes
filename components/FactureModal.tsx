@@ -1,10 +1,11 @@
 "use client";
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { X, Printer, FileText, Plus, Trash2, Loader2, Receipt, Search, ChevronDown, UserPlus } from "lucide-react";
+import { X, Printer, FileText, Plus, Trash2, Loader2, Receipt, Search, ChevronDown, UserPlus, Ban } from "lucide-react";
 import { formatCurrency } from "@/lib/format";
 import { SOCIETE, SOCIETE_LEGAL, SOCIETE_SIEGE } from "@/lib/societe";
 import { toast } from "sonner";
+import { usePermissions } from "@/hooks/usePermissions";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -860,6 +861,30 @@ export default function FactureModal({
   const [step,     setStep]     = useState<"loading" | "form" | "preview">(
     proFormaMode ? "form" : "loading"
   );
+  const [annulation, setAnnulation] = useState(false);
+  const { can: canPermission } = usePermissions();
+  const canAnnulerFacture = canPermission("factures", "SUPPRESSION_LOGIQUE");
+
+  async function annulerFacture() {
+    if (!facture) return;
+    if (!confirm(`Annuler la facture ${facture.numero} ? Cette action est irréversible.`)) return;
+    setAnnulation(true);
+    try {
+      const res = await fetch(`/api/factures/${facture.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "annuler" }),
+      });
+      const j = await res.json();
+      if (!res.ok) throw new Error(j.error ?? "Erreur lors de l'annulation");
+      setFacture(f => f ? { ...f, statut: "ANNULEE" } : f);
+      toast.success("Facture annulée");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erreur réseau");
+    } finally {
+      setAnnulation(false);
+    }
+  }
 
   // Pro-forma form state
   const [pfClient,   setPfClient]   = useState(proFormaClientNom);
@@ -1199,6 +1224,16 @@ export default function FactureModal({
                 <Printer size={14} />
                 <span className="hidden sm:inline">Imprimer</span>
               </button>
+              {canAnnulerFacture && facture.statut !== "ANNULEE" && (
+                <button
+                  onClick={annulerFacture}
+                  disabled={annulation}
+                  title="Annuler la facture"
+                  className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-white border border-red-200 text-red-600 hover:bg-red-50 rounded-xl text-sm font-medium transition-colors disabled:opacity-50">
+                  {annulation ? <Loader2 size={14} className="animate-spin" /> : <Ban size={14} />}
+                  <span className="hidden sm:inline">Annuler</span>
+                </button>
+              )}
               <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-xl transition-colors">
                 <X size={16} className="text-slate-500" />
               </button>

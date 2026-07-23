@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAdminSession } from "@/lib/authAdmin";
 import { TypeMouvementCarriere } from "@prisma/client";
+import { appliquerMouvementCarriere } from "@/lib/carriereMouvement";
 
 const INCLUDE_PROFIL = {
   select: {
@@ -107,43 +108,29 @@ export async function POST(req: NextRequest) {
 
     // Créer le mouvement + mettre à jour le profilRH dans une transaction
     const mouvement = await prisma.$transaction(async (tx) => {
-      const h = await tx.historiquePoste.create({
-        data: {
-          profilRHId:        Number(profilRHId),
-          type:              type as TypeMouvementCarriere,
-          ancienneFonction:  ancienneFonction   ?? profil.fonction   ?? null,
-          nouvelleFonction:  nouvelleFonction   ?? null,
-          ancienDepartement: ancienDepartement  ?? profil.departement ?? null,
-          nouveauDepartement:nouveauDepartement ?? null,
-          ancienService:     ancienService      ?? profil.service    ?? null,
-          nouveauService:    nouveauService     ?? null,
-          ancienManagerId:   ancienManagerId    ? Number(ancienManagerId)  : (profil.managerId ?? null),
-          nouveauManagerId:  nouveauManagerId   ? Number(nouveauManagerId) : null,
-          ancienSalaire:     ancienSalaire      ? Number(ancienSalaire)  : null,
-          nouveauSalaire:    nouveauSalaire     ? Number(nouveauSalaire) : null,
-          motif:             motif              ?? null,
-          modifiePar:        parseInt(session.user.id),
-        },
-        include: { profilRH: INCLUDE_PROFIL },
+      const h = await appliquerMouvementCarriere(tx, {
+        profilRHId:         Number(profilRHId),
+        type:               type as TypeMouvementCarriere,
+        ancienneFonction:   ancienneFonction   ?? null,
+        nouvelleFonction:   nouvelleFonction   ?? null,
+        ancienDepartement:  ancienDepartement  ?? null,
+        nouveauDepartement: nouveauDepartement ?? null,
+        ancienService:      ancienService      ?? null,
+        nouveauService:     nouveauService     ?? null,
+        ancienManagerId:    ancienManagerId    ? Number(ancienManagerId)  : null,
+        nouveauManagerId:   nouveauManagerId   ? Number(nouveauManagerId) : null,
+        ancienSalaire:      ancienSalaire      ? Number(ancienSalaire)  : null,
+        nouveauSalaire:     nouveauSalaire     ? Number(nouveauSalaire) : null,
+        motif:              motif              ?? null,
+        modifiePar:         parseInt(session.user.id),
       });
-
-      // Mettre à jour le profil RH si nouvelles valeurs fournies
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const updates: any = {};
-      if (nouvelleFonction)   updates.fonction    = nouvelleFonction;
-      if (nouveauDepartement) updates.departement = nouveauDepartement;
-      if (nouveauService)     updates.service     = nouveauService;
-      if (nouveauManagerId)   updates.managerId   = Number(nouveauManagerId);
-      if (Object.keys(updates).length > 0) {
-        await tx.profilRH.update({ where: { id: Number(profilRHId) }, data: updates });
-      }
 
       await tx.auditLog.create({
         data: { userId: parseInt(session.user.id), action: "CREATE", entite: "HistoriquePoste", entiteId: h.id,
           details: `${type} créé pour profilRH #${profilRHId}` },
       });
 
-      return h;
+      return tx.historiquePoste.findUniqueOrThrow({ where: { id: h.id }, include: { profilRH: INCLUDE_PROFIL } });
     });
 
     return NextResponse.json({ data: mouvement }, { status: 201 });

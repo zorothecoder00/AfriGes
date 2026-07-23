@@ -8,7 +8,7 @@ import {
   Clock, ChevronDown, ChevronUp, UserPlus, FileText, Star,
   Phone, Mail, ArrowLeft, Filter, Database, Banknote,
   Award, RefreshCw, X, KeyRound, AlertCircle, ExternalLink,
-  Copy, Check, Printer, Eye,
+  Copy, Check, Printer, Eye, Save,
 } from "lucide-react";
 import Link from "next/link";
 import { formatDate } from "@/lib/format";
@@ -1044,7 +1044,7 @@ function CreatePosteModal({ onClose, onCreated }: { onClose: () => void; onCreat
 
 /* ─── Page principale ────────────────────────────────────── */
 export default function RecrutementPage() {
-  const [activeTab, setActiveTab] = useState<"postes" | "ats">("postes");
+  const [activeTab, setActiveTab] = useState<"postes" | "ats" | "plan">("postes");
   const [search, setSearch]       = useState("");
   const [statut, setStatut]       = useState<StatutPoste | "">("");
   const [showCreate, setShowCreate] = useState(false);
@@ -1097,7 +1097,7 @@ export default function RecrutementPage() {
 
         {/* Onglets */}
         <div className="flex gap-1 border-b border-gray-200">
-          {([["postes","Postes & Pipeline",<Briefcase key="b" size={14} />],["ats","Base CV / ATS",<Database key="d" size={14} />]] as const).map(([id, label, icon]) => (
+          {([["postes","Postes & Pipeline",<Briefcase key="b" size={14} />],["ats","Base CV / ATS",<Database key="d" size={14} />],["plan","Plan annuel",<FileText key="p" size={14} />]] as const).map(([id, label, icon]) => (
             <button key={id} onClick={() => setActiveTab(id)}
               className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
                 activeTab === id ? "border-indigo-500 text-indigo-600" : "border-transparent text-gray-500 hover:text-gray-700"
@@ -1150,12 +1150,142 @@ export default function RecrutementPage() {
               </div>
             )}
           </>
-        ) : (
+        ) : activeTab === "ats" ? (
           <BaseCVTab />
+        ) : (
+          <PlanRecrutementTab />
         )}
       </div>
 
       {showCreate && <CreatePosteModal onClose={() => setShowCreate(false)} onCreated={handleRefresh} />}
+    </div>
+  );
+}
+
+/* ─── Onglet Plan de recrutement annuel ──────────────────── */
+interface PlanRecrutement {
+  id:            number;
+  annee:         number;
+  budgetTotal:   number | null;
+  effectifCible: number | null;
+  notes:         string | null;
+  statut:        string;
+  budgetEngage:  number;
+  effectifPrevu: number;
+  postes:        { id: number; titre: string; budgetPoste: number | null; nbPostes: number; statut: string }[];
+}
+
+function PlanRecrutementTab() {
+  const { data, loading, refetch } = useApi<{ data: PlanRecrutement[] }>("/api/admin/rh/recrutement/plans");
+  const [showNew, setShowNew] = useState(false);
+  const plans = data?.data ?? [];
+
+  return (
+    <div className="space-y-4">
+      <div className="flex justify-end">
+        <button onClick={() => setShowNew(true)}
+          className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700">
+          <Plus size={16} /> Nouveau plan annuel
+        </button>
+      </div>
+
+      {loading ? (
+        <div className="text-center py-12 text-gray-400 flex items-center justify-center gap-2">
+          <RefreshCw size={16} className="animate-spin" /> Chargement…
+        </div>
+      ) : plans.length === 0 ? (
+        <div className="text-center py-12 text-gray-400">
+          <FileText size={40} className="mx-auto mb-3 opacity-30" />
+          <p>Aucun plan de recrutement annuel</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {plans.map((p) => {
+            const pct = p.budgetTotal ? Math.min(100, Math.round((p.budgetEngage / Number(p.budgetTotal)) * 100)) : null;
+            return (
+              <div key={p.id} className="bg-white rounded-2xl border border-gray-100 p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-lg font-bold text-gray-900">{p.annee}</span>
+                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                    p.statut === "CLOTURE" ? "bg-gray-100 text-gray-500" : p.statut === "VALIDE" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"
+                  }`}>{p.statut === "BROUILLON" ? "Brouillon" : p.statut === "VALIDE" ? "Validé" : "Clôturé"}</span>
+                </div>
+                {p.effectifCible != null && (
+                  <p className="text-xs text-gray-500">Effectif prévu : <strong className="text-gray-700">{p.effectifPrevu}</strong> / {p.effectifCible} poste(s)</p>
+                )}
+                {p.budgetTotal != null && (
+                  <div>
+                    <div className="flex justify-between text-xs text-gray-500 mb-1">
+                      <span>Budget engagé</span>
+                      <span>{new Intl.NumberFormat("fr-FR").format(p.budgetEngage)} / {new Intl.NumberFormat("fr-FR").format(Number(p.budgetTotal))} FCFA</span>
+                    </div>
+                    <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                      <div className={`h-full rounded-full ${pct != null && pct > 100 ? "bg-red-500" : "bg-indigo-500"}`} style={{ width: `${Math.min(100, pct ?? 0)}%` }} />
+                    </div>
+                  </div>
+                )}
+                <p className="text-xs text-gray-400">{p.postes.length} poste{p.postes.length > 1 ? "s" : ""} rattaché{p.postes.length > 1 ? "s" : ""}</p>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {showNew && <NewPlanRecrutementModal onClose={() => setShowNew(false)} onCreated={() => { setShowNew(false); refetch(); }} />}
+    </div>
+  );
+}
+
+function NewPlanRecrutementModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
+  const { mutate, loading } = useMutation("/api/admin/rh/recrutement/plans", "POST");
+  const [form, setForm] = useState({ annee: String(new Date().getFullYear() + 1), budgetTotal: "", effectifCible: "", notes: "" });
+  const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
+
+  const handleSubmit = async () => {
+    if (!form.annee) { toast.error("Année requise"); return; }
+    const result = await mutate({
+      annee:         Number(form.annee),
+      budgetTotal:   form.budgetTotal   || undefined,
+      effectifCible: form.effectifCible || undefined,
+      notes:         form.notes         || undefined,
+    });
+    if (result) { toast.success("Plan de recrutement créé"); onCreated(); }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+          <h2 className="font-semibold text-gray-900">Nouveau plan de recrutement annuel</h2>
+          <button onClick={onClose} className="p-1.5 hover:bg-gray-100 rounded-lg"><X size={16} /></button>
+        </div>
+        <div className="p-6 space-y-4">
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">Année *</label>
+            <input type="number" value={form.annee} onChange={(e) => set("annee", e.target.value)}
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">Budget total (FCFA)</label>
+            <input type="number" value={form.budgetTotal} onChange={(e) => set("budgetTotal", e.target.value)}
+              placeholder="ex : 10000000"
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">Effectif cible</label>
+            <input type="number" value={form.effectifCible} onChange={(e) => set("effectifCible", e.target.value)}
+              placeholder="ex : 15"
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+          </div>
+        </div>
+        <div className="flex justify-end gap-3 px-6 py-4 border-t border-gray-200">
+          <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 rounded-lg border border-gray-200">Annuler</button>
+          <button onClick={handleSubmit} disabled={loading}
+            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 disabled:opacity-50">
+            {loading ? <RefreshCw size={16} className="animate-spin" /> : <Save size={16} />} Créer
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

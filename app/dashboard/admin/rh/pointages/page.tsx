@@ -4,14 +4,15 @@ import { useState, useCallback, useRef, useEffect } from "react";
 import {
   RefreshCw, ChevronLeft, ChevronRight,
   CheckCircle, XCircle, Clock, CalendarDays,
-  Plane, Sun, AlertTriangle, Search, ArrowLeft,  
+  Plane, Sun, AlertTriangle, Search, ArrowLeft,
   BarChart2, Settings, Check, X, Edit2, ShieldCheck,
-  Timer, TrendingUp, Users, UserCheck,
+  Timer, TrendingUp, Users, UserCheck, Download,
 } from "lucide-react";
 import Link from "next/link";
 import { useApi, useMutation } from "@/hooks/useApi";
 import { toast } from "sonner";
 import SaisieJourPointage from "@/components/SaisieJourPointage";
+import { exportToXlsx } from "@/lib/exportXlsx";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -221,6 +222,43 @@ function RapportMensuel({ year, month, onPrev, onNext }: { year: number; month: 
   const rapport = res?.data ?? [];
   const totaux  = res?.totaux;
 
+  const handleExport = useCallback(() => {
+    exportToXlsx(
+      rapport.map((r) => ({
+        Collaborateur: `${r.profilRH.prenom} ${r.profilRH.nom}`,
+        Matricule: r.profilRH.matricule,
+        Fonction: r.profilRH.fonction ?? "",
+        Departement: r.profilRH.departement ?? "",
+        Presents: r.joursPresents,
+        Retards: r.joursRetard,
+        Absences: r.joursAbsents,
+        Conges: r.joursConge,
+        Missions: r.joursMission,
+        DemiJournees: r.demiJournees,
+        TotalRetardMinutes: r.totalRetardMinutes,
+        TotalHeuresSup: r.totalHeuresSup,
+        TauxPresence: r.tauxPresence ?? "",
+      })),
+      [
+        { label: "Collaborateur", key: "Collaborateur" },
+        { label: "Matricule", key: "Matricule" },
+        { label: "Fonction", key: "Fonction" },
+        { label: "Département", key: "Departement" },
+        { label: "Jours présents", key: "Presents", type: "number" },
+        { label: "Jours retard", key: "Retards", type: "number" },
+        { label: "Jours absents", key: "Absences", type: "number" },
+        { label: "Jours congé", key: "Conges", type: "number" },
+        { label: "Jours mission", key: "Missions", type: "number" },
+        { label: "Demi-journées", key: "DemiJournees", type: "number" },
+        { label: "Retard total (min)", key: "TotalRetardMinutes", type: "number" },
+        { label: "Heures sup (min)", key: "TotalHeuresSup", type: "number" },
+        { label: "Taux présence (%)", key: "TauxPresence", type: "number" },
+      ],
+      `rapport-pointages-${MOIS_LABELS[month]}-${year}.xlsx`,
+      { sheetName: "Rapport pointages", title: `Rapport mensuel — ${MOIS_LABELS[month]} ${year}` },
+    );
+  }, [rapport, month, year]);
+
   return (
     <div className="space-y-4">
       {/* Contrôles */}
@@ -233,10 +271,16 @@ function RapportMensuel({ year, month, onPrev, onNext }: { year: number; month: 
             {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
           </button>
         </div>
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Filtrer par département…"
-            className="pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 w-52" />
+        <div className="flex items-center gap-3">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Filtrer par département…"
+              className="pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 w-52" />
+          </div>
+          <button onClick={handleExport} disabled={rapport.length === 0}
+            className="flex items-center gap-1.5 px-3 py-2 border border-slate-200 rounded-lg text-sm text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed">
+            <Download className="w-4 h-4" /> Exporter
+          </button>
         </div>
       </div>
 

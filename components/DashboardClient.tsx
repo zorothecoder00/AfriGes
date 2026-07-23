@@ -16,7 +16,7 @@ import UserPdvBadge from '@/components/UserPdvBadge';
 import MessageModal from '@/components/MessageModal';   
 import { useApi } from '@/hooks/useApi';     
 import { formatCurrency } from '@/lib/format';
-import { exportToXlsx } from '@/lib/exportXlsx';
+import { exportMultiSheetXlsx, type XlsxSheetSpec } from '@/lib/exportXlsx';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -191,16 +191,170 @@ export default function AfriGesDashboard() {
   const dec = decisionalResponse?.data;
 
   const handleExport = () => {
-    const points = d?.evolutionVersements ?? [];
-    exportToXlsx(
-      points,
-      [
-        { label: "Date",    key: "date",    type: "date", format: (v) => (v ? new Date(String(v)) : null) },
-        { label: "Montant", key: "montant", type: "currency", format: (v) => Number(v) },
-      ],
-      `dashboard-credits-rembourses-${selectedPeriod}.xlsx`,
-      { sheetName: "Crédits remboursés" }
-    );
+    const sheets: XlsxSheetSpec[] = [];
+
+    // ── Résumé général ──────────────────────────────────────────────────────
+    if (d) {
+      sheets.push({
+        sheetName: "Résumé",
+        kind: "object",
+        rows: [
+          { indicateur: "Clients actifs", valeur: d.clientsActifs, evolution: d.comparaisons?.clients ? `${d.comparaisons.clients.positif ? "+" : ""}${d.comparaisons.clients.pct}%` : "" },
+          { indicateur: "Souscriptions actives", valeur: d.souscriptionsActives, evolution: d.comparaisons?.packs ? `${d.comparaisons.packs.positif ? "+" : ""}${d.comparaisons.packs.pct}%` : "" },
+          { indicateur: "Packs total", valeur: d.packsTotal, evolution: "" },
+          { indicateur: "Versements — nombre", valeur: d.versementsTotal.count, evolution: d.comparaisons?.versements ? `${d.comparaisons.versements.positif ? "+" : ""}${d.comparaisons.versements.pct}%` : "" },
+          { indicateur: "Versements — montant", valeur: d.versementsTotal.montant, evolution: "" },
+        ],
+        columns: [
+          { label: "Indicateur", key: "indicateur" },
+          { label: "Valeur", key: "valeur", type: "number" },
+          { label: "Évolution", key: "evolution" },
+        ],
+      });
+    }
+
+    // ── Évolution versements / souscriptions (série temporelle) ────────────
+    const versPts = d?.evolutionVersements ?? [];
+    const sousPtsByDate = new Map((d?.evolutionSouscriptions ?? []).map(p => [p.date, p.montant]));
+    if (versPts.length > 0) {
+      sheets.push({
+        sheetName: "Évolution",
+        kind: "matrix",
+        rows: [
+          ["Date", "Montant versé", "Nouvelles souscriptions"],
+          ...versPts.map(p => [new Date(p.date), p.montant, sousPtsByDate.get(p.date) ?? 0]),
+        ],
+        columnTypes: ["date", "currency", "number"],
+      });
+    }
+
+    // ── Répartition des souscriptions ──────────────────────────────────────
+    if (d?.repartitionSouscriptions) {
+      const r = d.repartitionSouscriptions;
+      sheets.push({
+        sheetName: "Répartition souscriptions",
+        kind: "object",
+        rows: [
+          { statut: "Actives", nombre: r.actives },
+          { statut: "Complètes", nombre: r.completes },
+          { statut: "Annulées", nombre: r.annulees },
+        ],
+        columns: [
+          { label: "Statut", key: "statut" },
+          { label: "Nombre", key: "nombre", type: "number" },
+        ],
+      });
+    }
+
+    // ── Activité du jour ────────────────────────────────────────────────────
+    if (act?.activiteJour) {
+      const a = act.activiteJour;
+      sheets.push({
+        sheetName: "Activité du jour",
+        kind: "object",
+        rows: [
+          { indicateur: "Versements", valeur: a.versements },
+          { indicateur: "Souscriptions", valeur: a.souscriptions },
+          { indicateur: "Ventes", valeur: a.ventes },
+          { indicateur: "Remboursements", valeur: a.remboursements },
+          { indicateur: "Mouvements de stock", valeur: a.mouvementsStock },
+        ],
+        columns: [
+          { label: "Indicateur", key: "indicateur" },
+          { label: "Valeur", key: "valeur", type: "number" },
+        ],
+      });
+    }
+
+    // ── Modules ─────────────────────────────────────────────────────────────
+    if (act?.modules?.liste?.length) {
+      sheets.push({
+        sheetName: "Modules",
+        kind: "object",
+        rows: act.modules.liste.map(m => ({ nom: m.nom, cle: m.key, statut: m.actif ? "Actif" : "Inactif" })),
+        columns: [
+          { label: "Module", key: "nom" },
+          { label: "Clé", key: "cle" },
+          { label: "Statut", key: "statut" },
+        ],
+      });
+    }
+
+    // ── Alertes opérationnelles ─────────────────────────────────────────────
+    if (act?.alertes?.length) {
+      sheets.push({
+        sheetName: "Alertes",
+        kind: "object",
+        rows: act.alertes.map(al => ({ type: al.type, niveau: al.niveau, count: al.count, detail: al.detail })),
+        columns: [
+          { label: "Type", key: "type" },
+          { label: "Niveau", key: "niveau" },
+          { label: "Nombre", key: "count", type: "number" },
+          { label: "Détail", key: "detail" },
+        ],
+      });
+    }
+
+    // ── Rapports rapides ────────────────────────────────────────────────────
+    if (act?.rapports) {
+      const r = act.rapports;
+      sheets.push({
+        sheetName: "Rapports rapides",
+        kind: "object",
+        rows: [
+          { indicateur: "Caisse — sessions ouvertes", valeur: r.caisse.sessionsOuvertes },
+          { indicateur: "Caisse — montant versements", valeur: r.caisse.versementsMontant },
+          { indicateur: "Stock — alertes", valeur: r.stock.alertes },
+          { indicateur: "Ventes — nombre", valeur: r.ventes.count },
+          { indicateur: "Ventes — montant", valeur: r.ventes.montant },
+          { indicateur: "Approvisionnement — en attente", valeur: r.approvisionnement.enAttente },
+        ],
+        columns: [
+          { label: "Indicateur", key: "indicateur" },
+          { label: "Valeur", key: "valeur", type: "number" },
+        ],
+      });
+    }
+
+    // ── Dashboard décisionnel ───────────────────────────────────────────────
+    if (dec) {
+      sheets.push({
+        sheetName: "Dashboard décisionnel",
+        kind: "object",
+        rows: [
+          { indicateur: "Clients débiteurs", valeur: dec.clientsDebiteurs },
+          { indicateur: "Créances totales", valeur: dec.creancesTotales },
+          { indicateur: "Retards critiques", valeur: dec.retardsCritiques },
+          { indicateur: "Montant collecté ce jour", valeur: dec.montantCollecteJour },
+          { indicateur: "Taux de remboursement (%)", valeur: dec.tauxRemboursement },
+          { indicateur: "Encours global", valeur: dec.encoursGlobal },
+          { indicateur: "Cash attendu", valeur: dec.cashAttendu },
+          { indicateur: "Cash collecté", valeur: dec.cashCollecte },
+          { indicateur: "Pertes potentielles", valeur: dec.pertesPoentielles },
+          { indicateur: "Créances à risque", valeur: dec.creancesARisque },
+        ],
+        columns: [
+          { label: "Indicateur", key: "indicateur" },
+          { label: "Valeur", key: "valeur", type: "number" },
+        ],
+      });
+
+      // ── Agents performants ────────────────────────────────────────────────
+      if (dec.agentsPerformants?.length) {
+        sheets.push({
+          sheetName: "Agents performants",
+          kind: "object",
+          rows: dec.agentsPerformants.map(a => ({ rang: a.rank, agent: a.nom, montantCollecte: a.montantCollecte })),
+          columns: [
+            { label: "Rang", key: "rang", type: "number" },
+            { label: "Agent", key: "agent" },
+            { label: "Montant collecté", key: "montantCollecte", type: "currency" },
+          ],
+        });
+      }
+    }
+
+    exportMultiSheetXlsx(sheets, `dashboard-admin-${selectedPeriod}j.xlsx`);
   };
 
   // ── Données normalisées pour les charts ────────────────────────────────────

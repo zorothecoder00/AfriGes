@@ -26,6 +26,15 @@ interface ObjectifKPI {
   commentaire:    string | null;
 }
 
+interface ActionPDI {
+  id:           number;
+  objectif:     string;
+  actionPrevue: string | null;
+  echeance:     string | null;
+  statut:       string;
+  notes:        string | null;
+}
+
 interface Evaluation {
   id:               number;
   typeEvaluation:   string | null;
@@ -72,6 +81,16 @@ const STATUT_CONFIG: Record<string, { label: string; badge: string; icon: React.
   VALIDATION:        { label: "Validation",          badge: "bg-orange-100 text-orange-700", icon: <UserCheck  className="w-3 h-3" />, step: 4 },
   PLAN_AMELIORATION: { label: "Plan d'amélioration", badge: "bg-indigo-100 text-indigo-700", icon: <FileText   className="w-3 h-3" />, step: 5 },
   CLOTURE:           { label: "Clôturée",            badge: "bg-emerald-100 text-emerald-700",icon:<CheckCircle className="w-3 h-3" />, step: 6 },
+};
+
+const STATUT_ACTION_CONFIG: Record<string, { label: string; badge: string }> = {
+  A_FAIRE:  { label: "À faire",   badge: "bg-slate-100 text-slate-600" },
+  EN_COURS: { label: "En cours",  badge: "bg-amber-100 text-amber-700" },
+  REALISE:  { label: "Réalisée",  badge: "bg-emerald-100 text-emerald-700" },
+  ANNULE:   { label: "Annulée",   badge: "bg-red-100 text-red-500" },
+};
+const CYCLE_STATUT_ACTION: Record<string, string> = {
+  A_FAIRE: "EN_COURS", EN_COURS: "REALISE", REALISE: "A_FAIRE", ANNULE: "A_FAIRE",
 };
 
 const CYCLE_STEPS = [
@@ -736,6 +755,112 @@ function CreateEvalModal({ onClose, onCreated }: { onClose: () => void; onCreate
   );
 }
 
+// ── Actions PDI structurées ──────────────────────────────────────────────────
+
+function ActionsPDISection({ evaluationId, canEdit }: { evaluationId: number; canEdit: boolean }) {
+  const { data, loading, refetch } = useApi<{ data: ActionPDI[] }>(`/api/admin/rh/evaluations/${evaluationId}/actions`);
+  const actions = data?.data ?? [];
+  const { mutate: create, loading: creating } = useMutation(`/api/admin/rh/evaluations/${evaluationId}/actions`, "POST");
+  const [showAdd, setShowAdd] = useState(false);
+  const [form, setForm] = useState({ objectif: "", actionPrevue: "", echeance: "" });
+
+  const handleAdd = async () => {
+    if (!form.objectif.trim()) { toast.error("Objectif requis"); return; }
+    const result = await create({
+      objectif: form.objectif.trim(),
+      actionPrevue: form.actionPrevue || undefined,
+      echeance: form.echeance || undefined,
+    });
+    if (result) {
+      toast.success("Action ajoutée");
+      setForm({ objectif: "", actionPrevue: "", echeance: "" });
+      setShowAdd(false);
+      refetch();
+    }
+  };
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <p className="text-sm font-semibold text-slate-800">Actions PDI structurées</p>
+        {canEdit && !showAdd && (
+          <button onClick={() => setShowAdd(true)} className="flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-700 font-medium">
+            <Plus className="w-3.5 h-3.5" /> Ajouter une action
+          </button>
+        )}
+      </div>
+
+      {showAdd && (
+        <div className="p-3 bg-slate-50 rounded-xl space-y-2">
+          <input value={form.objectif} onChange={(e) => setForm((f) => ({ ...f, objectif: e.target.value }))}
+            placeholder="Objectif de développement…"
+            className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500" />
+          <input value={form.actionPrevue} onChange={(e) => setForm((f) => ({ ...f, actionPrevue: e.target.value }))}
+            placeholder="Action prévue (formation, accompagnement…)"
+            className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500" />
+          <div className="flex items-center gap-2">
+            <input type="date" value={form.echeance} onChange={(e) => setForm((f) => ({ ...f, echeance: e.target.value }))}
+              className="px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500" />
+            <button onClick={() => setShowAdd(false)} className="ml-auto px-3 py-1.5 text-xs text-slate-500 hover:bg-slate-100 rounded-lg">Annuler</button>
+            <button onClick={handleAdd} disabled={creating}
+              className="flex items-center gap-1 px-3 py-1.5 text-xs text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 disabled:opacity-50">
+              {creating ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />} Enregistrer
+            </button>
+          </div>
+        </div>
+      )}
+
+      {loading ? (
+        <div className="flex justify-center py-6 text-slate-400"><RefreshCw className="w-4 h-4 animate-spin" /></div>
+      ) : actions.length === 0 ? (
+        !showAdd && <p className="text-xs text-slate-400 py-2">Aucune action structurée pour le moment.</p>
+      ) : (
+        <div className="space-y-2">
+          {actions.map((a) => (
+            <ActionPDIRow key={a.id} action={a} evaluationId={evaluationId} canEdit={canEdit} onChanged={refetch} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ActionPDIRow({ action: a, evaluationId, canEdit, onChanged }: {
+  action: ActionPDI; evaluationId: number; canEdit: boolean; onChanged: () => void;
+}) {
+  const { mutate: update } = useMutation(`/api/admin/rh/evaluations/${evaluationId}/actions/${a.id}`, "PATCH");
+  const { mutate: remove }  = useMutation(`/api/admin/rh/evaluations/${evaluationId}/actions/${a.id}`, "DELETE");
+  const cfg = STATUT_ACTION_CONFIG[a.statut] ?? STATUT_ACTION_CONFIG.A_FAIRE;
+
+  const cycleStatut = async () => {
+    const result = await update({ statut: CYCLE_STATUT_ACTION[a.statut] ?? "A_FAIRE" });
+    if (result) onChanged();
+  };
+  const handleDelete = async () => {
+    const result = await remove({});
+    if (result) { toast.success("Action supprimée"); onChanged(); }
+  };
+
+  return (
+    <div className="flex items-start gap-3 p-3 border border-slate-200 rounded-xl">
+      <div className="flex-1 min-w-0">
+        <p className="text-sm text-slate-800 font-medium">{a.objectif}</p>
+        {a.actionPrevue && <p className="text-xs text-slate-500 mt-0.5">{a.actionPrevue}</p>}
+        {a.echeance && <p className="text-xs text-slate-400 mt-0.5">Échéance : {formatDate(a.echeance)}</p>}
+      </div>
+      <div className="flex items-center gap-2 flex-shrink-0">
+        <button disabled={!canEdit} onClick={cycleStatut}
+          className={`px-2 py-1 rounded-full text-xs font-medium ${cfg.badge} ${canEdit ? "hover:opacity-80" : "opacity-70 cursor-default"}`}>
+          {cfg.label}
+        </button>
+        {canEdit && (
+          <button onClick={handleDelete} className="text-slate-300 hover:text-red-400"><Trash2 className="w-3.5 h-3.5" /></button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── Modal détail ───────────────────────────────────────────────────────────────
 
 function EvalDetailModal({ eval_: e, onClose, onUpdated }: { eval_: Evaluation; onClose: () => void; onUpdated: () => void }) {
@@ -1172,6 +1297,10 @@ function EvalDetailModal({ eval_: e, onClose, onUpdated }: { eval_: Evaluation; 
                   )}
                 </div>
               )}
+
+              <div className="pt-2 border-t border-slate-100">
+                <ActionsPDISection evaluationId={e.id} canEdit={canEdit} />
+              </div>
             </div>
           )}
         </div>

@@ -6,12 +6,13 @@ import {
   Clock, XCircle, CalendarDays, User,
   ChevronRight, AlertTriangle, Settings,
   X, Save, ArrowLeft, Plus, ChevronLeft,
-  BarChart2, Wallet, Ban,
+  BarChart2, Wallet, Ban, Download,
 } from "lucide-react";
 import Link from "next/link";
 import { useApi, useMutation } from "@/hooks/useApi";
 import { formatDate } from "@/lib/format";
 import { toast } from "sonner";
+import { exportToXlsx } from "@/lib/exportXlsx";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -421,6 +422,37 @@ export default function CongesPage() {
                 className="px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 w-52" />
               <button onClick={soldesRefetch} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg">
                 {soldesLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+              </button>
+              <button
+                onClick={() => {
+                  const rows = (soldesRes?.data ?? []).map((line) => {
+                    const row: Record<string, string | number> = {
+                      Collaborateur: `${line.profilRH.prenom} ${line.profilRH.nom}`,
+                      Matricule: line.profilRH.matricule,
+                      Departement: line.profilRH.departement ?? "",
+                    };
+                    Object.keys(TYPE_LABEL).forEach((t) => {
+                      const s = line.soldes.find((x) => x.type === t);
+                      row[TYPE_LABEL[t]] = s ? s.restant : "";
+                    });
+                    return row;
+                  });
+                  exportToXlsx(
+                    rows,
+                    [
+                      { label: "Collaborateur", key: "Collaborateur" },
+                      { label: "Matricule", key: "Matricule" },
+                      { label: "Département", key: "Departement" },
+                      ...Object.values(TYPE_LABEL).map((label) => ({ label, key: label, type: "number" as const })),
+                    ],
+                    `suivi-conges-${soldesAnnee}.xlsx`,
+                    { sheetName: "Soldes congés", title: `Suivi des congés — ${soldesAnnee}` },
+                  );
+                }}
+                disabled={!soldesRes?.data.length}
+                className="flex items-center gap-1.5 px-3 py-2 border border-slate-200 rounded-lg text-sm text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <Download className="w-4 h-4" /> Exporter
               </button>
               <span className="text-xs text-slate-400 ml-auto italic">Cliquez sur un solde pour l&apos;ajuster</span>
             </div>

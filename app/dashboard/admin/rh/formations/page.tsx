@@ -73,6 +73,34 @@ interface CollabsRes {
   data: { id: number; matricule: string; gestionnaire: { member: { nom: string; prenom: string } } }[];
 }
 
+interface DemandeFormationAdmin {
+  id:               number;
+  intituleSouhaite: string;
+  motif:            string | null;
+  statut:           string;
+  commentaireRefus: string | null;
+  createdAt:        string;
+  formation:        { id: number; titre: string; dateDebut: string } | null;
+  profilRH: {
+    id: number; matricule: string;
+    gestionnaire: { member: { nom: string; prenom: string } };
+  };
+}
+
+interface DemandesFormationRes { data: DemandeFormationAdmin[]; meta: { total: number }; stats: Record<string, number> }
+
+interface PlanFormation {
+  id:               number;
+  annee:            number;
+  budgetTotal:      number | null;
+  axesPrioritaires: string | null;
+  notes:            string | null;
+  statut:           string;
+  budgetEngage:     number;
+  coutReel:         number;
+  formations:       { id: number; titre: string; budgetAlloue: number | null; cout: number | null; statut: string }[];
+}
+
 // ── Constantes ─────────────────────────────────────────────────────────────────
 
 const STATUT_CONFIG: Record<string, { label: string; badge: string; icon: React.ReactNode }> = {
@@ -86,6 +114,15 @@ const TYPE_CONFIG: Record<string, { label: string; badge: string; icon: React.Re
   INTERNE:   { label: "Interne",   badge: "bg-indigo-100 text-indigo-700", icon: <Building2 className="w-3.5 h-3.5" /> },
   EXTERNE:   { label: "Externe",   badge: "bg-sky-100 text-sky-700",       icon: <Globe     className="w-3.5 h-3.5" /> },
   ELEARNING: { label: "E-learning",badge: "bg-violet-100 text-violet-700", icon: <Monitor   className="w-3.5 h-3.5" /> },
+};
+
+const STATUT_DEMANDE_CONFIG: Record<string, { label: string; badge: string }> = {
+  EN_ATTENTE:     { label: "En attente",     badge: "bg-amber-100 text-amber-700" },
+  VALIDE_MANAGER: { label: "Validée manager",badge: "bg-blue-100 text-blue-700" },
+  VALIDE_RH:      { label: "Validée RH",     badge: "bg-indigo-100 text-indigo-700" },
+  APPROUVE:       { label: "Approuvée",      badge: "bg-emerald-100 text-emerald-700" },
+  REJETE:         { label: "Rejetée",        badge: "bg-red-100 text-red-700" },
+  ANNULE:         { label: "Annulée",        badge: "bg-slate-100 text-slate-500" },
 };
 
 const STATUT_PART: Record<string, { label: string; badge: string }> = {
@@ -122,7 +159,9 @@ function FField({ label, children }: { label: string; children: React.ReactNode 
 // ── Page ───────────────────────────────────────────────────────────────────────
 
 export default function FormationsPage() {
-  const [activeTab, setActiveTab] = useState<"catalogue" | "suivi" | "kpis">("catalogue");
+  const [activeTab, setActiveTab] = useState<"catalogue" | "demandes" | "plan" | "suivi" | "kpis">("catalogue");
+  const [demandeStatutFilt, setDemandeStatutFilt] = useState("");
+  const [showNewPlan, setShowNewPlan] = useState(false);
   const [statut,    setStatut]    = useState("");
   const [typeFilt,  setTypeFilt]  = useState("");
   const [annee,     setAnnee]     = useState(String(new Date().getFullYear()));
@@ -160,6 +199,22 @@ export default function FormationsPage() {
   );
   const suiviFormations = suiviRes?.data ?? [];
 
+  // Demandes de formation self-service
+  const demandeParams = new URLSearchParams();
+  if (demandeStatutFilt) demandeParams.set("statut", demandeStatutFilt);
+  demandeParams.set("limit", "50");
+  const { data: demandesRes, loading: demandesLoading, refetch: refetchDemandes } = useApi<DemandesFormationRes>(
+    activeTab === "demandes" ? `/api/admin/rh/formations/demandes?${demandeParams}` : null
+  );
+  const demandesFormation  = demandesRes?.data  ?? [];
+  const demandesStats      = demandesRes?.stats ?? {};
+
+  // Plan de formation annuel
+  const { data: plansRes, loading: plansLoading, refetch: refetchPlans } = useApi<{ data: PlanFormation[] }>(
+    activeTab === "plan" ? "/api/admin/rh/formations/plans" : null
+  );
+  const plans = plansRes?.data ?? [];
+
   const handleSearch = useCallback((v: string) => { setSearch(v); setPage(1); }, []);
 
   return (
@@ -185,13 +240,21 @@ export default function FormationsPage() {
                 <Plus className="w-4 h-4" /> Nouvelle formation
               </button>
             )}
+            {activeTab === "plan" && (
+              <button onClick={() => setShowNewPlan(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-xl hover:bg-emerald-700">
+                <Plus className="w-4 h-4" /> Nouveau plan annuel
+              </button>
+            )}
           </div>
         </div>
 
         {/* Onglets */}
-        <div className="flex gap-1 bg-white border border-slate-200 rounded-xl p-1 w-fit">
+        <div className="flex gap-1 bg-white border border-slate-200 rounded-xl p-1 w-fit overflow-x-auto">
           {[
             { key: "catalogue", label: "Catalogue",    icon: <BookOpen  className="w-3.5 h-3.5" /> },
+            { key: "demandes",  label: "Demandes",     icon: <UserPlus  className="w-3.5 h-3.5" /> },
+            { key: "plan",      label: "Plan annuel",  icon: <Award     className="w-3.5 h-3.5" /> },
             { key: "suivi",     label: "Suivi",        icon: <Users     className="w-3.5 h-3.5" /> },
             { key: "kpis",      label: "KPIs",         icon: <BarChart2 className="w-3.5 h-3.5" /> },
           ].map(({ key, label, icon }) => (
@@ -285,6 +348,62 @@ export default function FormationsPage() {
                   <button disabled={page >= meta.totalPages} onClick={() => setPage((p) => p + 1)}
                     className="px-3 py-1.5 text-sm border border-slate-200 rounded-lg disabled:opacity-40 hover:bg-slate-50">Suivant</button>
                 </div>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* ════════ DEMANDES DE FORMATION ════════ */}
+        {activeTab === "demandes" && (
+          <>
+            <div className="flex gap-2 flex-wrap">
+              {Object.entries(STATUT_DEMANDE_CONFIG).map(([key, cfg]) => (
+                <button key={key} onClick={() => setDemandeStatutFilt(demandeStatutFilt === key ? "" : key)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                    demandeStatutFilt === key ? "ring-1 ring-emerald-400 " + cfg.badge : cfg.badge + " opacity-60 hover:opacity-100"
+                  }`}>
+                  {cfg.label} ({demandesStats[key] ?? 0})
+                </button>
+              ))}
+            </div>
+
+            {demandesLoading ? (
+              <div className="flex items-center justify-center py-20 text-slate-400">
+                <RefreshCw className="w-5 h-5 animate-spin mr-2" /> Chargement…
+              </div>
+            ) : demandesFormation.length === 0 ? (
+              <div className="bg-white rounded-xl border border-slate-200 flex flex-col items-center justify-center py-20 text-slate-400">
+                <UserPlus className="w-10 h-10 mb-2 opacity-30" />
+                <p className="text-sm">Aucune demande de formation</p>
+              </div>
+            ) : (
+              <div className="bg-white rounded-xl border border-slate-200 overflow-hidden divide-y divide-slate-100">
+                {demandesFormation.map((d) => (
+                  <DemandeFormationRow key={d.id} demande={d} onRefetch={refetchDemandes} />
+                ))}
+              </div>
+            )}
+          </>
+        )}
+
+        {/* ════════ PLAN DE FORMATION ANNUEL ════════ */}
+        {activeTab === "plan" && (
+          <>
+            {plansLoading ? (
+              <div className="flex items-center justify-center py-20 text-slate-400">
+                <RefreshCw className="w-5 h-5 animate-spin mr-2" /> Chargement…
+              </div>
+            ) : plans.length === 0 ? (
+              <div className="bg-white rounded-xl border border-slate-200 flex flex-col items-center justify-center py-20 text-slate-400">
+                <Award className="w-10 h-10 mb-2 opacity-30" />
+                <p className="text-sm">Aucun plan de formation annuel</p>
+                <button onClick={() => setShowNewPlan(true)} className="mt-3 text-sm text-emerald-600 hover:text-emerald-700 font-medium flex items-center gap-1">
+                  <Plus className="w-4 h-4" /> Créer un plan annuel
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {plans.map((p) => <PlanFormationCard key={p.id} plan={p} onRefetch={refetchPlans} />)}
               </div>
             )}
           </>
@@ -525,8 +644,158 @@ export default function FormationsPage() {
         )}
       </div>
 
-      {showCreate && <CreateFormationModal onClose={() => setShowCreate(false)} onCreated={() => { setShowCreate(false); refetch(); }} />}
-      {selected   && <FormationDetailModal formation={selected} onClose={() => setSelected(null)} onUpdated={() => { setSelected(null); refetch(); }} />}
+      {showCreate  && <CreateFormationModal onClose={() => setShowCreate(false)} onCreated={() => { setShowCreate(false); refetch(); }} />}
+      {selected    && <FormationDetailModal formation={selected} onClose={() => setSelected(null)} onUpdated={() => { setSelected(null); refetch(); }} />}
+      {showNewPlan && <NewPlanFormationModal onClose={() => setShowNewPlan(false)} onCreated={() => { setShowNewPlan(false); refetchPlans(); }} />}
+    </div>
+  );
+}
+
+// ── Ligne demande de formation ─────────────────────────────────────────────────
+
+function DemandeFormationRow({ demande: d, onRefetch }: { demande: DemandeFormationAdmin; onRefetch: () => void }) {
+  const { mutate, loading } = useMutation(`/api/admin/rh/formations/demandes/${d.id}`, "PATCH");
+  const statutCfg = STATUT_DEMANDE_CONFIG[d.statut] ?? STATUT_DEMANDE_CONFIG.EN_ATTENTE;
+  const member = d.profilRH.gestionnaire.member;
+
+  const doAction = async (action: string) => {
+    let commentaire: string | undefined;
+    if (action === "REJETER") commentaire = window.prompt("Motif du refus (facultatif) :") ?? undefined;
+    const result = await mutate({ action, commentaire });
+    if (result) { toast.success("Demande mise à jour"); onRefetch(); }
+  };
+
+  return (
+    <div className="flex items-center gap-4 px-5 py-3.5 hover:bg-slate-50">
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-sm font-semibold text-slate-800">{member.prenom} {member.nom}</span>
+          <span className="text-xs text-slate-400 font-mono">{d.profilRH.matricule}</span>
+          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${statutCfg.badge}`}>{statutCfg.label}</span>
+        </div>
+        <p className="text-sm text-slate-700 mt-0.5">{d.intituleSouhaite}</p>
+        {d.formation && <p className="text-xs text-slate-400 mt-0.5">Session : {d.formation.titre} ({formatDate(d.formation.dateDebut)})</p>}
+        {d.motif && <p className="text-xs text-slate-400 mt-0.5 italic">{d.motif}</p>}
+        {d.commentaireRefus && <p className="text-xs text-red-500 mt-0.5">Motif refus : {d.commentaireRefus}</p>}
+      </div>
+      <div className="flex items-center gap-2 flex-shrink-0">
+        {d.statut === "EN_ATTENTE" && (
+          <button disabled={loading} onClick={() => doAction("VALIDER_MANAGER")}
+            className="px-3 py-1.5 text-xs font-medium bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 disabled:opacity-50">Valider manager</button>
+        )}
+        {d.statut === "VALIDE_MANAGER" && (
+          <button disabled={loading} onClick={() => doAction("VALIDER_RH")}
+            className="px-3 py-1.5 text-xs font-medium bg-indigo-50 text-indigo-700 rounded-lg hover:bg-indigo-100 disabled:opacity-50">Valider RH</button>
+        )}
+        {["EN_ATTENTE", "VALIDE_MANAGER", "VALIDE_RH"].includes(d.statut) && (
+          <>
+            <button disabled={loading} onClick={() => doAction("APPROUVER")}
+              className="px-3 py-1.5 text-xs font-medium bg-emerald-50 text-emerald-700 rounded-lg hover:bg-emerald-100 disabled:opacity-50">Approuver</button>
+            <button disabled={loading} onClick={() => doAction("REJETER")}
+              className="px-3 py-1.5 text-xs font-medium bg-red-50 text-red-600 rounded-lg hover:bg-red-100 disabled:opacity-50">Rejeter</button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Carte plan de formation annuel ─────────────────────────────────────────────
+
+function PlanFormationCard({ plan: p, onRefetch }: { plan: PlanFormation; onRefetch: () => void }) {
+  const { mutate, loading } = useMutation(`/api/admin/rh/formations/plans/${p.id}`, "PATCH");
+  const pct = p.budgetTotal ? Math.min(100, Math.round((p.budgetEngage / Number(p.budgetTotal)) * 100)) : null;
+
+  const handleValider = async () => {
+    const result = await mutate({ statut: p.statut === "BROUILLON" ? "VALIDE" : "CLOTURE" });
+    if (result) { toast.success("Plan mis à jour"); onRefetch(); }
+  };
+
+  return (
+    <div className="bg-white rounded-xl border border-slate-200 p-4 space-y-3">
+      <div className="flex items-center justify-between">
+        <span className="text-lg font-bold text-slate-900">{p.annee}</span>
+        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+          p.statut === "CLOTURE" ? "bg-slate-100 text-slate-500" : p.statut === "VALIDE" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"
+        }`}>{p.statut === "BROUILLON" ? "Brouillon" : p.statut === "VALIDE" ? "Validé" : "Clôturé"}</span>
+      </div>
+
+      {p.budgetTotal != null && (
+        <div>
+          <div className="flex justify-between text-xs text-slate-500 mb-1">
+            <span>Budget engagé</span>
+            <span>{new Intl.NumberFormat("fr-FR").format(p.budgetEngage)} / {new Intl.NumberFormat("fr-FR").format(Number(p.budgetTotal))} FCFA</span>
+          </div>
+          <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+            <div className={`h-full rounded-full ${pct != null && pct > 100 ? "bg-red-500" : "bg-emerald-500"}`} style={{ width: `${Math.min(100, pct ?? 0)}%` }} />
+          </div>
+        </div>
+      )}
+
+      {p.axesPrioritaires && <p className="text-xs text-slate-600">{p.axesPrioritaires}</p>}
+
+      <p className="text-xs text-slate-400">{p.formations.length} formation{p.formations.length > 1 ? "s" : ""} rattachée{p.formations.length > 1 ? "s" : ""}</p>
+
+      {p.statut !== "CLOTURE" && (
+        <button onClick={handleValider} disabled={loading}
+          className="w-full px-3 py-1.5 text-xs font-medium bg-slate-50 text-slate-700 border border-slate-200 rounded-lg hover:bg-slate-100 disabled:opacity-50">
+          {p.statut === "BROUILLON" ? "Valider le plan" : "Clôturer le plan"}
+        </button>
+      )}
+    </div>
+  );
+}
+
+function NewPlanFormationModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
+  const { mutate, loading } = useMutation("/api/admin/rh/formations/plans", "POST");
+  const [form, setForm] = useState({ annee: String(new Date().getFullYear() + 1), budgetTotal: "", axesPrioritaires: "", notes: "" });
+  const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
+
+  const handleSubmit = async () => {
+    if (!form.annee) { toast.error("Année requise"); return; }
+    const result = await mutate({
+      annee:            Number(form.annee),
+      budgetTotal:      form.budgetTotal || undefined,
+      axesPrioritaires: form.axesPrioritaires || undefined,
+      notes:            form.notes || undefined,
+    });
+    if (result) { toast.success("Plan de formation créé"); onCreated(); }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
+          <h2 className="font-semibold text-slate-900">Nouveau plan de formation annuel</h2>
+          <button onClick={onClose} className="p-1.5 hover:bg-slate-100 rounded-lg"><X className="w-4 h-4" /></button>
+        </div>
+        <div className="p-6 space-y-4">
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-1">Année *</label>
+            <input type="number" value={form.annee} onChange={(e) => set("annee", e.target.value)}
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-1">Budget total (FCFA)</label>
+            <input type="number" value={form.budgetTotal} onChange={(e) => set("budgetTotal", e.target.value)}
+              placeholder="ex : 5000000"
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-1">Axes prioritaires</label>
+            <textarea value={form.axesPrioritaires} onChange={(e) => set("axesPrioritaires", e.target.value)} rows={3}
+              placeholder="ex : management, digitalisation, vente…"
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none" />
+          </div>
+        </div>
+        <div className="flex justify-end gap-3 px-6 py-4 border-t border-slate-200">
+          <button onClick={onClose} className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 rounded-lg border border-slate-200">Annuler</button>
+          <button onClick={handleSubmit} disabled={loading}
+            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 disabled:opacity-50">
+            {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Créer
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

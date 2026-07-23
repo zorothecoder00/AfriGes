@@ -3,8 +3,11 @@
  * Produit un classeur stylé : en-tête figé, filtres automatiques, largeurs de
  * colonnes, lignes alternées, et formats natifs (nombre / monétaire / date).
  *
- * Deux entrées : `exportToXlsx` (lignes d'objets + colonnes typées) et
- * `exportRowsToXlsx` (matrice dont la 1ʳᵉ ligne est l'en-tête).
+ * Trois entrées : `exportToXlsx` (lignes d'objets + colonnes typées, un seul
+ * onglet), `exportRowsToXlsx` (matrice dont la 1ʳᵉ ligne est l'en-tête, un
+ * seul onglet), et `exportMultiSheetXlsx` (plusieurs onglets hétérogènes dans
+ * un seul classeur — pour exporter d'un coup des sections de formes différentes,
+ * ex. un dashboard avec KPIs + listes + séries temporelles).
  */
 import ExcelJS from "exceljs";
 
@@ -36,27 +39,19 @@ const HEADER_FONT = "FFFFFFFF";
 const STRIPE_FILL  = "FFF1F5F9"; // slate-100
 const BORDER_COLOR = "FFE2E8F0"; // slate-200
 
+// ── Écriture d'un onglet "lignes d'objets + colonnes typées" ──────────────────
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function exportToXlsx<T extends Record<string, any>>(
+function writeObjectSheet<T extends Record<string, any>>(
+  ws: ExcelJS.Worksheet,
   rows: T[],
   columns: XlsxColumn<T>[],
-  filename = "export.xlsx",
-  options: XlsxOptions = {}
+  options: Pick<XlsxOptions, "title" | "currency"> = {}
 ) {
-  if (rows.length === 0) return;
-
-  const { sheetName = "Export", title, currency = "XOF" } = options;
-  const currencyFmt = `#,##0 "${currency}"`;
+  const { title, currency = "XOF" } = options;
+  const currencyFmt = `#,##0 "${currency}"`;
   const numberFmt   = "#,##0";
   const dateFmt     = "dd/mm/yyyy";
   const dateTimeFmt = "dd/mm/yyyy hh:mm";
-
-  const wb = new ExcelJS.Workbook();
-  wb.creator = "AfriGes";
-  wb.created = new Date();
-  const ws = wb.addWorksheet(sheetName, {
-    views: [{ state: "frozen", ySplit: title ? 2 : 1 }],
-  });
 
   let headerRowIndex = 1;
 
@@ -145,36 +140,20 @@ export async function exportToXlsx<T extends Record<string, any>>(
     column.width = Math.min(Math.max(max + 2, 10), 45);
   });
 
-  // ── Téléchargement ─────────────────────────────────────────────────────────
-  await downloadWorkbook(wb, filename);
+  ws.views = [{ state: "frozen", ySplit: title ? 2 : 1 }];
 }
 
-/**
- * Variante "matrice" : `rows[0]` est la ligne d'en-tête, le reste les données.
- * Utile pour migrer les exports qui construisent déjà un tableau de tableaux.
- * Applique le même style (en-tête figé, filtres, lignes alternées, largeurs).
- */
-export async function exportRowsToXlsx(
+// ── Écriture d'un onglet "matrice" (1ʳᵉ ligne = en-tête) ───────────────────────
+function writeMatrixSheet(
+  ws: ExcelJS.Worksheet,
   rows: (string | number | Date | null)[][],
-  filename = "export.xlsx",
-  options: Pick<XlsxOptions, "sheetName" | "currency"> & {
-    /** Type par colonne (aligné sur l'ordre des colonnes), pour le format natif. */
-    columnTypes?: (XlsxColumnType | undefined)[];
-  } = {}
+  options: Pick<XlsxOptions, "currency"> & { columnTypes?: (XlsxColumnType | undefined)[] } = {}
 ) {
-  if (rows.length === 0) return;
-
-  const { sheetName = "Export", currency = "XOF", columnTypes = [] } = options;
+  const { currency = "XOF", columnTypes = [] } = options;
   const currencyFmt = `#,##0 "${currency}"`;
   const [headerCells, ...dataRows] = rows;
   const colCount = headerCells.length;
 
-  const wb = new ExcelJS.Workbook();
-  wb.creator = "AfriGes";
-  wb.created = new Date();
-  const ws = wb.addWorksheet(sheetName, { views: [{ state: "frozen", ySplit: 1 }] });
-
-  // En-tête
   const headerRow = ws.getRow(1);
   headerCells.forEach((label, i) => {
     const cell = headerRow.getCell(i + 1);
@@ -186,7 +165,6 @@ export async function exportRowsToXlsx(
   });
   headerRow.height = 20;
 
-  // Données
   dataRows.forEach((cells, r) => {
     const excelRow = ws.getRow(2 + r);
     cells.forEach((value, i) => {
@@ -220,14 +198,12 @@ export async function exportRowsToXlsx(
     });
   });
 
-  // Filtres + largeurs
   ws.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: colCount } };
   for (let i = 0; i < colCount; i++) {
     const type = columnTypes[i];
     let max = String(headerCells[i] ?? "").length;
     dataRows.forEach((cells) => {
       const v = cells[i];
-      // Estimation de largeur selon le type affiché (pas la longueur brute des Date)
       const len =
         type === "datetime" ? 16
         : type === "date" ? 10
@@ -236,6 +212,86 @@ export async function exportRowsToXlsx(
       if (len > max) max = len;
     });
     ws.getColumn(i + 1).width = Math.min(Math.max(max + 2, 10), 45);
+  }
+
+  ws.views = [{ state: "frozen", ySplit: 1 }];
+}
+
+// ── API publique : un seul onglet, lignes d'objets ────────────────────────────
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function exportToXlsx<T extends Record<string, any>>(
+  rows: T[],
+  columns: XlsxColumn<T>[],
+  filename = "export.xlsx",
+  options: XlsxOptions = {}
+) {
+  if (rows.length === 0) return;
+
+  const { sheetName = "Export" } = options;
+  const wb = new ExcelJS.Workbook();
+  wb.creator = "AfriGes";
+  wb.created = new Date();
+  const ws = wb.addWorksheet(sheetName);
+  writeObjectSheet(ws, rows, columns, options);
+
+  await downloadWorkbook(wb, filename);
+}
+
+/**
+ * Variante "matrice" : `rows[0]` est la ligne d'en-tête, le reste les données.
+ * Utile pour migrer les exports qui construisent déjà un tableau de tableaux.
+ * Applique le même style (en-tête figé, filtres, lignes alternées, largeurs).
+ */
+export async function exportRowsToXlsx(
+  rows: (string | number | Date | null)[][],
+  filename = "export.xlsx",
+  options: Pick<XlsxOptions, "sheetName" | "currency"> & {
+    /** Type par colonne (aligné sur l'ordre des colonnes), pour le format natif. */
+    columnTypes?: (XlsxColumnType | undefined)[];
+  } = {}
+) {
+  if (rows.length === 0) return;
+
+  const { sheetName = "Export" } = options;
+  const wb = new ExcelJS.Workbook();
+  wb.creator = "AfriGes";
+  wb.created = new Date();
+  const ws = wb.addWorksheet(sheetName);
+  writeMatrixSheet(ws, rows, options);
+
+  await downloadWorkbook(wb, filename);
+}
+
+/** Description d'un onglet pour exportMultiSheetXlsx. */
+export type XlsxSheetSpec =
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  | { sheetName: string; kind: "object"; rows: Record<string, any>[]; columns: XlsxColumn<Record<string, any>>[]; title?: string }
+  | { sheetName: string; kind: "matrix"; rows: (string | number | Date | null)[][]; columnTypes?: (XlsxColumnType | undefined)[] };
+
+/**
+ * Exporte plusieurs sections hétérogènes (KPIs, listes, séries temporelles…)
+ * dans UN SEUL classeur à onglets multiples — un seul fichier téléchargé.
+ * Les onglets vides (0 ligne de données) sont ignorés.
+ */
+export async function exportMultiSheetXlsx(
+  sheets: XlsxSheetSpec[],
+  filename = "export.xlsx",
+  options: Pick<XlsxOptions, "currency"> = {}
+) {
+  const utiles = sheets.filter((s) => s.rows.length > 0);
+  if (utiles.length === 0) return;
+
+  const wb = new ExcelJS.Workbook();
+  wb.creator = "AfriGes";
+  wb.created = new Date();
+
+  for (const sheet of utiles) {
+    const ws = wb.addWorksheet(sheet.sheetName.slice(0, 31));
+    if (sheet.kind === "object") {
+      writeObjectSheet(ws, sheet.rows, sheet.columns, { title: sheet.title, currency: options.currency });
+    } else {
+      writeMatrixSheet(ws, sheet.rows, { currency: options.currency, columnTypes: sheet.columnTypes });
+    }
   }
 
   await downloadWorkbook(wb, filename);

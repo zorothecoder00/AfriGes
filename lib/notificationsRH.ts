@@ -664,6 +664,83 @@ export async function notifyDecisionAvancePret(params: {
   });
 }
 
+// ─── 5quater. Demande de formation — workflow de demande (in-action) ─────────
+
+/**
+ * À appeler quand un collaborateur soumet lui-même une demande de formation.
+ * Notifie son manager direct (s'il en a un) + tous les RESPONSABLE_RH actifs.
+ */
+export async function notifyNouvelleDemandeFormation(demandeFormationId: number): Promise<void> {
+  const demande = await prisma.demandeFormation.findUnique({
+    where:  { id: demandeFormationId },
+    select: {
+      intituleSouhaite: true,
+      profilRH: {
+        select: {
+          matricule: true,
+          gestionnaire: { select: { member: { select: { nom: true, prenom: true } } } },
+          manager: { select: { gestionnaire: { select: { memberId: true } } } },
+        },
+      },
+    },
+  });
+  if (!demande) return;
+
+  const member    = demande.profilRH.gestionnaire.member;
+  const nomCollab = `${member.prenom} ${member.nom}`;
+
+  const rhIds     = await getRHManagerIds();
+  const managerId = demande.profilRH.manager?.gestionnaire.memberId ?? null;
+  const destinataires = [...(managerId ? [managerId] : []), ...rhIds];
+
+  await createNotifs(destinataires, {
+    titre:    `Nouvelle demande de formation — ${nomCollab}`,
+    message:  `${nomCollab} (${demande.profilRH.matricule}) a soumis une demande de formation : « ${demande.intituleSouhaite} ». À valider.`,
+    priorite: PrioriteNotification.NORMAL,
+    actionUrl: `/dashboard/admin/rh/formations`,
+  });
+}
+
+/**
+ * À appeler lorsqu'une demande de formation change de statut.
+ * Notifie uniquement le collaborateur demandeur.
+ */
+export async function notifyDecisionDemandeFormation(params: {
+  profilRHId: number;
+  intitule:   string;
+  decision:   "VALIDE_MANAGER" | "APPROUVE" | "REJETE";
+  motif?:     string;
+}): Promise<void> {
+  const userId = await getUserIdFromProfil(params.profilRHId);
+  if (!userId) return;
+
+  const MAP: Record<string, { titre: string; message: string; priorite: PrioriteNotification }> = {
+    VALIDE_MANAGER: {
+      titre:    "Demande de formation validée (manager)",
+      message:  `Votre demande de formation « ${params.intitule} » a été validée par votre manager et attend l'approbation du RH.`,
+      priorite: PrioriteNotification.NORMAL,
+    },
+    APPROUVE: {
+      titre:    "Demande de formation approuvée ✓",
+      message:  `Votre demande de formation « ${params.intitule} » a été approuvée.`,
+      priorite: PrioriteNotification.NORMAL,
+    },
+    REJETE: {
+      titre:    "Demande de formation refusée",
+      message:  `Votre demande de formation « ${params.intitule} » a été refusée.${params.motif ? ` Motif : ${params.motif}` : ""}`,
+      priorite: PrioriteNotification.HAUTE,
+    },
+  };
+
+  const n = MAP[params.decision];
+  if (!n) return;
+
+  await createNotifs([userId], {
+    ...n,
+    actionUrl: `/dashboard/user/collaborateur/formations`,
+  });
+}
+
 // ─── 6. Inscription à une formation (in-action) ───────────────────────────────
 
 /**
