@@ -973,9 +973,11 @@ function CreatePosteModal({ onClose, onCreated }: { onClose: () => void; onCreat
   const [form, setForm] = useState({
     titre: "", departement: "", service: "", lieu: "", typeContrat: "CDI",
     nbPostes: "1", dateLimite: "", salaireMini: "", salaireMaxi: "", budgetPoste: "",
-    description: "", exigences: "", experienceMin: "",
+    description: "", exigences: "", experienceMin: "", planRecrutementId: "",
   });
   const { mutate, loading } = useMutation("/api/admin/rh/recrutement/postes");
+  const { data: plansRes } = useApi<{ data: PlanRecrutement[] }>("/api/admin/rh/recrutement/plans");
+  const plans = plansRes?.data ?? [];
 
   async function handleSubmit() {
     if (!form.titre) { toast.error("Titre obligatoire"); return; }
@@ -1028,6 +1030,15 @@ function CreatePosteModal({ onClose, onCreated }: { onClose: () => void; onCreat
             <div><label className="text-xs text-gray-500">Salaire maxi (FCFA)</label><input type="number" value={form.salaireMaxi} onChange={set("salaireMaxi")} className="mt-1 w-full border rounded-lg px-3 py-2 text-sm" /></div>
             <div><label className="text-xs text-gray-500">Budget recrutement</label><input type="number" value={form.budgetPoste} onChange={set("budgetPoste")} className="mt-1 w-full border rounded-lg px-3 py-2 text-sm" /></div>
           </div>
+          {plans.length > 0 && (
+            <div>
+              <label className="text-xs text-gray-500">Plan de recrutement annuel (facultatif)</label>
+              <select value={form.planRecrutementId} onChange={set("planRecrutementId")} className="mt-1 w-full border rounded-lg px-3 py-2 text-sm bg-white">
+                <option value="">— Aucun —</option>
+                {plans.map((p) => <option key={p.id} value={p.id}>{p.annee}</option>)}
+              </select>
+            </div>
+          )}
           <div><label className="text-xs text-gray-500">Description</label><textarea value={form.description} onChange={set("description")} className="mt-1 w-full border rounded-lg px-3 py-2 text-sm" rows={3} /></div>
           <div><label className="text-xs text-gray-500">Profil requis / Exigences</label><textarea value={form.exigences} onChange={set("exigences")} className="mt-1 w-full border rounded-lg px-3 py-2 text-sm" rows={2} /></div>
         </div>

@@ -8,7 +8,7 @@ import {
   CalendarDays, MapPin, Star, UserCheck, FileWarning,
   Building2, TrendingUp, AlertTriangle, CheckCircle2,
   ArrowRight, ArrowLeft, RefreshCw, ClipboardList, Brain, Rocket, FileText, Bell,
-  CalendarClock,
+  CalendarClock, ShieldAlert,
 } from "lucide-react";
 
 /* ─── Types ─────────────────────────────────────────────── */
@@ -59,6 +59,11 @@ interface RHStats {
   };
   avantages: {
     remboursementsEnAttente: number;
+  };
+  sst: {
+    accidentsOuverts: number;
+    visitesEnRetard: number;
+    incidentsOuverts: number;
   };
 }
 
@@ -389,6 +394,35 @@ export default function RHDashboardPage() {
               />
             </div>
 
+            {/* ── Santé & Sécurité (SST) ── */}
+            <SectionTitle>Santé &amp; Sécurité</SectionTitle>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              <StatCard
+                href="/dashboard/admin/rh/sst"
+                icon={<ShieldAlert size={20} />}
+                title="Accidents en cours"
+                value={s.sst.accidentsOuverts}
+                color="text-red-600 bg-red-50"
+                alert={s.sst.accidentsOuverts > 0}
+              />
+              <StatCard
+                href="/dashboard/admin/rh/sst"
+                icon={<ShieldAlert size={20} />}
+                title="Visites médicales en retard"
+                value={s.sst.visitesEnRetard}
+                color="text-orange-600 bg-orange-50"
+                alert={s.sst.visitesEnRetard > 0}
+              />
+              <StatCard
+                href="/dashboard/admin/rh/sst"
+                icon={<ShieldAlert size={20} />}
+                title="Incidents ouverts"
+                value={s.sst.incidentsOuverts}
+                color="text-amber-600 bg-amber-50"
+                alert={s.sst.incidentsOuverts > 0}
+              />
+            </div>
+
             {/* ── Liens rapides ── */}
             <div className="mt-6 bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
               <h3 className="text-sm font-semibold text-gray-700 mb-4">Accès rapide</h3>
@@ -409,6 +443,7 @@ export default function RHDashboardPage() {
                   { href: "/dashboard/admin/rh/disciplinaire",  icon: <FileWarning size={16} />, label: "Disciplinaire" },
                   { href: "/dashboard/admin/rh/organigramme",   icon: <Building2 size={16} />, label: "Organigramme" },
                   { href: "/dashboard/admin/rh/planning",       icon: <CalendarClock size={16} />, label: "Planning d'équipe" },
+                  { href: "/dashboard/admin/rh/sst",            icon: <ShieldAlert size={16} />, label: "Santé & Sécurité" },
                   { href: "/dashboard/admin/rh/documents-rh",  icon: <FileText  size={16} />, label: "Documents RH" },
                   { href: "/dashboard/admin/rh/audit",         icon: <Clock     size={16} />, label: "Audit & Traçabilité" },
                 ].map(({ href, icon, label }) => (

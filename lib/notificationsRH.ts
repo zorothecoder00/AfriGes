@@ -771,6 +771,111 @@ export async function notifyInscriptionFormation(
   });
 }
 
+// ─── 7. Santé et sécurité au travail (SST) ────────────────────────────────────
+
+/**
+ * À appeler immédiatement après la déclaration d'un accident du travail.
+ * Notification urgente (priorité HAUTE) aux RESPONSABLE_RH + Admin/SuperAdmin —
+ * pas une alerte scannée par cron, un accident doit être signalé sans délai.
+ */
+export async function notifyNouvelAccidentTravail(accidentId: number): Promise<void> {
+  const accident = await prisma.accidentTravail.findUnique({
+    where:  { id: accidentId },
+    select: {
+      lieu: true, gravite: true, dateAccident: true,
+      profilRH: {
+        select: {
+          matricule: true,
+          gestionnaire: { select: { member: { select: { nom: true, prenom: true } } } },
+        },
+      },
+    },
+  });
+  if (!accident) return;
+
+  const member    = accident.profilRH.gestionnaire.member;
+  const nomCollab = `${member.prenom} ${member.nom}`;
+  const date      = new Date(accident.dateAccident).toLocaleDateString("fr-FR");
+
+  const destinataires = [...(await getRHManagerIds()), ...(await getAdminIds())];
+
+  await createNotifs(destinataires, {
+    titre:    `Accident du travail déclaré — ${nomCollab}`,
+    message:  `Un accident (${accident.gravite.toLowerCase()}) a été déclaré pour ${nomCollab} (${accident.profilRH.matricule}) le ${date} à ${accident.lieu}.`,
+    priorite: PrioriteNotification.HAUTE,
+    actionUrl: `/dashboard/admin/rh/sst`,
+  });
+}
+
+/**
+ * À appeler immédiatement après la création d'un rapport d'incident (sécurité,
+ * matériel, environnement). Même urgence que les accidents du travail.
+ */
+export async function notifyNouvelIncident(incidentId: number): Promise<void> {
+  const incident = await prisma.rapportIncident.findUnique({
+    where:  { id: incidentId },
+    select: { lieu: true, typeIncident: true, gravite: true, dateIncident: true },
+  });
+  if (!incident) return;
+
+  const date = new Date(incident.dateIncident).toLocaleDateString("fr-FR");
+  const destinataires = [...(await getRHManagerIds()), ...(await getAdminIds())];
+
+  await createNotifs(destinataires, {
+    titre:    `Incident (${incident.typeIncident.toLowerCase()}) — ${incident.lieu}`,
+    message:  `Un incident de gravité ${incident.gravite.toLowerCase()} a été signalé le ${date} à ${incident.lieu}.`,
+    priorite: PrioriteNotification.HAUTE,
+    actionUrl: `/dashboard/admin/rh/sst`,
+  });
+}
+
+/**
+ * Alerte scannée (façon alertesFinContrat) : visites médicales à programmer
+ * dans les 30 prochains jours (dateProchaineVisite).
+ */
+export async function alertesVisitesMedicalesAvenir(profilRHIds?: number[] | null): Promise<number> {
+  const now = new Date();
+  const j30 = daysFromNow(30);
+
+  const visites = await prisma.visiteMedicale.findMany({
+    where: {
+      dateProchaineVisite: { gte: now, lte: j30 },
+      ...(profilRHIds ? { profilRHId: { in: profilRHIds } } : {}),
+    },
+    select: {
+      id: true, dateProchaineVisite: true,
+      profilRH: {
+        select: {
+          id: true, matricule: true,
+          gestionnaire: { select: { memberId: true, member: { select: { nom: true, prenom: true } } } },
+        },
+      },
+    },
+  });
+
+  const rhIds = await getRHManagerIds();
+  let sent = 0;
+
+  for (const v of visites) {
+    const userId    = v.profilRH.gestionnaire.memberId;
+    const nomCollab = `${v.profilRH.gestionnaire.member.prenom} ${v.profilRH.gestionnaire.member.nom}`;
+    const dateProch = new Date(v.dateProchaineVisite!).toLocaleDateString("fr-FR");
+    const titreKey  = `Visite médicale à programmer — ${v.profilRH.matricule}`;
+
+    if (await dejaNotifie(userId, titreKey)) continue;
+
+    await createNotifs([userId, ...rhIds], {
+      titre:    titreKey,
+      message:  `La prochaine visite médicale de ${nomCollab} (${v.profilRH.matricule}) est prévue le ${dateProch}.`,
+      priorite: PrioriteNotification.NORMAL,
+      actionUrl: `/dashboard/admin/rh/sst`,
+    });
+    sent++;
+  }
+
+  return sent;
+}
+
 // ─── Runner principal (appelé par le CRON) ────────────────────────────────────
 
 export async function runAlertesRH(): Promise<{
@@ -780,21 +885,24 @@ export async function runAlertesRH(): Promise<{
   evaluationsProg: number;
   formationsAsuivre: number;
   congesEnAttente: number;
+  visitesMedicalesAvenir: number;
 }> {
-  const [finContrat, documentsExpirants, evaluationsProg, formationsAsuivre, congesEnAttente] = await Promise.all([
+  const [finContrat, documentsExpirants, evaluationsProg, formationsAsuivre, congesEnAttente, visitesMedicalesAvenir] = await Promise.all([
     alertesFinContrat(),
     alertesDocumentsExpirants(),
     alertesEvaluationsProg(),
     alertesFormationsAsuivre(),
     alertesCongesEnAttente(),
+    alertesVisitesMedicalesAvenir(),
   ]);
 
   return {
-    total: finContrat + documentsExpirants + evaluationsProg + formationsAsuivre + congesEnAttente,
+    total: finContrat + documentsExpirants + evaluationsProg + formationsAsuivre + congesEnAttente + visitesMedicalesAvenir,
     finContrat,
     documentsExpirants,
     evaluationsProg,
     formationsAsuivre,
     congesEnAttente,
+    visitesMedicalesAvenir,
   };
 }

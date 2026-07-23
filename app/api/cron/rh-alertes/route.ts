@@ -29,6 +29,7 @@ export async function GET(req: Request) {
         "Évaluations prog.":    result.evaluationsProg,
         "Formations à suivre":  result.formationsAsuivre,
         "Congés à valider":     result.congesEnAttente,
+        "Visites médicales à venir": result.visitesMedicalesAvenir,
       },
     });
   } catch (error) {

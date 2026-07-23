@@ -859,6 +859,7 @@ model PointDeVente {
   prixProduits               PrixProduit[]                @relation("PrixProduitPDV")
   promotions                 Promotion[]                  @relation("PromotionPDV")
   lots                       LotProduit[]
+  documentsStrategiques      DocumentStrategiqueRH[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -3316,6 +3317,7 @@ enum TypeDocumentStrategiqueRH {
   POLITIQUE_DIVERSITE
   POLITIQUE_SANTE_SECURITE
   POLITIQUE_CONFIDENTIALITE
+  PLAN_EVACUATION
   AUTRE
 }
 
@@ -3339,12 +3341,16 @@ model DocumentStrategiqueRH {
   statut      StatutDocumentStrategique @default(BROUILLON)
   dateEffet   DateTime?
   creePar     Int                       // User.id
+  pointDeVenteId Int?                   // rattachement site (ex: plan d'évacuation) ; null = document global
+
+  pointDeVente PointDeVente? @relation(fields: [pointDeVenteId], references: [id])
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([type])
   @@index([statut])
+  @@index([pointDeVenteId])
 }
 
 // ============================================================
@@ -3640,6 +3646,8 @@ model ProfilRH {
   demandesMouvementCarriere DemandeMouvementCarriere[]
   demandesFormation         DemandeFormation[]
   affectationsPlanning      AffectationPlanning[]
+  accidentsTravail          AccidentTravail[]
+  visitesMedicales          VisiteMedicale[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -5038,6 +5046,158 @@ model ProcedureDisciplinaire {
 
   @@index([profilRHId])
   @@index([statut])
+}
+
+// ============================================================
+// OGRH — MODULE 14 : SANTÉ ET SÉCURITÉ AU TRAVAIL (SST)
+// Registres légaux : jamais de suppression définitive, uniquement
+// correction de champs ou changement de statut (ANNULE).
+// ============================================================
+
+enum GraviteSST {
+  LEGER
+  GRAVE
+  MORTEL
+}
+
+enum StatutAccidentTravail {
+  DECLARE
+  EN_INSTRUCTION
+  CLOTURE
+  ANNULE
+}
+
+/// Registre des accidents du travail — la déclaration EST l'enregistrement
+/// (pas de modèle séparé pour la "déclaration/rapport d'accident" du CDC).
+model AccidentTravail {
+  id               Int                   @id @default(autoincrement())
+  profilRHId       Int
+  dateAccident     DateTime
+  heureAccident    String?               // "HH:mm"
+  lieu             String
+  circonstances    String
+  natureLesion     String?
+  gravite          GraviteSST            @default(LEGER)
+  arretTravail     Boolean               @default(false)
+  dureeArretJours  Int?
+  temoin           String?
+  declareParId     Int                   // User.id
+  documentUrl      String?               // déclaration CNSS / rapport scanné
+  mesuresCorrectives String?
+  notes            String?
+  statut           StatutAccidentTravail @default(DECLARE)
+
+  profilRH ProfilRH @relation(fields: [profilRHId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([profilRHId])
+  @@index([statut])
+  @@index([dateAccident])
+}
+
+enum TypeVisiteMedicale {
+  EMBAUCHE
+  PERIODIQUE
+  REPRISE
+  SPONTANEE
+}
+
+enum ResultatAptitude {
+  APTE
+  APTE_AVEC_RESERVES
+  INAPTE_TEMPORAIRE
+  INAPTE_DEFINITIF
+}
+
+/// Visite médicale — l'aptitude médicale EST le résultat de la visite
+/// (pas de modèle séparé pour "l'aptitude médicale" du CDC).
+model VisiteMedicale {
+  id                 Int                @id @default(autoincrement())
+  profilRHId         Int
+  type               TypeVisiteMedicale
+  dateVisite         DateTime
+  medecin            String?
+  lieu               String?
+  resultatAptitude   ResultatAptitude
+  restrictions       String?
+  dateProchaineVisite DateTime?
+  documentUrl        String?            // certificat médical scanné
+  notes              String?
+
+  profilRH ProfilRH @relation(fields: [profilRHId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([profilRHId])
+  @@index([dateProchaineVisite])
+}
+
+enum TypeEvenementSST {
+  INSPECTION
+  FORMATION_SECURITE
+  PRESQUE_ACCIDENT
+  OBSERVATION
+  AUTRE
+}
+
+/// Journal des événements SST hors accident (inspections, formations sécurité,
+/// presque-accidents, observations) — registre simple, non rattaché à un collaborateur précis.
+model RegistreSST {
+  id             Int              @id @default(autoincrement())
+  type           TypeEvenementSST
+  dateEvenement  DateTime
+  description    String
+  lieu           String?
+  responsableId  Int              // User.id
+  actionsPrises  String?
+  documentUrl    String?
+  notes          String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([type])
+  @@index([dateEvenement])
+}
+
+enum TypeIncident {
+  SECURITE
+  MATERIEL
+  ENVIRONNEMENT
+  AUTRE
+}
+
+enum StatutIncident {
+  OUVERT
+  EN_COURS
+  CLOTURE
+  ANNULE
+}
+
+/// Rapport d'incident — distinct de l'accident du travail : incidents de
+/// sécurité, matériels ou environnementaux, non centrés sur une blessure.
+model RapportIncident {
+  id                  Int             @id @default(autoincrement())
+  dateIncident        DateTime
+  lieu                String
+  typeIncident        TypeIncident    @default(AUTRE)
+  description         String
+  personnesImpliquees String?
+  gravite             GraviteSST      @default(LEGER)
+  actionsCorrectives  String?
+  declareParId        Int             // User.id
+  documentUrl         String?
+  notes               String?
+  statut              StatutIncident  @default(OUVERT)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([statut])
+  @@index([dateIncident])
 }
 
 // ============================================================

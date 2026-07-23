@@ -905,13 +905,15 @@ function CreateFormationModal({ onClose, onCreated }: { onClose: () => void; onC
   const { mutate, loading } = useMutation("/api/admin/rh/formations", "POST");
   const { data: collabRes } = useApi<CollabsRes>("/api/admin/rh/collaborateurs?limit=200&statut=ACTIF");
   const collabs = collabRes?.data ?? [];
+  const { data: plansRes } = useApi<{ data: PlanFormation[] }>("/api/admin/rh/formations/plans");
+  const plans = plansRes?.data ?? [];
   const [selectedParts, setSelectedParts] = useState<number[]>([]);
   const [partSearch, setPartSearch] = useState("");
 
   const [form, setForm] = useState({
     titre: "", type: "INTERNE", objectifs: "", lieu: "", formateur: "",
     dateDebut: "", dateFin: "", dureeHeures: "", cout: "", budgetAlloue: "",
-    certificationNom: "", notes: "",
+    certificationNom: "", notes: "", planFormationId: "",
   });
   const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
   const togglePart = (id: number) => setSelectedParts((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
@@ -939,6 +941,7 @@ function CreateFormationModal({ onClose, onCreated }: { onClose: () => void; onC
       certificationNom: form.certificationNom || null,
       notes:            form.notes          || null,
       participantIds:   selectedParts,
+      planFormationId:  form.planFormationId || undefined,
     });
     if (result) { toast.success("Formation créée"); onCreated(); }
   };
@@ -969,6 +972,16 @@ function CreateFormationModal({ onClose, onCreated }: { onClose: () => void; onC
               ))}
             </div>
           </FField>
+
+          {plans.length > 0 && (
+            <FField label="Plan de formation annuel (facultatif)">
+              <select value={form.planFormationId} onChange={(e) => set("planFormationId", e.target.value)}
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                <option value="">— Aucun —</option>
+                {plans.map((p) => <option key={p.id} value={p.id}>{p.annee}</option>)}
+              </select>
+            </FField>
+          )}
 
           <div className="grid grid-cols-2 gap-3">
             <FField label="Date de début *">

@@ -8,6 +8,7 @@ import {
   alertesEvaluationsProg,
   alertesFormationsAsuivre,
   alertesCongesEnAttente,
+  alertesVisitesMedicalesAvenir,
 } from "@/lib/notificationsRH";
 
 /**
@@ -27,6 +28,7 @@ const TRIGGERS: Record<string, { label: string; run: (ids?: number[] | null) => 
   evaluationProg:   { label: "Évaluation programmée",   run: alertesEvaluationsProg },
   formationAsuivre: { label: "Formation à suivre",      run: alertesFormationsAsuivre },
   validationConge:  { label: "Validation de congé",     run: alertesCongesEnAttente },
+  visiteMedicale:   { label: "Visite médicale à venir",  run: alertesVisitesMedicalesAvenir },
 };
 
 type TriggerKey = keyof typeof TRIGGERS;

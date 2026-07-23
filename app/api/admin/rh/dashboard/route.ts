@@ -52,6 +52,10 @@ export async function GET() {
       procEnInstruction,
 
       rembsEnAttente,
+
+      accidentsOuverts,
+      visitesEnRetard,
+      incidentsOuverts,
     ] = await Promise.all([
       // Effectifs
       prisma.profilRH.count(),
@@ -95,6 +99,11 @@ export async function GET() {
 
       // Remboursements
       prisma.remboursementFrais.count({ where: { statut: "EN_ATTENTE" } }),
+
+      // SST — Santé et sécurité au travail
+      prisma.accidentTravail.count({ where: { statut: { in: ["DECLARE", "EN_INSTRUCTION"] } } }),
+      prisma.visiteMedicale.count({ where: { dateProchaineVisite: { lt: today } } }),
+      prisma.rapportIncident.count({ where: { statut: { in: ["OUVERT", "EN_COURS"] } } }),
     ]);
 
     const paieStatutMap = Object.fromEntries(paieByStatut.map((p) => [p.statut, p._count.id]));
@@ -151,6 +160,11 @@ export async function GET() {
         },
         avantages: {
           remboursementsEnAttente: rembsEnAttente,
+        },
+        sst: {
+          accidentsOuverts,
+          visitesEnRetard,
+          incidentsOuverts,
         },
       },
     });
