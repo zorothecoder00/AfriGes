@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { getAgentTerrainSession } from '@/lib/authAgentTerrain';
 import { autoCloseOldSessions } from '@/lib/collecteAutoClose';
 import { calculerResumeSessionJour } from '@/lib/popc/realisationsServer';
+import { trouverOuCreerSessionDuJour } from '@/lib/collecteSession';
 
 const STATUTS_SOUSCRIPTION = ['ACTIF', 'EN_ATTENTE'] as const;
 const STATUTS_CREDIT        = ['ACTIF', 'EN_RETARD']  as const;
@@ -147,47 +148,7 @@ export async function POST(_req: Request) {
     if (!session) return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });
 
     const agentId = parseInt(session.user.id);
-    const debut   = today();
-    const fin     = tomorrow();
-
-    // Vérifier qu'il n'y a pas déjà une session active
-    const existing = await prisma.collecteJournaliere.findFirst({
-      where: { agentId, dateCollecte: { gte: debut, lt: fin }, statut: { not: 'ANNULEE' } },
-    });
-    if (existing) return NextResponse.json({ data: existing });
-
-    // PDV de rattachement de l'agent
-    const gestionnaire = await prisma.gestionnaire.findFirst({
-      where: { memberId: agentId, role: 'AGENT_TERRAIN' },
-      include: {
-        member: {
-          include: {
-            affectationsPDV: { where: { actif: true }, select: { pointDeVenteId: true }, take: 1 },
-          },
-        },
-      },
-    });
-    const pdvId = gestionnaire?.member?.affectationsPDV[0]?.pointDeVenteId ?? null;
-
-    // Montant prévu = somme des échéances du jour
-    const echeancesJour = await prisma.echeancePack.findMany({
-      where: {
-        datePrevue: { gte: debut, lt: fin },
-        statut: { in: ['EN_ATTENTE', 'EN_RETARD'] },
-        souscription: { client: { agentTerrainId: agentId } },
-      },
-      select: { montant: true },
-    });
-    const montantPrevu = echeancesJour.reduce((s, e) => s + Number(e.montant), 0);
-
-    // Référence unique
-    const dateStr = debut.toISOString().slice(0, 10).replace(/-/g, '');
-    const count   = await prisma.collecteJournaliere.count();
-    const reference = `COL-${dateStr}-${String(count + 1).padStart(3, '0')}`;
-
-    const nouvelleSession = await prisma.collecteJournaliere.create({
-      data: { reference, agentId, pointDeVenteId: pdvId, dateCollecte: debut, montantPrevu, statut: 'EN_COURS' },
-    });
+    const nouvelleSession = await trouverOuCreerSessionDuJour(agentId);
 
     return NextResponse.json({ data: nouvelleSession }, { status: 201 });
   } catch (error) {

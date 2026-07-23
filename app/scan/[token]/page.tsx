@@ -2,14 +2,15 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
+import { toast } from "sonner";
 import {
   Navigation, Phone, MapPin, Wallet, AlertTriangle, Clock, CheckCircle2,
-  Target, BookOpen, Loader2, RefreshCw,
+  Target, BookOpen, Loader2, RefreshCw, Banknote, UserPlus, X,
 } from "lucide-react";
 
 type Priorite = "URGENTE" | "HAUTE" | "NORMALE";
 interface LigneTournee {
-  creditId: number; reference: string; clientNom: string; telephone: string;
+  creditId: number; clientId: number; reference: string; clientNom: string; telephone: string;
   quartier: string; formule: string; miseDuJour: number; montantRetard: number;
   montantACollecter: number; echeance: string; retardJours: number; priorite: Priorite;
 }
@@ -27,14 +28,22 @@ const BADGE: Record<Priorite, string> = {
   NORMALE: "bg-blue-100 text-blue-700",
 };
 
+interface PayTarget { creditId: number; clientId: number; clientNom: string; montantAttendu: number }
+
 export default function ScanTourneePage() {
   const params = useParams<{ token: string }>();
+  const token = params.token;
   const [data, setData] = useState<ScanData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const [payTarget, setPayTarget] = useState<PayTarget | null>(null);
+  const [carnetTarget, setCarnetTarget] = useState<{ clientId: number; clientNom: string } | null>(null);
+  const [nouveauClientOpen, setNouveauClientOpen] = useState(false);
+  const [visitingId, setVisitingId] = useState<number | null>(null);
+
   const charger = () => {
-    fetch(`/api/agent-scan/${params.token}`)
+    fetch(`/api/agent-scan/${token}`)
       .then(async (r) => {
         const j = await r.json();
         if (!r.ok) throw new Error(j.error ?? "Erreur");
@@ -43,7 +52,25 @@ export default function ScanTourneePage() {
       .catch((e) => setError(e instanceof Error ? e.message : "Erreur"))
       .finally(() => setLoading(false));
   };
-  useEffect(charger, [params.token]);
+  useEffect(charger, [token]);
+
+  const marquerVisite = async (clientId: number) => {
+    setVisitingId(clientId);
+    try {
+      const r = await fetch(`/api/agent-scan/${token}/visiter`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clientId }),
+      });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error ?? "Erreur");
+      toast.success("Visite enregistrée");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erreur réseau");
+    } finally {
+      setVisitingId(null);
+    }
+  };
 
   const totalACollecter = data?.clients.reduce((s, c) => s + c.montantACollecter, 0) ?? 0;
   const urgentes = data?.clients.filter((c) => c.priorite === "URGENTE").length ?? 0;
@@ -118,6 +145,22 @@ export default function ScanTourneePage() {
               </div>
             </div>
 
+            {/* Actions rapides */}
+            <div className="flex gap-2">
+              <button
+                onClick={() => setCarnetTarget({ clientId: 0, clientNom: "" })}
+                className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-700 hover:bg-slate-50"
+              >
+                <BookOpen className="w-4 h-4 text-indigo-500" /> Vendre un carnet
+              </button>
+              <button
+                onClick={() => setNouveauClientOpen(true)}
+                className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-700 hover:bg-slate-50"
+              >
+                <UserPlus className="w-4 h-4 text-indigo-500" /> Nouveau client
+              </button>
+            </div>
+
             {/* Clients à visiter */}
             <section>
               <p className="text-sm font-semibold text-slate-700 mb-2 flex items-center gap-1.5">
@@ -153,6 +196,27 @@ export default function ScanTourneePage() {
                           )}
                         </div>
                       </div>
+                      <div className="flex items-center gap-2 mt-3 pt-3 border-t border-slate-50">
+                        <button
+                          onClick={() => setPayTarget({ creditId: c.creditId, clientId: c.clientId, clientNom: c.clientNom, montantAttendu: c.montantACollecter })}
+                          className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-indigo-600 text-white rounded-xl text-xs font-semibold hover:bg-indigo-700"
+                        >
+                          <Banknote className="w-3.5 h-3.5" /> Payer
+                        </button>
+                        <button
+                          onClick={() => setCarnetTarget({ clientId: c.clientId, clientNom: c.clientNom })}
+                          className="px-3 py-2 bg-white border border-slate-200 text-slate-600 rounded-xl text-xs font-medium hover:bg-slate-50"
+                        >
+                          Carnet
+                        </button>
+                        <button
+                          onClick={() => marquerVisite(c.clientId)}
+                          disabled={visitingId === c.clientId}
+                          className="px-3 py-2 bg-white border border-slate-200 text-slate-600 rounded-xl text-xs font-medium hover:bg-slate-50 disabled:opacity-50"
+                        >
+                          {visitingId === c.clientId ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Visité"}
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -164,6 +228,207 @@ export default function ScanTourneePage() {
             </p>
           </>
         ) : null}
+      </div>
+
+      {payTarget && (
+        <ModalPayer token={token} target={payTarget} onClose={() => setPayTarget(null)} onSuccess={charger} />
+      )}
+      {carnetTarget && (
+        <ModalCarnet token={token} target={carnetTarget} onClose={() => setCarnetTarget(null)} onSuccess={charger} />
+      )}
+      {nouveauClientOpen && (
+        <ModalNouveauClient token={token} onClose={() => setNouveauClientOpen(false)} onSuccess={charger} />
+      )}
+    </div>
+  );
+}
+
+// ─── Modal Payer un crédit (espèces) ──────────────────────────────────────────
+
+function ModalPayer({ token, target, onClose, onSuccess }: {
+  token: string; target: PayTarget; onClose: () => void; onSuccess: () => void;
+}) {
+  const [montant, setMontant] = useState(String(Math.round(target.montantAttendu)));
+  const [submitting, setSubmitting] = useState(false);
+  const montantNum = parseFloat(montant) || 0;
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setSubmitting(true);
+    try {
+      const r = await fetch(`/api/agent-scan/${token}/encaisser`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ creditId: target.creditId, montant: montantNum }),
+      });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error ?? "Erreur");
+      toast.success("Paiement enregistré !");
+      onSuccess();
+      onClose();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erreur réseau");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-5">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-bold text-slate-800">Payer le crédit</h2>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X className="w-5 h-5" /></button>
+        </div>
+        <p className="text-sm text-slate-600 mb-4">{target.clientNom}</p>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Montant encaissé (espèces) *</label>
+            <input type="number" min="1" required value={montant} onChange={(e) => setMontant(e.target.value)}
+              className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+          </div>
+          <div className="flex gap-3">
+            <button type="button" onClick={onClose}
+              className="flex-1 py-2.5 border border-slate-200 text-slate-700 rounded-xl text-sm font-medium">Annuler</button>
+            <button type="submit" disabled={submitting || montantNum <= 0}
+              className="flex-1 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-medium disabled:opacity-50 flex items-center justify-center gap-2">
+              {submitting ? <><Loader2 className="w-4 h-4 animate-spin" /> Envoi…</> : "Confirmer"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ─── Modal Vendre un carnet ───────────────────────────────────────────────────
+
+function ModalCarnet({ token, target, onClose, onSuccess }: {
+  token: string; target: { clientId: number; clientNom: string }; onClose: () => void; onSuccess: () => void;
+}) {
+  const [montant, setMontant] = useState("300");
+  const [submitting, setSubmitting] = useState(false);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setSubmitting(true);
+    try {
+      const r = await fetch(`/api/agent-scan/${token}/carnet`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ montant: parseFloat(montant) || 300, clientId: target.clientId || undefined }),
+      });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error ?? "Erreur");
+      toast.success("Vente de carnet enregistrée !");
+      onSuccess();
+      onClose();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erreur réseau");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-5">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-bold text-slate-800">Vendre un carnet</h2>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X className="w-5 h-5" /></button>
+        </div>
+        {target.clientNom && <p className="text-sm text-slate-600 mb-4">{target.clientNom}</p>}
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Montant</label>
+            <input type="number" min="1" value={montant} onChange={(e) => setMontant(e.target.value)}
+              className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+          </div>
+          <div className="flex gap-3">
+            <button type="button" onClick={onClose}
+              className="flex-1 py-2.5 border border-slate-200 text-slate-700 rounded-xl text-sm font-medium">Annuler</button>
+            <button type="submit" disabled={submitting}
+              className="flex-1 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-medium disabled:opacity-50 flex items-center justify-center gap-2">
+              {submitting ? <><Loader2 className="w-4 h-4 animate-spin" /> Envoi…</> : "Confirmer"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ─── Modal Nouveau client ─────────────────────────────────────────────────────
+
+function ModalNouveauClient({ token, onClose, onSuccess }: {
+  token: string; onClose: () => void; onSuccess: () => void;
+}) {
+  const [nom, setNom] = useState("");
+  const [prenom, setPrenom] = useState("");
+  const [telephone, setTelephone] = useState("");
+  const [quartier, setQuartier] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setSubmitting(true);
+    try {
+      const r = await fetch(`/api/agent-scan/${token}/nouveau-client`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ nom, prenom, telephone, quartier: quartier || undefined }),
+      });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error ?? "Erreur");
+      toast.success("Client enregistré !");
+      onSuccess();
+      onClose();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erreur réseau");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-5">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-bold text-slate-800">Nouveau client</h2>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X className="w-5 h-5" /></button>
+        </div>
+        <form onSubmit={handleSubmit} className="space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Prénom *</label>
+              <input type="text" required value={prenom} onChange={(e) => setPrenom(e.target.value)}
+                className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Nom *</label>
+              <input type="text" required value={nom} onChange={(e) => setNom(e.target.value)}
+                className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Téléphone *</label>
+            <input type="tel" required value={telephone} onChange={(e) => setTelephone(e.target.value)}
+              className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Quartier</label>
+            <input type="text" value={quartier} onChange={(e) => setQuartier(e.target.value)}
+              className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+          </div>
+          <div className="flex gap-3 pt-1">
+            <button type="button" onClick={onClose}
+              className="flex-1 py-2.5 border border-slate-200 text-slate-700 rounded-xl text-sm font-medium">Annuler</button>
+            <button type="submit" disabled={submitting || !nom || !prenom || !telephone}
+              className="flex-1 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-medium disabled:opacity-50 flex items-center justify-center gap-2">
+              {submitting ? <><Loader2 className="w-4 h-4 animate-spin" /> Envoi…</> : "Enregistrer"}
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );
