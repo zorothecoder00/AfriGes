@@ -281,6 +281,8 @@ interface RemboursementEnAttente {
   id: number; typeOperation: "REMBOURSEMENT_CREDIT"; montant: number; date: string;
   collectePar: string; agentCollecteur: string | null; numeroJour: number | null; montantAttendu: number | null;
   notes: string | null; creditReference: string; soldeRestant: number; client: string; creditId: number;
+  /** Numéro du compte courant si ce remboursement est un paiement CC demandé par un agent — null sinon (espèces). */
+  viaCC: string | null;
 }
 interface VenteEnAttente {
   id: number; typeOperation: "VENTE_DIRECTE"; reference: string; montant: number; date: string;
@@ -4501,7 +4503,14 @@ export default function CaissierPage() {
                     <tbody>
                       {aConfirmerRes!.data.remboursements.map((r) => (
                         <tr key={r.id} className="border-b border-slate-50 hover:bg-slate-50/50">
-                          <td className="py-3 font-medium text-slate-800">{r.client}</td>
+                          <td className="py-3 font-medium text-slate-800">
+                            {r.client}
+                            {r.viaCC && (
+                              <span className="ml-1.5 inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-blue-100 text-blue-700" title={`Compte courant ${r.viaCC}`}>
+                                via CC
+                              </span>
+                            )}
+                          </td>
                           <td className="py-3 text-slate-600 text-xs font-mono">{r.creditReference}</td>
                           <td className="py-3 text-slate-500 text-xs">
                             {r.agentCollecteur ?? r.collectePar}

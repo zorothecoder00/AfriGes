@@ -1325,6 +1325,16 @@ model RemboursementCredit {
 
   credit CreditClient @relation(fields: [creditId], references: [id], onDelete: Cascade)
 
+  // Renseigné si ce remboursement provient d'un paiement par compte courant
+  // demandé par un agent terrain : le compte n'est débité qu'à la confirmation
+  // caissier (le montant est réservé entre-temps, cf. montantBloqueActif).
+  compteCourantId   Int?
+  compteCourant     CompteCourant? @relation(fields: [compteCourantId], references: [id])
+
+  // Ligne de session de collecte à mettre à jour (statut/montant réel) lors de
+  // la confirmation ou du rejet, si ce remboursement provient d'une session.
+  ligneCollecte     LigneCollecte?
+
   dateConfirmation  DateTime?    // date où le caissier a confirmé (statut → CONFIRME)
 
   createdAt DateTime @default(now())
@@ -1334,6 +1344,7 @@ model RemboursementCredit {
   @@index([dateRemboursement])
   @@index([dateConfirmation])
   @@index([agentCollecteurId])
+  @@index([compteCourantId])
 }
 
 // ============================================================
@@ -1397,6 +1408,11 @@ model LigneCollecte {
 
   // Lien vers le VersementPack créé lors de la validation (null avant validation)
   versementPackId  Int?                 @unique
+  // Lien vers le RemboursementCredit d'un paiement CC en attente de validation
+  // caissier (type CC) : permet de mettre à jour cette ligne (statut/montant
+  // réel) lorsque le caissier confirme ou rejette.
+  remboursementCreditId Int?            @unique
+  remboursementCredit   RemboursementCredit? @relation(fields: [remboursementCreditId], references: [id])
 
   collecte         CollecteJournaliere  @relation(fields: [collecteId],     references: [id], onDelete: Cascade)
   client           Client               @relation(fields: [clientId],       references: [id])
@@ -5995,6 +6011,7 @@ model CompteCourant {
   plansEpargne        PlanEpargne[]                            // plans d'épargne programmée (CDC §19.B)
   autorisationsPrelevement AutorisationPrelevement[]           // prélèvements automatiques (CDC §19.C)
   blocagesEpargne     BlocageEpargne[]                         // blocages volontaires d'épargne (CDC §19.E)
+  remboursementsCCEnAttente RemboursementCredit[]               // paiements crédit via CC en attente de validation caissier
 
   dateOuverture       DateTime            @default(now())
   agentCreateurId     Int

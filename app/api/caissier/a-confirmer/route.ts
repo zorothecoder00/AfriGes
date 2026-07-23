@@ -57,6 +57,7 @@ export async function GET(req: NextRequest) {
           },
           enregistrePar:   { select: { nom: true, prenom: true } },
           agentCollecteur: { select: { nom: true, prenom: true } },
+          compteCourant:   { select: { numeroCompte: true } },
         },
       }),
       // Ventes terrain PAID : stock sorti, espèces pas encore comptabilisées
@@ -113,6 +114,7 @@ export async function GET(req: NextRequest) {
                              ? `${r.credit.client.prenom} ${r.credit.client.nom}`
                              : "—",
           creditId:        r.creditId,
+          viaCC:           r.compteCourant?.numeroCompte ?? null,
         })),
         ventes: ventes.map((v) => ({
           id:          v.id,

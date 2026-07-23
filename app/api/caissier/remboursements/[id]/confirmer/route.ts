@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCaissierSession, getCaissierPdvId } from "@/lib/authCaissier";
 import { notifyAdmins, auditLog } from "@/lib/notifications";
+import { chargerParametrageCC, debiterCCPourCredit, extraireMetaRequete } from "@/lib/compteCourant";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -52,6 +53,8 @@ export async function POST(req: Request, { params }: Ctx) {
       include: {
         credit:         { include: { client: { select: { id: true, nom: true, prenom: true } } } },
         enregistrePar:  { select: { id: true, nom: true, prenom: true } },
+        compteCourant:  { select: { id: true, numeroCompte: true, codeAgence: true } },
+        ligneCollecte:  { select: { id: true, collecteId: true } },
       },
     });
 
@@ -73,14 +76,24 @@ export async function POST(req: Request, { params }: Ctx) {
           data:  { statut: "REJETE", notes: notes ? `[Rejeté] ${notes}` : "[Rejeté par caissier]" },
         });
 
+        // Aucun débit CC n'a jamais eu lieu (réservé uniquement) — rien à
+        // réverser, juste refléter le rejet sur la ligne de session liée.
+        if (remboursement.ligneCollecte) {
+          await tx.ligneCollecte.update({
+            where: { id: remboursement.ligneCollecte.id },
+            data:  { statut: "ECHEC" },
+          });
+        }
+
         await auditLog(tx, userId, "REMBOURSEMENT_CREDIT_REJETE", "RemboursementCredit", remboursementId);
 
         if (remboursement.enregistreParId) {
+          const viaCC = remboursement.compteCourantId != null;
           await tx.notification.create({
             data: {
               userId:    remboursement.enregistreParId,
               titre:     "Remboursement rejeté",
-              message:   `Votre remboursement de ${montantNum.toLocaleString("fr-FR")} FCFA (${credit.reference}) a été rejeté par le caissier.${notes ? ` Motif : ${notes}` : ""}`,
+              message:   `Votre ${viaCC ? "demande de paiement par compte courant" : "remboursement"} de ${montantNum.toLocaleString("fr-FR")} FCFA (${credit.reference}) a été rejeté${viaCC ? "e" : ""} par le caissier.${notes ? ` Motif : ${notes}` : ""}`,
               priorite:  "HAUTE",
               actionUrl: "/dashboard/user/agentsTerrain",
             },
@@ -157,8 +170,23 @@ export async function POST(req: Request, { params }: Ctx) {
         data:  { soldeActuel: { decrement: montantNum } },
       });
 
-      // 5. Créer une OperationCaisse si session active
-      if (sessionActive) {
+      // 5. Débit du compte courant (si paiement CC) ou OperationCaisse (cash)
+      if (remboursement.compteCourantId && remboursement.compteCourant) {
+        const param = await chargerParametrageCC();
+        const { ip, userAgent } = extraireMetaRequete(req);
+        await debiterCCPourCredit(tx, {
+          compteId: remboursement.compteCourantId,
+          numeroCompte: remboursement.compteCourant.numeroCompte,
+          codeAgence: remboursement.compteCourant.codeAgence,
+          creditId: credit.id,
+          creditRef: credit.reference,
+          montant: montantNum,
+          userId,
+          param,
+          observation: `Confirmé par le caissier ${caissierNom}`,
+          ip, userAgent,
+        });
+      } else if (sessionActive) {
         const collecteurNom = remboursement.enregistrePar
           ? `${remboursement.enregistrePar.prenom} ${remboursement.enregistrePar.nom}`
           : "agent";
@@ -173,6 +201,19 @@ export async function POST(req: Request, { params }: Ctx) {
             operateurNom: caissierNom,
             operateurId:  userId,
           },
+        });
+      }
+
+      // 5bis. Mettre à jour la ligne de session de collecte liée (si paiement
+      // initié depuis une tournée agent) : montant réellement collecté + progression.
+      if (remboursement.ligneCollecte) {
+        await tx.ligneCollecte.update({
+          where: { id: remboursement.ligneCollecte.id },
+          data:  { statut: "COLLECTE", montantCollecte: montantNum },
+        });
+        await tx.collecteJournaliere.update({
+          where: { id: remboursement.ligneCollecte.collecteId },
+          data:  { montantCollecte: { increment: montantNum } },
         });
       }
 
@@ -234,9 +275,10 @@ export async function POST(req: Request, { params }: Ctx) {
         ? `${credit.client.prenom} ${credit.client.nom}`
         : "—";
 
+      const viaCC = remboursement.compteCourantId != null;
       await notifyAdmins(tx, {
         titre:    `Remboursement confirmé — ${credit.reference}`,
-        message:  `${caissierNom} a confirmé ${montantNum.toLocaleString("fr-FR")} FCFA de ${clientNom} (${credit.reference}).${estSolde ? " Crédit soldé !" : ` Solde restant : ${Math.max(0, nouveauSolde).toLocaleString("fr-FR")} FCFA.`}`,
+        message:  `${caissierNom} a confirmé ${montantNum.toLocaleString("fr-FR")} FCFA${viaCC ? " (via compte courant)" : ""} de ${clientNom} (${credit.reference}).${estSolde ? " Crédit soldé !" : ` Solde restant : ${Math.max(0, nouveauSolde).toLocaleString("fr-FR")} FCFA.`}`,
         priorite: estSolde ? "HAUTE" : "NORMAL",
         actionUrl: "/dashboard/admin/credits",
       });

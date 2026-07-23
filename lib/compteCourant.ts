@@ -327,16 +327,25 @@ export async function alerterComptesAvantSuspension(): Promise<{ alertes: number
 
 /**
  * Montant d'épargne actuellement bloqué (indisponible) sur un compte (CDC §19.E) :
- * somme des blocages ACTIF dont l'échéance n'est pas encore atteinte. Ce montant
- * est déduit du solde disponible pour toute sortie (retrait, paiement, prélèvement).
- * Accepte le client Prisma global ou une transaction.
+ * somme des blocages ACTIF dont l'échéance n'est pas encore atteinte, PLUS les
+ * paiements crédit par CC demandés par un agent terrain encore en attente de
+ * validation caissier (réservés dès la demande — cf. RemboursementCredit.
+ * compteCourantId). Ce montant est déduit du solde disponible pour toute
+ * sortie (retrait, paiement, prélèvement). Accepte le client Prisma global ou
+ * une transaction.
  */
 export async function montantBloqueActif(db: TxClient, compteId: number, now: Date = new Date()): Promise<number> {
-  const agg = await db.blocageEpargne.aggregate({
-    where: { compteId, statut: "ACTIF", dateDeblocage: { gt: now } },
-    _sum: { montant: true },
-  });
-  return Number(agg._sum.montant ?? 0);
+  const [blocages, paiementsCCEnAttente] = await Promise.all([
+    db.blocageEpargne.aggregate({
+      where: { compteId, statut: "ACTIF", dateDeblocage: { gt: now } },
+      _sum: { montant: true },
+    }),
+    db.remboursementCredit.aggregate({
+      where: { compteCourantId: compteId, statut: "EN_ATTENTE_CAISSIER" },
+      _sum: { montant: true },
+    }),
+  ]);
+  return Number(blocages._sum.montant ?? 0) + Number(paiementsCCEnAttente._sum.montant ?? 0);
 }
 
 /**
@@ -486,10 +495,68 @@ export async function preleverCompteCourant(
 }
 
 /**
+ * Débite le compte courant d'un montant déjà imputé à un crédit (mouvement
+ * PAIEMENT_CREDIT + écriture Débit CC 419 / Crédit Ventes 701 + solde/totaux).
+ * N'applique PAS l'effet crédit lui-même (échéances/solde/RIA) — c'est à la
+ * charge de l'appelant. Extrait de payerCreditDepuisCC pour être réutilisé
+ * lors de la confirmation caissier d'un paiement CC demandé par un agent
+ * terrain (le débit n'a lieu qu'à la confirmation, pas à la demande).
+ */
+export async function debiterCCPourCredit(
+  tx: TxClient,
+  opts: {
+    compteId: number; numeroCompte: string; codeAgence: string;
+    creditId: number; creditRef: string; montant: number; userId: number;
+    param: { compteCourantClientNumero: string; compteVentesNumero: string };
+    observation?: string | null; ip?: string | null; userAgent?: string | null;
+  },
+): Promise<{ soldeApres: number; mouvement: { id: number; reference: string }; ecritureGeneree: boolean }> {
+  const courant = await tx.compteCourant.findUnique({ where: { id: opts.compteId }, select: { solde: true } });
+  const avant = Number(courant?.solde ?? 0);
+  if (opts.montant > avant) throw new Error("Solde du compte courant insuffisant");
+  const apres = avant - opts.montant;
+
+  const ecritureId = await creerEcritureCC(tx, {
+    journal: "OD",
+    date: new Date(),
+    libelle: `Paiement crédit ${opts.creditRef} via compte courant ${opts.numeroCompte}`,
+    userId: opts.userId,
+    lignes: [
+      { numero: opts.param.compteCourantClientNumero, debit:  opts.montant, libelle: `Utilisation CC ${opts.numeroCompte}` },
+      { numero: opts.param.compteVentesNumero,        credit: opts.montant, libelle: `Règlement crédit ${opts.creditRef}` },
+    ],
+  });
+
+  const reference = await genererReferenceMouvementCC(tx, "PAY");
+  const agenceOp = (await resoudreAgenceOperation(tx, opts.userId)) ?? opts.codeAgence;
+  const mouvement = await tx.mouvementCompteCourant.create({
+    data: {
+      reference, compteId: opts.compteId, nature: "PAIEMENT_CREDIT",
+      montant: -opts.montant, soldeAvant: avant, soldeApres: apres,
+      observation: `Crédit ${opts.creditRef}${opts.observation ? ` · ${opts.observation}` : ""}`,
+      statut: "VALIDE", userId: opts.userId, agence: agenceOp, ecritureId, creditId: opts.creditId,
+      ip: opts.ip ?? null, userAgent: opts.userAgent ?? null,
+    },
+    select: { id: true, reference: true },
+  });
+
+  await tx.compteCourant.update({
+    where: { id: opts.compteId },
+    data: {
+      solde: apres,
+      totalUtilise: { increment: opts.montant },
+      nbMouvements: { increment: 1 },
+      derniereOperationAt: new Date(),
+    },
+  });
+
+  return { soldeApres: apres, mouvement, ecritureGeneree: ecritureId != null };
+}
+
+/**
  * Paie UN crédit du client en tirant sur le solde du compte courant (CDC §8),
  * dans une transaction fournie : applique le remboursement (échéances + cascade
- * RIA via enregistrerRemboursementCredit), débite le CC (mouvement PAIEMENT_CREDIT
- * + écriture Débit CC 419 / Crédit Ventes 701) et met à jour solde/totaux.
+ * RIA via enregistrerRemboursementCredit) puis débite le CC via debiterCCPourCredit.
  *
  * Mutualisé entre le paiement manuel (POST /[id]/paiements) et le prélèvement
  * automatique (§19.C). N'effectue PAS l'audit/notif de lot ni l'alerte « solde
@@ -522,44 +589,7 @@ export async function payerCreditDepuisCC(
   }
 
   // 2) Débite le compte courant du montant réellement imputé.
-  const courant = await tx.compteCourant.findUnique({ where: { id: opts.compteId }, select: { solde: true } });
-  const avant = Number(courant?.solde ?? 0);
-  if (applique > avant) throw new Error("Solde du compte courant insuffisant");
-  const apres = avant - applique;
+  const debit = await debiterCCPourCredit(tx, { ...opts, montant: applique });
 
-  const ecritureId = await creerEcritureCC(tx, {
-    journal: "OD",
-    date: new Date(),
-    libelle: `Paiement crédit ${opts.creditRef} via compte courant ${opts.numeroCompte} — ${opts.clientNom}`,
-    userId: opts.userId,
-    lignes: [
-      { numero: opts.param.compteCourantClientNumero, debit:  applique, libelle: `Utilisation CC ${opts.numeroCompte}` },
-      { numero: opts.param.compteVentesNumero,        credit: applique, libelle: `Règlement crédit ${opts.creditRef}` },
-    ],
-  });
-
-  const reference = await genererReferenceMouvementCC(tx, "PAY");
-  const agenceOp = (await resoudreAgenceOperation(tx, opts.userId)) ?? opts.codeAgence;
-  const mouvement = await tx.mouvementCompteCourant.create({
-    data: {
-      reference, compteId: opts.compteId, nature: "PAIEMENT_CREDIT",
-      montant: -applique, soldeAvant: avant, soldeApres: apres,
-      observation: `Crédit ${opts.creditRef}${opts.observation ? ` · ${opts.observation}` : ""}`,
-      statut: "VALIDE", userId: opts.userId, agence: agenceOp, ecritureId, creditId: opts.creditId,
-      ip: opts.ip ?? null, userAgent: opts.userAgent ?? null,
-    },
-    select: { id: true, reference: true },
-  });
-
-  await tx.compteCourant.update({
-    where: { id: opts.compteId },
-    data: {
-      solde: apres,
-      totalUtilise: { increment: applique },
-      nbMouvements: { increment: 1 },
-      derniereOperationAt: new Date(),
-    },
-  });
-
-  return { montantApplique: applique, estSolde: remb.estSolde, soldeApres: apres, mouvement, ecritureGeneree: ecritureId != null };
+  return { montantApplique: applique, estSolde: remb.estSolde, soldeApres: debit.soldeApres, mouvement: debit.mouvement, ecritureGeneree: debit.ecritureGeneree };
 }

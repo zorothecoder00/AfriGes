@@ -5,16 +5,16 @@ import { auditLog } from "@/lib/notifications";
 
 type Ctx = { params: Promise<{ id: string }> };
 
-type TypeJournal = "CC" | "VENTE" | "NOUVEAU_CLIENT";
+type TypeJournal = "VENTE" | "NOUVEAU_CLIENT";
 
 /**
  * POST /api/agentTerrain/collecteJour/[id]/journaliser
  * Journalise dans la session une activité déjà effectuée via une autre route
- * (paiement CC via /api/comptes-courants/[id]/paiements, vente via
- * /api/agentTerrain/ventes, ou création d'un client). N'applique aucun effet
- * financier lui-même — uniquement la traçabilité de session (LigneCollecte +
- * progression montantCollecte).
- * Body: { type: "CC"|"VENTE"|"NOUVEAU_CLIENT", clientId, montant?, creditId?, venteDirecteId?, clientNouveauId?, notes? }
+ * (vente via /api/agentTerrain/ventes, ou création d'un client). N'applique
+ * aucun effet financier lui-même — uniquement la traçabilité de session
+ * (LigneCollecte + progression montantCollecte). Le paiement par compte
+ * courant a sa propre route atomique dédiée : /paiement-cc.
+ * Body: { type: "VENTE"|"NOUVEAU_CLIENT", clientId, creditId?, venteDirecteId?, clientNouveauId?, notes? }
  */
 export async function POST(req: Request, { params }: Ctx) {
   try {
@@ -26,13 +26,13 @@ export async function POST(req: Request, { params }: Ctx) {
     const agentId = parseInt(session.user.id);
 
     const body = await req.json();
-    const { type, clientId, montant, creditId, venteDirecteId, clientNouveauId, notes } = body as {
-      type?: TypeJournal; clientId?: number; montant?: number;
-      creditId?: number; venteDirecteId?: number; clientNouveauId?: number; notes?: string;
+    const { type, clientId, venteDirecteId, clientNouveauId, notes } = body as {
+      type?: TypeJournal; clientId?: number;
+      venteDirecteId?: number; clientNouveauId?: number; notes?: string;
     };
 
-    if (!type || !["CC", "VENTE", "NOUVEAU_CLIENT"].includes(type)) {
-      return NextResponse.json({ error: "type requis : CC, VENTE ou NOUVEAU_CLIENT" }, { status: 400 });
+    if (!type || !["VENTE", "NOUVEAU_CLIENT"].includes(type)) {
+      return NextResponse.json({ error: "type requis : VENTE ou NOUVEAU_CLIENT" }, { status: 400 });
     }
     const clientIdEffectif = clientId ?? (type === "NOUVEAU_CLIENT" ? clientNouveauId : undefined);
     if (!clientIdEffectif) return NextResponse.json({ error: "clientId requis" }, { status: 400 });
@@ -50,15 +50,24 @@ export async function POST(req: Request, { params }: Ctx) {
       return NextResponse.json({ error: "Client non assigné à cet agent" }, { status: 403 });
     }
 
-    const montantNum = type === "NOUVEAU_CLIENT" ? 0 : Math.max(0, Number(montant) || 0);
-    if (type !== "NOUVEAU_CLIENT" && montantNum <= 0) {
-      return NextResponse.json({ error: "montant requis et > 0" }, { status: 400 });
-    }
-    if (type === "CC" && !creditId) {
-      return NextResponse.json({ error: "creditId requis pour type CC" }, { status: 400 });
-    }
     if (type === "VENTE" && !venteDirecteId) {
       return NextResponse.json({ error: "venteDirecteId requis pour type VENTE" }, { status: 400 });
+    }
+
+    // Le montant journalisé n'est jamais celui envoyé par le client : on le
+    // revérifie à partir de l'enregistrement réel, pour qu'un appel direct à
+    // cette route ne puisse pas gonfler artificiellement le résumé de session
+    // sans mouvement réel correspondant.
+    let montantNum = 0;
+    if (type === "VENTE") {
+      const vente = await prisma.venteDirecte.findUnique({
+        where: { id: parseInt(String(venteDirecteId)) },
+        select: { clientId: true, vendeurId: true, montantTotal: true },
+      });
+      if (!vente || vente.clientId !== parseInt(String(clientIdEffectif)) || vente.vendeurId !== agentId) {
+        return NextResponse.json({ error: "Vente introuvable ou non rattachée à ce client/agent" }, { status: 403 });
+      }
+      montantNum = Number(vente.montantTotal);
     }
 
     const result = await prisma.$transaction(async (tx) => {
@@ -67,7 +76,6 @@ export async function POST(req: Request, { params }: Ctx) {
           collecteId,
           clientId: parseInt(String(clientIdEffectif)),
           type,
-          creditId: type === "CC" ? parseInt(String(creditId)) : null,
           venteDirecteId: type === "VENTE" ? parseInt(String(venteDirecteId)) : null,
           clientNouveauId: type === "NOUVEAU_CLIENT" ? parseInt(String(clientIdEffectif)) : null,
           montantAttendu: montantNum,

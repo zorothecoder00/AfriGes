@@ -653,21 +653,15 @@ function ModalPaiementCC({
     if (!ccInfo) return;
     setSubmitting(true);
     try {
-      const r1 = await fetch(`/api/comptes-courants/${ccInfo.id}/paiements`, {
+      const r1 = await fetch(`/api/agentTerrain/collecteJour/${collecteId}/paiement-cc`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ paiements: [{ creditId: target.creditId, montant: montantNum }] }),
+        body: JSON.stringify({ clientId: target.clientId, creditId: target.creditId, montant: montantNum }),
       });
       const j1 = await r1.json();
       if (!r1.ok) throw new Error(j1.error ?? "Erreur lors du paiement CC");
 
-      await fetch(`/api/agentTerrain/collecteJour/${collecteId}/journaliser`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ type: "CC", clientId: target.clientId, creditId: target.creditId, montant: montantNum }),
-      }).catch(() => {});
-
-      toast.success("Paiement par compte courant enregistré !");
+      toast.success("Demande envoyée — en attente de validation du caissier.");
       onSuccess();
       onClose();
     } catch (e) {
@@ -681,7 +675,7 @@ function ModalPaiementCC({
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
         <div className="flex items-center justify-between mb-5">
-          <h2 className="text-xl font-bold text-slate-800">Payer par compte courant</h2>
+          <h2 className="text-xl font-bold text-slate-800">Demander un paiement par compte courant</h2>
           <button onClick={onClose} className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg font-bold text-lg">×</button>
         </div>
 
@@ -715,13 +709,16 @@ function ModalPaiementCC({
                 <p className="text-xs text-red-600 mt-1">Montant supérieur au maximum disponible ({max.toLocaleString("fr-FR")} FCFA)</p>
               )}
             </div>
+            <p className="text-xs text-slate-400">
+              Ce montant sera réservé sur le compte et le crédit ne sera soldé qu&apos;après validation par un caissier.
+            </p>
             <div className="flex gap-3 pt-1">
               <button type="button" onClick={onClose}
                 className="flex-1 py-2.5 border border-slate-200 text-slate-700 rounded-xl hover:bg-slate-50 text-sm font-medium">Annuler</button>
               <button type="submit"
                 disabled={submitting || !montant || montantNum <= 0 || montantNum > max}
                 className="flex-1 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-50 text-sm font-medium flex items-center justify-center gap-2">
-                {submitting ? <><Loader2 size={14} className="animate-spin" /> Enregistrement…</> : "Confirmer le paiement"}
+                {submitting ? <><Loader2 size={14} className="animate-spin" /> Envoi…</> : "Envoyer la demande"}
               </button>
             </div>
           </form>
@@ -2348,6 +2345,11 @@ export default function AgentTerrainPage() {
                             <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-100">
                               <button
                                 onClick={() => {
+                                  // Repart d'un formulaire propre pour ce client (évite de traîner
+                                  // des lignes produits/paiement d'une tentative de vente précédente).
+                                  setVLignes([{ produitId: "", quantite: "", prixUnitaire: "" }]);
+                                  setVMontantPaye(""); setVNotes("");
+                                  setVCcInfo(null); setVCcMontant(""); setVUseCC(false);
                                   setVClientId(String(client.id));
                                   setVClientNom(`${client.prenom} ${client.nom}`);
                                   setVClientTel(client.telephone);
