@@ -233,7 +233,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
           });
 
           // Création auto du lot si n° de lot / DLC saisis (traçabilité FEFO, Enterprise #5).
-          await creerLotDepuisReception(tx, {
+          const lotId = await creerLotDepuisReception(tx, {
             produitId:        ligne.produitId,
             pointDeVenteId:   reception.pointDeVenteId,
             quantite:         qte,
@@ -246,6 +246,9 @@ export async function PATCH(req: Request, { params }: Ctx) {
             referenceReception: reception.reference,
             operateurId:      parseInt(session.user.id),
           });
+          if (lotId) {
+            await tx.ligneReceptionAppro.update({ where: { id: ligne.id }, data: { lotId } });
+          }
         }
 
         const r = await tx.receptionApprovisionnement.update({

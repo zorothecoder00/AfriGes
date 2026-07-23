@@ -142,7 +142,7 @@ Permettre à tous les user de pouvoir discuter ( pas juste l'admin )
    
   
 
-Je dois corriger la relation entre les approvisionnements et les lots surtout chez l'admin qui peut lancer des approvisionnents lui même
+Je dois corriger la relation entre les approvisionnements et les lots( de la route des catalogue de prix) surtout chez l'admin qui peut lancer des approvisionnents lui même
 
 L'export sur le dashboard admin n'exporte pas toutes les données du dashboard
 
@@ -155,7 +155,5 @@ Revoir le dashboard financier et même les autres ( tableau de bord admin/SUPERA
 je veux quelque chose d'un peu technique maintenant . Je veux que tu créés une zone de scan qui va permettre à un agent de pouvoir tomber directement sur les objectifs    
   qu'il doit réaliser dans la journée ( carnet qu'il doit vendre + qunizaine + trentaine)  et des clients qu'il doit visiter(ceux qui doivent cotiser) sans avoir besoin de  
   login ( du genre je viens je scanne et je vois mon tableau d'objectif et de clients à visiter
-
-
 
    

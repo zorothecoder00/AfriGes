@@ -16,6 +16,7 @@ import { useT } from '@/contexts/AppSettingsContext';
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface PDVOption { id: number; nom: string; code: string; type: string; }
+interface FournisseurOption { id: number; nom: string; }
 
 interface ApproHistorique {
   prixUnitaire: string | null;
@@ -107,9 +108,11 @@ export default function GestionStockPage() {
 
   // Modal approvisionnement direct
   const [approModal, setApproModal]         = useState(false);
+  type ApproLigne = StockLigne & { numeroLot: string; dlc: string; dluo: string; lotOuvert: boolean };
+  const nouvelleApproLigne = (): ApproLigne => ({ produitId: '', quantite: '', numeroLot: '', dlc: '', dluo: '', lotOuvert: false });
   const [approForm, setApproForm]           = useState<{
-    pointDeVenteId: string; fournisseurNom: string; lignes: StockLigne[]; notes: string;
-  }>({ pointDeVenteId: '', fournisseurNom: '', lignes: [{ produitId: '', quantite: '' }], notes: '' });
+    pointDeVenteId: string; fournisseurId: string; fournisseurNom: string; lignes: ApproLigne[]; notes: string;
+  }>({ pointDeVenteId: '', fournisseurId: '', fournisseurNom: '', lignes: [nouvelleApproLigne()], notes: '' });
 
   // Modal suppression
   const [deleteId, setDeleteId]             = useState<number | null>(null);
@@ -154,6 +157,10 @@ export default function GestionStockPage() {
   const { data: tousProduitsResp } = useApi<{ data: GrandStockItem[] }>(
     modalOuvert ? '/api/admin/stock?aggregate=true&limit=500' : null
   );
+  const { data: fournisseursResp } = useApi<{ data: FournisseurOption[] }>(
+    approModal ? '/api/admin/catalogue/fournisseurs' : null
+  );
+  const fournisseursOptions = fournisseursResp?.data ?? [];
   const produitsOptions: { id: number; nom: string }[] = React.useMemo(() => {
     if (tousProduitsResp?.data) {
       return tousProduitsResp.data.map(p => ({ id: p.id, nom: p.nom }));
@@ -237,7 +244,7 @@ export default function GestionStockPage() {
     });
 
   const resetApproForm = () =>
-    setApproForm({ pointDeVenteId: '', fournisseurNom: '', lignes: [{ produitId: '', quantite: '' }], notes: '' });
+    setApproForm({ pointDeVenteId: '', fournisseurId: '', fournisseurNom: '', lignes: [nouvelleApproLigne()], notes: '' });
 
   const handleAppro = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -245,21 +252,34 @@ export default function GestionStockPage() {
     const result = await creerAppro({
       pointDeVenteId: Number(approForm.pointDeVenteId),
       type:           'FOURNISSEUR',
+      fournisseurId:  approForm.fournisseurId || undefined,
       fournisseurNom: approForm.fournisseurNom || undefined,
-      lignes:         lignesValides.map(l => ({ produitId: Number(l.produitId), quantite: Number(l.quantite) })),
+      lignes:         lignesValides.map(l => ({
+        produitId: Number(l.produitId),
+        quantite:  Number(l.quantite),
+        numeroLot: l.numeroLot || undefined,
+        dlc:       l.dlc  || undefined,
+        dluo:      l.dluo || undefined,
+      })),
       notes:          approForm.notes || undefined,
     });
     if (result) { setApproModal(false); resetApproForm(); refetch(); }
   };
 
   const addApproLigne = () =>
-    setApproForm(f => ({ ...f, lignes: [...f.lignes, { produitId: '', quantite: '' }] }));
+    setApproForm(f => ({ ...f, lignes: [...f.lignes, nouvelleApproLigne()] }));
   const removeApproLigne = (idx: number) =>
     setApproForm(f => ({ ...f, lignes: f.lignes.filter((_, i) => i !== idx) }));
-  const updateApproLigne = (idx: number, field: 'produitId' | 'quantite', value: string) =>
+  const updateApproLigne = (idx: number, field: 'produitId' | 'quantite' | 'numeroLot' | 'dlc' | 'dluo', value: string) =>
     setApproForm(f => {
       const lignes = [...f.lignes];
       lignes[idx] = { ...lignes[idx], [field]: value };
+      return { ...f, lignes };
+    });
+  const toggleApproLigneLot = (idx: number) =>
+    setApproForm(f => {
+      const lignes = [...f.lignes];
+      lignes[idx] = { ...lignes[idx], lotOuvert: !lignes[idx].lotOuvert };
       return { ...f, lignes };
     });
 
@@ -642,18 +662,32 @@ export default function GestionStockPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Fournisseur (optionnel)</label>
-                  <input type="text" placeholder="Nom du fournisseur ou de la source…"
-                    value={approForm.fournisseurNom}
-                    onChange={e => setApproForm(f => ({ ...f, fournisseurNom: e.target.value }))}
-                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm" />
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Fournisseur enregistré (optionnel)</label>
+                  <select value={approForm.fournisseurId}
+                    onChange={e => setApproForm(f => ({ ...f, fournisseurId: e.target.value }))}
+                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm">
+                    <option value="">Aucun / fournisseur non enregistré…</option>
+                    {fournisseursOptions.map(f => (
+                      <option key={f.id} value={f.id}>{f.nom}</option>
+                    ))}
+                  </select>
                 </div>
+                {!approForm.fournisseurId && (
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Ou nom libre (optionnel)</label>
+                    <input type="text" placeholder="Nom du fournisseur ou de la source…"
+                      value={approForm.fournisseurNom}
+                      onChange={e => setApproForm(f => ({ ...f, fournisseurNom: e.target.value }))}
+                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm" />
+                  </div>
+                )}
 
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-2">Produits à approvisionner *</label>
                   <div className="space-y-2">
                     {approForm.lignes.map((ligne, idx) => (
-                      <div key={idx} className="flex items-center gap-2">
+                      <div key={idx} className="border border-slate-200 rounded-xl p-2 space-y-2">
+                      <div className="flex items-center gap-2">
                         <select required value={ligne.produitId}
                           onChange={e => updateApproLigne(idx, 'produitId', e.target.value)}
                           className="flex-1 px-3 py-2.5 border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm">
@@ -666,12 +700,43 @@ export default function GestionStockPage() {
                           value={ligne.quantite}
                           onChange={e => updateApproLigne(idx, 'quantite', e.target.value)}
                           className="w-24 px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm" />
+                        <button type="button" onClick={() => toggleApproLigneLot(idx)}
+                          title="Traçabilité lot / péremption"
+                          className={`p-2 rounded-lg transition-colors ${ligne.lotOuvert ? 'text-emerald-600 bg-emerald-50' : 'text-slate-400 hover:text-emerald-600 hover:bg-emerald-50'}`}>
+                          <Calendar size={14} />
+                        </button>
                         {approForm.lignes.length > 1 && (
                           <button type="button" onClick={() => removeApproLigne(idx)}
                             className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
                             <Trash size={14} />
                           </button>
                         )}
+                      </div>
+                      {ligne.lotOuvert && (
+                        <div className="grid grid-cols-3 gap-2 pt-1">
+                          <div>
+                            <label className="block text-xs text-slate-500 mb-1">N° de lot</label>
+                            <input type="text" placeholder="Ex: LOT-2026-01"
+                              value={ligne.numeroLot}
+                              onChange={e => updateApproLigne(idx, 'numeroLot', e.target.value)}
+                              className="w-full px-2.5 py-2 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                          </div>
+                          <div>
+                            <label className="block text-xs text-slate-500 mb-1">DLC</label>
+                            <input type="date"
+                              value={ligne.dlc}
+                              onChange={e => updateApproLigne(idx, 'dlc', e.target.value)}
+                              className="w-full px-2.5 py-2 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                          </div>
+                          <div>
+                            <label className="block text-xs text-slate-500 mb-1">DLUO</label>
+                            <input type="date"
+                              value={ligne.dluo}
+                              onChange={e => updateApproLigne(idx, 'dluo', e.target.value)}
+                              className="w-full px-2.5 py-2 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                          </div>
+                        </div>
+                      )}
                       </div>
                     ))}
                   </div>

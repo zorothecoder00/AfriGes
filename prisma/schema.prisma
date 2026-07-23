@@ -1841,6 +1841,7 @@ model LotProduit {
   fournisseurId    Int?
   fournisseur      Fournisseur? @relation(fields: [fournisseurId], references: [id])
   receptionApproId Int?         // réception d'appro à l'origine du lot (traçabilité)
+  receptionAppro   ReceptionApprovisionnement? @relation(fields: [receptionApproId], references: [id])
   notes            String?
 
   creeParId        Int?
@@ -1849,11 +1850,13 @@ model LotProduit {
   updatedAt        DateTime     @updatedAt
 
   mouvements       MouvementLot[]
+  lignesReception  LigneReceptionAppro[]
 
   @@unique([produitId, pointDeVenteId, numeroLot])
   @@index([produitId, pointDeVenteId, statut])
   @@index([dlc])
   @@index([statut])
+  @@index([receptionApproId])
 }
 
 // Journal des mouvements d'un lot (entrées / sorties FEFO / ajustements).
@@ -2063,15 +2066,16 @@ model ReceptionApprovisionnement {
   validePar        User? @relation("ValidateurAppro", fields: [valideParId], references: [id])
 
   lignes LigneReceptionAppro[]
+  lots   LotProduit[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([statut])
-  @@index([type])   
+  @@index([type])
   @@index([pointDeVenteId])
-}   
-  
+}
+
 model LigneReceptionAppro {
   id               Int     @id @default(autoincrement())
   receptionId      Int
@@ -2087,9 +2091,14 @@ model LigneReceptionAppro {
   numeroLot        String?
   dlc              DateTime? // date limite de consommation
   dluo             DateTime? // date de durabilité minimale
+  // Lot effectivement créé/réalimenté par cette ligne (renseigné après la mise en stock).
+  lotId            Int?
+  lot              LotProduit? @relation(fields: [lotId], references: [id])
 
   reception ReceptionApprovisionnement @relation(fields: [receptionId], references: [id], onDelete: Cascade)
   produit   Produit                    @relation(fields: [produitId], references: [id])
+
+  @@index([lotId])
 }
 
 // ============================================================

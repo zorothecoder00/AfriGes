@@ -89,7 +89,7 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-    const { pointDeVenteId, type, fournisseurNom, lignes, notes } = body;
+    const { pointDeVenteId, type, fournisseurId, fournisseurNom, lignes, notes } = body;
 
     if (!pointDeVenteId || !Array.isArray(lignes) || lignes.length === 0) {
       return NextResponse.json(
@@ -99,6 +99,12 @@ export async function POST(req: Request) {
     }
 
     const typeAppro = type === "INTERNE" ? "INTERNE" : "FOURNISSEUR";
+    if (typeAppro === "FOURNISSEUR" && !fournisseurId && !fournisseurNom) {
+      return NextResponse.json(
+        { error: "fournisseurId ou fournisseurNom requis pour un approvisionnement fournisseur" },
+        { status: 400 }
+      );
+    }
     const adminId   = parseInt(session.user.id);
     const now       = new Date();
 
@@ -108,6 +114,14 @@ export async function POST(req: Request) {
         select: { id: true, nom: true },
       });
       if (!pdv) throw new Error("Point de vente introuvable");
+
+      let fournisseurNomResolu = fournisseurNom || null;
+      const fournisseurIdResolu = typeAppro === "FOURNISSEUR" && fournisseurId ? Number(fournisseurId) : null;
+      if (fournisseurIdResolu) {
+        const fournisseur = await tx.fournisseur.findUnique({ where: { id: fournisseurIdResolu }, select: { nom: true } });
+        if (!fournisseur) throw new Error("Fournisseur introuvable");
+        fournisseurNomResolu = fournisseurNomResolu || fournisseur.nom;
+      }
 
       // Validate all products and quantities
       for (const ligne of lignes) {
@@ -132,38 +146,38 @@ export async function POST(req: Request) {
           type:             typeAppro,
           statut:           "VALIDE",
           pointDeVenteId:   Number(pointDeVenteId),
-          fournisseurNom:   typeAppro === "FOURNISSEUR" ? (fournisseurNom || null) : null,
+          fournisseurId:    fournisseurIdResolu,
+          fournisseurNom:   typeAppro === "FOURNISSEUR" ? fournisseurNomResolu : null,
           datePrevisionnelle: now,
           dateReception:    now,
           controlQualite:   true,
           notes:            notes || null,
           receptionneParId: adminId,
           valideParId:      adminId,
-          lignes: {
-            create: lignes.map((l: { produitId: number; quantite: number; prixUnitaire?: number | string | null; numeroLot?: string | null; dlc?: string | null; dluo?: string | null }) => {
-              const hasPrixUnitaire = l.prixUnitaire !== undefined && l.prixUnitaire !== null && l.prixUnitaire !== "";
-              return {
-                produitId:        Number(l.produitId),
-                quantiteAttendue: Number(l.quantite),
-                quantiteRecue:    Number(l.quantite),
-                prixUnitaire:     hasPrixUnitaire ? new Prisma.Decimal(Number(l.prixUnitaire)) : null,
-                etatQualite:      "BON",
-                // Lot & péremption optionnels (créent un LotProduit ci-dessous).
-                numeroLot:        l.numeroLot?.trim() || null,
-                dlc:              l.dlc  ? new Date(l.dlc)  : null,
-                dluo:             l.dluo ? new Date(l.dluo) : null,
-              };
-            }),
-          },
         },
-      });  
+      });
 
-      // Incrémenter StockSite + créer mouvements ENTREE
+      // Incrémenter StockSite + créer mouvements ENTREE + ligne + lot (dans l'ordre pour lier ligne ↔ lot)
       const typeEntree = typeAppro === "INTERNE" ? "RECEPTION_INTERNE" : "RECEPTION_FOURNISSEUR";
       for (const ligne of lignes) {
         const produitId = Number(ligne.produitId);
         const hasPrixUnitaire = ligne.prixUnitaire !== undefined && ligne.prixUnitaire !== null && ligne.prixUnitaire !== "";
         const prixAchat = hasPrixUnitaire ? new Prisma.Decimal(ligne.prixUnitaire) : null;
+
+        const ligneDb = await tx.ligneReceptionAppro.create({
+          data: {
+            receptionId:      newReception.id,
+            produitId,
+            quantiteAttendue: Number(ligne.quantite),
+            quantiteRecue:    Number(ligne.quantite),
+            prixUnitaire:     prixAchat,
+            etatQualite:      "BON",
+            // Lot & péremption optionnels (créent un LotProduit ci-dessous).
+            numeroLot:        ligne.numeroLot?.trim() || null,
+            dlc:              ligne.dlc  ? new Date(ligne.dlc)  : null,
+            dluo:             ligne.dluo ? new Date(ligne.dluo) : null,
+          },
+        });
 
         // 🔥 1. Mettre à jour le prix d'achat du produit
         if (hasPrixUnitaire) {
@@ -186,7 +200,7 @@ export async function POST(req: Request) {
             typeEntree:        typeEntree as never,
             quantite:          Number(ligne.quantite),
             motif:             typeAppro === "FOURNISSEUR"
-              ? `Approvisionnement fournisseur${fournisseurNom ? ` — ${fournisseurNom}` : ""} (réf. ${ref})`
+              ? `Approvisionnement fournisseur${fournisseurNomResolu ? ` — ${fournisseurNomResolu}` : ""} (réf. ${ref})`
               : `Réception interne (réf. ${ref})`,
             reference:         `${ref}-ENTREE-${ligne.produitId}-${Date.now()}`,
             operateurId:       adminId,
@@ -195,7 +209,7 @@ export async function POST(req: Request) {
         });
 
         // Création auto du lot si n° de lot / DLC saisis (traçabilité FEFO, Enterprise #5).
-        await creerLotDepuisReception(tx, {
+        const lotId = await creerLotDepuisReception(tx, {
           produitId,
           pointDeVenteId:     Number(pointDeVenteId),
           quantite:           Number(ligne.quantite),
@@ -203,11 +217,14 @@ export async function POST(req: Request) {
           dlc:                ligne.dlc  ? new Date(ligne.dlc)  : null,
           dluo:               ligne.dluo ? new Date(ligne.dluo) : null,
           prixAchat:          hasPrixUnitaire ? Number(ligne.prixUnitaire) : null,
-          fournisseurId:      null,
+          fournisseurId:      fournisseurIdResolu,
           receptionApproId:   newReception.id,
           referenceReception: ref,
           operateurId:        adminId,
         });
+        if (lotId) {
+          await tx.ligneReceptionAppro.update({ where: { id: ligneDb.id }, data: { lotId } });
+        }
       }
 
       // Notifier le personnel du PDV cible
