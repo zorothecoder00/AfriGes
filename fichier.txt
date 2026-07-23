@@ -71,27 +71,15 @@ L'Inventaire doit se faire chez L'admin et le magasinier (validation inventaire 
 
 créer un gestionnaire commercial (responsable marketing)
 
-choisir les taux de marge des produits (admin)
-
-établir les méthodes de FIFO (first in first out)
-
-générer automatiquement des vignettes pour les produits( étiquettes )
-
-
 l'admin et les responsables (chefagence , rpv,admin  ) doivent pouvoir modifier et supprimer(uniquement les admins, les autres gestionnaires ne peuvent pas) les factures
 
 erreur d'application et Exception côté client sur quasiment toutes les actions(post ou patch surtout et même get je crois) d'un de mes supérieurs sur l'app déployée (sur vercel) 
 
-pouvoir supprimer des factures et des ventes à crédit
-
-
       Module 1   
 Upload multi-fichiers
 OCR automatique des documents
-
   
-Êxplique moi comment fonctionne la réunion , la convocation et les présences entre président( superadmin aussi évidemment) et membres d'une commission 
-
+  
 
 SessionGuard existe mais semble non utilisé dans le layout utilisateur
 
@@ -144,7 +132,6 @@ Permettre à tous les user de pouvoir discuter ( pas juste l'admin )
 
 Je dois corriger la relation entre les approvisionnements et les lots( de la route des catalogue de prix) surtout chez l'admin qui peut lancer des approvisionnents lui même
 
-L'export sur le dashboard admin n'exporte pas toutes les données du dashboard
 
 Retoucher le logo
 
@@ -156,7 +143,73 @@ je veux quelque chose d'un peu technique maintenant . Je veux que tu créés une
   login ( du genre je viens je scanne et je vois mon tableau d'objectif et de clients à visiter
 
 
-Sur les impressions de QR Code ( dashboard/admin ou dashboard/agent) on va enlever les informations sur le haut et le bas de page ( ce sont des infos personnelles et inutles pour un QR code ; ce n'est que le QR code qui est important ici)
+
+
+
+
+
+
+
+                      Pour terminer le cahier de charge des documents RH
+
+ Manques confirmés — à implémenter plus tard :
+
+  ┌─────┬────────────────┬──────────────────────────────────────────────────┐
+  │  #  │   Catégorie    │                      Manque                      │
+  ├─────┼────────────────┼──────────────────────────────────────────────────┤
+  │ 1   │ Présences      │ Feuille de pointage imprimable individuelle      │
+  │     │                │ (seul le rapport mensuel agrégé existe)          │
+  ├─────┼────────────────┼──────────────────────────────────────────────────┤
+  │ 2   │ Congés         │ Vue imprimable de la demande/autorisation de     │
+  │     │                │ congé                                            │
+  ├─────┼────────────────┼──────────────────────────────────────────────────┤
+  │ 3   │ Congés         │ Planning congés annuel en vue (l'API le supporte │
+  │     │                │  déjà, aucune UI ne l'appelle)                   │
+  ├─────┼────────────────┼──────────────────────────────────────────────────┤
+  │ 4   │ Paie           │ État CNSS/fiscal (déjà connu — bloqué sur tes    │
+  │     │                │ taux réels)                                      │
+  ├─────┼────────────────┼──────────────────────────────────────────────────┤
+  │     │                │ Export Excel sur l'onglet Avances & Prêts        │
+  │ 5   │ Paie           │ (Journal de paie et État des retenues l'ont, pas │
+  │     │                │  celui-ci)                                       │
+  ├─────┼────────────────┼──────────────────────────────────────────────────┤
+  │ 6   │ Évaluation     │ Vue imprimable de la fiche d'évaluation          │
+  ├─────┼────────────────┼──────────────────────────────────────────────────┤
+  │     │                │ Template document PDI/plan de progression (le    │
+  │ 7   │ Évaluation     │ PDI reste une donnée en base, pas un document    │
+  │     │                │ généré)                                          │
+  ├─────┼────────────────┼──────────────────────────────────────────────────┤
+  │ 8   │ Formation      │ Template "convocation formation" (attestation et │
+  │     │                │  certificat existent, pas la convocation)        │
+  ├─────┼────────────────┼──────────────────────────────────────────────────┤
+  │ 9   │ Formation      │ Feuille de présence imprimable pour une session  │
+  ├─────┼────────────────┼──────────────────────────────────────────────────┤
+  │     │                │ Document "déclaration/rapport d'accident" généré │
+  │ 10  │ Santé-sécurité │  et imprimable (aujourd'hui juste un lien de     │
+  │     │                │ fichier uploadé)                                 │
+  ├─────┼────────────────┼──────────────────────────────────────────────────┤
+  │ 11  │ Santé-sécurité │ Export des registres (accidents, visites,        │
+  │     │                │ registre SST, incidents)                         │
+  ├─────┼────────────────┼──────────────────────────────────────────────────┤
+  │     │ RH             │ PLAN_EVACUATION est invisible sur la page        │
+  │ 12  │ stratégiques   │ principale documents-strategiques (dictionnaire  │
+  │     │                │ d'affichage pas mis à jour)                      │
+  ├─────┼────────────────┼──────────────────────────────────────────────────┤
+  │     │ RH             │ CRUD incomplet pour les plans d'évacuation dans  │
+  │ 13  │ stratégiques   │ l'onglet SST (créer/lister seulement, pas        │
+  │     │                │ modifier/supprimer)                              │
+  ├─────┼────────────────┼──────────────────────────────────────────────────┤
+  │ 14  │ Tableaux de    │ Aucun export global/consolidé de tout le         │
+  │     │ bord           │ dashboard RH (seulement des exports par module)  │
+  └─────┴────────────────┴──────────────────────────────────────────────────┘
+
+  Ça fait 14 points concrets (dont le CNSS/fiscal déjà identifié). Rien d'autre
+  en dehors de ça — le reste du cahier des charges est couvert. On les
+  implémente quand tu es prêt.
+
+
+
+
 
 
    
