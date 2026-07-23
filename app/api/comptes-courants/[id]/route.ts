@@ -67,7 +67,9 @@ export async function GET(_req: Request, { params }: Ctx) {
 export async function PATCH(req: Request, { params }: Ctx) {
   const session = await getAuthSession();
   const role = session?.user?.role;
-  if (!session || (role !== "ADMIN" && role !== "SUPER_ADMIN")) {
+  const gestionnaireRole = session?.user?.gestionnaireRole;
+  const autorise = role === "ADMIN" || role === "SUPER_ADMIN" || gestionnaireRole === "CAISSIER";
+  if (!session || !autorise) {
     return NextResponse.json({ error: "Accès réservé à l'administrateur" }, { status: 403 });
   }
 

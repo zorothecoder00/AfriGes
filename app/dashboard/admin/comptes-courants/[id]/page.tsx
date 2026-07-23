@@ -100,6 +100,8 @@ export default function CompteCourantDetailPage() {
   const canManageStatus = role === "ADMIN" || role === "SUPER_ADMIN" || gest === "CHEF_AGENCE" || gest === "RESPONSABLE_ECONOMIQUE";
   // Édition/correction des données (compte + mouvements) : réservée à l'admin.
   const isAdmin = role === "ADMIN" || role === "SUPER_ADMIN";
+  // Correction compte/mouvements : admin + caissier.
+  const canCorrigerCC = isAdmin || gest === "CAISSIER";
   // RBAC granulaire : les documents (relevé/attestation/carnet) sont un EXPORT.
   const { can } = usePermissions();
   const canExport = can("compte_courant", "EXPORT");
@@ -475,7 +477,7 @@ export default function CompteCourantDetailPage() {
               <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="font-bold text-gray-800 flex items-center gap-2"><Wallet className="w-4 h-4 text-gray-400" /> Informations compte</h3>
-                  {isAdmin && (
+                  {canCorrigerCC && (
                     <button onClick={openEditCompte}
                       className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-slate-600 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg">
                       <Pencil className="w-3.5 h-3.5" /> Modifier
@@ -660,7 +662,7 @@ export default function CompteCourantDetailPage() {
                             <td className="px-5 py-3 text-[11px] text-gray-500 max-w-[200px] truncate" title={m.observation ?? ""}>{m.observation ?? "—"}</td>
                             <td className="px-5 py-3 text-right">
                               <div className="flex items-center justify-end gap-2">
-                                {isAdmin && !annule && (
+                                {canCorrigerCC && !annule && (
                                   <button onClick={() => openEditMvt(m)} title="Corriger ce mouvement"
                                     className="inline-flex items-center gap-1 text-xs text-gray-400 hover:text-indigo-600">
                                     <Pencil className="w-3.5 h-3.5" /> Corriger
