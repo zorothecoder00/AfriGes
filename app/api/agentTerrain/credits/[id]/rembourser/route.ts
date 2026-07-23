@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAgentTerrainSession } from "@/lib/authAgentTerrain";
-import { notifyAdmins } from "@/lib/notifications";
-import { validerNumeroJour, montantAttenduDuJour, parseDateCollecte } from "@/lib/remboursementCredit";
+import { auditLog, notifyAdmins } from "@/lib/notifications";
+import { validerNumeroJour, parseDateCollecte, enregistrerRemboursementCredit } from "@/lib/remboursementCredit";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -10,6 +10,8 @@ type Ctx = { params: Promise<{ id: string }> };
  * POST /api/agentTerrain/credits/[id]/rembourser
  * Remboursement standalone (hors session de collecte).
  * Body: { montant, modePaiement?, notes? }
+ * Effet financier immédiat (échéances, solde, cascade RIA) — l'agent collecte
+ * directement, le contrôle se fait a posteriori (audit + fraude sur la session).
  */
 export async function POST(req: Request, { params }: Ctx) {
   try {
@@ -57,50 +59,38 @@ export async function POST(req: Request, { params }: Ctx) {
     }
 
     const result = await prisma.$transaction(async (tx) => {
-      // 1. Créer le remboursement EN_ATTENTE_CAISSIER — effet financier appliqué par le caissier
-      const montantAttendu = await montantAttenduDuJour(tx, creditId, numeroJourNum);
-      const remboursement = await tx.remboursementCredit.create({
-        data: {
-          creditId,
-          montant: montantNum,
-          modePaiement: modePaiement as "ESPECES" | "MOBILE_MONEY" | "VIREMENT" | "CHEQUE",
-          statut: "EN_ATTENTE_CAISSIER",
-          enregistreParId: agentId,
-          // Agent collecteur = l'agent de terrain lui-même par défaut
-          agentCollecteurId: agentCollecteurId ? parseInt(String(agentCollecteurId)) : agentId,
-          numeroJour: numeroJourNum,
-          montantAttendu,
-          dateRemboursement: parseDateCollecte(dateCollecte) ?? new Date(),
-          notes: (observation ?? notes) || `Remboursement terrain — ${agentNom}`,
-        },
+      const out = await enregistrerRemboursementCredit(tx, {
+        creditId,
+        montant: montantNum,
+        numeroJour: numeroJourNum,
+        observation: (observation ?? notes) || `Remboursement terrain — ${agentNom}`,
+        modePaiement: modePaiement as "ESPECES" | "MOBILE_MONEY" | "VIREMENT" | "CHEQUE",
+        enregistreParId: agentId,
+        agentCollecteurId: agentCollecteurId ? parseInt(String(agentCollecteurId)) : agentId,
+        dateCollecte: parseDateCollecte(dateCollecte),
+        confirmer: true,
       });
+      if (!out.ok) throw Object.assign(new Error(out.error), { status: 400 });
 
-      // 2. Audit + notification
-      await tx.auditLog.create({
-        data: {
-          userId: agentId,
-          action: "REMBOURSEMENT_CREDIT_TERRAIN_EN_ATTENTE",
-          entite: "RemboursementCredit",
-          entiteId: remboursement.id,
-        },
-      });
+      await auditLog(tx, agentId, "REMBOURSEMENT_CREDIT_TERRAIN_CONFIRME", "RemboursementCredit", out.remboursementId);
 
       const clientNom = credit.client
         ? `${credit.client.prenom} ${credit.client.nom}`
         : "—";
       await notifyAdmins(tx, {
-        titre: `Remboursement crédit à confirmer — ${credit.reference}`,
-        message: `${agentNom} a collecté ${montantNum.toLocaleString("fr-FR")} FCFA de ${clientNom} (${credit.reference}). En attente de confirmation caissier.`,
+        titre: `Remboursement crédit collecté — ${credit.reference}`,
+        message: `${agentNom} a collecté ${montantNum.toLocaleString("fr-FR")} FCFA de ${clientNom} (${credit.reference}).`,
         priorite: "NORMAL",
-        actionUrl: "/dashboard/user/caissiers",
+        actionUrl: "/dashboard/admin/credits",
       });
 
-      return remboursement;
+      return out;
     });
 
     return NextResponse.json({ data: result }, { status: 201 });
   } catch (error) {
-    console.error("POST /api/agentTerrain/credits/[id]/rembourser", error);
-    return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
+    const status = (error as { status?: number }).status ?? 500;
+    if (status === 500) console.error("POST /api/agentTerrain/credits/[id]/rembourser", error);
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Erreur serveur" }, { status });
   }
 }

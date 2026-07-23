@@ -1,17 +1,10 @@
 import { NextResponse } from "next/server";
-import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCaissierSession, getCaissierPdvId, souscriptionPdvWhere } from "@/lib/authCaissier";
 import { notifyAdmins, auditLog } from "@/lib/notifications";
+import { confirmerVersementPackExistant } from "@/lib/versementPack";
 
 type Ctx = { params: Promise<{ id: string }> };
-
-function genRef(): string {
-  const d   = new Date();
-  const ymd = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}`;
-  const rand = Math.floor(1000 + Math.random() * 9000);
-  return `ENC-${ymd}-${rand}`;
-}
 
 /**
  * POST /api/caissier/versements/[id]/confirmer
@@ -105,101 +98,10 @@ export async function POST(req: Request, { params }: Ctx) {
       );
     }
 
-    const nouveauMontantVerse   = Number(souscription.montantVerse) + montantNum;
-    const nouveauMontantRestant = Number(souscription.montantTotal) - nouveauMontantVerse;
-    const estSolde              = nouveauMontantRestant <= 0.01;
-
-    // Calcul du nouveau statut selon le type de pack
-    let nouveauStatut: string;
-    if (estSolde) {
-      nouveauStatut = "COMPLETE";
-    } else if (souscription.pack.type === "REVENDEUR" && souscription.formuleRevendeur === "FORMULE_1") {
-      const seuil50 = Number(souscription.montantTotal) * 0.5;
-      nouveauStatut = nouveauMontantVerse >= seuil50 ? "ACTIF" : "EN_ATTENTE";
-    } else if (souscription.pack.type === "URGENCE" && souscription.pack.acomptePercent) {
-      const seuilAcompte = (Number(souscription.montantTotal) * Number(souscription.pack.acomptePercent)) / 100;
-      nouveauStatut = nouveauMontantVerse >= seuilAcompte ? "ACTIF" : "EN_ATTENTE";
-    } else {
-      nouveauStatut = nouveauMontantVerse > 0 ? "ACTIF" : "EN_ATTENTE";
-    }
-
-    const nouveauCycle =
-      estSolde && souscription.pack.type === "FAMILIAL"
-        ? souscription.numeroCycle + 1
-        : souscription.numeroCycle;
-
-    const sessionActive = await prisma.sessionCaisse.findFirst({
-      where: {
-        statut:    { in: ["OUVERTE", "SUSPENDUE"] },
-        caissierId: userId,
-      },
-      orderBy: { createdAt: "desc" },
-    });
-
     const result = await prisma.$transaction(async (tx) => {
-      // 1. Confirmer le versement
-      await tx.versementPack.update({
-        where: { id: versementId },
-        data:  { statut: "PAYE" },
-      });
+      const out = await confirmerVersementPackExistant(tx, versementId, userId, caissierNom);
+      if (!out.ok) throw Object.assign(new Error(out.error), { status: 400 });
 
-      // 2. Mettre à jour la souscription
-      await tx.souscriptionPack.update({
-        where: { id: souscription.id },
-        data:  {
-          montantVerse:   nouveauMontantVerse,
-          montantRestant: estSolde ? 0 : nouveauMontantRestant,
-          statut:         nouveauStatut as never,
-          dateCloture:    estSolde ? new Date() : null,
-          numeroCycle:    nouveauCycle,
-        },
-      });
-
-      // 3. Mettre à jour les échéances
-      if (estSolde) {
-        await tx.echeancePack.updateMany({
-          where: { souscriptionId: souscription.id, statut: { in: ["EN_ATTENTE", "EN_RETARD"] } },
-          data:  { statut: "PAYE", datePaiement: versement.datePaiement },
-        });
-      } else {
-        const nonPayees = await tx.echeancePack.findMany({
-          where:   { souscriptionId: souscription.id, statut: { in: ["EN_ATTENTE", "EN_RETARD"] } },
-          orderBy: { numero: "asc" },
-        });
-        const idsAPayer: number[] = [];
-        let budget = montantNum;
-        for (const ec of nonPayees) {
-          if (budget >= Number(ec.montant) - 0.01) {
-            idsAPayer.push(ec.id);
-            budget -= Number(ec.montant);
-          } else break;
-        }
-        if (idsAPayer.length === 0 && nonPayees.length > 0) idsAPayer.push(nonPayees[0].id);
-        if (idsAPayer.length > 0) {
-          await tx.echeancePack.updateMany({
-            where: { id: { in: idsAPayer } },
-            data:  { statut: "PAYE", datePaiement: versement.datePaiement },
-          });
-        }
-      }
-
-      // 4. Créer une OperationCaisse si session active
-      if (sessionActive) {
-        await tx.operationCaisse.create({
-          data: {
-            sessionId:    sessionActive.id,
-            type:         "ENCAISSEMENT",
-            mode:         "ESPECES",
-            montant:      new Prisma.Decimal(montantNum),
-            motif:        `Versement pack confirmé — ${souscription.pack.nom} (${versement.encaisseParNom})`,
-            reference:    genRef(),
-            operateurNom: caissierNom,
-            operateurId:  userId,
-          },
-        });
-      }
-
-      // 5. Audit + notification
       await auditLog(tx, userId, "VERSEMENT_PACK_CONFIRME", "VersementPack", versementId);
 
       const clientNom = souscription.client
@@ -208,8 +110,8 @@ export async function POST(req: Request, { params }: Ctx) {
 
       await notifyAdmins(tx, {
         titre:    `Versement confirmé — ${souscription.pack.nom}`,
-        message:  `${caissierNom} a confirmé ${montantNum.toLocaleString("fr-FR")} FCFA de ${clientNom} (collecté par ${versement.encaisseParNom}).${estSolde ? " Souscription soldée !" : ""}`,
-        priorite: estSolde ? "HAUTE" : "NORMAL",
+        message:  `${caissierNom} a confirmé ${out.montantEffectif.toLocaleString("fr-FR")} FCFA de ${clientNom} (collecté par ${versement.encaisseParNom}).${out.estSolde ? " Souscription soldée !" : ""}`,
+        priorite: out.estSolde ? "HAUTE" : "NORMAL",
         actionUrl: "/dashboard/admin/packs",
       });
 
@@ -219,19 +121,20 @@ export async function POST(req: Request, { params }: Ctx) {
           data: {
             userId:    versement.encaisseParId,
             titre:     "Versement confirmé",
-            message:   `Votre versement de ${montantNum.toLocaleString("fr-FR")} FCFA (${souscription.pack.nom}) a été confirmé par le caissier.`,
+            message:   `Votre versement de ${out.montantEffectif.toLocaleString("fr-FR")} FCFA (${souscription.pack.nom}) a été confirmé par le caissier.`,
             priorite:  "NORMAL",
             actionUrl: "/dashboard/user/agentsTerrain",
           },
         });
       }
 
-      return { versementId, estSolde };
+      return { versementId, estSolde: out.estSolde };
     });
 
     return NextResponse.json({ success: true, data: result });
   } catch (error) {
-    console.error("POST /api/caissier/versements/[id]/confirmer", error);
-    return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
+    const status = (error as { status?: number }).status ?? 500;
+    if (status === 500) console.error("POST /api/caissier/versements/[id]/confirmer", error);
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Erreur serveur" }, { status });
   }
 }

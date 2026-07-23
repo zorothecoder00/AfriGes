@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getAgentTerrainSession } from '@/lib/authAgentTerrain';
 import { autoCloseOldSessions } from '@/lib/collecteAutoClose';
+import { calculerResumeSessionJour } from '@/lib/popc/realisationsServer';
 
 const STATUTS_SOUSCRIPTION = ['ACTIF', 'EN_ATTENTE'] as const;
 const STATUTS_CREDIT        = ['ACTIF', 'EN_RETARD']  as const;
@@ -42,7 +43,7 @@ export async function GET(_req: Request) {
         dateCollecte: true,
         lignes: {
           select: {
-            id: true, statut: true, montantAttendu: true, montantCollecte: true,
+            id: true, type: true, statut: true, montantAttendu: true, montantCollecte: true,
             client: { select: { id: true, nom: true, prenom: true } },
           },
         },
@@ -117,8 +118,11 @@ export async function GET(_req: Request) {
       return count + rp + rc;
     }, 0);
 
+    const resume = sessionJour ? await calculerResumeSessionJour(sessionJour.id) : null;
+
     return NextResponse.json({
       session: sessionJour,
+      resume,
       clients,
       stats: {
         totalClients:      clients.length,

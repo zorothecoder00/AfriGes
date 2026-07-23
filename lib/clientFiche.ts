@@ -132,7 +132,7 @@ function auditLabel(action: string) {
 export async function chargerClientHistorique(clientId: number, page: number, limit: number) {
   const [lignesCollecte, versements, ventes, auditLogs] = await Promise.all([
     prisma.ligneCollecte.findMany({
-      where: { clientId },
+      where: { clientId, type: "PACK" },
       select: {
         id: true, montantCollecte: true, statut: true, createdAt: true,
         collecte: { select: { reference: true, dateCollecte: true, statut: true, agent: { select: { nom: true, prenom: true } } } },
@@ -172,7 +172,7 @@ export async function chargerClientHistorique(clientId: number, page: number, li
     ...lignesCollecte.map((l) => ({
       id: `col-${l.id}`, type: "COLLECTE" as const,
       date: l.collecte.dateCollecte.toISOString(),
-      titre: `Collecte – ${l.souscription.pack.nom}`,
+      titre: `Collecte – ${l.souscription!.pack.nom}`,
       detail: `Agent : ${l.collecte.agent.prenom} ${l.collecte.agent.nom} · Réf : ${l.collecte.reference}`,
       montant: Number(l.montantCollecte), statut: l.statut,
     })),

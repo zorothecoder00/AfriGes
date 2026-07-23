@@ -298,3 +298,54 @@ export async function calculerTableauCommercial(agentId: number, annee: number, 
     objectifAgent, tauxRealisation, objectifsGeneres: !!param?.objectif,
   };
 }
+
+const LABELS_TYPE_ACTIVITE: Record<string, string> = {
+  PACK: "Packs encaissés",
+  CREDIT: "Crédits collectés",
+  VENTE: "Ventes directes",
+  CC: "Paiements par compte courant",
+  CARNET: "Carnets vendus",
+  VISITE: "Visites sans collecte",
+  NOUVEAU_CLIENT: "Nouveaux clients",
+};
+
+export interface LigneResumeSession {
+  type: string;
+  label: string;
+  nombre: number;
+  montant: number;
+}
+
+export interface ResumeSessionJour {
+  collecteId: number;
+  parType: LigneResumeSession[];
+  totalNombre: number;
+  totalMontant: number;
+}
+
+/**
+ * Résumé journalier d'une session de collecte (§ journal d'activité de l'agent) :
+ * regroupe les LigneCollecte de la session par type d'activité, avec compteurs
+ * et montants — alimente le panneau « Résumé de la session » côté agent terrain.
+ * Version journalière (par session) de calculerTableauCommercial (mensuel).
+ */
+export async function calculerResumeSessionJour(collecteId: number): Promise<ResumeSessionJour> {
+  const lignes = await prisma.ligneCollecte.groupBy({
+    by: ["type"],
+    where: { collecteId },
+    _count: { _all: true },
+    _sum: { montantCollecte: true },
+  });
+
+  const parType: LigneResumeSession[] = lignes.map((l) => ({
+    type: l.type,
+    label: LABELS_TYPE_ACTIVITE[l.type] ?? l.type,
+    nombre: l._count._all,
+    montant: Number(l._sum.montantCollecte ?? 0),
+  }));
+
+  const totalNombre = parType.reduce((s, l) => s + l.nombre, 0);
+  const totalMontant = parType.reduce((s, l) => s + l.montant, 0);
+
+  return { collecteId, parType, totalNombre, totalMontant: Number(totalMontant.toFixed(2)) };
+}

@@ -7,7 +7,7 @@ import {
   Banknote, Calendar, LucideIcon, Layers, Plus,
   Loader2, Truck, Package, ShoppingCart, X, Send, XCircle,
   ClipboardList, CreditCard, Navigation, PlayCircle, ChevronDown, ChevronUp,
-  Wallet, TrendingDown, UserPlus, Receipt, FileText, Pencil, Target, QrCode,
+  Wallet, TrendingDown, UserPlus, Receipt, FileText, Pencil, Target, QrCode, BookOpen,
 } from "lucide-react";
 import Link from "next/link";      
 import NotificationBell from "@/components/NotificationBell";
@@ -34,6 +34,7 @@ type TypePack = "ALIMENTAIRE" | "REVENDEUR" | "FAMILIAL" | "URGENCE" | "EPARGNE_
 // Collecte du Jour
 interface LigneCollecte {
   id: number;
+  type: "PACK" | "CREDIT" | "VENTE" | "CC" | "CARNET" | "VISITE" | "NOUVEAU_CLIENT";
   statut: "EN_ATTENTE" | "COLLECTE" | "PARTIEL" | "ECHEC";
   montantAttendu: string;
   montantCollecte: string;
@@ -86,6 +87,7 @@ interface ClientCollecte {
 
 interface CollecteJourResponse {
   session: CollecteSession | null;
+  resume: ResumeSessionJour | null;
   clients: ClientCollecte[];
   stats: {
     totalClients: number;
@@ -126,6 +128,18 @@ interface EncaisserTarget {
   clientNom: string;
   montantAttendu: number;
 }
+
+// Cible pour modal paiement par compte courant
+interface CcTarget {
+  creditId: number;
+  clientId: number;
+  label: string;
+  clientNom: string;
+  montantAttendu: number;
+}
+
+interface ResumeSessionLigne { type: string; label: string; nombre: number; montant: number }
+interface ResumeSessionJour { parType: ResumeSessionLigne[]; totalNombre: number; totalMontant: number }
 
 interface Echeance {
   id: number;
@@ -602,6 +616,176 @@ function ModalEncaisserSession({
   );
 }
 
+// ─── Modal Paiement par compte courant (session) ──────────────────────────────
+
+function ModalPaiementCC({
+  target,
+  collecteId,
+  onClose,
+  onSuccess,
+}: {
+  target: CcTarget;
+  collecteId: number;
+  onClose: () => void;
+  onSuccess: () => void;
+}) {
+  const [ccInfo, setCcInfo] = useState<{ id: number; numeroCompte: string; statut: string; solde: number } | null>(null);
+  const [loadingCc, setLoadingCc] = useState(true);
+  const [montant, setMontant] = useState(String(target.montantAttendu));
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    let annule = false;
+    fetch(`/api/comptes-courants/by-client/${target.clientId}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => { if (!annule) setCcInfo(j?.data ?? null); })
+      .catch(() => { if (!annule) setCcInfo(null); })
+      .finally(() => { if (!annule) setLoadingCc(false); });
+    return () => { annule = true; };
+  }, [target.clientId]);
+
+  const solde = ccInfo && ccInfo.statut === "ACTIF" ? ccInfo.solde : 0;
+  const montantNum = parseFloat(montant) || 0;
+  const max = Math.min(target.montantAttendu, solde);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!ccInfo) return;
+    setSubmitting(true);
+    try {
+      const r1 = await fetch(`/api/comptes-courants/${ccInfo.id}/paiements`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ paiements: [{ creditId: target.creditId, montant: montantNum }] }),
+      });
+      const j1 = await r1.json();
+      if (!r1.ok) throw new Error(j1.error ?? "Erreur lors du paiement CC");
+
+      await fetch(`/api/agentTerrain/collecteJour/${collecteId}/journaliser`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: "CC", clientId: target.clientId, creditId: target.creditId, montant: montantNum }),
+      }).catch(() => {});
+
+      toast.success("Paiement par compte courant enregistré !");
+      onSuccess();
+      onClose();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erreur réseau");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-xl font-bold text-slate-800">Payer par compte courant</h2>
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg font-bold text-lg">×</button>
+        </div>
+
+        <div className="p-4 rounded-xl bg-blue-50 border border-blue-200 mb-5 space-y-1">
+          <p className="text-sm font-semibold text-slate-800">{target.clientNom}</p>
+          <p className="text-xs text-slate-500">{target.label}</p>
+          <p className="text-sm text-blue-700 font-medium">Montant attendu : {target.montantAttendu.toLocaleString("fr-FR")} FCFA</p>
+        </div>
+
+        {loadingCc ? (
+          <div className="flex items-center justify-center py-8 text-slate-400"><Loader2 className="w-5 h-5 animate-spin" /></div>
+        ) : !ccInfo || ccInfo.statut !== "ACTIF" ? (
+          <p className="text-sm text-amber-600 bg-amber-50 border border-amber-200 rounded-xl p-3">
+            Ce client n&apos;a pas de compte courant actif.
+          </p>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <p className="text-xs text-slate-500">
+              Compte {ccInfo.numeroCompte} — Solde disponible : <span className="font-semibold text-slate-700">{ccInfo.solde.toLocaleString("fr-FR")} FCFA</span>
+            </p>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Montant à prélever *</label>
+              <input
+                type="number" min="1" max={max} required value={montant}
+                onChange={(e) => setMontant(e.target.value)}
+                className={`w-full border rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                  montantNum > max ? "border-red-400 bg-red-50" : "border-slate-200"
+                }`}
+              />
+              {montantNum > max && (
+                <p className="text-xs text-red-600 mt-1">Montant supérieur au maximum disponible ({max.toLocaleString("fr-FR")} FCFA)</p>
+              )}
+            </div>
+            <div className="flex gap-3 pt-1">
+              <button type="button" onClick={onClose}
+                className="flex-1 py-2.5 border border-slate-200 text-slate-700 rounded-xl hover:bg-slate-50 text-sm font-medium">Annuler</button>
+              <button type="submit"
+                disabled={submitting || !montant || montantNum <= 0 || montantNum > max}
+                className="flex-1 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-50 text-sm font-medium flex items-center justify-center gap-2">
+                {submitting ? <><Loader2 size={14} className="animate-spin" /> Enregistrement…</> : "Confirmer le paiement"}
+              </button>
+            </div>
+          </form>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Modal Vente de carnet (session) ──────────────────────────────────────────
+
+function ModalVenteCarnet({
+  target,
+  collecteId,
+  onClose,
+  onSuccess,
+}: {
+  target: { clientId: number; clientNom: string };
+  collecteId: number;
+  onClose: () => void;
+  onSuccess: () => void;
+}) {
+  const [montant, setMontant] = useState("300");
+
+  const { mutate, loading } = useMutation<unknown, object>(
+    `/api/agentTerrain/collecteJour/${collecteId}/carnet`,
+    "POST",
+    { successMessage: "Vente de carnet enregistrée !" }
+  );
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const res = await mutate({ clientId: target.clientId, montant: parseFloat(montant) || 300 });
+    if (res) { onSuccess(); onClose(); }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-xl font-bold text-slate-800">Vendre un carnet</h2>
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg font-bold text-lg">×</button>
+        </div>
+        <p className="text-sm text-slate-600 mb-4">{target.clientNom}</p>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Montant</label>
+            <input type="number" min="1" value={montant} onChange={(e) => setMontant(e.target.value)}
+              className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
+          </div>
+          <div className="flex gap-3 pt-1">
+            <button type="button" onClick={onClose}
+              className="flex-1 py-2.5 border border-slate-200 text-slate-700 rounded-xl hover:bg-slate-50 text-sm font-medium">Annuler</button>
+            <button type="submit" disabled={loading}
+              className="flex-1 py-2.5 bg-teal-600 text-white rounded-xl hover:bg-teal-700 disabled:opacity-50 text-sm font-medium flex items-center justify-center gap-2">
+              {loading ? <><Loader2 size={14} className="animate-spin" /> Enregistrement…</> : "Confirmer la vente"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 // ─── Modal Rembourser crédit (standalone) ─────────────────────────────────────
 
 function ModalRembourserCredit({
@@ -706,9 +890,11 @@ const EMPTY_CLIENT_FORM = {
 };
 
 function ModalAddClientRiche({
+  collecteId,
   onClose,
   onSuccess,
 }: {
+  collecteId?: number;
   onClose: () => void;
   onSuccess: () => void;
 }) {
@@ -716,7 +902,7 @@ function ModalAddClientRiche({
   const [geoLoading, setGeoLoading] = useState(false);
   const [geoError, setGeoError] = useState("");
 
-  const { mutate, loading } = useMutation<unknown, object>(
+  const { mutate, loading } = useMutation<{ id: number }, object>(
     "/api/agentTerrain/clients", "POST",
     { successMessage: "Client ajouté !" }
   );
@@ -755,7 +941,16 @@ function ModalAddClientRiche({
       longitude: form.longitude ? Number(form.longitude) : undefined,
     };
     const res = await mutate(payload);
-    if (res) { onSuccess(); onClose(); }
+    if (res) {
+      if (collecteId) {
+        fetch(`/api/agentTerrain/collecteJour/${collecteId}/journaliser`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ type: "NOUVEAU_CLIENT", clientId: res.id, clientNouveauId: res.id }),
+        }).catch(() => {});
+      }
+      onSuccess(); onClose();
+    }
   }
 
   return (
@@ -1487,6 +1682,8 @@ export default function AgentTerrainPage() {
 
   // ── Collecte du Jour ──
   const [encaisserTarget, setEncaisserTarget] = useState<EncaisserTarget | null>(null);
+  const [ccTarget, setCcTarget] = useState<CcTarget | null>(null);
+  const [carnetTarget, setCarnetTarget] = useState<{ clientId: number; clientNom: string } | null>(null);
   const [expandedClientId, setExpandedClientId] = useState<number | null>(null);
 
   // ── Crédits ──
@@ -1559,6 +1756,24 @@ export default function AgentTerrainPage() {
     { successMessage: "Tournée démarrée !" }
   );
 
+  const marquerVisite = async (clientId: number) => {
+    const collecteId = collecteJourData?.session?.id;
+    if (!collecteId) { toast.error("Démarrez d'abord la tournée du jour"); return; }
+    try {
+      const res = await fetch(`/api/agentTerrain/collecteJour/${collecteId}/visiter`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clientId }),
+      });
+      const j = await res.json();
+      if (!res.ok) throw new Error(j.error ?? "Erreur");
+      toast.success("Visite enregistrée");
+      refetchCollecteJour();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erreur réseau");
+    }
+  };
+
   const [confirmingId, setConfirmingId] = useState<number | null>(null);
 
   const { mutate: doConfirm } = useMutation(
@@ -1612,7 +1827,7 @@ export default function AgentTerrainPage() {
   const ventesEnAttente = ventesData.filter(v => v.statut === "BROUILLON" || v.statut === "CREDIT_REQUEST").length;
 
   const { mutate: submitVente, loading: venteSubmitLoading } =
-    useMutation<unknown, object>("/api/agentTerrain/ventes", "POST");
+    useMutation<{ id: number }, object>("/api/agentTerrain/ventes", "POST");
 
   const { mutate: doCancelVente } = useMutation<unknown, object>(
     () => cancelVenteIdRef.current ? `/api/agentTerrain/ventes/${cancelVenteIdRef.current}` : "",
@@ -1657,6 +1872,15 @@ export default function AgentTerrainPage() {
     });
     if (res) {
       toast.success("Vente enregistrée — stock mis à jour !");
+      // Journalise la vente dans la session de collecte en cours (client enregistré uniquement).
+      const collecteId = collecteJourData?.session?.id;
+      if (collecteId && vClientId) {
+        fetch(`/api/agentTerrain/collecteJour/${collecteId}/journaliser`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ type: "VENTE", clientId: Number(vClientId), venteDirecteId: res.id, montant: montantTotal }),
+        }).then(() => refetchCollecteJour()).catch(() => {});
+      }
       setShowVenteForm(false);
       setVClientId(""); setVClientNom(""); setVClientTel("");
       setVMontantPaye(""); setVNotes("");
@@ -2086,18 +2310,32 @@ export default function AgentTerrainPage() {
                                       <span className="ml-1">— {formatCurrency(Number(credit.montantJournalier))}/j {retard && "⚠"}</span>
                                     </p>
                                   </div>
-                                  <button
-                                    onClick={() => setEncaisserTarget({
-                                      type: "CREDIT",
-                                      creditId: credit.id,
-                                      label: `Crédit ${credit.reference}`,
-                                      clientNom: `${client.prenom} ${client.nom}`,
-                                      montantAttendu: Number(credit.montantJournalier),
-                                    })}
-                                    className="shrink-0 px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-xs font-medium flex items-center gap-1"
-                                  >
-                                    <Wallet size={12} /> Encaisser
-                                  </button>
+                                  <div className="shrink-0 flex items-center gap-2">
+                                    <button
+                                      onClick={() => setEncaisserTarget({
+                                        type: "CREDIT",
+                                        creditId: credit.id,
+                                        label: `Crédit ${credit.reference}`,
+                                        clientNom: `${client.prenom} ${client.nom}`,
+                                        montantAttendu: Number(credit.montantJournalier),
+                                      })}
+                                      className="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-xs font-medium flex items-center gap-1"
+                                    >
+                                      <Wallet size={12} /> Encaisser
+                                    </button>
+                                    <button
+                                      onClick={() => setCcTarget({
+                                        creditId: credit.id,
+                                        clientId: client.id,
+                                        label: `Crédit ${credit.reference}`,
+                                        clientNom: `${client.prenom} ${client.nom}`,
+                                        montantAttendu: Number(credit.montantJournalier),
+                                      })}
+                                      className="px-3 py-1.5 bg-white border border-blue-200 text-blue-700 rounded-lg hover:bg-blue-50 text-xs font-medium flex items-center gap-1"
+                                    >
+                                      <CreditCard size={12} /> Payer par CC
+                                    </button>
+                                  </div>
                                 </div>
                               );
                             })}
@@ -2105,12 +2343,60 @@ export default function AgentTerrainPage() {
                             {client.souscriptionsPacks.length === 0 && client.creditsClients.length === 0 && (
                               <p className="text-xs text-slate-400 text-center py-2">Aucune dette active</p>
                             )}
+
+                            {/* Actions complémentaires de la session */}
+                            <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-100">
+                              <button
+                                onClick={() => {
+                                  setVClientId(String(client.id));
+                                  setVClientNom(`${client.prenom} ${client.nom}`);
+                                  setVClientTel(client.telephone);
+                                  setShowVenteForm(true);
+                                  setActiveTab("ventes");
+                                }}
+                                className="px-3 py-1.5 bg-white border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 text-xs font-medium flex items-center gap-1"
+                              >
+                                <ShoppingCart size={12} /> Vendre
+                              </button>
+                              <button
+                                onClick={() => setCarnetTarget({ clientId: client.id, clientNom: `${client.prenom} ${client.nom}` })}
+                                className="px-3 py-1.5 bg-white border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 text-xs font-medium flex items-center gap-1"
+                              >
+                                <BookOpen size={12} /> Vendre un carnet
+                              </button>
+                              <button
+                                onClick={() => marquerVisite(client.id)}
+                                className="px-3 py-1.5 bg-white border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 text-xs font-medium flex items-center gap-1"
+                              >
+                                <CheckCircle size={12} /> Marquer visité
+                              </button>
+                            </div>
                           </div>
                         )}
                       </div>
                     );
                   })}
                 </div>
+
+                {/* Résumé de la session — journal des réalisations du jour, par type d'activité */}
+                {collecteJourData.resume && collecteJourData.resume.totalNombre > 0 && (
+                  <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+                    <div className="px-5 py-3 bg-indigo-50 border-b border-indigo-100 flex items-center justify-between">
+                      <h3 className="font-semibold text-slate-800 text-sm flex items-center gap-2">
+                        <Target size={16} className="text-indigo-600" /> Résumé de la session
+                      </h3>
+                      <span className="text-sm font-bold text-indigo-700">{formatCurrency(collecteJourData.resume.totalMontant)}</span>
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 p-4">
+                      {collecteJourData.resume.parType.map((l) => (
+                        <div key={l.type} className="bg-slate-50 rounded-xl p-3">
+                          <p className="text-xs text-slate-500">{l.label}</p>
+                          <p className="text-sm font-bold text-slate-800 mt-0.5">{l.nombre} {l.montant > 0 ? `· ${formatCurrency(l.montant)}` : ""}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {/* Résumé lignes collectées */}
                 {(collecteJourData.session?.lignes?.length ?? 0) > 0 && (
@@ -3226,6 +3512,26 @@ export default function AgentTerrainPage() {
         />
       )}
 
+      {/* Modal paiement par compte courant (session) */}
+      {ccTarget && collecteJourData?.session && (
+        <ModalPaiementCC
+          target={ccTarget}
+          collecteId={collecteJourData.session.id}
+          onClose={() => setCcTarget(null)}
+          onSuccess={() => { refetchCollecteJour(); setCcTarget(null); }}
+        />
+      )}
+
+      {/* Modal vente de carnet (session) */}
+      {carnetTarget && collecteJourData?.session && (
+        <ModalVenteCarnet
+          target={carnetTarget}
+          collecteId={collecteJourData.session.id}
+          onClose={() => setCarnetTarget(null)}
+          onSuccess={() => { refetchCollecteJour(); setCarnetTarget(null); }}
+        />
+      )}
+
       {/* Modal remboursement crédit standalone */}
       {rembourserCredit && (
         <ModalRembourserCredit
@@ -3295,8 +3601,9 @@ export default function AgentTerrainPage() {
       {/* Modal ajout client enrichi */}
       {addClientModal && (
         <ModalAddClientRiche
+          collecteId={collecteJourData?.session?.id}
           onClose={() => setAddClientModal(false)}
-          onSuccess={() => { refetchClients(); setAddClientModal(false); }}
+          onSuccess={() => { refetchClients(); refetchCollecteJour(); setAddClientModal(false); }}
         />
       )}
 

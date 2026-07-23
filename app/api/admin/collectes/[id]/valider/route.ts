@@ -45,8 +45,12 @@ export async function POST(_req: Request, { params }: Ctx) {
     const adminNom = `${session.user.prenom ?? ""} ${session.user.nom ?? ""}`.trim();
     const agentNom = `${collecte.agent.prenom} ${collecte.agent.nom}`;
 
+    // Seules les lignes PACK dépendent de cette validation manuelle : les autres
+    // types (crédit, vente, CC, carnet, visite, nouveau client) sont déjà
+    // financièrement appliqués instantanément à leur création (cf. /encaisser,
+    // /carnet, /visiter, /journaliser).
     const lignesAValider = collecte.lignes.filter(
-      (l) => l.statut === "COLLECTE" || l.statut === "PARTIEL"
+      (l) => (l.statut === "COLLECTE" || l.statut === "PARTIEL") && l.type === "PACK" && l.souscription
     );
 
     if (lignesAValider.length === 0) {
@@ -63,7 +67,7 @@ export async function POST(_req: Request, { params }: Ctx) {
         if (ligne.versementPack) continue;
 
         const montant     = Number(ligne.montantCollecte);
-        const souscription = ligne.souscription;
+        const souscription = ligne.souscription!;
 
         const montantVerse  = Number(souscription.montantVerse)  + montant;
         const montantRestant = Math.max(0, Number(souscription.montantTotal) - montantVerse);

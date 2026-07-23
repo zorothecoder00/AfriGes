@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAgentTerrainSession } from "@/lib/authAgentTerrain";
-import { notifyAdmins } from "@/lib/notifications";
+import { notifyAdmins, auditLog } from "@/lib/notifications";
+import { enregistrerVersementPack } from "@/lib/versementPack";
+import { enregistrerRemboursementCredit } from "@/lib/remboursementCredit";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -9,6 +11,8 @@ type Ctx = { params: Promise<{ id: string }> };
  * POST /api/agentTerrain/collecteJour/[id]/encaisser
  * Encaisse un paiement (pack ou crédit) dans la session de collecte du jour.
  * Body: { type: "PACK"|"CREDIT", souscriptionId?, creditId?, montant, modePaiement?, latitude?, longitude?, notes? }
+ * Effet financier immédiat (échéances, solde) — le contrôle se fait a posteriori
+ * (audit + fraude sur la session, voir app/api/caissier/collectes/[id]/valider).
  */
 export async function POST(req: Request, { params }: Ctx) {
   try {
@@ -68,73 +72,53 @@ export async function POST(req: Request, { params }: Ctx) {
       const result = await prisma.$transaction(async (tx) => {
         const sid = souscription.id;
 
-        // Prochaine échéance (pour calculer montantAttendu sur la ligne)
-        const prochaineEcheance = await tx.echeancePack.findFirst({
-          where: { souscriptionId: sid, statut: { in: ["EN_ATTENTE", "EN_RETARD"] } },
-          orderBy: { numero: "asc" },
+        const out = await enregistrerVersementPack(tx, {
+          souscriptionId: sid,
+          montant: montantNum,
+          notes: notes ?? `Session collecte ${collecte.reference} — ${agentNom}`,
+          encaisseParId: agentId,
+          encaisseParNom: agentNom,
+          confirmer: true,
         });
+        if (!out.ok) throw Object.assign(new Error(out.error), { status: 400 });
 
-        const montantAttendu = prochaineEcheance ? Number(prochaineEcheance.montant) : montantNum;
-        const statutLigne = montantNum >= montantAttendu - 0.01 ? "COLLECTE" : "PARTIEL";
-
-        // 1. Créer VersementPack EN_ATTENTE — effet financier appliqué par le caissier
-        const versement = await tx.versementPack.create({
-          data: {
-            souscriptionId: sid,
-            type: "VERSEMENT_PERIODIQUE",
-            montant: montantNum,
-            statut: "EN_ATTENTE",
-            datePaiement: new Date(),
-            encaisseParId: agentId,
-            encaisseParNom: agentNom,
-            notes: notes ?? `Session collecte ${collecte.reference} — ${agentNom}`,
-          },
-        });
-
-        // 2. Créer LigneCollecte liée au versement
+        // Ligne d'activité de la session (traçabilité + progression)
         const ligne = await tx.ligneCollecte.create({
           data: {
             collecteId,
             clientId: souscription.clientId!,
+            type: "PACK",
             souscriptionId: sid,
-            montantAttendu,
-            montantCollecte: montantNum,
-            statut: statutLigne as "COLLECTE" | "PARTIEL",
+            montantAttendu: out.montantEffectif,
+            montantCollecte: out.montantEffectif,
+            statut: "COLLECTE",
             latitude: latitude ?? null,
             longitude: longitude ?? null,
             modePaiement: modePaiement ?? "ESPECES",
             notes: notes ?? null,
-            versementPackId: versement.id,
+            versementPackId: out.versementId,
           },
         });
 
-        // 3. Mettre à jour montantCollecte de la session (suivi terrain uniquement)
+        // Mettre à jour montantCollecte de la session (suivi terrain)
         await tx.collecteJournaliere.update({
           where: { id: collecteId },
-          data: { montantCollecte: { increment: montantNum } },
+          data: { montantCollecte: { increment: out.montantEffectif } },
         });
 
-        // 4. Audit
-        await tx.auditLog.create({
-          data: {
-            userId: agentId,
-            action: "COLLECTE_PACK_SESSION_EN_ATTENTE",
-            entite: "LigneCollecte",
-            entiteId: ligne.id,
-          },
-        });
+        await auditLog(tx, agentId, "COLLECTE_PACK_SESSION_CONFIRMEE", "LigneCollecte", ligne.id);
 
         const clientNom = souscription.client
           ? `${souscription.client.prenom} ${souscription.client.nom}`
           : "—";
         await notifyAdmins(tx, {
-          titre: `Collecte session à confirmer — ${souscription.pack.nom}`,
-          message: `${agentNom} a collecté ${montantNum.toLocaleString("fr-FR")} FCFA chez ${clientNom} (session ${collecte.reference}). En attente de confirmation caissier.`,
+          titre: `Collecte pack — ${souscription.pack.nom}`,
+          message: `${agentNom} a collecté ${out.montantEffectif.toLocaleString("fr-FR")} FCFA chez ${clientNom} (session ${collecte.reference}).`,
           priorite: "NORMAL",
-          actionUrl: "/dashboard/user/caissiers",
+          actionUrl: "/dashboard/admin/packs",
         });
 
-        return { ligne, versement };
+        return { ligne, montantEffectif: out.montantEffectif, estSolde: out.estSolde };
       });
 
       return NextResponse.json({ data: result }, { status: 201 });
@@ -165,45 +149,53 @@ export async function POST(req: Request, { params }: Ctx) {
       }
 
       const result = await prisma.$transaction(async (tx) => {
-        // 1. Créer remboursement EN_ATTENTE_CAISSIER — effet financier appliqué par le caissier
-        const remboursement = await tx.remboursementCredit.create({
+        const out = await enregistrerRemboursementCredit(tx, {
+          creditId: credit.id,
+          montant: montantNum,
+          numeroJour: null,
+          observation: notes ?? `Session collecte ${collecte.reference} — ${agentNom}`,
+          enregistreParId: agentId,
+          agentCollecteurId: agentId,
+          confirmer: true,
+        });
+        if (!out.ok) throw Object.assign(new Error(out.error), { status: 400 });
+
+        // Ligne d'activité de la session (traçabilité + progression)
+        const ligne = await tx.ligneCollecte.create({
           data: {
+            collecteId,
+            clientId: credit.clientId,
+            type: "CREDIT",
             creditId: credit.id,
-            montant: montantNum,
-            modePaiement: "ESPECES",
-            statut: "EN_ATTENTE_CAISSIER",
-            enregistreParId: agentId,
-            notes: notes ?? `Session collecte ${collecte.reference} — ${agentNom}`,
+            montantAttendu: out.montantEffectif,
+            montantCollecte: out.montantEffectif,
+            statut: "COLLECTE",
+            latitude: latitude ?? null,
+            longitude: longitude ?? null,
+            modePaiement: modePaiement ?? "ESPECES",
+            notes: notes ?? null,
           },
         });
 
-        // 2. Mettre à jour montantCollecte de la session (suivi terrain uniquement)
+        // Mettre à jour montantCollecte de la session (suivi terrain)
         await tx.collecteJournaliere.update({
           where: { id: collecteId },
-          data: { montantCollecte: { increment: montantNum } },
+          data: { montantCollecte: { increment: out.montantEffectif } },
         });
 
-        // 3. Audit + notif
-        await tx.auditLog.create({
-          data: {
-            userId: agentId,
-            action: "REMBOURSEMENT_CREDIT_SESSION_EN_ATTENTE",
-            entite: "RemboursementCredit",
-            entiteId: remboursement.id,
-          },
-        });
+        await auditLog(tx, agentId, "REMBOURSEMENT_CREDIT_SESSION_CONFIRME", "RemboursementCredit", out.remboursementId);
 
         const clientNom = credit.client
           ? `${credit.client.prenom} ${credit.client.nom}`
           : "—";
         await notifyAdmins(tx, {
-          titre: `Remboursement crédit à confirmer — ${credit.reference}`,
-          message: `${agentNom} a collecté ${montantNum.toLocaleString("fr-FR")} FCFA de ${clientNom} (${credit.reference}, session ${collecte.reference}). En attente de confirmation caissier.`,
+          titre: `Remboursement crédit — ${credit.reference}`,
+          message: `${agentNom} a collecté ${out.montantEffectif.toLocaleString("fr-FR")} FCFA de ${clientNom} (${credit.reference}, session ${collecte.reference}).`,
           priorite: "NORMAL",
-          actionUrl: "/dashboard/user/caissiers",
+          actionUrl: "/dashboard/admin/credits",
         });
 
-        return remboursement;
+        return { ligne, montantEffectif: out.montantEffectif, estSolde: out.estSolde };
       });
 
       return NextResponse.json({ data: result }, { status: 201 });
@@ -211,7 +203,8 @@ export async function POST(req: Request, { params }: Ctx) {
 
     return NextResponse.json({ error: "type invalide" }, { status: 400 });
   } catch (error) {
-    console.error("POST /api/agentTerrain/collecteJour/[id]/encaisser", error);
-    return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
+    const status = (error as { status?: number }).status ?? 500;
+    if (status === 500) console.error("POST /api/agentTerrain/collecteJour/[id]/encaisser", error);
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Erreur serveur" }, { status });
   }
 }

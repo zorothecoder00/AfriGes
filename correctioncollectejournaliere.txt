@@ -1,0 +1,184 @@
+ Here is Claude's plan:
+╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
+ Refonte de la « Collecte journalière » agent terrain — session unifiée
+
+ Contexte
+
+ Le module actuel CollecteJournaliere / LigneCollecte a été construit à
+ l'origine uniquement pour les échéances de packs (LigneCollecte.souscriptionId
+ est obligatoire). Les remboursements de crédits faits par l'agent existent
+ (RemboursementCredit), mais ne sont reliés à la session que par un simple
+ incrément de compteur (montantCollecte), sans ligne d'activité propre.
+ Résultat, plusieurs problèmes concrets remontés par l'utilisateur :
+
+ 1. Aucune répercussion immédiate. Un encaissement (pack ou crédit) fait par
+ l'agent crée un enregistrement EN_ATTENTE / EN_ATTENTE_CAISSIER — l'échéance,
+ le solde restant et le montant remboursé ne bougent que lorsqu'un caissier
+ confirme, plus tard. Pendant ce temps, les stats vues par l'agent ne reflètent
+ jamais ses propres collectes du jour.
+ 2. CC et vente directe hors session. Le paiement par compte courant et la
+ vente directe existent déjà (onglet « Ventes »), mais complètement déconnectés
+ de l'onglet « Collecte du jour » / de la tournée — l'agent doit changer de
+ contexte, perd le fil de sa visite client.
+ 3. VenteCarnet n'a aucune route de création. Le modèle existe et est déjà
+ agrégé dans les rapports POPC mensuels (lib/popc/realisationsServer.ts), mais
+ rien ne permet à un agent d'enregistrer une vente de carnet aujourd'hui.
+ 4. VisiteClient n'est créable que par l'admin
+ (app/api/admin/agents-terrain/[id]/visites/route.ts), pas par l'agent lui-même
+ en temps réel — impossible de simplement « pointer » une visite sans rien à
+ collecter.
+ 5. LigneCollecte verrouillé sur les packs au niveau du schéma —
+ structurellement, la session ne peut pas être un journal générique d'activités
+ (crédit, vente, CC, carnet, visite, nouveau client).
+
+ Décision validée avec l'utilisateur : les encaissements de l'agent (crédits et
+ packs) doivent avoir un effet financier immédiat, sans attendre la
+ confirmation caissier — le contrôle se fait a posteriori (audit + alerte
+ fraude déjà existante au niveau session). L'objectif final :
+ CollecteJournaliere devient une session qui journalise tout ce que l'agent
+ réalise dans sa journée (crédit collecté, pack encaissé, vente, paiement CC,
+ carnet vendu, nouveau client, visite sans collecte), avec répercussion
+ instantanée sur les modèles métier concernés.
+
+ Ce qui existe déjà et sera réutilisé (ne pas dupliquer)
+
+ - lib/remboursementCredit.ts → enregistrerRemboursementCredit(tx, ..., {
+ confirmer }) : moteur déjà utilisé par admin/RVC/caissier en « saisie rapide »
+ (via lib/remboursementScope.ts, confirmer: true) pour appliquer
+ instantanément échéances/solde/cascade RIA. Seul scopeAgentTerrain force
+ confirmer: false aujourd'hui.
+ - lib/remboursementCredit.ts → modifierRemboursementCredit() : correction
+ post-hoc déjà en place pour les crédits (utile comme filet de sécurité une
+ fois l'agent en application instantanée).
+ - app/api/caissier/versements/[id]/confirmer/route.ts (lignes 139-230) :
+ logique de mise à jour SouscriptionPack/EcheancePack lors de la confirmation
+ d'un versement pack — à extraire en fonction réutilisable (aucune variante
+ instantanée n'existe encore pour les packs).
+ - POST /api/comptes-courants/[id]/paiements : paiement CC multi-crédits déjà
+ autoritaire et déjà instantané (aucun gate caissier) — à réutiliser tel quel
+ depuis la session.
+ - POST /api/agentTerrain/ventes : vente directe cash + CC déjà fonctionnelle
+ avec FEFO/stock — à réutiliser tel quel, juste rattachée à la session.
+ - lib/popc/realisationsServer.ts → calculerTableauCommercial() : calcule déjà
+ quasiment toutes les métriques voulues (nouveaux clients, crédits livrés,
+ 16/31 collectés, carnets vendus, montant collecté) mais au mois — à adapter en
+ version « jour » pour le résumé de session.
+
+ Plan par phases
+
+ Phase A — Application instantanée des encaissements (crédits + packs)
+
+ 1. lib/remboursementScope.ts : scopeAgentTerrain → confirmer: true.
+ 2. app/api/agentTerrain/credits/[id]/rembourser/route.ts : remplacer la
+ création manuelle du RemboursementCredit par un appel à
+ enregistrerRemboursementCredit(tx, {...}, { confirmer: true }).
+ 3. app/api/agentTerrain/collecteJour/[id]/encaisser/route.ts, branche CREDIT :
+ idem, réutiliser enregistrerRemboursementCredit.
+ 4. Nouveau : lib/versementPack.ts → extraire la logique de
+ app/api/caissier/versements/[id]/confirmer/route.ts (lignes 139-230) en
+ enregistrerVersementPack(tx, { souscriptionId, montant, modePaiement,
+ encaisseParId, confirmer }). Faire pointer la route de confirmation caissier
+ vers cette fonction (confirmer: true, comportement inchangé pour les autres
+ rôles) et l'utiliser dans encaisser/route.ts branche PACK avec confirmer:
+ true.
+ 5. Filet de sécurité manquant à combler : pas d'équivalent
+ modifierVersementPack (correction post-hoc) pour les packs aujourd'hui,
+ contrairement aux crédits. Ajouter une version minimale admin-only (même
+ esprit que modifierRemboursementCredit) avant de généraliser l'instantané aux
+ packs — sinon une erreur de saisie de l'agent devient impossible à corriger
+ proprement.
+ 6. Conserver inchangé le contrôle a posteriori déjà existant :
+ app/api/caissier/collectes/[id]/valider (action FRAUDE) reste le filet de
+ sécurité au niveau session.
+
+ Phase B — Combler les routes manquantes (carnet, visite)
+
+ 1. Vente de carnet : nouvelle route POST
+ /api/agentTerrain/collecteJour/[id]/carnet — body { montant?, clientId? }
+ (défaut montant=300 comme le schéma VenteCarnet). Crée un VenteCarnet +
+ incrémente CollecteJournaliere.montantCollecte.
+ 2. Visite sans collecte : nouvelle route POST
+ /api/agentTerrain/collecteJour/[id]/visiter — body { clientId, notes?,
+ latitude?, longitude? }. Crée un VisiteClient (statut REALISEE, défaut du
+ modèle). Permet de « pointer » un client visité même sans rien à encaisser.
+
+ Phase C — Généraliser LigneCollecte en journal d'activité de session
+
+ 1. Migration Prisma (additive, sans perte de données) sur LigneCollecte :
+   - Ajouter type TypeActiviteCollecte @default(PACK) (enum : PACK | CREDIT |
+ VENTE | CC | CARNET | VISITE | NOUVEAU_CLIENT).
+   - Rendre souscriptionId optionnel.
+   - Ajouter FKs optionnelles : creditId, venteDirecteId, venteCarnetId,
+ visiteId, clientNouveauId.
+   - Les lignes historiques restent type: PACK par défaut — aucune migration de
+ données nécessaire.
+ 2. Chaque point d'écriture (encaisser PACK/CREDIT, paiement CC, vente directe,
+ carnet, visite, création client pendant une session active) crée désormais
+ aussi une LigneCollecte du type correspondant, en plus de son effet métier
+ propre — la session devient le journal complet de la journée.
+ 3. Pour le paiement CC et la vente directe : appeler la route existante
+ inchangée, puis créer la LigneCollecte(type: CC|VENTE, ...) de journalisation
+ juste après (pas de duplication de logique métier).
+
+ Phase D — UI : intégrer CC / vente / carnet / visite dans l'onglet « Collecte
+ du jour »
+
+ Fichier : app/dashboard/user/agentsTerrain/page.tsx (onglet collecteJour,
+ section client expandable, lignes ~2029-2110).
+
+ - Sur chaque ligne crédit : ajouter un bouton « Payer par CC » à côté d'«
+ Encaisser » — réutilise la logique de lookup CC déjà codée dans l'onglet
+ Ventes (vCcInfo), ouvre un mini-modal montant, appelle
+ /api/comptes-courants/[id]/paiements.
+ - Sur l'en-tête client (dans la carte dépliée) : ajouter « Vendre » (ouvre le
+ formulaire de vente existant de l'onglet Ventes, pré-rempli avec ce client) et
+ « Vendre un carnet » (montant par défaut 300, un clic) et « Marquer visité »
+ (si rien à collecter chez ce client).
+ - Ajouter un panneau « Résumé de la session » en haut de l'onglet (au-dessus
+ ou à la place de la barre de progression actuelle) : nouvelle fonction
+ calculerResumeSessionJour(collecteId) dans lib/popc/realisationsServer.ts
+ (version journalière de calculerTableauCommercial, groupée par
+ LigneCollecte.type) — affiche compteurs et montants par type (crédits
+ collectés, packs encaissés, ventes, CC, carnets, visites, nouveaux clients).
+
+ Phase E (optionnelle, UX) — Unifier avec « Ma tournée »
+
+ /dashboard/user/agentsTerrain/tournee (liste priorisée, crédits uniquement,
+ via genererTournee()) et l'onglet « Collecte du jour » (packs + crédits,
+ actions) restent aujourd'hui deux vues séparées avec des périmètres
+ différents. À évaluer une fois les phases A-D livrées : soit garder les deux
+ (tournée = vue priorisée en lecture seule, collecte du jour = vue d'action),
+ soit fusionner en injectant le tri par priorité de genererTournee() dans la
+ liste de clients de l'onglet « Collecte du jour ». Ne pas trancher maintenant
+ — décision à prendre après retour terrain sur les phases précédentes.
+
+ Fichiers clés
+
+ - prisma/schema.prisma (modèles LigneCollecte, VersementPack, VenteCarnet,
+ VisiteClient)
+ - lib/remboursementCredit.ts, lib/remboursementScope.ts (existants,
+ réutilisés)
+ - lib/versementPack.ts (nouveau, extrait de la route caissier)
+ - app/api/agentTerrain/collecteJour/[id]/encaisser/route.ts (modifié)
+ - app/api/agentTerrain/collecteJour/[id]/carnet/route.ts, .../visiter/route.ts
+ (nouveaux)
+ - app/api/agentTerrain/credits/[id]/rembourser/route.ts (modifié)
+ - app/api/caissier/versements/[id]/confirmer/route.ts (refactor pour
+ réutiliser enregistrerVersementPack)
+ - lib/popc/realisationsServer.ts (nouvelle fonction résumé journalier)
+ - app/dashboard/user/agentsTerrain/page.tsx (onglet Collecte du jour enrichi)
+
+ Vérification
+
+ - npm run build (build complet, pas seulement tsc) après chaque phase —
+ pattern déjà suivi dans ce projet.
+ - Test manuel bout en bout par phase : démarrer une session agent, encaisser
+ un crédit → vérifier instantanément EcheanceCredit/CreditClient.soldeRestant
+ mis à jour + LigneCollecte créée ; idem pack ; payer par CC depuis la session
+ ; vendre un carnet ; marquer une visite ; vérifier le panneau résumé de
+ session en fin de journée.
+ - Vérifier que les flux existants non-agents (admin/RVC/caissier « saisie
+ rapide », confirmation caissier des packs pour les autres cas) ne sont pas
+ cassés par le refactor (comportement inchangé attendu, confirmer reste true
+ pour eux comme avant).
+╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌

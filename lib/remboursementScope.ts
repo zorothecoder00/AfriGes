@@ -55,13 +55,14 @@ export async function scopeCaissier(): Promise<ScopeOut> {
   return { ok: true, scope: { where, userId, agentCollecteurDefault: userId, confirmer: true } };
 }
 
-/** Agent terrain : ses clients affectés, en attente de confirmation caissier. */
+/** Agent terrain : ses clients affectés, encaissement confirmé immédiatement. */
 export async function scopeAgentTerrain(): Promise<ScopeOut> {
   const session = await getAgentTerrainSession();
   if (!session) return refus("Accès refusé", 403);
   const userId = parseInt(session.user.id);
   const isAdmin = session.user.role === "ADMIN" || session.user.role === "SUPER_ADMIN";
   const where: Prisma.CreditClientWhereInput = isAdmin ? {} : { client: { agentTerrainId: userId } };
-  // L'agent collecteur par défaut est l'agent lui-même ; saisie en attente caissier.
-  return { ok: true, scope: { where, userId, agentCollecteurDefault: userId, confirmer: false } };
+  // L'agent collecteur par défaut est l'agent lui-même ; effet financier immédiat
+  // (le contrôle a posteriori se fait via l'audit + le flag fraude sur la session).
+  return { ok: true, scope: { where, userId, agentCollecteurDefault: userId, confirmer: true } };
 }

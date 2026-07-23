@@ -316,6 +316,18 @@ enum StatutLigneCollecte {
   ECHEC       // client absent, refus, etc.
 }
 
+// Type d'activité journalisée dans une session de collecte (LigneCollecte).
+// PACK reste la valeur par défaut pour compatibilité avec les lignes existantes.
+enum TypeActiviteCollecte {
+  PACK            // encaissement d'une échéance de pack (souscriptionId renseigné)
+  CREDIT          // remboursement de crédit (creditId renseigné)
+  VENTE           // vente directe (venteDirecteId renseigné)
+  CC              // paiement crédit par compte courant (creditId + mouvement CC)
+  CARNET          // vente de carnet (venteCarnetId renseigné)
+  VISITE          // visite sans collecte (visiteId renseigné)
+  NOUVEAU_CLIENT  // client recruté pendant la session (clientNouveauId renseigné)
+}
+
 enum StatutReceptionPack {
   PLANIFIEE
   EN_ROUTE
@@ -1358,13 +1370,22 @@ model CollecteJournaliere {
   @@index([pointDeVenteId])
 }
 
-// Un encaissement dans une session de collecte → lié à une SouscriptionPack
+// Une ligne d'activité dans une session de collecte (journal de la journée de
+// l'agent) : PACK à l'origine, généralisé aux crédits/ventes/CC/carnets/visites/
+// nouveaux clients. `type` distingue la nature de la ligne ; selon le type, une
+// seule des références optionnelles (souscriptionId/creditId/...) est renseignée.
 model LigneCollecte {
   id               Int                  @id @default(autoincrement())
   collecteId       Int
   clientId         Int
-  souscriptionId   Int                  // SouscriptionPack concernée
-  montantAttendu   Decimal              // montant de l'échéance prévue
+  type             TypeActiviteCollecte @default(PACK)
+  souscriptionId   Int?                 // type PACK : SouscriptionPack concernée
+  creditId         Int?                 // type CREDIT/CC : CreditClient concerné (référence libre, sans relation Prisma)
+  venteDirecteId   Int?                 // type VENTE : VenteDirecte concernée (référence libre, sans relation Prisma)
+  venteCarnetId    Int?                 // type CARNET : VenteCarnet concernée (référence libre, sans relation Prisma)
+  visiteId         Int?                 // type VISITE : VisiteClient concernée (référence libre, sans relation Prisma)
+  clientNouveauId  Int?                 // type NOUVEAU_CLIENT : Client recruté (référence libre, sans relation Prisma)
+  montantAttendu   Decimal              // montant de l'échéance prévue (0 pour VISITE/NOUVEAU_CLIENT)
   montantCollecte  Decimal              @default(0)
   statut           StatutLigneCollecte  @default(EN_ATTENTE)
   notes            String?
@@ -1379,7 +1400,7 @@ model LigneCollecte {
 
   collecte         CollecteJournaliere  @relation(fields: [collecteId],     references: [id], onDelete: Cascade)
   client           Client               @relation(fields: [clientId],       references: [id])
-  souscription     SouscriptionPack     @relation(fields: [souscriptionId], references: [id])
+  souscription     SouscriptionPack?    @relation(fields: [souscriptionId], references: [id])
   versementPack    VersementPack?       @relation(fields: [versementPackId], references: [id])
 
   createdAt DateTime @default(now())
@@ -1388,6 +1409,7 @@ model LigneCollecte {
   @@index([collecteId])
   @@index([clientId])
   @@index([souscriptionId])
+  @@index([type])
 }
   
 // ============================================================

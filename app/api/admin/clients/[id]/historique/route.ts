@@ -29,7 +29,7 @@ export async function GET(req: Request, { params }: Ctx) {
     const [lignesCollecte, versements, ventes, credits, remboursementsCredit, auditLogs] = await Promise.all([
 
       prisma.ligneCollecte.findMany({
-        where: { clientId },
+        where: { clientId, type: "PACK" },
         select: {
           id:              true,
           montantCollecte: true,
@@ -131,7 +131,7 @@ export async function GET(req: Request, { params }: Ctx) {
         id:      `col-${l.id}`,
         type:    'COLLECTE' as const,
         date:    l.collecte.dateCollecte.toISOString(),
-        titre:   `Collecte – ${l.souscription.pack.nom}`,
+        titre:   `Collecte – ${l.souscription!.pack.nom}`,
         detail:  `Agent : ${l.collecte.agent.prenom} ${l.collecte.agent.nom} · Réf : ${l.collecte.reference}`,
         montant: Number(l.montantCollecte),
         statut:  l.statut,
