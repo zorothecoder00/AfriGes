@@ -5,7 +5,7 @@ import {
   TrendingUp, Users, UserCheck, Package, Layers,
   ShoppingCart, MoreVertical, Download, Plus, ChevronDown, MessageSquare, Store, Shield,
   Activity, AlertTriangle, CheckCircle, XCircle, Wallet, BarChart2, Truck, RefreshCw,
-  Calendar, CreditCard, TrendingDown, DollarSign, Clock, Award, Percent, ClipboardCheck,
+  CreditCard, TrendingDown, DollarSign, Clock, Award, Percent, ClipboardCheck,
   UserCog, Network, FileText, BookOpen, FolderOpen, Lock, GitBranch, Target,
 } from 'lucide-react';
 import Link from "next/link";     
@@ -462,10 +462,7 @@ export default function AfriGesDashboard() {
             <div className="p-4 border-b border-slate-100">
               <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Clientèle</h3>
               <nav className="space-y-1">
-                <Link href="/dashboard/admin/clients"       className="w-full flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-50 rounded-xl transition-all"><UserCheck size={20} /><span>{t('nav_clients')}</span></Link>
-                <Link href="/dashboard/admin/creances"      className="w-full flex items-center gap-3 px-4 py-2.5 pl-10 text-slate-500 hover:bg-slate-50 rounded-xl transition-all text-sm"><AlertTriangle size={16} /><span>Créances</span></Link>
-                <Link href="/dashboard/admin/collectes"     className="w-full flex items-center gap-3 px-4 py-2.5 pl-10 text-slate-500 hover:bg-slate-50 rounded-xl transition-all text-sm"><Calendar size={16} /><span>Collectes</span></Link>
-                <Link href="/dashboard/admin/remboursements" className="w-full flex items-center gap-3 px-4 py-2.5 pl-10 text-slate-500 hover:bg-slate-50 rounded-xl transition-all text-sm"><CreditCard size={16} /><span>Remboursements</span></Link>
+                <Link href="/dashboard/admin/clients" className="w-full flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-50 rounded-xl transition-all"><UserCheck size={20} /><span>{t('nav_clients')}</span></Link>
               </nav>
             </div>
             <div className="p-4 border-b border-slate-100">
@@ -510,12 +507,7 @@ export default function AfriGesDashboard() {
             <div className="p-4 border-b border-slate-100">
               <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">POPC — Planification</h3>
               <nav className="space-y-1">
-                <Link href="/dashboard/admin/popc"            className="w-full flex items-center gap-3 px-4 py-2.5 text-slate-600 hover:bg-slate-50 rounded-xl transition-all font-medium"><Target size={18} /><span>Objectifs &amp; paramétrage</span></Link>
-                <Link href="/dashboard/admin/popc/livraisons" className="w-full flex items-center gap-3 px-4 py-2.5 pl-10 text-slate-500 hover:bg-slate-50 rounded-xl transition-all text-sm"><CreditCard size={16} /><span>Planif. crédits</span></Link>
-                <Link href="/dashboard/admin/popc/suivi"      className="w-full flex items-center gap-3 px-4 py-2.5 pl-10 text-slate-500 hover:bg-slate-50 rounded-xl transition-all text-sm"><Calendar size={16} /><span>Suivi journalier</span></Link>
-                <Link href="/dashboard/admin/popc/direction"  className="w-full flex items-center gap-3 px-4 py-2.5 pl-10 text-slate-500 hover:bg-slate-50 rounded-xl transition-all text-sm"><BarChart2 size={16} /><span>Pilotage Direction</span></Link>
-                <Link href="/dashboard/admin/popc/alertes"    className="w-full flex items-center gap-3 px-4 py-2.5 pl-10 text-slate-500 hover:bg-slate-50 rounded-xl transition-all text-sm"><AlertTriangle size={16} /><span>Alertes</span></Link>
-                <Link href="/dashboard/admin/popc/rapports"   className="w-full flex items-center gap-3 px-4 py-2.5 pl-10 text-slate-500 hover:bg-slate-50 rounded-xl transition-all text-sm"><FileText size={16} /><span>Rapports</span></Link>
+                <Link href="/dashboard/admin/popc" className="w-full flex items-center gap-3 px-4 py-2.5 text-slate-600 hover:bg-slate-50 rounded-xl transition-all font-medium"><Target size={18} /><span>Objectifs &amp; paramétrage</span></Link>
               </nav>
             </div>
             {/* Visible pour ADMIN et SUPER_ADMIN */}
