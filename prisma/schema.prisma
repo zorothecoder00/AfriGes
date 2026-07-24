@@ -692,6 +692,7 @@ model User {
   bonsCommandeApprouves  BonCommande[] @relation("BonCommandeApprobateur")
   bonsCommandeEnvoyes    BonCommande[] @relation("BonCommandeEnvoyeur")
   bonsCommandeSignes     BonCommande[] @relation("BonCommandeSignataire")
+  evenementsImportationCrees EvenementImportation[] @relation("EvenementImportationCreateur")
   transfertsCrees      TransfertStock[]     @relation("CreateurTransfert")
   transfertsValides    TransfertStock[]     @relation("ValidateurTransfert")
   inventairesRealises  InventaireSite[]     @relation("RealisateurInventaire")
@@ -1481,6 +1482,7 @@ model Fournisseur {
   reponsesRFQ ReponseRFQ[]                    // cotations soumises par ce fournisseur
   rfqRetenues DemandeCotation[] @relation("RFQFournisseurRetenu") // RFQ où ce fournisseur a été retenu
   bonsCommande BonCommande[]                  // bons de commande émis vers ce fournisseur
+  importationsTransitees Importation[] @relation("ImportationTransitaire") // en tant que transitaire (type TRANSPORTEUR)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2346,8 +2348,9 @@ model BonCommande {
   signePar        User?     @relation("BonCommandeSignataire", fields: [signeParId], references: [id])
   dateSignature   DateTime?
 
-  lignes     LigneBonCommande[]
-  receptions ReceptionApprovisionnement[]
+  lignes      LigneBonCommande[]
+  receptions  ReceptionApprovisionnement[]
+  importation Importation?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2368,6 +2371,66 @@ model LigneBonCommande {
   quantiteRecue Int      @default(0) // alimenté à la réception, pilote PARTIALLY_DELIVERED/COMPLETED
 
   @@index([bonCommandeId])
+}
+
+// ============================================================
+// IMPORTATIONS — CDC Approvisionnement §9
+// Rattachée à un bon de commande (achat international). "Suivi temps réel" :
+// pas d'intégration transporteur/API douane — journal de checkpoints saisis
+// manuellement par l'agent appro au fil des informations reçues du transitaire,
+// pas un flux GPS/EDI automatique.
+// ============================================================
+
+model Importation {
+  id            Int         @id @default(autoincrement())
+  bonCommandeId Int         @unique
+  bonCommande   BonCommande @relation(fields: [bonCommandeId], references: [id])
+
+  paysOrigine     String?
+  portDepart      String?
+  portArrivee     String?
+  numeroConteneur String?
+  incoterm        String? // EXW, FOB, CIF, DDP… (texte libre — trop de variantes pour un enum strict)
+
+  // Transitaire — peut être un Fournisseur déjà enregistré (type TRANSPORTEUR) ou une saisie libre
+  transitaireId  Int?
+  transitaire    Fournisseur? @relation("ImportationTransitaire", fields: [transitaireId], references: [id])
+  transitaireNom String?
+
+  referenceDouane  String?
+  dateDedouanement DateTime?
+  assurancePolice  String?
+  assuranceMontant Decimal?
+
+  dateETD           DateTime? // date de départ estimée
+  dateETA           DateTime? // date d'arrivée estimée
+  dateArriveeReelle DateTime?
+
+  notes String?
+
+  evenements EvenementImportation[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+/// Checkpoint de suivi (CDC §9 "suivi temps réel") — saisie manuelle datée.
+model EvenementImportation {
+  id            Int         @id @default(autoincrement())
+  importationId Int
+  importation   Importation @relation(fields: [importationId], references: [id], onDelete: Cascade)
+
+  date        DateTime           @default(now())
+  statut      StatutLivraisonPO? // réutilise l'échelle du PO si le checkpoint correspond à une étape
+  lieu        String?
+  commentaire String?
+
+  creeParId Int
+  creePar   User @relation("EvenementImportationCreateur", fields: [creeParId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@index([importationId])
 }
 
 // ============================================================

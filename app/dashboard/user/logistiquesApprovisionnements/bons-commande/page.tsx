@@ -398,6 +398,11 @@ function DetailModal({ id, onClose, onUpdated }: { id: number; onClose: () => vo
               )}
 
               {b.notes && <p className="text-sm text-slate-500 italic border-t border-slate-100 pt-3">{b.notes}</p>}
+
+              {/* Importation (achat international) */}
+              <div className="pt-3 border-t border-slate-100">
+                <ImportationSection bonId={b.id} />
+              </div>
             </>
           )}
         </div>
@@ -433,6 +438,198 @@ function DetailModal({ id, onClose, onUpdated }: { id: number; onClose: () => vo
             )}
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+// ── Importation (achat international, CDC §9) ──────────────────────────────────
+
+interface EvenementImportation {
+  id: number; date: string; statut: string | null; lieu: string | null; commentaire: string | null;
+  creePar: { nom: string; prenom: string };
+}
+interface ImportationData {
+  id: number; paysOrigine: string | null; portDepart: string | null; portArrivee: string | null;
+  numeroConteneur: string | null; incoterm: string | null;
+  transitaire: { id: number; nom: string } | null; transitaireNom: string | null;
+  referenceDouane: string | null; dateDedouanement: string | null;
+  assurancePolice: string | null; assuranceMontant: number | string | null;
+  dateETD: string | null; dateETA: string | null; dateArriveeReelle: string | null;
+  notes: string | null;
+  evenements: EvenementImportation[];
+}
+
+const IMPORT_FIELDS_EMPTY = {
+  paysOrigine: "", portDepart: "", portArrivee: "", numeroConteneur: "", incoterm: "",
+  transitaireNom: "", referenceDouane: "", assurancePolice: "", assuranceMontant: "",
+  dateETD: "", dateETA: "", notes: "",
+};
+
+function ImportationSection({ bonId }: { bonId: number }) {
+  const { data, loading, refetch } = useApi<{ data: ImportationData | null }>(`/api/logistique/bons-commande/${bonId}/importation`);
+  const [editMode, setEditMode] = useState(false);
+  const [form, setForm] = useState(IMPORT_FIELDS_EMPTY);
+  const [saving, setSaving] = useState(false);
+  const [showEvent, setShowEvent] = useState(false);
+
+  const imp = data?.data ?? null;
+
+  const startEdit = () => {
+    if (imp) {
+      setForm({
+        paysOrigine: imp.paysOrigine ?? "", portDepart: imp.portDepart ?? "", portArrivee: imp.portArrivee ?? "",
+        numeroConteneur: imp.numeroConteneur ?? "", incoterm: imp.incoterm ?? "",
+        transitaireNom: imp.transitaire?.nom ?? imp.transitaireNom ?? "",
+        referenceDouane: imp.referenceDouane ?? "", assurancePolice: imp.assurancePolice ?? "",
+        assuranceMontant: imp.assuranceMontant != null ? String(imp.assuranceMontant) : "",
+        dateETD: imp.dateETD ? imp.dateETD.slice(0, 10) : "", dateETA: imp.dateETA ? imp.dateETA.slice(0, 10) : "",
+        notes: imp.notes ?? "",
+      });
+    }
+    setEditMode(true);
+  };
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      const r = await fetch(`/api/logistique/bons-commande/${bonId}/importation`, {
+        method: imp ? "PATCH" : "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+      if (r.ok) { toast.success(imp ? "Suivi import mis à jour" : "Suivi import créé"); setEditMode(false); refetch(); }
+      else toast.error("Erreur");
+    } finally { setSaving(false); }
+  };
+
+  if (loading) return null;
+
+  if (!imp && !editMode) {
+    return (
+      <button onClick={() => setEditMode(true)} className="flex items-center gap-1.5 text-xs text-emerald-600 hover:text-emerald-700 font-medium">
+        <Plus className="w-3.5 h-3.5" /> Renseigner un suivi import (achat international)
+      </button>
+    );
+  }
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-2">
+        <p className="text-xs font-semibold text-slate-500 uppercase">Suivi import</p>
+        {!editMode && <button onClick={startEdit} className="text-xs text-emerald-600 hover:text-emerald-700 font-medium">Modifier</button>}
+      </div>
+
+      {editMode ? (
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            <Field label="Pays d'origine"><input value={form.paysOrigine} onChange={(e) => setForm((f) => ({ ...f, paysOrigine: e.target.value }))} className={inputCls} /></Field>
+            <Field label="Port de départ"><input value={form.portDepart} onChange={(e) => setForm((f) => ({ ...f, portDepart: e.target.value }))} className={inputCls} /></Field>
+            <Field label="Port d'arrivée"><input value={form.portArrivee} onChange={(e) => setForm((f) => ({ ...f, portArrivee: e.target.value }))} className={inputCls} /></Field>
+            <Field label="N° conteneur"><input value={form.numeroConteneur} onChange={(e) => setForm((f) => ({ ...f, numeroConteneur: e.target.value }))} className={inputCls} /></Field>
+            <Field label="Incoterm"><input value={form.incoterm} onChange={(e) => setForm((f) => ({ ...f, incoterm: e.target.value }))} placeholder="FOB, CIF, DDP…" className={inputCls} /></Field>
+            <Field label="Transitaire"><input value={form.transitaireNom} onChange={(e) => setForm((f) => ({ ...f, transitaireNom: e.target.value }))} className={inputCls} /></Field>
+            <Field label="Réf. douane"><input value={form.referenceDouane} onChange={(e) => setForm((f) => ({ ...f, referenceDouane: e.target.value }))} className={inputCls} /></Field>
+            <Field label="N° police d'assurance"><input value={form.assurancePolice} onChange={(e) => setForm((f) => ({ ...f, assurancePolice: e.target.value }))} className={inputCls} /></Field>
+            <Field label="Montant assuré"><input type="number" value={form.assuranceMontant} onChange={(e) => setForm((f) => ({ ...f, assuranceMontant: e.target.value }))} className={inputCls} /></Field>
+            <Field label="Date ETD"><input type="date" value={form.dateETD} onChange={(e) => setForm((f) => ({ ...f, dateETD: e.target.value }))} className={inputCls} /></Field>
+            <Field label="Date ETA"><input type="date" value={form.dateETA} onChange={(e) => setForm((f) => ({ ...f, dateETA: e.target.value }))} className={inputCls} /></Field>
+          </div>
+          <Field label="Notes"><textarea rows={2} value={form.notes} onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))} className={`${inputCls} resize-y`} /></Field>
+          <div className="flex justify-end gap-2">
+            <button onClick={() => setEditMode(false)} className="px-3 py-1.5 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50">Annuler</button>
+            <button onClick={save} disabled={saving} className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50">
+              {saving ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />} Enregistrer
+            </button>
+          </div>
+        </div>
+      ) : imp && (
+        <>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-1 text-xs text-slate-600 mb-3">
+            {imp.paysOrigine && <p><span className="text-slate-400">Origine :</span> {imp.paysOrigine}</p>}
+            {imp.portDepart && <p><span className="text-slate-400">Départ :</span> {imp.portDepart}</p>}
+            {imp.portArrivee && <p><span className="text-slate-400">Arrivée :</span> {imp.portArrivee}</p>}
+            {imp.numeroConteneur && <p><span className="text-slate-400">Conteneur :</span> {imp.numeroConteneur}</p>}
+            {imp.incoterm && <p><span className="text-slate-400">Incoterm :</span> {imp.incoterm}</p>}
+            {(imp.transitaire?.nom || imp.transitaireNom) && <p><span className="text-slate-400">Transitaire :</span> {imp.transitaire?.nom ?? imp.transitaireNom}</p>}
+            {imp.referenceDouane && <p><span className="text-slate-400">Réf. douane :</span> {imp.referenceDouane}</p>}
+            {imp.dateETD && <p><span className="text-slate-400">ETD :</span> {formatDate(imp.dateETD)}</p>}
+            {imp.dateETA && <p><span className="text-slate-400">ETA :</span> {formatDate(imp.dateETA)}</p>}
+          </div>
+
+          <div className="flex items-center justify-between mb-1.5">
+            <p className="text-[11px] font-semibold text-slate-400 uppercase">Suivi (checkpoints)</p>
+            <button onClick={() => setShowEvent(true)} className="flex items-center gap-1 text-xs text-emerald-600 hover:text-emerald-700 font-medium"><Plus className="w-3 h-3" /> Ajouter</button>
+          </div>
+          {imp.evenements.length === 0 ? (
+            <p className="text-xs text-slate-400">Aucun événement enregistré</p>
+          ) : (
+            <div className="space-y-1.5">
+              {imp.evenements.map((e) => (
+                <div key={e.id} className="flex items-start gap-2 text-xs">
+                  <span className="text-slate-400 flex-shrink-0 w-24">{formatDate(e.date)}</span>
+                  <div className="flex-1">
+                    <span className="text-slate-700">
+                      {e.statut && <span className="font-medium">{LIVRAISON_ETAPES.find((s) => s.key === e.statut)?.label ?? e.statut} — </span>}
+                      {e.lieu && `${e.lieu} — `}{e.commentaire}
+                    </span>
+                    <span className="text-slate-400"> ({e.creePar.prenom} {e.creePar.nom})</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+
+      {showEvent && imp && <EvenementModal bonId={bonId} onClose={() => setShowEvent(false)} onSaved={() => { setShowEvent(false); refetch(); }} />}
+    </div>
+  );
+}
+
+function EvenementModal({ bonId, onClose, onSaved }: { bonId: number; onClose: () => void; onSaved: () => void }) {
+  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [statut, setStatut] = useState("");
+  const [lieu, setLieu] = useState("");
+  const [commentaire, setCommentaire] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const handleSubmit = async () => {
+    setSaving(true);
+    try {
+      const r = await fetch(`/api/logistique/bons-commande/${bonId}/importation/evenements`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ date, statut: statut || undefined, lieu: lieu || undefined, commentaire: commentaire || undefined }),
+      });
+      if (r.ok) { toast.success("Checkpoint ajouté"); onSaved(); }
+      else toast.error("Erreur");
+    } finally { setSaving(false); }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
+          <h2 className="font-semibold text-slate-900">Nouveau checkpoint</h2>
+          <button onClick={onClose} className="p-1.5 hover:bg-slate-100 rounded-lg"><X className="w-4 h-4" /></button>
+        </div>
+        <div className="p-6 space-y-4">
+          <Field label="Date"><input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={inputCls} /></Field>
+          <Field label="Étape (facultatif)">
+            <select value={statut} onChange={(e) => setStatut(e.target.value)} className={`${inputCls} bg-white`}>
+              <option value="">— Aucune —</option>
+              {LIVRAISON_ETAPES.map((e) => <option key={e.key} value={e.key}>{e.label}</option>)}
+            </select>
+          </Field>
+          <Field label="Lieu"><input value={lieu} onChange={(e) => setLieu(e.target.value)} className={inputCls} /></Field>
+          <Field label="Commentaire"><textarea rows={2} value={commentaire} onChange={(e) => setCommentaire(e.target.value)} className={`${inputCls} resize-y`} /></Field>
+        </div>
+        <div className="flex justify-end gap-3 px-6 py-4 border-t border-slate-200">
+          <button onClick={onClose} className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 rounded-lg border border-slate-200">Annuler</button>
+          <button onClick={handleSubmit} disabled={saving}
+            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 disabled:opacity-50">
+            {saving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Ajouter
+          </button>
+        </div>
       </div>
     </div>
   );
