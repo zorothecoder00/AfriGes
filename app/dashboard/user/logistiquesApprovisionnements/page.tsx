@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
+import Link from "next/link";
 import {
   Truck, Package, ArrowUpCircle, ArrowDownCircle, Search,
   RefreshCw, AlertTriangle, Archive, CheckCircle, ClipboardList,
@@ -780,13 +781,43 @@ export default function LogistiqueApprovisionnementPage() {
               Réceptionnez les produits, affectez-les aux points de vente et suivez tous les mouvements.
             </p>
           </div>
-          <button
-            onClick={refetchAll}
-            className="self-start px-5 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-700 hover:bg-slate-50 transition-all shadow-sm flex items-center gap-2 font-medium"
-          >
-            <RefreshCw size={16} />
-            Actualiser
-          </button>
+          <div className="flex items-center gap-2 self-start">
+            <Link
+              href="/dashboard/user/logistiquesApprovisionnements/fournisseurs"
+              className="px-5 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-700 hover:bg-slate-50 transition-all shadow-sm flex items-center gap-2 font-medium"
+            >
+              <Truck size={16} />
+              Fournisseurs
+            </Link>
+            <Link
+              href="/dashboard/user/logistiquesApprovisionnements/mrp"
+              className="px-5 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-700 hover:bg-slate-50 transition-all shadow-sm flex items-center gap-2 font-medium"
+            >
+              <TrendingUp size={16} />
+              Besoins (MRP)
+            </Link>
+            <Link
+              href="/dashboard/user/logistiquesApprovisionnements/rfq"
+              className="px-5 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-700 hover:bg-slate-50 transition-all shadow-sm flex items-center gap-2 font-medium"
+            >
+              <Search size={16} />
+              Demandes de cotation
+            </Link>
+            <Link
+              href="/dashboard/user/logistiquesApprovisionnements/bons-commande"
+              className="px-5 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-700 hover:bg-slate-50 transition-all shadow-sm flex items-center gap-2 font-medium"
+            >
+              <ClipboardList size={16} />
+              Bons de commande
+            </Link>
+            <button
+              onClick={refetchAll}
+              className="px-5 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-700 hover:bg-slate-50 transition-all shadow-sm flex items-center gap-2 font-medium"
+            >
+              <RefreshCw size={16} />
+              Actualiser
+            </button>
+          </div>
         </div>
 
         {/* ── Stats ── */}

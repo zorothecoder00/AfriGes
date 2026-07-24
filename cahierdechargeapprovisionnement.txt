@@ -1,0 +1,91 @@
+Voici l'état des lieux croisé avec le cahier des charges. Le socle existe déjà
+  mais sous une forme plus simple ; certaines parties du CDC sont soit déjà
+  couvertes, soit largement plus ambitieuses que l'architecture actuelle.
+
+  Ce qui existe déjà (à ne pas reconstruire)
+
+  Section CDC: §3 Multi-entrepôts, §13 Transferts
+  Existant AfriGes: PointDeVente (type PDV/DEPOT_CENTRAL) + TransfertStock
+  complet (workflow EN_COURS→EXPEDIE→RECU)
+  ────────────────────────────────────────
+  Section CDC: §5 Catalogue produits
+  Existant AfriGes: Module complet 12/12 déjà livré — SKU, code-barres, QR,
+  poids/volume, colisage, classification, fournisseur principal
+  ────────────────────────────────────────
+  Section CDC: §6 DLC/lot/FEFO
+  Existant AfriGes: LotProduit + lib/lotsFefo.ts (FEFO déjà implémenté)
+  ────────────────────────────────────────
+  Section CDC: §7 Commande→réception
+  Existant AfriGes: ReceptionApprovisionnement (un seul document à statuts
+  BROUILLON→EN_COURS→RECU→VALIDE, workflow agent logistique→admin) +
+  CommandeInterne pour les demandes PDV→dépôt
+  ────────────────────────────────────────
+  Section CDC: §8 Fournisseurs (basique)
+  Existant AfriGes: model Fournisseur — mais champs très pauvres
+  ────────────────────────────────────────
+  Section CDC: §11 Stocks (disponible/réservé/transit)
+  Existant AfriGes: StockSite a déjà quantite, quantiteReservee,
+  quantiteEnTransit, quantiteEndommagee
+  ────────────────────────────────────────
+  Section CDC: §12 Alertes stock/péremption
+  Existant AfriGes: Calculées à la volée (rupture, faible, surstock, casse) +
+  endpoint dédié péremption lots
+  ────────────────────────────────────────
+  Section CDC: §18 RBAC
+  Existant AfriGes: AGENT_LOGISTIQUE_APPROVISIONNEMENT + MAGAZINIER, namespaces
+  API séparés
+
+  Ce qui manque réellement
+
+  ┌──────────────┬──────────────────────────────────────────────────────────┐
+  │ Section CDC  │                          Manque                          │
+  ├──────────────┼──────────────────────────────────────────────────────────┤
+  │ §8 Fiche     │ Pas de code auto, pays, devise, banque, RCCM, NIF, TVA,  │
+  │ fournisseur  │ contrats, type, évaluation/notation. Aucune page CRUD    │
+  │              │ fournisseurs (juste des dropdowns)                       │
+  ├──────────────┼──────────────────────────────────────────────────────────┤
+  │              │ Pas de vrai calcul besoin net (prévision − stock −       │
+  │ §6 MRP       │ commandes en cours + sécurité) ; les "prévisions"        │
+  │              │ actuelles se basent sur les souscriptions de packs, pas  │
+  │              │ un moteur MRP                                            │
+  ├──────────────┼──────────────────────────────────────────────────────────┤
+  │ §7 Étapes    │ Pas d'agrégation multi-agences, pas de RFQ (demande de   │
+  │ 3-6          │ cotation), pas de comparatif fournisseurs                │
+  ├──────────────┼──────────────────────────────────────────────────────────┤
+  │              │ Pas de séparation Bon de Commande / Bon de Réception,    │
+  │ §7 Étape 7   │ pas de numérotation PO-TG-2026-xxxxx, pas de             │
+  │              │ PDF/signature électronique                               │
+  ├──────────────┼──────────────────────────────────────────────────────────┤
+  │ §9           │ Rien (pays                                               │
+  │ Importations │ origine/port/conteneur/incoterm/transitaire/douane/ETA)  │
+  ├──────────────┼──────────────────────────────────────────────────────────┤
+  │ §3, §4       │ Seulement 2 types de site (PDV/DEPOT_CENTRAL), pas de    │
+  │ Hiérarchie   │ plateformes régionales GPS/capacité/seuil sécurité       │
+  │ entrepôts    │                                                          │
+  ├──────────────┼──────────────────────────────────────────────────────────┤
+  │ §12 Alertes  │ Pas de notifications automatiques poussées (RH a un cron │
+  │ push         │  dédié, stock non)                                       │
+  ├──────────────┼──────────────────────────────────────────────────────────┤
+  │ §14          │ Plusieurs dashboards partiels existent, aucun consolidé  │
+  │ Dashboard    │ avec les KPI du CDC (économie réalisée, fiabilité        │
+  │ Supply Chain │ fournisseurs, carte géographique)                        │
+  │  consolidé   │                                                          │
+  ├──────────────┼──────────────────────────────────────────────────────────┤
+  │ §16 BI/IA    │ Rien                                                     │
+  │ prédictive   │                                                          │
+  ├──────────────┼──────────────────────────────────────────────────────────┤
+  │              │ AuditLog existe déjà globalement dans l'app (pas         │
+  │ §15 Audit    │ spécifique au module) — à vérifier s'il couvre ce        │
+  │              │ périmètre                                                │
+  └──────────────┴──────────────────────────────────────────────────────────┘
+
+  Point d'attention — §19 Architecture technique
+
+  Le CDC demande microservices, multi-tenant, Kubernetes, RabbitMQ,
+  Elasticsearch, pour supporter 50 000 agences / 1M produits / 1M commandes par
+  mois. AfriGes est aujourd'hui un monolithe Next.js + Prisma + PostgreSQL
+  (Vercel), single-tenant, pour une entreprise togolaise. Ce n'est pas quelque
+  chose que je vais essayer d'implémenter littéralement — ça ressemble à du
+  texte de CDC générique/aspirationnel plutôt qu'un besoin réel à ce stade. Je
+  le mets de côté sauf si tu me dis explicitement que c'est voulu.
+

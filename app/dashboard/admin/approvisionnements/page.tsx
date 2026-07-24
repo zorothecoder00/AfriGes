@@ -3,7 +3,7 @@
 import React, { useState, useMemo, useRef } from "react";
 import {
   Package, CheckCircle, XCircle, Clock, RefreshCw,
-  ChevronDown, ChevronUp, Truck, Search, ChevronLeft, ChevronRight, ArrowLeft,
+  ChevronDown, ChevronUp, Truck, Search, ChevronLeft, ChevronRight, ArrowLeft, ClipboardList, TrendingUp,
 } from "lucide-react";
 import Link from "next/link";
 import { useApi, useMutation } from "@/hooks/useApi";
@@ -160,9 +160,23 @@ export default function AdminApprovisionnementsPage() {
             Approuvez les commandes d&apos;achat du responsable approvisionnement · vérifiez les prix et fournisseurs
           </p>
         </div>
-        <button onClick={() => refetch()} className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors">
-          <RefreshCw size={15} />Actualiser
-        </button>
+        <div className="flex items-center gap-2">
+          <Link href="/dashboard/user/logistiquesApprovisionnements/fournisseurs" className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors">
+            <Truck size={15} />Fournisseurs
+          </Link>
+          <Link href="/dashboard/user/logistiquesApprovisionnements/mrp" className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors">
+            <TrendingUp size={15} />MRP
+          </Link>
+          <Link href="/dashboard/user/logistiquesApprovisionnements/rfq" className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors">
+            <Search size={15} />RFQ
+          </Link>
+          <Link href="/dashboard/user/logistiquesApprovisionnements/bons-commande" className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors">
+            <ClipboardList size={15} />Bons de commande
+          </Link>
+          <button onClick={() => refetch()} className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors">
+            <RefreshCw size={15} />Actualiser
+          </button>
+        </div>
       </div>
 
       {/* Stat cards */}

@@ -139,27 +139,6 @@ Revoir le dashboard financier et même les autres ( tableau de bord admin/SUPERA
 
 
 
-J'espère que les ResponsablesRH ont accès à tous les documentsRH comme l'admin et que les collaborateurs RH eux aussi ont évidement la possibilité de voir les documents qui les concernent ( get et post si un collaborateur doit faire une demande ...)
-
-
-13 des 14 manques confirmés implémentés dans cette session :
-  1. Feuille de pointage individuelle imprimable
-  2. Vue imprimable demande/autorisation de congé
-  3. Planning congés annuel (UI)
-  4. ⏳ État CNSS/fiscal — reste bloqué, en attente de vos taux réels
-  5. Export Excel Avances & Prêts
-  6. Vue imprimable fiche d'évaluation
-  7. CRUD actions PDI — déjà fait avant l'audit, rien à changer
-  8. Template "convocation formation"
-  9. Feuille de présence imprimable (session formation)
-  10. Document déclaration d'accident généré/imprimable
-  11. Export des registres SST (accidents/visites/registre/incidents)
-  12. Fix label PLAN_EVACUATION manquant
-  13. CRUD modifier/supprimer plans d'évacuation
-  14. Export global consolidé du dashboard RH
-
-
-
   
 
 

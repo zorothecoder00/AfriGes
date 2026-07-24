@@ -267,6 +267,80 @@ export async function sendBulletinPaieEmail(params: BulletinPaieEmailParams): Pr
   });
 }
 
+export interface RfqEmailParams {
+  to: string;
+  fournisseurNom: string;
+  reference: string;
+  produitNom: string;
+  quantite: number;
+  dateLimiteReponse?: string | null; // déjà formatée
+  notes?: string | null;
+}
+
+/**
+ * Envoie une demande de cotation (RFQ) à un fournisseur. Le fournisseur n'a pas
+ * de compte AfriGes : il répond par téléphone/email, la cotation est ensuite
+ * saisie manuellement dans le système par l'agent approvisionnement.
+ * Non-bloquant : retourne false sans lever d'exception en cas d'échec.
+ */
+export async function sendRfqEmail(params: RfqEmailParams): Promise<boolean> {
+  const body = `
+    <h1 style="font-size:19px;margin:0 0 16px;color:#0f172a;">Demande de cotation — ${esc(params.reference)}</h1>
+    <p style="margin:0 0 12px;">Bonjour ${esc(params.fournisseurNom)},</p>
+    <p style="margin:0 0 12px;">Nous souhaitons recueillir votre meilleure offre pour la fourniture suivante :</p>
+    <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;margin:8px 0 16px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;">
+      <tr><td style="padding:16px 20px;font-size:14px;line-height:1.8;">
+        <div><strong>Produit :</strong> ${esc(params.produitNom)}</div>
+        <div><strong>Quantité :</strong> ${params.quantite}</div>
+        ${params.dateLimiteReponse ? `<div><strong>Réponse attendue avant le :</strong> ${esc(params.dateLimiteReponse)}</div>` : ""}
+      </td></tr>
+    </table>
+    ${params.notes ? `<p style="margin:0 0 12px;font-size:13px;color:#475569;">${esc(params.notes)}</p>` : ""}
+    <p style="margin:16px 0 0;">Merci de nous communiquer votre prix unitaire et votre délai de livraison par retour d'email ou par téléphone auprès de votre contact habituel.</p>
+  `;
+
+  return sendEmail({
+    to: params.to,
+    subject: `Demande de cotation ${params.reference} — ${params.produitNom}`,
+    html: renderEmailLayout(body, "Demande de cotation"),
+  });
+}
+
+export interface BonCommandeEmailParams {
+  to: string;
+  fournisseurNom: string;
+  reference: string;
+  montantTotal: string; // déjà formaté, ex "1 250 000 XOF"
+  dateLivraisonPrevue?: string | null; // déjà formatée
+  pdf: Buffer;
+}
+
+/**
+ * Envoie le bon de commande (PDF en pièce jointe) au fournisseur retenu.
+ * Non-bloquant : retourne false sans lever d'exception en cas d'échec.
+ */
+export async function sendBonCommandeEmail(params: BonCommandeEmailParams): Promise<boolean> {
+  const body = `
+    <h1 style="font-size:19px;margin:0 0 16px;color:#0f172a;">Bon de commande ${esc(params.reference)}</h1>
+    <p style="margin:0 0 12px;">Bonjour ${esc(params.fournisseurNom)},</p>
+    <p style="margin:0 0 12px;">Veuillez trouver ci-joint notre bon de commande.</p>
+    <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;margin:8px 0 16px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;">
+      <tr><td style="padding:16px 20px;font-size:14px;line-height:1.8;">
+        <div><strong>Montant total :</strong> ${esc(params.montantTotal)}</div>
+        ${params.dateLivraisonPrevue ? `<div><strong>Livraison souhaitée :</strong> ${esc(params.dateLivraisonPrevue)}</div>` : ""}
+      </td></tr>
+    </table>
+    <p style="margin:16px 0 0;">Merci de confirmer la bonne réception de ce document par retour d'email.</p>
+  `;
+
+  return sendEmail({
+    to: params.to,
+    subject: `Bon de commande ${params.reference}`,
+    html: renderEmailLayout(body, "Bon de commande"),
+    attachments: [{ filename: `${params.reference}.pdf`, content: params.pdf }],
+  });
+}
+
 export interface RetardRIAEmailParams {
   /** Emails des destinataires internes (staff). */
   to: string[];

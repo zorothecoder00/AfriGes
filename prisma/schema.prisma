@@ -688,6 +688,10 @@ model User {
   anomaliesTraitees    AnomalieStock[]      @relation("AnomaliesTraitees")
   receptionsRealisees  ReceptionApprovisionnement[] @relation("ReceptionnaireAppro")
   receptionsValidees   ReceptionApprovisionnement[] @relation("ValidateurAppro")
+  bonsCommandeCrees      BonCommande[] @relation("BonCommandeCreateur")
+  bonsCommandeApprouves  BonCommande[] @relation("BonCommandeApprobateur")
+  bonsCommandeEnvoyes    BonCommande[] @relation("BonCommandeEnvoyeur")
+  bonsCommandeSignes     BonCommande[] @relation("BonCommandeSignataire")
   transfertsCrees      TransfertStock[]     @relation("CreateurTransfert")
   transfertsValides    TransfertStock[]     @relation("ValidateurTransfert")
   inventairesRealises  InventaireSite[]     @relation("RealisateurInventaire")
@@ -860,6 +864,8 @@ model PointDeVente {
   promotions                 Promotion[]                  @relation("PromotionPDV")
   lots                       LotProduit[]
   documentsStrategiques      DocumentStrategiqueRH[]
+  demandesCotation           DemandeCotation[]
+  bonsCommande               BonCommande[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1433,22 +1439,70 @@ model LigneCollecte {
 // FOURNISSEURS
 // ============================================================
 
+/// Type de fournisseur — CDC Approvisionnement & Supply Chain §8.
+enum TypeFournisseur {
+  PRODUCTEUR
+  COOPERATIVE
+  INDUSTRIEL
+  IMPORTATEUR
+  TRANSPORTEUR
+}
+
 model Fournisseur {
-  id        Int      @id @default(autoincrement())
+  id        Int              @id @default(autoincrement())
+  code      String?          @unique // ex FRN-000001, auto-généré à la création
   nom       String
+  type      TypeFournisseur?
   contact   String?
   telephone String?
   email     String?
   adresse   String?
   notes     String?
-  actif     Boolean  @default(true)
+  actif     Boolean          @default(true)
 
+  // Identité légale & internationale (CDC §8 — fiche fournisseur)
+  pays        String?
+  region      String?
+  devise      String? // ex XOF, EUR, USD
+  banque      String?
+  iban        String? // ou RIB
+  rccm        String?
+  nif         String?
+  numeroTva   String?
+
+  // Évaluation (CDC §8 — note globale saisie/consolidée ; les taux de délai/qualité
+  // sont recalculés à la volée depuis ReceptionApprovisionnement, pas stockés ici)
+  noteGlobale Decimal? // /100
+
+  contrats   ContratFournisseur[]
   receptions ReceptionApprovisionnement[]
   produits   Produit[]                        // catalogue : produits dont il est le fournisseur principal (Catalogue §3)
   lots       LotProduit[]                     // lots réceptionnés de ce fournisseur (Catalogue Ent.#5)
+  reponsesRFQ ReponseRFQ[]                    // cotations soumises par ce fournisseur
+  rfqRetenues DemandeCotation[] @relation("RFQFournisseurRetenu") // RFQ où ce fournisseur a été retenu
+  bonsCommande BonCommande[]                  // bons de commande émis vers ce fournisseur
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+/// Contrat rattaché à un fournisseur (CDC §8) — document + période de validité.
+model ContratFournisseur {
+  id            Int       @id @default(autoincrement())
+  fournisseurId Int
+  titre         String
+  reference     String?
+  dateDebut     DateTime?
+  dateFin       DateTime?
+  fichierUrl    String?
+  notes         String?
+
+  fournisseur Fournisseur @relation(fields: [fournisseurId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([fournisseurId])
 }
 
 // ============================================================
@@ -1631,6 +1685,8 @@ model Produit {
   lots         LotProduit[]   // lots & péremption FEFO (Catalogue Ent.#5) — Phase 10
   substituts     ProduitSubstitut[] @relation("ProduitSubstituts")      // équivalents proposés pour CE produit (Ent.#4) — Phase 11
   estSubstitutDe ProduitSubstitut[] @relation("ProduitEstSubstitutDe")  // produits dont CE produit est l'équivalent
+  demandesCotation DemandeCotation[] // RFQ portant sur ce produit
+  lignesBonCommande LigneBonCommande[] // lignes de bons de commande portant sur ce produit
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2086,6 +2142,11 @@ model ReceptionApprovisionnement {
   fournisseur    Fournisseur? @relation(fields: [fournisseurId], references: [id])
   fournisseurNom String?      // si fournisseur non encore enregistré
 
+  // PO honoré par cette réception (facultatif — une réception peut aussi être
+  // libre, sans bon de commande formel, comme aujourd'hui)
+  bonCommandeId Int?
+  bonCommande   BonCommande? @relation(fields: [bonCommandeId], references: [id])
+
   // Pour réception INTERNE (depuis un autre dépôt / siège)
   origineId    Int?
   origineNom   String?
@@ -2138,6 +2199,175 @@ model LigneReceptionAppro {
   produit   Produit                    @relation(fields: [produitId], references: [id])
 
   @@index([lotId])
+}
+
+// ============================================================
+// RFQ — DEMANDE DE COTATION (CDC Approvisionnement §7 étapes 5-6)
+// Consultation de plusieurs fournisseurs avec comparatif automatique
+// (prix / délai / qualité) et recommandation du meilleur. Pas de portail
+// fournisseur externe : les cotations reçues (téléphone, email…) sont
+// saisies par l'agent appro ; l'email de consultation, lui, est envoyé
+// automatiquement (lib/email.ts) si le fournisseur a une adresse.
+// ============================================================
+
+enum StatutRFQ {
+  BROUILLON        // en préparation, fournisseurs pas encore consultés
+  ENVOYEE          // consultation envoyée aux fournisseurs sélectionnés
+  REPONSES_RECUES  // au moins une cotation saisie
+  CLOTUREE         // fournisseur retenu
+  ANNULEE
+}
+
+enum StatutReponseRFQ {
+  EN_ATTENTE
+  RECUE
+  RETENUE
+  REJETEE
+}
+
+model DemandeCotation {
+  id        Int       @id @default(autoincrement())
+  reference String    @unique // ex RFQ-TG-2026-000001
+  statut    StatutRFQ @default(BROUILLON)
+
+  produitId Int
+  produit   Produit @relation(fields: [produitId], references: [id])
+  quantite  Int
+
+  // Site demandeur (facultatif — RFQ peut couvrir un besoin agrégé multi-agences)
+  pointDeVenteId Int?
+  pointDeVente   PointDeVente? @relation(fields: [pointDeVenteId], references: [id])
+
+  dateLimiteReponse DateTime?
+  notes             String?
+
+  creeParId Int // User.id
+
+  fournisseurRetenuId Int?
+  fournisseurRetenu   Fournisseur? @relation("RFQFournisseurRetenu", fields: [fournisseurRetenuId], references: [id])
+  dateCloture         DateTime?
+
+  reponses ReponseRFQ[]
+  bonsCommande BonCommande[] // PO créés à partir de cette RFQ
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([statut])
+  @@index([produitId])
+}
+
+model ReponseRFQ {
+  id            Int               @id @default(autoincrement())
+  demandeId     Int
+  demande       DemandeCotation   @relation(fields: [demandeId], references: [id], onDelete: Cascade)
+  fournisseurId Int
+  fournisseur   Fournisseur       @relation(fields: [fournisseurId], references: [id])
+  statut        StatutReponseRFQ  @default(EN_ATTENTE)
+
+  emailEnvoyeA        DateTime? // date d'envoi de la consultation à ce fournisseur
+  prixUnitaire        Decimal?
+  delaiLivraisonJours Int?
+  notes               String?
+  dateReponse         DateTime? // date de saisie de la cotation reçue
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([demandeId, fournisseurId])
+  @@index([fournisseurId])
+}
+
+// ============================================================
+// BON DE COMMANDE (PO) — CDC Approvisionnement §7 étapes 7-8
+// Document distinct de la réception physique (ReceptionApprovisionnement) :
+// le PO couvre la commande/l'engagement fournisseur (workflow d'approbation,
+// envoi, "signature"), la réception couvre la mise en stock effective.
+// Une réception peut référencer le PO qu'elle honore (bonCommandeId).
+//
+// "Signature électronique" : pas de prestataire de signature qualifiée
+// intégré (DocuSign etc.) — implémentée comme un tampon interne (utilisateur
+// + horodatage) au moment de l'approbation, pas une signature cryptographique
+// à valeur probatoire. À remplacer si une vraie solution de signature est
+// requise plus tard.
+// ============================================================
+
+enum StatutBonCommande {
+  DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  SENT
+  ACKNOWLEDGED
+  PARTIALLY_DELIVERED
+  COMPLETED
+  CANCELLED
+}
+
+enum StatutLivraisonPO {
+  PREPARATION
+  EXPEDIEE
+  EN_TRANSIT
+  DOUANE
+  LIVREE
+  RECEPTIONNEE
+}
+
+model BonCommande {
+  id     Int               @id @default(autoincrement())
+  reference String         @unique // ex PO-TG-2026-000001
+  statut    StatutBonCommande @default(DRAFT)
+  statutLivraison StatutLivraisonPO?
+
+  fournisseurId Int
+  fournisseur   Fournisseur @relation(fields: [fournisseurId], references: [id])
+  pointDeVenteId Int
+  pointDeVente   PointDeVente @relation(fields: [pointDeVenteId], references: [id])
+
+  // Origine RFQ (facultatif — un PO peut aussi être créé directement)
+  demandeCotationId Int?
+  demandeCotation   DemandeCotation? @relation(fields: [demandeCotationId], references: [id])
+
+  dateCommande        DateTime  @default(now())
+  dateLivraisonPrevue DateTime?
+  devise              String?   @default("XOF")
+  montantTotal        Decimal   @default(0) // recalculé à chaque modif de lignes
+
+  notes String?
+
+  creeParId       Int
+  creePar         User      @relation("BonCommandeCreateur", fields: [creeParId], references: [id])
+  approuveParId   Int?
+  approuvePar     User?     @relation("BonCommandeApprobateur", fields: [approuveParId], references: [id])
+  dateApprobation DateTime?
+  envoyeParId     Int?
+  envoyePar       User?     @relation("BonCommandeEnvoyeur", fields: [envoyeParId], references: [id])
+  dateEnvoi       DateTime?
+  signeParId      Int?
+  signePar        User?     @relation("BonCommandeSignataire", fields: [signeParId], references: [id])
+  dateSignature   DateTime?
+
+  lignes     LigneBonCommande[]
+  receptions ReceptionApprovisionnement[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([statut])
+  @@index([fournisseurId])
+  @@index([pointDeVenteId])
+}
+
+model LigneBonCommande {
+  id            Int      @id @default(autoincrement())
+  bonCommandeId Int
+  bonCommande   BonCommande @relation(fields: [bonCommandeId], references: [id], onDelete: Cascade)
+  produitId     Int
+  produit       Produit  @relation(fields: [produitId], references: [id])
+  quantite      Int
+  prixUnitaire  Decimal
+  quantiteRecue Int      @default(0) // alimenté à la réception, pilote PARTIALLY_DELIVERED/COMPLETED
+
+  @@index([bonCommandeId])
 }
 
 // ============================================================
