@@ -82,7 +82,8 @@ function BarRow({ label, sub, value, valueLabel, pct, color }: {
 }
 
 export default function DashboardSupplyChainPage() {
-  const { data, loading } = useApi<DashboardData>("/api/logistique/dashboard");
+  const { data: res, loading } = useApi<{ data: DashboardData }>("/api/logistique/dashboard");
+  const data = res?.data ?? null;
 
   const maxMois = data ? Math.max(1, ...data.achats.evolutionMensuelle.map((m) => m.valeur)) : 1;
   const maxFournisseur = data ? Math.max(1, ...data.fournisseurs.topEvalues.map((f) => f.noteGlobale ?? ((f.tauxRespectDelais ?? 50) + (f.tauxQualite ?? 50)) / 2)) : 1;
