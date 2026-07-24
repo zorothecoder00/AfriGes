@@ -4,6 +4,7 @@ import React, { useState, useMemo, useRef } from "react";
 import {
   Package, CheckCircle, XCircle, Clock, RefreshCw,
   ChevronDown, ChevronUp, Truck, Search, ChevronLeft, ChevronRight, ArrowLeft, ClipboardList, TrendingUp,
+  BarChart3,
 } from "lucide-react";
 import Link from "next/link";
 import { useApi, useMutation } from "@/hooks/useApi";
@@ -172,6 +173,9 @@ export default function AdminApprovisionnementsPage() {
           </Link>
           <Link href="/dashboard/user/logistiquesApprovisionnements/bons-commande" className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors">
             <ClipboardList size={15} />Bons de commande
+          </Link>
+          <Link href="/dashboard/user/logistiquesApprovisionnements/dashboard" className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors">
+            <BarChart3 size={15} />Tableau de bord
           </Link>
           <button onClick={() => refetch()} className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors">
             <RefreshCw size={15} />Actualiser
