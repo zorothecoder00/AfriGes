@@ -7,7 +7,6 @@ import {
   ChevronLeft, ChevronRight, ChevronDown, ChevronUp, User,
   PackageCheck, ArrowLeftRight, XCircle, Receipt, Edit3, Trash2, FolderTree, FileText, Ban,
 } from "lucide-react";
-import Link from "next/link";
 import NotificationBell from "@/components/NotificationBell";
 import MessagesLink from "@/components/MessagesLink";
 import DashboardBackButton from "@/components/DashboardBackButton";

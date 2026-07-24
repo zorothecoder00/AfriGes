@@ -2,13 +2,12 @@
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
-  Truck, Package, ArrowUpCircle, ArrowDownCircle, Search, ArrowLeft,
+  Truck, Package, ArrowUpCircle, ArrowDownCircle, Search,
   RefreshCw, AlertTriangle, Archive, CheckCircle, ClipboardList,
   Boxes, BarChart3, Plus, X, MapPin, ClipboardCheck, Filter,
   TrendingUp, LucideIcon, PlayCircle, ChevronDown, ChevronUp,
   ShieldAlert, Send, Clock, CheckSquare, XCircle, History,
 } from "lucide-react";
-import Link from "next/link";
 import HistoriquePrixProduit from "@/components/HistoriquePrixProduit";
 import NotificationBell from "@/components/NotificationBell";
 import CongesNavButton from "@/components/CongesNavButton";

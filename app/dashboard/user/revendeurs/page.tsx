@@ -2,8 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import {
-  Wallet, Package, ShoppingCart, TrendingUp, Search, ArrowLeft,
-  RefreshCw, CreditCard, Eye, Clock, CheckCircle, AlertCircle,
+  Wallet, Package, ShoppingCart, TrendingUp, Search,
+  RefreshCw, CreditCard, Clock, CheckCircle, AlertCircle,
   ShoppingBag, BarChart3, LucideIcon, Send, Plus, X, ArrowUpRight,
   ArrowDownRight, Store, Boxes
 } from 'lucide-react';
@@ -14,7 +14,6 @@ import MessagesLink from '@/components/MessagesLink';
 import DashboardBackButton from '@/components/DashboardBackButton';
 import { useApi, useMutation } from '@/hooks/useApi';
 import { formatCurrency, formatDate, formatDateTime } from '@/lib/format';
-import { getStatusStyle, getStatusLabel } from '@/lib/status';
 
 // ============================================================================
 // TYPES
@@ -87,8 +86,6 @@ interface TransactionsResponse {
   meta: { total: number; page: number; limit: number; totalPages: number };
 }
 
-type TransactionType = 'DEPOT' | 'RETRAIT' | 'COTISATION' | 'TONTINE' | 'CREDIT' | 'REMBOURSEMENT_CREDIT' | 'ACHAT' | 'ANNULATION';
-
 // ============================================================================
 // SUB-COMPONENTS
 // ============================================================================
@@ -144,7 +141,7 @@ export default function RevendeurPage() {
 
   // Fetch data
   const { data: dashResponse, loading: dashLoading } = useApi<DashboardResponse>('/api/user/dashboard');
-  const { data: stockResponse, loading: stockLoading, refetch: refetchStock } = useApi<StockResponse>(`/api/admin/stock?${stockParams}`);
+  const { data: stockResponse, refetch: refetchStock } = useApi<StockResponse>(`/api/admin/stock?${stockParams}`);
   const { data: creditAlimResponse } = useApi<CreditAlimResponse>('/api/user/creditsAlimentaires');
   const { data: creditsResponse, refetch: refetchCredits } = useApi<CreditsResponse>('/api/user/credits');
   const { data: txResponse } = useApi<TransactionsResponse>('/api/user/transactions?limit=10');

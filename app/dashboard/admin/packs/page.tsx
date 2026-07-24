@@ -1208,6 +1208,7 @@ function TabLivraisons() {
 function TabModeles() {
   const [showCreate, setShowCreate] = useState(false);
   const [editTarget, setEditTarget] = useState<Pack | null>(null);
+  const [, setTogglePackId] = useState<number | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Pack | null>(null);
 
   const { data: packs, loading, refetch } = useApi<Pack[]>("/api/admin/packs");

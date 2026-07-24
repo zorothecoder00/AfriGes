@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import {        
   ShoppingCart, Receipt, TrendingUp, Search, RefreshCw,
   Plus, X, CheckCircle, Clock, Banknote, Printer, BarChart3,
-  Users, Hash, AlertTriangle, AlertCircle, Info, ChevronLeft, ChevronRight,
+  Users, AlertTriangle, AlertCircle, Info, ChevronLeft, ChevronRight,
   Lock, Calendar, FileText, Filter, Layers, Eye, XCircle, Package,
   Wallet, Power, Pause, Play, ArrowDownCircle, ArrowUpCircle,
   ArrowLeftRight, CreditCard, Building2, Send, ShoppingBag, Pencil, Loader2, FolderTree, Ban,
@@ -929,8 +929,7 @@ export default function CaissierPage() {
 
   // ── Fetches ──────────────────────────────────────────────────────────────
   const { data: dashboardRes,  refetch: refetchDashboard  } = useApi<DashboardResponse>("/api/caissier/dashboard");
-  const { data: versementsRes, refetch: refetchVersements,
-          loading: versementsLoading                        } = useApi<VersementsResponse>(`/api/caissier/versements?${versementsParams}`);
+  const { data: versementsRes, refetch: refetchVersements } = useApi<VersementsResponse>(`/api/caissier/versements?${versementsParams}`);
   const { data: clotureRes,    refetch: refetchCloture     } = useApi<ClotureData>(`/api/caissier/cloture?${clotureParams}`);
   const { data: packsRes,      refetch: refetchPacks       } = useApi<PacksResponse>(`/api/caissier/packs?${encaissementParams}`);
   const { data: livPacksRes                                } = useApi<{ data: ReceptionPackLivree[] }>("/api/caissier/livraisons-packs");
@@ -1214,8 +1213,6 @@ export default function CaissierPage() {
   const dashboard    = dashboardRes?.data;
   const sessionActive = dashboard?.sessionActive ?? null;
   const versements   = versementsRes?.data ?? [];
-  const versementsStats = versementsRes?.stats;
-  const versementsMeta  = versementsRes?.meta;
   const jourEnCours  = clotureRes?.jourEnCours;
   const clotureHisto = clotureRes?.historique;
   const souscriptions = packsRes?.souscriptions ?? [];
@@ -1280,16 +1277,6 @@ export default function CaissierPage() {
       refetchPacks();
       if (result.versement?.id) handleVoirRecu(result.versement.id);
     }
-  };
-
-  const handleOpenEditDate = (v: Versement) => {
-    setEditDateVersementId(v.id);
-    setEditDateValue(v.datePaiement ? v.datePaiement.slice(0, 10) : new Date().toISOString().slice(0, 10));
-    setEditMontantValue(String(Number(v.montant)));
-    setEditNotesValue(v.notes ?? "");
-    // Max autorisé = montantTotal de la souscription (les autres versements seront recalculés côté serveur)
-    setEditMontantMax(Number(v.souscription?.montantTotal ?? 0));
-    setEditDateModal(true);
   };
 
   const handleSaveEditDate = async (e: React.FormEvent) => {

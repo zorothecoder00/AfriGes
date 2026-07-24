@@ -4,7 +4,7 @@ import { use } from "react";
 import Link from "next/link";
 import {
   Wallet, TrendingUp, Activity, RefreshCw, ArrowDownCircle, ArrowUpCircle,
-  DollarSign, ChevronLeft, Users, BarChart2, CheckCircle, Clock, AlertCircle,
+  DollarSign, ChevronLeft, Users, BarChart2, CheckCircle, Clock,
 } from "lucide-react";
 import { useApi } from "@/hooks/useApi";
 import NotificationBell from "@/components/NotificationBell";

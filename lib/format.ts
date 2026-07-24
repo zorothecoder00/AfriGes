@@ -4,8 +4,7 @@ export function formatCurrency(amount: number | string): string {
 
   // Lecture dynamique de la devise et de la locale (client uniquement)
   let iso = "XOF";
-  let label = "FCFA";    
-  let locale = "fr-FR";
+  let label = "FCFA";
 
   if (typeof window !== "undefined") {
     try {
@@ -24,9 +23,6 @@ export function formatCurrency(amount: number | string): string {
         iso   = ISO_MAP[upper] ?? devise;
         label = devise;
       }
-      const langMap: Record<string, string> = { fr: "fr-FR", en: "en-US", ar: "ar-DZ" };
-      const lang = stored["platform.langue"];
-      if (lang) locale = langMap[lang] ?? "fr-FR";
     } catch { /* ignore */ }
   }
 

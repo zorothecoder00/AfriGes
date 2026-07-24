@@ -4,7 +4,7 @@ import { useApi } from "@/hooks/useApi";
 import Link from "next/link";
 import {
   Shield, Calendar, Gavel, ListChecks, FileText,
-  CheckCircle2, ArrowRight, Users,
+  ArrowRight, Users,
 } from "lucide-react";
 
 interface MaCommission {

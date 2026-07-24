@@ -4,8 +4,8 @@ import { useState } from "react";
 import { useApi } from "@/hooks/useApi";
 import { toast } from "sonner";
 import {
-  ListChecks, RefreshCw, AlertTriangle, CheckCircle2,
-  Clock, Calendar, ArrowLeft,
+  ListChecks, RefreshCw, AlertTriangle,
+  Calendar, ArrowLeft,
 } from "lucide-react";
 import Link from "next/link";
 

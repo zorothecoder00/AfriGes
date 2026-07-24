@@ -2,12 +2,12 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  Package, Archive, AlertTriangle, TrendingUp, Search, ArrowLeft,
+  Package, Archive, AlertTriangle, TrendingUp, Search,
   RefreshCw, Eye, ClipboardList, ArrowUpCircle, ArrowDownCircle,
   BarChart3, Boxes, LucideIcon, CheckCircle, X, Plus, ArrowRightLeft,
   ChevronDown, ChevronUp, Truck, FileText, Printer, ShieldAlert,
   Trash2, Gift, MinusCircle, Send, Clock, CheckSquare, XCircle, PackageCheck, ShoppingBag,
-  AlertCircle, FileCheck, TrendingDown, History,
+  AlertCircle, FileCheck, History,
 } from 'lucide-react';
 import HistoriquePrixProduit from '@/components/HistoriquePrixProduit';
 import Link from 'next/link';  
@@ -237,7 +237,6 @@ export default function MagasinierPage() {
   const [bonsSortieFilterStatut, setBonsSortieFilterStatut] = useState('');
   const [bonsSortiePage, setBonsSortiePage] = useState(1);
   const [anomaliesPage, setAnomaliesPage] = useState(1);
-  const [selectedBon, setSelectedBon] = useState<BonSortie | null>(null);
   // Ref pour update statut bon de sortie sans re-render
   const bonSortieUpdateIdRef = useRef<number | null>(null);
 

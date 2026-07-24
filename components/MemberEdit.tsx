@@ -36,8 +36,6 @@ export default function EditMember({ memberId }: { memberId: string }) {
   const { data: response, loading } = useApi<MemberResponse>(`/api/admin/membres/${memberId}`);
   const { mutate, loading: saving, error: saveError } = useMutation(`/api/admin/membres/${memberId}`, 'PATCH', { successMessage: 'Membre modifié avec succès' });
 
-  const member = response?.data;
-
   const [formData, setFormData] = useState<MemberFormData>({
     nom: '',
     prenom: '',

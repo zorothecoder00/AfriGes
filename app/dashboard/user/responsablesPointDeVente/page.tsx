@@ -3,14 +3,13 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import {
   Package, Users, ShoppingCart, TrendingUp, AlertTriangle, Archive,
-  Search, Eye, ArrowLeft, RefreshCw, Plus, BarChart3, Clock,
+  Search, Eye, RefreshCw, Plus, BarChart3, Clock,
   CheckCircle, XCircle, ChevronLeft, ChevronRight, X, Truck,
   ArrowUpCircle, ArrowDownCircle, ArrowRightLeft, Banknote,
-  Lock, Hash, Filter, Pencil, Trash2, CalendarDays, Boxes,
-  MapPin, FileText, PlayCircle, Info, Download, Printer,
+  Lock, Filter, Pencil, Trash2, CalendarDays, Boxes,
+  MapPin, FileText, Info, Download, Printer,
   UserPlus, Star, Activity, ShoppingBag, Wrench, UserCircle, CreditCard, Receipt,
 } from "lucide-react";
-import Link from "next/link";
 import NotificationBell from "@/components/NotificationBell";
 import CongesNavButton from "@/components/CongesNavButton";
 import MessagesLink from "@/components/MessagesLink";
@@ -349,7 +348,7 @@ export default function ResponsablePDVPage() {
   const [prodPage,    setProdPage]    = useState(1);
   const [mvtPage,     setMvtPage]     = useState(1);
   const [livPage,     setLivPage]     = useState(1);
-  const [cloturePage, setCloturePage] = useState(1);
+  const [cloturePage] = useState(1);
 
   // Filtres livraisons packs + clients
   const [searchRecPacks,       setSearchRecPacks]       = useState("");
@@ -498,8 +497,8 @@ export default function ResponsablePDVPage() {
   const { data: produitsRes,   refetch: refetchProduits  } = useApi<ProduitsResponse>(`/api/rpv/produits?${prodParams}`);
   const { data: mvtRes,        refetch: refetchMvt       } = useApi<MouvementsResponse>(`/api/rpv/mouvements?${mvtParams}`);
   const { data: livRes,        refetch: refetchLiv       } = useApi<LivraisonsResponse>(`/api/rpv/livraisons?${livParams}`);
-  const { data: ventesRes,     refetch: refetchVentes    } = useApi<VentesResponse>("/api/rpv/ventes?aujourdHui=true&limit=20");
-  const { data: clotureRes,    refetch: refetchCloture   } = useApi<ClotureResponse>(`/api/caissier/cloture?${clotureParams}`);
+  const { refetch: refetchVentes    } = useApi<VentesResponse>("/api/rpv/ventes?aujourdHui=true&limit=20");
+  const { refetch: refetchCloture   } = useApi<ClotureResponse>(`/api/caissier/cloture?${clotureParams}`);
   const { data: equipeRes,     refetch: refetchEquipe    } = useApi<EquipeResponse>(
     `/api/rpv/equipe?${dSearchEquipe ? `search=${dSearchEquipe}` : ""}`
   );
@@ -567,7 +566,7 @@ export default function ResponsablePDVPage() {
   const { mutate: createLiv, loading: creatingLiv } =
     useMutation<Livraison, object>("/api/rpv/livraisons", "POST", { successMessage: "Livraison planifiée ✓" });
   const annulerLivIdRef = React.useRef<number | null>(null);
-  const { mutate: patchLiv, loading: patchingLiv } =
+  const { mutate: patchLiv } =
     useMutation<Livraison, object>(
       () => annulerLivIdRef.current ? `/api/rpv/livraisons/${annulerLivIdRef.current}` : "/api/rpv/livraisons",
       "PATCH",
@@ -614,15 +613,10 @@ export default function ResponsablePDVPage() {
   const produits = produitsRes?.data ?? [];
   const mvts     = mvtRes?.data ?? [];
   const livs     = livRes?.data ?? [];
-  const ventes   = ventesRes?.data ?? [];
-  const clotData = clotureRes?.jourEnCours;
-  const clotures = clotureRes?.historique.data ?? [];
   const equipe   = equipeRes?.data ?? [];
   const recPacks = recPacksRes?.data ?? [];
   const clients  = clientsRes?.data ?? [];
 
-  const allProduits    = produits;
-  const produitsActifs = produits.filter((p) => (p.totalStock ?? p.stock ?? 0) > 0);
   const ventesRPV      = ventesRPVRes?.data ?? [];
   const caissePDV      = caissePDVRes?.data ?? null;
   const caissePDVHistorique = caissePDVRes?.historique ?? [];

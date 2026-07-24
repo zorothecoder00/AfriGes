@@ -152,7 +152,6 @@ export async function GET(req: Request) {
       })),
     ]
       .sort((a, b) => b._time - a._time)
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       .map(({ _time, ...rest }) => rest);
 
     const totalAll = type === "security"

@@ -2,7 +2,7 @@
 
 import { useParams, useRouter } from "next/navigation";
 import { useApi } from "@/hooks/useApi";
-import { ChevronLeft, FileText, CheckCircle2, Calendar, User } from "lucide-react";
+import { ChevronLeft, FileText, CheckCircle2, Calendar } from "lucide-react";
 import { parseActionsCR } from "@/lib/commissionsRIA";
 import { ActionsCRView } from "@/components/gouvernance/ActionsCompteRendu";
 

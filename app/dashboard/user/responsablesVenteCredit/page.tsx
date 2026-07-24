@@ -14,7 +14,7 @@ import MessagesLink from "@/components/MessagesLink";
 import DashboardBackButton from "@/components/DashboardBackButton";
 import ClientSegmentTags from "@/components/ClientSegmentTags";
 import { useApi, useMutation } from "@/hooks/useApi";
-import { formatDate, formatDateTime, formatCurrency } from "@/lib/format";
+import { formatDate } from "@/lib/format";
 import FactureModal from "@/components/FactureModal";
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -551,9 +551,6 @@ export default function RVCPage() {
 
   const clientsUrl = `/api/rvc/clients?etat=${onglet}&page=${page}&limit=20${search ? `&search=${encodeURIComponent(search)}` : ""}&_k=${refreshKey}`;
   const { data, loading, error } = useApi<ApiResponse>(clientsUrl);
-
-  const clients   = data?.data ?? [];
-  const meta      = data?.meta;
 
   const handleSearch = useCallback(() => {
     setSearch(searchInput.trim());

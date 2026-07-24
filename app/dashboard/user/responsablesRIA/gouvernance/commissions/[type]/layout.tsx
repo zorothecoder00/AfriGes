@@ -7,7 +7,7 @@ import {
   LayoutDashboard, BarChart3, Briefcase, TrendingUp, AlertCircle,
   Calendar, MapPin, Truck, AlertTriangle, ClipboardList,
   Users, UserCheck, CheckSquare, GitBranch, Zap, Lightbulb,
-  Rocket, BarChart2, DollarSign, Home, ChevronRight, Map,
+  Rocket, BarChart2, Home, ChevronRight, Map,
   ShieldAlert, Inbox, Search,
 } from "lucide-react";
 

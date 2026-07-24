@@ -304,7 +304,6 @@ export async function GET(req: NextRequest) {
     const derniersVersements = [...derniersPacks, ...derniersVD]
       .sort((a, b) => b._time - a._time)
       .slice(0, 5)
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       .map(({ _time, ...rest }) => rest);
 
     // ── Solde temps réel — scoped au caissier ─────────────────────────────

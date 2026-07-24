@@ -434,7 +434,6 @@ export default function ComptablePage() {
   const [ecrituresDateMin, setEcrituresDateMin] = useState("");
   const [ecrituresDateMax, setEcrituresDateMax] = useState("");
   const [showSaisie, setShowSaisie]           = useState(false);
-  const [editEcriture] = useState<EcritureComptable | null>(null);
   const [saisieForm, setSaisieForm]           = useState({
     date: new Date().toISOString().slice(0, 10),
     libelle: "", journal: "CAISSE", notes: "",

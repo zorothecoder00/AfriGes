@@ -237,7 +237,6 @@ export async function GET(req: Request) {
     ]
       .sort((a, b) => b._time - a._time)
       .slice(0, 50)
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       .map(({ _time, ...rest }) => rest);
 
     return NextResponse.json({

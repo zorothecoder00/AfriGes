@@ -162,7 +162,6 @@ async function prefActivee(userId: number, champ: keyof {
  */
 export async function alertesFinContrat(profilRHIds?: number[] | null): Promise<number> {
   const now      = new Date();
-  const j7end    = daysFromNow(7);
   const j30end   = daysFromNow(30);
   const j7start  = new Date(now); j7start.setDate(now.getDate() + 6); j7start.setHours(0, 0, 0, 0);
   const j30start = new Date(now); j30start.setDate(now.getDate() + 29); j30start.setHours(0, 0, 0, 0);

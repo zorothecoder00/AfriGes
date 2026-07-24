@@ -8,7 +8,7 @@ import {
   ArrowDownCircle, ArrowUpCircle, Shield, DollarSign,
   User, Phone, Mail, CheckCircle, XCircle,
   ChevronDown, ChevronUp,
-  PieChart, Users, UserCheck, UserMinus, UserX,
+  Users, UserCheck, UserMinus, UserX,
   Target, AlertTriangle, Percent, BarChart2,
 } from "lucide-react";
 import Link from "next/link";

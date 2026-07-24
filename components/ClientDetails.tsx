@@ -10,7 +10,7 @@ import {
   Phone, MapPin, Calendar, Activity, ArrowLeft, Edit, Trash2,
   AlertTriangle, Hash, Briefcase, Store,
   CreditCard, TrendingDown, BarChart2, UserCheck,
-  FileText, Navigation, Clock, ChevronDown, ChevronUp,
+  FileText, Navigation, Clock, ChevronUp,
   Banknote, ShoppingBag, RefreshCw, Shield,
   Wallet, CheckCircle2, XCircle, AlertCircle, ChevronRight,
 } from 'lucide-react';

@@ -5,7 +5,7 @@ import { useApi } from "@/hooks/useApi";
 import { toast } from "sonner";
 import {
   Calendar, RefreshCw, CheckCircle2, Clock, MapPin,
-  Users, PenLine, ArrowLeft,
+  PenLine, ArrowLeft,
 } from "lucide-react";
 import Link from "next/link";
 

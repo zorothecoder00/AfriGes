@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import {
-  ArrowLeft, RefreshCw, Plus, Search, Filter,
-  Briefcase, Users, CheckCircle, XCircle, Clock,
+  ArrowLeft, RefreshCw, Plus, Search,
+  Briefcase, Users, CheckCircle, XCircle,
   ChevronDown, ChevronUp, Eye, Play, MoreHorizontal,
   User, Phone, Mail, Calendar, Star, AlertCircle,
   KeyRound, ExternalLink, BarChart3, Copy, Check,

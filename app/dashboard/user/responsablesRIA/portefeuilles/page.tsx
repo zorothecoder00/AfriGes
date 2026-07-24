@@ -27,7 +27,6 @@ interface Portefeuille {
 
 const fmt     = (n: number) => new Intl.NumberFormat("fr-FR").format(Math.round(n));
 const toNum   = (v: unknown) => Number(v ?? 0);
-const fmtDate = (s: string) => new Date(s).toLocaleDateString("fr-FR");
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
