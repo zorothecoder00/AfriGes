@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import {
-  ArrowLeft, Loader2, LayoutDashboard, Wallet, ShoppingCart, Clock,
+  Loader2, LayoutDashboard, Wallet, ShoppingCart, Clock,
   TrendingUp, Truck, Ship, AlertTriangle, Building2, Info,
 } from "lucide-react";
 import { useApi } from "@/hooks/useApi";
 import { formatCurrency } from "@/lib/format";
+import RetourApprovisionnement from "@/components/RetourApprovisionnement";
 
 interface MoisAchat { label: string; valeur: number; nb: number }
 interface FournisseurEval {
@@ -90,9 +91,7 @@ export default function DashboardSupplyChainPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="p-6 max-w-6xl mx-auto space-y-5">
-        <Link href="/dashboard/user/logistiquesApprovisionnements" className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700">
-          <ArrowLeft className="w-4 h-4" /> Retour à l&apos;approvisionnement
-        </Link>
+        <RetourApprovisionnement label="Retour à l'approvisionnement" className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700" />
 
         <div>
           <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">

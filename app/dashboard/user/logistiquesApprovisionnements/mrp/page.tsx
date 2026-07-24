@@ -3,8 +3,9 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useApi } from "@/hooks/useApi";
+import RetourApprovisionnement from "@/components/RetourApprovisionnement";
 import {
-  ArrowLeft, Calculator, RefreshCw, Info, FileSearch, ChevronDown, ChevronUp,
+  Calculator, RefreshCw, Info, FileSearch, ChevronDown, ChevronUp,
 } from "lucide-react";
 
 interface PdvRef { id: number; nom: string; code: string }
@@ -48,9 +49,7 @@ export default function MRPPage() {
 
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
-            <Link href="/dashboard/user/logistiquesApprovisionnements" className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700 mb-2">
-              <ArrowLeft size={15} /> Approvisionnement
-            </Link>
+            <RetourApprovisionnement />
             <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
               <Calculator className="w-6 h-6 text-emerald-600" /> Planification des besoins (MRP)
             </h1>

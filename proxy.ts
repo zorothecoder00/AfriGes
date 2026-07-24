@@ -33,6 +33,14 @@ const sharedAdminPaths: { prefix: string; roles: string[] }[] = [
   },
 ]
 
+// Sous-arbres de /dashboard/user ouverts en accès complet (pas juste lecture viewAs)
+// à Admin/Super-admin : pages construites uniquement côté gestionnaire mais dont les
+// API (cf. getLogistiqueSession etc.) acceptent déjà Admin/Super-admin comme appelant
+// de plein droit. Ex. Approvisionnement : fournisseurs/RFQ/MRP/PO/tableau de bord.
+const adminOpenUserPrefixes: string[] = [
+  "/dashboard/user/logistiquesApprovisionnements",
+]
+
 export async function proxy(request: NextRequest) {
   const token = await getToken({ req: request, secret })
   const { pathname } = request.nextUrl
@@ -96,6 +104,9 @@ export async function proxy(request: NextRequest) {
   // → autoriser si cookie viewAs présent (mode lecture gestionnaire)
   // → sinon rediriger vers /dashboard/admin
   if (pathname.startsWith("/dashboard/user") && (role === "ADMIN" || role === "SUPER_ADMIN")) {
+    if (adminOpenUserPrefixes.some((p) => pathname.startsWith(p))) {
+      return NextResponse.next();
+    }
     const viewAsCookie = request.cookies.get("viewAs")?.value;
     if (!viewAsCookie) {
       return NextResponse.redirect(new URL("/dashboard/admin", request.url));

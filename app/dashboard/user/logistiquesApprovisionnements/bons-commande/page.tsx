@@ -1,13 +1,13 @@
 "use client";
 
 import { useState, Suspense } from "react";
-import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useApi } from "@/hooks/useApi";
 import { toast } from "sonner";
 import { formatDate } from "@/lib/format";
+import RetourApprovisionnement from "@/components/RetourApprovisionnement";
 import {
-  ArrowLeft, ClipboardList, Plus, X, RefreshCw, Save, Send,
+  ClipboardList, Plus, X, RefreshCw, Save, Send,
   CheckCircle, Ban, XCircle, FileText, PenTool, Truck,
 } from "lucide-react";
 
@@ -72,9 +72,7 @@ function BonsCommandePageInner() {
 
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
-            <Link href="/dashboard/user/logistiquesApprovisionnements" className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700 mb-2">
-              <ArrowLeft size={15} /> Approvisionnement
-            </Link>
+            <RetourApprovisionnement />
             <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
               <ClipboardList className="w-6 h-6 text-emerald-600" /> Bons de commande
             </h1>
