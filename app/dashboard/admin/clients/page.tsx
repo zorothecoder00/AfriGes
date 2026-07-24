@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Search, Plus, Phone, MapPin, Eye, Edit, Trash2, Store, Building2, Link2, Link2Off, X,
   TrendingUp, TrendingDown, CreditCard, ShoppingBag, ChevronDown, ChevronRight, Banknote, Hash,
   AlertTriangle, Package, UserCheck, Navigation, Loader2, Tag,
-  Archive, PauseCircle, Ban, CheckCircle, Filter, SlidersHorizontal, FileDown } from 'lucide-react';
+  Archive, PauseCircle, Ban, CheckCircle, SlidersHorizontal, FileDown } from 'lucide-react';
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
 import { useApi, useMutation } from '@/hooks/useApi';

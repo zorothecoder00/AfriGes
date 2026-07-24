@@ -3,7 +3,7 @@ import { Prisma, PrioriteNotification, MemberStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getAgentTerrainSession } from "@/lib/authAgentTerrain";
 import { resolveViewAs } from "@/lib/viewAs";
-import { notifyRoles, auditLog } from "@/lib/notifications";
+import { auditLog } from "@/lib/notifications";
 import { genererCodeClient } from "@/lib/codeClient";
 
 /**

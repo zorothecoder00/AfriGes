@@ -104,7 +104,6 @@ export default function CollectesPage() {
   const [agentId,   setAgentId]   = useState('');
   const [dateDebut, setDateDebut] = useState('');
   const [dateFin,   setDateFin]   = useState('');
-  const [expanded,  setExpanded]  = useState<number | null>(null);
 
   const [detailId,     setDetailId]     = useState<number | null>(null);
   const [saisieId,     setSaisieId]     = useState<number | null>(null);

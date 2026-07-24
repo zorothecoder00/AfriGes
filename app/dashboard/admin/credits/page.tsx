@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Search, RefreshCw, CreditCard, AlertCircle, CheckCircle2, XCircle,
   Wallet, ChevronLeft, ChevronRight, X, TrendingDown, Loader2,
@@ -13,7 +13,6 @@ import { usePermissions } from '@/hooks/usePermissions';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { dureeJoursPourFormule, remunerationFormule } from '@/lib/formuleCredit';
 import { toast } from 'sonner';
-import { useT } from '@/contexts/AppSettingsContext';
 import ClienteleTabBar from '@/components/ClienteleTabBar';
 import { useTagModal } from '@/contexts/TagModalContext';
 import FactureModal from '@/components/FactureModal';
@@ -997,7 +996,6 @@ export default function CreditsPage() {
                         : 0;
                       const canValider  = credit.statut === 'EN_ATTENTE_VALIDATION';
                       const canRembourser = credit.statut === 'ACTIF' || credit.statut === 'EN_RETARD';
-                      const canAnnuler  = ['EN_ATTENTE_VALIDATION', 'ACTIF', 'EN_RETARD'].includes(credit.statut);
 
                       return (
                         <tr key={credit.id} className="hover:bg-gray-50/60 transition-colors">

@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAdminSession } from "@/lib/authAdmin";
 import { PAGES_REGISTRY } from "@/lib/pagesRegistry";
-import { RoleGestionnaire } from "@prisma/client";
 
 type Ctx = { params: Promise<{ userId: string }> };
 

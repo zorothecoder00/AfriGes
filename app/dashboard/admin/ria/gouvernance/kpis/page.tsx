@@ -4,7 +4,7 @@ import { useApi } from "@/hooks/useApi";
 import { useState } from "react";
 import {
   TrendingUp, RefreshCw, BarChart3, Target, CheckCircle2, Clock,
-  Users, Calendar, Gavel, ListChecks, AlertTriangle, FileText,
+  Users, Calendar, Gavel, AlertTriangle, FileText,
 } from "lucide-react";
 
 interface KpiCommission {

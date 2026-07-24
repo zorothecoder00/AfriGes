@@ -16,8 +16,6 @@ export async function GET() {
     const session = await getRIASession();
     if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
 
-    const now = new Date();
-
     const commissions = await Promise.all(
       TYPES.map(async (type) => {
         const [membres, reunions, resolutions, plans] = await Promise.all([

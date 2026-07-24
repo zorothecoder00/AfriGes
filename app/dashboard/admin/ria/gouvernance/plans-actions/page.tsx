@@ -6,8 +6,7 @@ import { useMutation } from "@/hooks/useApi";
 import { toast } from "sonner";
 import {
   ListChecks, Plus, Search, RefreshCw, AlertTriangle,
-  CheckCircle2, Circle, Clock, Flag, User, Calendar,
-  ChevronRight, BarChart2,
+  Flag, Calendar,
 } from "lucide-react";
 
 interface PlanAction {

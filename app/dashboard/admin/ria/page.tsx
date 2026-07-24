@@ -7,7 +7,7 @@ import {
   ArrowDownCircle, ArrowUpCircle, AlertTriangle, CheckCircle2,
   Shield, BarChart2, DollarSign, Percent, RotateCw, Target,
   Settings, UserCheck, Star, FileText, Award,
-  Layers, Clock, HeartPulse, MapPin, Briefcase, Zap,
+  Layers, Clock, MapPin, Briefcase, Zap,
 } from "lucide-react";
 import Link from "next/link";
 import AnalyseMensuelleRIA from "@/components/ria/AnalyseMensuelleRIA";

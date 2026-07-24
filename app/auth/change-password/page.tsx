@@ -2,13 +2,11 @@
 
 import { useState } from "react";
 import { signOut, useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
 import { Eye, EyeOff, Lock, ShieldCheck } from "lucide-react";
 import AfriSimeLogo from "@/components/AfriSimeLogo";
 
 export default function ChangePasswordPage() {
   const { data: session } = useSession();
-  const router = useRouter();
 
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword]         = useState("");

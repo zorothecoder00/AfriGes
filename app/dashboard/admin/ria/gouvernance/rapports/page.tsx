@@ -5,8 +5,8 @@ import { useApi } from "@/hooks/useApi";
 import { useMutation } from "@/hooks/useApi";
 import { toast } from "sonner";
 import {
-  BarChart3, Plus, Search, RefreshCw, CheckCircle2, Clock,
-  FileText, Eye, Download, Shield, AlertCircle,
+  BarChart3, Plus, Search, RefreshCw, CheckCircle2,
+  Eye, Shield,
 } from "lucide-react";
 
 interface Rapport {

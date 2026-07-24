@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState } from "react";
 import {
   Search, RefreshCw, Filter, CheckCircle,
   Clock, XCircle, CalendarDays, X, Save,
@@ -120,8 +120,8 @@ export default function CongesRHPage() {
   const meta     = res?.meta;
   const stats    = res?.stats ?? {};
 
-  const handleSearch = useCallback((v: string) => { setSearch(v); setPage(1); }, []);
-  const handleStatut = useCallback((v: string) => { setStatut(v); setPage(1); }, []);
+  const handleSearch = (v: string) => { setSearch(v); setPage(1); };
+  const handleStatut = (v: string) => { setStatut(v); setPage(1); };
 
   const enAttente = stats["EN_ATTENTE"] ?? 0;
 

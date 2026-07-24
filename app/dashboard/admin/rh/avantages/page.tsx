@@ -4,7 +4,7 @@ import { useState, useCallback } from "react";
 import {
   Search, RefreshCw, Plus, X, Save,
   CheckCircle, Clock, XCircle, CreditCard,
-  DollarSign, AlertTriangle, ArrowLeft,
+  DollarSign, ArrowLeft,
 } from "lucide-react";
 import Link from "next/link";
 import { useApi, useMutation } from "@/hooks/useApi";

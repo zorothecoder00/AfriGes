@@ -89,7 +89,7 @@ export async function POST(req: NextRequest) {
     const session = await getRIASession();
     if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
 
-    const { portefeuilleId, clientId, pourcentage, montantAlloue, classeRisque, notes } = await req.json();
+    const { portefeuilleId, clientId, pourcentage, classeRisque, notes } = await req.json();
 
     if (!portefeuilleId || !clientId || pourcentage === undefined) {
       return NextResponse.json({ error: "portefeuilleId, clientId et pourcentage sont obligatoires" }, { status: 400 });

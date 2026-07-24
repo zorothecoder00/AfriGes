@@ -692,7 +692,6 @@ function TabSouscriptions() {
 // ─── TAB: Versements & Échéances ──────────────────────────────────────────────
 
 function TabEcheances() {
-  const t = useT();
   const [search, setSearch]   = useState("");
   const [dSearch, setDSearch] = useState("");
   const [filterStatut, setFilterStatut] = useState("EN_ATTENTE,EN_RETARD");
@@ -846,7 +845,6 @@ function TabEcheances() {
 // ─── TAB: Livraisons produits ─────────────────────────────────────────────────
 
 function TabLivraisons() {
-  const t = useT();
   const [livraisonTarget,    setLivraisonTarget]    = useState<Souscription | null>(null);
   const [cancellingId,       setCancellingId]       = useState<number | null>(null);
   const [factureReceptionId, setFactureReceptionId] = useState<number | null>(null);
@@ -1208,10 +1206,8 @@ function TabLivraisons() {
 // ─── TAB: Modèles de packs ────────────────────────────────────────────────────
 
 function TabModeles() {
-  const t = useT();
   const [showCreate, setShowCreate] = useState(false);
   const [editTarget, setEditTarget] = useState<Pack | null>(null);
-  const [togglePackId, setTogglePackId] = useState<number | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Pack | null>(null);
 
   const { data: packs, loading, refetch } = useApi<Pack[]>("/api/admin/packs");

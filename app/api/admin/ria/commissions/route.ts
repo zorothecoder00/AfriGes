@@ -140,8 +140,7 @@ export async function POST(req: NextRequest) {
 
     // ── 2. Agrégation par PDV pour RPV ─────────────────────────────────────────
     const parPdv: Record<number, { totalRecouvre: number; nbAgents: number }> = {};
-    for (const [agentIdStr, stats] of Object.entries(parAgent)) {
-      const agentId = Number(agentIdStr);
+    for (const [, stats] of Object.entries(parAgent)) {
       for (const pdvId of stats.pdvIds) {
         if (!parPdv[pdvId]) parPdv[pdvId] = { totalRecouvre: 0, nbAgents: 0 };
         parPdv[pdvId].totalRecouvre += stats.totalRecouvre;

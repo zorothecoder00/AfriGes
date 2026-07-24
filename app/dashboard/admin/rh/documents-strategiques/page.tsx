@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import DashboardBackButton from "@/components/DashboardBackButton";
 import { formatDate } from "@/lib/format";
 import {
-  BookOpen, Plus, X, FileText, ExternalLink, Eye,
+  BookOpen, Plus, X, ExternalLink, Eye,
   CheckCircle, Archive, Trash2, RefreshCw, Copy,
 } from "lucide-react";
 

@@ -6,7 +6,7 @@ import { useApi } from "@/hooks/useApi";
 import { useMutation } from "@/hooks/useApi";
 import { toast } from "sonner";
 import {
-  ArrowLeft, RefreshCw, User, Phone, Mail, MapPin, Briefcase, Globe,
+  ArrowLeft, RefreshCw, Phone, Mail, MapPin, Briefcase, Globe,
   Wallet, TrendingUp, Plus, ChevronDown, ChevronUp, FileText,
 } from "lucide-react";
 import Link from "next/link";

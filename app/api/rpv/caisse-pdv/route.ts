@@ -9,7 +9,7 @@ import { notifyRoles, auditLog } from "@/lib/notifications";
  * GET /api/rpv/caisse-pdv
  * Récupère la caisse PDV (petite caisse) du RPV connecté, avec opérations récentes.
  */
-export async function GET(req: Request) {
+export async function GET(_req: Request) {
   try {
     const session = await getRPVSession();
     if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
@@ -140,7 +140,7 @@ export async function PATCH(req: Request) {
 
     const userId = parseInt(session.user.id);
     const body = await req.json();
-    const { action, type, montant, motif, mode, categorie, soldeReel } = body;
+    const { action, type, montant, motif, mode, categorie } = body;
 
     const caisse = await prisma.caissePDV.findFirst({
       where: { rpvId: userId, statut: "OUVERTE" },

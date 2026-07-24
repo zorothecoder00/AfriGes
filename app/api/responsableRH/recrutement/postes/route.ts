@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
     const session = await getRHSession();
     if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
 
-    const pdvId = await getPdvId(session);
+    await getPdvId(session);
 
     const { searchParams } = new URL(req.url);
     const statut = searchParams.get("statut") as StatutPoste | null;
@@ -88,7 +88,7 @@ export async function POST(req: NextRequest) {
     const session = await getRHSession();
     if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
 
-    const pdvId = await getPdvId(session);
+    await getPdvId(session);
     const body  = await req.json();
 
     if (!body.titre) return NextResponse.json({ error: "Le titre est obligatoire" }, { status: 400 });

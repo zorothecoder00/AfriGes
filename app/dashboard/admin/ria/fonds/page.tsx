@@ -408,8 +408,6 @@ function DepotsTab() {
   );
   const depots = res?.data ?? [];
 
-  const mut = useMutation<{ success: boolean }, { action: string; notes?: string }>("", "PATCH");
-
   const action = async (id: number, act: string) => {
     const res = await fetch(`/api/admin/ria/fonds/depots/${id}`, {
       method: "PATCH",

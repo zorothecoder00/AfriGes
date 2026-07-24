@@ -59,7 +59,7 @@ export async function POST(req: Request, { params }: Ctx) {
     const { id } = await params;
     const souscriptionId = parseInt(id);
     const body = await req.json();
-    const { action, lignes, datePrevisionnelle, livreurNom, notes, receptionId, pointDeVenteId } = body;
+    const { action, lignes, datePrevisionnelle, livreurNom, notes, pointDeVenteId } = body;
 
     const souscription = await prisma.souscriptionPack.findUnique({
       where: { id: souscriptionId },

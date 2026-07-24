@@ -5,8 +5,8 @@ import { useApi } from "@/hooks/useApi";
 import { useMutation } from "@/hooks/useApi";
 import { toast } from "sonner";
 import {
-  AlertTriangle, Plus, Search, RefreshCw, CheckCircle2, Circle,
-  XCircle, Shield, Clock, Zap,
+  AlertTriangle, Plus, Search, RefreshCw, CheckCircle2,
+  Shield, Zap,
 } from "lucide-react";
 
 interface Anomalie {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { ShieldCheck, ArrowLeft, Save, Loader2, RotateCcw, Check, X, Minus, Search, Users } from "lucide-react";

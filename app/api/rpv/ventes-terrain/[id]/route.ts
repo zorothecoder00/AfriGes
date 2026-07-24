@@ -60,7 +60,6 @@ export async function PATCH(req: Request, { params }: Ctx) {
 
       await auditLog(tx, parseInt(session.user.id), `VENTE_TERRAIN_${nouveauStatut}`, "VenteDirecte", venteId);
 
-      const agentNom = `${vente.vendeur.prenom} ${vente.vendeur.nom}`;
       const rpvNom   = `${session.user.prenom} ${session.user.nom}`;
 
       if (action === "CONFIRMER") {

@@ -5,11 +5,11 @@ import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import {
   ArrowLeft, Users, MapPin, TrendingUp, Phone, Eye, Map,
-  Navigation, RefreshCw, Calendar, CheckCircle, XCircle, Clock,
+  Navigation, RefreshCw, Calendar, CheckCircle,
   Loader2, AlertTriangle, Wallet, ShoppingCart, CreditCard, HandCoins,
 } from 'lucide-react';
 import { useApi } from '@/hooks/useApi';
-import { formatCurrency, formatDate } from '@/lib/format';
+import { formatCurrency } from '@/lib/format';
 import type { MapClient, MapVisite } from '@/components/AgentMap';
 
 // Chargement dynamique (Leaflet incompatible avec SSR)

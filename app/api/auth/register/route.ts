@@ -1,9 +1,6 @@
-import { NextResponse } from 'next/server'  
-import { prisma } from '@/lib/prisma'  
-import { Role } from '@prisma/client'
-import bcrypt from 'bcryptjs'         
+import { NextResponse } from 'next/server'
 
-export async function POST(req: Request) {
+export async function POST(_req: Request) {
 
   // 🚫 Inscription publique désactivée
   return NextResponse.json(

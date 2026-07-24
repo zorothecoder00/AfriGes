@@ -8,8 +8,8 @@ import { toast } from "sonner";
 import VisioReunion from "@/components/gouvernance/VisioReunion";
 import {
   Calendar, MapPin, Clock, Users, FileText, CheckCircle2, XCircle,
-  ChevronLeft, RefreshCw, Plus, Pen, Send, Archive,
-  ClipboardList, Gavel, ListChecks, CheckSquare,
+  ChevronLeft, RefreshCw, Plus, Send, Archive,
+  ClipboardList, Gavel, ListChecks,
 } from "lucide-react";
 import {
   reunionExploitable, RESOLUTION_ACTIONS_PAR_STATUT,
@@ -451,7 +451,7 @@ function OngletCompteRendu({ reunionId, membres }: {
 }
 
 /* ─── Onglet Résolutions ─── */
-function OngletResolutions({ r, onRefresh }: { r: Reunion; onRefresh: () => void }) {
+function OngletResolutions({ r }: { r: Reunion; onRefresh: () => void }) {
   const [showForm, setShowForm] = useState(false);
   const [refresh, setRefresh]   = useState(0);
   const { data, loading } = useApi<{ resolutions: Resolution[] }>(
@@ -460,8 +460,6 @@ function OngletResolutions({ r, onRefresh }: { r: Reunion; onRefresh: () => void
   const { mutate: creer, loading: creating } = useMutation(
     `/api/admin/ria/commissions/gouvernance/resolutions`, "POST"
   );
-  const { mutate: patcher } = useMutation("", "PATCH");
-
   const [form, setForm] = useState({ titre: "", description: "", dateEcheance: "" });
 
   async function soumettre(e: React.FormEvent) {

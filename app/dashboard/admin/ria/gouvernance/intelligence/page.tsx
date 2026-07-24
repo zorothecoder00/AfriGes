@@ -3,9 +3,9 @@
 import { useState } from "react";
 import { useApi } from "@/hooks/useApi";
 import {
-  Brain, RefreshCw, AlertTriangle, TrendingDown, Users, Building2,
-  TrendingUp, Clock, FileStack, Calendar, Activity, Wifi,
-  AlertCircle, CheckCircle2, XCircle,
+  Brain, RefreshCw, AlertTriangle, Users, Building2,
+  TrendingUp, Clock, FileStack, Calendar, Wifi,
+  AlertCircle, CheckCircle2,
 } from "lucide-react";
 
 interface IntelData {
@@ -55,7 +55,6 @@ export default function IntelligencePage() {
     `/api/admin/ria/commissions/gouvernance/intelligence?_r=${refresh}`
   );
 
-  const fmt = (n: number) => new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 0 }).format(n);
   const fmtC = (n: number) => new Intl.NumberFormat("fr-FR", { style: "currency", currency: "XOF", maximumFractionDigits: 0 }).format(n);
 
   return (

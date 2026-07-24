@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import {
-  ArrowLeft, Search, Filter, RefreshCw, Clock, User,
+  ArrowLeft, Search, Filter, RefreshCw, Clock,
   ChevronLeft, ChevronRight, ChevronDown, ChevronUp,
 } from "lucide-react";
 import { useApi } from "@/hooks/useApi";

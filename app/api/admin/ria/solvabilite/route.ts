@@ -218,7 +218,7 @@ export async function GET(req: Request) {
 
 // ── POST : recalculer et persister les scores ─────────────────────────────────
 
-export async function POST(req: Request) {
+export async function POST(_req: Request) {
   try {
     const session = await getRIASession();
     if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });

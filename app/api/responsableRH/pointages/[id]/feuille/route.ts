@@ -8,11 +8,14 @@ import { genFeuillePointageHtml } from "@/lib/feuillePointageHtml";
 export const runtime = "nodejs";
 export const maxDuration = 30;
 
-type Ctx = { params: Promise<{ profilRHId: string }> };
+// Nom de param aligné sur les routes soeurs pointages/[id]/... (Next.js exige
+// le même nom de segment dynamique pour tous les dossiers [x] à ce niveau) ;
+// "id" désigne ici un ProfilRH.id, pas un Pointage.id.
+type Ctx = { params: Promise<{ id: string }> };
 
 /**
- * GET /api/responsableRH/pointages/[profilRHId]/feuille
- * Feuille de pointage mensuelle imprimable (PDF), scopée au périmètre PDV.
+ * GET /api/responsableRH/pointages/[id]/feuille
+ * Feuille de pointage mensuelle imprimable (PDF), scopée au périmètre PDV (id = ProfilRH.id).
  * Query: mois (1-12), annee.
  */
 export async function GET(req: NextRequest, { params }: Ctx) {
@@ -20,7 +23,7 @@ export async function GET(req: NextRequest, { params }: Ctx) {
     const session = await getRHSession();
     if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
 
-    const { profilRHId } = await params;
+    const { id: profilRHId } = await params;
     if (!(await profilRHDansPerimetre(session, Number(profilRHId)))) {
       return NextResponse.json({ error: "Collaborateur hors de votre périmètre" }, { status: 403 });
     }
@@ -62,7 +65,7 @@ export async function GET(req: NextRequest, { params }: Ctx) {
     const filename = `feuille-pointage-${profil.matricule}-${annee}${String(mois).padStart(2, "0")}.pdf`;
     return pdfResponse(pdf, filename);
   } catch (error) {
-    console.error("GET /api/responsableRH/pointages/[profilRHId]/feuille", error);
+    console.error("GET /api/responsableRH/pointages/[id]/feuille", error);
     return NextResponse.json({ error: "Erreur lors de la génération du PDF" }, { status: 500 });
   }
 }

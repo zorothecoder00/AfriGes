@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { PrioriteNotification } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getMagasinierSession } from "@/lib/authMagasinier";
 import { getRPVSession } from "@/lib/authRPV";
 import { resolveViewAs } from "@/lib/viewAs";
 import { randomUUID } from "crypto";
-import { notifyRoles, auditLog } from "@/lib/notifications";
+import { auditLog } from "@/lib/notifications";
 
 async function getSession() {
   return (await getMagasinierSession()) ?? (await getRPVSession());

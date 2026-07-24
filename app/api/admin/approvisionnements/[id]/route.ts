@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { Prisma, PrioriteNotification } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getAuthSession } from "@/lib/auth";
-import { notifyRoles, notifyAdmins, auditLog } from "@/lib/notifications";
+import { notifyRoles, auditLog } from "@/lib/notifications";
 import { enregistrerChangementPrix } from "@/lib/prixProduit";
 
 type Ctx = { params: Promise<{ id: string }> };
