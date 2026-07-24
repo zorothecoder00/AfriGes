@@ -4,7 +4,7 @@ import { useState, useCallback } from "react";
 import {
   Search, RefreshCw, Filter, CheckCircle,
   Clock, XCircle, CalendarDays, X, Save,
-  ArrowLeft, Plus, ChevronRight, Ban,
+  ArrowLeft, Plus, ChevronRight, ChevronLeft, Ban, Printer, BarChart2,
 } from "lucide-react";
 import Link from "next/link";
 import { useApi, useMutation } from "@/hooks/useApi";
@@ -56,14 +56,56 @@ const TYPE_CONGE: Record<string, string> = {
   MATERNITE: "Maternité", PATERNITE: "Paternité", SANS_SOLDE: "Sans solde",
 };
 
+const TYPE_COLOR: Record<string, string> = {
+  ANNUEL: "bg-emerald-100 text-emerald-700", MALADIE: "bg-red-100 text-red-600",
+  EXCEPTIONNEL: "bg-amber-100 text-amber-700", PERMISSION: "bg-blue-100 text-blue-700",
+  FORMATION: "bg-indigo-100 text-indigo-700", MATERNITE: "bg-pink-100 text-pink-700",
+  PATERNITE: "bg-cyan-100 text-cyan-700", SANS_SOLDE: "bg-slate-100 text-slate-600",
+};
+const TYPE_DOT: Record<string, string> = {
+  ANNUEL: "bg-emerald-500", MALADIE: "bg-red-500", EXCEPTIONNEL: "bg-amber-500",
+  PERMISSION: "bg-blue-500", FORMATION: "bg-indigo-500", MATERNITE: "bg-pink-500",
+  PATERNITE: "bg-cyan-500", SANS_SOLDE: "bg-slate-400",
+};
+
+const CAL_MOIS_LABELS = ["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
+const JOURS_LABELS = ["Dim","Lun","Mar","Mer","Jeu","Ven","Sam"];
+function daysInMonth(year: number, month: number) { return new Date(year, month + 1, 0).getDate(); }
+function isoDate(y: number, m: number, d: number) { return `${y}-${String(m + 1).padStart(2,"0")}-${String(d).padStart(2,"0")}`; }
+
+interface CalendrierResponse {
+  data:    Demande[];
+  byDay:   Record<string, { profilRHId: number; nom: string; prenom: string; type: string }[]>;
+  periode: { annee: number; mois: number | null };
+}
+
 // ── Page ───────────────────────────────────────────────────────────────────────
 
 export default function CongesRHPage() {
+  const today = new Date();
+  const [activeTab, setActiveTab] = useState<"demandes" | "calendrier" | "planning">("demandes");
   const [statut, setStatut] = useState("");
   const [search, setSearch] = useState("");
   const [page,   setPage]   = useState(1);
   const [showCreate,  setShowCreate]  = useState(false);
   const [rejectModal, setRejectModal] = useState<Demande | null>(null);
+
+  // Calendrier
+  const [calYear,  setCalYear]  = useState(today.getFullYear());
+  const [calMonth, setCalMonth] = useState(today.getMonth());
+  const calParams = new URLSearchParams({ annee: String(calYear), mois: String(calMonth + 1) });
+  const { data: calRes, loading: calLoading, refetch: calRefetch } = useApi<CalendrierResponse>(
+    activeTab === "calendrier" ? `/api/responsableRH/conges/calendrier?${calParams}` : null
+  );
+  const prevCalMonth = () => { if (calMonth === 0) { setCalYear((y) => y - 1); setCalMonth(11); } else setCalMonth((m) => m - 1); };
+  const nextCalMonth = () => { if (calMonth === 11) { setCalYear((y) => y + 1); setCalMonth(0); } else setCalMonth((m) => m + 1); };
+
+  // Planning annuel
+  const [planningAnnee, setPlanningAnnee] = useState(today.getFullYear());
+  const planningParams = new URLSearchParams({ annee: String(planningAnnee) });
+  const { data: planningRes, loading: planningLoading, refetch: planningRefetch } = useApi<CalendrierResponse>(
+    activeTab === "planning" ? `/api/responsableRH/conges/calendrier?${planningParams}` : null
+  );
 
   const params = new URLSearchParams();
   if (statut) params.set("statut", statut);
@@ -109,6 +151,23 @@ export default function CongesRHPage() {
           </div>
         </div>
 
+        {/* ── Onglets ── */}
+        <div className="flex gap-1 bg-white border border-slate-200 rounded-xl p-1 w-fit">
+          {([
+            ["demandes",   "Demandes"],
+            ["calendrier", "Calendrier"],
+            ["planning",   "Planning annuel"],
+          ] as const).map(([tab, label]) => (
+            <button key={tab} onClick={() => setActiveTab(tab)}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                activeTab === tab ? "bg-emerald-600 text-white shadow-sm" : "text-slate-500 hover:text-slate-700"
+              }`}>
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {activeTab === "demandes" && (<>
         {/* ── Alerte en attente ── */}
         {enAttente > 0 && (
           <div className="flex items-center gap-3 px-4 py-3 bg-yellow-50 border border-yellow-200 rounded-xl text-sm text-yellow-800">
@@ -209,6 +268,139 @@ export default function CongesRHPage() {
             </div>
           </div>
         )}
+        </>)}
+
+        {/* ── TAB : CALENDRIER ── */}
+        {activeTab === "calendrier" && (
+          <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-3 border-b border-slate-200">
+              <div className="flex items-center gap-3">
+                <button onClick={prevCalMonth} className="p-1.5 hover:bg-slate-100 rounded-lg"><ChevronLeft className="w-4 h-4" /></button>
+                <span className="text-base font-semibold text-slate-700">{CAL_MOIS_LABELS[calMonth]} {calYear}</span>
+                <button onClick={nextCalMonth} className="p-1.5 hover:bg-slate-100 rounded-lg"><ChevronRight className="w-4 h-4" /></button>
+                <button onClick={calRefetch} className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400">
+                  {calLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+                </button>
+              </div>
+              <div className="hidden sm:flex flex-wrap gap-2">
+                {Object.entries(TYPE_CONGE).map(([k, v]) => (
+                  <span key={k} className="flex items-center gap-1 text-[10px] text-slate-500">
+                    <span className={`w-2 h-2 rounded-full ${TYPE_DOT[k]}`} />{v}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            {calLoading ? (
+              <div className="flex justify-center py-16 text-slate-400"><RefreshCw className="w-6 h-6 animate-spin" /></div>
+            ) : (
+              <div className="p-4">
+                <div className="grid grid-cols-7 gap-1 mb-2">
+                  {JOURS_LABELS.map((j) => (
+                    <div key={j} className="text-center text-[10px] font-semibold text-slate-400 py-1">{j}</div>
+                  ))}
+                </div>
+                {(() => {
+                  const byDay = calRes?.byDay ?? {};
+                  const days  = daysInMonth(calYear, calMonth);
+                  const firstDow = new Date(calYear, calMonth, 1).getDay();
+                  const cells: React.ReactNode[] = [];
+                  for (let i = 0; i < firstDow; i++) cells.push(<div key={`e-${i}`} />);
+                  for (let d = 1; d <= days; d++) {
+                    const dateStr = isoDate(calYear, calMonth, d);
+                    const absents = byDay[dateStr] ?? [];
+                    const dow     = new Date(calYear, calMonth, d).getDay();
+                    const isWE    = dow === 0 || dow === 6;
+                    const isToday = dateStr === new Date().toISOString().slice(0, 10);
+                    cells.push(
+                      <div key={d} className={`min-h-[80px] rounded-lg border p-1.5 ${
+                        isToday ? "border-emerald-400 bg-emerald-50/50" :
+                        isWE    ? "border-slate-100 bg-slate-50/50" :
+                        "border-slate-100 bg-white"
+                      }`}>
+                        <p className={`text-xs font-semibold mb-1 ${isToday ? "text-emerald-600" : isWE ? "text-slate-300" : "text-slate-500"}`}>{d}</p>
+                        <div className="space-y-0.5">
+                          {absents.slice(0, 3).map((a, i) => (
+                            <div key={i} className={`text-[9px] px-1 py-0.5 rounded truncate flex items-center gap-1 ${TYPE_COLOR[a.type] ?? "bg-gray-100 text-gray-600"}`}>
+                              <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${TYPE_DOT[a.type]}`} />
+                              {a.prenom} {a.nom[0]}.
+                            </div>
+                          ))}
+                          {absents.length > 3 && (
+                            <p className="text-[9px] text-slate-400 pl-1">+{absents.length - 3} autres</p>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  }
+                  return cells;
+                })()}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── TAB : PLANNING ANNUEL ── */}
+        {activeTab === "planning" && (
+          <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-3 border-b border-slate-200">
+              <div className="flex items-center gap-3">
+                <button onClick={() => setPlanningAnnee((y) => y - 1)} className="p-1.5 hover:bg-slate-100 rounded-lg"><ChevronLeft className="w-4 h-4" /></button>
+                <span className="text-base font-semibold text-slate-700">Année {planningAnnee}</span>
+                <button onClick={() => setPlanningAnnee((y) => y + 1)} className="p-1.5 hover:bg-slate-100 rounded-lg"><ChevronRight className="w-4 h-4" /></button>
+                <button onClick={planningRefetch} className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400">
+                  {planningLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+                </button>
+              </div>
+              <div className="hidden sm:flex flex-wrap gap-2">
+                {Object.entries(TYPE_CONGE).map(([k, v]) => (
+                  <span key={k} className="flex items-center gap-1 text-[10px] text-slate-500">
+                    <span className={`w-2 h-2 rounded-full ${TYPE_DOT[k]}`} />{v}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            {planningLoading ? (
+              <div className="flex justify-center py-16 text-slate-400"><RefreshCw className="w-6 h-6 animate-spin" /></div>
+            ) : !planningRes?.data.length ? (
+              <div className="flex flex-col items-center justify-center py-16 text-slate-400">
+                <BarChart2 className="w-10 h-10 mb-2 opacity-30" />
+                <p className="text-sm">Aucune absence approuvée sur {planningAnnee}</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 p-4">
+                {CAL_MOIS_LABELS.map((label, m) => {
+                  const monStart = new Date(planningAnnee, m, 1);
+                  const monEnd   = new Date(planningAnnee, m + 1, 0, 23, 59, 59);
+                  const items = (planningRes?.data ?? []).filter((d) =>
+                    new Date(d.dateDebut) <= monEnd && new Date(d.dateFin) >= monStart
+                  );
+                  return (
+                    <div key={label} className="border border-slate-100 rounded-lg p-3">
+                      <p className="text-sm font-semibold text-slate-700 mb-2">{label}</p>
+                      {items.length === 0 ? (
+                        <p className="text-xs text-slate-300">Aucune absence</p>
+                      ) : (
+                        <div className="space-y-1.5">
+                          {items.map((d) => (
+                            <div key={d.id} className={`text-xs px-2 py-1 rounded flex items-center justify-between gap-2 ${TYPE_COLOR[d.type] ?? "bg-gray-100 text-gray-600"}`}>
+                              <span className="flex items-center gap-1.5 truncate">
+                                <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${TYPE_DOT[d.type]}`} />
+                                {d.profilRH.gestionnaire.member.prenom} {d.profilRH.gestionnaire.member.nom}
+                              </span>
+                              <span className="flex-shrink-0 opacity-70">{formatDate(d.dateDebut)}–{formatDate(d.dateFin)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* ── Modals ── */}
@@ -290,6 +482,14 @@ function DemandeRow({ demande, onReject, onRefetch }: {
               En attente RH
             </span>
           )}
+          <a
+            href={`/api/responsableRH/conges/${demande.id}/pdf`}
+            target="_blank" rel="noreferrer"
+            title="Imprimer la demande"
+            className="flex-shrink-0 p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg"
+          >
+            <Printer className="w-3.5 h-3.5" />
+          </a>
         </div>
         {demande.commentaireRefus && (
           <p className="mt-1.5 text-xs text-red-600 italic">{demande.commentaireRefus}</p>

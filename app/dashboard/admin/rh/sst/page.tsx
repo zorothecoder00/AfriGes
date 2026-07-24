@@ -3,12 +3,13 @@
 import React, { useState } from "react";
 import {
   ArrowLeft, RefreshCw, Plus, X, Save, ShieldAlert,
-  Stethoscope, BookOpen, AlertTriangle, DoorOpen, Ban,
+  Stethoscope, BookOpen, AlertTriangle, DoorOpen, Ban, Pencil, Trash2, Download, Printer,
 } from "lucide-react";
 import Link from "next/link";
 import { useApi, useMutation } from "@/hooks/useApi";
 import { formatDate } from "@/lib/format";
 import { toast } from "sonner";
+import { exportToXlsx } from "@/lib/exportXlsx";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -186,6 +187,38 @@ function AccidentsTab() {
         </div>
         <div className="flex items-center gap-2">
           <button onClick={refetch} className="p-2 text-slate-500 bg-white border border-slate-200 rounded-lg hover:bg-slate-50"><RefreshCw className="w-4 h-4" /></button>
+          <button
+            onClick={() => exportToXlsx(
+              accidents.map((a) => ({
+                Collaborateur: `${a.profilRH.gestionnaire.member.prenom} ${a.profilRH.gestionnaire.member.nom}`,
+                Matricule: a.profilRH.matricule,
+                Date: new Date(a.dateAccident),
+                Heure: a.heureAccident ?? "",
+                Lieu: a.lieu,
+                Gravite: GRAVITE_CFG[a.gravite]?.label ?? a.gravite,
+                ArretTravail: a.arretTravail ? `Oui (${a.dureeArretJours ?? "?"}j)` : "Non",
+                Statut: STATUT_AT_CFG[a.statut]?.label ?? a.statut,
+                Circonstances: a.circonstances,
+              })),
+              [
+                { label: "Collaborateur", key: "Collaborateur" },
+                { label: "Matricule", key: "Matricule" },
+                { label: "Date", key: "Date", type: "date" },
+                { label: "Heure", key: "Heure" },
+                { label: "Lieu", key: "Lieu" },
+                { label: "Gravité", key: "Gravite" },
+                { label: "Arrêt de travail", key: "ArretTravail" },
+                { label: "Statut", key: "Statut" },
+                { label: "Circonstances", key: "Circonstances" },
+              ],
+              "registre-accidents.xlsx",
+              { sheetName: "Accidents", title: "Registre des accidents du travail" },
+            )}
+            disabled={accidents.length === 0}
+            className="flex items-center gap-1.5 px-3 py-2 text-sm border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed bg-white"
+          >
+            <Download className="w-4 h-4" /> Exporter
+          </button>
           <button onClick={() => setShowCreate(true)}
             className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-xl hover:bg-red-700">
             <Plus className="w-4 h-4" /> Déclarer un accident
@@ -237,6 +270,14 @@ function AccidentRow({ accident: a, onRefetch }: { accident: Accident; onRefetch
         {a.mesuresCorrectives && <p className="text-xs text-emerald-600 mt-0.5">Mesures : {a.mesuresCorrectives}</p>}
       </div>
       <div className="flex items-center gap-2 flex-shrink-0">
+        <a
+          href={`/api/admin/rh/sst/accidents/${a.id}/declaration`}
+          target="_blank" rel="noreferrer"
+          title="Imprimer la déclaration d'accident"
+          className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg"
+        >
+          <Printer className="w-4 h-4" />
+        </a>
         {a.statut === "DECLARE" && (
           <button disabled={loading} onClick={() => doAction("INSTRUIRE")}
             className="px-3 py-1.5 text-xs font-medium bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 disabled:opacity-50">Instruire</button>
@@ -377,6 +418,38 @@ function VisitesTab() {
     <div className="space-y-4">
       <div className="flex justify-end gap-2">
         <button onClick={refetch} className="p-2 text-slate-500 bg-white border border-slate-200 rounded-lg hover:bg-slate-50"><RefreshCw className="w-4 h-4" /></button>
+        <button
+          onClick={() => exportToXlsx(
+            visites.map((v) => ({
+              Collaborateur: `${v.profilRH.gestionnaire.member.prenom} ${v.profilRH.gestionnaire.member.nom}`,
+              Matricule: v.profilRH.matricule,
+              Type: TYPE_VISITE_LABEL[v.type] ?? v.type,
+              Date: new Date(v.dateVisite),
+              Medecin: v.medecin ?? "",
+              Lieu: v.lieu ?? "",
+              Resultat: RESULTAT_CFG[v.resultatAptitude]?.label ?? v.resultatAptitude,
+              Restrictions: v.restrictions ?? "",
+              ProchaineVisite: v.dateProchaineVisite ? new Date(v.dateProchaineVisite) : null,
+            })),
+            [
+              { label: "Collaborateur", key: "Collaborateur" },
+              { label: "Matricule", key: "Matricule" },
+              { label: "Type", key: "Type" },
+              { label: "Date", key: "Date", type: "date" },
+              { label: "Médecin", key: "Medecin" },
+              { label: "Lieu", key: "Lieu" },
+              { label: "Résultat d'aptitude", key: "Resultat" },
+              { label: "Restrictions", key: "Restrictions" },
+              { label: "Prochaine visite", key: "ProchaineVisite", type: "date" },
+            ],
+            "visites-medicales.xlsx",
+            { sheetName: "Visites", title: "Visites médicales" },
+          )}
+          disabled={visites.length === 0}
+          className="flex items-center gap-1.5 px-3 py-2 text-sm border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed bg-white"
+        >
+          <Download className="w-4 h-4" /> Exporter
+        </button>
         <button onClick={() => setShowCreate(true)}
           className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-xl hover:bg-red-700">
           <Plus className="w-4 h-4" /> Enregistrer une visite
@@ -522,6 +595,30 @@ function RegistreTab() {
     <div className="space-y-4">
       <div className="flex justify-end gap-2">
         <button onClick={refetch} className="p-2 text-slate-500 bg-white border border-slate-200 rounded-lg hover:bg-slate-50"><RefreshCw className="w-4 h-4" /></button>
+        <button
+          onClick={() => exportToXlsx(
+            entries.map((e) => ({
+              Type: TYPE_SST_LABEL[e.type] ?? e.type,
+              Date: new Date(e.dateEvenement),
+              Lieu: e.lieu ?? "",
+              Description: e.description,
+              ActionsPrises: e.actionsPrises ?? "",
+            })),
+            [
+              { label: "Type", key: "Type" },
+              { label: "Date", key: "Date", type: "date" },
+              { label: "Lieu", key: "Lieu" },
+              { label: "Description", key: "Description" },
+              { label: "Actions prises", key: "ActionsPrises" },
+            ],
+            "registre-sst.xlsx",
+            { sheetName: "Registre SST", title: "Registre SST" },
+          )}
+          disabled={entries.length === 0}
+          className="flex items-center gap-1.5 px-3 py-2 text-sm border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed bg-white"
+        >
+          <Download className="w-4 h-4" /> Exporter
+        </button>
         <button onClick={() => setShowCreate(true)}
           className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-xl hover:bg-red-700">
           <Plus className="w-4 h-4" /> Ajouter une entrée
@@ -638,6 +735,36 @@ function IncidentsTab() {
         </div>
         <div className="flex items-center gap-2">
           <button onClick={refetch} className="p-2 text-slate-500 bg-white border border-slate-200 rounded-lg hover:bg-slate-50"><RefreshCw className="w-4 h-4" /></button>
+          <button
+            onClick={() => exportToXlsx(
+              incidents.map((i) => ({
+                Type: TYPE_INCIDENT_LABEL[i.typeIncident] ?? i.typeIncident,
+                Date: new Date(i.dateIncident),
+                Lieu: i.lieu,
+                Gravite: GRAVITE_CFG[i.gravite]?.label ?? i.gravite,
+                Statut: STATUT_INC_CFG[i.statut]?.label ?? i.statut,
+                PersonnesImpliquees: i.personnesImpliquees ?? "",
+                Description: i.description,
+                ActionsCorrectives: i.actionsCorrectives ?? "",
+              })),
+              [
+                { label: "Type", key: "Type" },
+                { label: "Date", key: "Date", type: "date" },
+                { label: "Lieu", key: "Lieu" },
+                { label: "Gravité", key: "Gravite" },
+                { label: "Statut", key: "Statut" },
+                { label: "Personnes impliquées", key: "PersonnesImpliquees" },
+                { label: "Description", key: "Description" },
+                { label: "Actions correctives", key: "ActionsCorrectives" },
+              ],
+              "registre-incidents.xlsx",
+              { sheetName: "Incidents", title: "Registre des incidents" },
+            )}
+            disabled={incidents.length === 0}
+            className="flex items-center gap-1.5 px-3 py-2 text-sm border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed bg-white"
+          >
+            <Download className="w-4 h-4" /> Exporter
+          </button>
           <button onClick={() => setShowCreate(true)}
             className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-xl hover:bg-red-700">
             <Plus className="w-4 h-4" /> Signaler un incident
@@ -778,8 +905,15 @@ function CreateIncidentModal({ onClose, onCreated }: { onClose: () => void; onCr
 
 function EvacuationTab() {
   const [showCreate, setShowCreate] = useState(false);
+  const [editing, setEditing] = useState<PlanEvac | null>(null);
   const { data, loading, refetch } = useApi<{ data: PlanEvac[] }>("/api/admin/rh/documents-strategiques?type=PLAN_EVACUATION");
   const plans = data?.data ?? [];
+
+  async function removePlan(id: number) {
+    if (!confirm("Supprimer définitivement ce plan d'évacuation ?")) return;
+    const r = await fetch(`/api/admin/rh/documents-strategiques/${id}`, { method: "DELETE" });
+    if (r.ok) { toast.success("Plan d'évacuation supprimé"); refetch(); } else toast.error("Erreur");
+  }
 
   return (
     <div className="space-y-4">
@@ -813,12 +947,21 @@ function EvacuationTab() {
               {p.fichierUrl && (
                 <a href={p.fichierUrl} target="_blank" rel="noreferrer" className="text-xs text-red-600 hover:underline mt-2 inline-block">Voir le document</a>
               )}
+              <div className="flex items-center gap-3 mt-3 pt-3 border-t border-slate-100">
+                <button onClick={() => setEditing(p)} className="flex items-center gap-1 text-xs text-slate-600 hover:text-slate-900">
+                  <Pencil className="w-3.5 h-3.5" /> Modifier
+                </button>
+                <button onClick={() => removePlan(p.id)} className="flex items-center gap-1 text-xs text-red-600 hover:text-red-800">
+                  <Trash2 className="w-3.5 h-3.5" /> Supprimer
+                </button>
+              </div>
             </div>
           ))}
         </div>
       )}
 
       {showCreate && <CreateEvacuationModal onClose={() => setShowCreate(false)} onCreated={() => { setShowCreate(false); refetch(); }} />}
+      {editing && <EditEvacuationModal plan={editing} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); refetch(); }} />}
     </div>
   );
 }
@@ -884,6 +1027,73 @@ function CreateEvacuationModal({ onClose, onCreated }: { onClose: () => void; on
           <button onClick={handleSubmit} disabled={loading}
             className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 disabled:opacity-50">
             {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Créer
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function EditEvacuationModal({ plan, onClose, onSaved }: { plan: PlanEvac; onClose: () => void; onSaved: () => void }) {
+  const [form, setForm] = useState({
+    titre: plan.titre, fichierUrl: plan.fichierUrl ?? "",
+    dateEffet: plan.dateEffet ? plan.dateEffet.slice(0, 10) : "", statut: plan.statut,
+  });
+  const [saving, setSaving] = useState(false);
+  const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
+
+  const handleSubmit = async () => {
+    if (!form.titre.trim()) { toast.error("Titre requis"); return; }
+    setSaving(true);
+    try {
+      const r = await fetch(`/api/admin/rh/documents-strategiques/${plan.id}`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          titre: form.titre.trim(),
+          fichierUrl: form.fichierUrl || undefined,
+          dateEffet: form.dateEffet || null,
+          statut: form.statut,
+        }),
+      });
+      if (r.ok) { toast.success("Plan d'évacuation mis à jour"); onSaved(); }
+      else { const j = await r.json().catch(() => ({})); toast.error(j.error ?? "Erreur"); }
+    } finally { setSaving(false); }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
+          <h2 className="font-semibold text-slate-900">Modifier le plan d&apos;évacuation</h2>
+          <button onClick={onClose} className="p-1.5 hover:bg-slate-100 rounded-lg"><X className="w-4 h-4" /></button>
+        </div>
+        <div className="p-6 space-y-4">
+          <Field label="Titre *">
+            <input value={form.titre} onChange={(e) => set("titre", e.target.value)}
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-500" />
+          </Field>
+          <Field label="Document (fichier)">
+            <input value={form.fichierUrl} onChange={(e) => set("fichierUrl", e.target.value)} placeholder="URL du fichier"
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-500" />
+          </Field>
+          <Field label="Date d'effet">
+            <input type="date" value={form.dateEffet} onChange={(e) => set("dateEffet", e.target.value)}
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-500" />
+          </Field>
+          <Field label="Statut">
+            <select value={form.statut} onChange={(e) => set("statut", e.target.value)}
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-red-500">
+              <option value="BROUILLON">Brouillon</option>
+              <option value="EN_VIGUEUR">En vigueur</option>
+              <option value="ARCHIVE">Archivé</option>
+            </select>
+          </Field>
+        </div>
+        <div className="flex justify-end gap-3 px-6 py-4 border-t border-slate-200">
+          <button onClick={onClose} className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 rounded-lg border border-slate-200">Annuler</button>
+          <button onClick={handleSubmit} disabled={saving}
+            className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 disabled:opacity-50">
+            {saving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Enregistrer
           </button>
         </div>
       </div>

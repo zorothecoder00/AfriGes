@@ -38,6 +38,7 @@ const TYPE_LABEL: Record<string, string> = {
   POLITIQUE_DIVERSITE: "Politique de diversité et d'inclusion",
   POLITIQUE_SANTE_SECURITE: "Politique Santé, Sécurité & Bien-être",
   POLITIQUE_CONFIDENTIALITE: "Politique de confidentialité des données du personnel",
+  PLAN_EVACUATION: "Plan d'évacuation",
   AUTRE: "Autre",
 };
 const TYPE_ORDER = Object.keys(TYPE_LABEL);

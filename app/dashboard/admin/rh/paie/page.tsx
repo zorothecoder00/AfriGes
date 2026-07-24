@@ -148,6 +148,7 @@ const TABS = [
   { id: "ordres",   label: "Paiements",       icon: <Send       className="w-4 h-4" /> },
   { id: "historique",label: "Historique",     icon: <Archive    className="w-4 h-4" /> },
   { id: "retenues", label: "État des retenues", icon: <FileText className="w-4 h-4" /> },
+  { id: "cnss",     label: "État CNSS/fiscal", icon: <ShieldCheck className="w-4 h-4" /> },
   { id: "config",   label: "Configuration",   icon: <Settings   className="w-4 h-4" /> },
   { id: "dashboard",label: "Tableau de bord", icon: <TrendingUp className="w-4 h-4" /> },
 ];
@@ -192,6 +193,7 @@ export default function PaiePage() {
         {activeTab === "ordres"     && <OrdresPaiementTab />}
         {activeTab === "historique" && <HistoriqueTab />}
         {activeTab === "retenues"   && <RetenuesTab />}
+        {activeTab === "cnss"       && <CnssFiscalTab />}
         {activeTab === "config"     && <ConfigTab />}
         {activeTab === "dashboard"  && <DashboardTab />}
 
@@ -723,6 +725,36 @@ function AvancesSubTab() {
           <option value="REMBOURSE">Remboursée</option>
         </select>
         <button onClick={refetch} className="p-2 text-slate-500 hover:text-slate-700 bg-white border border-slate-200 rounded-lg"><RefreshCw className="w-4 h-4" /></button>
+        <button
+          onClick={() => exportToXlsx(
+            avances.map((a) => ({
+              Collaborateur: `${a.profilRH.gestionnaire.member.prenom} ${a.profilRH.gestionnaire.member.nom}`,
+              Matricule: a.profilRH.matricule,
+              Montant: a.montant,
+              MontantRestant: a.montantRestant,
+              EcheancesMois: a.echeancesMois,
+              Statut: a.statut,
+              Motif: a.motif ?? "",
+              DateCreation: new Date(a.createdAt),
+            })),
+            [
+              { label: "Collaborateur", key: "Collaborateur" },
+              { label: "Matricule", key: "Matricule" },
+              { label: "Montant", key: "Montant", type: "currency" },
+              { label: "Montant restant", key: "MontantRestant", type: "currency" },
+              { label: "Échéances (mois)", key: "EcheancesMois" },
+              { label: "Statut", key: "Statut" },
+              { label: "Motif", key: "Motif" },
+              { label: "Date de création", key: "DateCreation", type: "date" },
+            ],
+            "avances-salaire.xlsx",
+            { sheetName: "Avances", title: "Avances sur salaire" },
+          )}
+          disabled={avances.length === 0}
+          className="flex items-center gap-1.5 px-3 py-2 text-sm border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed bg-white"
+        >
+          <Download className="w-4 h-4" /> Exporter
+        </button>
         <button onClick={() => setShowCreate(true)}
           className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 ml-auto">
           <Plus className="w-4 h-4" /> Nouvelle avance
@@ -882,6 +914,40 @@ function PretsSubTab() {
           <option value="EN_DEFAUT">En défaut</option>
         </select>
         <button onClick={refetch} className="p-2 text-slate-500 hover:text-slate-700 bg-white border border-slate-200 rounded-lg"><RefreshCw className="w-4 h-4" /></button>
+        <button
+          onClick={() => exportToXlsx(
+            prets.map((p) => ({
+              Collaborateur: `${p.profilRH.gestionnaire.member.prenom} ${p.profilRH.gestionnaire.member.nom}`,
+              Matricule: p.profilRH.matricule,
+              Montant: p.montant,
+              MontantRestant: p.montantRestant,
+              MontantMensuel: p.montantMensuel,
+              TauxInteret: p.tauxInteret,
+              DureeMois: p.dureesMois,
+              Statut: p.statut,
+              Notes: p.notes ?? "",
+              DateCreation: new Date(p.createdAt),
+            })),
+            [
+              { label: "Collaborateur", key: "Collaborateur" },
+              { label: "Matricule", key: "Matricule" },
+              { label: "Montant", key: "Montant", type: "currency" },
+              { label: "Montant restant", key: "MontantRestant", type: "currency" },
+              { label: "Mensualité", key: "MontantMensuel", type: "currency" },
+              { label: "Taux d'intérêt", key: "TauxInteret" },
+              { label: "Durée (mois)", key: "DureeMois" },
+              { label: "Statut", key: "Statut" },
+              { label: "Notes", key: "Notes" },
+              { label: "Date de création", key: "DateCreation", type: "date" },
+            ],
+            "prets-employes.xlsx",
+            { sheetName: "Prêts", title: "Prêts employés" },
+          )}
+          disabled={prets.length === 0}
+          className="flex items-center gap-1.5 px-3 py-2 text-sm border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed bg-white"
+        >
+          <Download className="w-4 h-4" /> Exporter
+        </button>
         <button onClick={() => setShowCreate(true)}
           className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 ml-auto">
           <Plus className="w-4 h-4" /> Nouveau prêt
@@ -1519,6 +1585,150 @@ function RetenuesTab() {
                   <span className="text-sm font-bold text-red-600 flex-shrink-0">-{fmt(c.total)} FCFA</span>
                 </div>
               ))}
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+interface CnssCollab {
+  profilRH: { id: number; matricule: string; departement: string | null; nom: string; prenom: string };
+  mois: number; annee: number;
+  totalBrut: number; cnssSalariale: number; cnssPatronale: number; cnssTotal: number; irpp: number;
+}
+interface CnssFiscalRes {
+  taux: { salarial: number; patronal: number; total: number };
+  totalBrutPeriode: number; totalSalariale: number; totalPatronale: number; totalCnss: number; totalIrpp: number;
+  parCollaborateur: CnssCollab[];
+  periode: { mois: number | null; annee: number };
+}
+
+function CnssFiscalTab() {
+  const [mois,  setMois]  = useState("");
+  const [annee, setAnnee] = useState(String(ANNEE_COURANTE));
+
+  const params = new URLSearchParams({ annee });
+  if (mois) params.set("mois", mois);
+
+  const { data, loading, refetch } = useApi<CnssFiscalRes>(`/api/admin/rh/paie/cnss-fiscal?${params}`);
+  const parCollab = data?.parCollaborateur ?? [];
+
+  return (
+    <div className="space-y-5">
+      <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-2 text-sm text-amber-800">
+        <Info className="w-4 h-4 flex-shrink-0 mt-0.5" />
+        <p>CNSS (21,50 % du brut : 4 % salarial + 17,50 % patronal) et IRPP (barème progressif, quotient familial selon situation matrimoniale/enfants) calculés automatiquement à la création de chaque fiche de paie.</p>
+      </div>
+
+      {/* Filtres */}
+      <div className="flex gap-3 flex-wrap items-center">
+        <select value={mois} onChange={(e) => setMois(e.target.value)}
+          className="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
+          <option value="">Tous les mois</option>
+          {MOIS_LABELS.slice(1).map((l, i) => <option key={i+1} value={i+1}>{l}</option>)}
+        </select>
+        <select value={annee} onChange={(e) => setAnnee(e.target.value)}
+          className="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
+          {ANNEES.map((a) => <option key={a} value={a}>{a}</option>)}
+        </select>
+        <button onClick={refetch} className="p-2 text-slate-500 hover:text-slate-700 bg-white border border-slate-200 rounded-lg"><RefreshCw className="w-4 h-4" /></button>
+        <button
+          onClick={() => exportToXlsx(
+            parCollab.map((c) => ({
+              Collaborateur: `${c.profilRH.prenom} ${c.profilRH.nom}`,
+              Matricule: c.profilRH.matricule,
+              Departement: c.profilRH.departement ?? "",
+              Mois: MOIS_LABELS[c.mois],
+              Annee: c.annee,
+              SalaireBrut: c.totalBrut,
+              CnssSalariale: c.cnssSalariale,
+              CnssPatronale: c.cnssPatronale,
+              CnssTotal: c.cnssTotal,
+              Irpp: c.irpp,
+            })),
+            [
+              { label: "Collaborateur", key: "Collaborateur" },
+              { label: "Matricule", key: "Matricule" },
+              { label: "Département", key: "Departement" },
+              { label: "Mois", key: "Mois" },
+              { label: "Année", key: "Annee" },
+              { label: "Salaire brut", key: "SalaireBrut", type: "currency" },
+              { label: "CNSS salariale (4%)", key: "CnssSalariale", type: "currency" },
+              { label: "CNSS patronale (17,50%)", key: "CnssPatronale", type: "currency" },
+              { label: "CNSS totale (21,50%)", key: "CnssTotal", type: "currency" },
+              { label: "IRPP", key: "Irpp", type: "currency" },
+            ],
+            `etat-cnss-fiscal-${annee}${mois ? `-${mois}` : ""}.xlsx`,
+            { sheetName: "État CNSS-fiscal", title: "État CNSS/fiscal" },
+          )}
+          disabled={parCollab.length === 0}
+          className="flex items-center gap-1.5 px-3 py-2 text-sm border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed bg-white ml-auto"
+        >
+          <Download className="w-4 h-4" /> Exporter
+        </button>
+      </div>
+
+      {loading ? (
+        <div className="flex items-center justify-center py-16 text-slate-400"><RefreshCw className="w-5 h-5 animate-spin mr-2" /> Chargement…</div>
+      ) : parCollab.length === 0 ? (
+        <div className="bg-white rounded-xl border border-slate-200 flex flex-col items-center justify-center py-16 text-slate-400">
+          <ShieldCheck className="w-10 h-10 mb-2 opacity-30" />
+          <p className="text-sm">Aucune fiche de paie sur cette période</p>
+        </div>
+      ) : (
+        <>
+          {/* Totaux */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="bg-white rounded-xl border border-slate-200 p-4">
+              <p className="text-xs text-slate-500 mb-1">CNSS salariale (4 %)</p>
+              <p className="text-2xl font-bold text-red-600">{fmt(data?.totalSalariale ?? 0)} FCFA</p>
+            </div>
+            <div className="bg-white rounded-xl border border-slate-200 p-4">
+              <p className="text-xs text-slate-500 mb-1">CNSS patronale (17,50 %)</p>
+              <p className="text-2xl font-bold text-orange-600">{fmt(data?.totalPatronale ?? 0)} FCFA</p>
+            </div>
+            <div className="bg-white rounded-xl border border-slate-200 p-4">
+              <p className="text-xs text-slate-500 mb-1">Total CNSS à reverser (21,50 %)</p>
+              <p className="text-2xl font-bold text-slate-800">{fmt(data?.totalCnss ?? 0)} FCFA</p>
+            </div>
+            <div className="bg-white rounded-xl border border-slate-200 p-4">
+              <p className="text-xs text-slate-500 mb-1">IRPP à reverser (OTR)</p>
+              <p className="text-2xl font-bold text-purple-600">{fmt(data?.totalIrpp ?? 0)} FCFA</p>
+            </div>
+          </div>
+
+          {/* Détail par collaborateur */}
+          <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-slate-50 border-b border-slate-200">
+                  <tr>
+                    <th className="text-left px-4 py-3 font-semibold text-slate-600 text-xs">Collaborateur</th>
+                    <th className="text-right px-3 py-3 font-semibold text-slate-600 text-xs">Brut</th>
+                    <th className="text-right px-3 py-3 font-semibold text-red-600 text-xs">Salariale</th>
+                    <th className="text-right px-3 py-3 font-semibold text-orange-600 text-xs">Patronale</th>
+                    <th className="text-right px-3 py-3 font-semibold text-slate-600 text-xs">Total CNSS</th>
+                    <th className="text-right px-4 py-3 font-semibold text-purple-600 text-xs">IRPP</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {parCollab.map((c) => (
+                    <tr key={`${c.profilRH.id}-${c.mois}-${c.annee}`} className="hover:bg-slate-50">
+                      <td className="px-4 py-3">
+                        <p className="font-medium text-slate-800">{c.profilRH.prenom} {c.profilRH.nom}</p>
+                        <p className="text-xs text-slate-400 font-mono">{c.profilRH.matricule} · {MOIS_LABELS[c.mois]} {c.annee}</p>
+                      </td>
+                      <td className="text-right px-3 py-3 text-slate-600">{fmt(c.totalBrut)}</td>
+                      <td className="text-right px-3 py-3 text-red-600">{fmt(c.cnssSalariale)}</td>
+                      <td className="text-right px-3 py-3 text-orange-600">{fmt(c.cnssPatronale)}</td>
+                      <td className="text-right px-3 py-3 font-bold text-slate-800">{fmt(c.cnssTotal)}</td>
+                      <td className="text-right px-4 py-3 font-bold text-purple-600">{fmt(c.irpp)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
         </>

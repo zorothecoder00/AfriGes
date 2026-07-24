@@ -73,7 +73,47 @@ const certificatParticipation: RhDocTemplate = {
     }),
 };
 
+const convocationFormation: RhDocTemplate = {
+  type: "CONVOCATION_FORMATION",
+  label: "Convocation à une formation",
+  refSuffix: "CVF",
+  fields: [
+    { name: "intituleFormation", label: "Intitulé de la formation", type: "text", required: true },
+    { name: "organisme", label: "Organisme / formateur", type: "text", placeholder: "ex : interne, cabinet externe…" },
+    { name: "lieu", label: "Lieu", type: "text", placeholder: "facultatif" },
+    { name: "dateDebut", label: "Date de début", type: "date", required: true },
+    { name: "dateFin", label: "Date de fin", type: "date", required: true },
+    { name: "heureConvocation", label: "Heure de convocation", type: "text", placeholder: "ex : 8h30" },
+  ],
+  render: (c, p) =>
+    docShell({
+      titre: "Convocation à une Formation",
+      refCode: refCode(c.matricule, "CVF"),
+      body: `
+  <p style="line-height:1.8; text-align:justify;">
+    ${c.prenom} ${c.nom} (Matricule ${c.matricule})${c.fonction ? `, ${c.fonction}` : ""}, est convoqué(e) à la formation :
+  </p>
+  ${blocInfos(
+    ligne("Intitulé", p.intituleFormation) +
+    ligne("Organisme / formateur", p.organisme) +
+    ligne("Lieu", p.lieu) +
+    ligne("Date de début", formatDateFr(p.dateDebut)) +
+    ligne("Date de fin", formatDateFr(p.dateFin)) +
+    ligne("Heure de convocation", p.heureConvocation),
+  )}
+  <p style="line-height:1.8; text-align:justify; margin-top:12px;">
+    Merci de vous présenter muni(e) de votre pièce d'identité et du matériel éventuellement requis.
+    Votre présence est obligatoire.
+  </p>
+  <div style="margin-top:48px; text-align:right;">
+    <p style="margin:0;">Fait le <strong>${formatDateFr(c.today)}</strong></p>
+    <div style="margin-top:60px;"><p style="font-weight:bold; text-transform:uppercase; margin:0;">La Direction RH</p></div>
+  </div>`,
+    }),
+};
+
 export const templatesFormation: RhDocTemplate[] = [
   attestationFormation,
   certificatParticipation,
+  convocationFormation,
 ];

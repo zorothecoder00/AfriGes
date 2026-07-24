@@ -6,7 +6,7 @@ import {
   CheckCircle, XCircle, Clock, CalendarDays,
   Plane, Sun, AlertTriangle, Search, ArrowLeft,
   BarChart2, Settings, Check, X, Edit2, ShieldCheck,
-  Timer, TrendingUp, Users, UserCheck, Download,
+  Timer, TrendingUp, Users, UserCheck, Download, Printer,
 } from "lucide-react";
 import Link from "next/link";
 import { useApi, useMutation } from "@/hooks/useApi";
@@ -328,6 +328,7 @@ function RapportMensuel({ year, month, onPrev, onNext }: { year: number; month: 
                   <th className="text-center px-3 py-3 font-semibold text-amber-600 text-xs">∑ Retards</th>
                   <th className="text-center px-3 py-3 font-semibold text-emerald-600 text-xs">H. Sup</th>
                   <th className="text-center px-3 py-3 font-semibold text-slate-600 text-xs">Taux</th>
+                  <th className="text-center px-3 py-3 font-semibold text-slate-600 text-xs"></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -354,6 +355,16 @@ function RapportMensuel({ year, month, onPrev, onNext }: { year: number; month: 
                           "bg-red-100 text-red-600"
                         }`}>{r.tauxPresence}%</span>
                       ) : "-"}
+                    </td>
+                    <td className="text-center px-3 py-3">
+                      <a
+                        href={`/api/admin/rh/pointages/${r.profilRH.id}/feuille?mois=${month + 1}&annee=${year}`}
+                        target="_blank" rel="noreferrer"
+                        title="Imprimer la feuille de pointage"
+                        className="inline-flex p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg"
+                      >
+                        <Printer className="w-4 h-4" />
+                      </a>
                     </td>
                   </tr>
                 ))}

@@ -435,7 +435,7 @@ export default function DashboardRHPage() {
             {/* ══════════════════════════════════════════════════════════
                 SECTION 4 — PERFORMANCE
             ══════════════════════════════════════════════════════════ */}
-            <Section title="Performance" icon={<Star size={16} />} href="/dashboard/admin/rh/evaluations">
+            <Section title="Performance" icon={<Star size={16} />} href="/dashboard/user/responsablesRH/evaluations">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
 
                 {/* KPIs performance */}
@@ -518,11 +518,12 @@ export default function DashboardRHPage() {
                   { href: "/dashboard/user/responsablesRH/conges",    icon: <Calendar      size={15} />, label: "Congés",      accessKey: "conges" },
                   { href: "/dashboard/user/responsablesRH/missions",  icon: <MapPin        size={15} />, label: "Missions",    accessKey: "missions" },
                   { href: "/dashboard/user/responsablesRH/recrutement", icon: <UserCheck   size={15} />, label: "Recrutement", accessKey: "recrutement" },
-                  { href: "/dashboard/admin/rh/evaluations",          icon: <Star          size={15} />, label: "Évaluations" },
-                  { href: "/dashboard/admin/rh/formations",           icon: <GraduationCap size={15} />, label: "Formations"  },
-                  { href: "/dashboard/admin/rh/documents-rh",         icon: <FileText      size={15} />, label: "Documents RH"},
-                  { href: "/dashboard/admin/rh/organigramme",         icon: <Building2     size={15} />, label: "Organigramme"},
-                  { href: "/dashboard/admin/rh/disciplinaire",        icon: <FileWarning   size={15} />, label: "Disciplinaire"},
+                  { href: "/dashboard/user/responsablesRH/evaluations", icon: <Star          size={15} />, label: "Évaluations" },
+                  { href: "/dashboard/user/responsablesRH/formations",  icon: <GraduationCap size={15} />, label: "Formations"  },
+                  { href: "/dashboard/user/responsablesRH/sst",         icon: <ShieldCheck   size={15} />, label: "Santé & Sécurité" },
+                  { href: "/dashboard/user/responsablesRH/documents-strategiques", icon: <FileText size={15} />, label: "Documents stratégiques" },
+                  { href: "/dashboard/user/responsablesRH/organigramme", icon: <Building2   size={15} />, label: "Organigramme"},
+                  { href: "/dashboard/user/responsablesRH/disciplinaire",icon: <FileWarning size={15} />, label: "Disciplinaire"},
                   { href: "/dashboard/user/responsablesRH/paie",      icon: <DollarSign    size={15} />, label: "Paie",        accessKey: "paie" },
                   { href: "/dashboard/user/responsablesRH/onboarding",icon: <ClipboardList size={15} />, label: "Onboarding",  accessKey: "onboarding" },
                 ] as { href: string; icon: React.ReactNode; label: string; accessKey?: string }[])

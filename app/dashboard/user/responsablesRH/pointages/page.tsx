@@ -4,12 +4,13 @@ import { useState, useCallback } from "react";
 import {
   RefreshCw, ChevronLeft, ChevronRight, ArrowLeft,
   CheckCircle, XCircle, Clock, Plane, Sun, AlertTriangle,
-  Search, Plus, X, Save, ShieldCheck,
+  Search, Plus, X, Save, ShieldCheck, Download, Printer, BarChart2, Users, TrendingUp, Timer,
 } from "lucide-react";
 import Link from "next/link";
 import { useApi, useMutation } from "@/hooks/useApi";
 import { toast } from "sonner";
 import SaisieJourPointage from "@/components/SaisieJourPointage";
+import { exportToXlsx } from "@/lib/exportXlsx";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -65,7 +66,7 @@ export default function PointagesRHPage() {
   const [search,     setSearch]     = useState("");
   const [showSaisie, setShowSaisie] = useState(false);
   const [selectedPt, setSelectedPt] = useState<Pointage | null>(null);
-  const [view,       setView]       = useState<"mensuel" | "saisie">("mensuel");
+  const [view,       setView]       = useState<"mensuel" | "saisie" | "rapport">("mensuel");
 
   const params = new URLSearchParams();
   params.set("mois",  String(mois));
@@ -142,7 +143,7 @@ export default function PointagesRHPage() {
 
         {/* ── Onglets ── */}
         <div className="flex gap-1 bg-white border border-slate-200 rounded-xl p-1 w-fit">
-          {([["mensuel", "Vue mensuelle"], ["saisie", "Saisie du jour"]] as const).map(([v, l]) => (
+          {([["mensuel", "Vue mensuelle"], ["saisie", "Saisie du jour"], ["rapport", "Rapport mensuel"]] as const).map(([v, l]) => (
             <button key={v} onClick={() => setView(v)}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                 view === v ? "bg-emerald-600 text-white shadow-sm" : "text-slate-500 hover:text-slate-700"
@@ -158,6 +159,8 @@ export default function PointagesRHPage() {
             collabsUrl="/api/responsableRH/collaborateurs?limit=200&statut=ACTIF"
           />
         )}
+
+        {view === "rapport" && <RapportMensuelRH />}
 
         {view === "mensuel" && (<>
         {/* ── Stats du mois ── */}
@@ -338,6 +341,148 @@ export default function PointagesRHPage() {
           onUpdated={() => { setSelectedPt(null); refetch(); }}
         />
       )}
+    </div>
+  );
+}
+
+// ── Rapport mensuel (agrégat par collaborateur, imprimable) ────────────────────
+
+interface RapportLigne {
+  profilRH: { id: number; matricule: string; fonction: string | null; departement: string | null; nom: string; prenom: string };
+  joursPresents: number; joursRetard: number; joursAbsents: number; joursConge: number; joursMission: number; demiJournees: number;
+  totalRetardMinutes: number; totalHeuresSup: number; tauxPresence: number | null;
+}
+interface RapportRes {
+  data: RapportLigne[];
+  totaux: { joursOuvresMois: number; totalCollaborateurs: number; moyenneTauxPresence: number; totalRetardMinutes: number; totalHeuresSup: number };
+}
+
+const RAPPORT_MOIS_LABELS = ["", "Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
+const fmtMinRH = (min: number) => { const h = Math.floor(min / 60), m = min % 60; return h > 0 ? `${h}h${String(m).padStart(2,"0")}` : `${m}min`; };
+
+function RapportMensuelRH() {
+  const today = new Date();
+  const [year,  setYear]  = useState(today.getFullYear());
+  const [month, setMonth] = useState(today.getMonth()); // 0-based
+
+  const params = new URLSearchParams({ mois: String(month + 1), annee: String(year) });
+  const { data: res, loading, refetch } = useApi<RapportRes>(`/api/responsableRH/pointages/rapport?${params}`);
+  const rapport = res?.data ?? [];
+  const totaux  = res?.totaux;
+
+  const handleExport = () => {
+    exportToXlsx(
+      rapport.map((r) => ({
+        Collaborateur: `${r.profilRH.prenom} ${r.profilRH.nom}`,
+        Matricule: r.profilRH.matricule,
+        Departement: r.profilRH.departement ?? "",
+        Presents: r.joursPresents, Retards: r.joursRetard, Absences: r.joursAbsents, Conges: r.joursConge,
+        Missions: r.joursMission, DemiJournees: r.demiJournees,
+        TotalRetardMinutes: r.totalRetardMinutes, TotalHeuresSup: r.totalHeuresSup, TauxPresence: r.tauxPresence ?? "",
+      })),
+      [
+        { label: "Collaborateur", key: "Collaborateur" }, { label: "Matricule", key: "Matricule" },
+        { label: "Département", key: "Departement" }, { label: "Jours présents", key: "Presents", type: "number" },
+        { label: "Jours retard", key: "Retards", type: "number" }, { label: "Jours absents", key: "Absences", type: "number" },
+        { label: "Jours congé", key: "Conges", type: "number" }, { label: "Jours mission", key: "Missions", type: "number" },
+        { label: "Demi-journées", key: "DemiJournees", type: "number" },
+        { label: "Retard total (min)", key: "TotalRetardMinutes", type: "number" },
+        { label: "Heures sup (min)", key: "TotalHeuresSup", type: "number" },
+        { label: "Taux présence (%)", key: "TauxPresence", type: "number" },
+      ],
+      `rapport-pointages-${RAPPORT_MOIS_LABELS[month + 1]}-${year}.xlsx`,
+      { sheetName: "Rapport pointages", title: `Rapport mensuel — ${RAPPORT_MOIS_LABELS[month + 1]} ${year}` },
+    );
+  };
+
+  const prevMonth = () => { if (month === 0) { setYear((y) => y - 1); setMonth(11); } else setMonth((m) => m - 1); };
+  const nextMonth = () => { if (month === 11) { setYear((y) => y + 1); setMonth(0); } else setMonth((m) => m + 1); };
+
+  return (
+    <div className="space-y-4">
+      <div className="bg-white rounded-xl border border-slate-200 px-5 py-3 flex items-center justify-between flex-wrap gap-3">
+        <div className="flex items-center gap-3">
+          <button onClick={prevMonth} className="p-1.5 hover:bg-slate-100 rounded-lg"><ChevronLeft className="w-4 h-4" /></button>
+          <span className="text-base font-semibold text-slate-700">{RAPPORT_MOIS_LABELS[month + 1]} {year}</span>
+          <button onClick={nextMonth} className="p-1.5 hover:bg-slate-100 rounded-lg"><ChevronRight className="w-4 h-4" /></button>
+          <button onClick={refetch} className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400">
+            {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+          </button>
+        </div>
+        <button onClick={handleExport} disabled={rapport.length === 0}
+          className="flex items-center gap-1.5 px-3 py-2 border border-slate-200 rounded-lg text-sm text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed">
+          <Download className="w-4 h-4" /> Exporter
+        </button>
+      </div>
+
+      {totaux && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {[
+            { label: "Jours ouvrés", value: totaux.joursOuvresMois, icon: <CheckCircle className="w-5 h-5" />, color: "text-slate-600 bg-slate-100" },
+            { label: "Collaborateurs", value: totaux.totalCollaborateurs, icon: <Users className="w-5 h-5" />, color: "text-blue-600 bg-blue-100" },
+            { label: "Taux présence moyen", value: `${totaux.moyenneTauxPresence}%`, icon: <TrendingUp className="w-5 h-5" />, color: "text-emerald-600 bg-emerald-100" },
+            { label: "Total retards", value: totaux.totalRetardMinutes > 0 ? fmtMinRH(totaux.totalRetardMinutes) : "0", icon: <Timer className="w-5 h-5" />, color: "text-amber-600 bg-amber-100" },
+          ].map((s) => (
+            <div key={s.label} className="bg-white rounded-xl border border-slate-200 p-4 flex items-center gap-3">
+              <div className={`p-2 rounded-lg ${s.color}`}>{s.icon}</div>
+              <div><p className="text-xs text-slate-500">{s.label}</p><p className="text-xl font-bold text-slate-900">{s.value}</p></div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+        {loading ? (
+          <div className="flex justify-center py-16 text-slate-400"><RefreshCw className="w-6 h-6 animate-spin" /></div>
+        ) : rapport.length === 0 ? (
+          <div className="flex flex-col items-center py-16 text-slate-400">
+            <BarChart2 className="w-10 h-10 mb-2 opacity-30" />
+            <p className="text-sm">Aucune donnée pour cette période</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-slate-50 border-b border-slate-200">
+                <tr>
+                  <th className="text-left px-4 py-3 font-semibold text-slate-600 text-xs">Collaborateur</th>
+                  <th className="text-center px-3 py-3 font-semibold text-slate-600 text-xs">Prés.</th>
+                  <th className="text-center px-3 py-3 font-semibold text-amber-600 text-xs">Retard</th>
+                  <th className="text-center px-3 py-3 font-semibold text-red-600 text-xs">Abs.</th>
+                  <th className="text-center px-3 py-3 font-semibold text-slate-600 text-xs">Taux</th>
+                  <th className="text-center px-3 py-3 font-semibold text-slate-600 text-xs"></th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {rapport.map((r) => (
+                  <tr key={r.profilRH.id} className="hover:bg-slate-50">
+                    <td className="px-4 py-3">
+                      <p className="font-medium text-slate-800">{r.profilRH.prenom} {r.profilRH.nom}</p>
+                      <p className="text-xs text-slate-400 font-mono">{r.profilRH.matricule}</p>
+                    </td>
+                    <td className="text-center px-3 py-3 font-semibold text-emerald-700">{r.joursPresents}</td>
+                    <td className="text-center px-3 py-3 font-semibold text-amber-700">{r.joursRetard || "-"}</td>
+                    <td className="text-center px-3 py-3 font-semibold text-red-600">{r.joursAbsents || "-"}</td>
+                    <td className="text-center px-3 py-3">
+                      {r.tauxPresence !== null ? (
+                        <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${
+                          r.tauxPresence >= 90 ? "bg-emerald-100 text-emerald-700" : r.tauxPresence >= 70 ? "bg-amber-100 text-amber-700" : "bg-red-100 text-red-600"
+                        }`}>{r.tauxPresence}%</span>
+                      ) : "-"}
+                    </td>
+                    <td className="text-center px-3 py-3">
+                      <a href={`/api/responsableRH/pointages/${r.profilRH.id}/feuille?mois=${month + 1}&annee=${year}`}
+                        target="_blank" rel="noreferrer" title="Imprimer la feuille de pointage"
+                        className="inline-flex p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg">
+                        <Printer className="w-4 h-4" />
+                      </a>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

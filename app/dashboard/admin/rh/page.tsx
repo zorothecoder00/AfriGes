@@ -8,8 +8,9 @@ import {
   CalendarDays, MapPin, Star, UserCheck, FileWarning,
   Building2, TrendingUp, AlertTriangle, CheckCircle2,
   ArrowRight, ArrowLeft, RefreshCw, ClipboardList, Brain, Rocket, FileText, Bell,
-  CalendarClock, ShieldAlert,
+  CalendarClock, ShieldAlert, Download,
 } from "lucide-react";
+import { exportMultiSheetXlsx } from "@/lib/exportXlsx";
 
 /* ─── Types ─────────────────────────────────────────────── */
 interface RHStats {
@@ -108,6 +109,65 @@ export default function RHDashboardPage() {
 
   const s = data?.data;
 
+  function exportDashboard() {
+    if (!s) return;
+    const resume = [
+      { Section: "Effectifs", Indicateur: "Total collaborateurs", Valeur: s.effectifs.total },
+      { Section: "Effectifs", Indicateur: "Actifs", Valeur: s.effectifs.actifs },
+      { Section: "Effectifs", Indicateur: "En essai", Valeur: s.effectifs.enEssai },
+      { Section: "Effectifs", Indicateur: "Suspendus", Valeur: s.effectifs.suspendus },
+      { Section: "Recrutement", Indicateur: "Postes ouverts", Valeur: s.recrutement.postesOuverts },
+      { Section: "Recrutement", Indicateur: "Candidatures en attente", Valeur: s.recrutement.candidaturesEnAttente },
+      { Section: "Présence", Indicateur: "Présents aujourd'hui", Valeur: s.pointages.presentsAujourdhui },
+      { Section: "Présence", Indicateur: "Absents aujourd'hui", Valeur: s.pointages.absentsAujourdhui },
+      { Section: "Présence", Indicateur: "Congés en cours", Valeur: s.pointages.congesAujourdhui },
+      { Section: "Congés", Indicateur: "Demandes en attente", Valeur: s.conges.enAttente },
+      { Section: "Congés", Indicateur: "Approuvées", Valeur: s.conges.approuves },
+      { Section: "Paie", Indicateur: "Fiches brouillon", Valeur: s.paie.brouillons },
+      { Section: "Paie", Indicateur: "En contrôle RH", Valeur: s.paie.enControle },
+      { Section: "Paie", Indicateur: "Validées", Valeur: s.paie.valides },
+      { Section: "Paie", Indicateur: "En paiement", Valeur: s.paie.enPaiement },
+      { Section: "Paie", Indicateur: "Payées", Valeur: s.paie.payes },
+      { Section: "Paie", Indicateur: "Masse salariale (mois, FCFA)", Valeur: s.paie.totalNetMois },
+      { Section: "Avantages", Indicateur: "Remboursements en attente", Valeur: s.avantages.remboursementsEnAttente },
+      { Section: "Formations", Indicateur: "Planifiées", Valeur: s.formations.planifiees },
+      { Section: "Formations", Indicateur: "En cours", Valeur: s.formations.enCours },
+      { Section: "Missions", Indicateur: "En cours", Valeur: s.missions.enCours },
+      { Section: "Missions", Indicateur: "Créées", Valeur: s.missions.crees },
+      { Section: "Évaluations", Indicateur: "En cours", Valeur: s.evaluations.enCours },
+      { Section: "Évaluations", Indicateur: "Brouillon", Valeur: s.evaluations.brouillons },
+      { Section: "Disciplinaire", Indicateur: "Procédures ouvertes", Valeur: s.disciplinaire.ouvertes },
+      { Section: "Disciplinaire", Indicateur: "En instruction", Valeur: s.disciplinaire.enInstruction },
+      { Section: "Santé & Sécurité", Indicateur: "Accidents en cours", Valeur: s.sst.accidentsOuverts },
+      { Section: "Santé & Sécurité", Indicateur: "Visites médicales en retard", Valeur: s.sst.visitesEnRetard },
+      { Section: "Santé & Sécurité", Indicateur: "Incidents ouverts", Valeur: s.sst.incidentsOuverts },
+    ];
+    const departements = Object.entries(s.effectifs.parDepartement)
+      .sort(([, a], [, b]) => b - a)
+      .map(([Departement, Effectif]) => ({ Departement, Effectif }));
+
+    exportMultiSheetXlsx(
+      [
+        {
+          sheetName: "Résumé RH", kind: "object", rows: resume, title: "Tableau de bord RH — résumé consolidé",
+          columns: [
+            { label: "Section", key: "Section" },
+            { label: "Indicateur", key: "Indicateur" },
+            { label: "Valeur", key: "Valeur", type: "number" },
+          ],
+        },
+        {
+          sheetName: "Départements", kind: "object", rows: departements, title: "Répartition par département",
+          columns: [
+            { label: "Département", key: "Departement" },
+            { label: "Effectif", key: "Effectif", type: "number" },
+          ],
+        },
+      ],
+      `tableau-de-bord-rh-${new Date().toISOString().slice(0, 10)}.xlsx`,
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50/50 p-6">
       <div className="max-w-6xl mx-auto space-y-2">
@@ -129,6 +189,14 @@ export default function RHDashboardPage() {
             >
               <Bell size={16} /> <span>Déclencheurs</span>
             </Link>
+            <button
+              onClick={exportDashboard}
+              disabled={!s}
+              className="flex items-center gap-2 px-3 py-2 rounded-xl border border-gray-200 bg-white text-gray-600 hover:text-gray-800 hover:border-gray-300 text-sm font-medium transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+              title="Exporter le tableau de bord"
+            >
+              <Download size={16} /> <span>Exporter</span>
+            </button>
             <button
               onClick={refetch}
               className={`p-2.5 rounded-xl border border-gray-200 bg-white text-gray-500 hover:text-gray-700 hover:border-gray-300 transition-all ${loading ? "animate-spin" : ""}`}

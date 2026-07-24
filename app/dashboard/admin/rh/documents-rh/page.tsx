@@ -101,6 +101,9 @@ const TYPE_CONFIG: Record<string, { label: string; color: string; icon: React.El
   MISE_A_PIED:              { label: "Mise à pied",               color: "bg-rose-100 text-rose-700",   icon: ScrollText },
   LETTRE_LICENCIEMENT:      { label: "Lettre de licenciement",    color: "bg-red-100 text-red-700",     icon: Mail      },
   PV_RUPTURE:               { label: "Procès-verbal de rupture",  color: "bg-slate-100 text-slate-700", icon: FileText  },
+  ATTESTATION_FORMATION:    { label: "Attestation de formation",  color: "bg-teal-100 text-teal-700",   icon: FileCheck },
+  CERTIFICAT_PARTICIPATION: { label: "Certificat de participation", color: "bg-cyan-100 text-cyan-700", icon: FileCheck },
+  CONVOCATION_FORMATION:    { label: "Convocation à une formation", color: "bg-amber-100 text-amber-700", icon: Mail    },
   AUTRE:                { label: "Autre",                   color: "bg-gray-100 text-gray-600",     icon: Mail        },
 };
 

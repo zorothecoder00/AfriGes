@@ -1,0 +1,2 @@
+-- AlterEnum
+ALTER TYPE "TypeDocumentRHGenere" ADD VALUE 'CONVOCATION_FORMATION';

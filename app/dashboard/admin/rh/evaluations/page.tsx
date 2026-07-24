@@ -5,7 +5,7 @@ import {
   Search, RefreshCw, Plus, X, Save, Star, CheckCircle, Clock,
   PlayCircle, Trash2, ChevronDown, ChevronUp, User, ArrowLeft,
   Target, TrendingUp, Award, FileText, ChevronRight,
-  Users, UserCheck, BarChart2,
+  Users, UserCheck, BarChart2, Printer,
 } from "lucide-react";
 import Link from "next/link";
 import { useApi, useMutation } from "@/hooks/useApi";
@@ -997,9 +997,19 @@ function EvalDetailModal({ eval_: e, onClose, onUpdated }: { eval_: Evaluation; 
                 <User className="w-3 h-3" /> {m.prenom} {m.nom} — {e.profilRH.matricule}
               </div>
             </div>
-            <button onClick={onClose} className="p-1.5 hover:bg-slate-100 rounded-lg flex-shrink-0">
-              <X className="w-4 h-4" />
-            </button>
+            <div className="flex items-center gap-1 flex-shrink-0">
+              <a
+                href={`/api/admin/rh/evaluations/${e.id}/pdf`}
+                target="_blank" rel="noreferrer"
+                title="Imprimer la fiche d'évaluation"
+                className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg"
+              >
+                <Printer className="w-4 h-4" />
+              </a>
+              <button onClick={onClose} className="p-1.5 hover:bg-slate-100 rounded-lg">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
           </div>
 
           {/* Cycle indicator */}

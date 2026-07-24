@@ -396,8 +396,8 @@ export default function AfriGesDashboard() {
   // ── Loading ────────────────────────────────────────────────────────────────
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-cream via-cream-100 to-brand-50 flex items-center justify-center">
-        <div className="flex flex-col items-center gap-4">
+      <div className="min-h-screen bg-linear-to-br from-cream via-cream-100 to-brand-50 flex items-center justify-center">
+  <div className="flex flex-col items-center gap-4">
           <div className="w-12 h-12 border-4 border-brand-200 border-t-brand-600 rounded-full animate-spin" />
           <p className="text-slate-500 font-medium">{t('loading_dashboard')}</p>
         </div>
@@ -407,8 +407,8 @@ export default function AfriGesDashboard() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-cream via-cream-100 to-brand-50 flex items-center justify-center">
-        <div className="flex flex-col items-center gap-4 bg-white rounded-2xl p-8 shadow-sm border border-slate-200/60 max-w-md text-center">
+      <div className="min-h-screen bg-linear-to-br from-cream via-cream-100 to-brand-50 flex items-center justify-center">
+  <div className="flex flex-col items-center gap-4 bg-white rounded-2xl p-8 shadow-sm border border-slate-200/60 max-w-md text-center">
           <div className="w-12 h-12 bg-red-50 rounded-full flex items-center justify-center">
             <span className="text-red-500 text-2xl">!</span>
           </div>
@@ -424,11 +424,11 @@ export default function AfriGesDashboard() {
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-gradient-to-br from-cream via-cream-100 to-brand-50">
+    <div className="min-h-screen bg-linear-to-br from-cream via-cream-100 to-brand-50">
       
       {/* Header */}
       <header className="bg-white border-b border-slate-200 sticky top-0 z-50">
-        <div className="max-w-[1600px] mx-auto px-8 py-4 flex items-center justify-between">
+        <div className="max-w-400 mx-auto px-8 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-brand-700 rounded-lg flex items-center justify-center">
               <span className="text-white font-bold">A</span>
@@ -442,15 +442,15 @@ export default function AfriGesDashboard() {
         </div>
       </header>
 
-      <div className="max-w-[1600px] mx-auto px-8 py-8 flex gap-6">
+      <div className="max-w-400 mx-auto px-8 py-8 flex gap-6">
 
         {/* Sidebar */}
-        <aside className="w-72 flex-shrink-0">
+        <aside className="w-72 shrink-0">
           <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 overflow-y-auto sticky top-28 max-h-[calc(100vh-8rem)]">
             <div className="p-4 border-b border-slate-100">
               <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">{t('main')}</h3>
               <nav className="space-y-1">
-                <button className="w-full flex items-center gap-3 px-4 py-3 bg-gradient-to-r from-brand-500 to-brand-700 text-white rounded-xl font-medium transition-all shadow-md shadow-brand-200">
+                <button className="w-full flex items-center gap-3 px-4 py-3 bg-linear-to-r from-brand-500 to-brand-700 text-white rounded-xl font-medium transition-all shadow-md shadow-brand-200">
                   <TrendingUp size={20} /><span>{t('nav_dashboard')}</span>
                 </button>
                 <Link href="/dashboard/admin/membres"       className="w-full flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-50 rounded-xl transition-all"><Users size={20} /><span>{t('nav_membres')}</span></Link>
@@ -653,8 +653,8 @@ export default function AfriGesDashboard() {
                     <div key={m.key} className="flex items-center justify-between py-0.5">
                       <span className="text-xs text-slate-600 truncate flex-1">{moduleLabel}</span>
                       {m.actif
-                        ? <CheckCircle size={12} className="text-emerald-500 flex-shrink-0" />
-                        : <XCircle    size={12} className="text-slate-300 flex-shrink-0" />
+                        ? <CheckCircle size={12} className="text-emerald-500 shrink-0" />
+                        : <XCircle    size={12} className="text-slate-300 shrink-0" />
                       }
                     </div>
                   );
@@ -694,7 +694,7 @@ export default function AfriGesDashboard() {
                                                     'bg-blue-50 border border-blue-100'
                         }`}
                       >
-                        <AlertTriangle size={14} className={`flex-shrink-0 mt-0.5 ${
+                        <AlertTriangle size={14} className={`shrink-0 mt-0.5 ${
                           a.niveau === 'critique' ? 'text-red-500' :
                           a.niveau === 'warning'  ? 'text-amber-500' : 'text-blue-500'
                         }`} />
@@ -938,7 +938,7 @@ export default function AfriGesDashboard() {
                 {donuts?.map((seg) => (
                   <div key={seg.label} className="flex items-center justify-between">
                     <div className="flex items-center gap-2.5">
-                      <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: seg.color }} />
+                      <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: seg.color }} />
                       <span className="text-sm text-slate-600">{seg.label}</span>
                     </div>
                     <div className="flex items-center gap-2">
@@ -958,7 +958,7 @@ export default function AfriGesDashboard() {
             {/* En-tête section */}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-1 h-8 bg-gradient-to-b from-orange-500 to-red-500 rounded-full" />
+                <div className="w-1 h-8 bg-linear-to-b from-orange-500 to-red-500 rounded-full" />
                 <div>
                   <h3 className="text-lg font-bold text-slate-800">Dashboard Décisionnel</h3>
                   <p className="text-xs text-slate-400">Créances · Collecte · Performance agents</p>
@@ -1088,7 +1088,7 @@ export default function AfriGesDashboard() {
                       const pct = max > 0 ? (agent.montantCollecte / max) * 100 : 0;
                       return (
                         <div key={agent.agentId} className="flex items-center gap-3">
-                          <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${
+                          <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
                             agent.rank === 1 ? 'bg-amber-100 text-amber-700' :
                             agent.rank === 2 ? 'bg-slate-200 text-slate-600' :
                             agent.rank === 3 ? 'bg-orange-100 text-orange-700' :
@@ -1099,7 +1099,7 @@ export default function AfriGesDashboard() {
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center justify-between mb-1">
                               <span className="text-xs font-semibold text-slate-700 truncate">{agent.nom}</span>
-                              <span className="text-xs font-bold text-slate-800 ml-2 flex-shrink-0">
+                              <span className="text-xs font-bold text-slate-800 ml-2 shrink-0">
                                 {formatCurrency(agent.montantCollecte)}
                               </span>
                             </div>
@@ -1203,7 +1203,7 @@ export default function AfriGesDashboard() {
                   </div>
                   <div className="w-full bg-slate-200 rounded-full h-2">
                     <div
-                      className="h-2 rounded-full bg-gradient-to-r from-emerald-500 to-emerald-400 transition-all"
+                      className="h-2 rounded-full bg-linear-to-r from-emerald-500 to-emerald-400 transition-all"
                       style={{ width: `${Math.min((dec.cashCollecte / dec.cashAttendu) * 100, 100)}%` }}
                     />
                   </div>

@@ -61,3 +61,39 @@ export async function profilRHDansPerimetre(
   });
   return !!profil;
 }
+
+/**
+ * Liste des ProfilRH.id visibles par la session, pour filtrer un `where` Prisma
+ * (`profilRHId: { in: ... }`) sur les routes d'agrégation/reporting RH.
+ *
+ * - ADMIN / SUPER_ADMIN : `null` (pas de filtre = accès total).
+ * - RESPONSABLE_RH : profils des collaborateurs de son PDV (à défaut de PDV
+ *   affecté, uniquement ses propres profils).
+ */
+export async function profilRHIdsPerimetre(session: RHSession): Promise<number[] | null> {
+  const isAdmin = ["ADMIN", "SUPER_ADMIN"].includes(session.user.role ?? "");
+  if (isAdmin) return null;
+
+  const meId = parseInt(session.user.id);
+  const affectation = await prisma.gestionnaireAffectation.findFirst({
+    where:  { userId: meId, actif: true },
+    select: { pointDeVenteId: true },
+  });
+
+  let pdvUserIds: number[];
+  if (affectation) {
+    const pdvUsers = await prisma.gestionnaireAffectation.findMany({
+      where:  { pointDeVenteId: affectation.pointDeVenteId, actif: true },
+      select: { userId: true },
+    });
+    pdvUserIds = pdvUsers.map((u) => u.userId);
+  } else {
+    pdvUserIds = [meId];
+  }
+
+  const profils = await prisma.profilRH.findMany({
+    where:  { gestionnaire: { memberId: { in: pdvUserIds } } },
+    select: { id: true },
+  });
+  return profils.map((p) => p.id);
+}

@@ -4,6 +4,7 @@ import { useState, useCallback, useEffect } from "react";
 import {
   Clock, LogIn, LogOut, CheckCircle, XCircle, AlertTriangle,
   ChevronDown, ChevronUp, Sun, Plane, X, CalendarDays, ChevronRight, Wallet, GraduationCap, CalendarClock,
+  Printer, Star,
 } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
@@ -324,6 +325,30 @@ export default function PointageWidget() {
               </span>
               <ChevronRight className="w-4 h-4" />
             </Link>
+
+            {/* Accès Mes évaluations */}
+            <Link
+              href="/dashboard/user/collaborateur/evaluations"
+              onClick={() => setOpen(false)}
+              className="flex items-center justify-between w-full px-3 py-2.5 rounded-xl bg-amber-50 border border-amber-100 text-amber-700 hover:bg-amber-100 transition-colors"
+            >
+              <span className="flex items-center gap-2 text-sm font-medium">
+                <Star className="w-4 h-4" /> Mes évaluations
+              </span>
+              <ChevronRight className="w-4 h-4" />
+            </Link>
+
+            {/* Ma feuille de pointage (PDF, mois en cours) */}
+            <a
+              href={`/api/collaborateur/pointage/feuille?mois=${now.getMonth() + 1}&annee=${now.getFullYear()}`}
+              target="_blank" rel="noreferrer"
+              className="flex items-center justify-between w-full px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-600 hover:bg-slate-100 transition-colors"
+            >
+              <span className="flex items-center gap-2 text-sm font-medium">
+                <Printer className="w-4 h-4" /> Ma feuille de pointage
+              </span>
+              <ChevronRight className="w-4 h-4" />
+            </a>
 
             {/* Historique dépliable */}
             <div>

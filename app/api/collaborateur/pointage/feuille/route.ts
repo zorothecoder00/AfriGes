@@ -1,0 +1,66 @@
+import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { getAuthSession } from "@/lib/auth";
+import { getCollaborateurProfilRH } from "@/lib/authCollaborateur";
+import { htmlToPdf, pdfResponse } from "@/lib/pdf";
+import { genFeuillePointageHtml } from "@/lib/feuillePointageHtml";
+
+// Chromium nécessite le runtime Node (pas Edge) ; génération potentiellement longue.
+export const runtime = "nodejs";
+export const maxDuration = 30;
+
+/**
+ * GET /api/collaborateur/pointage/feuille
+ * Feuille de pointage mensuelle imprimable (PDF) du collaborateur connecté.
+ * Query: mois (1-12), annee.
+ */
+export async function GET(req: NextRequest) {
+  try {
+    const session = await getAuthSession();
+    if (!session) return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
+
+    const userId  = parseInt(session.user.id);
+    const profil0 = await getCollaborateurProfilRH(userId);
+    if (!profil0) return NextResponse.json({ error: "Aucun profil RH associé" }, { status: 404 });
+
+    const { searchParams } = new URL(req.url);
+    const mois  = Number(searchParams.get("mois")  || new Date().getMonth() + 1);
+    const annee = Number(searchParams.get("annee") || new Date().getFullYear());
+
+    const debut = new Date(annee, mois - 1, 1);
+    const fin   = new Date(annee, mois, 1);
+
+    const profil = await prisma.profilRH.findUnique({
+      where: { id: profil0.id },
+      select: {
+        matricule: true, fonction: true, departement: true,
+        gestionnaire: { select: { member: { select: { nom: true, prenom: true } } } },
+        pointages: {
+          where:   { date: { gte: debut, lt: fin }, annule: false },
+          orderBy: { date: "asc" },
+          select: {
+            date: true, statut: true, heureArrivee: true, heureDepart: true,
+            tempsTotal: true, retardMinutes: true, heuresSup: true,
+            justificatif: true, notes: true,
+          },
+        },
+      },
+    });
+    if (!profil) return NextResponse.json({ error: "Collaborateur introuvable" }, { status: 404 });
+
+    const html = genFeuillePointageHtml({
+      profilRH: {
+        matricule: profil.matricule, fonction: profil.fonction, departement: profil.departement,
+        nom: profil.gestionnaire.member.nom, prenom: profil.gestionnaire.member.prenom,
+      },
+      mois, annee,
+      pointages: profil.pointages,
+    });
+    const pdf = await htmlToPdf(html);
+    const filename = `feuille-pointage-${profil.matricule}-${annee}${String(mois).padStart(2, "0")}.pdf`;
+    return pdfResponse(pdf, filename);
+  } catch (error) {
+    console.error("GET /api/collaborateur/pointage/feuille", error);
+    return NextResponse.json({ error: "Erreur lors de la génération du PDF" }, { status: 500 });
+  }
+}

@@ -7,7 +7,7 @@ import {
   BookOpen, CheckCircle, Clock, PlayCircle, XCircle,
   User, Calendar, MapPin, UserPlus, Award, ArrowLeft,
   Monitor, Building2, Globe, BarChart2, TrendingUp,
-  DollarSign, Users, Star,
+  DollarSign, Users, Star, Printer,
 } from "lucide-react";
 import Link from "next/link";
 import { useApi, useMutation } from "@/hooks/useApi";
@@ -1112,7 +1112,17 @@ function FormationDetailModal({ formation, onClose, onUpdated }: { formation: Fo
               {formation.dureeHeures && <span>{formation.dureeHeures}h</span>}
             </div>
           </div>
-          <button onClick={onClose} className="p-1.5 hover:bg-slate-100 rounded-lg flex-shrink-0"><X className="w-4 h-4" /></button>
+          <div className="flex items-center gap-1 flex-shrink-0">
+            <a
+              href={`/api/admin/rh/formations/${formation.id}/feuille-presence`}
+              target="_blank" rel="noreferrer"
+              title="Imprimer la feuille de présence"
+              className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg"
+            >
+              <Printer className="w-4 h-4" />
+            </a>
+            <button onClick={onClose} className="p-1.5 hover:bg-slate-100 rounded-lg"><X className="w-4 h-4" /></button>
+          </div>
         </div>
 
         <div className="overflow-y-auto flex-1 p-6 space-y-5">

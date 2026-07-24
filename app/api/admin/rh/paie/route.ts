@@ -105,6 +105,8 @@ export async function POST(req: NextRequest) {
       autoCommissions: body.autoCommissions !== false,
       autoDeductions:  body.autoDeductions  !== false,
       autoAnciennete:  body.autoAnciennete  !== false,
+      autoCotisations: body.autoCotisations !== false,
+      autoIrpp:        body.autoIrpp        !== false,
     });
 
     return NextResponse.json({ data: fiche }, { status: 201 });

@@ -6,7 +6,7 @@ import {
   Clock, XCircle, CalendarDays, User,
   ChevronRight, AlertTriangle, Settings,
   X, Save, ArrowLeft, Plus, ChevronLeft,
-  BarChart2, Wallet, Ban, Download,
+  BarChart2, Wallet, Ban, Download, Printer,
 } from "lucide-react";
 import Link from "next/link";
 import { useApi, useMutation } from "@/hooks/useApi";
@@ -146,7 +146,7 @@ function isoDate(y: number, m: number, d: number) { return `${y}-${String(m + 1)
 
 export default function CongesPage() {
   const today = new Date();
-  const [activeTab, setActiveTab] = useState<"demandes" | "calendrier" | "soldes">("demandes");
+  const [activeTab, setActiveTab] = useState<"demandes" | "calendrier" | "planning" | "soldes">("demandes");
 
   // Demandes tab state
   const [searchInput,    setSearchInput]    = useState("");
@@ -162,6 +162,9 @@ export default function CongesPage() {
   // Calendrier tab state
   const [calYear,  setCalYear]  = useState(today.getFullYear());
   const [calMonth, setCalMonth] = useState(today.getMonth()); // 0-based
+
+  // Planning annuel tab state
+  const [planningAnnee, setPlanningAnnee] = useState(today.getFullYear());
 
   // Soldes tab state
   const [soldesAnnee, setSoldesAnnee] = useState(today.getFullYear());
@@ -182,6 +185,12 @@ export default function CongesPage() {
   const calParams = new URLSearchParams({ annee: String(calYear), mois: String(calMonth + 1) });
   const { data: calRes, loading: calLoading, refetch: calRefetch } = useApi<CalendrierResponse>(
     activeTab === "calendrier" ? `/api/admin/rh/conges/calendrier?${calParams}` : null
+  );
+
+  // Planning annuel (même route, sans le paramètre mois)
+  const planningParams = new URLSearchParams({ annee: String(planningAnnee) });
+  const { data: planningRes, loading: planningLoading, refetch: planningRefetch } = useApi<CalendrierResponse>(
+    activeTab === "planning" ? `/api/admin/rh/conges/calendrier?${planningParams}` : null
   );
 
   // Soldes
@@ -236,6 +245,7 @@ export default function CongesPage() {
           {([
             ["demandes",   CalendarDays, "Demandes"],
             ["calendrier", CalendarDays, "Calendrier"],
+            ["planning",   BarChart2,    "Planning annuel"],
             ["soldes",     Wallet,       "Soldes"],
           ] as const).map(([tab, Icon, label]) => (
             <button key={tab} onClick={() => setActiveTab(tab)}
@@ -401,6 +411,68 @@ export default function CongesPage() {
                   }
                   return cells;
                 })()}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── TAB : PLANNING ANNUEL ── */}
+        {activeTab === "planning" && (
+          <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-3 border-b border-slate-200">
+              <div className="flex items-center gap-3">
+                <button onClick={() => setPlanningAnnee((y) => y - 1)} className="p-1.5 hover:bg-slate-100 rounded-lg"><ChevronLeft className="w-4 h-4" /></button>
+                <span className="text-base font-semibold text-slate-700">Année {planningAnnee}</span>
+                <button onClick={() => setPlanningAnnee((y) => y + 1)} className="p-1.5 hover:bg-slate-100 rounded-lg"><ChevronRight className="w-4 h-4" /></button>
+                <button onClick={planningRefetch} className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400">
+                  {planningLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+                </button>
+              </div>
+              <div className="hidden sm:flex flex-wrap gap-2">
+                {Object.entries(TYPE_LABEL).map(([k, v]) => (
+                  <span key={k} className="flex items-center gap-1 text-[10px] text-slate-500">
+                    <span className={`w-2 h-2 rounded-full ${TYPE_DOT[k]}`} />{v}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            {planningLoading ? (
+              <div className="flex justify-center py-16 text-slate-400"><RefreshCw className="w-6 h-6 animate-spin" /></div>
+            ) : !planningRes?.data.length ? (
+              <div className="flex flex-col items-center justify-center py-16 text-slate-400">
+                <BarChart2 className="w-10 h-10 mb-2 opacity-30" />
+                <p className="text-sm">Aucune absence approuvée sur {planningAnnee}</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 p-4">
+                {MOIS_LABELS.map((label, m) => {
+                  const monStart = new Date(planningAnnee, m, 1);
+                  const monEnd   = new Date(planningAnnee, m + 1, 0, 23, 59, 59);
+                  const items = (planningRes?.data ?? []).filter((d) =>
+                    new Date(d.dateDebut) <= monEnd && new Date(d.dateFin) >= monStart
+                  );
+                  return (
+                    <div key={label} className="border border-slate-100 rounded-lg p-3">
+                      <p className="text-sm font-semibold text-slate-700 mb-2">{label}</p>
+                      {items.length === 0 ? (
+                        <p className="text-xs text-slate-300">Aucune absence</p>
+                      ) : (
+                        <div className="space-y-1.5">
+                          {items.map((d) => (
+                            <div key={d.id} className={`text-xs px-2 py-1 rounded flex items-center justify-between gap-2 ${TYPE_COLOR[d.type] ?? "bg-gray-100 text-gray-600"}`}>
+                              <span className="flex items-center gap-1.5 truncate">
+                                <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${TYPE_DOT[d.type]}`} />
+                                {d.profilRH.gestionnaire.member.prenom} {d.profilRH.gestionnaire.member.nom}
+                              </span>
+                              <span className="flex-shrink-0 opacity-70">{formatDate(d.dateDebut)}–{formatDate(d.dateFin)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -596,7 +668,17 @@ function DemandeCard({ demande, onAction }: { demande: Demande; onAction: (actio
             </div>
           )}
         </div>
-        <div className="text-xs text-slate-400 flex-shrink-0">{formatDate(demande.createdAt)}</div>
+        <div className="flex flex-col items-end gap-2 flex-shrink-0">
+          <span className="text-xs text-slate-400">{formatDate(demande.createdAt)}</span>
+          <a
+            href={`/api/admin/rh/conges/${demande.id}/pdf`}
+            target="_blank" rel="noreferrer"
+            title="Imprimer la demande"
+            className="flex items-center gap-1 text-xs text-slate-500 hover:text-slate-800"
+          >
+            <Printer className="w-3.5 h-3.5" /> Imprimer
+          </a>
+        </div>
       </div>
 
       {(actions.length > 0 || canAnnuler) && (

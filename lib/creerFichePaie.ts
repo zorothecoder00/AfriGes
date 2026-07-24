@@ -19,6 +19,7 @@ import { appliquerRetenuesAuto } from "@/lib/paieRetenues";
 import { calculerCommissionsProfil } from "@/lib/calcCommission";
 import { calculerDeductionsAbsence } from "@/lib/calcDeductionsPointage";
 import { calculerPrimeAnciennete } from "@/lib/calcAnciennete";
+import { calculerCotisationCnssSalariale, calculerCotisationIrpp, calculerNombreParts } from "@/lib/paieCotisations";
 
 /** Erreur métier portant un status HTTP, à traduire par la route appelante. */
 export class FichePaieError extends Error {
@@ -49,6 +50,8 @@ export interface CreerFichePaieParams {
   autoCommissions?: boolean;
   autoDeductions?: boolean;
   autoAnciennete?: boolean;
+  autoCotisations?: boolean;
+  autoIrpp?: boolean;
 }
 
 /**
@@ -64,6 +67,8 @@ export async function creerFichePaie(params: CreerFichePaieParams) {
   const autoCommissions = params.autoCommissions !== false;
   const autoDeductions  = params.autoDeductions  !== false;
   const autoAnciennete  = params.autoAnciennete  !== false;
+  const autoCotisations = params.autoCotisations !== false;
+  const autoIrpp         = params.autoIrpp        !== false;
 
   const profil = await prisma.profilRH.findUnique({
     where:   { id: profilRHId },
@@ -110,8 +115,25 @@ export async function creerFichePaie(params: CreerFichePaieParams) {
       commissionComposants.reduce((s, c) => s + c.montant, 0) +
       primeAncienneteComposants.reduce((s, c) => s + c.montant, 0);
 
-    const totalBrut     = brutManuel + gainsAuto;
-    const totalRetenues = retenuesManuelles + retenuesAuto;
+    const totalBrut = brutManuel + gainsAuto;
+
+    // Cotisation CNSS salariale (4 % du brut) — non injectée si déjà saisie manuellement.
+    const cnssComposants =
+      autoCotisations && !composants.some((c) => c.type === "COTISATION_RETRAITE")
+        ? [calculerCotisationCnssSalariale(totalBrut)]
+        : [];
+    const cnssSalariale = cnssComposants.reduce((s, c) => s + c.montant, 0);
+
+    // Retenue IRPP (barème progressif, quotient familial du collaborateur) — non
+    // injectée si déjà saisie manuellement.
+    const irppComposants =
+      autoIrpp && !composants.some((c) => c.type === "IMPOT_REVENU")
+        ? [calculerCotisationIrpp(totalBrut, cnssSalariale, calculerNombreParts(profil.situationMatrimoniale, profil.nbEnfants))]
+        : [];
+
+    const cotisationsAuto = cnssSalariale + irppComposants.reduce((s, c) => s + c.montant, 0);
+
+    const totalRetenues = retenuesManuelles + retenuesAuto + cotisationsAuto;
 
     const f = await tx.fichePaie.create({
       data: {
@@ -147,7 +169,7 @@ export async function creerFichePaie(params: CreerFichePaieParams) {
               isRetenue: false,
               ordre:     c.ordre,
             })),
-            ...[...autoComposants, ...deductionComposants].map((c) => ({
+            ...[...autoComposants, ...deductionComposants, ...cnssComposants, ...irppComposants].map((c) => ({
               type:      c.type as TypeComposantSalaire,
               libelle:   c.libelle,
               montant:   c.montant,

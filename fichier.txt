@@ -109,7 +109,7 @@ Pour la gestion des commissions et le paramètre des profils de de collaborateur
 
 Revoir les chiffres du dashboard/admin (tableau de bord)
 
-Permettre d'avoir des rapports de recouvrement (taux de recouvrement, restant , payé etc etc rsia par mois sur le dashboard admin ria et responsableRIA )
+Permettre d'avoir des rapports de recouvrement (taux de recouvrement, restant , payé etc etc ria par mois sur le dashboard admin ria et responsableRIA )
 
 
 Sur les factures de credit on veut voir aussi les mouvements de compte courant si utilisé ( avance , solde etc etc )
@@ -117,7 +117,7 @@ Sur les factures de credit on veut voir aussi les mouvements de compte courant s
 Dans les crédits clients , on va essayer de faire des filtres par agent ( avec leur solde , retard , paiement etc etc)
     
 
-Dans les dossiers des collaborateurs pour leurs informations, faut ajouter aussi la personne à prévénir
+Dans les dossiers des collaborateurs pour leurs informations, faut ajouter aussi personne à prévénir
   
     
   
@@ -138,78 +138,29 @@ Retoucher le logo
 Revoir le dashboard financier et même les autres ( tableau de bord admin/SUPERADMIN)
 
 
-je veux quelque chose d'un peu technique maintenant . Je veux que tu créés une zone de scan qui va permettre à un agent de pouvoir tomber directement sur les objectifs    
-  qu'il doit réaliser dans la journée ( carnet qu'il doit vendre + qunizaine + trentaine)  et des clients qu'il doit visiter(ceux qui doivent cotiser) sans avoir besoin de  
-  login ( du genre je viens je scanne et je vois mon tableau d'objectif et de clients à visiter
+
+J'espère que les ResponsablesRH ont accès à tous les documentsRH comme l'admin et que les collaborateurs RH eux aussi ont évidement la possibilité de voir les documents qui les concernent ( get et post si un collaborateur doit faire une demande ...)
+
+
+13 des 14 manques confirmés implémentés dans cette session :
+  1. Feuille de pointage individuelle imprimable
+  2. Vue imprimable demande/autorisation de congé
+  3. Planning congés annuel (UI)
+  4. ⏳ État CNSS/fiscal — reste bloqué, en attente de vos taux réels
+  5. Export Excel Avances & Prêts
+  6. Vue imprimable fiche d'évaluation
+  7. CRUD actions PDI — déjà fait avant l'audit, rien à changer
+  8. Template "convocation formation"
+  9. Feuille de présence imprimable (session formation)
+  10. Document déclaration d'accident généré/imprimable
+  11. Export des registres SST (accidents/visites/registre/incidents)
+  12. Fix label PLAN_EVACUATION manquant
+  13. CRUD modifier/supprimer plans d'évacuation
+  14. Export global consolidé du dashboard RH
 
 
 
-
-
-
-
-
-
-                      Pour terminer le cahier de charge des documents RH
-
- Manques confirmés — à implémenter plus tard :
-
-  ┌─────┬────────────────┬──────────────────────────────────────────────────┐
-  │  #  │   Catégorie    │                      Manque                      │
-  ├─────┼────────────────┼──────────────────────────────────────────────────┤
-  │ 1   │ Présences      │ Feuille de pointage imprimable individuelle      │
-  │     │                │ (seul le rapport mensuel agrégé existe)          │
-  ├─────┼────────────────┼──────────────────────────────────────────────────┤
-  │ 2   │ Congés         │ Vue imprimable de la demande/autorisation de     │
-  │     │                │ congé                                            │
-  ├─────┼────────────────┼──────────────────────────────────────────────────┤
-  │ 3   │ Congés         │ Planning congés annuel en vue (l'API le supporte │
-  │     │                │  déjà, aucune UI ne l'appelle)                   │
-  ├─────┼────────────────┼──────────────────────────────────────────────────┤
-  │ 4   │ Paie           │ État CNSS/fiscal (déjà connu — bloqué sur tes    │
-  │     │                │ taux réels)                                      │
-  ├─────┼────────────────┼──────────────────────────────────────────────────┤
-  │     │                │ Export Excel sur l'onglet Avances & Prêts        │
-  │ 5   │ Paie           │ (Journal de paie et État des retenues l'ont, pas │
-  │     │                │  celui-ci)                                       │
-  ├─────┼────────────────┼──────────────────────────────────────────────────┤
-  │ 6   │ Évaluation     │ Vue imprimable de la fiche d'évaluation          │
-  ├─────┼────────────────┼──────────────────────────────────────────────────┤
-  │     │                │ Template document PDI/plan de progression (le    │
-  │ 7   │ Évaluation     │ PDI reste une donnée en base, pas un document    │
-  │     │                │ généré)                                          │
-  ├─────┼────────────────┼──────────────────────────────────────────────────┤
-  │ 8   │ Formation      │ Template "convocation formation" (attestation et │
-  │     │                │  certificat existent, pas la convocation)        │
-  ├─────┼────────────────┼──────────────────────────────────────────────────┤
-  │ 9   │ Formation      │ Feuille de présence imprimable pour une session  │
-  ├─────┼────────────────┼──────────────────────────────────────────────────┤
-  │     │                │ Document "déclaration/rapport d'accident" généré │
-  │ 10  │ Santé-sécurité │  et imprimable (aujourd'hui juste un lien de     │
-  │     │                │ fichier uploadé)                                 │
-  ├─────┼────────────────┼──────────────────────────────────────────────────┤
-  │ 11  │ Santé-sécurité │ Export des registres (accidents, visites,        │
-  │     │                │ registre SST, incidents)                         │
-  ├─────┼────────────────┼──────────────────────────────────────────────────┤
-  │     │ RH             │ PLAN_EVACUATION est invisible sur la page        │
-  │ 12  │ stratégiques   │ principale documents-strategiques (dictionnaire  │
-  │     │                │ d'affichage pas mis à jour)                      │
-  ├─────┼────────────────┼──────────────────────────────────────────────────┤
-  │     │ RH             │ CRUD incomplet pour les plans d'évacuation dans  │
-  │ 13  │ stratégiques   │ l'onglet SST (créer/lister seulement, pas        │
-  │     │                │ modifier/supprimer)                              │
-  ├─────┼────────────────┼──────────────────────────────────────────────────┤
-  │ 14  │ Tableaux de    │ Aucun export global/consolidé de tout le         │
-  │     │ bord           │ dashboard RH (seulement des exports par module)  │
-  └─────┴────────────────┴──────────────────────────────────────────────────┘
-
-  Ça fait 14 points concrets (dont le CNSS/fiscal déjà identifié). Rien d'autre
-  en dehors de ça — le reste du cahier des charges est couvert. On les
-  implémente quand tu es prêt.
-
-
-
-
+  
 
 
    
