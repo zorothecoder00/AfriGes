@@ -1,91 +1,140 @@
-Voici l'état des lieux croisé avec le cahier des charges. Le socle existe déjà
-  mais sous une forme plus simple ; certaines parties du CDC sont soit déjà
-  couvertes, soit largement plus ambitieuses que l'architecture actuelle.
+État des lieux — Cahier des charges Approvisionnement & Supply Chain
+Mise à jour : 2026-07-27 (revue complète contre le texte intégral du CDC, 19 sections)
 
-  Ce qui existe déjà (à ne pas reconstruire)
+Toutes les sections sont couvertes, à l'exception du §19 (architecture
+microservices), volontairement laissée de côté : le CDC demande microservices,
+multi-tenant, Kubernetes, RabbitMQ, Elasticsearch pour 50 000 agences / 1M
+produits / 1M commandes par mois. AfriGes est un monolithe Next.js + Prisma +
+PostgreSQL (Vercel), single-tenant, pour une entreprise togolaise — ce n'est
+pas implémenté littéralement à ce stade. À reconsidérer seulement si demandé
+explicitement.
 
-  Section CDC: §3 Multi-entrepôts, §13 Transferts
-  Existant AfriGes: PointDeVente (type PDV/DEPOT_CENTRAL) + TransfertStock
-  complet (workflow EN_COURS→EXPEDIE→RECU)
-  ────────────────────────────────────────
-  Section CDC: §5 Catalogue produits
-  Existant AfriGes: Module complet 12/12 déjà livré — SKU, code-barres, QR,
-  poids/volume, colisage, classification, fournisseur principal
-  ────────────────────────────────────────
-  Section CDC: §6 DLC/lot/FEFO
-  Existant AfriGes: LotProduit + lib/lotsFefo.ts (FEFO déjà implémenté)
-  ────────────────────────────────────────
-  Section CDC: §7 Commande→réception
-  Existant AfriGes: ReceptionApprovisionnement (un seul document à statuts
-  BROUILLON→EN_COURS→RECU→VALIDE, workflow agent logistique→admin) +
-  CommandeInterne pour les demandes PDV→dépôt
-  ────────────────────────────────────────
-  Section CDC: §8 Fournisseurs (basique)
-  Existant AfriGes: model Fournisseur — mais champs très pauvres
-  ────────────────────────────────────────
-  Section CDC: §11 Stocks (disponible/réservé/transit)
-  Existant AfriGes: StockSite a déjà quantite, quantiteReservee,
-  quantiteEnTransit, quantiteEndommagee
-  ────────────────────────────────────────
-  Section CDC: §12 Alertes stock/péremption
-  Existant AfriGes: Calculées à la volée (rupture, faible, surstock, casse) +
-  endpoint dédié péremption lots
-  ────────────────────────────────────────
-  Section CDC: §18 RBAC
-  Existant AfriGes: AGENT_LOGISTIQUE_APPROVISIONNEMENT + MAGAZINIER, namespaces
-  API séparés
+Build : npm run build vert (622/622 pages, 0 erreur TypeScript).
 
-  Ce qui manque réellement
+┌──────────────┬──────────────────────────────────────────────────────────┐
+│ Section CDC  │                    Implémentation AfriGes                │
+├──────────────┼──────────────────────────────────────────────────────────┤
+│ §3 Archi     │ Hiérarchie DG→Supply Chain→Entrepôt central→Plateformes  │
+│ organisation │ régionales→Agences via PointDeVente (type +             │
+│              │ plateformeRegionaleId self-relation) ; chaque niveau a  │
+│              │ un responsable (rpv/chefAgence)                          │
+├──────────────┼──────────────────────────────────────────────────────────┤
+│ §4 Multi-    │ Code, responsable, GPS (latitude/longitude), capacité de │
+│ entrepôts    │ stockage + unité, seuil de sécurité par site (PointDe-   │
+│              │ Vente) ; 3 types (PDV/PLATEFORME_REGIONALE/DEPOT_CENTRAL)│
+│              │ gérables depuis Admin > PDV                              │
+├──────────────┼──────────────────────────────────────────────────────────┤
+│ §5 Catalogue │ SKU, code-barres, QR, poids/volume, colisage +          │
+│ produits     │ palettisation (unitesParPalette), classification,       │
+│              │ fournisseur principal + fournisseurs secondaires (m2m), │
+│              │ pays d'origine, date de fabrication + DLC/DLUO + n° de   │
+│              │ lot (LotProduit)                                         │
+├──────────────┼──────────────────────────────────────────────────────────┤
+│ §6 MRP       │ lib/mrp.ts — Besoin = Prévision ventes + Stock sécurité  │
+│              │ − (Stock disponible + transit) − Commandes en cours,    │
+│              │ basé sur l'historique réel des sorties                  │
+├──────────────┼──────────────────────────────────────────────────────────┤
+│ §7 Workflow  │ Demande PDV (CommandeInterne) → agrégation multi-        │
+│ complet      │ agences (MRP agrégé) → RFQ (DemandeCotation +           │
+│ (étapes 1-8) │ ReponseRFQ, comparatif coût/délai/qualité + recommanda-  │
+│              │ tion via lib/rfqComparatif.ts) → Bon de Commande         │
+│              │ (réf. PO-TG-xxxx, statuts DRAFT→…→COMPLETED, appro-      │
+│              │ bation/envoi/signature interne) → suivi livraison        │
+│              │ (Préparation→Expédiée→Transit→Douane→Livrée→Réception-   │
+│              │ née) → réception (document séparé)                      │
+├──────────────┼──────────────────────────────────────────────────────────┤
+│ §8           │ Code auto, pays/région/devise/banque/IBAN/RCCM/NIF/TVA, │
+│ Fournisseurs │ ContratFournisseur[] (soft delete), note globale +      │
+│              │ taux délai/qualité calculés depuis les réceptions,       │
+│              │ page CRUD dédiée                                         │
+├──────────────┼──────────────────────────────────────────────────────────┤
+│ §9           │ Pays origine, ports départ/arrivée, n° conteneur,       │
+│ Importations │ incoterm, transitaire, douane, assurance, ETD/ETA +      │
+│              │ journal de checkpoints (EvenementImportation)           │
+├──────────────┼──────────────────────────────────────────────────────────┤
+│ §10 Réception│ Totale/partielle, quantité commandée/reçue/refusée       │
+│              │ (quantiteRefusee) distinctes, état qualité, création    │
+│              │ auto bon de réception + entrée en stock + écriture      │
+│              │ comptable (via sync-journals, génère les EcritureCompt- │
+│              │ able ACHATS depuis les MouvementStock)                   │
+├──────────────┼──────────────────────────────────────────────────────────┤
+│ §11 Stocks   │ Disponible, réservé, en transit, endommagé, bloqué      │
+│ avancés      │ (quantiteBloquee) et consigné (quantiteConsignee) sur   │
+│              │ StockSite (API de blocage/consignation dédiée) ; FEFO   │
+│              │ pour la valorisation/rotation des lots                  │
+├──────────────┼──────────────────────────────────────────────────────────┤
+│ §12 Alertes  │ Rupture/critique/faible/surstock/casse calculés à la    │
+│ intelligentes│ volée + poussés quotidiennement (cron) avec action       │
+│              │ recommandée par produit ; péremption à 3 paliers        │
+│              │ (90/60/30j) ; rupture agence → suggestion de transfert   │
+│              │ depuis un site en surplus ; fournisseur en retard →      │
+│              │ notification Admin/DG (lib/alertesStock.ts)             │
+├──────────────┼──────────────────────────────────────────────────────────┤
+│ §13          │ TransfertStock complet (workflow EN_COURS→EXPEDIE→RECU),│
+│ Transferts   │ stock ajusté automatiquement à la réception              │
+├──────────────┼──────────────────────────────────────────────────────────┤
+│ §14 Dashboard│ Achats (valeur engagée, évolution mensuelle, taux        │
+│ Supply Chain │ livraison à temps, économie réalisée sur RFQ), Stocks    │
+│              │ (valeur totale, rotation, produits dormants), Fournis-   │
+│              │ seurs (top 10, à risque, tendance amélioration/dégrada- │
+│              │ tion), Réseau (par site + lien carte GPS), Importations  │
+│              │ par statut                                               │
+├──────────────┼──────────────────────────────────────────────────────────┤
+│ §15 Audit &  │ auditLog systématique (RFQ, PO, Fournisseurs, PDV,       │
+│ traçabilité  │ Stock) ; aucune suppression physique dans le module      │
+│              │ (PDV, Fournisseur, ContratFournisseur, Produit = soft    │
+│              │ delete / statut / actif=false)                           │
+├──────────────┼──────────────────────────────────────────────────────────┤
+│ §16 BI       │ Prévision de rupture anticipée (couverture de stock      │
+│              │ projetée sur la conso réelle) + quantité recommandée +   │
+│              │ fournisseur recommandé (meilleur score parmi principal+ │
+│              │ secondaires) ; tendance fournisseur (comparaison de deux │
+│              │ fenêtres de 3 mois) — répond à quand/combien/chez qui    │
+│              │ (lib/previsionStock.ts, section dashboard dédiée)        │
+├──────────────┼──────────────────────────────────────────────────────────┤
+│ §17          │ Modules déjà natifs dans le même applicatif (pas de      │
+│ Intégrations │ microservices séparés à intégrer) : Caisse, Comptabilité,│
+│              │ RH, app terrain (agents/commerciaux). E-commerce/CRM     │
+│              │ externes et app chauffeurs dédiée : hors périmètre       │
+│              │ actuel (pas de système tiers à connecter)                │
+├──────────────┼──────────────────────────────────────────────────────────┤
+│ §18 RBAC     │ AGENT_LOGISTIQUE_APPROVISIONNEMENT, MAGAZINIER,          │
+│              │ COMPTABLE, AUDITEUR_INTERNE, ADMIN/SUPER_ADMIN,          │
+│              │ namespaces API séparés ; JWT + OAuth2 (Google) déjà en   │
+│              │ place ; 2FA absente (décision d'authentification         │
+│              │ globale à l'app, hors périmètre du seul module appro)    │
+└──────────────┴──────────────────────────────────────────────────────────┘
 
-  ┌──────────────┬──────────────────────────────────────────────────────────┐
-  │ Section CDC  │                          Manque                          │
-  ├──────────────┼──────────────────────────────────────────────────────────┤
-  │ §8 Fiche     │ Pas de code auto, pays, devise, banque, RCCM, NIF, TVA,  │
-  │ fournisseur  │ contrats, type, évaluation/notation. Aucune page CRUD    │
-  │              │ fournisseurs (juste des dropdowns)                       │
-  ├──────────────┼──────────────────────────────────────────────────────────┤
-  │              │ Pas de vrai calcul besoin net (prévision − stock −       │
-  │ §6 MRP       │ commandes en cours + sécurité) ; les "prévisions"        │
-  │              │ actuelles se basent sur les souscriptions de packs, pas  │
-  │              │ un moteur MRP                                            │
-  ├──────────────┼──────────────────────────────────────────────────────────┤
-  │ §7 Étapes    │ Pas d'agrégation multi-agences, pas de RFQ (demande de   │
-  │ 3-6          │ cotation), pas de comparatif fournisseurs                │
-  ├──────────────┼──────────────────────────────────────────────────────────┤
-  │              │ Pas de séparation Bon de Commande / Bon de Réception,    │
-  │ §7 Étape 7   │ pas de numérotation PO-TG-2026-xxxxx, pas de             │
-  │              │ PDF/signature électronique                               │
-  ├──────────────┼──────────────────────────────────────────────────────────┤
-  │ §9           │ Rien (pays                                               │
-  │ Importations │ origine/port/conteneur/incoterm/transitaire/douane/ETA)  │
-  ├──────────────┼──────────────────────────────────────────────────────────┤
-  │ §3, §4       │ Seulement 2 types de site (PDV/DEPOT_CENTRAL), pas de    │
-  │ Hiérarchie   │ plateformes régionales GPS/capacité/seuil sécurité       │
-  │ entrepôts    │                                                          │
-  ├──────────────┼──────────────────────────────────────────────────────────┤
-  │ §12 Alertes  │ Pas de notifications automatiques poussées (RH a un cron │
-  │ push         │  dédié, stock non)                                       │
-  ├──────────────┼──────────────────────────────────────────────────────────┤
-  │ §14          │ Plusieurs dashboards partiels existent, aucun consolidé  │
-  │ Dashboard    │ avec les KPI du CDC (économie réalisée, fiabilité        │
-  │ Supply Chain │ fournisseurs, carte géographique)                        │
-  │  consolidé   │                                                          │
-  ├──────────────┼──────────────────────────────────────────────────────────┤
-  │ §16 BI/IA    │ Rien                                                     │
-  │ prédictive   │                                                          │
-  ├──────────────┼──────────────────────────────────────────────────────────┤
-  │              │ AuditLog existe déjà globalement dans l'app (pas         │
-  │ §15 Audit    │ spécifique au module) — à vérifier s'il couvre ce        │
-  │              │ périmètre                                                │
-  └──────────────┴──────────────────────────────────────────────────────────┘
+Simplifications assumées (documentées dans le code, pas des manques cachés)
 
-  Point d'attention — §19 Architecture technique
+- Signature électronique du Bon de Commande : tampon interne (utilisateur +
+  horodatage), pas de prestataire de signature qualifiée (DocuSign etc.).
+- Suivi importations "temps réel" : journal de checkpoints saisis
+  manuellement par l'agent appro, pas de flux GPS/EDI transporteur/douane
+  automatique.
+- Finances (factures fournisseurs à payer, prévisions de trésorerie) :
+  signalées "non disponible" sur le dashboard plutôt que simulées — nécessi-
+  teraient un module comptabilité fournisseurs/trésorerie qui n'existe pas.
+- §16 BI/IA : projection statistique explicable (moyenne mobile, delta de
+  tendance), pas un modèle prédictif entraîné — voir lib/previsionStock.ts.
+- Rotation des stocks : ratio sorties 6 mois / valeur stock ACTUEL (pas de
+  snapshot d'inventaire historique pour une vraie moyenne de période).
+- Blocage/consignation de stock (§11) : API fonctionnelle (bloquer/débloquer/
+  consigner/déconsigner), pas encore d'écran dédié — utilisable via
+  /api/admin/stock/[id] (PUT, blocageAction).
+- 2FA (§18) : non implémentée — décision d'architecture d'authentification
+  globale à l'application, pas spécifique au module appro ; à traiter
+  séparément si voulu.
 
-  Le CDC demande microservices, multi-tenant, Kubernetes, RabbitMQ,
-  Elasticsearch, pour supporter 50 000 agences / 1M produits / 1M commandes par
-  mois. AfriGes est aujourd'hui un monolithe Next.js + Prisma + PostgreSQL
-  (Vercel), single-tenant, pour une entreprise togolaise. Ce n'est pas quelque
-  chose que je vais essayer d'implémenter littéralement — ça ressemble à du
-  texte de CDC générique/aspirationnel plutôt qu'un besoin réel à ce stade. Je
-  le mets de côté sauf si tu me dis explicitement que c'est voulu.
-
+Fichiers clés ajoutés/étendus dans cette revue finale :
+- prisma/schema.prisma : PointDeVente (hiérarchie/GPS/capacité/seuil),
+  StockSite (bloqué/consigné), LigneReceptionAppro (quantiteRefusee),
+  LotProduit (dateFabrication), Produit (fournisseursSecondaires,
+  unitesParPalette), ContratFournisseur (actif)
+- lib/alertesStock.ts, lib/previsionStock.ts, lib/catalogueProduit.ts
+- app/api/cron/appro-alertes, app/api/logistique/dashboard
+- app/api/admin/pdv, app/api/admin/catalogue/produits,
+  app/api/admin/stock/[id], app/api/logistique/receptions,
+  app/api/logistique/fournisseurs/[id]/contrats
+- app/dashboard/admin/pdv, app/dashboard/user/logistiquesApprovisionnements/
+  dashboard, components/catalogue/ProduitFormModal.tsx

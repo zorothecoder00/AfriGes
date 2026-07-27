@@ -7,6 +7,10 @@ export const strOrNull = (v: unknown) => (typeof v === "string" && v.trim() ? v.
 export const numOrNull = (v: unknown) => (v != null && v !== "" && !isNaN(Number(v)) ? Number(v) : null);
 export const decOrNull = (v: unknown) => (v != null && v !== "" && !isNaN(Number(v)) ? new Prisma.Decimal(Number(v)) : null);
 
+/** IDs de fournisseurs secondaires (CDC Appro §5) — array d'IDs valides, dédupliqués. */
+export const fournisseursSecondairesIds = (v: unknown): number[] =>
+  Array.isArray(v) ? [...new Set(v.map((x) => Number(x)).filter((n) => Number.isInteger(n) && n > 0))] : [];
+
 /**
  * Champs catalogue enrichis communs à la création et l'édition d'un produit
  * (Catalogue §3). `nom` et `prixUnitaire` sont gérés à part par les appelants
@@ -40,6 +44,7 @@ export function buildProduitData(body: Record<string, unknown>) {
     couleur:         strOrNull(body.couleur),
     saveur:          strOrNull(body.saveur),
     conditionnement: strOrNull(body.conditionnement),
+    unitesParPalette: numOrNull(body.unitesParPalette),
     uniteVenteId:    numOrNull(body.uniteVenteId),
     uniteAchatId:    numOrNull(body.uniteAchatId),
     // Images & documents

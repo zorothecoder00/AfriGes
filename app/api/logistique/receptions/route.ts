@@ -126,7 +126,7 @@ export async function POST(req: Request) {
           notes:             notes  || null,
           receptionneParId:  parseInt(session.user.id),
           lignes: {
-            create: lignes.map((l: { produitId: number; quantiteAttendue: number; prixUnitaire?: number | string | null; numeroLot?: string | null; dlc?: string | null; dluo?: string | null }) => {
+            create: lignes.map((l: { produitId: number; quantiteAttendue: number; prixUnitaire?: number | string | null; numeroLot?: string | null; dateFabrication?: string | null; dlc?: string | null; dluo?: string | null }) => {
               const hasPrixUnitaire = l.prixUnitaire !== undefined && l.prixUnitaire !== null && l.prixUnitaire !== "";
               return {
                 produitId:        Number(l.produitId),
@@ -134,6 +134,7 @@ export async function POST(req: Request) {
                 prixUnitaire:     hasPrixUnitaire ? Number(l.prixUnitaire) : null,
                 // Lot & péremption optionnels (créent un LotProduit à la validation).
                 numeroLot:        l.numeroLot?.trim() || null,
+                dateFabrication:  l.dateFabrication ? new Date(l.dateFabrication) : null,
                 dlc:              l.dlc  ? new Date(l.dlc)  : null,
                 dluo:             l.dluo ? new Date(l.dluo) : null,
               };

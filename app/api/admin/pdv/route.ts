@@ -46,11 +46,13 @@ export async function GET(req: Request) {
         include: {
           rpv:       { select: { id: true, nom: true, prenom: true } },
           chefAgence:{ select: { id: true, nom: true, prenom: true } },
+          plateformeRegionale: { select: { id: true, nom: true, code: true } },
           _count: {
             select: {
               stocks:        true,
               ventesDirectes:true,
               affectations:  true,
+              sitesRattaches:true,
             },
           },
         },
@@ -61,9 +63,11 @@ export async function GET(req: Request) {
       prisma.pointDeVente.count({ where: { actif: true } }),
     ]);
 
+    const totalPlateformes = await prisma.pointDeVente.count({ where: { type: "PLATEFORME_REGIONALE" } });
+
     return NextResponse.json({
       data:  pdvs,
-      stats: { totalPDV, totalDepot, totalActifs },
+      stats: { totalPDV, totalDepot, totalPlateformes, totalActifs },
       meta:  { total, page, limit, totalPages: Math.ceil(total / limit) },
     });
   } catch (error) {
@@ -83,7 +87,10 @@ export async function POST(req: Request) {
     if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
 
     const body = await req.json();
-    const { code, nom, type, adresse, telephone, notes, rpvId, chefAgenceId } = body;
+    const {
+      code, nom, type, adresse, telephone, notes, rpvId, chefAgenceId,
+      latitude, longitude, capaciteStockage, capaciteUnite, seuilSecuriteGlobal, plateformeRegionaleId,
+    } = body;
 
     if (!code || !nom) {
       return NextResponse.json({ error: "code et nom sont obligatoires" }, { status: 400 });
@@ -92,6 +99,13 @@ export async function POST(req: Request) {
     const existing = await prisma.pointDeVente.findUnique({ where: { code } });
     if (existing) {
       return NextResponse.json({ error: `Le code "${code}" est déjà utilisé` }, { status: 409 });
+    }
+
+    if (plateformeRegionaleId) {
+      const parent = await prisma.pointDeVente.findUnique({ where: { id: Number(plateformeRegionaleId) } });
+      if (!parent || parent.type === "POINT_DE_VENTE") {
+        return NextResponse.json({ error: "Le site parent doit être un dépôt central ou une plateforme régionale" }, { status: 400 });
+      }
     }
 
     // Si rpvId fourni, vérifier qu'il n'est pas déjà RPV d'un autre PDV
@@ -113,10 +127,17 @@ export async function POST(req: Request) {
           notes:        notes        || null,
           rpvId:        rpvId        ? Number(rpvId)        : null,
           chefAgenceId: chefAgenceId ? Number(chefAgenceId) : null,
+          latitude:             latitude             != null ? Number(latitude)             : null,
+          longitude:            longitude            != null ? Number(longitude)            : null,
+          capaciteStockage:     capaciteStockage     != null ? Number(capaciteStockage)      : null,
+          capaciteUnite:        capaciteUnite        || null,
+          seuilSecuriteGlobal:  seuilSecuriteGlobal  != null ? Number(seuilSecuriteGlobal)   : null,
+          plateformeRegionaleId: plateformeRegionaleId ? Number(plateformeRegionaleId) : null,
         },
         include: {
           rpv:       { select: { id: true, nom: true, prenom: true } },
           chefAgence:{ select: { id: true, nom: true, prenom: true } },
+          plateformeRegionale: { select: { id: true, nom: true, code: true } },
         },
       });
 

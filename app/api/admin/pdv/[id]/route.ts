@@ -27,6 +27,8 @@ export async function GET(_req: Request, { params }: Ctx) {
       include: {
         rpv:        { select: { id: true, nom: true, prenom: true, telephone: true } },
         chefAgence: { select: { id: true, nom: true, prenom: true } },
+        plateformeRegionale: { select: { id: true, nom: true, code: true, type: true } },
+        sitesRattaches: { select: { id: true, nom: true, code: true, type: true, actif: true } },
         affectations: {
           where: { actif: true },
           include: { user: { select: { id: true, nom: true, prenom: true, gestionnaire: { select: { role: true } } } } },
@@ -66,10 +68,23 @@ export async function PATCH(req: Request, { params }: Ctx) {
     const { id } = await params;
 
     const body = await req.json();
-    const { nom, adresse, telephone, notes, rpvId, chefAgenceId, actif } = body;
+    const {
+      nom, adresse, telephone, notes, rpvId, chefAgenceId, actif,
+      latitude, longitude, capaciteStockage, capaciteUnite, seuilSecuriteGlobal, plateformeRegionaleId,
+    } = body;
 
     const existing = await prisma.pointDeVente.findUnique({ where: { id: Number(id) } });
     if (!existing) return NextResponse.json({ error: "PDV introuvable" }, { status: 404 });
+
+    if (plateformeRegionaleId !== undefined && plateformeRegionaleId !== null) {
+      if (Number(plateformeRegionaleId) === Number(id)) {
+        return NextResponse.json({ error: "Un site ne peut pas être rattaché à lui-même" }, { status: 400 });
+      }
+      const parent = await prisma.pointDeVente.findUnique({ where: { id: Number(plateformeRegionaleId) } });
+      if (!parent || parent.type === "POINT_DE_VENTE") {
+        return NextResponse.json({ error: "Le site parent doit être un dépôt central ou une plateforme régionale" }, { status: 400 });
+      }
+    }
 
     // Si changement de RPV, vérifier qu'il n'est pas pris
     if (rpvId !== undefined && rpvId !== null && rpvId !== existing.rpvId) {
@@ -92,10 +107,17 @@ export async function PATCH(req: Request, { params }: Ctx) {
           ...(actif        !== undefined && { actif }),
           ...(rpvId        !== undefined && { rpvId: rpvId ? Number(rpvId) : null }),
           ...(chefAgenceId !== undefined && { chefAgenceId: chefAgenceId ? Number(chefAgenceId) : null }),
+          ...(latitude               !== undefined && { latitude:  latitude != null ? Number(latitude) : null }),
+          ...(longitude              !== undefined && { longitude: longitude != null ? Number(longitude) : null }),
+          ...(capaciteStockage       !== undefined && { capaciteStockage: capaciteStockage != null ? Number(capaciteStockage) : null }),
+          ...(capaciteUnite          !== undefined && { capaciteUnite: capaciteUnite || null }),
+          ...(seuilSecuriteGlobal    !== undefined && { seuilSecuriteGlobal: seuilSecuriteGlobal != null ? Number(seuilSecuriteGlobal) : null }),
+          ...(plateformeRegionaleId  !== undefined && { plateformeRegionaleId: plateformeRegionaleId ? Number(plateformeRegionaleId) : null }),
         },
         include: {
           rpv:        { select: { id: true, nom: true, prenom: true } },
           chefAgence: { select: { id: true, nom: true, prenom: true } },
+          plateformeRegionale: { select: { id: true, nom: true, code: true } },
         },
       });
 
@@ -179,6 +201,16 @@ export async function DELETE(_req: Request, { params }: Ctx) {
     if (stockNonVide) {
       return NextResponse.json(
         { error: "Impossible de supprimer un PDV avec du stock. Transférez d'abord le stock." },
+        { status: 400 }
+      );
+    }
+
+    const siteRattache = await prisma.pointDeVente.findFirst({
+      where: { plateformeRegionaleId: Number(id), actif: true },
+    });
+    if (siteRattache) {
+      return NextResponse.json(
+        { error: "Impossible de désactiver ce site : des sites lui sont rattachés (réaffectez-les d'abord)." },
         { status: 400 }
       );
     }

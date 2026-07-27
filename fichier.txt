@@ -39,7 +39,7 @@ netsh wlan show profile name="NomDuWifi" key=clear affiche toutes les propriét�
 
 -BQuerry pour extraire les données et faire des analyses
 
--Jitsi Meet (gratuit, intégrable
+-Jitsi Meet (gratuit, intégrable    
   en iframe, salle générée par réunion, aucun backend à héberger) — ce qui donne
   une vraie réunion dans l'application — tout en gardant la possibilité de
   coller un lien Meet/Zoom externe.  
@@ -136,6 +136,9 @@ Je dois corriger la relation entre les approvisionnements et les lots( de la rou
 Retoucher le logo
 
 Revoir le dashboard financier et même les autres ( tableau de bord admin/SUPERADMIN)
+
+
+Pouvoir rajouter grossiste dans les types de fournisseur
 
 
 

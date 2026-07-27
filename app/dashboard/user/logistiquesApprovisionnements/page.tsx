@@ -535,8 +535,8 @@ export default function LogistiqueApprovisionnementPage() {
   const [cmdForm, setCmdForm] = useState({
     type: "FOURNISSEUR", pointDeVenteId: "", fournisseurNom: "", datePrevisionnelle: "", notes: "",
   });
-  type CmdLigne = { produitId: string; quantiteAttendue: string; prixUnitaire: string; numeroLot: string; dlc: string; dluo: string };
-  const ligneVide: CmdLigne = { produitId: "", quantiteAttendue: "", prixUnitaire: "", numeroLot: "", dlc: "", dluo: "" };
+  type CmdLigne = { produitId: string; quantiteAttendue: string; prixUnitaire: string; numeroLot: string; dateFabrication: string; dlc: string; dluo: string };
+  const ligneVide: CmdLigne = { produitId: "", quantiteAttendue: "", prixUnitaire: "", numeroLot: "", dateFabrication: "", dlc: "", dluo: "" };
   const [cmdLignes, setCmdLignes] = useState<CmdLigne[]>([{ ...ligneVide }]);
 
   const { mutate: createCommande, loading: cmdLoading } =
@@ -560,6 +560,7 @@ export default function LogistiqueApprovisionnementPage() {
         quantiteAttendue: Number(l.quantiteAttendue),
         ...(l.prixUnitaire !== "" && { prixUnitaire: Number(l.prixUnitaire) }),
         ...(l.numeroLot.trim() && { numeroLot: l.numeroLot.trim() }),
+        ...(l.dateFabrication && { dateFabrication: l.dateFabrication }),
         ...(l.dlc  && { dlc: l.dlc }),
         ...(l.dluo && { dluo: l.dluo }),
       }));
@@ -2678,6 +2679,14 @@ export default function LogistiqueApprovisionnementPage() {
                             onChange={e => setCmdLignes(ls => ls.map((l, j) => j === i ? { ...l, numeroLot: e.target.value } : l))}
                             className="w-28 px-2 py-1.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white text-xs"
                           />
+                          <label className="text-[10px] text-slate-400">Fabrication
+                            <input
+                              type="date"
+                              value={ligne.dateFabrication}
+                              onChange={e => setCmdLignes(ls => ls.map((l, j) => j === i ? { ...l, dateFabrication: e.target.value } : l))}
+                              className="ml-1 px-2 py-1 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white text-xs"
+                            />
+                          </label>
                           <label className="text-[10px] text-slate-400">DLC
                             <input
                               type="date"

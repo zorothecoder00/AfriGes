@@ -22,7 +22,7 @@ export async function GET(_req: Request, { params }: Ctx) {
     const fournisseur = await prisma.fournisseur.findUnique({
       where: { id: fournisseurId },
       include: {
-        contrats: { orderBy: { createdAt: "desc" } },
+        contrats: { where: { actif: true }, orderBy: { createdAt: "desc" } },
         _count: { select: { receptions: true } },
       },
     });

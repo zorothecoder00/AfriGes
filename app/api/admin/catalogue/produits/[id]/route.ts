@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getAdminSession } from "@/lib/authAdmin";
 import { enregistrerChangementPrix } from "@/lib/prixProduit";
 import { auditLog } from "@/lib/notifications";
-import { buildProduitData, STATUTS_PRODUIT } from "@/lib/catalogueProduit";
+import { buildProduitData, STATUTS_PRODUIT, fournisseursSecondairesIds } from "@/lib/catalogueProduit";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -29,6 +29,7 @@ export async function GET(_req: Request, { params }: Ctx) {
       sousCategorie: { select: { id: true, nom: true } },
       marque: { select: { id: true, nom: true } },
       fournisseurPrincipal: { select: { id: true, nom: true } },
+      fournisseursSecondaires: { select: { id: true, nom: true } },
       uniteVente: { select: { id: true, nom: true, symbole: true } },
       uniteAchat: { select: { id: true, nom: true, symbole: true } },
       stocks: { select: { pointDeVenteId: true, quantite: true, quantiteReservee: true, pointDeVente: { select: { nom: true } } } },
@@ -62,6 +63,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
   if (!body) return NextResponse.json({ message: "Corps invalide" }, { status: 400 });
 
   const data = buildProduitData(body);
+  const secondaireIds = fournisseursSecondairesIds(body.fournisseursSecondairesIds);
   const userId = Number(session.user.id);
 
   // Prix de vente : optionnel à l'édition (on ne l'écrase que s'il est fourni et valide).
@@ -96,6 +98,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
           ...data,
           ...(nom ? { nom } : {}),
           ...(prixVente !== undefined ? { prixUnitaire: new Prisma.Decimal(prixVente) } : {}),
+          fournisseursSecondaires: { set: secondaireIds.map((sid) => ({ id: sid })) },
         },
         select: { id: true, nom: true, codeProduit: true, prixUnitaire: true, prixAchat: true },
       });

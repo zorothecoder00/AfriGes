@@ -159,20 +159,21 @@ export async function PATCH(req: Request, { params }: Ctx) {
         }, { status: 400 });
       }
 
-      // lignesRecues: [{ ligneId, quantiteRecue, etatQualite }]
+      // lignesRecues: [{ ligneId, quantiteRecue, quantiteRefusee?, etatQualite }]
       if (!lignesRecues || !Array.isArray(lignesRecues)) {
         return NextResponse.json({ error: "lignesRecues est obligatoire pour valider" }, { status: 400 });
       }
 
       const result = await prisma.$transaction(async (tx) => {
         // Mettre à jour chaque ligne avec les quantités reçues
-        for (const lr of lignesRecues as Array<{ ligneId: number; quantiteRecue: number; etatQualite?: string; notes?: string }>) {
+        for (const lr of lignesRecues as Array<{ ligneId: number; quantiteRecue: number; quantiteRefusee?: number; etatQualite?: string; notes?: string }>) {
           await tx.ligneReceptionAppro.update({
             where: { id: Number(lr.ligneId) },
             data: {
-              quantiteRecue: Number(lr.quantiteRecue),
-              etatQualite:   lr.etatQualite || "BON",
-              notes:         lr.notes       || null,
+              quantiteRecue:   Number(lr.quantiteRecue),
+              quantiteRefusee: lr.quantiteRefusee != null ? Number(lr.quantiteRefusee) : 0,
+              etatQualite:     lr.etatQualite || "BON",
+              notes:           lr.notes       || null,
             },
           });
         }
@@ -238,6 +239,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
             pointDeVenteId:   reception.pointDeVenteId,
             quantite:         qte,
             numeroLot:        ligne.numeroLot,
+            dateFabrication:  ligne.dateFabrication,
             dlc:              ligne.dlc,
             dluo:             ligne.dluo,
             prixAchat:        ligne.prixUnitaire != null ? Number(ligne.prixUnitaire) : null,

@@ -132,12 +132,12 @@ export async function creerLotDepuisReception(
   tx: TxClient,
   args: {
     produitId: number; pointDeVenteId: number; quantite: number;
-    numeroLot?: string | null; dlc?: Date | null; dluo?: Date | null;
+    numeroLot?: string | null; dateFabrication?: Date | null; dlc?: Date | null; dluo?: Date | null;
     prixAchat?: number | null; fournisseurId?: number | null;
     receptionApproId?: number | null; referenceReception: string; operateurId?: number | null;
   },
 ): Promise<number | null> {
-  const { produitId, pointDeVenteId, quantite, numeroLot, dlc, dluo, prixAchat, fournisseurId, receptionApproId, referenceReception, operateurId } = args;
+  const { produitId, pointDeVenteId, quantite, numeroLot, dateFabrication, dlc, dluo, prixAchat, fournisseurId, receptionApproId, referenceReception, operateurId } = args;
   // Pas de lot à tracer si ni numéro ni date de péremption (produit non suivi).
   if ((!numeroLot || !numeroLot.trim()) && !dlc && !dluo) return null;
   if (quantite <= 0) return null;
@@ -165,7 +165,7 @@ export async function creerLotDepuisReception(
     data: {
       numeroLot: numero, produitId, pointDeVenteId,
       quantiteInitiale: quantite, quantite,
-      dlc: dlc ?? null, dluo: dluo ?? null,
+      dateFabrication: dateFabrication ?? null, dlc: dlc ?? null, dluo: dluo ?? null,
       prixAchat: prixAchat ?? null,
       fournisseurId: fournisseurId ?? null,
       receptionApproId: receptionApproId ?? null,

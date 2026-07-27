@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   Plus, Search, Store, Building2, ArrowLeft, Edit, Power, PowerOff,
   CheckCircle, XCircle, Users, ShoppingCart, ChevronRight, X,
-  MapPin, Phone, FileText, User, UserCheck,
+  MapPin, Phone, FileText, User, UserCheck, Network, ExternalLink, Warehouse,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useApi, useMutation } from '@/hooks/useApi';
@@ -13,17 +13,23 @@ import { useT } from '@/contexts/AppSettingsContext';
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface PDVUser { id: number; nom: string; prenom: string; }
+interface PDVParent { id: number; nom: string; code: string; }
+type TypeSite = 'POINT_DE_VENTE' | 'DEPOT_CENTRAL' | 'PLATEFORME_REGIONALE';
 interface PDV {
-  id: number; code: string; nom: string; type: 'POINT_DE_VENTE' | 'DEPOT_CENTRAL';
+  id: number; code: string; nom: string; type: TypeSite;
   adresse: string | null; telephone: string | null; notes: string | null;
   actif: boolean; createdAt: string;
+  latitude: number | null; longitude: number | null;
+  capaciteStockage: number | null; capaciteUnite: string | null;
+  seuilSecuriteGlobal: number | null;
+  plateformeRegionale: PDVParent | null;
   rpv: PDVUser | null;
   chefAgence: PDVUser | null;
-  _count: { stocks: number; ventesDirectes: number; affectations: number };
+  _count: { stocks: number; ventesDirectes: number; affectations: number; sitesRattaches: number };
 }
 interface PDVResponse {
   data: PDV[];
-  stats: { totalPDV: number; totalDepot: number; totalActifs: number };
+  stats: { totalPDV: number; totalDepot: number; totalPlateformes: number; totalActifs: number };
   meta: { total: number; page: number; limit: number; totalPages: number };
 }
 interface GestionnaireOption {
@@ -34,10 +40,12 @@ interface GestionnaireOption {
 const TYPE_BADGE: Record<string, string> = {
   POINT_DE_VENTE: 'bg-blue-100 text-blue-700',
   DEPOT_CENTRAL: 'bg-purple-100 text-purple-700',
+  PLATEFORME_REGIONALE: 'bg-amber-100 text-amber-700',
 };
 const TYPE_LABEL: Record<string, string> = {
   POINT_DE_VENTE: 'Point de vente',
   DEPOT_CENTRAL: 'Dépôt central',
+  PLATEFORME_REGIONALE: 'Plateforme régionale',
 };
 
 function initials(nom: string, prenom: string) {
@@ -64,12 +72,16 @@ export default function PDVPage() {
   const [createForm, setCreateForm] = useState({
     code: '', nom: '', type: 'POINT_DE_VENTE', adresse: '', telephone: '', notes: '',
     rpvId: '', chefAgenceId: '',
+    latitude: '', longitude: '', capaciteStockage: '', capaciteUnite: 'm3', seuilSecuriteGlobal: '',
+    plateformeRegionaleId: '',
   });
 
   // ── Modal édition ───────────────────────────────────────────────────────────
   const [editPdv, setEditPdv]       = useState<PDV | null>(null);
   const [editForm, setEditForm]     = useState({
     nom: '', adresse: '', telephone: '', notes: '', rpvId: '', chefAgenceId: '', actif: true,
+    latitude: '', longitude: '', capaciteStockage: '', capaciteUnite: 'm3', seuilSecuriteGlobal: '',
+    plateformeRegionaleId: '',
   });
 
   // ── Modal toggle actif ──────────────────────────────────────────────────────
@@ -98,6 +110,14 @@ export default function PDVPage() {
   );
   const chefOptions = chefResponse?.data ?? [];
 
+  // ── Sites parents possibles (dépôt central / plateforme régionale) ────────
+  const { data: parentsResponse } = useApi<{ data: PDV[] }>(
+    (createOpen || !!editPdv) ? '/api/admin/pdv?limit=100&actif=true' : null
+  );
+  const parentOptions = (parentsResponse?.data ?? []).filter(
+    p => p.type !== 'POINT_DE_VENTE' && p.id !== editPdv?.id
+  );
+
   // ── Mutations ───────────────────────────────────────────────────────────────
   const { mutate: createPdv, loading: creating, error: createError } =
     useMutation('/api/admin/pdv', 'POST', { successMessage: 'Point de vente créé !' });
@@ -122,10 +142,19 @@ export default function PDVPage() {
       notes:         createForm.notes || null,
       rpvId:         createForm.rpvId ? Number(createForm.rpvId) : null,
       chefAgenceId:  createForm.chefAgenceId ? Number(createForm.chefAgenceId) : null,
+      latitude:            createForm.latitude !== '' ? Number(createForm.latitude) : null,
+      longitude:           createForm.longitude !== '' ? Number(createForm.longitude) : null,
+      capaciteStockage:    createForm.capaciteStockage !== '' ? Number(createForm.capaciteStockage) : null,
+      capaciteUnite:       createForm.capaciteUnite || null,
+      seuilSecuriteGlobal: createForm.seuilSecuriteGlobal !== '' ? Number(createForm.seuilSecuriteGlobal) : null,
+      plateformeRegionaleId: createForm.plateformeRegionaleId ? Number(createForm.plateformeRegionaleId) : null,
     });
     if (res) {
       setCreateOpen(false);
-      setCreateForm({ code: '', nom: '', type: 'POINT_DE_VENTE', adresse: '', telephone: '', notes: '', rpvId: '', chefAgenceId: '' });
+      setCreateForm({
+        code: '', nom: '', type: 'POINT_DE_VENTE', adresse: '', telephone: '', notes: '', rpvId: '', chefAgenceId: '',
+        latitude: '', longitude: '', capaciteStockage: '', capaciteUnite: 'm3', seuilSecuriteGlobal: '', plateformeRegionaleId: '',
+      });
       refetch();
     }
   };
@@ -140,6 +169,12 @@ export default function PDVPage() {
       rpvId:        pdv.rpv ? String(pdv.rpv.id) : '',
       chefAgenceId: pdv.chefAgence ? String(pdv.chefAgence.id) : '',
       actif:        pdv.actif,
+      latitude:            pdv.latitude != null ? String(pdv.latitude) : '',
+      longitude:           pdv.longitude != null ? String(pdv.longitude) : '',
+      capaciteStockage:    pdv.capaciteStockage != null ? String(pdv.capaciteStockage) : '',
+      capaciteUnite:       pdv.capaciteUnite ?? 'm3',
+      seuilSecuriteGlobal: pdv.seuilSecuriteGlobal != null ? String(pdv.seuilSecuriteGlobal) : '',
+      plateformeRegionaleId: pdv.plateformeRegionale ? String(pdv.plateformeRegionale.id) : '',
     });
     editIdRef.current = pdv.id;
   };
@@ -153,6 +188,12 @@ export default function PDVPage() {
       notes:        editForm.notes || null,
       rpvId:        editForm.rpvId ? Number(editForm.rpvId) : null,
       chefAgenceId: editForm.chefAgenceId ? Number(editForm.chefAgenceId) : null,
+      latitude:            editForm.latitude !== '' ? Number(editForm.latitude) : null,
+      longitude:           editForm.longitude !== '' ? Number(editForm.longitude) : null,
+      capaciteStockage:    editForm.capaciteStockage !== '' ? Number(editForm.capaciteStockage) : null,
+      capaciteUnite:       editForm.capaciteUnite || null,
+      seuilSecuriteGlobal: editForm.seuilSecuriteGlobal !== '' ? Number(editForm.seuilSecuriteGlobal) : null,
+      plateformeRegionaleId: editForm.plateformeRegionaleId ? Number(editForm.plateformeRegionaleId) : null,
     });
     if (res) { setEditPdv(null); refetch(); }
   };
@@ -187,10 +228,11 @@ export default function PDVPage() {
         </div>
 
         {/* ── Stats ─────────────────────────────────────────────────────── */}
-        <div className="grid grid-cols-3 gap-5">
+        <div className="grid grid-cols-4 gap-5">
           {[
             { label: t('pdv_type_pdv'),   value: String(stats?.totalPDV ?? 0),    icon: Store,      color: 'bg-blue-500',   lightBg: 'bg-blue-50' },
             { label: t('pdv_type_depot'), value: String(stats?.totalDepot ?? 0),  icon: Building2, color: 'bg-purple-500', lightBg: 'bg-purple-50' },
+            { label: t('pdv_type_plateforme'), value: String(stats?.totalPlateformes ?? 0), icon: Network, color: 'bg-amber-500', lightBg: 'bg-amber-50' },
             { label: t('pdv_actifs_count'), value: String(stats?.totalActifs ?? 0), icon: CheckCircle, color: 'bg-emerald-500', lightBg: 'bg-emerald-50' },
           ].map((s, i) => {
             const Icon = s.icon;
@@ -220,6 +262,7 @@ export default function PDVPage() {
               <option value="">{t('pdv_all_types')}</option>
               <option value="POINT_DE_VENTE">{t('pdv_type_pdv')}</option>
               <option value="DEPOT_CENTRAL">{t('pdv_type_depot')}</option>
+              <option value="PLATEFORME_REGIONALE">{t('pdv_type_plateforme')}</option>
             </select>
             <select value={filterActif} onChange={e => { setFilterActif(e.target.value); setPage(1); }}
               className="px-4 py-2.5 border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
@@ -260,6 +303,7 @@ export default function PDVPage() {
                       className="w-full px-4 py-2.5 border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
                       <option value="POINT_DE_VENTE">{t('pdv_type_pdv')}</option>
                       <option value="DEPOT_CENTRAL">{t('pdv_type_depot')}</option>
+                      <option value="PLATEFORME_REGIONALE">{t('pdv_type_plateforme')}</option>
                     </select>
                   </div>
                 </div>
@@ -319,6 +363,56 @@ export default function PDVPage() {
                     ))}
                   </select>
                 </div>
+
+                {/* Hiérarchie entrepôts (CDC §3/§4) */}
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    <Network size={13} className="inline mr-1 text-slate-400" />{t('label_site_parent')}
+                  </label>
+                  <select value={createForm.plateformeRegionaleId}
+                    onChange={e => setCreateForm(f => ({ ...f, plateformeRegionaleId: e.target.value }))}
+                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+                    <option value="">{t('label_none')}</option>
+                    {parentOptions.map(p => (
+                      <option key={p.id} value={p.id}>{p.nom} ({TYPE_LABEL[p.type]})</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">{t('label_latitude')}</label>
+                    <input type="number" step="any" placeholder="6.1319" value={createForm.latitude}
+                      onChange={e => setCreateForm(f => ({ ...f, latitude: e.target.value }))}
+                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">{t('label_longitude')}</label>
+                    <input type="number" step="any" placeholder="1.2228" value={createForm.longitude}
+                      onChange={e => setCreateForm(f => ({ ...f, longitude: e.target.value }))}
+                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm" />
+                  </div>
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="col-span-2">
+                    <label className="block text-sm font-medium text-slate-700 mb-1">{t('label_capacite_stockage')}</label>
+                    <input type="number" step="any" min="0" value={createForm.capaciteStockage}
+                      onChange={e => setCreateForm(f => ({ ...f, capaciteStockage: e.target.value }))}
+                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">{t('label_capacite_unite')}</label>
+                    <input type="text" placeholder="m3" value={createForm.capaciteUnite}
+                      onChange={e => setCreateForm(f => ({ ...f, capaciteUnite: e.target.value }))}
+                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm" />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">{t('label_seuil_securite_site')}</label>
+                  <input type="number" step="any" min="0" value={createForm.seuilSecuriteGlobal}
+                    onChange={e => setCreateForm(f => ({ ...f, seuilSecuriteGlobal: e.target.value }))}
+                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm" />
+                </div>
+
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">
                     <FileText size={13} className="inline mr-1 text-slate-400" />{t('label_notes')}
@@ -409,6 +503,56 @@ export default function PDVPage() {
                     ))}
                   </select>
                 </div>
+
+                {/* Hiérarchie entrepôts (CDC §3/§4) */}
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    <Network size={13} className="inline mr-1 text-slate-400" />{t('label_site_parent')}
+                  </label>
+                  <select value={editForm.plateformeRegionaleId}
+                    onChange={e => setEditForm(f => ({ ...f, plateformeRegionaleId: e.target.value }))}
+                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+                    <option value="">{t('label_none')}</option>
+                    {parentOptions.map(p => (
+                      <option key={p.id} value={p.id}>{p.nom} ({TYPE_LABEL[p.type]})</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">{t('label_latitude')}</label>
+                    <input type="number" step="any" value={editForm.latitude}
+                      onChange={e => setEditForm(f => ({ ...f, latitude: e.target.value }))}
+                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">{t('label_longitude')}</label>
+                    <input type="number" step="any" value={editForm.longitude}
+                      onChange={e => setEditForm(f => ({ ...f, longitude: e.target.value }))}
+                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm" />
+                  </div>
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="col-span-2">
+                    <label className="block text-sm font-medium text-slate-700 mb-1">{t('label_capacite_stockage')}</label>
+                    <input type="number" step="any" min="0" value={editForm.capaciteStockage}
+                      onChange={e => setEditForm(f => ({ ...f, capaciteStockage: e.target.value }))}
+                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">{t('label_capacite_unite')}</label>
+                    <input type="text" value={editForm.capaciteUnite}
+                      onChange={e => setEditForm(f => ({ ...f, capaciteUnite: e.target.value }))}
+                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm" />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">{t('label_seuil_securite_site')}</label>
+                  <input type="number" step="any" min="0" value={editForm.seuilSecuriteGlobal}
+                    onChange={e => setEditForm(f => ({ ...f, seuilSecuriteGlobal: e.target.value }))}
+                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm" />
+                </div>
+
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">{t('label_notes')}</label>
                   <textarea rows={2} value={editForm.notes}
@@ -476,7 +620,7 @@ export default function PDVPage() {
               <table className="w-full">
                 <thead className="bg-slate-50 border-b border-slate-200">
                   <tr>
-                    {[t('pdv_col_site'), t('label_type'), t('pdv_col_rpv'), t('label_chef_agence'), t('pdv_col_equipe'), t('pdv_col_ventes'), t('col_status'), t('col_actions')].map(h => (
+                    {[t('pdv_col_site'), t('label_type'), t('pdv_col_parent'), t('pdv_col_rpv'), t('label_chef_agence'), t('pdv_col_equipe'), t('pdv_col_ventes'), t('col_status'), t('col_actions')].map(h => (
                       <th key={h} className="px-5 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">{h}</th>
                     ))}
                   </tr>
@@ -486,13 +630,19 @@ export default function PDVPage() {
                     <tr key={pdv.id} className={`hover:bg-slate-50 transition-colors ${!pdv.actif ? 'opacity-60' : ''}`}>
                       <td className="px-5 py-4">
                         <div className="flex items-center gap-3">
-                          <div className={`w-10 h-10 ${pdv.type === 'DEPOT_CENTRAL' ? 'bg-gradient-to-br from-purple-400 to-purple-600' : 'bg-gradient-to-br from-blue-400 to-blue-600'} rounded-xl flex items-center justify-center text-white shadow-sm`}>
-                            {pdv.type === 'DEPOT_CENTRAL' ? <Building2 size={18} /> : <Store size={18} />}
+                          <div className={`w-10 h-10 ${pdv.type === 'DEPOT_CENTRAL' ? 'bg-gradient-to-br from-purple-400 to-purple-600' : pdv.type === 'PLATEFORME_REGIONALE' ? 'bg-gradient-to-br from-amber-400 to-amber-600' : 'bg-gradient-to-br from-blue-400 to-blue-600'} rounded-xl flex items-center justify-center text-white shadow-sm`}>
+                            {pdv.type === 'DEPOT_CENTRAL' ? <Building2 size={18} /> : pdv.type === 'PLATEFORME_REGIONALE' ? <Warehouse size={18} /> : <Store size={18} />}
                           </div>
                           <div>
                             <p className="font-semibold text-slate-800">{pdv.nom}</p>
                             <p className="text-xs font-mono text-slate-400">{pdv.code}</p>
                             {pdv.adresse && <p className="text-xs text-slate-400 flex items-center gap-0.5"><MapPin size={10} /> {pdv.adresse}</p>}
+                            {pdv.latitude != null && pdv.longitude != null && (
+                              <a href={`https://www.google.com/maps?q=${pdv.latitude},${pdv.longitude}`} target="_blank" rel="noopener noreferrer"
+                                className="text-xs text-blue-500 hover:underline flex items-center gap-0.5 mt-0.5">
+                                <ExternalLink size={10} /> {t('pdv_voir_carte')}
+                              </a>
+                            )}
                           </div>
                         </div>
                       </td>
@@ -500,6 +650,13 @@ export default function PDVPage() {
                         <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${TYPE_BADGE[pdv.type]}`}>
                           {TYPE_LABEL[pdv.type]}
                         </span>
+                      </td>
+                      <td className="px-5 py-4">
+                        {pdv.plateformeRegionale ? (
+                          <span className="text-sm text-slate-700">{pdv.plateformeRegionale.nom}</span>
+                        ) : (
+                          <span className="text-xs text-slate-400 italic">-</span>
+                        )}
                       </td>
                       <td className="px-5 py-4">
                         {pdv.rpv ? (
@@ -569,7 +726,7 @@ export default function PDVPage() {
                   ))}
                   {pdvs.length === 0 && (
                     <tr>
-                      <td colSpan={8} className="px-6 py-12 text-center">
+                      <td colSpan={9} className="px-6 py-12 text-center">
                         <Store className="w-10 h-10 text-slate-200 mx-auto mb-3" />
                         <p className="text-slate-500">{t('pdv_none_registered')}</p>
                         <p className="text-slate-400 text-sm mt-1">Cliquez sur &ldquo;Nouveau PDV&rdquo;pour commencer.</p>

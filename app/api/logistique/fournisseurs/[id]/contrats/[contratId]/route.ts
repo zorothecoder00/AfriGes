@@ -38,6 +38,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
 
 /**
  * DELETE /api/logistique/fournisseurs/[id]/contrats/[contratId]
+ * Soft delete (CDC §15 — aucune suppression physique) : marque actif=false.
  */
 export async function DELETE(_req: Request, { params }: Ctx) {
   try {
@@ -49,8 +50,8 @@ export async function DELETE(_req: Request, { params }: Ctx) {
     if (!existing) return NextResponse.json({ error: "Contrat introuvable" }, { status: 404 });
 
     await prisma.$transaction(async (tx) => {
-      await tx.contratFournisseur.delete({ where: { id: Number(contratId) } });
-      await auditLog(tx, parseInt(session.user.id), "CONTRAT_FOURNISSEUR_SUPPRIME", "ContratFournisseur", Number(contratId));
+      await tx.contratFournisseur.update({ where: { id: Number(contratId) }, data: { actif: false } });
+      await auditLog(tx, parseInt(session.user.id), "CONTRAT_FOURNISSEUR_ARCHIVE", "ContratFournisseur", Number(contratId));
     });
 
     return NextResponse.json({ data: { id: Number(contratId) } });

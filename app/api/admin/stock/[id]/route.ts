@@ -91,7 +91,7 @@ export async function PUT(
     }
 
     const body = await req.json();
-    const { nom, description, prixUnitaire, prixAchat, alerteStock, ajustementStock, motifAjustement, pointDeVenteId } = body;
+    const { nom, description, prixUnitaire, prixAchat, alerteStock, ajustementStock, motifAjustement, pointDeVenteId, blocageAction, blocageQuantite } = body;
 
     const existing = await prisma.produit.findUnique({ where: { id: numericId } });
     if (!existing) {
@@ -161,6 +161,35 @@ export async function PUT(
         });
       }
 
+      // Blocage qualité / consignation (CDC §11) — transfert interne au site, sans
+      // impact sur la quantité totale théorique (juste un changement de disponibilité).
+      if (blocageAction && blocageQuantite) {
+        if (!pointDeVenteId) throw new Error("pointDeVenteId requis pour un blocage/consignation");
+        const qty = Math.abs(Number(blocageQuantite));
+        const site = await tx.stockSite.findUnique({
+          where: { produitId_pointDeVenteId: { produitId: numericId, pointDeVenteId: Number(pointDeVenteId) } },
+        });
+        if (!site) throw new Error("Aucun stock sur ce site pour ce produit");
+
+        if (blocageAction === "BLOQUER") {
+          if (site.quantite < qty) throw new Error("Stock disponible insuffisant pour bloquer cette quantité");
+          await tx.stockSite.update({ where: { id: site.id }, data: { quantite: { decrement: qty }, quantiteBloquee: { increment: qty } } });
+        } else if (blocageAction === "DEBLOQUER") {
+          if (site.quantiteBloquee < qty) throw new Error("Quantité bloquée insuffisante");
+          await tx.stockSite.update({ where: { id: site.id }, data: { quantite: { increment: qty }, quantiteBloquee: { decrement: qty } } });
+        } else if (blocageAction === "CONSIGNER") {
+          if (site.quantite < qty) throw new Error("Stock disponible insuffisant pour consigner cette quantité");
+          await tx.stockSite.update({ where: { id: site.id }, data: { quantite: { decrement: qty }, quantiteConsignee: { increment: qty } } });
+        } else if (blocageAction === "DECONSIGNER") {
+          if (site.quantiteConsignee < qty) throw new Error("Quantité consignée insuffisante");
+          await tx.stockSite.update({ where: { id: site.id }, data: { quantite: { increment: qty }, quantiteConsignee: { decrement: qty } } });
+        } else {
+          throw new Error("blocageAction invalide");
+        }
+
+        await auditLog(tx, parseInt(session.user.id), `STOCK_${blocageAction}`, "StockSite", site.id, { produitId: numericId, pointDeVenteId: Number(pointDeVenteId), quantite: qty, motif: motifAjustement || null });
+      }
+
       return tx.produit.update({
         where: { id: numericId },
         data: updateData,
@@ -171,10 +200,21 @@ export async function PUT(
   } catch (error: unknown) {
     console.error("PUT /admin/stock/[id] error:", error);
 
-    if (error instanceof Error && error.message === "Le stock disponible (hors réservations) est insuffisant") {
+    const messagesConnus = [
+      "Le stock disponible (hors réservations) est insuffisant",
+      "pointDeVenteId requis pour un ajustement positif",
+      "pointDeVenteId requis pour un blocage/consignation",
+      "Aucun stock sur ce site pour ce produit",
+      "Stock disponible insuffisant pour bloquer cette quantité",
+      "Quantité bloquée insuffisante",
+      "Stock disponible insuffisant pour consigner cette quantité",
+      "Quantité consignée insuffisante",
+      "blocageAction invalide",
+    ];
+    if (error instanceof Error && messagesConnus.includes(error.message)) {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
-   
+
     return NextResponse.json(
       { error: "Erreur lors de la mise a jour du produit" },
       { status: 500 }

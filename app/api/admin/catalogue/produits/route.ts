@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getAdminSession } from "@/lib/authAdmin";
 import { enregistrerChangementPrix } from "@/lib/prixProduit";
 import { auditLog } from "@/lib/notifications";
-import { buildProduitData, strOrNull, numOrNull } from "@/lib/catalogueProduit";
+import { buildProduitData, strOrNull, numOrNull, fournisseursSecondairesIds } from "@/lib/catalogueProduit";
 
 /**
  * GET /api/admin/catalogue/produits — liste catalogue (filtres + champs enrichis) — admin.
@@ -74,6 +74,7 @@ export async function POST(req: Request) {
   if (prixVente == null || prixVente <= 0) return NextResponse.json({ message: "Le prix de vente doit être supérieur à 0" }, { status: 400 });
 
   const data = buildProduitData(body);
+  const secondaireIds = fournisseursSecondairesIds(body.fournisseursSecondairesIds);
   const userId = Number(session.user.id);
 
   // Génération du code produit (PRD-000001) avec retry en cas de collision.
@@ -83,7 +84,10 @@ export async function POST(req: Request) {
     try {
       const produit = await prisma.$transaction(async (tx) => {
         const p = await tx.produit.create({
-          data: { ...data, nom, prixUnitaire: new Prisma.Decimal(prixVente), codeProduit },
+          data: {
+            ...data, nom, prixUnitaire: new Prisma.Decimal(prixVente), codeProduit,
+            ...(secondaireIds.length > 0 && { fournisseursSecondaires: { connect: secondaireIds.map((id) => ({ id })) } }),
+          },
           select: { id: true, codeProduit: true, nom: true, prixUnitaire: true, prixAchat: true },
         });
         await enregistrerChangementPrix(tx, {

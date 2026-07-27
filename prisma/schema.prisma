@@ -108,8 +108,9 @@ enum TypeTransactionClient {
 
 enum TypePointDeVente {
   POINT_DE_VENTE
-  DEPOT_CENTRAL  
-}     
+  DEPOT_CENTRAL
+  PLATEFORME_REGIONALE // CDC Approvisionnement §3/§4 — hub régional entre le dépôt central et les PDV
+}
       
 enum TypeEntreeStock {
   RECEPTION_FOURNISSEUR
@@ -826,6 +827,20 @@ model PointDeVente {
   actif     Boolean          @default(true)
   notes     String?
 
+  // Hiérarchie entrepôts (CDC Approvisionnement §3/§4) — un PDV ou une plateforme
+  // régionale peut être rattaché à une plateforme régionale (elle-même sous le
+  // dépôt central, géré de façon implicite : un seul DEPOT_CENTRAL en pratique).
+  plateformeRegionaleId Int?
+  plateformeRegionale   PointDeVente?  @relation("HierarchiePlateforme", fields: [plateformeRegionaleId], references: [id])
+  sitesRattaches        PointDeVente[] @relation("HierarchiePlateforme")
+
+  // Géolocalisation + dimensionnement du site (CDC §3/§4)
+  latitude            Float?
+  longitude           Float?
+  capaciteStockage    Decimal? // capacité totale du site (unité : capaciteUnite)
+  capaciteUnite       String?  @default("m3") // ex m3, palettes
+  seuilSecuriteGlobal Decimal? // seuil de sécurité au niveau site (en complément des seuils par produit sur StockSite)
+
   // RPV responsable (type POINT_DE_VENTE uniquement, 1-1)
   rpvId Int?  @unique
   rpv   User? @relation("RPVPointDeVente", fields: [rpvId], references: [id])
@@ -872,6 +887,7 @@ model PointDeVente {
   updatedAt DateTime @updatedAt
 
   @@index([type])
+  @@index([plateformeRegionaleId])
 }
 
 // Affectation d'un gestionnaire (caissier, magasinier, agent, etc.) à un PDV ou dépôt
@@ -1478,6 +1494,7 @@ model Fournisseur {
   contrats   ContratFournisseur[]
   receptions ReceptionApprovisionnement[]
   produits   Produit[]                        // catalogue : produits dont il est le fournisseur principal (Catalogue §3)
+  produitsSecondaires Produit[] @relation("ProduitFournisseursSecondaires") // source alternative (CDC Appro §5)
   lots       LotProduit[]                     // lots réceptionnés de ce fournisseur (Catalogue Ent.#5)
   reponsesRFQ ReponseRFQ[]                    // cotations soumises par ce fournisseur
   rfqRetenues DemandeCotation[] @relation("RFQFournisseurRetenu") // RFQ où ce fournisseur a été retenu
@@ -1498,6 +1515,7 @@ model ContratFournisseur {
   dateFin       DateTime?
   fichierUrl    String?
   notes         String?
+  actif         Boolean   @default(true) // CDC §15 — soft delete obligatoire
 
   fournisseur Fournisseur @relation(fields: [fournisseurId], references: [id], onDelete: Cascade)
 
@@ -1631,15 +1649,17 @@ model Produit {
   marque             MarqueProduit?        @relation(fields: [marqueId], references: [id])
   fournisseurPrincipalId Int?
   fournisseurPrincipal   Fournisseur?      @relation(fields: [fournisseurPrincipalId], references: [id])
+  fournisseursSecondaires Fournisseur[]    @relation("ProduitFournisseursSecondaires") // CDC §5 — sources alternatives
   paysOrigine        String?
 
   // ── Catalogue §3 : caractéristiques ──────────────────────────────────────
-  poids           Decimal?   // en kg
-  volume          Decimal?   // en litres
-  dimensions      String?    // ex: "30x20x10 cm"
-  couleur         String?
-  saveur          String?
-  conditionnement String?    // ex: "Carton de 12"
+  poids            Decimal?   // en kg
+  volume           Decimal?   // en litres
+  dimensions       String?    // ex: "30x20x10 cm"
+  couleur          String?
+  saveur           String?
+  conditionnement  String?    // ex: "Carton de 12" (colisage)
+  unitesParPalette Int?       // CDC §5 — palettisation
   uniteVenteId    Int?
   uniteVente      UniteProduit? @relation("ProduitUniteVente", fields: [uniteVenteId], references: [id])
   uniteAchatId    Int?
@@ -1929,6 +1949,7 @@ model LotProduit {
 
   quantiteInitiale Int
   quantite         Int          @default(0) // quantité restante dans le lot
+  dateFabrication  DateTime?    // CDC §5 — date de fabrication (distincte de la DLC)
   dlc              DateTime?    // date limite de consommation (péremption stricte)
   dluo             DateTime?    // date de durabilité minimale (qualité optimale)
   dateReception    DateTime     @default(now())
@@ -2037,6 +2058,8 @@ model StockSite {
   quantiteReservee   Float    @default(0)  // 4.2 réservé — engagé (ventes crédit en attente d'approbation)
   quantiteEnTransit  Int      @default(0)  // 4.3 en transit — commandé, non encore réceptionné
   quantiteEndommagee Int      @default(0)  // 4.4 endommagé — non vendable (perte/casse mis de côté)
+  quantiteBloquee    Int      @default(0)  // CDC §11 — sous blocage qualité/litige, non vendable
+  quantiteConsignee  Int      @default(0)  // CDC §11 — en dépôt-vente, propriété du fournisseur jusqu'à vente
   // 4.5 stockTheorique = quantite + quantiteReservee + quantiteEnTransit - quantiteEndommagee (calculé)
   alerteStock    Int?         // seuil d'alerte spécifique au site (override global)
 
@@ -2184,6 +2207,7 @@ model LigneReceptionAppro {
   produitId        Int
   quantiteAttendue Int
   quantiteRecue    Int?
+  quantiteRefusee  Int?    @default(0) // CDC §10 — produits refusés/endommagés distincts du reçu
   prixUnitaire     Decimal?
   etatQualite      String? // "BON" | "DEFECTUEUX" | "PARTIEL"
   notes            String?
@@ -2191,6 +2215,7 @@ model LigneReceptionAppro {
   // Lot & péremption (Enterprise #5) : si renseignés à la réception, un LotProduit
   // est créé automatiquement à la validation (traçabilité FEFO). Optionnels.
   numeroLot        String?
+  dateFabrication  DateTime? // CDC §5/§10 — date de fabrication (distincte de la DLC)
   dlc              DateTime? // date limite de consommation
   dluo             DateTime? // date de durabilité minimale
   // Lot effectivement créé/réalimenté par cette ligne (renseigné après la mise en stock).

@@ -15,7 +15,7 @@ export async function GET(_req: Request, { params }: Ctx) {
 
     const { id } = await params;
     const contrats = await prisma.contratFournisseur.findMany({
-      where: { fournisseurId: Number(id) },
+      where: { fournisseurId: Number(id), actif: true },
       orderBy: { createdAt: "desc" },
     });
     return NextResponse.json({ data: contrats });

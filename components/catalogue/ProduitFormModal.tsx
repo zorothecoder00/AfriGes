@@ -29,7 +29,7 @@ const EMPTY: FormState = {
   nom: "", nomCommercial: "", description: "", reference: "", codeBarre: "", qrCode: "", statut: "ACTIF",
   prixUnitaire: "", prixAchat: "", alerteStock: "0",
   familleId: "", sousFamilleId: "", categorieId: "", sousCategorieId: "", marqueId: "", fournisseurPrincipalId: "", paysOrigine: "",
-  poids: "", volume: "", dimensions: "", couleur: "", saveur: "", conditionnement: "", uniteVenteId: "", uniteAchatId: "",
+  poids: "", volume: "", dimensions: "", couleur: "", saveur: "", conditionnement: "", unitesParPalette: "", uniteVenteId: "", uniteAchatId: "",
   imagePrincipaleUrl: "", ficheTechniqueUrl: "", videoUrl: "", motifPrix: "",
 };
 
@@ -39,6 +39,7 @@ export default function ProduitFormModal({ produitId, refs, onClose, onSaved }:
   const [loading, setLoading] = useState(!!produitId);
   const [saving, setSaving] = useState(false);
   const [fournisseurs, setFournisseurs] = useState<FournisseurRef[]>([]);
+  const [secIds, setSecIds] = useState<string[]>([]);
   const [tab, setTab] = useState<"fiche" | "tarification" | "disponibilite">("fiche");
   const isEdit = produitId != null;
 
@@ -61,9 +62,10 @@ export default function ProduitFormModal({ produitId, refs, onClose, onSaved }:
           familleId: s(p.familleId), sousFamilleId: s(p.sousFamilleId), categorieId: s(p.categorieId), sousCategorieId: s(p.sousCategorieId),
           marqueId: s(p.marqueId), fournisseurPrincipalId: s(p.fournisseurPrincipalId), paysOrigine: s(p.paysOrigine),
           poids: s(p.poids), volume: s(p.volume), dimensions: s(p.dimensions), couleur: s(p.couleur), saveur: s(p.saveur),
-          conditionnement: s(p.conditionnement), uniteVenteId: s(p.uniteVenteId), uniteAchatId: s(p.uniteAchatId),
+          conditionnement: s(p.conditionnement), unitesParPalette: s(p.unitesParPalette), uniteVenteId: s(p.uniteVenteId), uniteAchatId: s(p.uniteAchatId),
           imagePrincipaleUrl: s(p.imagePrincipaleUrl), ficheTechniqueUrl: s(p.ficheTechniqueUrl), videoUrl: s(p.videoUrl), motifPrix: "",
         });
+        setSecIds((p.fournisseursSecondaires ?? []).map((f: FournisseurRef) => String(f.id)));
       } catch (e) { toast.error(e instanceof Error ? e.message : "Chargement impossible"); }
       finally { setLoading(false); }
     })();
@@ -92,6 +94,7 @@ export default function ProduitFormModal({ produitId, refs, onClose, onSaved }:
       // On envoie tout ; le serveur nettoie (vides → null). IDs "" → non envoyés.
       const payload: Record<string, unknown> = { ...form };
       for (const k of Object.keys(payload)) if (payload[k] === "") delete payload[k];
+      payload.fournisseursSecondairesIds = secIds.map(Number);
       const url = isEdit ? `/api/admin/catalogue/produits/${produitId}` : "/api/admin/catalogue/produits";
       const r = await fetch(url, { method: isEdit ? "PATCH" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
       const j = await r.json();
@@ -199,6 +202,15 @@ export default function ProduitFormModal({ produitId, refs, onClose, onSaved }:
                 </select>
               </Field>
               <Field label="Pays d'origine"><input value={form.paysOrigine} onChange={(e) => set("paysOrigine", e.target.value)} className={inputCls} /></Field>
+              <Field label="Fournisseurs secondaires">
+                <select multiple value={secIds}
+                  onChange={(e) => setSecIds(Array.from(e.target.selectedOptions).map((o) => o.value))}
+                  className={`${inputCls} h-24`}>
+                  {fournisseurs.filter((f) => String(f.id) !== form.fournisseurPrincipalId).map((f) => (
+                    <option key={f.id} value={f.id}>{f.nom}</option>
+                  ))}
+                </select>
+              </Field>
             </Section>
 
             {/* Caractéristiques */}
@@ -209,6 +221,7 @@ export default function ProduitFormModal({ produitId, refs, onClose, onSaved }:
               <Field label="Couleur"><input value={form.couleur} onChange={(e) => set("couleur", e.target.value)} className={inputCls} /></Field>
               <Field label="Saveur"><input value={form.saveur} onChange={(e) => set("saveur", e.target.value)} className={inputCls} /></Field>
               <Field label="Conditionnement"><input value={form.conditionnement} onChange={(e) => set("conditionnement", e.target.value)} placeholder="Carton de 12" className={inputCls} /></Field>
+              <Field label="Unités par palette"><input type="number" min={0} step="1" value={form.unitesParPalette} onChange={(e) => set("unitesParPalette", e.target.value)} className={inputCls} /></Field>
               <Field label="Unité de vente">
                 <select value={form.uniteVenteId} onChange={(e) => set("uniteVenteId", e.target.value)} className={inputCls}>
                   <option value="">—</option>
