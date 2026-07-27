@@ -3,6 +3,7 @@ import { StatutLivraisonPO } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { auditLog } from "@/lib/notifications";
 import { getSession } from "../../../fournisseurs/route";
+import { getRequestMeta } from "@/lib/requestMeta";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -68,7 +69,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
           lignes: { include: { produit: { select: { id: true, nom: true, codeProduit: true } } } },
         },
       });
-      await auditLog(tx, userId, "PO_LIVRAISON_MAJ", "BonCommande", bonId, { statutLivraison });
+      await auditLog(tx, userId, "PO_LIVRAISON_MAJ", "BonCommande", bonId, { statutLivraison }, getRequestMeta(req));
       return b;
     });
 

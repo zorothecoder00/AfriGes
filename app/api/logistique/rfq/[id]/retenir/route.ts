@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auditLog } from "@/lib/notifications";
 import { getSession } from "../../../fournisseurs/route";
+import { getRequestMeta } from "@/lib/requestMeta";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -45,7 +46,7 @@ export async function POST(req: Request, { params }: Ctx) {
         },
       });
       await auditLog(tx, parseInt(session.user.id), "RFQ_CLOTUREE", "DemandeCotation", demandeId,
-        { fournisseurRetenuId: reponse.fournisseurId });
+        { fournisseurRetenuId: reponse.fournisseurId }, getRequestMeta(req));
       return d;
     });
 

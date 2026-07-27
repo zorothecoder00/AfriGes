@@ -12,6 +12,10 @@ import { tariferLigne } from "@/lib/venteTarification";
 import { consommerFEFOBestEffort } from "@/lib/lotsFefo";
 import { substitutsDisponibles } from "@/lib/substitutsServer";
 import { resoudrePrixBatch } from "@/lib/tarificationBatch";
+import { projeterProduit, type ProduitSource } from "@/lib/vuesCatalogue";
+import { vueEffective } from "@/lib/vuesCatalogueServer";
+import { promotionApplicable } from "@/lib/promotionsServer";
+import { libelleRemise } from "@/lib/promotions";
 
 /**
  * GET /api/agentTerrain/ventes
@@ -76,23 +80,50 @@ export async function GET(req: NextRequest) {
       .reduce((acc, v) => acc + Number(v.montantTotal), 0);
 
     // Produits disponibles au PDV (quantite - quantiteReservee > 0)
+    const pdvIdVentes = affectation?.pointDeVente.id ?? null;
     const allStocks = affectation
       ? await prisma.stockSite.findMany({
-          where: { pointDeVenteId: affectation.pointDeVente.id, quantite: { gt: 0 } },
-          include: { produit: { select: { id: true, nom: true, reference: true, unite: true, prixUnitaire: true } } },
+          where: { pointDeVenteId: pdvIdVentes!, quantite: { gt: 0 } },
+          include: {
+            produit: {
+              select: {
+                id: true, nom: true, reference: true, unite: true, prixUnitaire: true,
+                imagePrincipaleUrl: true, codeBarre: true, qrCode: true,
+                categorieId: true, familleId: true, marqueId: true,
+              },
+            },
+          },
         })
       : [];
     const produitsDispoBrut = allStocks
       .map(s => ({ ...s, quantite: s.quantite - s.quantiteReservee }))
       .filter(s => s.quantite > 0);
-    // Prix DETAIL résolu par agence (§8) pour afficher le bon tarif à la sélection.
+    // Prix DETAIL + CREDIT résolus par agence (§8) pour afficher le bon tarif à la sélection.
     const prixMapV = await resoudrePrixBatch(
-      produitsDispoBrut.map(s => s.produit.id), ["DETAIL"],
-      { pointDeVenteId: affectation?.pointDeVente.id ?? null },
+      produitsDispoBrut.map(s => s.produit.id), ["DETAIL", "CREDIT"],
+      { pointDeVenteId: pdvIdVentes },
     );
-    const produitsDispo = produitsDispoBrut.map(s => ({
-      ...s,
-      produit: { ...s.produit, prixDetail: prixMapV.get(s.produit.id)?.DETAIL ?? Number(s.produit.prixUnitaire) },
+    // Champs additionnels gouvernés par la vue COMMERCIAL_TERRAIN (Catalogue §21.F/§22) —
+    // photo/prixCrédit/promo/codeBarre/qrCode, filtrés selon ce que l'admin autorise.
+    const vueTerrain = await vueEffective("COMMERCIAL_TERRAIN");
+    const produitsDispo = await Promise.all(produitsDispoBrut.map(async (s) => {
+      const prixDetail = prixMapV.get(s.produit.id)?.DETAIL ?? Number(s.produit.prixUnitaire);
+      const compat = { ...s.produit, prixDetail };
+      if (!vueTerrain) return { ...s, produit: compat };
+
+      const promo = await promotionApplicable(
+        { id: s.produit.id, categorieId: s.produit.categorieId, familleId: s.produit.familleId, marqueId: s.produit.marqueId },
+        { pointDeVenteId: pdvIdVentes },
+      );
+      const source: ProduitSource = {
+        id: s.produit.id, photo: s.produit.imagePrincipaleUrl, nom: s.produit.nom,
+        prixDetail, prixCredit: prixMapV.get(s.produit.id)?.CREDIT ?? null,
+        promo: promo ? libelleRemise(promo) : null,
+        codeBarre: s.produit.codeBarre, qrCode: s.produit.qrCode,
+      };
+      const projected = projeterProduit(vueTerrain.champsVisibles, vueTerrain.modeStock, source);
+      delete projected.stock; // `quantite` (dispo réservable) porte déjà cette info sur la ligne
+      return { ...s, produit: { ...compat, ...projected } };
     }));
 
     // Clients du PDV

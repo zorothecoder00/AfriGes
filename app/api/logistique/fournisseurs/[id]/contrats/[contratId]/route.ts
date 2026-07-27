@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auditLog } from "@/lib/notifications";
 import { getSession } from "../../../route";
+import { getRequestMeta } from "@/lib/requestMeta";
 
 type Ctx = { params: Promise<{ id: string; contratId: string }> };
 
@@ -40,7 +41,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
  * DELETE /api/logistique/fournisseurs/[id]/contrats/[contratId]
  * Soft delete (CDC §15 — aucune suppression physique) : marque actif=false.
  */
-export async function DELETE(_req: Request, { params }: Ctx) {
+export async function DELETE(req: Request, { params }: Ctx) {
   try {
     const session = await getSession();
     if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
@@ -51,7 +52,7 @@ export async function DELETE(_req: Request, { params }: Ctx) {
 
     await prisma.$transaction(async (tx) => {
       await tx.contratFournisseur.update({ where: { id: Number(contratId) }, data: { actif: false } });
-      await auditLog(tx, parseInt(session.user.id), "CONTRAT_FOURNISSEUR_ARCHIVE", "ContratFournisseur", Number(contratId));
+      await auditLog(tx, parseInt(session.user.id), "CONTRAT_FOURNISSEUR_ARCHIVE", "ContratFournisseur", Number(contratId), undefined, getRequestMeta(req));
     });
 
     return NextResponse.json({ data: { id: Number(contratId) } });

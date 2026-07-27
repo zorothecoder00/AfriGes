@@ -2,15 +2,27 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auditLog } from "@/lib/notifications";
 import { getSession } from "../../route";
+import { getMagasinierSession } from "@/lib/authMagasinier";
+import { getRequestMeta } from "@/lib/requestMeta";
 
 type Ctx = { params: Promise<{ id: string }> };
+
+/**
+ * Logistique/admin (gestion complète) OU magasinier (peut consulter et
+ * signaler un litige constaté lors d'une réception — CDC §10/§8).
+ */
+async function getSessionOuMagasinier() {
+  const base = await getSession();
+  if (base) return base;
+  return await getMagasinierSession();
+}
 
 /**
  * GET /api/logistique/fournisseurs/[id]/litiges
  */
 export async function GET(_req: Request, { params }: Ctx) {
   try {
-    const session = await getSession();
+    const session = await getSessionOuMagasinier();
     if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
 
     const { id } = await params;
@@ -37,7 +49,7 @@ export async function GET(_req: Request, { params }: Ctx) {
  */
 export async function POST(req: Request, { params }: Ctx) {
   try {
-    const session = await getSession();
+    const session = await getSessionOuMagasinier();
     if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
 
     const { id } = await params;
@@ -57,7 +69,7 @@ export async function POST(req: Request, { params }: Ctx) {
           creeParId: parseInt(session.user.id),
         },
       });
-      await auditLog(tx, parseInt(session.user.id), "LITIGE_FOURNISSEUR_CREE", "LitigeFournisseur", l.id, { fournisseur: fournisseur.nom });
+      await auditLog(tx, parseInt(session.user.id), "LITIGE_FOURNISSEUR_CREE", "LitigeFournisseur", l.id, { fournisseur: fournisseur.nom }, getRequestMeta(req));
       return l;
     });
 

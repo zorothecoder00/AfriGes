@@ -1,13 +1,20 @@
 "use client";
 
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import {
   Loader2, LayoutDashboard, Wallet, ShoppingCart, Clock,
-  TrendingUp, TrendingDown, Truck, Ship, AlertTriangle, Building2, Info, ExternalLink, Sparkles,
+  TrendingUp, TrendingDown, Truck, Ship, AlertTriangle, Building2, Info, ExternalLink, Sparkles, Map as MapIcon,
 } from "lucide-react";
 import { useApi } from "@/hooks/useApi";
 import { formatCurrency } from "@/lib/format";
 import RetourApprovisionnement from "@/components/RetourApprovisionnement";
+
+// Leaflet incompatible avec SSR
+const StockCarte = dynamic(() => import("@/components/StockCarte"), {
+  ssr: false,
+  loading: () => <div className="h-full w-full flex items-center justify-center text-sm text-gray-400">Chargement de la carte…</div>,
+});
 
 interface MoisAchat { label: string; valeur: number; nb: number }
 type Tendance = "AMELIORATION" | "STABLE" | "DEGRADATION" | "INSUFFISANT";
@@ -16,7 +23,8 @@ interface FournisseurEval {
   tauxRespectDelais: number | null; tauxQualite: number | null; echantillon: number;
   tendance: Tendance; deltaPoints: number | null;
 }
-interface ReseauPDV { pointDeVenteId: number; nom: string; code: string; latitude: number | null; longitude: number | null; valeurEngagee: number; nbPO: number }
+interface ReseauPDV { pointDeVenteId: number; nom: string; code: string; latitude: number | null; longitude: number | null; regionNom: string; valeurEngagee: number; nbPO: number }
+interface ReseauRegion { region: string; valeurEngagee: number; nbPO: number; nbSites: number }
 interface RuptureAnticipee {
   produit: { id: number; nom: string; codeProduit: string | null };
   pointDeVente: { id: number; nom: string };
@@ -33,9 +41,20 @@ interface DashboardData {
   fournisseurs: { actifs: number; topEvalues: FournisseurEval[]; aRisque: FournisseurEval[] };
   importations: { total: number; parStatut: Record<string, number>; ecartMoyenJours: number | null };
   reseau: ReseauPDV[];
+  reseauParRegion: ReseauRegion[];
   stocks: { valeurStockTotal: number; rotationStock: number | null; produitsDormants: { total: number; top: ProduitDormant[] } };
   previsions: { rupturesAnticipees: RuptureAnticipee[]; fournisseursEnDegradation: FournisseurEval[]; fournisseursEnAmelioration: FournisseurEval[] };
-  finances: { engagementFournisseurs: number; nonDisponible: string[] };
+  finances: {
+    engagementFournisseurs: number;
+    facturesAPayer: { total: number; nbFactures: number; parFournisseur: { fournisseurId: number; nom: string; solde: number; nbFactures: number }[] };
+    previsionsTresorerie: {
+      sorties: { enRetard: number; sous30j: number; sous60j: number; sous90j: number; nonPlanifie: number };
+      entrees: { enRetard: number; sous30j: number; sous60j: number; sous90j: number; nonPlanifie: number };
+      totalEntreesEcheancier: number;
+      ventesDirectesMoyenneMensuelle: number;
+      positionNette: { enRetard: number; sous30j: number; sous60j: number; sous90j: number; nonPlanifie: number };
+    };
+  };
 }
 
 const STATUT_IMPORT_LABEL: Record<string, string> = {
@@ -153,14 +172,22 @@ export default function DashboardSupplyChainPage() {
               </div>
             </Section>
 
+            {/* Carte géographique des stocks nationaux (CDC §14) */}
+            <Section title="Carte du réseau" icon={<MapIcon className="w-4 h-4 text-cyan-600" />} empty={false} emptyLabel="">
+              <div style={{ height: "360px" }}>
+                <StockCarte sites={data.reseau} />
+              </div>
+              <p className="text-[11px] text-gray-400 mt-2">Rayon proportionnel à l&apos;engagement fournisseurs · couleur par plateforme régionale.</p>
+            </Section>
+
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               {/* Top fournisseurs */}
               <Section title="Meilleurs fournisseurs" icon={<Truck className="w-4 h-4 text-emerald-600" />} empty={data.fournisseurs.topEvalues.length === 0} emptyLabel="Pas encore assez de données d'évaluation.">
                 <div className="space-y-2.5">
-                  {data.fournisseurs.topEvalues.map((f) => {
+                  {data.fournisseurs.topEvalues.map((f, i) => {
                     const score = f.noteGlobale ?? ((f.tauxRespectDelais ?? 50) + (f.tauxQualite ?? 50)) / 2;
                     return (
-                      <BarRow key={f.id} label={f.nom} sub={f.code ?? undefined} value={score}
+                      <BarRow key={`${f.id}-${i}`} label={f.nom} sub={f.code ?? undefined} value={score}
                         valueLabel={`${Math.round(score)}/100`} pct={(score / maxFournisseur) * 100} color="bg-emerald-500" />
                     );
                   })}
@@ -170,8 +197,8 @@ export default function DashboardSupplyChainPage() {
               {/* Répartition par agence (géolocalisée si renseignée, §3/§4) */}
               <Section title="Engagement par agence" icon={<Building2 className="w-4 h-4 text-cyan-600" />} empty={data.reseau.length === 0} emptyLabel="Aucun bon de commande rattaché à une agence.">
                 <div className="space-y-2.5">
-                  {data.reseau.slice(0, 6).map((r) => (
-                    <div key={r.pointDeVenteId} className="flex items-center gap-2">
+                  {data.reseau.slice(0, 6).map((r, i) => (
+                    <div key={`${r.pointDeVenteId}-${i}`} className="flex items-center gap-2">
                       <div className="flex-1">
                         <BarRow label={r.nom} sub={`${r.nbPO} PO`} value={r.valeurEngagee}
                           valueLabel={formatCurrency(r.valeurEngagee)} pct={(r.valeurEngagee / maxReseau) * 100} color="bg-cyan-500" />
@@ -190,6 +217,19 @@ export default function DashboardSupplyChainPage() {
                     <Info className="w-3.5 h-3.5 shrink-0" /> Aucune coordonnée GPS renseignée sur ces sites — renseignez-les dans Admin &gt; PDV pour afficher les liens carte.
                   </p>
                 )}
+                {data.reseauParRegion.length > 0 && (
+                  <div className="mt-3 pt-3 border-t border-gray-100">
+                    <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Par région (plateforme régionale)</p>
+                    <div className="space-y-2">
+                      {data.reseauParRegion.map((r) => (
+                        <div key={r.region} className="flex items-center justify-between text-xs text-gray-600">
+                          <span>{r.region} <span className="text-gray-400">({r.nbSites} site{r.nbSites > 1 ? "s" : ""})</span></span>
+                          <span className="font-semibold text-gray-800">{formatCurrency(r.valeurEngagee)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </Section>
             </div>
 
@@ -204,8 +244,8 @@ export default function DashboardSupplyChainPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
-                  {data.fournisseurs.aRisque.map((f) => (
-                    <tr key={f.id}>
+                  {data.fournisseurs.aRisque.map((f, i) => (
+                    <tr key={`${f.id}-${i}`}>
                       <td className="py-2.5">
                         <Link href={`/dashboard/user/logistiquesApprovisionnements/fournisseurs`} className="font-medium text-gray-800 hover:text-blue-600 hover:underline">{f.nom}</Link>
                       </td>
@@ -260,8 +300,8 @@ export default function DashboardSupplyChainPage() {
                     <div>
                       <p className="text-xs font-semibold text-gray-500 uppercase mb-2 flex items-center gap-1"><TrendingDown className="w-3.5 h-3.5 text-rose-500" /> Fournisseurs en dégradation</p>
                       <div className="space-y-1.5">
-                        {data.previsions.fournisseursEnDegradation.map((f) => (
-                          <div key={f.id} className="flex items-center justify-between text-sm">
+                        {data.previsions.fournisseursEnDegradation.map((f, i) => (
+                          <div key={`${f.id}-${i}`} className="flex items-center justify-between text-sm">
                             <span className="text-gray-700">{f.nom}</span>
                             <span className="text-rose-600 font-semibold">{f.deltaPoints} pts</span>
                           </div>
@@ -273,8 +313,8 @@ export default function DashboardSupplyChainPage() {
                     <div>
                       <p className="text-xs font-semibold text-gray-500 uppercase mb-2 flex items-center gap-1"><TrendingUp className="w-3.5 h-3.5 text-emerald-500" /> Fournisseurs en amélioration</p>
                       <div className="space-y-1.5">
-                        {data.previsions.fournisseursEnAmelioration.map((f) => (
-                          <div key={f.id} className="flex items-center justify-between text-sm">
+                        {data.previsions.fournisseursEnAmelioration.map((f, i) => (
+                          <div key={`${f.id}-${i}`} className="flex items-center justify-between text-sm">
                             <span className="text-gray-700">{f.nom}</span>
                             <span className="text-emerald-600 font-semibold">+{f.deltaPoints} pts</span>
                           </div>
@@ -333,15 +373,57 @@ export default function DashboardSupplyChainPage() {
               </p>
             </Section>
 
-            {/* Finances — écart CDC assumé */}
+            {/* Finances */}
             <Section title="Finances" icon={<Wallet className="w-4 h-4 text-blue-600" />} empty={false} emptyLabel="">
               <p className="text-sm text-gray-600">
                 Engagement fournisseurs (PO ouverts) : <span className="font-semibold text-gray-900">{formatCurrency(data.finances.engagementFournisseurs)}</span>
               </p>
-              <div className="mt-3 pt-3 border-t border-gray-100 space-y-1">
-                {data.finances.nonDisponible.map((item) => (
-                  <p key={item} className="text-[11px] text-gray-400 flex items-center gap-1.5"><Info className="w-3.5 h-3.5 shrink-0" /> {item}</p>
-                ))}
+              <div className="mt-3 pt-3 border-t border-gray-100">
+                <p className="text-sm text-gray-600 mb-2">
+                  Factures fournisseurs à payer : <span className="font-semibold text-amber-600">{formatCurrency(data.finances.facturesAPayer.total)}</span>
+                  <span className="text-gray-400"> ({data.finances.facturesAPayer.nbFactures} PO non soldé(s))</span>
+                </p>
+                {data.finances.facturesAPayer.parFournisseur.length > 0 && (
+                  <div className="space-y-1 mb-3">
+                    {data.finances.facturesAPayer.parFournisseur.slice(0, 5).map((f) => (
+                      <div key={f.fournisseurId} className="flex items-center justify-between text-xs text-gray-600">
+                        <span>{f.nom} ({f.nbFactures})</span>
+                        <span className="font-medium text-gray-800">{formatCurrency(f.solde)}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div className="pt-3 border-t border-gray-100">
+                <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Prévisions de trésorerie — position nette</p>
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-center">
+                  {(["enRetard", "sous30j", "sous60j", "sous90j", "nonPlanifie"] as const).map((key) => {
+                    const LABELS: Record<string, string> = { enRetard: "En retard", sous30j: "0-30j", sous60j: "31-60j", sous90j: "61-90j", nonPlanifie: "Non planifié" };
+                    const net = data.finances.previsionsTresorerie.positionNette[key];
+                    return (
+                      <div key={key} className="bg-gray-50 rounded-lg p-2">
+                        <p className={`text-sm font-bold ${net >= 0 ? "text-emerald-600" : "text-red-600"}`}>
+                          {net >= 0 ? "+" : ""}{formatCurrency(net)}
+                        </p>
+                        <p className="text-[10px] text-gray-400 mt-0.5">{LABELS[key]}</p>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="grid grid-cols-2 gap-3 mt-3 text-xs">
+                  <div className="bg-red-50 rounded-lg p-2">
+                    <p className="text-gray-500">Sorties (factures fournisseurs)</p>
+                    <p className="font-semibold text-red-600">{formatCurrency(data.finances.facturesAPayer.total)}</p>
+                  </div>
+                  <div className="bg-emerald-50 rounded-lg p-2">
+                    <p className="text-gray-500">Entrées attendues (crédits + souscriptions)</p>
+                    <p className="font-semibold text-emerald-600">{formatCurrency(data.finances.previsionsTresorerie.totalEntreesEcheancier)}</p>
+                  </div>
+                </div>
+                <p className="text-xs text-gray-500 mt-2">
+                  + Ventes directes (flux récurrent, moyenne mensuelle 3 derniers mois) : <span className="font-semibold text-gray-800">{formatCurrency(data.finances.previsionsTresorerie.ventesDirectesMoyenneMensuelle)}</span> / mois
+                </p>
+                <p className="text-[11px] text-gray-400 mt-2 flex items-center gap-1.5"><Info className="w-3.5 h-3.5 shrink-0" /> Sorties basées sur la date de livraison prévue du PO (pas de date d&apos;échéance fournisseur dédiée). Entrées = échéances réelles crédits clients + souscriptions non soldées. Ventes directes encaissées comptant, non datées, indiquées à part.</p>
               </div>
             </Section>
           </>

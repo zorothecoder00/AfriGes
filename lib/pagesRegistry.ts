@@ -51,6 +51,13 @@ export const PAGES_REGISTRY: RoleRegistry[] = [
     ],
   },
   {
+    role: "DIRECTEUR_COMMERCIAL",
+    label: "Directeur commercial",
+    sections: [
+      { key: "catalogue", label: "Catalogue commercial", defaultAllowed: true, module: null },
+    ],
+  },
+  {
     role: "CAISSIER",
     label: "Caissier",
     sections: [

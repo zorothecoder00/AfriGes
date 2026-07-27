@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { auditLog } from "@/lib/notifications";
 import { getSession } from "../fournisseurs/route";
+import { getRequestMeta } from "@/lib/requestMeta";
 
 const INCLUDE = {
   fournisseur: { select: { id: true, nom: true, code: true, email: true } },
@@ -108,7 +109,7 @@ export async function POST(req: Request) {
             },
             include: INCLUDE,
           });
-          await auditLog(tx, parseInt(session.user.id), "PO_CREE", "BonCommande", b.id);
+          await auditLog(tx, parseInt(session.user.id), "PO_CREE", "BonCommande", b.id, undefined, getRequestMeta(req));
           return b;
         });
         return NextResponse.json({ data: bon }, { status: 201 });

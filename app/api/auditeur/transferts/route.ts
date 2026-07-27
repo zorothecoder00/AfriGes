@@ -68,7 +68,7 @@ export async function GET(req: Request) {
       id:            t.id,
       reference:     t.reference,
       statut:        t.statut,
-      origine:       { id: t.origine.id, nom: t.origine.nom, code: t.origine.code, type: t.origine.type },
+      origine:       t.origine ? { id: t.origine.id, nom: t.origine.nom, code: t.origine.code, type: t.origine.type } : null,
       destination:   { id: t.destination.id, nom: t.destination.nom, code: t.destination.code, type: t.destination.type },
       creeParNom:    `${t.creePar.prenom} ${t.creePar.nom}`,
       valideParNom:  t.validePar ? `${t.validePar.prenom} ${t.validePar.nom}` : null,

@@ -6,6 +6,7 @@ import { getMagasinierSession } from "@/lib/authMagasinier";
 import { randomUUID } from "crypto";
 import { notifyRoles, auditLog } from "@/lib/notifications";
 import { resolveViewAs } from "@/lib/viewAs";
+import { getRequestMeta } from "@/lib/requestMeta";
 
 async function getSession() {
   return (await getLogistiqueSession()) ?? (await getMagasinierSession());
@@ -183,7 +184,7 @@ export async function POST(req: Request) {
         });
       }
 
-      await auditLog(tx, parseInt(session.user.id), "TRANSFERT_CREE", "TransfertStock", t.id);
+      await auditLog(tx, parseInt(session.user.id), "TRANSFERT_CREE", "TransfertStock", t.id, undefined, getRequestMeta(req));
 
       await notifyRoles(tx, ["MAGAZINIER", "RESPONSABLE_POINT_DE_VENTE"], {
         titre:    `Transfert en cours : ${ref}`,

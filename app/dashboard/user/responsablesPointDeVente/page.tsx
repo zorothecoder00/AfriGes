@@ -3501,7 +3501,14 @@ export default function ResponsablePDVPage() {
         {/* =====================================================================
             TAB : RÉAPPRO (demandes remontées vers l'appro central — CDC §3/§4)
         ===================================================================== */}
-        {activeTab === "reappro" && <MesDemandesReappro />}
+        {activeTab === "reappro" && (
+          <div className="space-y-8">
+            <MesDemandesReappro />
+            <div className="border-t border-slate-200 pt-6">
+              <DemandesTransfert />
+            </div>
+          </div>
+        )}
 
         {/* =====================================================================
             TAB : RAPPORTS
@@ -3848,6 +3855,181 @@ function NouvelleDemandeReapproModal({ onClose, onCreated }: { onClose: () => vo
           <button onClick={onClose} className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 rounded-lg border border-slate-200">Annuler</button>
           <button onClick={handleSubmit} disabled={saving}
             className="flex items-center gap-2 px-4 py-2 bg-sky-600 text-white text-sm font-medium rounded-lg hover:bg-sky-700 disabled:opacity-50">
+            {saving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />} Envoyer
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Demande de transfert entre agences (CDC §13 étape 1 — "une agence peut
+// demander un transfert"). Aucune origine choisie ici : l'appro central décide
+// quelle agence source fournit, à la validation.
+// ═══════════════════════════════════════════════════════════════════════════
+
+interface LigneTransfertAPI {
+  id: number; produitId: number; quantite: number;
+  produit: { id: number; nom: string; unite: string | null };
+}
+interface TransfertDemandeAPI {
+  id: number; reference: string; statut: string; notes: string | null; createdAt: string;
+  origine: { id: number; nom: string } | null;
+  lignes: LigneTransfertAPI[];
+}
+
+const TRANSFERT_STATUT_CFG: Record<string, { label: string; badge: string }> = {
+  DEMANDE:  { label: "En attente de validation", badge: "bg-amber-100 text-amber-700" },
+  EN_COURS: { label: "En préparation",           badge: "bg-blue-100 text-blue-700" },
+  EXPEDIE:  { label: "En transport",             badge: "bg-indigo-100 text-indigo-700" },
+  RECU:     { label: "Reçu",                     badge: "bg-emerald-100 text-emerald-700" },
+  ANNULE:   { label: "Rejeté / annulé",          badge: "bg-red-100 text-red-600" },
+};
+
+function DemandesTransfert() {
+  const { data, loading, refetch } = useApi<{ data: TransfertDemandeAPI[] }>("/api/rpv/transferts");
+  const demandes = data?.data ?? [];
+  const [showForm, setShowForm] = useState(false);
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-lg font-bold text-slate-800">Demander un transfert entre agences</h2>
+          <p className="text-sm text-slate-500 mt-0.5">Besoin urgent ? Demandez du stock à une autre agence — l&apos;appro central choisit la source et valide.</p>
+        </div>
+        <button onClick={() => setShowForm(true)}
+          className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-semibold transition-colors">
+          <ArrowRightLeft size={15} /> Nouvelle demande
+        </button>
+      </div>
+
+      {loading ? (
+        <div className="flex items-center justify-center py-16 text-slate-400"><RefreshCw className="w-5 h-5 animate-spin" /></div>
+      ) : demandes.length === 0 ? (
+        <div className="bg-white rounded-2xl border border-slate-200/60 flex flex-col items-center justify-center py-16 text-slate-400">
+          <ArrowRightLeft className="w-10 h-10 mb-2 opacity-30" />
+          <p className="text-sm">Aucune demande de transfert</p>
+        </div>
+      ) : (
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 divide-y divide-slate-100">
+          {demandes.map((d) => {
+            const cfg = TRANSFERT_STATUT_CFG[d.statut] ?? TRANSFERT_STATUT_CFG.DEMANDE;
+            return (
+              <div key={d.id} className="p-4">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="font-mono text-xs text-slate-500">{d.reference}</span>
+                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${cfg.badge}`}>{cfg.label}</span>
+                  {d.origine && <span className="text-xs text-slate-500">depuis {d.origine.nom}</span>}
+                  <span className="text-xs text-slate-400 ml-auto">{formatDate(d.createdAt)}</span>
+                </div>
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {d.lignes.map((l) => (
+                    <span key={l.id} className="text-xs bg-slate-100 text-slate-600 px-2 py-1 rounded-lg">
+                      {l.produit.nom} × {l.quantite} {l.produit.unite ?? ""}
+                    </span>
+                  ))}
+                </div>
+                {d.notes && <p className="text-xs text-slate-400 mt-1.5 italic">{d.notes}</p>}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {showForm && (
+        <NouvelleDemandeTransfertModal
+          onClose={() => setShowForm(false)}
+          onCreated={() => { setShowForm(false); refetch(); }}
+        />
+      )}
+    </div>
+  );
+}
+
+function NouvelleDemandeTransfertModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
+  const [search, setSearch] = useState("");
+  const [lignes, setLignes] = useState<{ produitId: number; nom: string; quantite: string }[]>([]);
+  const [notes, setNotes] = useState("");
+
+  const { data: produitsData } = useApi<{ data: ProduitPicker[] }>(
+    search.length >= 2 ? `/api/rpv/produits?search=${encodeURIComponent(search)}&limit=10` : null
+  );
+  const { mutate, loading: saving } = useMutation<TransfertDemandeAPI, { notes?: string; lignes: { produitId: number; quantite: number }[] }>(
+    "/api/rpv/transferts", "POST",
+    { successMessage: "Demande de transfert envoyée à l'appro central" }
+  );
+
+  const addProduit = (p: ProduitPicker) => {
+    if (lignes.some((l) => l.produitId === p.id)) return;
+    setLignes((prev) => [...prev, { produitId: p.id, nom: p.nom, quantite: "1" }]);
+    setSearch("");
+  };
+  const removeProduit = (produitId: number) => setLignes((prev) => prev.filter((l) => l.produitId !== produitId));
+  const setQuantite = (produitId: number, quantite: string) =>
+    setLignes((prev) => prev.map((l) => (l.produitId === produitId ? { ...l, quantite } : l)));
+
+  const handleSubmit = async () => {
+    if (lignes.length === 0) { toast.error("Ajoutez au moins un produit"); return; }
+    if (lignes.some((l) => !l.quantite || Number(l.quantite) <= 0)) { toast.error("Quantité invalide"); return; }
+    const result = await mutate({
+      notes: notes || undefined,
+      lignes: lignes.map((l) => ({ produitId: l.produitId, quantite: Number(l.quantite) })),
+    });
+    if (result) onCreated();
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[92vh] flex flex-col">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
+          <h2 className="font-semibold text-slate-900">Nouvelle demande de transfert</h2>
+          <button onClick={onClose} className="p-1.5 hover:bg-slate-100 rounded-lg"><X className="w-4 h-4" /></button>
+        </div>
+        <div className="overflow-y-auto flex-1 p-6 space-y-4">
+          <label className="block">
+            <span className="block text-xs font-medium text-slate-600 mb-1">Ajouter un produit</span>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Rechercher un produit…"
+                className="w-full pl-9 pr-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+              {produitsData?.data && produitsData.data.length > 0 && (
+                <div className="absolute z-10 mt-1 w-full bg-white border border-slate-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                  {produitsData.data.map((p) => (
+                    <button key={p.id} onClick={() => addProduit(p)} type="button"
+                      className="w-full text-left px-3 py-2 text-sm hover:bg-slate-50">
+                      {p.nom} {p.reference && <span className="text-xs text-slate-400 font-mono">{p.reference}</span>}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </label>
+
+          {lignes.length > 0 && (
+            <div className="border border-slate-200 rounded-xl divide-y divide-slate-100">
+              {lignes.map((l) => (
+                <div key={l.produitId} className="flex items-center gap-2 px-3 py-2">
+                  <span className="flex-1 text-sm text-slate-700">{l.nom}</span>
+                  <input type="number" min="1" value={l.quantite} onChange={(e) => setQuantite(l.produitId, e.target.value)}
+                    className="w-20 px-2 py-1 border border-slate-200 rounded text-center text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                  <button onClick={() => removeProduit(l.produitId)} className="p-1 text-slate-400 hover:text-red-500"><X className="w-4 h-4" /></button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <label className="block">
+            <span className="block text-xs font-medium text-slate-600 mb-1">Notes (optionnel)</span>
+            <textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)}
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm resize-y focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+          </label>
+        </div>
+        <div className="flex justify-end gap-3 px-6 py-4 border-t border-slate-200">
+          <button onClick={onClose} className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 rounded-lg border border-slate-200">Annuler</button>
+          <button onClick={handleSubmit} disabled={saving}
+            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 disabled:opacity-50">
             {saving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />} Envoyer
           </button>
         </div>

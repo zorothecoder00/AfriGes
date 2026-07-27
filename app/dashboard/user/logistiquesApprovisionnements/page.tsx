@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import {
-  Truck, Package, ArrowUpCircle, ArrowDownCircle, Search,
+  Truck, Package, ArrowUpCircle, ArrowDownCircle, ArrowRightLeft, Search,
   RefreshCw, AlertTriangle, Archive, CheckCircle, ClipboardList,
   Boxes, BarChart3, Plus, X, MapPin, ClipboardCheck, Filter,
   TrendingUp, LucideIcon, PlayCircle, ChevronDown, ChevronUp,
@@ -16,6 +16,7 @@ import MessagesLink from "@/components/MessagesLink";
 import UserPdvBadge from "@/components/UserPdvBadge";
 import DashboardBackButton from "@/components/DashboardBackButton";
 import { useApi, useMutation } from "@/hooks/useApi";
+import { toast } from "sonner";
 import { formatCurrency, formatDate, formatDateTime } from "@/lib/format";
 import { useT } from "@/contexts/AppSettingsContext";
 import { usePageAccess } from "@/hooks/usePageAccess";
@@ -99,6 +100,18 @@ interface PendingReceptionAppro {
 interface PendingReceptionsResponse {
   data: PendingReceptionAppro[];
   meta: { total: number; page: number; limit: number; totalPages: number };
+}
+
+interface LigneTransfertDemande { id: number; produitId: number; quantite: number; produit: { id: number; nom: string; unite: string | null } }
+interface TransfertDemande {
+  id: number; reference: string; statut: string; notes: string | null; createdAt: string;
+  destination: { id: number; nom: string };
+  creePar: { id: number; nom: string; prenom: string };
+  lignes: LigneTransfertDemande[];
+}
+interface TransfertsDemandeResponse {
+  data: TransfertDemande[];
+  pdvs: { id: number; nom: string; code: string; type: string }[];
 }
 
 interface PDVOption {
@@ -353,35 +366,25 @@ export default function LogistiqueApprovisionnementPage() {
     useApi<ReceptionsResponse>(`/api/logistique/receptions?${livrParams}`);
 
   // ── Commandes en transit (EN_COURS INTERNE) à confirmer ──────────────────
+  // Toutes les réceptions EN_COURS (fournisseur + interne) — CDC §10, un vrai
+  // contrôle par ligne est requis avant mise en stock, pas d'auto-acceptation.
   const { data: pendingReceptionsRes, refetch: refetchPending } =
-    useApi<PendingReceptionsResponse>("/api/logistique/receptions?statut=EN_COURS&type=INTERNE&limit=50");
+    useApi<PendingReceptionsResponse>("/api/logistique/receptions?statut=EN_COURS&limit=50");
   const pendingReceptions = pendingReceptionsRes?.data ?? [];
 
-  const [confirmingReceptionId, setConfirmingReceptionId] = useState<number | null>(null);
-  const confirmingReceptionIdRef = useRef<number | null>(null);
-  const { mutate: doValiderReception, loading: validatingReception } =
-    useMutation<unknown, object>(
-      () => confirmingReceptionIdRef.current ? `/api/logistique/receptions/${confirmingReceptionIdRef.current}` : "",
-      "PATCH",
-      { successMessage: "Réception confirmée — stock mis à jour !" }
-    );
+  const [controleReception, setControleReception] = useState<PendingReceptionAppro | null>(null);
 
-  const handleConfirmerReception = async (rec: PendingReceptionAppro) => {
-    confirmingReceptionIdRef.current = rec.id;
-    setConfirmingReceptionId(rec.id);
-    const lignesRecues = rec.lignes.map(l => ({
-      ligneId:       l.id,
-      quantiteRecue: l.quantiteRecue ?? l.quantiteAttendue,
-      etatQualite:   "BON",
-    }));
-    const result = await doValiderReception({ action: "VALIDER", lignesRecues });
-    if (result) {
-      refetchPending();
-      refetchStock();
-      refetchJournal();
-    }
-    setConfirmingReceptionId(null);
-    confirmingReceptionIdRef.current = null;
+  // ── Demandes de transfert entre agences à valider (CDC §13) ──────────────
+  const { data: transfertsDemandeRes, refetch: refetchTransfertsDemande } =
+    useApi<TransfertsDemandeResponse>("/api/logistique/transferts?statut=DEMANDE&limit=50");
+  const transfertsDemande = transfertsDemandeRes?.data ?? [];
+  const [validerTransfert, setValiderTransfert] = useState<TransfertDemande | null>(null);
+
+  const handleReceptionControlee = () => {
+    setControleReception(null);
+    refetchPending();
+    refetchStock();
+    refetchJournal();
   };
 
   // ── Affectations ──────────────────────────────────────────────────────────
@@ -941,12 +944,12 @@ export default function LogistiqueApprovisionnementPage() {
               </div>
             </div>
 
-            {/* Commandes en transit à confirmer */}
+            {/* Réceptions à valider (fournisseur + interne) */}
             {pendingReceptions.length > 0 && (
               <div className="bg-white rounded-2xl shadow-sm border border-blue-200 overflow-hidden">
                 <div className="px-6 py-4 border-b border-blue-100 bg-blue-50 flex items-center gap-2">
                   <Truck size={18} className="text-blue-600" />
-                  <h3 className="font-bold text-blue-800">Commandes en transit à confirmer</h3>
+                  <h3 className="font-bold text-blue-800">Réceptions à valider</h3>
                   <span className="bg-blue-600 text-white text-xs font-bold px-2 py-0.5 rounded-full">
                     {pendingReceptions.length}
                   </span>
@@ -958,6 +961,9 @@ export default function LogistiqueApprovisionnementPage() {
                         <div className="flex items-center gap-2 mb-1">
                           <span className="font-semibold text-slate-800 text-sm">{rec.reference}</span>
                           <span className="text-xs text-slate-500 font-mono">{rec.pointDeVente.nom}</span>
+                          <span className={`text-xs px-2 py-0.5 rounded-full ${rec.type === "FOURNISSEUR" ? "text-purple-600 bg-purple-50" : "text-blue-600 bg-blue-50"}`}>
+                            {rec.type === "FOURNISSEUR" ? "Fournisseur" : "Interne"}
+                          </span>
                           {rec.origineNom && (
                             <span className="text-xs text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">{rec.origineNom}</span>
                           )}
@@ -971,16 +977,52 @@ export default function LogistiqueApprovisionnementPage() {
                         </div>
                       </div>
                       <button
-                        onClick={() => handleConfirmerReception(rec)}
-                        disabled={confirmingReceptionId === rec.id || validatingReception}
-                        className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-medium transition-colors disabled:opacity-50 whitespace-nowrap"
+                        onClick={() => setControleReception(rec)}
+                        className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-medium transition-colors whitespace-nowrap"
                       >
-                        {confirmingReceptionId === rec.id ? (
-                          <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                        ) : (
-                          <CheckSquare size={15} />
-                        )}
-                        Confirmer réception
+                        <CheckSquare size={15} />
+                        Contrôler &amp; valider
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Demandes de transfert entre agences à valider (CDC §13) */}
+            {transfertsDemande.length > 0 && (
+              <div className="bg-white rounded-2xl shadow-sm border border-indigo-200 overflow-hidden">
+                <div className="px-6 py-4 border-b border-indigo-100 bg-indigo-50 flex items-center gap-2">
+                  <ArrowRightLeft size={18} className="text-indigo-600" />
+                  <h3 className="font-bold text-indigo-800">Demandes de transfert à valider</h3>
+                  <span className="bg-indigo-600 text-white text-xs font-bold px-2 py-0.5 rounded-full">
+                    {transfertsDemande.length}
+                  </span>
+                </div>
+                <div className="divide-y divide-slate-100">
+                  {transfertsDemande.map(demande => (
+                    <div key={demande.id} className="px-6 py-4 flex items-start justify-between gap-4">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="font-semibold text-slate-800 text-sm">{demande.reference}</span>
+                          <span className="text-xs text-slate-500">vers <b>{demande.destination.nom}</b></span>
+                          <span className="text-xs text-slate-400">par {demande.creePar.prenom} {demande.creePar.nom}</span>
+                        </div>
+                        <div className="flex flex-wrap gap-2 mt-1">
+                          {demande.lignes.map(l => (
+                            <span key={l.id} className="text-xs bg-slate-100 text-slate-700 px-2 py-1 rounded-lg">
+                              {l.produit.nom} · <b>{l.quantite}</b>{l.produit.unite ? ` ${l.produit.unite}` : ""}
+                            </span>
+                          ))}
+                        </div>
+                        {demande.notes && <p className="text-xs text-slate-400 mt-1 italic">{demande.notes}</p>}
+                      </div>
+                      <button
+                        onClick={() => setValiderTransfert(demande)}
+                        className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-medium transition-colors whitespace-nowrap"
+                      >
+                        <CheckSquare size={15} />
+                        Choisir la source &amp; valider
                       </button>
                     </div>
                   ))}
@@ -2934,6 +2976,243 @@ export default function LogistiqueApprovisionnementPage() {
           </div>
         </div>
       )}
+
+      {controleReception && (
+        <ReceptionControleModal
+          reception={controleReception}
+          onClose={() => setControleReception(null)}
+          onValidated={handleReceptionControlee}
+        />
+      )}
+
+      {validerTransfert && (
+        <ValiderTransfertModal
+          demande={validerTransfert}
+          pdvs={(transfertsDemandeRes?.pdvs ?? []).filter(p => p.id !== validerTransfert.destination.id)}
+          onClose={() => setValiderTransfert(null)}
+          onValidated={() => { setValiderTransfert(null); refetchTransfertsDemande(); }}
+        />
+      )}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Contrôle de réception (CDC Approvisionnement §10) — l'agent saisit, ligne par
+// ligne, ce qui a été réellement reçu/refusé/endommagé avant mise en stock.
+// Remplace l'ancienne acceptation automatique (quantité reçue = quantité
+// commandée pour toutes les lignes, sans contrôle possible).
+// ═══════════════════════════════════════════════════════════════════════════
+
+const ETAT_QUALITE_OPTIONS = [
+  { value: "BON", label: "Bon état" },
+  { value: "PARTIEL", label: "Partiellement conforme" },
+  { value: "DEFECTUEUX", label: "Défectueux" },
+];
+
+interface LigneControle {
+  quantiteRecue: string;
+  quantiteRefusee: string;
+  quantiteEndommagee: string;
+  etatQualite: string;
+  notes: string;
+}
+
+function ReceptionControleModal({ reception, onClose, onValidated }: {
+  reception: PendingReceptionAppro; onClose: () => void; onValidated: () => void;
+}) {
+  const [lignes, setLignes] = useState<Record<number, LigneControle>>(() =>
+    Object.fromEntries(reception.lignes.map((l) => [l.id, {
+      quantiteRecue: String(l.quantiteAttendue),
+      quantiteRefusee: "0",
+      quantiteEndommagee: "0",
+      etatQualite: "BON",
+      notes: "",
+    }]))
+  );
+  const [notesQualite, setNotesQualite] = useState("");
+
+  const { mutate: valider, loading: saving } = useMutation<unknown, object>(
+    `/api/logistique/receptions/${reception.id}`, "PATCH",
+    { successMessage: "Réception validée — stock mis à jour" }
+  );
+
+  const setLigne = (ligneId: number, patch: Partial<LigneControle>) =>
+    setLignes((prev) => ({ ...prev, [ligneId]: { ...prev[ligneId], ...patch } }));
+
+  const handleSubmit = async () => {
+    for (const l of reception.lignes) {
+      const c = lignes[l.id];
+      if (c.quantiteRecue === "" || Number(c.quantiteRecue) < 0) {
+        toast.error(`Quantité reçue invalide pour "${l.produit.nom}"`); return;
+      }
+    }
+    const lignesRecues = reception.lignes.map((l) => ({
+      ligneId: l.id,
+      quantiteRecue: Number(lignes[l.id].quantiteRecue) || 0,
+      quantiteRefusee: Number(lignes[l.id].quantiteRefusee) || 0,
+      quantiteEndommagee: Number(lignes[l.id].quantiteEndommagee) || 0,
+      etatQualite: lignes[l.id].etatQualite,
+      notes: lignes[l.id].notes || undefined,
+    }));
+    const result = await valider({ action: "VALIDER", lignesRecues, notesQualite: notesQualite || undefined });
+    if (result !== null) onValidated();
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl max-h-[92vh] flex flex-col">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
+          <div>
+            <h2 className="font-semibold text-slate-900">Contrôle de réception — {reception.reference}</h2>
+            <p className="text-xs text-slate-400">{reception.pointDeVente.nom} · {reception.type === "FOURNISSEUR" ? "Fournisseur" : "Interne"}{reception.origineNom ? ` (${reception.origineNom})` : ""}</p>
+          </div>
+          <button onClick={onClose} className="p-1.5 hover:bg-slate-100 rounded-lg"><X className="w-4 h-4" /></button>
+        </div>
+
+        <div className="overflow-y-auto flex-1 p-6 space-y-4">
+          <div className="border border-slate-200 rounded-xl overflow-hidden">
+            <table className="w-full text-sm">
+              <thead className="bg-slate-50 border-b border-slate-200">
+                <tr>
+                  <th className="text-left px-3 py-2 font-semibold text-slate-600 text-xs">Produit</th>
+                  <th className="text-center px-3 py-2 font-semibold text-slate-600 text-xs">Commandé</th>
+                  <th className="text-center px-3 py-2 font-semibold text-slate-600 text-xs">Reçu</th>
+                  <th className="text-center px-3 py-2 font-semibold text-slate-600 text-xs">Refusé</th>
+                  <th className="text-center px-3 py-2 font-semibold text-slate-600 text-xs">Endommagé</th>
+                  <th className="text-center px-3 py-2 font-semibold text-slate-600 text-xs">État qualité</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {reception.lignes.map((l) => {
+                  const c = lignes[l.id];
+                  return (
+                    <tr key={l.id}>
+                      <td className="px-3 py-2.5 font-medium text-slate-800">{l.produit.nom}</td>
+                      <td className="text-center px-3 py-2.5 text-slate-500">{l.quantiteAttendue}{l.produit.unite ? ` ${l.produit.unite}` : ""}</td>
+                      <td className="px-3 py-2 text-center">
+                        <input type="number" min="0" value={c.quantiteRecue}
+                          onChange={(e) => setLigne(l.id, { quantiteRecue: e.target.value })}
+                          className="w-20 px-2 py-1 border border-slate-200 rounded text-center text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                      </td>
+                      <td className="px-3 py-2 text-center">
+                        <input type="number" min="0" value={c.quantiteRefusee}
+                          onChange={(e) => setLigne(l.id, { quantiteRefusee: e.target.value })}
+                          className="w-20 px-2 py-1 border border-slate-200 rounded text-center text-sm focus:outline-none focus:ring-2 focus:ring-red-400" />
+                      </td>
+                      <td className="px-3 py-2 text-center">
+                        <input type="number" min="0" value={c.quantiteEndommagee}
+                          onChange={(e) => setLigne(l.id, { quantiteEndommagee: e.target.value })}
+                          className="w-20 px-2 py-1 border border-slate-200 rounded text-center text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" />
+                      </td>
+                      <td className="px-3 py-2 text-center">
+                        <select value={c.etatQualite} onChange={(e) => setLigne(l.id, { etatQualite: e.target.value })}
+                          className="px-2 py-1 border border-slate-200 rounded text-xs bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                          {ETAT_QUALITE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                        </select>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          <label className="block">
+            <span className="block text-xs font-medium text-slate-600 mb-1">Notes qualité (global)</span>
+            <textarea rows={2} value={notesQualite} onChange={(e) => setNotesQualite(e.target.value)}
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm resize-y focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+          </label>
+        </div>
+
+        <div className="flex justify-end gap-3 px-6 py-4 border-t border-slate-200">
+          <button onClick={onClose} className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 rounded-lg border border-slate-200">Annuler</button>
+          <button onClick={handleSubmit} disabled={saving}
+            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 disabled:opacity-50">
+            {saving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <CheckSquare className="w-4 h-4" />} Valider la réception
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Validation d'une demande de transfert (CDC §13 étape 2) — l'appro central
+// choisit l'agence source ; à la validation, le stock est réservé à l'origine
+// exactement comme pour une création directe de transfert.
+// ═══════════════════════════════════════════════════════════════════════════
+
+function ValiderTransfertModal({ demande, pdvs, onClose, onValidated }: {
+  demande: TransfertDemande;
+  pdvs: { id: number; nom: string; code: string; type: string }[];
+  onClose: () => void; onValidated: () => void;
+}) {
+  const [origineId, setOrigineId] = useState("");
+  const [notes, setNotes] = useState("");
+
+  const { mutate: valider, loading: saving } = useMutation<unknown, object>(
+    `/api/logistique/transferts/${demande.id}`, "PATCH",
+    { successMessage: "Transfert validé — préparation lancée" }
+  );
+  const { mutate: rejeter, loading: rejecting } = useMutation<unknown, object>(
+    `/api/logistique/transferts/${demande.id}`, "PATCH"
+  );
+
+  const handleValider = async () => {
+    if (!origineId) { toast.error("Choisissez l'agence source"); return; }
+    const result = await valider({ action: "VALIDER", origineId: Number(origineId), notes: notes || undefined });
+    if (result !== null) onValidated();
+  };
+
+  const handleRejeter = async () => {
+    const motif = prompt("Motif du rejet (optionnel) :") ?? undefined;
+    const result = await rejeter({ action: "REJETER", notes: motif });
+    if (result !== null) { toast.success("Demande rejetée"); onValidated(); }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
+          <div>
+            <h2 className="font-semibold text-slate-900">Valider le transfert — {demande.reference}</h2>
+            <p className="text-xs text-slate-400">Vers {demande.destination.nom}</p>
+          </div>
+          <button onClick={onClose} className="p-1.5 hover:bg-slate-100 rounded-lg"><X className="w-4 h-4" /></button>
+        </div>
+        <div className="p-6 space-y-4">
+          <div className="flex flex-wrap gap-1.5">
+            {demande.lignes.map((l) => (
+              <span key={l.id} className="text-xs bg-slate-100 text-slate-700 px-2 py-1 rounded-lg">
+                {l.produit.nom} · <b>{l.quantite}</b>{l.produit.unite ? ` ${l.produit.unite}` : ""}
+              </span>
+            ))}
+          </div>
+          <label className="block">
+            <span className="block text-xs font-medium text-slate-600 mb-1">Agence source *</span>
+            <select value={origineId} onChange={(e) => setOrigineId(e.target.value)}
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+              <option value="">Sélectionner…</option>
+              {pdvs.map((p) => <option key={p.id} value={p.id}>{p.nom} ({p.code})</option>)}
+            </select>
+          </label>
+          <label className="block">
+            <span className="block text-xs font-medium text-slate-600 mb-1">Notes (optionnel)</span>
+            <textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)}
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm resize-y focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+          </label>
+        </div>
+        <div className="flex justify-end gap-3 px-6 py-4 border-t border-slate-200">
+          <button onClick={handleRejeter} disabled={rejecting || saving}
+            className="px-4 py-2 text-sm text-red-600 border border-red-200 rounded-lg hover:bg-red-50 disabled:opacity-50">
+            Rejeter
+          </button>
+          <button onClick={handleValider} disabled={saving || rejecting}
+            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 disabled:opacity-50">
+            {saving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <CheckSquare className="w-4 h-4" />} Valider
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

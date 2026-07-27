@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auditLog } from "@/lib/notifications";
 import { getSession } from "../../../fournisseurs/route";
+import { getRequestMeta } from "@/lib/requestMeta";
 import { sendRfqEmail } from "@/lib/email";
 import { formatDate } from "@/lib/format";
 
@@ -14,7 +15,7 @@ type Ctx = { params: Promise<{ id: string }> };
  * Les fournisseurs sans email restent à consulter par un autre canal (téléphone…),
  * leur cotation se saisit ensuite de la même façon via /reponses/[reponseId].
  */
-export async function POST(_req: Request, { params }: Ctx) {
+export async function POST(req: Request, { params }: Ctx) {
   try {
     const session = await getSession();
     if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
@@ -68,7 +69,7 @@ export async function POST(_req: Request, { params }: Ctx) {
         },
       });
       await auditLog(tx, parseInt(session.user.id), "RFQ_ENVOYEE", "DemandeCotation", demandeId,
-        { fournisseursConsultes: demande.reponses.length, emailsEnvoyes });
+        { fournisseursConsultes: demande.reponses.length, emailsEnvoyes }, getRequestMeta(req));
       return d;
     });
 

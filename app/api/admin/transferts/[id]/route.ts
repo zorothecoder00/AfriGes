@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthSession } from "@/lib/auth";
 import { notifyAdmins, notify, auditLog } from "@/lib/notifications";
+import { getRequestMeta } from "@/lib/requestMeta";
 import { randomUUID } from "crypto";
 
 type Ctx = { params: Promise<{ id: string }> };
@@ -82,14 +83,20 @@ export async function PATCH(req: Request, { params }: Ctx) {
       if (!["EN_COURS", "EXPEDIE"].includes(transfert.statut)) {
         throw new Error(`Ce transfert est déjà ${transfert.statut.toLowerCase()} et ne peut plus être modifié`);
       }
+      if (!transfert.origineId || !transfert.origine) {
+        // Ne peut pas arriver en pratique (DEMANDE, seul statut sans origine, est exclu ci-dessus)
+        throw new Error("Ce transfert n'a pas encore d'agence source assignée");
+      }
+      const origineId = transfert.origineId;
+      const origineNom = transfert.origine.nom;
 
       if (action === "ANNULE") {
         // Restore source stock + libérer le transit destination
         for (const ligne of transfert.lignes) {
           await tx.stockSite.upsert({
-            where: { produitId_pointDeVenteId: { produitId: ligne.produitId, pointDeVenteId: transfert.origineId } },
+            where: { produitId_pointDeVenteId: { produitId: ligne.produitId, pointDeVenteId: origineId } },
             update: { quantite: { increment: ligne.quantite } },
-            create: { produitId: ligne.produitId, pointDeVenteId: transfert.origineId, quantite: ligne.quantite },
+            create: { produitId: ligne.produitId, pointDeVenteId: origineId, quantite: ligne.quantite },
           });
           // Libérer le transit à la destination (les produits ne viendront plus)
           await tx.stockSite.updateMany({
@@ -99,11 +106,11 @@ export async function PATCH(req: Request, { params }: Ctx) {
           await tx.mouvementStock.create({
             data: {
               produitId:        ligne.produitId,
-              pointDeVenteId:   transfert.origineId,
+              pointDeVenteId:   origineId,
               type:             "ENTREE",
               typeEntree:       "AJUSTEMENT_POSITIF",
               quantite:         ligne.quantite,
-              motif:            `Annulation transfert ${transfert.reference} — stock restauré sur ${transfert.origine.nom}`,
+              motif:            `Annulation transfert ${transfert.reference} — stock restauré sur ${origineNom}`,
               reference:        `${transfert.reference}-RET-${ligne.produitId}-${randomUUID().slice(0, 8)}`,
               operateurId:      adminId,
               transfertStockId: transfert.id,
@@ -132,19 +139,19 @@ export async function PATCH(req: Request, { params }: Ctx) {
         });
         await notify(tx, affectations.map((a) => a.userId), {
           titre:    `Transfert annulé — ${transfert.reference}`,
-          message:  `Le transfert de stock depuis ${transfert.origine.nom} vers ${transfert.destination.nom} (réf. ${transfert.reference}) a été annulé par l'administrateur.`,
+          message:  `Le transfert de stock depuis ${origineNom} vers ${transfert.destination.nom} (réf. ${transfert.reference}) a été annulé par l'administrateur.`,
           priorite: "HAUTE",
           actionUrl: `/dashboard/transferts`,
         });
 
         await notifyAdmins(tx, {
           titre:    `Transfert annulé — ${transfert.reference}`,
-          message:  `Le transfert ${transfert.reference} a été annulé. Le stock a été restauré sur ${transfert.origine.nom}.`,
+          message:  `Le transfert ${transfert.reference} a été annulé. Le stock a été restauré sur ${origineNom}.`,
           priorite: "HAUTE",
           actionUrl: `/dashboard/admin/stock`,
         });
 
-        await auditLog(tx, adminId, "TRANSFERT_STOCK_ANNULE", "TransfertStock", transfertId);
+        await auditLog(tx, adminId, "TRANSFERT_STOCK_ANNULE", "TransfertStock", transfertId, undefined, getRequestMeta(req));
         return updated;
       }
 
@@ -163,7 +170,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
             type:             "ENTREE",
             typeEntree:       "TRANSFERT_ENTRANT",
             quantite:         ligne.quantite,
-            motif:            `Réception transfert ${transfert.reference} depuis ${transfert.origine.nom}`,
+            motif:            `Réception transfert ${transfert.reference} depuis ${origineNom}`,
             reference:        `${transfert.reference}-E-${ligne.produitId}-${randomUUID().slice(0, 8)}`,
             operateurId:      adminId,
             transfertStockId: transfert.id,
@@ -183,7 +190,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
         actionUrl: `/dashboard/admin/stock`,
       });
 
-      await auditLog(tx, adminId, "TRANSFERT_STOCK_RECU_ADMIN", "TransfertStock", transfertId);
+      await auditLog(tx, adminId, "TRANSFERT_STOCK_RECU_ADMIN", "TransfertStock", transfertId, undefined, getRequestMeta(req));
       return updated;
     });
 

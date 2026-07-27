@@ -41,6 +41,7 @@ enum RoleGestionnaire {
   MAGAZINIER
   CAISSIER
   COMMERCIAL
+  DIRECTEUR_COMMERCIAL               // vue commerciale complète cross-agence (Catalogue §21.B)
   COMPTABLE
   AUDITEUR_INTERNE
   RESPONSABLE_VENTE_CREDIT
@@ -154,6 +155,7 @@ enum StatutDemandeAjustement {
 }
 
 enum StatutTransfertStock {
+  DEMANDE  // CDC §13 — demande d'une agence, en attente de validation, aucun impact stock
   EN_COURS
   EXPEDIE
   RECU
@@ -708,6 +710,7 @@ model User {
   evenementsImportationCrees EvenementImportation[] @relation("EvenementImportationCreateur")
   transfertsCrees      TransfertStock[]     @relation("CreateurTransfert")
   transfertsValides    TransfertStock[]     @relation("ValidateurTransfert")
+  transfertsApprouves  TransfertStock[]     @relation("ApprobateurTransfert")
   inventairesRealises  InventaireSite[]     @relation("RealisateurInventaire")
   inventairesValides   InventaireSite[]     @relation("ValidateurInventaire")
   commandesInternes    CommandeInterne[]    @relation("DemandeurCommande")
@@ -2258,7 +2261,8 @@ model LigneReceptionAppro {
   produitId        Int
   quantiteAttendue Int
   quantiteRecue    Int?
-  quantiteRefusee  Int?    @default(0) // CDC §10 — produits refusés/endommagés distincts du reçu
+  quantiteRefusee    Int?  @default(0) // CDC §10 — refusé/retourné au fournisseur, n'entre jamais en stock
+  quantiteEndommagee Int?  @default(0) // CDC §10 — abîmé mais conservé, entre en stock côté StockSite.quantiteEndommagee (non vendable)
   prixUnitaire     Decimal?
   etatQualite      String? // "BON" | "DEFECTUEUX" | "PARTIEL"
   notes            String?
@@ -2409,6 +2413,7 @@ model BonCommande {
   dateLivraisonPrevue DateTime?
   devise              String?   @default("XOF")
   montantTotal        Decimal   @default(0) // recalculé à chaque modif de lignes
+  montantPaye         Decimal   @default(0) // CDC §14 — alimente "factures à payer" / prévisions de trésorerie
 
   notes String?
 
@@ -2519,8 +2524,8 @@ model TransfertStock {
   reference String               @unique
   statut    StatutTransfertStock @default(EN_COURS)
 
-  origineId     Int
-  origine       PointDeVente @relation("TransfertOrigine", fields: [origineId], references: [id])
+  origineId     Int? // nullable tant que statut = DEMANDE (l'agence ne choisit pas la source)
+  origine       PointDeVente? @relation("TransfertOrigine", fields: [origineId], references: [id])
   destinationId Int
   destination   PointDeVente @relation("TransfertDestination", fields: [destinationId], references: [id])
 
@@ -2528,6 +2533,12 @@ model TransfertStock {
   creePar     User  @relation("CreateurTransfert", fields: [creeParId], references: [id])
   valideParId Int?
   validePar   User? @relation("ValidateurTransfert", fields: [valideParId], references: [id])
+
+  // Validation de la DEMANDE (CDC §13, avant préparation) — distincte de
+  // valideParId/dateReception qui concernent la confirmation de réception.
+  approuveParId   Int?
+  approuvePar     User?     @relation("ApprobateurTransfert", fields: [approuveParId], references: [id])
+  dateApprobation DateTime?
 
   dateExpedition DateTime?
   dateReception  DateTime?

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthSession } from "@/lib/auth";
 import { auditLog } from "@/lib/notifications";
+import { getRequestMeta } from "@/lib/requestMeta";
 
 async function getAdminSession() {
   const s = await getAuthSession();
@@ -165,7 +166,7 @@ export async function POST(req: Request) {
         });
       }
 
-      await auditLog(tx, parseInt(session.user.id), "PDV_CREE", "PointDeVente", p.id);
+      await auditLog(tx, parseInt(session.user.id), "PDV_CREE", "PointDeVente", p.id, undefined, getRequestMeta(req));
       return p;
     });
 

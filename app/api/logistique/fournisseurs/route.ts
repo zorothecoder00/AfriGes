@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getLogistiqueSession } from "@/lib/authLogistique";
 import { getAuthSession } from "@/lib/auth";
 import { auditLog } from "@/lib/notifications";
+import { getRequestMeta } from "@/lib/requestMeta";
 
 export async function getSession() {
   const logistique = await getLogistiqueSession();
@@ -85,7 +86,7 @@ export async function POST(req: Request) {
       try {
         const fournisseur = await prisma.$transaction(async (tx) => {
           const f = await tx.fournisseur.create({ data: { ...data, code } });
-          await auditLog(tx, parseInt(session.user.id), "FOURNISSEUR_CREE", "Fournisseur", f.id);
+          await auditLog(tx, parseInt(session.user.id), "FOURNISSEUR_CREE", "Fournisseur", f.id, undefined, getRequestMeta(req));
           return f;
         });
         return NextResponse.json({ data: fournisseur }, { status: 201 });

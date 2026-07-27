@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { auditLog } from "@/lib/notifications";
 import { getSession } from "../route";
 import { calculerEvaluationFournisseur } from "@/lib/evaluationFournisseurServer";
+import { getRequestMeta } from "@/lib/requestMeta";
+import { diffChamps } from "@/lib/diffChamps";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -76,9 +78,10 @@ export async function PATCH(req: Request, { params }: Ctx) {
     }
     if (Object.keys(data).length === 0) return NextResponse.json({ error: "Aucun champ à mettre à jour" }, { status: 400 });
 
+    const diff = existing ? diffChamps(existing, data) : {};
     const updated = await prisma.$transaction(async (tx) => {
       const f = await tx.fournisseur.update({ where: { id: fournisseurId }, data });
-      await auditLog(tx, parseInt(session.user.id), "FOURNISSEUR_MODIFIE", "Fournisseur", f.id);
+      await auditLog(tx, parseInt(session.user.id), "FOURNISSEUR_MODIFIE", "Fournisseur", f.id, diff, getRequestMeta(req));
       return f;
     });
 

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthSession } from "@/lib/auth";
 import { notifyAdmins, notify, auditLog } from "@/lib/notifications";
+import { getRequestMeta } from "@/lib/requestMeta";
 import { randomUUID } from "crypto";
 
 type Ctx = { params: Promise<{ id: string }> };  
@@ -24,7 +25,7 @@ const ROLES_AUTORISES = [
  *  - MouvementStock ENTREE (TRANSFERT_ENTRANT) créé par produit
  *  - Notification aux admins
  */
-export async function POST(_req: Request, { params }: Ctx) {
+export async function POST(req: Request, { params }: Ctx) {
   try {
     const session = await getAuthSession();
     if (!session) {
@@ -77,6 +78,10 @@ export async function POST(_req: Request, { params }: Ctx) {
       if (!["EN_COURS", "EXPEDIE"].includes(transfert.statut)) {
         throw new Error(`Ce transfert est déjà ${transfert.statut.toLowerCase()}`);
       }
+      if (!transfert.origine) {
+        throw new Error("Ce transfert n'a pas encore d'agence source assignée");
+      }
+      const origineNom = transfert.origine.nom;
 
       // Incrémenter le stock destination + libérer le transit + créer mouvements ENTREE
       for (const ligne of transfert.lignes) {
@@ -94,7 +99,7 @@ export async function POST(_req: Request, { params }: Ctx) {
             type:             "ENTREE",
             typeEntree:       "TRANSFERT_ENTRANT",
             quantite:         ligne.quantite,
-            motif:            `Réception transfert ${transfert.reference} depuis ${transfert.origine.nom}`,
+            motif:            `Réception transfert ${transfert.reference} depuis ${origineNom}`,
             reference:        `${transfert.reference}-E-${ligne.produitId}-${randomUUID().slice(0, 8)}`,
             operateurId:      userId,
             transfertStockId: transfert.id,
@@ -114,7 +119,7 @@ export async function POST(_req: Request, { params }: Ctx) {
       // Notifie les admins
       await notifyAdmins(tx, {
         titre:    `Transfert confirmé — ${transfert.reference}`,
-        message:  `Le personnel de "${transfert.destination.nom}" a confirmé la réception du transfert ${transfert.reference} depuis "${transfert.origine.nom}". Stock mis à jour.`,
+        message:  `Le personnel de "${transfert.destination.nom}" a confirmé la réception du transfert ${transfert.reference} depuis "${origineNom}". Stock mis à jour.`,
         priorite: "NORMAL",
         actionUrl: `/dashboard/admin/stock`,
       });
@@ -141,7 +146,7 @@ export async function POST(_req: Request, { params }: Ctx) {
         actionUrl: `/dashboard/transferts`,
       });
 
-      await auditLog(tx, userId, "TRANSFERT_STOCK_RECU_PDV", "TransfertStock", transfertId);
+      await auditLog(tx, userId, "TRANSFERT_STOCK_RECU_PDV", "TransfertStock", transfertId, undefined, getRequestMeta(req));
       return updated;
     });
 

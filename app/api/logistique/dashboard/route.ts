@@ -24,8 +24,9 @@ function moisKey(d: Date): string {
  * stockée, tout est recalculé à la volée.
  *
  * Écarts assumés vs CDC (pas de fausse donnée) :
- * - Réseau : géolocalisation disponible sur PointDeVente (§3/§4) → exposée pour
- *   une carte, pas de carte interactive embarquée côté serveur (liens externes).
+ * - Réseau : carte interactive (leaflet, cf. page) alimentée par la géolocalisation
+ *   de PointDeVente (§3/§4) ; regroupement "par région" basé sur la hiérarchie
+ *   plateforme régionale existante (pas de champ région libre dédié).
  * - §16 BI/IA prédictive : pas de modèle ML — projection statistique explicable
  *   (couverture de stock via conso moyenne, tendance fournisseur par delta de
  *   fenêtres), cf. lib/previsionStock.ts.
@@ -35,9 +36,16 @@ function moisKey(d: Date): string {
  * - Économie réalisée : écart entre le prix retenu et la moyenne des autres
  *   cotations RFQ sur la même demande (uniquement si favorable) — mesure la
  *   valeur de la mise en concurrence, pas un budget/prévisionnel externe.
- * - Finances : "factures à payer" / "prévisions de trésorerie" nécessitent un
- *   module comptabilité fournisseurs/trésorerie inexistant → signalé non
- *   disponible plutôt que simulé.
+ * - Finances : "factures à payer" = solde `BonCommande.montantTotal −
+ *   montantPaye` par fournisseur (POs non annulés, hors brouillon/attente
+ *   approbation). "Prévisions de trésorerie" = position nette (entrées −
+ *   sorties) par tranche d'ancienneté : sorties = échéancier ci-dessus (proxy
+ *   sur dateLivraisonPrevue, faute de date d'échéance de paiement dédiée) ;
+ *   entrées = échéances non soldées de `EcheanceCredit` (remboursements
+ *   crédit client) + `EcheancePack` (collecte souscriptions), datées
+ *   réellement, PLUS la moyenne mensuelle réelle des ventes directes (3 mois)
+ *   comme flux récurrent — ces dernières sont encaissées comptant, donc non
+ *   intégrées à l'échéancier daté, juste indiquées à part.
  */
 export async function GET() {
   try {
@@ -56,7 +64,8 @@ export async function GET() {
 
     const [
       bonsCommande, fournisseurs, receptionsValidees, lignesQualite,
-      importations, poParPDV, stocksDispo, ventesAgg3Mois,
+      importations, poParPDV, stocksDispo, ventesAgg3Mois, poNonSoldes,
+      echeancesCreditDues, echeancesPackDues, ventesDirectesRecentes,
     ] = await Promise.all([
       prisma.bonCommande.findMany({
         where: { dateCommande: { gte: depuis6Mois }, statut: { not: "CANCELLED" } },
@@ -105,6 +114,32 @@ export async function GET() {
         by: ["produitId", "pointDeVenteId"],
         where: { type: "SORTIE", typeSortie: { in: [...TYPES_SORTIE_CLIENT] }, dateMouvement: { gte: depuis3Mois } },
         _sum: { quantite: true },
+      }),
+      // §14 Finances — factures fournisseurs à payer + prévisions de trésorerie.
+      // Pas de scope 6 mois ici : un PO plus ancien encore non soldé doit rester compté.
+      prisma.bonCommande.findMany({
+        where: { statut: { in: STATUT_NON_ANNULE }, montantTotal: { gt: 0 } },
+        select: {
+          montantTotal: true, montantPaye: true, dateLivraisonPrevue: true,
+          fournisseur: { select: { id: true, nom: true } },
+        },
+      }),
+      // ── Entrées prévisionnelles (trésorerie) ────────────────────────────
+      // Crédits clients : échéances non soldées, déjà planifiées avec une date réelle.
+      prisma.echeanceCredit.findMany({
+        where: { statut: { in: ["EN_ATTENTE", "PARTIEL", "EN_RETARD"] } },
+        select: { dateEcheance: true, montantDu: true, montantPaye: true },
+      }),
+      // Souscriptions (collecte) : mêmes principe via l'échéancier de pack.
+      prisma.echeancePack.findMany({
+        where: { statut: { in: ["EN_ATTENTE", "EN_RETARD"] } },
+        select: { datePrevue: true, montant: true },
+      }),
+      // Ventes directes : pas de date future (encaissées comptant) — utilisées
+      // comme flux récurrent moyen, pas dans l'échéancier daté.
+      prisma.venteDirecte.aggregate({
+        where: { createdAt: { gte: depuis3Mois }, statut: { notIn: ["BROUILLON", "ANNULEE", "CREDIT_REFUSE"] } },
+        _sum: { montantPaye: true },
       }),
     ]);
 
@@ -235,10 +270,16 @@ export async function GET() {
     }
     const ecartMoyenJours = nbEcarts > 0 ? Math.round((sommeEcartsJours / nbEcarts) * 10) / 10 : null;
 
-    // ── Réseau (par PDV) — avec géolocalisation (§3/§4) si renseignée ──────
+    // ── Réseau (par PDV) — avec géolocalisation (§3/§4) si renseignée, et
+    // rattachement à la plateforme régionale (§4) pour le regroupement "par
+    // région" du dashboard (§14) — pas de champ "région" libre sur PointDeVente,
+    // la hiérarchie de dépôts existante joue ce rôle.
     const pdvIds = poParPDV.map((g) => g.pointDeVenteId);
     const pdvs = pdvIds.length > 0
-      ? await prisma.pointDeVente.findMany({ where: { id: { in: pdvIds } }, select: { id: true, nom: true, code: true, latitude: true, longitude: true } })
+      ? await prisma.pointDeVente.findMany({
+          where: { id: { in: pdvIds } },
+          select: { id: true, nom: true, code: true, latitude: true, longitude: true, plateformeRegionale: { select: { id: true, nom: true } } },
+        })
       : [];
     const pdvById = new Map(pdvs.map((p) => [p.id, p]));
     const reseau = poParPDV
@@ -248,10 +289,19 @@ export async function GET() {
         code: pdvById.get(g.pointDeVenteId)?.code ?? "—",
         latitude: pdvById.get(g.pointDeVenteId)?.latitude ?? null,
         longitude: pdvById.get(g.pointDeVenteId)?.longitude ?? null,
+        regionNom: pdvById.get(g.pointDeVenteId)?.plateformeRegionale?.nom ?? "Sans région",
         valeurEngagee: Number(g._sum.montantTotal ?? 0),
         nbPO: g._count._all,
       }))
       .sort((a, b) => b.valeurEngagee - a.valeurEngagee);
+
+    const parRegionMap = new Map<string, { region: string; valeurEngagee: number; nbPO: number; nbSites: number }>();
+    for (const r of reseau) {
+      const e = parRegionMap.get(r.regionNom) ?? { region: r.regionNom, valeurEngagee: 0, nbPO: 0, nbSites: 0 };
+      e.valeurEngagee += r.valeurEngagee; e.nbPO += r.nbPO; e.nbSites += 1;
+      parRegionMap.set(r.regionNom, e);
+    }
+    const reseauParRegion = Array.from(parRegionMap.values()).sort((a, b) => b.valeurEngagee - a.valeurEngagee);
 
     // ── §16 — Ruptures anticipées (couverture de stock projetée) + recommandation
     // "quand / combien / chez qui" : couverture (quand), écart au stock cible
@@ -290,16 +340,23 @@ export async function GET() {
       .slice(0, 15);
 
     // ── §14 — Valeur du stock, rotation, produits dormants ─────────────────
+    // `stocksDispo` est un stock PAR SITE (StockSite) : un même produit dormant sur
+    // plusieurs agences apparaît plusieurs fois — on agrège par produit (le tableau
+    // "Produits dormants" est au niveau produit, pas produit×site).
     let valeurStockTotal = 0;
-    const dormants: { produitId: number; nom: string; codeProduit: string | null; quantite: number; valeur: number }[] = [];
+    const dormantsMap = new Map<number, { produitId: number; nom: string; codeProduit: string | null; quantite: number; valeur: number }>();
     for (const s of stocksDispo) {
       const prixRef = Number(s.produit.prixAchat ?? s.produit.prixUnitaire);
       const valeur = s.quantite * prixRef;
       valeurStockTotal += valeur;
       const vendu3Mois = ventesMap.get(`${s.produitId}:${s.pointDeVenteId}`) ?? 0;
-      if (vendu3Mois === 0) dormants.push({ produitId: s.produitId, nom: s.produit.nom, codeProduit: s.produit.codeProduit, quantite: s.quantite, valeur });
+      if (vendu3Mois === 0) {
+        const e = dormantsMap.get(s.produitId) ?? { produitId: s.produitId, nom: s.produit.nom, codeProduit: s.produit.codeProduit, quantite: 0, valeur: 0 };
+        e.quantite += s.quantite; e.valeur += valeur;
+        dormantsMap.set(s.produitId, e);
+      }
     }
-    dormants.sort((a, b) => b.valeur - a.valeur);
+    const dormants = Array.from(dormantsMap.values()).sort((a, b) => b.valeur - a.valeur);
     const valeurSorties6Mois = ventesAgg6MoisParProduit.reduce(
       (acc, v) => acc + Number(v._sum.quantite ?? 0) * (prixParProduit.get(v.produitId) ?? 0), 0,
     );
@@ -314,6 +371,71 @@ export async function GET() {
       const gain = (moyenneAutres - Number(retenue.prixUnitaire)) * rfq.quantite;
       if (gain > 0) economieRealisee += gain;
     }
+
+    // ── §14 — Factures fournisseurs à payer (solde dû par PO) + prévisions de
+    // trésorerie (échéancier par ancienneté, faute de date d'échéance dédiée
+    // sur le PO — proxy assumé sur dateLivraisonPrevue) ─────────────────────
+    const facturesNonSoldees = poNonSoldes
+      .map((po) => ({ ...po, soldeDu: Number(po.montantTotal) - Number(po.montantPaye) }))
+      .filter((po) => po.soldeDu > 0.01);
+
+    const parFournisseurDu = new Map<number, { nom: string; solde: number; nbFactures: number }>();
+    for (const f of facturesNonSoldees) {
+      const e = parFournisseurDu.get(f.fournisseur.id) ?? { nom: f.fournisseur.nom, solde: 0, nbFactures: 0 };
+      e.solde += f.soldeDu; e.nbFactures += 1;
+      parFournisseurDu.set(f.fournisseur.id, e);
+    }
+    const facturesAPayer = {
+      total: facturesNonSoldees.reduce((s, f) => s + f.soldeDu, 0),
+      nbFactures: facturesNonSoldees.length,
+      parFournisseur: Array.from(parFournisseurDu.entries())
+        .map(([id, v]) => ({ fournisseurId: id, ...v }))
+        .sort((a, b) => b.solde - a.solde)
+        .slice(0, 10),
+    };
+
+    const echeancier = { enRetard: 0, sous30j: 0, sous60j: 0, sous90j: 0, nonPlanifie: 0 };
+    for (const f of facturesNonSoldees) {
+      if (!f.dateLivraisonPrevue) { echeancier.nonPlanifie += f.soldeDu; continue; }
+      const jours = Math.floor((f.dateLivraisonPrevue.getTime() - maintenant.getTime()) / 86_400_000);
+      if (jours < 0) echeancier.enRetard += f.soldeDu;
+      else if (jours <= 30) echeancier.sous30j += f.soldeDu;
+      else if (jours <= 60) echeancier.sous60j += f.soldeDu;
+      else if (jours <= 90) echeancier.sous90j += f.soldeDu;
+      else echeancier.nonPlanifie += f.soldeDu;
+    }
+
+    // ── Entrées prévisionnelles : crédits clients (remboursements) +
+    // souscriptions (collecte) — même logique d'échéancier par ancienneté que
+    // les sorties, pour donner une vraie position nette de trésorerie plutôt
+    // qu'un simple relevé de factures à payer. ──────────────────────────────
+    const bucketDate = (buckets: typeof echeancier, date: Date, montant: number) => {
+      const jours = Math.floor((date.getTime() - maintenant.getTime()) / 86_400_000);
+      if (jours < 0) buckets.enRetard += montant;
+      else if (jours <= 30) buckets.sous30j += montant;
+      else if (jours <= 60) buckets.sous60j += montant;
+      else if (jours <= 90) buckets.sous90j += montant;
+      else buckets.nonPlanifie += montant;
+    };
+
+    const entrees = { enRetard: 0, sous30j: 0, sous60j: 0, sous90j: 0, nonPlanifie: 0 };
+    for (const e of echeancesCreditDues) {
+      const solde = Number(e.montantDu) - Number(e.montantPaye);
+      if (solde > 0.01) bucketDate(entrees, e.dateEcheance, solde);
+    }
+    for (const e of echeancesPackDues) {
+      bucketDate(entrees, e.datePrevue, Number(e.montant));
+    }
+    const totalEntreesEcheancier = entrees.enRetard + entrees.sous30j + entrees.sous60j + entrees.sous90j + entrees.nonPlanifie;
+    const ventesDirectesMoyenneMensuelle = Number(ventesDirectesRecentes._sum.montantPaye ?? 0) / 3;
+
+    const positionNette = {
+      enRetard: entrees.enRetard - echeancier.enRetard,
+      sous30j: entrees.sous30j - echeancier.sous30j,
+      sous60j: entrees.sous60j - echeancier.sous60j,
+      sous90j: entrees.sous90j - echeancier.sous90j,
+      nonPlanifie: entrees.nonPlanifie - echeancier.nonPlanifie,
+    };
 
     const fournisseursEnDegradation = evalues
       .filter((f) => f.tendance === "DEGRADATION")
@@ -333,6 +455,7 @@ export async function GET() {
         fournisseurs: { actifs: fournisseurs.length, topEvalues, aRisque },
         importations: { total: importations.length, parStatut, ecartMoyenJours },
         reseau,
+        reseauParRegion,
         stocks: {
           valeurStockTotal,
           rotationStock,
@@ -341,10 +464,14 @@ export async function GET() {
         previsions: { rupturesAnticipees, fournisseursEnDegradation, fournisseursEnAmelioration },
         finances: {
           engagementFournisseurs: valeurEngageeTotal,
-          nonDisponible: [
-            "Factures fournisseurs à payer (module comptabilité fournisseurs non implémenté)",
-            "Prévisions de trésorerie (module trésorerie non implémenté)",
-          ],
+          facturesAPayer,
+          previsionsTresorerie: {
+            sorties: echeancier,
+            entrees,
+            totalEntreesEcheancier,
+            ventesDirectesMoyenneMensuelle,
+            positionNette,
+          },
         },
       },
     });

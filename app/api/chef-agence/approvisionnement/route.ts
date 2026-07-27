@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getChefAgenceSession, getChefAgencePdvIds } from "@/lib/authChefAgence";
 import { randomUUID } from "crypto";
 import { notifyRoles, auditLog } from "@/lib/notifications";
+import { getRequestMeta } from "@/lib/requestMeta";
 
 /**
  * GET /api/chef-agence/approvisionnement?pdvId=X&statut=X&page=1
@@ -189,7 +190,7 @@ export async function POST(req: Request) {
         },
       });
 
-      await auditLog(tx, parseInt(session.user.id), "COMMANDE_INTERNE_CREEE", "CommandeInterne", c.id);
+      await auditLog(tx, parseInt(session.user.id), "COMMANDE_INTERNE_CREEE", "CommandeInterne", c.id, undefined, getRequestMeta(req));
 
       await notifyRoles(tx, ["AGENT_LOGISTIQUE_APPROVISIONNEMENT"], {
         titre:    `Demande réappro : ${ref}`,

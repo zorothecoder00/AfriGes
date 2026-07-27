@@ -375,6 +375,7 @@ export default function GestionnairesPage() {
               <option value="MAGAZINIER">Magasinier</option>
               <option value="CAISSIER">Caissier</option>
               <option value="COMMERCIAL">Commercial</option>
+              <option value="DIRECTEUR_COMMERCIAL">Directeur commercial</option>
               <option value="COMPTABLE">Comptable</option>
               <option value="AUDITEUR_INTERNE">Auditeur interne</option>
               <option value="RESPONSABLE_VENTE_CREDIT">Resp. vente crédit</option>
@@ -424,6 +425,7 @@ export default function GestionnairesPage() {
                     <option value="MAGAZINIER">Magasinier</option>
                     <option value="CAISSIER">Caissier</option>
                     <option value="COMMERCIAL">Commercial</option>
+              <option value="DIRECTEUR_COMMERCIAL">Directeur commercial</option>
                     <option value="COMPTABLE">Comptable</option>
                     <option value="AUDITEUR_INTERNE">Auditeur interne</option>
                     <option value="RESPONSABLE_VENTE_CREDIT">Responsable vente crédit</option>

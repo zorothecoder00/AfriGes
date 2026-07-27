@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auditLog } from "@/lib/notifications";
 import { getSession } from "../../../../fournisseurs/route";
+import { getRequestMeta } from "@/lib/requestMeta";
 
 type Ctx = { params: Promise<{ id: string; reponseId: string }> };
 
@@ -53,7 +54,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
         where: { id: Number(id), statut: { in: ["ENVOYEE"] } },
         data: { statut: "REPONSES_RECUES" },
       });
-      await auditLog(tx, parseInt(session.user.id), "RFQ_COTATION_SAISIE", "ReponseRFQ", r.id);
+      await auditLog(tx, parseInt(session.user.id), "RFQ_COTATION_SAISIE", "ReponseRFQ", r.id, undefined, getRequestMeta(req));
       return r;
     });
 

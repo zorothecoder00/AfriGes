@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthSession } from "@/lib/auth";
 import { auditLog } from "@/lib/notifications";
+import { getRequestMeta } from "@/lib/requestMeta";
+import { diffChamps } from "@/lib/diffChamps";
   
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -97,26 +99,30 @@ export async function PATCH(req: Request, { params }: Ctx) {
       }
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const data: any = {
+      ...(nom          !== undefined && { nom }),
+      ...(adresse      !== undefined && { adresse }),
+      ...(telephone    !== undefined && { telephone }),
+      ...(notes        !== undefined && { notes }),
+      ...(actif        !== undefined && { actif }),
+      ...(rpvId        !== undefined && { rpvId: rpvId ? Number(rpvId) : null }),
+      ...(chefAgenceId !== undefined && { chefAgenceId: chefAgenceId ? Number(chefAgenceId) : null }),
+      ...(responsableId !== undefined && { responsableId: responsableId ? Number(responsableId) : null }),
+      ...(latitude               !== undefined && { latitude:  latitude != null ? Number(latitude) : null }),
+      ...(longitude              !== undefined && { longitude: longitude != null ? Number(longitude) : null }),
+      ...(capaciteStockage       !== undefined && { capaciteStockage: capaciteStockage != null ? Number(capaciteStockage) : null }),
+      ...(capaciteUnite          !== undefined && { capaciteUnite: capaciteUnite || null }),
+      ...(seuilSecuriteGlobal    !== undefined && { seuilSecuriteGlobal: seuilSecuriteGlobal != null ? Number(seuilSecuriteGlobal) : null }),
+      ...(niveauSecurite         !== undefined && { niveauSecurite: niveauSecurite || "STANDARD" }),
+      ...(plateformeRegionaleId  !== undefined && { plateformeRegionaleId: plateformeRegionaleId ? Number(plateformeRegionaleId) : null }),
+    };
+    const diff = diffChamps(existing, data);
+
     const updated = await prisma.$transaction(async (tx) => {
       const p = await tx.pointDeVente.update({
         where: { id: Number(id) },
-        data: {
-          ...(nom          !== undefined && { nom }),
-          ...(adresse      !== undefined && { adresse }),
-          ...(telephone    !== undefined && { telephone }),
-          ...(notes        !== undefined && { notes }),
-          ...(actif        !== undefined && { actif }),
-          ...(rpvId        !== undefined && { rpvId: rpvId ? Number(rpvId) : null }),
-          ...(chefAgenceId !== undefined && { chefAgenceId: chefAgenceId ? Number(chefAgenceId) : null }),
-          ...(responsableId !== undefined && { responsableId: responsableId ? Number(responsableId) : null }),
-          ...(latitude               !== undefined && { latitude:  latitude != null ? Number(latitude) : null }),
-          ...(longitude              !== undefined && { longitude: longitude != null ? Number(longitude) : null }),
-          ...(capaciteStockage       !== undefined && { capaciteStockage: capaciteStockage != null ? Number(capaciteStockage) : null }),
-          ...(capaciteUnite          !== undefined && { capaciteUnite: capaciteUnite || null }),
-          ...(seuilSecuriteGlobal    !== undefined && { seuilSecuriteGlobal: seuilSecuriteGlobal != null ? Number(seuilSecuriteGlobal) : null }),
-          ...(niveauSecurite         !== undefined && { niveauSecurite: niveauSecurite || "STANDARD" }),
-          ...(plateformeRegionaleId  !== undefined && { plateformeRegionaleId: plateformeRegionaleId ? Number(plateformeRegionaleId) : null }),
-        },
+        data,
         include: {
           rpv:        { select: { id: true, nom: true, prenom: true } },
           chefAgence: { select: { id: true, nom: true, prenom: true } },
@@ -177,7 +183,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
         }
       }
 
-      await auditLog(tx, parseInt(session.user.id), "PDV_MODIFIE", "PointDeVente", p.id);
+      await auditLog(tx, parseInt(session.user.id), "PDV_MODIFIE", "PointDeVente", p.id, diff, getRequestMeta(req));
       return p;
     });
 
@@ -193,7 +199,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
  * Désactiver un PDV (soft delete — actif = false).
  * Un PDV avec du stock ne peut pas être supprimé.
  */
-export async function DELETE(_req: Request, { params }: Ctx) {
+export async function DELETE(req: Request, { params }: Ctx) {
   try {
     const session = await getAdminSession();
     if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
@@ -221,7 +227,7 @@ export async function DELETE(_req: Request, { params }: Ctx) {
 
     await prisma.$transaction(async (tx) => {
       await tx.pointDeVente.update({ where: { id: Number(id) }, data: { actif: false } });
-      await auditLog(tx, parseInt(session.user.id), "PDV_DESACTIVE", "PointDeVente", Number(id));
+      await auditLog(tx, parseInt(session.user.id), "PDV_DESACTIVE", "PointDeVente", Number(id), undefined, getRequestMeta(req));
     });
 
     return NextResponse.json({ message: "PDV désactivé avec succès" });

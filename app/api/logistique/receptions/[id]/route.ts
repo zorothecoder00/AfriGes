@@ -8,6 +8,8 @@ import { randomUUID } from "crypto";
 import { notifyRoles, notifyAdmins, auditLog } from "@/lib/notifications";
 import { enregistrerChangementPrix } from "@/lib/prixProduit";
 import { creerLotDepuisReception } from "@/lib/lotsFefo";
+import { creerEcritureAchatDepuisMouvement } from "@/lib/ecritureAchatServer";
+import { getRequestMeta } from "@/lib/requestMeta";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -105,7 +107,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
           where: { id: Number(id) },
           data: { statut: "EN_COURS", valideParId: parseInt(session.user.id) },
         });
-        await auditLog(tx, parseInt(session.user.id), "RECEPTION_APPROUVEE_ADMIN", "ReceptionApprovisionnement", r.id);
+        await auditLog(tx, parseInt(session.user.id), "RECEPTION_APPROUVEE_ADMIN", "ReceptionApprovisionnement", r.id, undefined, getRequestMeta(req));
         // Notifier le responsable appro que sa commande est approuvée
         await notifyRoles(tx, ["AGENT_LOGISTIQUE_APPROVISIONNEMENT", "MAGAZINIER"], {
           titre:    `Commande approuvée : ${reception.reference}`,
@@ -135,19 +137,19 @@ export async function PATCH(req: Request, { params }: Ctx) {
           where: { id: Number(id) },
           data: { statut: "ANNULE", notesQualite: body.motif || null },
         });
-        await auditLog(tx, parseInt(session.user.id), "RECEPTION_ANNULEE", "ReceptionApprovisionnement", r.id);
+        await auditLog(tx, parseInt(session.user.id), "RECEPTION_ANNULEE", "ReceptionApprovisionnement", r.id, undefined, getRequestMeta(req));
         return r;
       });
       return NextResponse.json({ data: updated });
     }
 
     // ─ VALIDER (mise en stock — étape 3) ─────────────────────
-    // Réservé à l'agent logistique approvisionnement (+ admin)
+    // Réservé à l'agent logistique approvisionnement, au magasinier du PDV (+ admin)
     if (action === "VALIDER") {
       const gRole = session?.user.gestionnaireRole;
-      if (!isAdmin(session) && gRole !== "AGENT_LOGISTIQUE_APPROVISIONNEMENT") {
+      if (!isAdmin(session) && gRole !== "AGENT_LOGISTIQUE_APPROVISIONNEMENT" && gRole !== "MAGAZINIER") {
         return NextResponse.json(
-          { error: "Seul l'agent d'approvisionnement peut valider une réception" },
+          { error: "Seul l'agent d'approvisionnement ou le magasinier du point de vente peut valider une réception" },
           { status: 403 }
         );
       }
@@ -159,21 +161,23 @@ export async function PATCH(req: Request, { params }: Ctx) {
         }, { status: 400 });
       }
 
-      // lignesRecues: [{ ligneId, quantiteRecue, quantiteRefusee?, etatQualite }]
+      // lignesRecues: [{ ligneId, quantiteRecue, quantiteRefusee?, quantiteEndommagee?, etatQualite }]
       if (!lignesRecues || !Array.isArray(lignesRecues)) {
         return NextResponse.json({ error: "lignesRecues est obligatoire pour valider" }, { status: 400 });
       }
 
       const result = await prisma.$transaction(async (tx) => {
-        // Mettre à jour chaque ligne avec les quantités reçues
-        for (const lr of lignesRecues as Array<{ ligneId: number; quantiteRecue: number; quantiteRefusee?: number; etatQualite?: string; notes?: string }>) {
+        // Mettre à jour chaque ligne avec les quantités reçues (CDC §10 — contrôle
+        // commandé/reçu/refusé/endommagé, saisi par l'agent, pas déduit automatiquement)
+        for (const lr of lignesRecues as Array<{ ligneId: number; quantiteRecue: number; quantiteRefusee?: number; quantiteEndommagee?: number; etatQualite?: string; notes?: string }>) {
           await tx.ligneReceptionAppro.update({
             where: { id: Number(lr.ligneId) },
             data: {
-              quantiteRecue:   Number(lr.quantiteRecue),
-              quantiteRefusee: lr.quantiteRefusee != null ? Number(lr.quantiteRefusee) : 0,
-              etatQualite:     lr.etatQualite || "BON",
-              notes:           lr.notes       || null,
+              quantiteRecue:      Number(lr.quantiteRecue),
+              quantiteRefusee:    lr.quantiteRefusee != null ? Number(lr.quantiteRefusee) : 0,
+              quantiteEndommagee: lr.quantiteEndommagee != null ? Number(lr.quantiteEndommagee) : 0,
+              etatQualite:        lr.etatQualite || "BON",
+              notes:              lr.notes       || null,
             },
           });
         }
@@ -207,19 +211,23 @@ export async function PATCH(req: Request, { params }: Ctx) {
             });
           }
 
+          const qteEndommagee = ligne.quantiteEndommagee ?? 0;
+
           await tx.stockSite.upsert({
             where: {
               produitId_pointDeVenteId: { produitId: ligne.produitId, pointDeVenteId: reception.pointDeVenteId },
             },
-            // Sortir du transit (4.3) et ajouter au disponible (4.1)
+            // Sortir du transit (4.3), ajouter au disponible (4.1) et, séparément,
+            // au compartiment endommagé (4.4 — non vendable, CDC §10 "produits endommagés").
             update: {
-              quantite:          { increment: qte },
-              quantiteEnTransit: { decrement: ligne.quantiteAttendue },
+              quantite:           { increment: qte },
+              quantiteEndommagee: { increment: qteEndommagee },
+              quantiteEnTransit:  { decrement: ligne.quantiteAttendue },
             },
-            create: { produitId: ligne.produitId, pointDeVenteId: reception.pointDeVenteId, quantite: qte },
+            create: { produitId: ligne.produitId, pointDeVenteId: reception.pointDeVenteId, quantite: qte, quantiteEndommagee: qteEndommagee },
           });
 
-          await tx.mouvementStock.create({
+          const mvt = await tx.mouvementStock.create({
             data: {
               produitId:       ligne.produitId,
               pointDeVenteId:  reception.pointDeVenteId,
@@ -232,6 +240,12 @@ export async function PATCH(req: Request, { params }: Ctx) {
               receptionApproId:Number(id),
             },
           });
+
+          // Écriture comptable ACHATS automatique (CDC §10) — brouillon en attente
+          // de validation comptable, plutôt que de dépendre d'une synchronisation manuelle.
+          if (reception.type === "FOURNISSEUR") {
+            await creerEcritureAchatDepuisMouvement(tx, mvt.id, parseInt(session.user.id));
+          }
 
           // Création auto du lot si n° de lot / DLC saisis (traçabilité FEFO, Enterprise #5).
           const lotId = await creerLotDepuisReception(tx, {
@@ -253,6 +267,36 @@ export async function PATCH(req: Request, { params }: Ctx) {
           }
         }
 
+        // Répercuter le reçu sur le Bon de Commande d'origine (CDC §7 — statuts
+        // PARTIALLY_DELIVERED/COMPLETED du PO, jamais atteints avant faute de lien
+        // entre la réception et LigneBonCommande.quantiteRecue).
+        if (reception.bonCommandeId) {
+          const bon = await tx.bonCommande.findUnique({
+            where: { id: reception.bonCommandeId },
+            include: { lignes: true },
+          });
+          // On ne dérive le statut que si le PO est déjà en phase de livraison —
+          // ne touche pas un PO encore en brouillon/approbation/annulé.
+          if (bon && ["SENT", "ACKNOWLEDGED", "PARTIALLY_DELIVERED"].includes(bon.statut)) {
+            for (const ligne of lignesMaj) {
+              const livre = (ligne.quantiteRecue ?? 0) + (ligne.quantiteEndommagee ?? 0);
+              if (livre <= 0) continue;
+              await tx.ligneBonCommande.updateMany({
+                where: { bonCommandeId: bon.id, produitId: ligne.produitId },
+                data: { quantiteRecue: { increment: livre } },
+              });
+            }
+            const lignesMajBon = await tx.ligneBonCommande.findMany({ where: { bonCommandeId: bon.id } });
+            const totalCommande = lignesMajBon.reduce((s, l) => s + l.quantite, 0);
+            const totalRecu = lignesMajBon.reduce((s, l) => s + Math.min(l.quantiteRecue, l.quantite), 0);
+            const nouveauStatut = totalRecu >= totalCommande ? "COMPLETED" : totalRecu > 0 ? "PARTIALLY_DELIVERED" : null;
+            if (nouveauStatut && nouveauStatut !== bon.statut) {
+              await tx.bonCommande.update({ where: { id: bon.id }, data: { statut: nouveauStatut } });
+              await auditLog(tx, parseInt(session.user.id), `PO_${nouveauStatut}`, "BonCommande", bon.id, { totalCommande, totalRecu }, getRequestMeta(req));
+            }
+          }
+        }
+
         const r = await tx.receptionApprovisionnement.update({
           where: { id: Number(id) },
           data: {
@@ -264,7 +308,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
           },
         });
 
-        await auditLog(tx, parseInt(session.user.id), "RECEPTION_VALIDEE", "ReceptionApprovisionnement", r.id);
+        await auditLog(tx, parseInt(session.user.id), "RECEPTION_VALIDEE", "ReceptionApprovisionnement", r.id, undefined, getRequestMeta(req));
 
         await notifyRoles(tx, ["RESPONSABLE_POINT_DE_VENTE", "AGENT_LOGISTIQUE_APPROVISIONNEMENT", "MAGAZINIER"], {
           titre:    `Réception validée : ${reception.reference}`,

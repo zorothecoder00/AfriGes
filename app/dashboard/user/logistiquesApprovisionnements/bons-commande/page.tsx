@@ -15,7 +15,7 @@ interface Ligne { id: number; produitId: number; quantite: number; prixUnitaire:
 interface PersonRef { id: number; nom: string; prenom: string }
 interface BonCommande {
   id: number; reference: string; statut: string; statutLivraison: string | null;
-  devise: string | null; dateCommande: string; dateLivraisonPrevue: string | null; montantTotal: number | string;
+  devise: string | null; dateCommande: string; dateLivraisonPrevue: string | null; montantTotal: number | string; montantPaye: number | string;
   notes: string | null;
   fournisseur: { id: number; nom: string; code: string | null; email: string | null };
   pointDeVente: { id: number; nom: string; code: string };
@@ -288,7 +288,23 @@ function CreateModal({ onClose, onCreated, prefill }: {
 function DetailModal({ id, onClose, onUpdated }: { id: number; onClose: () => void; onUpdated: () => void }) {
   const { data, loading, refetch } = useApi<{ data: BonCommande }>(`/api/logistique/bons-commande/${id}`);
   const [busy, setBusy] = useState(false);
+  const [montantPaiement, setMontantPaiement] = useState("");
   const b = data?.data;
+
+  const enregistrerPaiement = async () => {
+    const montant = Number(montantPaiement);
+    if (!montant || montant <= 0) { toast.error("Montant invalide"); return; }
+    setBusy(true);
+    try {
+      const r = await fetch(`/api/logistique/bons-commande/${id}`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "ENREGISTRER_PAIEMENT", montant }),
+      });
+      const j = await r.json().catch(() => ({}));
+      if (r.ok) { toast.success("Paiement enregistré"); setMontantPaiement(""); refetch(); onUpdated(); }
+      else toast.error(j.error ?? "Erreur");
+    } finally { setBusy(false); }
+  };
 
   const doAction = async (action: string) => {
     setBusy(true);
@@ -377,6 +393,32 @@ function DetailModal({ id, onClose, onUpdated }: { id: number; onClose: () => vo
                 </table>
               </div>
               <p className="text-right text-sm font-bold text-slate-800">Total : {Number(b.montantTotal).toLocaleString("fr-FR")} {b.devise}</p>
+
+              {/* Paiement fournisseur (CDC §14 — factures à payer) */}
+              {!["DRAFT", "PENDING_APPROVAL", "CANCELLED"].includes(b.statut) && (
+                <div className="pt-3 border-t border-slate-100">
+                  <p className="text-xs font-semibold text-slate-500 uppercase mb-2">Paiement fournisseur</p>
+                  <div className="flex items-center justify-between text-sm mb-2">
+                    <span className="text-slate-500">Payé : <b className="text-slate-800">{Number(b.montantPaye).toLocaleString("fr-FR")}</b> / {Number(b.montantTotal).toLocaleString("fr-FR")} {b.devise}</span>
+                    {Number(b.montantTotal) - Number(b.montantPaye) > 0.01 ? (
+                      <span className="text-amber-600 font-medium">Solde dû : {(Number(b.montantTotal) - Number(b.montantPaye)).toLocaleString("fr-FR")}</span>
+                    ) : (
+                      <span className="text-emerald-600 font-medium flex items-center gap-1"><CheckCircle className="w-3.5 h-3.5" /> Soldé</span>
+                    )}
+                  </div>
+                  {Number(b.montantTotal) - Number(b.montantPaye) > 0.01 && (
+                    <div className="flex items-center gap-2">
+                      <input type="number" min="0" placeholder="Montant à enregistrer" value={montantPaiement}
+                        onChange={(e) => setMontantPaiement(e.target.value)}
+                        className="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                      <button onClick={enregistrerPaiement} disabled={busy}
+                        className="px-3 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 disabled:opacity-50 whitespace-nowrap">
+                        Enregistrer
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Suivi livraison */}
               {["SENT", "ACKNOWLEDGED", "PARTIALLY_DELIVERED", "COMPLETED"].includes(b.statut) && (

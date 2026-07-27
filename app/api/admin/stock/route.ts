@@ -112,10 +112,15 @@ export async function GET(req: Request) {
           include: {
             stocks: {
               select: {
+                id:                 true,
+                produitId:          true,
+                pointDeVenteId:     true,
                 quantite:           true,
                 quantiteReservee:   true,
                 quantiteEnTransit:  true,
                 quantiteEndommagee: true,
+                quantiteBloquee:    true,
+                quantiteConsignee:  true,
                 alerteStock:        true,
                 pointDeVente: { select: { id: true, nom: true, code: true, type: true } },
               },

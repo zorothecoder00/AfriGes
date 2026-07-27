@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthSession } from "@/lib/auth";
 import { notifyAdmins, notify, auditLog } from "@/lib/notifications";
+import { getRequestMeta } from "@/lib/requestMeta";
 import { randomUUID } from "crypto";
 
 /**
@@ -195,7 +196,7 @@ export async function POST(req: Request) {
         actionUrl: `/dashboard/admin/stock`,
       });
 
-      await auditLog(tx, adminId, "TRANSFERT_STOCK_CREE", "TransfertStock", newTransfert.id);
+      await auditLog(tx, adminId, "TRANSFERT_STOCK_CREE", "TransfertStock", newTransfert.id, undefined, getRequestMeta(req));
 
       return newTransfert;
     });

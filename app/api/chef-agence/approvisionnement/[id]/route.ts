@@ -3,6 +3,7 @@ import { PrioriteNotification } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getChefAgenceSession, getChefAgencePdvIds } from "@/lib/authChefAgence";
 import { notify, notifyRoles, auditLog } from "@/lib/notifications";
+import { getRequestMeta } from "@/lib/requestMeta";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -40,7 +41,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
     if (action === "VALIDER") {
       const updated = await prisma.$transaction(async (tx) => {
         const c = await tx.commandeInterne.update({ where: { id: commandeId }, data: { statut: "SOUMISE" } });
-        await auditLog(tx, userId, "COMMANDE_INTERNE_VALIDEE_AGENCE", "CommandeInterne", commandeId);
+        await auditLog(tx, userId, "COMMANDE_INTERNE_VALIDEE_AGENCE", "CommandeInterne", commandeId, undefined, getRequestMeta(req));
         await notifyRoles(tx, ["AGENT_LOGISTIQUE_APPROVISIONNEMENT"], {
           titre:    `Demande réappro validée : ${commande.reference}`,
           message:  `${session.user.prenom} ${session.user.nom} (chef d'agence) a validé la demande pour "${commande.pointDeVente.nom}" — à traiter.`,
@@ -58,7 +59,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
           where: { id: commandeId },
           data: { statut: "ANNULE", notes: notes ? `${commande.notes ? commande.notes + " — " : ""}Rejet chef d'agence : ${notes}` : commande.notes },
         });
-        await auditLog(tx, userId, "COMMANDE_INTERNE_REJETEE_AGENCE", "CommandeInterne", commandeId, { motif: notes ?? null });
+        await auditLog(tx, userId, "COMMANDE_INTERNE_REJETEE_AGENCE", "CommandeInterne", commandeId, { motif: notes ?? null }, getRequestMeta(req));
         await notify(tx, [commande.demandeurId], {
           titre:    `Demande rejetée : ${commande.reference}`,
           message:  `Votre demande de réapprovisionnement pour "${commande.pointDeVente.nom}" a été rejetée par le chef d'agence${notes ? ` : ${notes}` : "."}`,

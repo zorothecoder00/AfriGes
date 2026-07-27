@@ -7,10 +7,11 @@ import {
   BarChart3, Boxes, LucideIcon, CheckCircle, X, Plus, ArrowRightLeft,
   ChevronDown, ChevronUp, Truck, FileText, Printer, ShieldAlert,
   Trash2, Gift, MinusCircle, Send, Clock, CheckSquare, XCircle, PackageCheck, ShoppingBag,
-  AlertCircle, FileCheck, History,
+  AlertCircle, FileCheck, History, Inbox, AlertOctagon,
 } from 'lucide-react';
+import { toast } from 'sonner';
 import HistoriquePrixProduit from '@/components/HistoriquePrixProduit';
-import Link from 'next/link';  
+import Link from 'next/link';
 import NotificationBell from '@/components/NotificationBell';
 import CongesNavButton from '@/components/CongesNavButton';
 import MessagesLink from '@/components/MessagesLink';
@@ -181,6 +182,12 @@ const StatCard = ({ label, value, icon: Icon, color, lightBg, sub }: {
 // MAIN PAGE
 // ============================================================================
 
+const ETAT_QUALITE_OPTIONS_MAG = [
+  { value: "BON", label: "Bon état" },
+  { value: "PARTIEL", label: "Partiellement conforme" },
+  { value: "DEFECTUEUX", label: "Défectueux" },
+];
+
 export default function MagasinierPage() {
   const t = useT();
   const { isAllowed, allowedPages } = usePageAccess();
@@ -222,10 +229,26 @@ export default function MagasinierPage() {
   // Ref pour update statut anomalie sans re-render
   const anomalieUpdateIdRef = useRef<number | null>(null);
 
-  // Livraisons RPV (validation magasinier)
+  // Livraisons RPV (validation magasinier — contrôle réception CDC §10)
   const [validerLivId, setValiderLivId] = useState<number | null>(null);
-  const [validerLignes, setValiderLignes] = useState<Record<number, string>>({});
+  const [validerLignes, setValiderLignes] = useState<Record<number, LigneControleMag>>({});
+  const [validerNotesQualite, setValiderNotesQualite] = useState('');
   const [expandedLivId, setExpandedLivId] = useState<number | null>(null);
+
+  // Signalement litige fournisseur (CDC §8) — déclenché depuis une réception reçue
+  const [litigeLiv, setLitigeLiv] = useState<LivraisonRpv | null>(null);
+  const [litigeMotif, setLitigeMotif] = useState('');
+  const [litigeDescription, setLitigeDescription] = useState('');
+  const { mutate: signalerLitige, loading: signalerLitigeLoading } = useMutation<unknown, { motif: string; description?: string; bonCommandeId?: number }>(
+    litigeLiv?.fournisseurId ? `/api/logistique/fournisseurs/${litigeLiv.fournisseurId}/litiges` : '',
+    'POST',
+    { successMessage: 'Litige signalé au Responsable Approvisionnement' }
+  );
+  const handleSignalerLitige = async () => {
+    if (!litigeMotif.trim()) { toast.error('Le motif est obligatoire'); return; }
+    const r = await signalerLitige({ motif: litigeMotif.trim(), description: litigeDescription || undefined });
+    if (r) { setLitigeLiv(null); setLitigeMotif(''); setLitigeDescription(''); }
+  };
 
   // Bon de sortie form state
   const [showBonSortieForm, setShowBonSortieForm] = useState(false);
@@ -344,8 +367,14 @@ export default function MagasinierPage() {
     type: 'FOURNISSEUR' | 'INTERNE';
     statut: 'BROUILLON' | 'EN_COURS' | 'RECU' | 'VALIDE' | 'ANNULE';
     datePrevisionnelle: string; dateReception: string | null;
-    fournisseurNom: string | null; notes: string | null;
+    fournisseurNom: string | null; fournisseurId: number | null; notes: string | null;
     lignes: LivraisonRpvLigne[];
+  }
+  interface LigneControleMag {
+    quantiteRecue: string;
+    quantiteRefusee: string;
+    quantiteEndommagee: string;
+    etatQualite: string;
   }
   interface LivraisonsRpvResponse {
     success: boolean;
@@ -446,8 +475,8 @@ export default function MagasinierPage() {
   const receptionsLivrees   = livraisonsRpvRes?.recuesRecentes ?? [];
   const nbLivraisonsEnCours = livraisonsRpvRes?.stats.totalEnCours ?? 0;
 
-  const { mutate: validerLivraison, loading: validerLoading } = useMutation<unknown, { action: string; lignes: { ligneId: number; quantiteRecue: number }[] }>(
-    validerLivId ? `/api/magasinier/livraisons-rpv/${validerLivId}` : '',
+  const { mutate: validerLivraison, loading: validerLoading } = useMutation<unknown, object>(
+    validerLivId ? `/api/logistique/receptions/${validerLivId}` : '',
     'PATCH',
     { successMessage: 'Réception validée — stock mis à jour !' }
   );
@@ -564,21 +593,36 @@ export default function MagasinierPage() {
   };
 
   const openValiderModal = (liv: LivraisonRpv) => {
-    const init: Record<number, string> = {};
-    liv.lignes.forEach(lg => { init[lg.id] = String(lg.quantiteAttendue); });
+    const init: Record<number, LigneControleMag> = {};
+    liv.lignes.forEach(lg => {
+      init[lg.id] = {
+        quantiteRecue: String(lg.quantiteAttendue),
+        quantiteRefusee: '0',
+        quantiteEndommagee: '0',
+        etatQualite: 'BON',
+      };
+    });
     setValiderLignes(init);
+    setValiderNotesQualite('');
     setValiderLivId(liv.id);
   };
 
   const handleValiderLivraison = async (liv: LivraisonRpv) => {
-    const lignesPayload = liv.lignes.map(l => ({
-      ligneId: l.id,
-      quantiteRecue: Number(validerLignes[l.id] ?? l.quantiteAttendue),
-    }));
-    const r = await validerLivraison({ action: 'valider', lignes: lignesPayload });
+    const lignesRecues = liv.lignes.map(l => {
+      const c = validerLignes[l.id];
+      return {
+        ligneId: l.id,
+        quantiteRecue: Number(c?.quantiteRecue ?? l.quantiteAttendue) || 0,
+        quantiteRefusee: Number(c?.quantiteRefusee ?? 0) || 0,
+        quantiteEndommagee: Number(c?.quantiteEndommagee ?? 0) || 0,
+        etatQualite: c?.etatQualite || 'BON',
+      };
+    });
+    const r = await validerLivraison({ action: 'VALIDER', lignesRecues, notesQualite: validerNotesQualite || undefined });
     if (r) {
       setValiderLivId(null);
       setValiderLignes({});
+      setValiderNotesQualite('');
       refetchLivraisonsRpv();
       refetchStock();
       if (activeTab === 'journal') refetchJournal();
@@ -1166,36 +1210,69 @@ export default function MagasinierPage() {
                           <p className="text-xs text-slate-500">{liv.reference}</p>
                         </div>
                       </div>
-                      <button onClick={() => { setValiderLivId(null); setValiderLignes({}); }} className="p-2 text-slate-400 hover:text-slate-600 rounded-lg">
+                      <button onClick={() => { setValiderLivId(null); setValiderLignes({}); setValiderNotesQualite(''); }} className="p-2 text-slate-400 hover:text-slate-600 rounded-lg">
                         <X size={18} />
                       </button>
                     </div>
                     <div className="p-5 space-y-4">
                       <p className="text-sm text-slate-600 bg-blue-50 border border-blue-200 rounded-xl p-3">
-                        Saisissez les quantités réellement reçues. Le stock sera incrémenté.
+                        Contrôlez ce qui a été réellement reçu (CDC §10) : quantité conforme, refusée, endommagée et état qualité. Le stock sera mis à jour en conséquence.
                       </p>
-                      <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
-                        {liv.lignes.map(lg => (
-                          <div key={lg.id} className="flex items-center gap-3 bg-slate-50 rounded-xl px-4 py-2.5">
-                            <div className="flex-1">
-                              <p className="font-medium text-slate-800 text-sm">{lg.produit.nom}</p>
-                              <p className="text-xs text-slate-400">Attendu : {lg.quantiteAttendue}</p>
-                            </div>
-                            <div>
-                              <label className="block text-xs text-slate-500 mb-0.5">Reçu</label>
-                              <input
-                                type="number" min="0"
-                                value={validerLignes[lg.id] ?? String(lg.quantiteAttendue)}
-                                onChange={e => setValiderLignes(prev => ({ ...prev, [lg.id]: e.target.value }))}
-                                className="w-24 px-2 py-1.5 border border-slate-200 rounded-lg text-sm text-center focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
-                              />
-                            </div>
-                          </div>
-                        ))}
+                      <div className="border border-slate-200 rounded-xl overflow-x-auto max-h-72">
+                        <table className="w-full text-sm">
+                          <thead className="bg-slate-50 border-b border-slate-200 sticky top-0">
+                            <tr>
+                              <th className="text-left px-3 py-2 font-semibold text-slate-600 text-xs">Produit</th>
+                              <th className="text-center px-3 py-2 font-semibold text-slate-600 text-xs">Attendu</th>
+                              <th className="text-center px-3 py-2 font-semibold text-slate-600 text-xs">Reçu</th>
+                              <th className="text-center px-3 py-2 font-semibold text-slate-600 text-xs">Refusé</th>
+                              <th className="text-center px-3 py-2 font-semibold text-slate-600 text-xs">Endommagé</th>
+                              <th className="text-center px-3 py-2 font-semibold text-slate-600 text-xs">État qualité</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100">
+                            {liv.lignes.map(lg => {
+                              const c = validerLignes[lg.id];
+                              return (
+                                <tr key={lg.id}>
+                                  <td className="px-3 py-2.5 font-medium text-slate-800">{lg.produit.nom}</td>
+                                  <td className="text-center px-3 py-2.5 text-slate-500">{lg.quantiteAttendue}</td>
+                                  <td className="px-2 py-2 text-center">
+                                    <input type="number" min="0" value={c?.quantiteRecue ?? String(lg.quantiteAttendue)}
+                                      onChange={e => setValiderLignes(prev => ({ ...prev, [lg.id]: { ...prev[lg.id], quantiteRecue: e.target.value } }))}
+                                      className="w-20 px-2 py-1 border border-slate-200 rounded text-center text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                                  </td>
+                                  <td className="px-2 py-2 text-center">
+                                    <input type="number" min="0" value={c?.quantiteRefusee ?? '0'}
+                                      onChange={e => setValiderLignes(prev => ({ ...prev, [lg.id]: { ...prev[lg.id], quantiteRefusee: e.target.value } }))}
+                                      className="w-20 px-2 py-1 border border-slate-200 rounded text-center text-sm focus:outline-none focus:ring-2 focus:ring-red-400" />
+                                  </td>
+                                  <td className="px-2 py-2 text-center">
+                                    <input type="number" min="0" value={c?.quantiteEndommagee ?? '0'}
+                                      onChange={e => setValiderLignes(prev => ({ ...prev, [lg.id]: { ...prev[lg.id], quantiteEndommagee: e.target.value } }))}
+                                      className="w-20 px-2 py-1 border border-slate-200 rounded text-center text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" />
+                                  </td>
+                                  <td className="px-2 py-2 text-center">
+                                    <select value={c?.etatQualite ?? 'BON'}
+                                      onChange={e => setValiderLignes(prev => ({ ...prev, [lg.id]: { ...prev[lg.id], etatQualite: e.target.value } }))}
+                                      className="px-2 py-1 border border-slate-200 rounded text-xs bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                                      {ETAT_QUALITE_OPTIONS_MAG.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                                    </select>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
                       </div>
+                      <label className="block">
+                        <span className="block text-xs font-medium text-slate-600 mb-1">Notes qualité (global)</span>
+                        <textarea rows={2} value={validerNotesQualite} onChange={e => setValiderNotesQualite(e.target.value)}
+                          className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm resize-y focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                      </label>
                       <div className="flex gap-3">
                         <button
-                          onClick={() => { setValiderLivId(null); setValiderLignes({}); }}
+                          onClick={() => { setValiderLivId(null); setValiderLignes({}); setValiderNotesQualite(''); }}
                           className="flex-1 py-2.5 border border-slate-200 rounded-xl text-slate-600 text-sm hover:bg-slate-50"
                         >
                           {t('btn_cancel')}
@@ -1836,12 +1913,74 @@ export default function MagasinierPage() {
                             ))}
                           </div>
                         </div>
+                        {liv.type === 'FOURNISSEUR' && liv.fournisseurId != null && (
+                          <button
+                            onClick={() => { setLitigeLiv(liv); setLitigeMotif(''); setLitigeDescription(''); }}
+                            className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 bg-red-50 text-red-700 rounded-lg hover:bg-red-100 text-xs font-medium transition-colors"
+                          >
+                            <AlertOctagon size={13} /> Signaler un litige
+                          </button>
+                        )}
                       </div>
                     </div>
                   ))}
                 </div>
               </div>
             )}
+
+            {/* Signalement litige fournisseur */}
+            {litigeLiv && (
+              <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[300] p-4 overflow-y-auto">
+                <div className="bg-white rounded-2xl w-full max-w-lg shadow-xl my-4">
+                  <div className="flex items-center justify-between p-5 border-b border-slate-100">
+                    <div className="flex items-center gap-3">
+                      <div className="bg-red-50 p-2.5 rounded-xl">
+                        <AlertOctagon className="text-red-600 w-5 h-5" />
+                      </div>
+                      <div>
+                        <h2 className="font-bold text-slate-800">Signaler un litige fournisseur</h2>
+                        <p className="text-xs text-slate-500">{litigeLiv.reference} — {litigeLiv.fournisseurNom ?? 'Fournisseur'}</p>
+                      </div>
+                    </div>
+                    <button onClick={() => setLitigeLiv(null)} className="p-2 text-slate-400 hover:text-slate-600 rounded-lg">
+                      <X size={18} />
+                    </button>
+                  </div>
+                  <div className="p-5 space-y-4">
+                    <p className="text-sm text-slate-600 bg-red-50 border border-red-200 rounded-xl p-3">
+                      Transmis au Responsable Approvisionnement Central pour suivi fournisseur (CDC §8).
+                    </p>
+                    <label className="block">
+                      <span className="block text-xs font-medium text-slate-600 mb-1">Motif *</span>
+                      <input value={litigeMotif} onChange={e => setLitigeMotif(e.target.value)} placeholder="Ex : marchandise endommagée à la livraison"
+                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-500" />
+                    </label>
+                    <label className="block">
+                      <span className="block text-xs font-medium text-slate-600 mb-1">Description (optionnel)</span>
+                      <textarea rows={3} value={litigeDescription} onChange={e => setLitigeDescription(e.target.value)}
+                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm resize-y focus:outline-none focus:ring-2 focus:ring-red-500" />
+                    </label>
+                    <div className="flex gap-3">
+                      <button onClick={() => setLitigeLiv(null)} className="flex-1 py-2.5 border border-slate-200 rounded-xl text-slate-600 text-sm hover:bg-slate-50">
+                        {t('btn_cancel')}
+                      </button>
+                      <button
+                        onClick={handleSignalerLitige}
+                        disabled={signalerLitigeLoading}
+                        className="flex-1 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-sm font-semibold disabled:opacity-50 flex items-center justify-center gap-2"
+                      >
+                        {signalerLitigeLoading
+                          ? <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Envoi…</>
+                          : <><AlertOctagon size={15} /> Signaler</>}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Demandes de réapprovisionnement (CDC §7 étape 1) */}
+            <MesDemandesReapproMag />
 
           </div>
         )}
@@ -2669,6 +2808,9 @@ export default function MagasinierPage() {
                   )}
                 </div>
 
+                {/* Lots (FEFO) */}
+                <LotsProduitMag produitId={detailProduitId} />
+
                 {/* Mouvements */}
                 <div className="px-6 py-4">
                   <h4 className="font-semibold text-slate-700 mb-3">Derniers mouvements ({detailProduit.mouvements.length})</h4>
@@ -2804,6 +2946,239 @@ export default function MagasinierPage() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Lots (FEFO) d'un produit sur le PDV du magasinier — traçabilité DLC/DLUO
+// (Catalogue Ent.#5), lecture seule, ordonnée FEFO (péremption la plus proche
+// d'abord) comme le fait déjà la logique de déstockage `consommerFEFO*`.
+// ═══════════════════════════════════════════════════════════════════════════
+
+interface LotProduitMag {
+  id: number; numeroLot: string; quantiteInitiale: number; quantite: number;
+  dlc: string | null; dluo: string | null; dateReception: string;
+  statut: 'ACTIF' | 'EPUISE' | 'PERIME';
+  fournisseur: { id: number; nom: string } | null;
+  peremption: { etat: 'SANS_DLC' | 'OK' | 'BIENTOT' | 'PERIME'; joursRestants: number | null };
+}
+
+const PEREMPTION_BADGE_MAG: Record<string, string> = {
+  SANS_DLC: 'bg-slate-100 text-slate-500',
+  OK: 'bg-emerald-100 text-emerald-700',
+  BIENTOT: 'bg-amber-100 text-amber-700',
+  PERIME: 'bg-red-100 text-red-700',
+};
+const PEREMPTION_LABEL_MAG: Record<string, string> = {
+  SANS_DLC: 'Sans DLC', OK: 'Valide', BIENTOT: 'Bientôt périmé', PERIME: 'Périmé',
+};
+
+function LotsProduitMag({ produitId }: { produitId: number }) {
+  const { data, loading } = useApi<{ data: LotProduitMag[] }>(`/api/magasinier/produits/${produitId}/lots`);
+  const lots = data?.data ?? [];
+
+  if (loading) return null;
+  if (lots.length === 0) return null;
+
+  return (
+    <div className="px-6 py-4 border-b border-slate-200">
+      <h4 className="font-semibold text-slate-700 mb-3">Lots (FEFO) — {lots.length}</h4>
+      <div className="space-y-1.5">
+        {lots.map((l) => (
+          <div key={l.id} className={`flex items-center gap-3 px-3 py-2 rounded-lg border text-sm ${l.statut === 'ACTIF' ? 'bg-slate-50 border-slate-100' : 'bg-slate-50/50 border-slate-100 opacity-60'}`}>
+            <span className="font-mono text-xs text-slate-500 shrink-0">{l.numeroLot}</span>
+            <span className="text-slate-700 shrink-0">{l.quantite}/{l.quantiteInitiale} u.</span>
+            {l.fournisseur && <span className="text-xs text-slate-400 truncate">{l.fournisseur.nom}</span>}
+            <span className="ml-auto flex items-center gap-2 shrink-0">
+              {l.dlc && <span className="text-xs text-slate-400">DLC {formatDate(l.dlc)}</span>}
+              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${PEREMPTION_BADGE_MAG[l.peremption.etat]}`}>
+                {PEREMPTION_LABEL_MAG[l.peremption.etat]}
+              </span>
+              {l.statut !== 'ACTIF' && <span className="text-xs px-2 py-0.5 rounded-full bg-slate-200 text-slate-500">{l.statut}</span>}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Demandes de réapprovisionnement (CommandeInterne, CDC §7 étape 1) — le
+// magasinier exprime un besoin produit pour son PDV, remonté au Responsable
+// Approvisionnement Central (ou au chef d'agence d'abord si le PDV en a un).
+// ═══════════════════════════════════════════════════════════════════════════
+
+interface DemandeReapproLigneMag {
+  produitId: number; quantiteDemandee: number; quantiteValidee: number | null;
+  produit: { id: number; nom: string; reference: string | null; unite: string | null };
+}
+interface DemandeReapproMag {
+  id: number; reference: string; statut: string; notes: string | null; createdAt: string;
+  lignes: DemandeReapproLigneMag[];
+}
+interface ProduitPickerMag { id: number; nom: string; reference?: string | null; unite?: string | null }
+
+const REAPPRO_STATUT_CFG_MAG: Record<string, { label: string; badge: string }> = {
+  EN_VALIDATION_AGENCE: { label: "En attente chef d'agence", badge: "bg-orange-100 text-orange-700" },
+  SOUMISE:  { label: "Soumise",  badge: "bg-amber-100 text-amber-700" },
+  EN_COURS: { label: "En cours", badge: "bg-blue-100 text-blue-700" },
+  COMPLETE: { label: "Traitée",  badge: "bg-emerald-100 text-emerald-700" },
+  ANNULE:   { label: "Rejetée",  badge: "bg-red-100 text-red-600" },
+};
+
+function MesDemandesReapproMag() {
+  const { data, loading, refetch } = useApi<{ data: DemandeReapproMag[] }>("/api/magasinier/commandes-internes?limit=30");
+  const demandes = data?.data ?? [];
+  const [showForm, setShowForm] = useState(false);
+
+  return (
+    <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 overflow-hidden">
+      <div className="px-6 py-4 border-b border-slate-200 bg-sky-50 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <ShoppingBag size={18} className="text-sky-600" />
+          <div>
+            <h3 className="font-bold text-slate-800">Mes demandes de réapprovisionnement</h3>
+            <p className="text-xs text-slate-500">Besoin produit pour ce PDV — remonté au Responsable Approvisionnement Central.</p>
+          </div>
+        </div>
+        <button onClick={() => setShowForm(true)}
+          className="shrink-0 flex items-center gap-1.5 px-3 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-xl text-xs font-semibold transition-colors">
+          <Send size={13} /> Nouvelle demande
+        </button>
+      </div>
+
+      {loading ? (
+        <div className="flex items-center justify-center py-10 text-slate-400"><RefreshCw className="w-5 h-5 animate-spin" /></div>
+      ) : demandes.length === 0 ? (
+        <div className="p-8 text-center">
+          <Inbox className="w-10 h-10 text-slate-200 mx-auto mb-3" />
+          <p className="text-slate-500 text-sm">Aucune demande envoyée.</p>
+        </div>
+      ) : (
+        <div className="divide-y divide-slate-100">
+          {demandes.map((d) => {
+            const cfg = REAPPRO_STATUT_CFG_MAG[d.statut] ?? REAPPRO_STATUT_CFG_MAG.SOUMISE;
+            return (
+              <div key={d.id} className="p-4">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="font-mono text-xs text-slate-500">{d.reference}</span>
+                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${cfg.badge}`}>{cfg.label}</span>
+                  <span className="text-xs text-slate-400 ml-auto">{formatDate(d.createdAt)}</span>
+                </div>
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {d.lignes.map((l) => (
+                    <span key={l.produitId} className="text-xs bg-slate-100 text-slate-600 px-2 py-1 rounded-lg">
+                      {l.produit.nom} × {d.statut === "SOUMISE" ? l.quantiteDemandee : (l.quantiteValidee ?? l.quantiteDemandee)} {l.produit.unite ?? ""}
+                    </span>
+                  ))}
+                </div>
+                {d.notes && <p className="text-xs text-slate-400 mt-1.5 italic">{d.notes}</p>}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {showForm && (
+        <NouvelleDemandeReapproModalMag
+          onClose={() => setShowForm(false)}
+          onCreated={() => { setShowForm(false); refetch(); }}
+        />
+      )}
+    </div>
+  );
+}
+
+function NouvelleDemandeReapproModalMag({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
+  const [search, setSearch] = useState("");
+  const [lignes, setLignes] = useState<{ produitId: number; nom: string; quantite: string }[]>([]);
+  const [notes, setNotes] = useState("");
+
+  const { data: produitsData } = useApi<{ data: ProduitPickerMag[] }>(
+    search.length >= 2 ? `/api/logistique/stock?search=${encodeURIComponent(search)}&limit=10` : null
+  );
+  const { mutate, loading: saving } = useMutation<DemandeReapproMag, { notes?: string; lignes: { produitId: number; quantiteDemandee: number }[] }>(
+    "/api/magasinier/commandes-internes", "POST",
+    { successMessage: "Demande envoyée au Responsable Approvisionnement" }
+  );
+
+  const produitsOptions: ProduitPickerMag[] = (produitsData?.data ?? []).map((p) => ({ id: p.id, nom: p.nom }));
+
+  const addProduit = (p: ProduitPickerMag) => {
+    if (lignes.some((l) => l.produitId === p.id)) return;
+    setLignes((prev) => [...prev, { produitId: p.id, nom: p.nom, quantite: "1" }]);
+    setSearch("");
+  };
+  const removeProduit = (produitId: number) => setLignes((prev) => prev.filter((l) => l.produitId !== produitId));
+  const setQuantite = (produitId: number, quantite: string) =>
+    setLignes((prev) => prev.map((l) => (l.produitId === produitId ? { ...l, quantite } : l)));
+
+  const handleSubmit = async () => {
+    if (lignes.length === 0) { toast.error("Ajoutez au moins un produit"); return; }
+    if (lignes.some((l) => !l.quantite || Number(l.quantite) <= 0)) { toast.error("Quantité invalide"); return; }
+    const result = await mutate({
+      notes: notes || undefined,
+      lignes: lignes.map((l) => ({ produitId: l.produitId, quantiteDemandee: Number(l.quantite) })),
+    });
+    if (result) onCreated();
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[92vh] flex flex-col">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
+          <h2 className="font-semibold text-slate-900">Nouvelle demande de réapprovisionnement</h2>
+          <button onClick={onClose} className="p-1.5 hover:bg-slate-100 rounded-lg"><X className="w-4 h-4" /></button>
+        </div>
+        <div className="overflow-y-auto flex-1 p-6 space-y-4">
+          <label className="block">
+            <span className="block text-xs font-medium text-slate-600 mb-1">Ajouter un produit</span>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Rechercher un produit…"
+                className="w-full pl-9 pr-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-sky-500" />
+              {produitsOptions.length > 0 && (
+                <div className="absolute z-10 mt-1 w-full bg-white border border-slate-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                  {produitsOptions.map((p) => (
+                    <button key={p.id} onClick={() => addProduit(p)} type="button"
+                      className="w-full text-left px-3 py-2 text-sm hover:bg-slate-50">
+                      {p.nom}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </label>
+
+          {lignes.length > 0 && (
+            <div className="border border-slate-200 rounded-xl divide-y divide-slate-100">
+              {lignes.map((l) => (
+                <div key={l.produitId} className="flex items-center gap-2 px-3 py-2">
+                  <span className="flex-1 text-sm text-slate-700">{l.nom}</span>
+                  <input type="number" min="1" value={l.quantite} onChange={(e) => setQuantite(l.produitId, e.target.value)}
+                    className="w-20 px-2 py-1 border border-slate-200 rounded text-center text-sm focus:outline-none focus:ring-2 focus:ring-sky-500" />
+                  <button onClick={() => removeProduit(l.produitId)} className="p-1 text-slate-400 hover:text-red-500"><X className="w-4 h-4" /></button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <label className="block">
+            <span className="block text-xs font-medium text-slate-600 mb-1">Notes (optionnel)</span>
+            <textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)}
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm resize-y focus:outline-none focus:ring-2 focus:ring-sky-500" />
+          </label>
+        </div>
+        <div className="flex justify-end gap-3 px-6 py-4 border-t border-slate-200">
+          <button onClick={onClose} className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 rounded-lg border border-slate-200">Annuler</button>
+          <button onClick={handleSubmit} disabled={saving}
+            className="flex items-center gap-2 px-4 py-2 bg-sky-600 text-white text-sm font-medium rounded-lg hover:bg-sky-700 disabled:opacity-50">
+            {saving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />} Envoyer
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

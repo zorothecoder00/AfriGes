@@ -3,6 +3,7 @@ import { StatutLivraisonPO } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { auditLog } from "@/lib/notifications";
 import { getSession } from "../../../../fournisseurs/route";
+import { getRequestMeta } from "@/lib/requestMeta";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -48,7 +49,7 @@ export async function POST(req: Request, { params }: Ctx) {
         }
       }
 
-      await auditLog(tx, userId, "IMPORTATION_EVENEMENT_AJOUTE", "EvenementImportation", e.id);
+      await auditLog(tx, userId, "IMPORTATION_EVENEMENT_AJOUTE", "EvenementImportation", e.id, undefined, getRequestMeta(req));
       return e;
     });
 

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getChefAgenceSession, getChefAgencePdvIds } from "@/lib/authChefAgence";
 import { resolveViewAs } from "@/lib/viewAs";
+import { vueEffective } from "@/lib/vuesCatalogueServer";
 
 /**
  * GET /api/chef-agence/stock?pdvId=X
@@ -28,6 +29,11 @@ export async function GET(req: NextRequest) {
     const effectivePdvIds = pdvIdParam
       ? (pdvIds === null || pdvIds.includes(pdvIdParam) ? [pdvIdParam] : [])
       : pdvIds;
+
+    // Prix d'achat exposé par produit uniquement si la vue CHEF_AGENCE (Catalogue
+    // §21.D/§22) l'autorise — par défaut non (donnée réservée à Admin/Resp. Appro).
+    const vueChefAgence   = await vueEffective("CHEF_AGENCE");
+    const montrerPrixAchat = vueChefAgence?.champsVisibles.includes("prixAchat") ?? false;
 
     const stockFilter   = effectivePdvIds ? { pointDeVenteId: { in: effectivePdvIds } } : {};
     const transfertWhere = effectivePdvIds
@@ -139,7 +145,7 @@ export async function GET(req: NextRequest) {
         id: s.produit.id, nom: s.produit.nom, reference: s.produit.reference,
         categorie: s.produit.categorie, unite: s.produit.unite,
         prixUnitaire: Number(s.produit.prixUnitaire),
-        prixAchat:    s.produit.prixAchat !== null ? Number(s.produit.prixAchat) : null,
+        prixAchat:    montrerPrixAchat && s.produit.prixAchat !== null ? Number(s.produit.prixAchat) : null,
         quantite: s.quantite,
         quantiteReservee:   s.quantiteReservee,
         quantiteEnTransit:  s.quantiteEnTransit,
@@ -161,7 +167,7 @@ export async function GET(req: NextRequest) {
           id:            t.id,
           reference:     t.reference,
           statut:        t.statut,
-          origineNom:    t.origine.nom,
+          origineNom:    t.origine?.nom ?? "—",
           destinationNom: t.destination.nom,
           dateExpedition: t.dateExpedition?.toISOString() ?? null,
           createdAt:     t.createdAt.toISOString(),

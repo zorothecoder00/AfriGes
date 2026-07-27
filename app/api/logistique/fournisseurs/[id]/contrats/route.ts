@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auditLog } from "@/lib/notifications";
 import { getSession } from "../../route";
+import { getRequestMeta } from "@/lib/requestMeta";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -52,7 +53,7 @@ export async function POST(req: Request, { params }: Ctx) {
           fichierUrl: fichierUrl || null, notes: notes || null,
         },
       });
-      await auditLog(tx, parseInt(session.user.id), "CONTRAT_FOURNISSEUR_CREE", "ContratFournisseur", c.id);
+      await auditLog(tx, parseInt(session.user.id), "CONTRAT_FOURNISSEUR_CREE", "ContratFournisseur", c.id, undefined, getRequestMeta(req));
       return c;
     });
 

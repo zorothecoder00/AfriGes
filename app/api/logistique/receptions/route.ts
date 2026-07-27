@@ -5,6 +5,7 @@ import { getLogistiqueSession } from "@/lib/authLogistique";
 import { getMagasinierSession } from "@/lib/authMagasinier";
 import { randomUUID } from "crypto";
 import { notifyRoles, notifyAdmins, auditLog } from "@/lib/notifications";
+import { getRequestMeta } from "@/lib/requestMeta";
 
 async function getSession() {
   return (await getLogistiqueSession()) ?? (await getMagasinierSession());
@@ -156,7 +157,7 @@ export async function POST(req: Request) {
         });
       }
 
-      await auditLog(tx, parseInt(session.user.id), "RECEPTION_CREEE", "ReceptionApprovisionnement", r.id);
+      await auditLog(tx, parseInt(session.user.id), "RECEPTION_CREEE", "ReceptionApprovisionnement", r.id, undefined, getRequestMeta(req));
 
       // Notifier l'admin pour approbation (étape 2 du processus d'entrée stock)
       await notifyAdmins(tx, {

@@ -1,0 +1,2 @@
+-- AlterEnum
+ALTER TYPE "RoleGestionnaire" ADD VALUE 'DIRECTEUR_COMMERCIAL';

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auditLog } from "@/lib/notifications";
 import { getSession } from "../../../fournisseurs/route";
+import { getRequestMeta } from "@/lib/requestMeta";
 import { htmlToPdf } from "@/lib/pdf";
 import { genBonCommandeHtml } from "@/lib/bonCommandeHtml";
 import { sendBonCommandeEmail } from "@/lib/email";
@@ -21,7 +22,7 @@ type Ctx = { params: Promise<{ id: string }> };
  * (envoi à considérer comme fait par un autre canal) mais l'email n'est pas
  * envoyé — signalé dans la réponse.
  */
-export async function POST(_req: Request, { params }: Ctx) {
+export async function POST(req: Request, { params }: Ctx) {
   try {
     const session = await getSession();
     if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
@@ -75,7 +76,7 @@ export async function POST(_req: Request, { params }: Ctx) {
           lignes: { include: { produit: { select: { id: true, nom: true, codeProduit: true } } } },
         },
       });
-      await auditLog(tx, userId, "PO_ENVOYE", "BonCommande", bonId, { emailEnvoye });
+      await auditLog(tx, userId, "PO_ENVOYE", "BonCommande", bonId, { emailEnvoye }, getRequestMeta(req));
       return b;
     });
 

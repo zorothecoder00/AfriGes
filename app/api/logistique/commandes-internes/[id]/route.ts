@@ -3,6 +3,7 @@ import { PrioriteNotification } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "../../fournisseurs/route";
 import { notify, auditLog } from "@/lib/notifications";
+import { getRequestMeta } from "@/lib/requestMeta";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -72,7 +73,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
           });
         }
         const c = await tx.commandeInterne.update({ where: { id: commandeId }, data: { statut: "EN_COURS" }, include: INCLUDE });
-        await auditLog(tx, userId, "COMMANDE_INTERNE_VALIDEE", "CommandeInterne", commandeId);
+        await auditLog(tx, userId, "COMMANDE_INTERNE_VALIDEE", "CommandeInterne", commandeId, undefined, getRequestMeta(req));
         await notify(tx, [existing.demandeurId], {
           titre: `Demande validée : ${existing.reference}`,
           message: `Votre demande de réapprovisionnement pour "${existing.pointDeVente.nom}" a été validée et est prise en charge.`,
@@ -94,7 +95,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
           data: { statut: "ANNULE", notes: body.notes ? `${existing.notes ? existing.notes + " — " : ""}Rejet : ${body.notes}` : existing.notes },
           include: INCLUDE,
         });
-        await auditLog(tx, userId, "COMMANDE_INTERNE_REJETEE", "CommandeInterne", commandeId, { motif: body.notes ?? null });
+        await auditLog(tx, userId, "COMMANDE_INTERNE_REJETEE", "CommandeInterne", commandeId, { motif: body.notes ?? null }, getRequestMeta(req));
         await notify(tx, [existing.demandeurId], {
           titre: `Demande rejetée : ${existing.reference}`,
           message: `Votre demande de réapprovisionnement pour "${existing.pointDeVente.nom}" a été rejetée${body.notes ? ` : ${body.notes}` : "."}`,
@@ -112,7 +113,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
       }
       const updated = await prisma.$transaction(async (tx) => {
         const c = await tx.commandeInterne.update({ where: { id: commandeId }, data: { statut: "COMPLETE" }, include: INCLUDE });
-        await auditLog(tx, userId, "COMMANDE_INTERNE_CLOTUREE", "CommandeInterne", commandeId);
+        await auditLog(tx, userId, "COMMANDE_INTERNE_CLOTUREE", "CommandeInterne", commandeId, undefined, getRequestMeta(req));
         await notify(tx, [existing.demandeurId], {
           titre: `Demande satisfaite : ${existing.reference}`,
           message: `Votre demande de réapprovisionnement pour "${existing.pointDeVente.nom}" a été traitée.`,

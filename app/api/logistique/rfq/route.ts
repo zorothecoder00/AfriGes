@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { auditLog } from "@/lib/notifications";
 import { getSession } from "../fournisseurs/route";
+import { getRequestMeta } from "@/lib/requestMeta";
 
 const INCLUDE = {
   produit: { select: { id: true, nom: true, codeProduit: true, uniteAchat: { select: { nom: true } } } },
@@ -96,7 +97,7 @@ export async function POST(req: Request) {
             },
             include: INCLUDE,
           });
-          await auditLog(tx, parseInt(session.user.id), "RFQ_CREEE", "DemandeCotation", d.id);
+          await auditLog(tx, parseInt(session.user.id), "RFQ_CREEE", "DemandeCotation", d.id, undefined, getRequestMeta(req));
           return d;
         });
         return NextResponse.json({ data: demande }, { status: 201 });

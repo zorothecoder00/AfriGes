@@ -5,6 +5,7 @@ import { getMagasinierSession } from "@/lib/authMagasinier";
 import { getRPVSession } from "@/lib/authRPV";
 import { randomUUID } from "crypto";
 import { notify, notifyRoles, auditLog } from "@/lib/notifications";
+import { getRequestMeta } from "@/lib/requestMeta";
 import { resolveViewAs } from "@/lib/viewAs";
 
 async function getSession() {
@@ -136,7 +137,7 @@ export async function POST(req: Request) {
         },
       });
 
-      await auditLog(tx, parseInt(session.user.id), "COMMANDE_INTERNE_CREEE", "CommandeInterne", c.id);
+      await auditLog(tx, parseInt(session.user.id), "COMMANDE_INTERNE_CREEE", "CommandeInterne", c.id, undefined, getRequestMeta(req));
 
       if (statutInitial === "EN_VALIDATION_AGENCE" && pdv?.chefAgenceId) {
         await notify(tx, [pdv.chefAgenceId], {

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auditLog } from "@/lib/notifications";
 import { getSession } from "../../../route";
+import { getRequestMeta } from "@/lib/requestMeta";
 
 type Ctx = { params: Promise<{ id: string; litigeId: string }> };
 
@@ -31,7 +32,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
         where: { id: Number(litigeId) },
         data: { statut, resoluParId: parseInt(session.user.id), dateResolution: new Date() },
       });
-      await auditLog(tx, parseInt(session.user.id), `LITIGE_FOURNISSEUR_${statut}`, "LitigeFournisseur", l.id);
+      await auditLog(tx, parseInt(session.user.id), `LITIGE_FOURNISSEUR_${statut}`, "LitigeFournisseur", l.id, undefined, getRequestMeta(req));
       return l;
     });
 

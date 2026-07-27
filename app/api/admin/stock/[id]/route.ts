@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getAuthSession } from "@/lib/auth";
 import { auditLog } from "@/lib/notifications";
 import { randomUUID } from "crypto";
+import { getRequestMeta } from "@/lib/requestMeta";
 
 /**
  * GET /api/admin/stock/[id]
@@ -187,7 +188,7 @@ export async function PUT(
           throw new Error("blocageAction invalide");
         }
 
-        await auditLog(tx, parseInt(session.user.id), `STOCK_${blocageAction}`, "StockSite", site.id, { produitId: numericId, pointDeVenteId: Number(pointDeVenteId), quantite: qty, motif: motifAjustement || null });
+        await auditLog(tx, parseInt(session.user.id), `STOCK_${blocageAction}`, "StockSite", site.id, { produitId: numericId, pointDeVenteId: Number(pointDeVenteId), quantite: qty, motif: motifAjustement || null }, getRequestMeta(req));
       }
 
       return tx.produit.update({

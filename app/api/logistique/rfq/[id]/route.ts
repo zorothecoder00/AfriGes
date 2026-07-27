@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auditLog } from "@/lib/notifications";
 import { getSession } from "../../fournisseurs/route";
+import { getRequestMeta } from "@/lib/requestMeta";
 import { comparerCandidatsRFQ, type CandidatRFQ } from "@/lib/rfqComparatif";
 
 type Ctx = { params: Promise<{ id: string }> };
@@ -71,7 +72,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
       }
       const updated = await prisma.$transaction(async (tx) => {
         const d = await tx.demandeCotation.update({ where: { id: demandeId }, data: { statut: "ANNULEE" }, include: INCLUDE });
-        await auditLog(tx, parseInt(session.user.id), "RFQ_ANNULEE", "DemandeCotation", demandeId);
+        await auditLog(tx, parseInt(session.user.id), "RFQ_ANNULEE", "DemandeCotation", demandeId, undefined, getRequestMeta(req));
         return d;
       });
       return NextResponse.json({ data: updated });

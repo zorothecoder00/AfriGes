@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auditLog } from "@/lib/notifications";
 import { getSession } from "../../fournisseurs/route";
+import { getRequestMeta } from "@/lib/requestMeta";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -58,6 +59,28 @@ export async function PATCH(req: Request, { params }: Ctx) {
         ANNULER:           { from: ["DRAFT", "PENDING_APPROVAL", "APPROVED", "SENT", "ACKNOWLEDGED"], to: "CANCELLED" },
       };
 
+      if (body.action === "ENREGISTRER_PAIEMENT") {
+        // CDC §14 — alimente "factures fournisseurs à payer" / prévisions de trésorerie.
+        const montant = Number(body.montant);
+        if (!montant || montant <= 0) return NextResponse.json({ error: "Montant invalide" }, { status: 400 });
+        const soldeDu = Number(bon.montantTotal) - Number(bon.montantPaye);
+        if (montant > soldeDu) {
+          return NextResponse.json({ error: `Le montant dépasse le solde dû (${soldeDu})` }, { status: 422 });
+        }
+        const updated = await prisma.$transaction(async (tx) => {
+          const b = await tx.bonCommande.update({
+            where: { id: bonId },
+            data: { montantPaye: { increment: montant } },
+            include: INCLUDE,
+          });
+          await auditLog(tx, userId, "PO_PAIEMENT_ENREGISTRE", "BonCommande", bonId, {
+            montant, soldeRestant: Number(b.montantTotal) - Number(b.montantPaye),
+          }, getRequestMeta(req));
+          return b;
+        });
+        return NextResponse.json({ data: updated });
+      }
+
       if (body.action === "SIGNER") {
         if (bon.statut !== "APPROVED" && bon.statut !== "SENT") {
           return NextResponse.json({ error: "Seul un bon approuvé peut être signé" }, { status: 422 });
@@ -68,7 +91,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
             data: { signeParId: userId, dateSignature: new Date() },
             include: INCLUDE,
           });
-          await auditLog(tx, userId, "PO_SIGNE", "BonCommande", bonId);
+          await auditLog(tx, userId, "PO_SIGNE", "BonCommande", bonId, undefined, getRequestMeta(req));
           return b;
         });
         return NextResponse.json({ data: updated });
@@ -86,7 +109,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
 
       const updated = await prisma.$transaction(async (tx) => {
         const b = await tx.bonCommande.update({ where: { id: bonId }, data, include: INCLUDE });
-        await auditLog(tx, userId, `PO_${body.action}`, "BonCommande", bonId, { avant: bon.statut, apres: t.to });
+        await auditLog(tx, userId, `PO_${body.action}`, "BonCommande", bonId, { avant: bon.statut, apres: t.to }, getRequestMeta(req));
         return b;
       });
       return NextResponse.json({ data: updated });
