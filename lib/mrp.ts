@@ -10,8 +10,10 @@
  *     séparément car StockSite.quantite exclut déjà le réservé par construction.
  *   - Prévision ventes = moyenne mensuelle historique des sorties clients
  *     (VENTE_DIRECTE/LIVRAISON_PACK/LIVRAISON_CLIENT) × horizon en mois,
- *     PLUS les souscriptions déjà confirmées non couvertes (demande ferme
- *     connue, pas une estimation) sur l'horizon.
+ *     PLUS la demande ferme non couverte (pas une estimation) : souscriptions
+ *     déjà confirmées + lignes de crédits clients déjà validés (VALIDE/ACTIF/
+ *     EN_RETARD) mais pas encore livrées — un crédit accordé est lui aussi une
+ *     précommande de produits, au même titre qu'une souscription confirmée.
  *   - Saisonnalité, promotions prévues, tendances marché (CDC) ne sont PAS
  *     modélisées ici faute de données suffisantes/fiables pour les quantifier
  *     automatiquement sans deviner — seul un signal informatif "promotion
@@ -23,7 +25,7 @@
 export interface EntreeBesoinMRP {
   moyenneMensuelleVentes: number;   // moyenne des sorties clients / mois (historique)
   horizonMois: number;              // horizon de couverture souhaité
-  souscriptionsConfirmeesNonCouvertes: number; // demande ferme connue (packs)
+  demandeFermeNonCouverte: number; // demande ferme connue : souscriptions confirmées + crédits validés non livrés
   stockSecurite: number;            // stockMin / seuilCritique
   stockDisponible: number;
   stockEnTransit: number;
@@ -37,7 +39,7 @@ export interface ResultatBesoinMRP extends EntreeBesoinMRP {
 
 export function calculerBesoinMRP(entree: EntreeBesoinMRP): ResultatBesoinMRP {
   const previsionVentes = Math.round(
-    entree.moyenneMensuelleVentes * entree.horizonMois + entree.souscriptionsConfirmeesNonCouvertes
+    entree.moyenneMensuelleVentes * entree.horizonMois + entree.demandeFermeNonCouverte
   );
   const disponibleEffectif = entree.stockDisponible + entree.stockEnTransit;
   const besoinNet = Math.max(

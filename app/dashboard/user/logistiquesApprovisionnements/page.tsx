@@ -7,7 +7,7 @@ import {
   RefreshCw, AlertTriangle, Archive, CheckCircle, ClipboardList,
   Boxes, BarChart3, Plus, X, MapPin, ClipboardCheck, Filter,
   TrendingUp, LucideIcon, PlayCircle, ChevronDown, ChevronUp,
-  ShieldAlert, Send, Clock, CheckSquare, XCircle, History,
+  ShieldAlert, Send, Clock, CheckSquare, XCircle, History, Inbox,
 } from "lucide-react";
 import HistoriquePrixProduit from "@/components/HistoriquePrixProduit";
 import NotificationBell from "@/components/NotificationBell";
@@ -796,6 +796,13 @@ export default function LogistiqueApprovisionnementPage() {
             >
               <TrendingUp size={16} />
               Besoins (MRP)
+            </Link>
+            <Link
+              href="/dashboard/user/logistiquesApprovisionnements/commandes-internes"
+              className="px-5 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-700 hover:bg-slate-50 transition-all shadow-sm flex items-center gap-2 font-medium"
+            >
+              <Inbox size={16} />
+              Demandes internes
             </Link>
             <Link
               href="/dashboard/user/logistiquesApprovisionnements/rfq"

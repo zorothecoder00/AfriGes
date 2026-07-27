@@ -308,6 +308,8 @@ export const translations = {
   label_capacite_stockage: { fr: "Capacité de stockage", en: "Storage capacity", ar: "سعة التخزين",     es: "Capacidad de almacenamiento", pt: "Capacidade de armazenamento" },
   label_capacite_unite: { fr: "Unité",        en: "Unit",         ar: "الوحدة",             es: "Unidad",         pt: "Unidade" },
   label_seuil_securite_site: { fr: "Seuil de sécurité (site)", en: "Security threshold (site)", ar: "حد الأمان (الموقع)", es: "Umbral de seguridad (sitio)", pt: "Limite de segurança (site)" },
+  label_niveau_securite: { fr: "Niveau de sécurité", en: "Security level", ar: "مستوى الأمان", es: "Nivel de seguridad", pt: "Nível de segurança" },
+  label_responsable_site: { fr: "Responsable du site", en: "Site manager", ar: "مسؤول الموقع", es: "Responsable del sitio", pt: "Responsável pelo site" },
   label_site_parent:   { fr: "Site parent (plateforme régionale)", en: "Parent site (regional platform)", ar: "الموقع الأصلي (منصة إقليمية)", es: "Sitio padre (plataforma regional)", pt: "Site pai (plataforma regional)" },
   label_reference:     { fr: "Référence",     en: "Reference",    ar: "المرجع",             es: "Referencia",     pt: "Referência" },
   label_categorie:     { fr: "Catégorie",     en: "Category",     ar: "الفئة",              es: "Categoría",      pt: "Categoria" },

@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getMagasinierSession } from "@/lib/authMagasinier";
 import { getRPVSession } from "@/lib/authRPV";
 import { randomUUID } from "crypto";
-import { notifyRoles, auditLog } from "@/lib/notifications";
+import { notify, notifyRoles, auditLog } from "@/lib/notifications";
 import { resolveViewAs } from "@/lib/viewAs";
 
 async function getSession() {
@@ -84,7 +84,10 @@ export async function GET(req: NextRequest) {
 
 /**
  * POST /api/magasinier/commandes-internes
- * Créer une demande de réapprovisionnement interne.
+ * Créer une demande de réapprovisionnement interne (CDC §7 étape 1).
+ * Si le PDV a un chef d'agence, la demande part en validation chez lui
+ * (étape 2 du CDC) avant de remonter à l'appro central ; sinon elle part
+ * directement à l'appro central (pas de chef d'agence à qui la soumettre).
  * Body: { pointDeVenteId, notes?, lignes: [{produitId, quantiteDemandee}] }
  */
 export async function POST(req: Request) {
@@ -104,13 +107,19 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "lignes sont obligatoires" }, { status: 400 });
     }
 
+    const pdv = await prisma.pointDeVente.findUnique({
+      where: { id: Number(pointDeVenteId) },
+      select: { nom: true, chefAgenceId: true },
+    });
+    const statutInitial = pdv?.chefAgenceId ? "EN_VALIDATION_AGENCE" : "SOUMISE";
+
     const commande = await prisma.$transaction(async (tx) => {
       const ref = `CMD-INT-${Date.now()}-${randomUUID().slice(0, 6).toUpperCase()}`;
 
       const c = await tx.commandeInterne.create({
         data: {
           reference:     ref,
-          statut:        "SOUMISE",
+          statut:        statutInitial,
           demandeurId:   parseInt(session.user.id),
           pointDeVenteId:Number(pointDeVenteId),
           notes:         notes || null,
@@ -129,12 +138,21 @@ export async function POST(req: Request) {
 
       await auditLog(tx, parseInt(session.user.id), "COMMANDE_INTERNE_CREEE", "CommandeInterne", c.id);
 
-      await notifyRoles(tx, ["AGENT_LOGISTIQUE_APPROVISIONNEMENT"], {
-        titre:    `Demande réappro : ${ref}`,
-        message:  `${session.user.prenom} ${session.user.nom} a soumis une demande de réapprovisionnement pour "${c.pointDeVente.nom}" (${c.lignes.length} produit(s)).`,
-        priorite: PrioriteNotification.HAUTE,
-        actionUrl:`/dashboard/logistique/commandes-internes/${c.id}`,
-      });
+      if (statutInitial === "EN_VALIDATION_AGENCE" && pdv?.chefAgenceId) {
+        await notify(tx, [pdv.chefAgenceId], {
+          titre:    `Demande à valider : ${ref}`,
+          message:  `${session.user.prenom} ${session.user.nom} a soumis une demande de réapprovisionnement pour "${c.pointDeVente.nom}" (${c.lignes.length} produit(s)) — à valider avant transmission à l'appro central.`,
+          priorite: PrioriteNotification.HAUTE,
+          actionUrl:"/dashboard/user/chefAgence",
+        });
+      } else {
+        await notifyRoles(tx, ["AGENT_LOGISTIQUE_APPROVISIONNEMENT"], {
+          titre:    `Demande réappro : ${ref}`,
+          message:  `${session.user.prenom} ${session.user.nom} a soumis une demande de réapprovisionnement pour "${c.pointDeVente.nom}" (${c.lignes.length} produit(s)).`,
+          priorite: PrioriteNotification.HAUTE,
+          actionUrl:`/dashboard/user/logistiquesApprovisionnements/commandes-internes`,
+        });
+      }
 
       return c;
     });

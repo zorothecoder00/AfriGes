@@ -111,6 +111,12 @@ enum TypePointDeVente {
   DEPOT_CENTRAL
   PLATEFORME_REGIONALE // CDC Approvisionnement §3/§4 — hub régional entre le dépôt central et les PDV
 }
+
+enum NiveauSecuriteSite {
+  STANDARD    // site ouvert, sécurité de base
+  RENFORCE    // accès contrôlé (badge, gardiennage)
+  MAXIMALE    // haute sécurité (coffre, vidéosurveillance 24/7…) — typiquement dépôt central
+}
       
 enum TypeEntreeStock {
   RECEPTION_FOURNISSEUR
@@ -175,11 +181,12 @@ enum StatutInventaire {
 
 enum StatutCommandeInterne {
   BROUILLON
+  EN_VALIDATION_AGENCE // CDC §7 étape 2 — en attente de validation par le chef d'agence du PDV demandeur
   SOUMISE
   EN_COURS
   COMPLETE
   ANNULE
-}  
+}
 
 // ============================================================
 // ENUMS — Ventes & caisse
@@ -681,6 +688,11 @@ model User {
   pointDeVenteRPV      PointDeVente?        @relation("RPVPointDeVente")
   // PDV supervisés en tant que chef d'agence (1-N)
   pointsDeVenteChef    PointDeVente[]       @relation("ChefAgencePDV")
+  // Sites dont cet user est responsable (surtout dépôt central / plateforme régionale)
+  sitesResponsable     PointDeVente[]       @relation("ResponsablePointDeVente")
+  // Litiges fournisseurs ouverts/résolus par cet user
+  litigesFournisseurCrees  LitigeFournisseur[] @relation("LitigeFournisseurCreePar")
+  litigesFournisseurResolus LitigeFournisseur[] @relation("LitigeFournisseurResoluPar")
   // Affectations opérationnelles à des PDV / dépôts
   affectationsPDV      GestionnaireAffectation[]
 
@@ -840,6 +852,7 @@ model PointDeVente {
   capaciteStockage    Decimal? // capacité totale du site (unité : capaciteUnite)
   capaciteUnite       String?  @default("m3") // ex m3, palettes
   seuilSecuriteGlobal Decimal? // seuil de sécurité au niveau site (en complément des seuils par produit sur StockSite)
+  niveauSecurite      NiveauSecuriteSite @default(STANDARD) // niveau de sécurité physique du site (CDC §4)
 
   // RPV responsable (type POINT_DE_VENTE uniquement, 1-1)
   rpvId Int?  @unique
@@ -848,6 +861,11 @@ model PointDeVente {
   // Chef d'agence superviseur (peut superviser plusieurs PDV)
   chefAgenceId Int?
   chefAgence   User? @relation("ChefAgencePDV", fields: [chefAgenceId], references: [id])
+
+  // Responsable du site — utile surtout pour DEPOT_CENTRAL/PLATEFORME_REGIONALE
+  // qui n'ont ni rpvId ni chefAgenceId (CDC §4 : chaque emplacement a un responsable).
+  responsableId Int?
+  responsable   User? @relation("ResponsablePointDeVente", fields: [responsableId], references: [id])
 
   // Bulk pour clients
   clientsPDV ClientPointDeVente[]
@@ -1492,6 +1510,7 @@ model Fournisseur {
   noteGlobale Decimal? // /100
 
   contrats   ContratFournisseur[]
+  litiges    LitigeFournisseur[]
   receptions ReceptionApprovisionnement[]
   produits   Produit[]                        // catalogue : produits dont il est le fournisseur principal (Catalogue §3)
   produitsSecondaires Produit[] @relation("ProduitFournisseursSecondaires") // source alternative (CDC Appro §5)
@@ -1523,6 +1542,38 @@ model ContratFournisseur {
   updatedAt DateTime @updatedAt
 
   @@index([fournisseurId])
+}
+
+enum StatutLitigeFournisseur {
+  OUVERT
+  RESOLU
+  REJETE
+}
+
+/// Litige/réclamation fournisseur (CDC §8 — critère d'évaluation "Litiges").
+/// Sans ce modèle, ce critère n'a aucune source de donnée à calculer.
+model LitigeFournisseur {
+  id            Int                     @id @default(autoincrement())
+  fournisseurId Int
+  fournisseur   Fournisseur             @relation(fields: [fournisseurId], references: [id], onDelete: Cascade)
+  motif         String
+  description   String?
+  statut        StatutLitigeFournisseur @default(OUVERT)
+
+  bonCommandeId Int?
+  bonCommande   BonCommande? @relation(fields: [bonCommandeId], references: [id])
+
+  creeParId      Int
+  creePar        User      @relation("LitigeFournisseurCreePar", fields: [creeParId], references: [id])
+  resoluParId    Int?
+  resoluPar      User?     @relation("LitigeFournisseurResoluPar", fields: [resoluParId], references: [id])
+  dateResolution DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([fournisseurId])
+  @@index([statut])
 }
 
 // ============================================================
@@ -2376,6 +2427,7 @@ model BonCommande {
   lignes      LigneBonCommande[]
   receptions  ReceptionApprovisionnement[]
   importation Importation?
+  litiges     LitigeFournisseur[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

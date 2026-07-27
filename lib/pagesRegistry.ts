@@ -25,6 +25,7 @@ export const PAGES_REGISTRY: RoleRegistry[] = [
       { key: "ventes",            label: "Ventes",            defaultAllowed: true, module: "ventes"      },
       { key: "stock",             label: "Stock & Produits",  defaultAllowed: true, module: "stock"       },
       { key: "approvisionnement", label: "Approvisionnement", defaultAllowed: true, module: "logistique"  },
+      { key: "reappro",           label: "Réappro (demandes)",defaultAllowed: true, module: "logistique"  },
       { key: "livraisons",        label: "Livraisons",        defaultAllowed: true, module: "logistique"  },
       { key: "ventes-terrain",    label: "Ventes Terrain",    defaultAllowed: true, module: "terrain"     },
       { key: "caisse",            label: "Caisse PDV",        defaultAllowed: true, module: "caisse"      },

@@ -1,12 +1,12 @@
 "use client";
 
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import {
   LayoutDashboard, Store, TrendingUp, Package, Wallet, Users,
   UserCheck, ShoppingBag, FileText, RefreshCw, Download,
   AlertTriangle, CheckCircle, XCircle, Clock, Search,
   ArrowRight, BarChart3, ArrowLeftRight, Plus, X,
-  ChevronDown, ChevronUp, Eye, MapPin,
+  ChevronDown, ChevronUp, Eye, MapPin, Send,
 } from "lucide-react";
 import Link from "next/link";
 import NotificationBell from "@/components/NotificationBell";
@@ -16,6 +16,7 @@ import UserPdvBadge from "@/components/UserPdvBadge";
 import ClientSegmentTags from "@/components/ClientSegmentTags";
 import { useApi } from "@/hooks/useApi";
 import { useMutation } from "@/hooks/useApi";
+import { toast } from "sonner";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { exportToXlsx } from "@/lib/exportXlsx";
 import { useT } from "@/contexts/AppSettingsContext";
@@ -180,7 +181,7 @@ interface ApprovResponse {
   success: boolean;
   commandes: ApprovItem[];
   receptions: ApprovItem[];
-  stats: { commandesAttente: number; receptionsAttente: number };
+  stats: { commandesAttente: number; aValiderAgence: number; receptionsAttente: number };
   meta: { totalCommandes: number; totalReceptions: number; page: number; limit: number };
 }
 
@@ -218,6 +219,7 @@ function StatCard({ label, value, sub, color = "blue", icon: Icon }: {
 function Badge({ statut }: { statut: string }) {
   const map: Record<string, string> = {
     BROUILLON: "bg-gray-100 text-gray-700",
+    EN_VALIDATION_AGENCE: "bg-amber-100 text-amber-700",
     SOUMISE: "bg-blue-100 text-blue-700",
     VALIDEE: "bg-green-100 text-green-700",
     EN_COURS: "bg-yellow-100 text-yellow-700",
@@ -303,6 +305,7 @@ export default function ChefAgenceDashboard() {
   const [approvStatut, setApprovStatut] = useState("");
   const [approvPage,   setApprovPage]   = useState(1);
   const [approvPdvId,  setApprovPdvId]  = useState("");
+  const [showNouvelleDemande, setShowNouvelleDemande] = useState(false);
 
   // ── Modal affectation agent ──────────────────────────────────────────────
   const [showAffectModal, setShowAffectModal] = useState(false);
@@ -395,6 +398,24 @@ export default function ChefAgenceDashboard() {
     successMessage: "Agent affecté avec succès",
     errorMessage: "Erreur lors de l'affectation",
   });
+
+  // ── Validation des demandes de réappro (CDC §7 étape 2) ──────────────────
+  const validerIdRef = useRef<number | null>(null);
+  const { mutate: validerDemandeAppro, loading: validationLoading } = useMutation<
+    unknown, { action: "VALIDER" | "REJETER"; notes?: string }
+  >(() => `/api/chef-agence/approvisionnement/${validerIdRef.current}`, "PATCH");
+
+  const handleValiderDemande = async (id: number) => {
+    validerIdRef.current = id;
+    const res = await validerDemandeAppro({ action: "VALIDER" });
+    if (res !== null) { toast.success("Demande validée, transmise à l'appro central"); approvRefetch(); }
+  };
+  const handleRejeterDemande = async (id: number) => {
+    const notes = prompt("Motif du rejet (optionnel) :") ?? undefined;
+    validerIdRef.current = id;
+    const res = await validerDemandeAppro({ action: "REJETER", notes });
+    if (res !== null) { toast.success("Demande rejetée"); approvRefetch(); }
+  };
 
   // ── Helpers locaux ───────────────────────────────────────────────────────
   const pdvList = dashData?.data?.topPdvs?.map(p => ({ id: p.id, nom: p.nom, code: p.code })) ?? [];
@@ -1478,6 +1499,11 @@ export default function ChefAgenceDashboard() {
                 <h2 className="text-base font-semibold text-gray-900">Approvisionnement</h2>
                 {approvData?.stats && (
                   <div className="flex gap-2">
+                    {approvData.stats.aValiderAgence > 0 && (
+                      <span className="text-xs text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full font-medium">
+                        {approvData.stats.aValiderAgence} demande{approvData.stats.aValiderAgence !== 1 ? "s" : ""} à valider
+                      </span>
+                    )}
                     {approvData.stats.commandesAttente > 0 && (
                       <span className="text-xs text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-full">
                         {approvData.stats.commandesAttente} commande{approvData.stats.commandesAttente !== 1 ? "s" : ""} en attente
@@ -1492,6 +1518,10 @@ export default function ChefAgenceDashboard() {
                 )}
               </div>
               <div className="flex items-center gap-2 flex-wrap">
+                <button onClick={() => setShowNouvelleDemande(true)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium">
+                  <Send className="w-3.5 h-3.5" /> Nouvelle demande
+                </button>
                 <select value={approvType} onChange={(e) => { setApprovType(e.target.value); setApprovPage(1); }}
                   className="text-sm border border-gray-300 rounded px-2 py-1.5">
                   <option value="all">Tout</option>
@@ -1538,7 +1568,20 @@ export default function ChefAgenceDashboard() {
                               <p className="text-sm font-medium text-gray-900 mt-0.5">{c.pdv.nom}</p>
                               <p className="text-xs text-gray-400">Par {c.demandeurNom} · {formatDate(c.createdAt)}</p>
                             </div>
-                            <Eye className="w-4 h-4 text-gray-300" />
+                            {c.statut === "EN_VALIDATION_AGENCE" ? (
+                              <div className="flex items-center gap-1.5 flex-shrink-0">
+                                <button onClick={() => handleValiderDemande(c.id)} disabled={validationLoading}
+                                  className="px-2.5 py-1 text-xs font-medium bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50">
+                                  Valider
+                                </button>
+                                <button onClick={() => handleRejeterDemande(c.id)} disabled={validationLoading}
+                                  className="px-2.5 py-1 text-xs font-medium text-red-600 border border-red-200 rounded-lg hover:bg-red-50 disabled:opacity-50">
+                                  Rejeter
+                                </button>
+                              </div>
+                            ) : (
+                              <Eye className="w-4 h-4 text-gray-300" />
+                            )}
                           </div>
                           {c.lignes.length > 0 && (
                             <div className="mt-2 flex flex-wrap gap-1">
@@ -1864,6 +1907,133 @@ export default function ChefAgenceDashboard() {
           </div>
         </div>
       )}
+
+      {showNouvelleDemande && (
+        <NouvelleDemandeApproModal
+          pdvList={pdvList}
+          onClose={() => setShowNouvelleDemande(false)}
+          onCreated={() => { setShowNouvelleDemande(false); approvRefetch(); }}
+        />
+      )}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Modal : le chef d'agence exprime un besoin de réappro pour un PDV de sa zone
+// (CDC §3/§4 — niveau "agence commerciale"), remonté au Responsable
+// Approvisionnement Central via CommandeInterne.
+// ═══════════════════════════════════════════════════════════════════════════
+
+interface StockProduitCA { id: number; nom: string; reference: string | null; unite: string | null }
+interface StockZoneResponse { data: { parPdv: { pdvId: number; produits: StockProduitCA[] }[] } }
+
+function NouvelleDemandeApproModal({ pdvList, onClose, onCreated }: {
+  pdvList: { id: number; nom: string; code: string }[];
+  onClose: () => void; onCreated: () => void;
+}) {
+  const [pdvId, setPdvId] = useState("");
+  const [search, setSearch] = useState("");
+  const [lignes, setLignes] = useState<{ produitId: number; nom: string; quantite: string }[]>([]);
+  const [notes, setNotes] = useState("");
+
+  const { data: stockData } = useApi<StockZoneResponse>(pdvId ? `/api/chef-agence/stock?pdvId=${pdvId}` : null);
+  const produitsPdv = stockData?.data?.parPdv?.[0]?.produits ?? [];
+  const produitsFiltres = search.length >= 2
+    ? produitsPdv.filter((p) => p.nom.toLowerCase().includes(search.toLowerCase())).slice(0, 10)
+    : [];
+
+  const { mutate, loading: saving } = useMutation<unknown, { pointDeVenteId: number; notes?: string; lignes: { produitId: number; quantiteDemandee: number }[] }>(
+    "/api/chef-agence/approvisionnement", "POST",
+    { successMessage: "Demande envoyée au Responsable Approvisionnement" }
+  );
+
+  const addProduit = (p: StockProduitCA) => {
+    if (lignes.some((l) => l.produitId === p.id)) return;
+    setLignes((prev) => [...prev, { produitId: p.id, nom: p.nom, quantite: "1" }]);
+    setSearch("");
+  };
+  const removeProduit = (produitId: number) => setLignes((prev) => prev.filter((l) => l.produitId !== produitId));
+  const setQuantite = (produitId: number, quantite: string) =>
+    setLignes((prev) => prev.map((l) => (l.produitId === produitId ? { ...l, quantite } : l)));
+
+  const handleSubmit = async () => {
+    if (!pdvId) { toast.error("Sélectionnez un point de vente"); return; }
+    if (lignes.length === 0) { toast.error("Ajoutez au moins un produit"); return; }
+    if (lignes.some((l) => !l.quantite || Number(l.quantite) <= 0)) { toast.error("Quantité invalide"); return; }
+    const result = await mutate({
+      pointDeVenteId: Number(pdvId),
+      notes: notes || undefined,
+      lignes: lignes.map((l) => ({ produitId: l.produitId, quantiteDemandee: Number(l.quantite) })),
+    });
+    if (result) onCreated();
+  };
+
+  return (
+    <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/40 p-4">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[92vh] flex flex-col">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+          <h3 className="text-base font-semibold text-gray-900">Nouvelle demande de réapprovisionnement</h3>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+        </div>
+        <div className="overflow-y-auto flex-1 p-6 space-y-4">
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">Point de vente *</label>
+            <select value={pdvId} onChange={(e) => { setPdvId(e.target.value); setLignes([]); }}
+              className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2">
+              <option value="">Sélectionner…</option>
+              {pdvList.map((p) => <option key={p.id} value={p.id}>{p.nom} ({p.code})</option>)}
+            </select>
+          </div>
+
+          {pdvId && (
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Ajouter un produit</label>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Rechercher un produit…"
+                  className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-sm" />
+                {produitsFiltres.length > 0 && (
+                  <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                    {produitsFiltres.map((p) => (
+                      <button key={p.id} onClick={() => addProduit(p)} type="button"
+                        className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50">
+                        {p.nom} {p.reference && <span className="text-xs text-gray-400 font-mono">{p.reference}</span>}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {lignes.length > 0 && (
+            <div className="border border-gray-200 rounded-lg divide-y">
+              {lignes.map((l) => (
+                <div key={l.produitId} className="flex items-center gap-2 px-3 py-2">
+                  <span className="flex-1 text-sm text-gray-700">{l.nom}</span>
+                  <input type="number" min="1" value={l.quantite} onChange={(e) => setQuantite(l.produitId, e.target.value)}
+                    className="w-20 px-2 py-1 border border-gray-300 rounded text-center text-sm" />
+                  <button onClick={() => removeProduit(l.produitId)} className="p-1 text-gray-400 hover:text-red-500"><X className="w-4 h-4" /></button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">Notes (optionnel)</label>
+            <textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm resize-y" />
+          </div>
+        </div>
+        <div className="flex justify-end gap-3 px-6 py-4 border-t border-gray-200">
+          <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 rounded-lg border border-gray-300">Annuler</button>
+          <button onClick={handleSubmit} disabled={saving}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50">
+            {saving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />} Envoyer
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

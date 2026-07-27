@@ -2,14 +2,16 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auditLog } from "@/lib/notifications";
 import { getSession } from "../route";
+import { calculerEvaluationFournisseur } from "@/lib/evaluationFournisseurServer";
 
 type Ctx = { params: Promise<{ id: string }> };
 
 /**
  * GET /api/logistique/fournisseurs/[id]
- * Fiche fournisseur détaillée + statistiques d'évaluation calculées à la volée
- * (CDC §8 — respect délais / qualité produit) depuis l'historique des réceptions.
- * Prix/litiges/disponibilité non calculables tant que le module RFQ/PO n'existe pas.
+ * Fiche fournisseur détaillée + évaluation automatique (CDC §8 — 5 critères :
+ * délais, qualité, prix, disponibilité, litiges). La note globale calculée est
+ * repersistée sur `Fournisseur.noteGlobale` à chaque consultation, pour que les
+ * vues en liste (dashboard, sélection RFQ) restent à jour sans recalcul lourd.
  */
 export async function GET(_req: Request, { params }: Ctx) {
   try {
@@ -23,36 +25,19 @@ export async function GET(_req: Request, { params }: Ctx) {
       where: { id: fournisseurId },
       include: {
         contrats: { where: { actif: true }, orderBy: { createdAt: "desc" } },
+        litiges: { orderBy: { createdAt: "desc" }, include: { creePar: { select: { nom: true, prenom: true } }, resoluPar: { select: { nom: true, prenom: true } } } },
         _count: { select: { receptions: true } },
       },
     });
     if (!fournisseur) return NextResponse.json({ error: "Fournisseur introuvable" }, { status: 404 });
 
-    const receptionsValidees = await prisma.receptionApprovisionnement.findMany({
-      where: { fournisseurId, statut: "VALIDE", dateReception: { not: null } },
-      select: { datePrevisionnelle: true, dateReception: true },
-    });
-    const aTemps = receptionsValidees.filter((r) => r.dateReception! <= r.datePrevisionnelle).length;
-    const tauxRespectDelais = receptionsValidees.length > 0
-      ? Math.round((aTemps / receptionsValidees.length) * 100)
-      : null;
+    const evaluation = await calculerEvaluationFournisseur(fournisseurId);
+    const noteGlobaleActuelle = fournisseur.noteGlobale != null ? Number(fournisseur.noteGlobale) : null;
+    if (evaluation.noteGlobale !== noteGlobaleActuelle) {
+      await prisma.fournisseur.update({ where: { id: fournisseurId }, data: { noteGlobale: evaluation.noteGlobale } });
+    }
 
-    const lignesQualite = await prisma.ligneReceptionAppro.findMany({
-      where: { reception: { fournisseurId }, etatQualite: { not: null } },
-      select: { etatQualite: true },
-    });
-    const conformes = lignesQualite.filter((l) => l.etatQualite === "BON").length;
-    const tauxQualite = lignesQualite.length > 0
-      ? Math.round((conformes / lignesQualite.length) * 100)
-      : null;
-
-    return NextResponse.json({
-      data: fournisseur,
-      evaluation: {
-        tauxRespectDelais, receptionsAnalysees: receptionsValidees.length,
-        tauxQualite, lignesAnalysees: lignesQualite.length,
-      },
-    });
+    return NextResponse.json({ data: { ...fournisseur, noteGlobale: evaluation.noteGlobale }, evaluation });
   } catch (error) {
     console.error("GET /logistique/fournisseurs/[id]:", error);
     return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
@@ -75,16 +60,17 @@ export async function PATCH(req: Request, { params }: Ctx) {
     if (!existing) return NextResponse.json({ error: "Fournisseur introuvable" }, { status: 404 });
 
     const body = await req.json();
+    // noteGlobale n'est plus saisissable manuellement — calculée automatiquement
+    // (CDC §8 "évaluation automatique") et persistée à chaque consultation de la fiche.
     const allowed = [
       "nom", "type", "contact", "telephone", "email", "adresse", "notes", "actif",
-      "pays", "region", "devise", "banque", "iban", "rccm", "nif", "numeroTva", "noteGlobale",
+      "pays", "region", "devise", "banque", "iban", "rccm", "nif", "numeroTva",
     ];
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const data: any = {};
     for (const key of allowed) {
       if (key in body) {
         if (key === "actif") data[key] = Boolean(body[key]);
-        else if (key === "noteGlobale") data[key] = body[key] !== null && body[key] !== "" ? Number(body[key]) : null;
         else data[key] = body[key] || null;
       }
     }

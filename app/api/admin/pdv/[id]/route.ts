@@ -27,6 +27,7 @@ export async function GET(_req: Request, { params }: Ctx) {
       include: {
         rpv:        { select: { id: true, nom: true, prenom: true, telephone: true } },
         chefAgence: { select: { id: true, nom: true, prenom: true } },
+        responsable: { select: { id: true, nom: true, prenom: true, telephone: true } },
         plateformeRegionale: { select: { id: true, nom: true, code: true, type: true } },
         sitesRattaches: { select: { id: true, nom: true, code: true, type: true, actif: true } },
         affectations: {
@@ -69,8 +70,8 @@ export async function PATCH(req: Request, { params }: Ctx) {
 
     const body = await req.json();
     const {
-      nom, adresse, telephone, notes, rpvId, chefAgenceId, actif,
-      latitude, longitude, capaciteStockage, capaciteUnite, seuilSecuriteGlobal, plateformeRegionaleId,
+      nom, adresse, telephone, notes, rpvId, chefAgenceId, responsableId, actif,
+      latitude, longitude, capaciteStockage, capaciteUnite, seuilSecuriteGlobal, niveauSecurite, plateformeRegionaleId,
     } = body;
 
     const existing = await prisma.pointDeVente.findUnique({ where: { id: Number(id) } });
@@ -107,16 +108,19 @@ export async function PATCH(req: Request, { params }: Ctx) {
           ...(actif        !== undefined && { actif }),
           ...(rpvId        !== undefined && { rpvId: rpvId ? Number(rpvId) : null }),
           ...(chefAgenceId !== undefined && { chefAgenceId: chefAgenceId ? Number(chefAgenceId) : null }),
+          ...(responsableId !== undefined && { responsableId: responsableId ? Number(responsableId) : null }),
           ...(latitude               !== undefined && { latitude:  latitude != null ? Number(latitude) : null }),
           ...(longitude              !== undefined && { longitude: longitude != null ? Number(longitude) : null }),
           ...(capaciteStockage       !== undefined && { capaciteStockage: capaciteStockage != null ? Number(capaciteStockage) : null }),
           ...(capaciteUnite          !== undefined && { capaciteUnite: capaciteUnite || null }),
           ...(seuilSecuriteGlobal    !== undefined && { seuilSecuriteGlobal: seuilSecuriteGlobal != null ? Number(seuilSecuriteGlobal) : null }),
+          ...(niveauSecurite         !== undefined && { niveauSecurite: niveauSecurite || "STANDARD" }),
           ...(plateformeRegionaleId  !== undefined && { plateformeRegionaleId: plateformeRegionaleId ? Number(plateformeRegionaleId) : null }),
         },
         include: {
           rpv:        { select: { id: true, nom: true, prenom: true } },
           chefAgence: { select: { id: true, nom: true, prenom: true } },
+          responsable:{ select: { id: true, nom: true, prenom: true } },
           plateformeRegionale: { select: { id: true, nom: true, code: true } },
         },
       });

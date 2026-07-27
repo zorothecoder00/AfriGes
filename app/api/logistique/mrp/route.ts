@@ -11,8 +11,10 @@ const TYPES_SORTIE_CLIENT = ["VENTE_DIRECTE", "LIVRAISON_PACK", "LIVRAISON_CLIEN
  * Planification des besoins (CDC §6) : Besoin = Prévision ventes + Stock sécurité
  * − Stock disponible − Commandes en cours, calculé par (produit × PDV) à partir
  * du stock déjà paramétré (StockSite), de l'historique réel des sorties clients
- * (MouvementStock), des souscriptions déjà confirmées (LigneSouscriptionProduit)
- * et des commandes déjà engagées (BonCommande + réceptions fournisseur en cours).
+ * (MouvementStock), de la demande ferme non couverte — souscriptions déjà
+ * confirmées (LigneSouscriptionProduit) ET lignes de crédits clients déjà
+ * validés non encore livrées (LigneCreditClient) — et des commandes déjà
+ * engagées (BonCommande + réceptions fournisseur en cours).
  *
  * Query: pointDeVenteId? (sinon agrégé tous PDV), horizonMois? (défaut 1),
  *        search?, seuilPositifSeulement? (défaut true — ne montre que besoinNet > 0)
@@ -49,7 +51,7 @@ export async function GET(req: Request) {
     const depuis = new Date();
     depuis.setMonth(depuis.getMonth() - MOIS_HISTORIQUE);
 
-    const [ventesAgg, souscriptionsAgg, lignesPO, lignesReceptionEnCours] = await Promise.all([
+    const [ventesAgg, souscriptionsAgg, creditsAgg, lignesPO, lignesReceptionEnCours] = await Promise.all([
       prisma.mouvementStock.groupBy({
         by: ["produitId", "pointDeVenteId"],
         where: {
@@ -62,6 +64,17 @@ export async function GET(req: Request) {
       prisma.ligneSouscriptionProduit.groupBy({
         by: ["produitId", "pointDeVenteId"],
         where: { statut: "CONFIRME", produitId: { in: produitIds }, pointDeVenteId: { in: pdvIds } },
+        _sum: { quantite: true },
+      }),
+      // Lignes de crédits clients déjà validés (précommande ferme au même titre
+      // qu'une souscription confirmée), pas encore livrées au client.
+      prisma.ligneCreditClient.groupBy({
+        by: ["produitId", "pointDeVenteId"],
+        where: {
+          statut: "EN_ATTENTE", // pas encore livré
+          produitId: { in: produitIds }, pointDeVenteId: { in: pdvIds },
+          credit: { statut: { notIn: ["EN_ATTENTE_VALIDATION", "ANNULE", "REJETE"] } },
+        },
         _sum: { quantite: true },
       }),
       prisma.ligneBonCommande.findMany({
@@ -82,7 +95,16 @@ export async function GET(req: Request) {
 
     const cle = (produitId: number, pointDeVenteId: number) => `${produitId}:${pointDeVenteId}`;
     const ventesMap = new Map(ventesAgg.map((v) => [cle(v.produitId, v.pointDeVenteId!), Number(v._sum.quantite ?? 0)]));
-    const souscriptionsMap = new Map(souscriptionsAgg.map((v) => [cle(v.produitId!, v.pointDeVenteId!), Number(v._sum.quantite ?? 0)]));
+
+    const demandeFermeMap = new Map<string, number>();
+    for (const v of souscriptionsAgg) {
+      const k = cle(v.produitId!, v.pointDeVenteId!);
+      demandeFermeMap.set(k, (demandeFermeMap.get(k) ?? 0) + Number(v._sum.quantite ?? 0));
+    }
+    for (const v of creditsAgg) {
+      const k = cle(v.produitId!, v.pointDeVenteId!);
+      demandeFermeMap.set(k, (demandeFermeMap.get(k) ?? 0) + Number(v._sum.quantite ?? 0));
+    }
 
     const commandesEnCoursMap = new Map<string, number>();
     for (const l of lignesPO) {
@@ -100,7 +122,7 @@ export async function GET(req: Request) {
       const resultat = calculerBesoinMRP({
         moyenneMensuelleVentes,
         horizonMois,
-        souscriptionsConfirmeesNonCouvertes: souscriptionsMap.get(k) ?? 0,
+        demandeFermeNonCouverte: demandeFermeMap.get(k) ?? 0,
         stockSecurite: s.stockMin ?? s.seuilCritique ?? s.alerteStock ?? s.produit.alerteStock ?? 0,
         stockDisponible: s.quantite,
         stockEnTransit: s.quantiteEnTransit,

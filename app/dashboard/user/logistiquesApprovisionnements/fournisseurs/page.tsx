@@ -7,7 +7,7 @@ import { formatDate } from "@/lib/format";
 import RetourApprovisionnement from "@/components/RetourApprovisionnement";
 import {
   Truck, Plus, X, Search, RefreshCw, Save,
-  Building2, Star, FileText, Trash2, Pencil, Ban, CheckCircle,
+  Building2, Star, FileText, Trash2, Pencil, Ban, CheckCircle, AlertTriangle,
 } from "lucide-react";
 
 interface Fournisseur {
@@ -28,7 +28,25 @@ interface Contrat {
 interface Evaluation {
   tauxRespectDelais: number | null; receptionsAnalysees: number;
   tauxQualite: number | null; lignesAnalysees: number;
+  scorePrix: number | null; rfqAnalysees: number;
+  scoreDisponibilite: number | null; sollicitationsAnalysees: number;
+  scoreLitiges: number | null; litigesAnalyses: number;
+  noteGlobale: number | null;
 }
+
+interface Litige {
+  id: number; motif: string; description: string | null; statut: "OUVERT" | "RESOLU" | "REJETE";
+  createdAt: string; dateResolution: string | null;
+  creePar: { nom: string; prenom: string } | null;
+  resoluPar: { nom: string; prenom: string } | null;
+  bonCommande: { id: number; reference: string } | null;
+}
+
+const LITIGE_STATUT_CFG: Record<string, { label: string; badge: string }> = {
+  OUVERT:  { label: "Ouvert",  badge: "bg-red-100 text-red-600" },
+  RESOLU:  { label: "Résolu",  badge: "bg-emerald-100 text-emerald-700" },
+  REJETE:  { label: "Rejeté",  badge: "bg-slate-100 text-slate-500" },
+};
 
 const TYPE_LABEL: Record<string, string> = {
   PRODUCTEUR: "Producteur", COOPERATIVE: "Coopérative", INDUSTRIEL: "Industriel",
@@ -223,11 +241,12 @@ function FournisseurModal({ onClose, onSaved }: { onClose: () => void; onSaved: 
 // ── Détail / édition ──────────────────────────────────────────────────────────
 
 function FournisseurDetail({ id, onClose, onUpdated }: { id: number; onClose: () => void; onUpdated: () => void }) {
-  const { data, loading, refetch } = useApi<{ data: Fournisseur & { contrats: Contrat[] }; evaluation: Evaluation }>(`/api/logistique/fournisseurs/${id}`);
+  const { data, loading, refetch } = useApi<{ data: Fournisseur & { contrats: Contrat[]; litiges: Litige[] }; evaluation: Evaluation }>(`/api/logistique/fournisseurs/${id}`);
   const [editMode, setEditMode] = useState(false);
-  const [form, setForm] = useState<typeof EMPTY_FORM & { noteGlobale: string }>({ ...EMPTY_FORM, noteGlobale: "" });
+  const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [showContratForm, setShowContratForm] = useState(false);
+  const [showLitigeForm, setShowLitigeForm] = useState(false);
 
   const f = data?.data;
   const evalu = data?.evaluation;
@@ -239,7 +258,6 @@ function FournisseurDetail({ id, onClose, onUpdated }: { id: number; onClose: ()
       email: f.email ?? "", adresse: f.adresse ?? "", pays: f.pays ?? "", region: f.region ?? "",
       devise: f.devise ?? "", banque: f.banque ?? "", iban: f.iban ?? "", rccm: f.rccm ?? "",
       nif: f.nif ?? "", numeroTva: f.numeroTva ?? "", notes: f.notes ?? "",
-      noteGlobale: f.noteGlobale != null ? String(f.noteGlobale) : "",
     });
     setEditMode(true);
   };
@@ -249,11 +267,19 @@ function FournisseurDetail({ id, onClose, onUpdated }: { id: number; onClose: ()
     try {
       const r = await fetch(`/api/logistique/fournisseurs/${id}`, {
         method: "PATCH", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, type: form.type || null, noteGlobale: form.noteGlobale || null }),
+        body: JSON.stringify({ ...form, type: form.type || null }),
       });
       if (r.ok) { toast.success("Fournisseur mis à jour"); setEditMode(false); refetch(); onUpdated(); }
       else toast.error("Erreur");
     } finally { setSaving(false); }
+  };
+
+  const resoudreLitige = async (litigeId: number, action: "RESOUDRE" | "REJETER") => {
+    const r = await fetch(`/api/logistique/fournisseurs/${id}/litiges/${litigeId}`, {
+      method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action }),
+    });
+    if (r.ok) { toast.success(action === "RESOUDRE" ? "Litige résolu" : "Litige rejeté"); refetch(); }
+    else toast.error("Erreur");
   };
 
   const toggleActif = async () => {
@@ -318,10 +344,8 @@ function FournisseurDetail({ id, onClose, onUpdated }: { id: number; onClose: ()
                 <Field label="RCCM"><input value={form.rccm} onChange={(e) => setForm((s) => ({ ...s, rccm: e.target.value }))} className={inputCls} /></Field>
                 <Field label="NIF"><input value={form.nif} onChange={(e) => setForm((s) => ({ ...s, nif: e.target.value }))} className={inputCls} /></Field>
                 <Field label="N° TVA"><input value={form.numeroTva} onChange={(e) => setForm((s) => ({ ...s, numeroTva: e.target.value }))} className={inputCls} /></Field>
-                <Field label="Note globale (/100)">
-                  <input type="number" min="0" max="100" value={form.noteGlobale} onChange={(e) => setForm((s) => ({ ...s, noteGlobale: e.target.value }))} className={inputCls} />
-                </Field>
               </div>
+              <p className="text-xs text-slate-400">La note globale et les scores d&apos;évaluation sont calculés automatiquement — non modifiables ici.</p>
               <Field label="Notes"><textarea rows={2} value={form.notes} onChange={(e) => setForm((s) => ({ ...s, notes: e.target.value }))} className={`${inputCls} resize-y`} /></Field>
               <div className="flex justify-end gap-2">
                 <button onClick={() => setEditMode(false)} className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50">Annuler</button>
@@ -333,14 +357,23 @@ function FournisseurDetail({ id, onClose, onUpdated }: { id: number; onClose: ()
             </>
           ) : (
             <>
-              {/* Évaluation */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <StatCard label="Note globale" value={f.noteGlobale != null ? `${f.noteGlobale}/100` : "—"} />
-                <StatCard label="Respect délais" value={evalu?.tauxRespectDelais != null ? `${evalu.tauxRespectDelais}%` : "—"}
-                  sub={evalu ? `${evalu.receptionsAnalysees} réception(s)` : undefined} />
-                <StatCard label="Qualité produit" value={evalu?.tauxQualite != null ? `${evalu.tauxQualite}%` : "—"}
-                  sub={evalu ? `${evalu.lignesAnalysees} ligne(s)` : undefined} />
-                <StatCard label="Réceptions" value={String(f._count?.receptions ?? 0)} />
+              {/* Évaluation automatique (CDC §8 — 5 critères + note globale) */}
+              <div>
+                <p className="text-xs font-semibold text-slate-500 uppercase mb-2">Évaluation automatique</p>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  <StatCard label="Note globale" value={evalu?.noteGlobale != null ? `${evalu.noteGlobale}/100` : "—"} />
+                  <StatCard label="Respect délais" value={evalu?.tauxRespectDelais != null ? `${evalu.tauxRespectDelais}%` : "—"}
+                    sub={evalu ? `${evalu.receptionsAnalysees} réception(s)` : undefined} />
+                  <StatCard label="Qualité produit" value={evalu?.tauxQualite != null ? `${evalu.tauxQualite}%` : "—"}
+                    sub={evalu ? `${evalu.lignesAnalysees} ligne(s)` : undefined} />
+                  <StatCard label="Prix (vs marché)" value={evalu?.scorePrix != null ? `${evalu.scorePrix}/100` : "—"}
+                    sub={evalu ? `${evalu.rfqAnalysees} cotation(s)` : undefined} />
+                  <StatCard label="Disponibilité" value={evalu?.scoreDisponibilite != null ? `${evalu.scoreDisponibilite}/100` : "—"}
+                    sub={evalu ? `${evalu.sollicitationsAnalysees} sollicitation(s)` : undefined} />
+                  <StatCard label="Litiges" value={evalu?.scoreLitiges != null ? `${evalu.scoreLitiges}/100` : "—"}
+                    sub={evalu ? `${evalu.litigesAnalyses} litige(s)` : undefined} />
+                </div>
+                <p className="text-[10px] text-slate-400 mt-1.5">Chaque score reste vide (—) tant qu&apos;il n&apos;y a pas assez d&apos;historique pour le calculer. Note globale = moyenne des critères disponibles.</p>
               </div>
 
               {/* Coordonnées */}
@@ -387,6 +420,45 @@ function FournisseurDetail({ id, onClose, onUpdated }: { id: number; onClose: ()
                   </div>
                 )}
               </div>
+
+              {/* Litiges */}
+              <div className="pt-3 border-t border-slate-100">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-xs font-semibold text-slate-500 uppercase flex items-center gap-1.5"><AlertTriangle className="w-3.5 h-3.5" /> Litiges</p>
+                  <button onClick={() => setShowLitigeForm(true)} className="flex items-center gap-1 text-xs text-red-600 hover:text-red-700 font-medium">
+                    <Plus className="w-3.5 h-3.5" /> Signaler
+                  </button>
+                </div>
+                {(!f.litiges || f.litiges.length === 0) ? (
+                  <p className="text-xs text-slate-400">Aucun litige enregistré</p>
+                ) : (
+                  <div className="space-y-2">
+                    {f.litiges.map((l) => {
+                      const cfg = LITIGE_STATUT_CFG[l.statut];
+                      return (
+                        <div key={l.id} className="flex items-start gap-3 p-3 border border-slate-200 rounded-lg">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <p className="text-sm font-medium text-slate-800">{l.motif}</p>
+                              <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${cfg.badge}`}>{cfg.label}</span>
+                            </div>
+                            {l.description && <p className="text-xs text-slate-500 mt-0.5">{l.description}</p>}
+                            <p className="text-xs text-slate-400 mt-0.5">
+                              {formatDate(l.createdAt)}{l.bonCommande ? ` · ${l.bonCommande.reference}` : ""}
+                            </p>
+                          </div>
+                          {l.statut === "OUVERT" && (
+                            <div className="flex items-center gap-2 flex-shrink-0">
+                              <button onClick={() => resoudreLitige(l.id, "RESOUDRE")} className="text-xs text-emerald-600 hover:underline font-medium">Résoudre</button>
+                              <button onClick={() => resoudreLitige(l.id, "REJETER")} className="text-xs text-slate-400 hover:underline font-medium">Rejeter</button>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             </>
           )}
         </div>
@@ -395,6 +467,50 @@ function FournisseurDetail({ id, onClose, onUpdated }: { id: number; onClose: ()
       {showContratForm && f && (
         <ContratModal fournisseurId={f.id} onClose={() => setShowContratForm(false)} onSaved={() => { setShowContratForm(false); refetch(); }} />
       )}
+      {showLitigeForm && f && (
+        <LitigeModal fournisseurId={f.id} onClose={() => setShowLitigeForm(false)} onSaved={() => { setShowLitigeForm(false); refetch(); }} />
+      )}
+    </div>
+  );
+}
+
+function LitigeModal({ fournisseurId, onClose, onSaved }: { fournisseurId: number; onClose: () => void; onSaved: () => void }) {
+  const [motif, setMotif] = useState("");
+  const [description, setDescription] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const handleSubmit = async () => {
+    if (!motif.trim()) { toast.error("Le motif est obligatoire"); return; }
+    setSaving(true);
+    try {
+      const r = await fetch(`/api/logistique/fournisseurs/${fournisseurId}/litiges`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ motif, description: description || undefined }),
+      });
+      if (r.ok) { toast.success("Litige signalé"); onSaved(); }
+      else toast.error("Erreur");
+    } finally { setSaving(false); }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
+          <h2 className="font-semibold text-slate-900">Signaler un litige</h2>
+          <button onClick={onClose} className="p-1.5 hover:bg-slate-100 rounded-lg"><X className="w-4 h-4" /></button>
+        </div>
+        <div className="p-6 space-y-4">
+          <Field label="Motif *"><input value={motif} onChange={(e) => setMotif(e.target.value)} placeholder="Ex: livraison non conforme" className={inputCls} /></Field>
+          <Field label="Description"><textarea rows={3} value={description} onChange={(e) => setDescription(e.target.value)} className={`${inputCls} resize-y`} /></Field>
+        </div>
+        <div className="flex justify-end gap-3 px-6 py-4 border-t border-slate-200">
+          <button onClick={onClose} className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 rounded-lg border border-slate-200">Annuler</button>
+          <button onClick={handleSubmit} disabled={saving}
+            className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 disabled:opacity-50">
+            {saving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Signaler
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

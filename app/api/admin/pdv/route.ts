@@ -46,6 +46,7 @@ export async function GET(req: Request) {
         include: {
           rpv:       { select: { id: true, nom: true, prenom: true } },
           chefAgence:{ select: { id: true, nom: true, prenom: true } },
+          responsable: { select: { id: true, nom: true, prenom: true } },
           plateformeRegionale: { select: { id: true, nom: true, code: true } },
           _count: {
             select: {
@@ -88,8 +89,8 @@ export async function POST(req: Request) {
 
     const body = await req.json();
     const {
-      code, nom, type, adresse, telephone, notes, rpvId, chefAgenceId,
-      latitude, longitude, capaciteStockage, capaciteUnite, seuilSecuriteGlobal, plateformeRegionaleId,
+      code, nom, type, adresse, telephone, notes, rpvId, chefAgenceId, responsableId,
+      latitude, longitude, capaciteStockage, capaciteUnite, seuilSecuriteGlobal, niveauSecurite, plateformeRegionaleId,
     } = body;
 
     if (!code || !nom) {
@@ -127,16 +128,19 @@ export async function POST(req: Request) {
           notes:        notes        || null,
           rpvId:        rpvId        ? Number(rpvId)        : null,
           chefAgenceId: chefAgenceId ? Number(chefAgenceId) : null,
+          responsableId: responsableId ? Number(responsableId) : null,
           latitude:             latitude             != null ? Number(latitude)             : null,
           longitude:            longitude            != null ? Number(longitude)            : null,
           capaciteStockage:     capaciteStockage     != null ? Number(capaciteStockage)      : null,
           capaciteUnite:        capaciteUnite        || null,
           seuilSecuriteGlobal:  seuilSecuriteGlobal  != null ? Number(seuilSecuriteGlobal)   : null,
+          niveauSecurite:       niveauSecurite        || "STANDARD",
           plateformeRegionaleId: plateformeRegionaleId ? Number(plateformeRegionaleId) : null,
         },
         include: {
           rpv:       { select: { id: true, nom: true, prenom: true } },
           chefAgence:{ select: { id: true, nom: true, prenom: true } },
+          responsable: { select: { id: true, nom: true, prenom: true } },
           plateformeRegionale: { select: { id: true, nom: true, code: true } },
         },
       });

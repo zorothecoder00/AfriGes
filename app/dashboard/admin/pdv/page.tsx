@@ -22,9 +22,11 @@ interface PDV {
   latitude: number | null; longitude: number | null;
   capaciteStockage: number | null; capaciteUnite: string | null;
   seuilSecuriteGlobal: number | null;
+  niveauSecurite: 'STANDARD' | 'RENFORCE' | 'MAXIMALE';
   plateformeRegionale: PDVParent | null;
   rpv: PDVUser | null;
   chefAgence: PDVUser | null;
+  responsable: PDVUser | null;
   _count: { stocks: number; ventesDirectes: number; affectations: number; sitesRattaches: number };
 }
 interface PDVResponse {
@@ -71,16 +73,18 @@ export default function PDVPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [createForm, setCreateForm] = useState({
     code: '', nom: '', type: 'POINT_DE_VENTE', adresse: '', telephone: '', notes: '',
-    rpvId: '', chefAgenceId: '',
+    rpvId: '', chefAgenceId: '', responsableId: '',
     latitude: '', longitude: '', capaciteStockage: '', capaciteUnite: 'm3', seuilSecuriteGlobal: '',
+    niveauSecurite: 'STANDARD',
     plateformeRegionaleId: '',
   });
 
   // ── Modal édition ───────────────────────────────────────────────────────────
   const [editPdv, setEditPdv]       = useState<PDV | null>(null);
   const [editForm, setEditForm]     = useState({
-    nom: '', adresse: '', telephone: '', notes: '', rpvId: '', chefAgenceId: '', actif: true,
+    nom: '', adresse: '', telephone: '', notes: '', rpvId: '', chefAgenceId: '', responsableId: '', actif: true,
     latitude: '', longitude: '', capaciteStockage: '', capaciteUnite: 'm3', seuilSecuriteGlobal: '',
+    niveauSecurite: 'STANDARD',
     plateformeRegionaleId: '',
   });
 
@@ -109,6 +113,12 @@ export default function PDVPage() {
     (createOpen || !!editPdv) ? '/api/admin/gestionnaires?role=CHEF_AGENCE&limit=200&actif=true' : null
   );
   const chefOptions = chefResponse?.data ?? [];
+
+  // ── Gestionnaires Logistique/Appro (pour le responsable de dépôt) ─────────
+  const { data: responsableResponse } = useApi<{ data: GestionnaireOption[] }>(
+    (createOpen || !!editPdv) ? '/api/admin/gestionnaires?role=AGENT_LOGISTIQUE_APPROVISIONNEMENT&limit=200&actif=true' : null
+  );
+  const responsableOptions = responsableResponse?.data ?? [];
 
   // ── Sites parents possibles (dépôt central / plateforme régionale) ────────
   const { data: parentsResponse } = useApi<{ data: PDV[] }>(
@@ -142,18 +152,20 @@ export default function PDVPage() {
       notes:         createForm.notes || null,
       rpvId:         createForm.rpvId ? Number(createForm.rpvId) : null,
       chefAgenceId:  createForm.chefAgenceId ? Number(createForm.chefAgenceId) : null,
+      responsableId: createForm.responsableId ? Number(createForm.responsableId) : null,
       latitude:            createForm.latitude !== '' ? Number(createForm.latitude) : null,
       longitude:           createForm.longitude !== '' ? Number(createForm.longitude) : null,
       capaciteStockage:    createForm.capaciteStockage !== '' ? Number(createForm.capaciteStockage) : null,
       capaciteUnite:       createForm.capaciteUnite || null,
       seuilSecuriteGlobal: createForm.seuilSecuriteGlobal !== '' ? Number(createForm.seuilSecuriteGlobal) : null,
+      niveauSecurite:      createForm.niveauSecurite,
       plateformeRegionaleId: createForm.plateformeRegionaleId ? Number(createForm.plateformeRegionaleId) : null,
     });
     if (res) {
       setCreateOpen(false);
       setCreateForm({
-        code: '', nom: '', type: 'POINT_DE_VENTE', adresse: '', telephone: '', notes: '', rpvId: '', chefAgenceId: '',
-        latitude: '', longitude: '', capaciteStockage: '', capaciteUnite: 'm3', seuilSecuriteGlobal: '', plateformeRegionaleId: '',
+        code: '', nom: '', type: 'POINT_DE_VENTE', adresse: '', telephone: '', notes: '', rpvId: '', chefAgenceId: '', responsableId: '',
+        latitude: '', longitude: '', capaciteStockage: '', capaciteUnite: 'm3', seuilSecuriteGlobal: '', niveauSecurite: 'STANDARD', plateformeRegionaleId: '',
       });
       refetch();
     }
@@ -168,12 +180,14 @@ export default function PDVPage() {
       notes:        pdv.notes ?? '',
       rpvId:        pdv.rpv ? String(pdv.rpv.id) : '',
       chefAgenceId: pdv.chefAgence ? String(pdv.chefAgence.id) : '',
+      responsableId: pdv.responsable ? String(pdv.responsable.id) : '',
       actif:        pdv.actif,
       latitude:            pdv.latitude != null ? String(pdv.latitude) : '',
       longitude:           pdv.longitude != null ? String(pdv.longitude) : '',
       capaciteStockage:    pdv.capaciteStockage != null ? String(pdv.capaciteStockage) : '',
       capaciteUnite:       pdv.capaciteUnite ?? 'm3',
       seuilSecuriteGlobal: pdv.seuilSecuriteGlobal != null ? String(pdv.seuilSecuriteGlobal) : '',
+      niveauSecurite:      pdv.niveauSecurite ?? 'STANDARD',
       plateformeRegionaleId: pdv.plateformeRegionale ? String(pdv.plateformeRegionale.id) : '',
     });
     editIdRef.current = pdv.id;
@@ -188,11 +202,13 @@ export default function PDVPage() {
       notes:        editForm.notes || null,
       rpvId:        editForm.rpvId ? Number(editForm.rpvId) : null,
       chefAgenceId: editForm.chefAgenceId ? Number(editForm.chefAgenceId) : null,
+      responsableId: editForm.responsableId ? Number(editForm.responsableId) : null,
       latitude:            editForm.latitude !== '' ? Number(editForm.latitude) : null,
       longitude:           editForm.longitude !== '' ? Number(editForm.longitude) : null,
       capaciteStockage:    editForm.capaciteStockage !== '' ? Number(editForm.capaciteStockage) : null,
       capaciteUnite:       editForm.capaciteUnite || null,
       seuilSecuriteGlobal: editForm.seuilSecuriteGlobal !== '' ? Number(editForm.seuilSecuriteGlobal) : null,
+      niveauSecurite:      editForm.niveauSecurite,
       plateformeRegionaleId: editForm.plateformeRegionaleId ? Number(editForm.plateformeRegionaleId) : null,
     });
     if (res) { setEditPdv(null); refetch(); }
@@ -363,6 +379,21 @@ export default function PDVPage() {
                     ))}
                   </select>
                 </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    <User size={13} className="inline mr-1 text-slate-400" />{t('label_responsable_site')}
+                  </label>
+                  <select value={createForm.responsableId}
+                    onChange={e => setCreateForm(f => ({ ...f, responsableId: e.target.value }))}
+                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+                    <option value="">{t('text_none_assign_later')}</option>
+                    {responsableOptions.map(g => (
+                      <option key={g.id} value={g.member.id}>
+                        {g.member.prenom} {g.member.nom}
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
                 {/* Hiérarchie entrepôts (CDC §3/§4) */}
                 <div>
@@ -376,6 +407,16 @@ export default function PDVPage() {
                     {parentOptions.map(p => (
                       <option key={p.id} value={p.id}>{p.nom} ({TYPE_LABEL[p.type]})</option>
                     ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">{t('label_niveau_securite')}</label>
+                  <select value={createForm.niveauSecurite}
+                    onChange={e => setCreateForm(f => ({ ...f, niveauSecurite: e.target.value }))}
+                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+                    <option value="STANDARD">Standard</option>
+                    <option value="RENFORCE">Renforcé</option>
+                    <option value="MAXIMALE">Maximale</option>
                   </select>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
@@ -503,6 +544,21 @@ export default function PDVPage() {
                     ))}
                   </select>
                 </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    <User size={13} className="inline mr-1 text-slate-400" />{t('label_responsable_site')}
+                  </label>
+                  <select value={editForm.responsableId}
+                    onChange={e => setEditForm(f => ({ ...f, responsableId: e.target.value }))}
+                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+                    <option value="">{t('label_none')}</option>
+                    {responsableOptions.map(g => (
+                      <option key={g.id} value={g.member.id}>
+                        {g.member.prenom} {g.member.nom}
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
                 {/* Hiérarchie entrepôts (CDC §3/§4) */}
                 <div>
@@ -516,6 +572,16 @@ export default function PDVPage() {
                     {parentOptions.map(p => (
                       <option key={p.id} value={p.id}>{p.nom} ({TYPE_LABEL[p.type]})</option>
                     ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">{t('label_niveau_securite')}</label>
+                  <select value={editForm.niveauSecurite}
+                    onChange={e => setEditForm(f => ({ ...f, niveauSecurite: e.target.value }))}
+                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+                    <option value="STANDARD">Standard</option>
+                    <option value="RENFORCE">Renforcé</option>
+                    <option value="MAXIMALE">Maximale</option>
                   </select>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
@@ -665,6 +731,13 @@ export default function PDVPage() {
                               {initials(pdv.rpv.nom, pdv.rpv.prenom)}
                             </div>
                             <span className="text-sm text-slate-700">{pdv.rpv.prenom} {pdv.rpv.nom}</span>
+                          </div>
+                        ) : pdv.responsable ? (
+                          <div className="flex items-center gap-2" title={t('label_responsable_site')}>
+                            <div className="w-7 h-7 bg-gradient-to-br from-slate-400 to-slate-600 rounded-full flex items-center justify-center text-white text-xs font-bold">
+                              {initials(pdv.responsable.nom, pdv.responsable.prenom)}
+                            </div>
+                            <span className="text-sm text-slate-700">{pdv.responsable.prenom} {pdv.responsable.nom}</span>
                           </div>
                         ) : (
                           <span className="text-xs text-slate-400 italic">{t('text_no_assign')}</span>

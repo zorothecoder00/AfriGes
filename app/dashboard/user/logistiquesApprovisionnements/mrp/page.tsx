@@ -12,7 +12,7 @@ interface PdvRef { id: number; nom: string; code: string }
 interface LigneMRP {
   produit: { id: number; nom: string; codeProduit: string | null; fournisseurPrincipalId: number | null; prixAchat: number | string | null };
   pointDeVente: PdvRef;
-  previsionVentes: number; moyenneMensuelleVentes: number; souscriptionsConfirmeesNonCouvertes: number;
+  previsionVentes: number; moyenneMensuelleVentes: number; demandeFermeNonCouverte: number;
   stockSecurite: number; stockDisponible: number; stockEnTransit: number; commandesEnCours: number;
   besoinNet: number; horizonMois: number;
 }
@@ -62,7 +62,7 @@ export default function MRPPage() {
           <Info className="w-4 h-4 flex-shrink-0 mt-0.5" />
           <p>
             Prévision ventes = moyenne mensuelle des sorties clients des {data?.parametres.moisHistorique ?? 3} derniers mois × horizon,
-            plus les souscriptions déjà confirmées. La saisonnalité et l&apos;effet des promotions ne sont pas modélisés automatiquement — ajustez la quantité si nécessaire avant de créer une RFQ.
+            plus la demande ferme non couverte (souscriptions déjà confirmées + crédits clients déjà validés non encore livrés). La saisonnalité et l&apos;effet des promotions ne sont pas modélisés automatiquement — ajustez la quantité si nécessaire avant de créer une RFQ.
           </p>
         </div>
 

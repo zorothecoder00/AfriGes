@@ -9,6 +9,7 @@ import {
   Lock, Filter, Pencil, Trash2, CalendarDays, Boxes,
   MapPin, FileText, Info, Download, Printer,
   UserPlus, Star, Activity, ShoppingBag, Wrench, UserCircle, CreditCard, Receipt,
+  Inbox, Send,
 } from "lucide-react";
 import NotificationBell from "@/components/NotificationBell";
 import CongesNavButton from "@/components/CongesNavButton";
@@ -18,6 +19,7 @@ import DashboardBackButton from "@/components/DashboardBackButton";
 import ClientSegmentTags from "@/components/ClientSegmentTags";
 import FactureModal from "@/components/FactureModal";
 import { useApi, useMutation } from "@/hooks/useApi";
+import { toast } from "sonner";
 import { exportRowsToXlsx, type XlsxColumnType } from "@/lib/exportXlsx";
 import { formatCurrency, formatDate, formatDateTime } from "@/lib/format";
 import { useT } from "@/contexts/AppSettingsContext";
@@ -27,7 +29,7 @@ import { usePageAccess } from "@/hooks/usePageAccess";
 // TYPES
 // ============================================================================
 
-type TabKey      = "synthese" | "ventes" | "stock" | "approvisionnement" | "livraisons" | "caisse" | "clients" | "equipe" | "ventes-terrain" | "rapports";
+type TabKey      = "synthese" | "ventes" | "stock" | "approvisionnement" | "reappro" | "livraisons" | "caisse" | "clients" | "equipe" | "ventes-terrain" | "rapports";
 type StockSub    = "inventaire" | "journal";
 type StatutStock = "EN_STOCK" | "STOCK_FAIBLE" | "RUPTURE";
 type TypeLiv     = "FOURNISSEUR" | "INTERNE";
@@ -893,6 +895,7 @@ export default function ResponsablePDVPage() {
     { key: "stock",              label: "Stock & Produits",   icon: Package      },
     { key: "livraisons",         label: "Livraisons",         icon: ShoppingBag  },
     { key: "approvisionnement",  label: "Approvisionnement",  icon: Truck        },
+    { key: "reappro",            label: "Réappro (demandes)", icon: Inbox        },
     { key: "ventes-terrain",     label: "Ventes Terrain",     icon: Activity,
       badge: ventesTerrainEnAttente.length },
     { key: "caisse",             label: "Caisse PDV",         icon: Banknote     },
@@ -3496,6 +3499,11 @@ export default function ResponsablePDVPage() {
         )}
 
         {/* =====================================================================
+            TAB : RÉAPPRO (demandes remontées vers l'appro central — CDC §3/§4)
+        ===================================================================== */}
+        {activeTab === "reappro" && <MesDemandesReappro />}
+
+        {/* =====================================================================
             TAB : RAPPORTS
         ===================================================================== */}
         {activeTab === "rapports" && (
@@ -3671,6 +3679,179 @@ export default function ResponsablePDVPage() {
         )}
 
       </main>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Onglet RÉAPPRO — le RPV exprime un besoin d'approvisionnement pour son PDV,
+// remonté au Responsable Approvisionnement Central (CommandeInterne).
+// ═══════════════════════════════════════════════════════════════════════════
+
+interface DemandeLigneAPI {
+  produitId: number; quantiteDemandee: number; quantiteValidee: number | null;
+  produit: { id: number; nom: string; reference: string | null; unite: string | null };
+}
+interface DemandeAPI {
+  id: number; reference: string; statut: string; notes: string | null; createdAt: string;
+  lignes: DemandeLigneAPI[];
+}
+interface ProduitPicker { id: number; nom: string; reference?: string | null; unite?: string | null }
+
+const REAPPRO_STATUT_CFG: Record<string, { label: string; badge: string }> = {
+  EN_VALIDATION_AGENCE: { label: "En attente chef d'agence", badge: "bg-orange-100 text-orange-700" },
+  SOUMISE:  { label: "Soumise",  badge: "bg-amber-100 text-amber-700" },
+  EN_COURS: { label: "En cours", badge: "bg-blue-100 text-blue-700" },
+  COMPLETE: { label: "Traitée",  badge: "bg-emerald-100 text-emerald-700" },
+  ANNULE:   { label: "Rejetée",  badge: "bg-red-100 text-red-600" },
+};
+
+function MesDemandesReappro() {
+  const { data, loading, refetch } = useApi<{ data: DemandeAPI[] }>("/api/magasinier/commandes-internes?limit=30");
+  const demandes = data?.data ?? [];
+  const [showForm, setShowForm] = useState(false);
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-lg font-bold text-slate-800">Mes demandes de réapprovisionnement</h2>
+          <p className="text-sm text-slate-500 mt-0.5">Exprimez un besoin produit pour votre PDV — remonté au Responsable Approvisionnement Central.</p>
+        </div>
+        <button onClick={() => setShowForm(true)}
+          className="flex items-center gap-2 px-4 py-2.5 bg-sky-600 hover:bg-sky-700 text-white rounded-xl text-sm font-semibold transition-colors">
+          <Send size={15} /> Nouvelle demande
+        </button>
+      </div>
+
+      {loading ? (
+        <div className="flex items-center justify-center py-16 text-slate-400"><RefreshCw className="w-5 h-5 animate-spin" /></div>
+      ) : demandes.length === 0 ? (
+        <div className="bg-white rounded-2xl border border-slate-200/60 flex flex-col items-center justify-center py-16 text-slate-400">
+          <Inbox className="w-10 h-10 mb-2 opacity-30" />
+          <p className="text-sm">Aucune demande envoyée</p>
+        </div>
+      ) : (
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 divide-y divide-slate-100">
+          {demandes.map((d) => {
+            const cfg = REAPPRO_STATUT_CFG[d.statut] ?? REAPPRO_STATUT_CFG.SOUMISE;
+            return (
+              <div key={d.id} className="p-4">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="font-mono text-xs text-slate-500">{d.reference}</span>
+                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${cfg.badge}`}>{cfg.label}</span>
+                  <span className="text-xs text-slate-400 ml-auto">{formatDate(d.createdAt)}</span>
+                </div>
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {d.lignes.map((l) => (
+                    <span key={l.produitId} className="text-xs bg-slate-100 text-slate-600 px-2 py-1 rounded-lg">
+                      {l.produit.nom} × {d.statut === "SOUMISE" ? l.quantiteDemandee : (l.quantiteValidee ?? l.quantiteDemandee)} {l.produit.unite ?? ""}
+                    </span>
+                  ))}
+                </div>
+                {d.notes && <p className="text-xs text-slate-400 mt-1.5 italic">{d.notes}</p>}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {showForm && (
+        <NouvelleDemandeReapproModal
+          onClose={() => setShowForm(false)}
+          onCreated={() => { setShowForm(false); refetch(); }}
+        />
+      )}
+    </div>
+  );
+}
+
+function NouvelleDemandeReapproModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
+  const [search, setSearch] = useState("");
+  const [lignes, setLignes] = useState<{ produitId: number; nom: string; quantite: string }[]>([]);
+  const [notes, setNotes] = useState("");
+
+  const { data: produitsData } = useApi<{ data: ProduitPicker[] }>(
+    search.length >= 2 ? `/api/rpv/produits?search=${encodeURIComponent(search)}&limit=10` : null
+  );
+  const { mutate, loading: saving } = useMutation<DemandeAPI, { notes?: string; lignes: { produitId: number; quantiteDemandee: number }[] }>(
+    "/api/magasinier/commandes-internes", "POST",
+    { successMessage: "Demande envoyée au Responsable Approvisionnement", invalidate: "/api/magasinier/commandes-internes" }
+  );
+
+  const addProduit = (p: ProduitPicker) => {
+    if (lignes.some((l) => l.produitId === p.id)) return;
+    setLignes((prev) => [...prev, { produitId: p.id, nom: p.nom, quantite: "1" }]);
+    setSearch("");
+  };
+  const removeProduit = (produitId: number) => setLignes((prev) => prev.filter((l) => l.produitId !== produitId));
+  const setQuantite = (produitId: number, quantite: string) =>
+    setLignes((prev) => prev.map((l) => (l.produitId === produitId ? { ...l, quantite } : l)));
+
+  const handleSubmit = async () => {
+    if (lignes.length === 0) { toast.error("Ajoutez au moins un produit"); return; }
+    if (lignes.some((l) => !l.quantite || Number(l.quantite) <= 0)) { toast.error("Quantité invalide"); return; }
+    const result = await mutate({
+      notes: notes || undefined,
+      lignes: lignes.map((l) => ({ produitId: l.produitId, quantiteDemandee: Number(l.quantite) })),
+    });
+    if (result) onCreated();
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[92vh] flex flex-col">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
+          <h2 className="font-semibold text-slate-900">Nouvelle demande de réapprovisionnement</h2>
+          <button onClick={onClose} className="p-1.5 hover:bg-slate-100 rounded-lg"><X className="w-4 h-4" /></button>
+        </div>
+        <div className="overflow-y-auto flex-1 p-6 space-y-4">
+          <label className="block">
+            <span className="block text-xs font-medium text-slate-600 mb-1">Ajouter un produit</span>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Rechercher un produit…"
+                className="w-full pl-9 pr-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-sky-500" />
+              {produitsData?.data && produitsData.data.length > 0 && (
+                <div className="absolute z-10 mt-1 w-full bg-white border border-slate-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                  {produitsData.data.map((p) => (
+                    <button key={p.id} onClick={() => addProduit(p)} type="button"
+                      className="w-full text-left px-3 py-2 text-sm hover:bg-slate-50">
+                      {p.nom} {p.reference && <span className="text-xs text-slate-400 font-mono">{p.reference}</span>}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </label>
+
+          {lignes.length > 0 && (
+            <div className="border border-slate-200 rounded-xl divide-y divide-slate-100">
+              {lignes.map((l) => (
+                <div key={l.produitId} className="flex items-center gap-2 px-3 py-2">
+                  <span className="flex-1 text-sm text-slate-700">{l.nom}</span>
+                  <input type="number" min="1" value={l.quantite} onChange={(e) => setQuantite(l.produitId, e.target.value)}
+                    className="w-20 px-2 py-1 border border-slate-200 rounded text-center text-sm focus:outline-none focus:ring-2 focus:ring-sky-500" />
+                  <button onClick={() => removeProduit(l.produitId)} className="p-1 text-slate-400 hover:text-red-500"><X className="w-4 h-4" /></button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <label className="block">
+            <span className="block text-xs font-medium text-slate-600 mb-1">Notes (optionnel)</span>
+            <textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)}
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm resize-y focus:outline-none focus:ring-2 focus:ring-sky-500" />
+          </label>
+        </div>
+        <div className="flex justify-end gap-3 px-6 py-4 border-t border-slate-200">
+          <button onClick={onClose} className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 rounded-lg border border-slate-200">Annuler</button>
+          <button onClick={handleSubmit} disabled={saving}
+            className="flex items-center gap-2 px-4 py-2 bg-sky-600 text-white text-sm font-medium rounded-lg hover:bg-sky-700 disabled:opacity-50">
+            {saving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />} Envoyer
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

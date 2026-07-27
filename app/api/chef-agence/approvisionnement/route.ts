@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
+import { PrioriteNotification } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getChefAgenceSession, getChefAgencePdvIds } from "@/lib/authChefAgence";
+import { randomUUID } from "crypto";
+import { notifyRoles, auditLog } from "@/lib/notifications";
 
 /**
  * GET /api/chef-agence/approvisionnement?pdvId=X&statut=X&page=1
@@ -124,6 +127,7 @@ export async function GET(req: Request) {
       receptions: receptionsData,
       stats: {
         commandesAttente:  commandes.filter((c) => ["BROUILLON", "SOUMISE"].includes(c.statut)).length,
+        aValiderAgence:    commandes.filter((c) => c.statut === "EN_VALIDATION_AGENCE").length,
         receptionsAttente: receptions.filter((r) => ["BROUILLON", "EN_COURS"].includes(r.statut)).length,
       },
       meta: {
@@ -135,5 +139,71 @@ export async function GET(req: Request) {
   } catch (error) {
     console.error("GET /api/chef-agence/approvisionnement error:", error);
     return NextResponse.json({ success: false, message: "Erreur serveur" }, { status: 500 });
+  }
+}
+
+/**
+ * POST /api/chef-agence/approvisionnement
+ * Le chef d'agence exprime un besoin de réapprovisionnement pour un PDV de sa
+ * zone (CDC §3/§4 — niveau "agence commerciale"), remonté au Responsable
+ * Approvisionnement Central. Body: { pointDeVenteId, notes?, lignes: [{produitId, quantiteDemandee}] }
+ */
+export async function POST(req: Request) {
+  try {
+    const session = await getChefAgenceSession();
+    if (!session) return NextResponse.json({ message: "Accès refusé" }, { status: 403 });
+
+    const { pointDeVenteId, notes, lignes } = await req.json() as {
+      pointDeVenteId: number; notes?: string; lignes: Array<{ produitId: number; quantiteDemandee: number }>;
+    };
+
+    if (!pointDeVenteId || !lignes?.length) {
+      return NextResponse.json({ message: "pointDeVenteId et lignes sont obligatoires" }, { status: 400 });
+    }
+
+    const pdvIds = await getChefAgencePdvIds(session);
+    if (pdvIds !== null && !pdvIds.includes(Number(pointDeVenteId))) {
+      return NextResponse.json({ message: "Ce point de vente n'est pas dans votre zone" }, { status: 403 });
+    }
+
+    const commande = await prisma.$transaction(async (tx) => {
+      const ref = `CMD-INT-${Date.now()}-${randomUUID().slice(0, 6).toUpperCase()}`;
+
+      const c = await tx.commandeInterne.create({
+        data: {
+          reference:      ref,
+          statut:         "SOUMISE",
+          demandeurId:    parseInt(session.user.id),
+          pointDeVenteId: Number(pointDeVenteId),
+          notes:          notes || null,
+          lignes: {
+            create: lignes.map((l) => ({
+              produitId:        Number(l.produitId),
+              quantiteDemandee: Number(l.quantiteDemandee),
+            })),
+          },
+        },
+        include: {
+          pointDeVente: { select: { nom: true } },
+          lignes: { include: { produit: { select: { nom: true } } } },
+        },
+      });
+
+      await auditLog(tx, parseInt(session.user.id), "COMMANDE_INTERNE_CREEE", "CommandeInterne", c.id);
+
+      await notifyRoles(tx, ["AGENT_LOGISTIQUE_APPROVISIONNEMENT"], {
+        titre:    `Demande réappro : ${ref}`,
+        message:  `${session.user.prenom} ${session.user.nom} (chef d'agence) a soumis une demande de réapprovisionnement pour "${c.pointDeVente.nom}" (${c.lignes.length} produit(s)).`,
+        priorite: PrioriteNotification.HAUTE,
+        actionUrl:`/dashboard/user/logistiquesApprovisionnements/commandes-internes`,
+      });
+
+      return c;
+    });
+
+    return NextResponse.json({ data: commande }, { status: 201 });
+  } catch (error) {
+    console.error("POST /api/chef-agence/approvisionnement error:", error);
+    return NextResponse.json({ message: "Erreur serveur" }, { status: 500 });
   }
 }
