@@ -206,9 +206,9 @@ export default function AfriGesDashboard() {
           { indicateur: "Versements — montant", valeur: d.versementsTotal.montant, evolution: "" },
         ],
         columns: [
-          { label: "Indicateur", key: "indicateur" },
-          { label: "Valeur", key: "valeur", type: "number" },
-          { label: "Évolution", key: "evolution" },
+          { label: t('xlsx_indicateur'), key: "indicateur" },
+          { label: t('xlsx_valeur'), key: "valeur", type: "number" },
+          { label: t('xlsx_evolution'), key: "evolution" },
         ],
       });
     }
@@ -240,8 +240,8 @@ export default function AfriGesDashboard() {
           { statut: "Annulées", nombre: r.annulees },
         ],
         columns: [
-          { label: "Statut", key: "statut" },
-          { label: "Nombre", key: "nombre", type: "number" },
+          { label: t('col_status'), key: "statut" },
+          { label: t('xlsx_nombre'), key: "nombre", type: "number" },
         ],
       });
     }
@@ -260,8 +260,8 @@ export default function AfriGesDashboard() {
           { indicateur: "Mouvements de stock", valeur: a.mouvementsStock },
         ],
         columns: [
-          { label: "Indicateur", key: "indicateur" },
-          { label: "Valeur", key: "valeur", type: "number" },
+          { label: t('xlsx_indicateur'), key: "indicateur" },
+          { label: t('xlsx_valeur'), key: "valeur", type: "number" },
         ],
       });
     }
@@ -273,9 +273,9 @@ export default function AfriGesDashboard() {
         kind: "object",
         rows: act.modules.liste.map(m => ({ nom: m.nom, cle: m.key, statut: m.actif ? "Actif" : "Inactif" })),
         columns: [
-          { label: "Module", key: "nom" },
-          { label: "Clé", key: "cle" },
-          { label: "Statut", key: "statut" },
+          { label: t('xlsx_module'), key: "nom" },
+          { label: t('xlsx_cle'), key: "cle" },
+          { label: t('col_status'), key: "statut" },
         ],
       });
     }
@@ -287,10 +287,10 @@ export default function AfriGesDashboard() {
         kind: "object",
         rows: act.alertes.map(al => ({ type: al.type, niveau: al.niveau, count: al.count, detail: al.detail })),
         columns: [
-          { label: "Type", key: "type" },
-          { label: "Niveau", key: "niveau" },
-          { label: "Nombre", key: "count", type: "number" },
-          { label: "Détail", key: "detail" },
+          { label: t('xlsx_type'), key: "type" },
+          { label: t('xlsx_niveau'), key: "niveau" },
+          { label: t('xlsx_nombre'), key: "count", type: "number" },
+          { label: t('xlsx_detail'), key: "detail" },
         ],
       });
     }
@@ -310,8 +310,8 @@ export default function AfriGesDashboard() {
           { indicateur: "Approvisionnement — en attente", valeur: r.approvisionnement.enAttente },
         ],
         columns: [
-          { label: "Indicateur", key: "indicateur" },
-          { label: "Valeur", key: "valeur", type: "number" },
+          { label: t('xlsx_indicateur'), key: "indicateur" },
+          { label: t('xlsx_valeur'), key: "valeur", type: "number" },
         ],
       });
     }
@@ -334,8 +334,8 @@ export default function AfriGesDashboard() {
           { indicateur: "Créances à risque", valeur: dec.creancesARisque },
         ],
         columns: [
-          { label: "Indicateur", key: "indicateur" },
-          { label: "Valeur", key: "valeur", type: "number" },
+          { label: t('xlsx_indicateur'), key: "indicateur" },
+          { label: t('xlsx_valeur'), key: "valeur", type: "number" },
         ],
       });
 
@@ -346,9 +346,9 @@ export default function AfriGesDashboard() {
           kind: "object",
           rows: dec.agentsPerformants.map(a => ({ rang: a.rank, agent: a.nom, montantCollecte: a.montantCollecte })),
           columns: [
-            { label: "Rang", key: "rang", type: "number" },
-            { label: "Agent", key: "agent" },
-            { label: "Montant collecté", key: "montantCollecte", type: "currency" },
+            { label: t('xlsx_rang'), key: "rang", type: "number" },
+            { label: t('xlsx_agent'), key: "agent" },
+            { label: t('xlsx_montant_collecte'), key: "montantCollecte", type: "currency" },
           ],
         });
       }
@@ -460,7 +460,7 @@ export default function AfriGesDashboard() {
             </div>
             {/* Clientèle — module CRM/Recouvrement */}
             <div className="p-4 border-b border-slate-100">
-              <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Clientèle</h3>
+              <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">{t('nav_section_clientele')}</h3>
               <nav className="space-y-1">
                 <Link href="/dashboard/admin/clients" className="w-full flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-50 rounded-xl transition-all"><UserCheck size={20} /><span>{t('nav_clients')}</span></Link>
               </nav>
@@ -475,33 +475,33 @@ export default function AfriGesDashboard() {
               <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">{t('commerce')}</h3>
               <nav className="space-y-1">
                 <Link href="/dashboard/admin/ventes" className="w-full flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-50 rounded-xl transition-all"><ShoppingCart size={20} /><span>{t('nav_ventes')}</span></Link>
-                <Link href="/dashboard/admin/catalogue/produits" className="w-full flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-50 rounded-xl transition-all"><Layers size={20} /><span>Catalogue produits</span></Link>
+                <Link href="/dashboard/admin/catalogue/produits" className="w-full flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-50 rounded-xl transition-all"><Layers size={20} /><span>{t('nav_catalogue_produits')}</span></Link>
                 <Link href="/dashboard/admin/stock"             className="w-full flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-50 rounded-xl transition-all"><Package size={20} /><span>{t('nav_stock')}</span></Link>
                 <Link href="/dashboard/admin/pdv"              className="w-full flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-50 rounded-xl transition-all"><Store size={20} /><span>{t('nav_pdv')}</span></Link>
-                <Link href="/dashboard/admin/approvisionnements" className="w-full flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-50 rounded-xl transition-all"><Truck size={20} /><span>Approvisionnements</span></Link>
-                <Link href="/dashboard/admin/stock/ajustements" className="w-full flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-50 rounded-xl transition-all"><ClipboardCheck size={20} /><span>Ajustements stock</span></Link>
-                <Link href="/dashboard/gestionnaire/logistique" className="w-full flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-50 rounded-xl transition-all"><BarChart2 size={20} /><span>Dashboard logistique</span></Link>
+                <Link href="/dashboard/admin/approvisionnements" className="w-full flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-50 rounded-xl transition-all"><Truck size={20} /><span>{t('nav_approvisionnements')}</span></Link>
+                <Link href="/dashboard/admin/stock/ajustements" className="w-full flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-50 rounded-xl transition-all"><ClipboardCheck size={20} /><span>{t('nav_ajustements_stock')}</span></Link>
+                <Link href="/dashboard/gestionnaire/logistique" className="w-full flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-50 rounded-xl transition-all"><BarChart2 size={20} /><span>{t('nav_dashboard_logistique')}</span></Link>
               </nav>
             </div>
             {/* RH — Gestion des ressources humaines */}
             <div className="p-4 border-b border-slate-100">
-              <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Ressources humaines</h3>
+              <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">{t('nav_section_rh')}</h3>
               <nav className="space-y-1">
-                <Link href="/dashboard/admin/rh" className="w-full flex items-center gap-3 px-4 py-2.5 text-slate-600 hover:bg-slate-50 rounded-xl transition-all font-medium"><UserCog size={18} /><span>Dashboard RH</span></Link>
+                <Link href="/dashboard/admin/rh" className="w-full flex items-center gap-3 px-4 py-2.5 text-slate-600 hover:bg-slate-50 rounded-xl transition-all font-medium"><UserCog size={18} /><span>{t('nav_dashboard_rh')}</span></Link>
               </nav>
             </div>
             {/* RIA — Réseau des Investisseurs AfriSime */}
             <div className="p-4 border-b border-slate-100">
-              <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">RIA — Investisseurs</h3>
+              <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">{t('nav_section_ria')}</h3>
               <nav className="space-y-1">
-                <Link href="/dashboard/admin/ria" className="w-full flex items-center gap-3 px-4 py-2.5 text-slate-600 hover:bg-slate-50 rounded-xl transition-all font-medium"><Network size={18} /><span>Dashboard RIA</span></Link>
+                <Link href="/dashboard/admin/ria" className="w-full flex items-center gap-3 px-4 py-2.5 text-slate-600 hover:bg-slate-50 rounded-xl transition-all font-medium"><Network size={18} /><span>{t('nav_dashboard_ria')}</span></Link>
               </nav>
             </div>
             {/* POPC — Planification des objectifs & pilotage des collectes */}
             <div className="p-4 border-b border-slate-100">
-              <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">POPC — Planification</h3>
+              <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">{t('nav_section_popc')}</h3>
               <nav className="space-y-1">
-                <Link href="/dashboard/admin/popc" className="w-full flex items-center gap-3 px-4 py-2.5 text-slate-600 hover:bg-slate-50 rounded-xl transition-all font-medium"><Target size={18} /><span>Objectifs &amp; paramétrage</span></Link>
+                <Link href="/dashboard/admin/popc" className="w-full flex items-center gap-3 px-4 py-2.5 text-slate-600 hover:bg-slate-50 rounded-xl transition-all font-medium"><Target size={18} /><span>{t('nav_popc_objectifs')}</span></Link>
               </nav>
             </div>
             {/* Visible pour ADMIN et SUPER_ADMIN */}
@@ -518,7 +518,7 @@ export default function AfriGesDashboard() {
                 <Link href="/dashboard/admin/droits-acces"
                   className="w-full flex items-center gap-3 px-4 py-2.5 text-slate-600 hover:bg-slate-50 rounded-xl transition-all text-sm">
                   <Lock size={16} />
-                  <span>Droits d&apos;accès</span>
+                  <span>{t('nav_droits_acces')}</span>
                 </Link>
               </nav>
             </div>
@@ -598,7 +598,7 @@ export default function AfriGesDashboard() {
                     { label: t('dash_versements'), value: act?.activiteJour.versements ?? '—', icon: Wallet,      color: 'text-purple-600', bg: 'bg-purple-50' },
                     { label: t('dash_souscription'), value: act?.activiteJour.souscriptions ?? '—', icon: Layers, color: 'text-blue-600', bg: 'bg-blue-50' },
                     { label: t('dash_vente_directe'), value: act?.activiteJour.ventes ?? '—', icon: ShoppingCart, color: 'text-emerald-600', bg: 'bg-emerald-50' },
-                    { label: 'Remboursements', value: act?.activiteJour.remboursements ?? '—', icon: CreditCard, color: 'text-rose-600', bg: 'bg-rose-50' },
+                    { label: t('dash_remboursements'), value: act?.activiteJour.remboursements ?? '—', icon: CreditCard, color: 'text-rose-600', bg: 'bg-rose-50' },
                     { label: t('dash_mouvements_stock'), value: act?.activiteJour.mouvementsStock ?? '—', icon: Package, color: 'text-amber-600', bg: 'bg-amber-50' },
                   ].map((item) => {
                     const Icon = item.icon;
@@ -721,7 +721,7 @@ export default function AfriGesDashboard() {
                   <div className="p-3 bg-slate-50 rounded-xl">
                     <div className="flex items-center gap-1.5 mb-1.5">
                       <Wallet size={13} className="text-purple-500" />
-                      <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">Encaissé (jour)</span>
+                      <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">{t('dash_encaisse_jour')}</span>
                     </div>
                     <p className="text-sm font-bold text-slate-800">{act ? formatCurrency(act.rapports.caisse.versementsMontant) : '—'}</p>
                     <p className="text-[10px] text-slate-400">{act?.rapports.caisse.sessionsOuvertes ?? '—'} {t('admin_sessions_open')}</p>
@@ -766,7 +766,7 @@ export default function AfriGesDashboard() {
             <div className="col-span-2 bg-white rounded-2xl p-6 shadow-sm border border-slate-200/60">
               <div className="flex items-center justify-between mb-6">
                 <div>
-                  <h3 className="text-xl font-bold text-slate-800">Évolution — crédits &amp; ventes directes</h3>
+                  <h3 className="text-xl font-bold text-slate-800">{t('dash_evolution_credits_ventes')}</h3>
                   <p className="text-xs text-slate-400 mt-0.5">{t('dash_montants_journaliers')}</p>
                 </div>
                 <select
@@ -784,11 +784,11 @@ export default function AfriGesDashboard() {
               <div className="flex items-center gap-5 mb-4">
                 <div className="flex items-center gap-1.5">
                   <div className="w-3 h-3 rounded-full bg-emerald-500" />
-                  <span className="text-xs text-slate-500">Crédits remboursés</span>
+                  <span className="text-xs text-slate-500">{t('dash_credits_rembourses')}</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <div className="w-3 h-3 rounded-full bg-blue-400" />
-                  <span className="text-xs text-slate-500">Ventes directes</span>
+                  <span className="text-xs text-slate-500">{t('dash_ventes_directes')}</span>
                 </div>
               </div>
 
@@ -954,14 +954,14 @@ export default function AfriGesDashboard() {
               <div className="flex items-center gap-3">
                 <div className="w-1 h-8 bg-linear-to-b from-orange-500 to-red-500 rounded-full" />
                 <div>
-                  <h3 className="text-lg font-bold text-slate-800">Dashboard Décisionnel</h3>
-                  <p className="text-xs text-slate-400">Créances · Collecte · Performance agents</p>
+                  <h3 className="text-lg font-bold text-slate-800">{t('dash_decisionnel_titre')}</h3>
+                  <p className="text-xs text-slate-400">{t('dash_decisionnel_sous_titre')}</p>
                 </div>
               </div>
               <button
                 onClick={refetchDecisional}
                 className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-lg transition-colors"
-                title="Actualiser"
+                title={t('refresh')}
               >
                 <RefreshCw size={14} />
               </button>
@@ -971,40 +971,40 @@ export default function AfriGesDashboard() {
             <div className="grid grid-cols-4 gap-4">
               {[
                 {
-                  label: "Clients débiteurs",
+                  label: t('dash_clients_debiteurs'),
                   value: dec?.clientsDebiteurs ?? '—',
                   icon: Users,
                   color: 'text-orange-600',
                   bg: 'bg-orange-50',
                   border: 'border-orange-100',
-                  sub: 'avec crédit actif',
+                  sub: t('dash_sub_credit_actif'),
                 },
                 {
-                  label: "Créances totales",
+                  label: t('dash_creances_totales'),
                   value: dec ? formatCurrency(dec.creancesTotales) : '—',
                   icon: CreditCard,
                   color: 'text-red-600',
                   bg: 'bg-red-50',
                   border: 'border-red-100',
-                  sub: 'encours actif + retard',
+                  sub: t('dash_sub_encours_retard'),
                 },
                 {
-                  label: "Retards critiques",
+                  label: t('dash_retards_critiques'),
                   value: dec?.retardsCritiques ?? '—',
                   icon: AlertTriangle,
                   color: 'text-amber-600',
                   bg: 'bg-amber-50',
                   border: 'border-amber-100',
-                  sub: 'crédits EN_RETARD',
+                  sub: t('dash_sub_credits_en_retard'),
                 },
                 {
-                  label: "Collecté aujourd'hui",
+                  label: t('dash_collecte_jour'),
                   value: dec ? formatCurrency(dec.montantCollecteJour) : '—',
                   icon: Wallet,
                   color: 'text-emerald-600',
                   bg: 'bg-emerald-50',
                   border: 'border-emerald-100',
-                  sub: 'packs + crédits',
+                  sub: t('dash_sub_packs_credits'),
                 },
               ].map((kpi) => {
                 const Icon = kpi.icon;
@@ -1033,8 +1033,8 @@ export default function AfriGesDashboard() {
                     <Percent size={16} className="text-indigo-600" />
                   </div>
                   <div>
-                    <h4 className="text-sm font-bold text-slate-800">Taux de remboursement</h4>
-                    <p className="text-xs text-slate-400">Global tous crédits actifs/soldés</p>
+                    <h4 className="text-sm font-bold text-slate-800">{t('dash_taux_remboursement')}</h4>
+                    <p className="text-xs text-slate-400">{t('dash_taux_remb_sous_titre')}</p>
                   </div>
                 </div>
                 <div className="flex items-end gap-2 mb-3">
@@ -1056,8 +1056,8 @@ export default function AfriGesDashboard() {
                 )}
                 <p className="text-[10px] text-slate-400 mt-2">
                   {dec?.tauxRemboursement !== undefined && (
-                    dec.tauxRemboursement >= 80 ? 'Excellent — objectif atteint' :
-                    dec.tauxRemboursement >= 50 ? 'Moyen — suivi recommandé' : 'Faible — action requise'
+                    dec.tauxRemboursement >= 80 ? t('dash_taux_excellent') :
+                    dec.tauxRemboursement >= 50 ? t('dash_taux_moyen') : t('dash_taux_faible')
                   )}
                 </p>
               </div>
@@ -1069,12 +1069,12 @@ export default function AfriGesDashboard() {
                     <Award size={16} className="text-amber-600" />
                   </div>
                   <div>
-                    <h4 className="text-sm font-bold text-slate-800">Classement agents terrain</h4>
-                    <p className="text-xs text-slate-400">Collecte des 30 derniers jours</p>
+                    <h4 className="text-sm font-bold text-slate-800">{t('dash_classement_agents')}</h4>
+                    <p className="text-xs text-slate-400">{t('dash_collecte_30j')}</p>
                   </div>
                 </div>
                 {!dec || dec.agentsPerformants.length === 0 ? (
-                  <p className="text-sm text-slate-400 text-center py-4">Aucune donnée de collecte</p>
+                  <p className="text-sm text-slate-400 text-center py-4">{t('dash_aucune_collecte')}</p>
                 ) : (
                   <div className="space-y-2.5">
                     {dec.agentsPerformants.map((agent) => {
@@ -1123,51 +1123,51 @@ export default function AfriGesDashboard() {
                   <DollarSign size={16} className="text-blue-600" />
                 </div>
                 <div>
-                  <h4 className="text-sm font-bold text-slate-800">Dashboard Financier</h4>
-                  <p className="text-xs text-slate-400">Encours · Cash · Risques</p>
+                  <h4 className="text-sm font-bold text-slate-800">{t('dash_financier_titre')}</h4>
+                  <p className="text-xs text-slate-400">{t('dash_financier_sous_titre')}</p>
                 </div>
               </div>
               <div className="grid grid-cols-5 gap-4">
                 {[
                   {
-                    label: "Encours global",
+                    label: t('dash_encours_global'),
                     value: dec ? formatCurrency(dec.encoursGlobal) : '—',
                     icon: CreditCard,
                     color: 'text-blue-600',
                     bg: 'bg-blue-50',
-                    desc: 'Solde restant total',
+                    desc: t('dash_desc_solde_restant'),
                   },
                   {
-                    label: "Cash attendu",
+                    label: t('dash_cash_attendu'),
                     value: dec ? formatCurrency(dec.cashAttendu) : '—',
                     icon: Clock,
                     color: 'text-indigo-600',
                     bg: 'bg-indigo-50',
-                    desc: 'Échéances du jour',
+                    desc: t('dash_desc_echeances_jour'),
                   },
                   {
-                    label: "Cash collecté",
+                    label: t('dash_cash_collecte'),
                     value: dec ? formatCurrency(dec.cashCollecte) : '—',
                     icon: CheckCircle,
                     color: 'text-emerald-600',
                     bg: 'bg-emerald-50',
-                    desc: "Encaissé aujourd'hui",
+                    desc: t('dash_desc_encaisse_aujourdhui'),
                   },
                   {
-                    label: "Pertes potentielles",
+                    label: t('dash_pertes_potentielles'),
                     value: dec ? formatCurrency(dec.pertesPoentielles) : '—',
                     icon: TrendingDown,
                     color: 'text-red-600',
                     bg: 'bg-red-50',
-                    desc: 'EN_RETARD + risque élevé',
+                    desc: t('dash_desc_en_retard_risque'),
                   },
                   {
-                    label: "Créances à risque",
+                    label: t('dash_creances_a_risque'),
                     value: dec?.creancesARisque ?? '—',
                     icon: AlertTriangle,
                     color: 'text-amber-600',
                     bg: 'bg-amber-50',
-                    desc: 'Clients ELEVE/CRITIQUE',
+                    desc: t('dash_desc_clients_eleve_critique'),
                   },
                 ].map((item) => {
                   const Icon = item.icon;
@@ -1189,7 +1189,7 @@ export default function AfriGesDashboard() {
                 <div className="mt-4 p-4 bg-slate-50 rounded-xl">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-xs font-semibold text-slate-600">
-                      Taux de collecte du jour
+                      {t('dash_taux_collecte_jour')}
                     </span>
                     <span className="text-xs font-bold text-slate-800">
                       {Math.min(Math.round((dec.cashCollecte / dec.cashAttendu) * 100), 100)}%
@@ -1203,10 +1203,10 @@ export default function AfriGesDashboard() {
                   </div>
                   <div className="flex justify-between mt-1.5">
                     <span className="text-[10px] text-slate-400">
-                      Collecté : {formatCurrency(dec.cashCollecte)}
+                      {t('dash_label_collecte')} : {formatCurrency(dec.cashCollecte)}
                     </span>
                     <span className="text-[10px] text-slate-400">
-                      Attendu : {formatCurrency(dec.cashAttendu)}
+                      {t('dash_label_attendu')} : {formatCurrency(dec.cashAttendu)}
                     </span>
                   </div>
                 </div>

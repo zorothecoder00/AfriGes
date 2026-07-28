@@ -139,11 +139,11 @@ export default function GestionnairesPage() {
 
   // Mutations gestionnaires
   const { mutate: addGestionnaire, loading: adding, error: addError } =
-    useMutation('/api/admin/gestionnaires', 'POST', { successMessage: 'Gestionnaire ajouté avec succès' });
+    useMutation('/api/admin/gestionnaires', 'POST', { successMessage: t('gest_ajout_succes') });
 
   const deleteIdRef = useRef<number | null>(null);
   const { mutate: deleteGestionnaire, loading: deleting } =
-    useMutation(() => `/api/admin/gestionnaires/${deleteIdRef.current}`, 'DELETE', { successMessage: 'Gestionnaire supprimé avec succès' });
+    useMutation(() => `/api/admin/gestionnaires/${deleteIdRef.current}`, 'DELETE', { successMessage: t('gest_suppr_succes') });
 
   // Mutation affectation PDV
   const affectPdvIdRef = useRef<number | null>(null);
@@ -200,7 +200,7 @@ export default function GestionnairesPage() {
       });
       if (!res.ok) {
         const err = await res.json();
-        throw new Error(err.error || 'Erreur lors de l\'ajout');
+        throw new Error(err.error || t('gest_err_ajout'));
       }
       const pdv = pdvOptions.find(p => p.id === pdvId);
       if (pdv) {
@@ -209,7 +209,7 @@ export default function GestionnairesPage() {
       setSelectedPdvId('');
       refetch();
     } catch (e) {
-      setZoneError(e instanceof Error ? e.message : 'Erreur');
+      setZoneError(e instanceof Error ? e.message : t('md_erreur'));
     } finally {
       setZoneLoading(false);
     }
@@ -225,11 +225,11 @@ export default function GestionnairesPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ chefAgenceId: null }),
       });
-      if (!res.ok) throw new Error('Erreur lors du retrait');
+      if (!res.ok) throw new Error(t('gest_err_retrait'));
       setLocalZonePdvs(prev => prev.filter(p => p.id !== pdvId));
       refetch();
     } catch (e) {
-      setZoneError(e instanceof Error ? e.message : 'Erreur');
+      setZoneError(e instanceof Error ? e.message : t('md_erreur'));
     } finally {
       setZoneLoading(false);
     }
@@ -243,7 +243,7 @@ export default function GestionnairesPage() {
     const res = await affectPdv({ userId: affectModal.member.id });
     setAffectLoading(false);
     if (res) { setAffectModal(null); refetch(); }
-    else setAffectError('Erreur lors de l\'affectation');
+    else setAffectError(t('gest_err_affectation'));
   };
 
   const handleDesaffecter = async () => {
@@ -256,7 +256,7 @@ export default function GestionnairesPage() {
     const res = await desaffectPdv({ userId: affectModal.member.id });
     setAffectLoading(false);
     if (res) { setAffectModal(null); refetch(); }
-    else setAffectError('Erreur lors de la désaffectation');
+    else setAffectError(t('gest_err_desaffectation'));
   };
 
   // Client-side search
@@ -367,26 +367,26 @@ export default function GestionnairesPage() {
               onChange={e => { setRoleFilter(e.target.value); setPage(1); }}
               className="px-4 py-3 border border-slate-200 rounded-xl text-slate-700 focus:outline-none focus:ring-2 focus:ring-purple-500 bg-slate-50">
               <option value="">{t('text_all_roles')}</option>
-              <option value="RESPONSABLE_POINT_DE_VENTE">Resp. point de vente</option>
-              <option value="CHEF_AGENCE">Chef d&apos;agence</option>
-              <option value="RESPONSABLE_COMMUNAUTE">Resp. communauté</option>
-              <option value="REVENDEUR">Revendeur</option>
-              <option value="AGENT_LOGISTIQUE_APPROVISIONNEMENT">Agent logistique</option>
-              <option value="MAGAZINIER">Magasinier</option>
-              <option value="CAISSIER">Caissier</option>
-              <option value="COMMERCIAL">Commercial</option>
-              <option value="DIRECTEUR_COMMERCIAL">Directeur commercial</option>
-              <option value="COMPTABLE">Comptable</option>
-              <option value="AUDITEUR_INTERNE">Auditeur interne</option>
-              <option value="RESPONSABLE_VENTE_CREDIT">Resp. vente crédit</option>
-              <option value="CONTROLEUR_TERRAIN">Contrôleur terrain</option>
-              <option value="AGENT_TERRAIN">Agent terrain</option>
-              <option value="RESPONSABLE_ECONOMIQUE">Resp. économique</option>
-              <option value="RESPONSABLE_MARKETING">Resp. marketing</option>
-              <option value="ACTIONNAIRE">Actionnaire</option>
-              <option value="RESPONSABLE_RH">Responsable RH</option>
-              <option value="INVESTISSEUR_RIA">Investisseur RIA</option>
-              <option value="RESPONSABLE_RIA">Responsable RIA</option>
+              <option value="RESPONSABLE_POINT_DE_VENTE">{t('role_responsable_pdv')}</option>
+              <option value="CHEF_AGENCE">{t('role_chef_agence')}</option>
+              <option value="RESPONSABLE_COMMUNAUTE">{t('role_responsable_communaute')}</option>
+              <option value="REVENDEUR">{t('role_revendeur')}</option>
+              <option value="AGENT_LOGISTIQUE_APPROVISIONNEMENT">{t('role_agent_logistique')}</option>
+              <option value="MAGAZINIER">{t('role_magasinier')}</option>
+              <option value="CAISSIER">{t('role_caissier')}</option>
+              <option value="COMMERCIAL">{t('role_commercial')}</option>
+              <option value="DIRECTEUR_COMMERCIAL">{t('role_directeur_commercial')}</option>
+              <option value="COMPTABLE">{t('role_comptable')}</option>
+              <option value="AUDITEUR_INTERNE">{t('role_auditeur_interne')}</option>
+              <option value="RESPONSABLE_VENTE_CREDIT">{t('role_responsable_vente_credit')}</option>
+              <option value="CONTROLEUR_TERRAIN">{t('role_controleur_terrain')}</option>
+              <option value="AGENT_TERRAIN">{t('role_agent_terrain')}</option>
+              <option value="RESPONSABLE_ECONOMIQUE">{t('role_responsable_economique')}</option>
+              <option value="RESPONSABLE_MARKETING">{t('role_responsable_marketing')}</option>
+              <option value="ACTIONNAIRE">{t('role_actionnaire')}</option>
+              <option value="RESPONSABLE_RH">{t('role_responsable_rh')}</option>
+              <option value="INVESTISSEUR_RIA">{t('role_investisseur_ria')}</option>
+              <option value="RESPONSABLE_RIA">{t('role_responsable_ria')}</option>
             </select>
           </div>
         </div>
@@ -417,26 +417,26 @@ export default function GestionnairesPage() {
                   <select value={formData.role}
                     onChange={e => setFormData({ ...formData, role: e.target.value })}
                     className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 bg-slate-50">
-                    <option value="RESPONSABLE_POINT_DE_VENTE">Responsable point de vente</option>
-                    <option value="CHEF_AGENCE">Chef d&apos;agence</option>
-                    <option value="RESPONSABLE_COMMUNAUTE">Responsable communauté</option>
-                    <option value="REVENDEUR">Revendeur</option>
-                    <option value="AGENT_LOGISTIQUE_APPROVISIONNEMENT">Agent logistique / approvisionnement</option>
-                    <option value="MAGAZINIER">Magasinier</option>
-                    <option value="CAISSIER">Caissier</option>
-                    <option value="COMMERCIAL">Commercial</option>
-              <option value="DIRECTEUR_COMMERCIAL">Directeur commercial</option>
-                    <option value="COMPTABLE">Comptable</option>
-                    <option value="AUDITEUR_INTERNE">Auditeur interne</option>
-                    <option value="RESPONSABLE_VENTE_CREDIT">Responsable vente crédit</option>
-                    <option value="CONTROLEUR_TERRAIN">Contrôleur terrain</option>
-                    <option value="AGENT_TERRAIN">Agent terrain</option>
-                    <option value="RESPONSABLE_ECONOMIQUE">Responsable économique</option>
-                    <option value="RESPONSABLE_MARKETING">Responsable marketing</option>
-                    <option value="ACTIONNAIRE">Actionnaire</option>
-                    <option value="RESPONSABLE_RH">Responsable RH</option>
-                    <option value="INVESTISSEUR_RIA">Investisseur RIA</option>
-                    <option value="RESPONSABLE_RIA">Responsable RIA</option>
+                    <option value="RESPONSABLE_POINT_DE_VENTE">{t('role_responsable_pdv')}</option>
+                    <option value="CHEF_AGENCE">{t('role_chef_agence')}</option>
+                    <option value="RESPONSABLE_COMMUNAUTE">{t('role_responsable_communaute')}</option>
+                    <option value="REVENDEUR">{t('role_revendeur')}</option>
+                    <option value="AGENT_LOGISTIQUE_APPROVISIONNEMENT">{t('role_agent_logistique')}</option>
+                    <option value="MAGAZINIER">{t('role_magasinier')}</option>
+                    <option value="CAISSIER">{t('role_caissier')}</option>
+                    <option value="COMMERCIAL">{t('role_commercial')}</option>
+              <option value="DIRECTEUR_COMMERCIAL">{t('role_directeur_commercial')}</option>
+                    <option value="COMPTABLE">{t('role_comptable')}</option>
+                    <option value="AUDITEUR_INTERNE">{t('role_auditeur_interne')}</option>
+                    <option value="RESPONSABLE_VENTE_CREDIT">{t('role_responsable_vente_credit')}</option>
+                    <option value="CONTROLEUR_TERRAIN">{t('role_controleur_terrain')}</option>
+                    <option value="AGENT_TERRAIN">{t('role_agent_terrain')}</option>
+                    <option value="RESPONSABLE_ECONOMIQUE">{t('role_responsable_economique')}</option>
+                    <option value="RESPONSABLE_MARKETING">{t('role_responsable_marketing')}</option>
+                    <option value="ACTIONNAIRE">{t('role_actionnaire')}</option>
+                    <option value="RESPONSABLE_RH">{t('role_responsable_rh')}</option>
+                    <option value="INVESTISSEUR_RIA">{t('role_investisseur_ria')}</option>
+                    <option value="RESPONSABLE_RIA">{t('role_responsable_ria')}</option>
                   </select>
                 </div>
                 <button type="submit" disabled={adding}
@@ -579,8 +579,8 @@ export default function GestionnairesPage() {
                     <div className="mb-4 flex items-start gap-2 bg-blue-50 border border-blue-200 rounded-xl px-3 py-2.5 text-xs text-blue-800">
                       <UserCheck size={13} className="mt-0.5 shrink-0" />
                       <span>
-                        Son rôle <span className="font-semibold">{getStatusLabel(affectModal.role)}</span> sera automatiquement reconnu sur le PDV sélectionné.
-                        {affectModal.role === 'RESPONSABLE_POINT_DE_VENTE' && ' Il sera aussi défini comme responsable officiel du PDV.'}
+                        {t('gest_son_role')} <span className="font-semibold">{getStatusLabel(affectModal.role)}</span> {t('gest_role_auto_reconnu')}
+                        {affectModal.role === 'RESPONSABLE_POINT_DE_VENTE' && ` ${t('gest_resp_officiel_pdv')}`}
                       </span>
                     </div>
 
@@ -662,7 +662,7 @@ export default function GestionnairesPage() {
                           </div>
                           <div>
                             <p className="font-semibold text-slate-800">{g.member.prenom} {g.member.nom}</p>
-                            <p className="text-xs text-slate-500">Depuis {formatDate(g.createdAt)}</p>
+                            <p className="text-xs text-slate-500">{t('gest_depuis')} {formatDate(g.createdAt)}</p>
                           </div>
                         </div>
                       </td>
@@ -690,7 +690,7 @@ export default function GestionnairesPage() {
                             <div>
                               <div className="flex items-center gap-1 text-sm font-medium text-slate-700">
                                 <MapPin size={13} className="text-indigo-500" />
-                                <span>{g.member.affectationsPDV.length} PDV{g.member.affectationsPDV.length > 1 ? 's' : ''} dans la zone</span>
+                                <span>{g.member.affectationsPDV.length} PDV{g.member.affectationsPDV.length > 1 ? 's' : ''} {t('gest_pdvs_dans_zone')}</span>
                               </div>
                               <div className="flex flex-wrap gap-1 mt-1">
                                 {g.member.affectationsPDV.slice(0, 3).map(a => (
@@ -705,7 +705,7 @@ export default function GestionnairesPage() {
                             </div>
                           ) : (
                             <span className="text-xs text-amber-600 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full font-medium">
-                              Zone vide
+                              {t('gest_zone_vide')}
                             </span>
                           )
                         ) : pdvAffecte ? (
@@ -722,7 +722,7 @@ export default function GestionnairesPage() {
                           </div>
                         ) : peutAvoirPdv ? (
                           <span className="text-xs text-amber-600 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full font-medium">
-                            Non affecté
+                            {t('gest_non_affecte')}
                           </span>
                         ) : (
                           <span className="text-xs text-slate-400">—</span>
@@ -740,16 +740,16 @@ export default function GestionnairesPage() {
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-1">
                           <Link href={`/dashboard/admin/gestionnaires/${g.id}`}
-                            className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors" title="Voir">
+                            className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors" title={t('action_view')}>
                             <Eye size={16} />
                           </Link>
                           <Link href={`/dashboard/admin/gestionnaires/${g.id}/edit`}
-                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Modifier">
+                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title={t('action_edit')}>
                             <Edit size={16} />
                           </Link>
                           {peutAvoirPdv && (
                             <button onClick={() => openAffectModal(g)}
-                              className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors" title="Affecter PDV">
+                              className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors" title={t('gest_affecter_pdv_title')}>
                               {pdvAffecte ? <Link2 size={16} /> : <Link2 size={16} />}
                             </button>
                           )}
@@ -764,13 +764,13 @@ export default function GestionnairesPage() {
                                 dashboardPath:    ROLE_DASHBOARD_MAP[g.role],
                               })}
                               className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
-                              title="Voir dashboard (mode lecture)"
+                              title={t('gest_voir_dashboard_lecture')}
                             >
                               <LayoutDashboard size={16} />
                             </button>
                           )}
                           <button onClick={() => setDeleteId(g.id)}
-                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Supprimer">
+                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors" title={t('action_delete')}>
                             <Trash2 size={16} />
                           </button>
                         </div>

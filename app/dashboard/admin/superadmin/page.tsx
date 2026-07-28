@@ -89,17 +89,17 @@ const prioriteStyle: Record<string, string> = {
   NORMALE:  "bg-blue-100 text-blue-700 border-blue-200",
 };
 
-const etatStyle: Record<string, { bg: string; text: string; label: string }> = {
-  ACTIF:     { bg: "bg-emerald-100", text: "text-emerald-700", label: "Actif" },
-  SUSPENDU:  { bg: "bg-red-100",     text: "text-red-700",     label: "Suspendu" },
-  INACTIF:   { bg: "bg-slate-100",   text: "text-slate-600",   label: "Inactif" },
+const etatStyle: Record<string, { bg: string; text: string; labelKey: "status_actif" | "status_suspendu" | "status_inactif" }> = {
+  ACTIF:     { bg: "bg-emerald-100", text: "text-emerald-700", labelKey: "status_actif" },
+  SUSPENDU:  { bg: "bg-red-100",     text: "text-red-700",     labelKey: "status_suspendu" },
+  INACTIF:   { bg: "bg-slate-100",   text: "text-slate-600",   labelKey: "status_inactif" },
 };
 
 // ─── Composant principal ──────────────────────────────────────────────────────
 
 export default function SuperAdminPage() {
   const { data: session, status } = useSession();
-  const { applyAndPersist } = useAppSettings();
+  const { applyAndPersist, t } = useAppSettings();
   const isSuperAdmin = session?.user?.role === "SUPER_ADMIN";
   const isAdmin      = session?.user?.role === "ADMIN"; // admin simple (droits restreints)
 
@@ -314,21 +314,21 @@ export default function SuperAdminPage() {
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
         <div className="bg-white rounded-2xl p-10 shadow text-center max-w-md">
           <ShieldAlert size={48} className="text-red-400 mx-auto mb-4" />
-          <h2 className="text-xl font-bold text-slate-800 mb-2">Accès refusé</h2>
+          <h2 className="text-xl font-bold text-slate-800 mb-2">{t('sa_acces_refuse')}</h2>
           <p className="text-slate-500 mb-6">Cette section est réservée aux administrateurs.</p>
-          <Link href="/dashboard/admin" className="px-5 py-2.5 bg-emerald-600 text-white rounded-xl font-medium hover:bg-emerald-700">Retour au tableau de bord</Link>
+          <Link href="/dashboard/admin" className="px-5 py-2.5 bg-emerald-600 text-white rounded-xl font-medium hover:bg-emerald-700">{t('sa_retour_dashboard')}</Link>
         </div>
       </div>
     );
   }
 
   const tabs: { key: TabKey; label: string; icon: React.ElementType; badge?: number }[] = [
-    { key: "systeme",      label: "Vue système",     icon: Activity,  badge: statsRes?.alertes.length },
-    { key: "utilisateurs", label: "Utilisateurs",    icon: Users,     badge: statsRes?.utilisateurs.suspendus },
-    { key: "parametres",   label: "Paramètres",      icon: Settings },
-    { key: "modules",      label: "Modules & Accès", icon: Layers },
-    { key: "logs",         label: "Logs & Audit",    icon: FileText },
-    { key: "acces",        label: "Accès sections",  icon: Eye },
+    { key: "systeme",      label: t('sa_tab_systeme'),      icon: Activity,  badge: statsRes?.alertes.length },
+    { key: "utilisateurs", label: t('sa_tab_utilisateurs'), icon: Users,     badge: statsRes?.utilisateurs.suspendus },
+    { key: "parametres",   label: t('sa_tab_parametres'),   icon: Settings },
+    { key: "modules",      label: t('sa_tab_modules'),      icon: Layers },
+    { key: "logs",         label: t('sa_tab_logs'),         icon: FileText },
+    { key: "acces",        label: t('sa_tab_acces'),        icon: Eye },
   ];
 
   return (
@@ -468,14 +468,14 @@ export default function SuperAdminPage() {
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 {[
-                  { href: "/dashboard/admin/rh",              label: "Dashboard RH",       color: "text-indigo-600 bg-indigo-50 border-indigo-200" },
-                  { href: "/dashboard/admin/rh/collaborateurs",label: "Collaborateurs",     color: "text-blue-600 bg-blue-50 border-blue-200" },
-                  { href: "/dashboard/admin/rh/conges",        label: "Congés",             color: "text-amber-600 bg-amber-50 border-amber-200" },
-                  { href: "/dashboard/admin/rh/recrutement",   label: "Recrutement",        color: "text-emerald-600 bg-emerald-50 border-emerald-200" },
-                  { href: "/dashboard/admin/rh/formations",    label: "Formations",         color: "text-violet-600 bg-violet-50 border-violet-200" },
-                  { href: "/dashboard/admin/rh/evaluations",   label: "Évaluations",        color: "text-yellow-600 bg-yellow-50 border-yellow-200" },
-                  { href: "/dashboard/admin/rh/paie",          label: "Paie",               color: "text-teal-600 bg-teal-50 border-teal-200" },
-                  { href: "/dashboard/admin/rh/audit",         label: "Audit RH",           color: "text-rose-600 bg-rose-50 border-rose-200" },
+                  { href: "/dashboard/admin/rh",              label: t('nav_dashboard_rh'),     color: "text-indigo-600 bg-indigo-50 border-indigo-200" },
+                  { href: "/dashboard/admin/rh/collaborateurs",label: t('sa_rh_collaborateurs'), color: "text-blue-600 bg-blue-50 border-blue-200" },
+                  { href: "/dashboard/admin/rh/conges",        label: t('sa_rh_conges'),         color: "text-amber-600 bg-amber-50 border-amber-200" },
+                  { href: "/dashboard/admin/rh/recrutement",   label: t('sa_rh_recrutement'),    color: "text-emerald-600 bg-emerald-50 border-emerald-200" },
+                  { href: "/dashboard/admin/rh/formations",    label: t('sa_rh_formations'),     color: "text-violet-600 bg-violet-50 border-violet-200" },
+                  { href: "/dashboard/admin/rh/evaluations",   label: t('sa_rh_evaluations'),    color: "text-yellow-600 bg-yellow-50 border-yellow-200" },
+                  { href: "/dashboard/admin/rh/paie",          label: t('sa_rh_paie'),           color: "text-teal-600 bg-teal-50 border-teal-200" },
+                  { href: "/dashboard/admin/rh/audit",         label: t('sa_rh_audit'),          color: "text-rose-600 bg-rose-50 border-rose-200" },
                 ].map(({ href, label, color }) => (
                   <Link key={href} href={href}
                     className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-medium ${color} hover:opacity-80 transition-opacity`}>
@@ -493,9 +493,9 @@ export default function SuperAdminPage() {
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
                   <Terminal className="text-slate-500 w-5 h-5" />
-                  <h2 className="font-bold text-slate-800">Activité récente</h2>
+                  <h2 className="font-bold text-slate-800">{t('sa_activite_recente')}</h2>
                 </div>
-                <button onClick={() => setActiveTab("logs")} className="text-xs text-violet-600 font-semibold hover:underline flex items-center gap-1">Voir tout <ChevronRight size={12} /></button>
+                <button onClick={() => setActiveTab("logs")} className="text-xs text-violet-600 font-semibold hover:underline flex items-center gap-1">{t('sa_voir_tout')} <ChevronRight size={12} /></button>
               </div>
               <div className="space-y-1.5">
                 {(statsRes?.logsRecents ?? []).slice(0, 12).map((l) => (
@@ -510,7 +510,7 @@ export default function SuperAdminPage() {
                     <span className="text-xs text-slate-400 whitespace-nowrap shrink-0">{formatDateTime(l.date)}</span>
                   </div>
                 ))}
-                {(statsRes?.logsRecents.length ?? 0) === 0 && <p className="text-sm text-slate-400 text-center py-4">Aucune activité récente</p>}
+                {(statsRes?.logsRecents.length ?? 0) === 0 && <p className="text-sm text-slate-400 text-center py-4">{t('sa_aucune_activite')}</p>}
               </div>
             </div>
           </div>
@@ -524,26 +524,26 @@ export default function SuperAdminPage() {
               <div className="flex items-center gap-2 flex-1 min-w-48 bg-slate-50 rounded-xl px-3 py-2 border border-slate-200">
                 <Search size={15} className="text-slate-400" />
                 <input value={userSearch} onChange={(e) => { setUserSearch(e.target.value); setUserPage(1); }}
-                  placeholder="Nom, prénom, email…" className="flex-1 bg-transparent text-sm outline-none" />
+                  placeholder={t('sa_search_ph_users')} className="flex-1 bg-transparent text-sm outline-none" />
               </div>
               <select value={userEtat} onChange={(e) => { setUserEtat(e.target.value); setUserPage(1); }}
                 className="px-3 py-2 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-violet-500">
-                <option value="">Tous statuts</option>
-                <option value="ACTIF">Actif</option>
-                <option value="SUSPENDU">Suspendu</option>
-                <option value="INACTIF">Inactif</option>
+                <option value="">{t('sa_tous_statuts')}</option>
+                <option value="ACTIF">{t('status_actif')}</option>
+                <option value="SUSPENDU">{t('status_suspendu')}</option>
+                <option value="INACTIF">{t('status_inactif')}</option>
               </select>
               <select value={userGestionnaireRole} onChange={(e) => { setUserGestionnaireRole(e.target.value); setUserPage(1); }}
                 className="px-3 py-2 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-violet-500">
-                <option value="">Tous les rôles</option>
+                <option value="">{t('sa_tous_roles')}</option>
                 <option value="RESPONSABLE_RH">Responsable RH</option>
                 <option value="RESPONSABLE_POINT_DE_VENTE">Resp. PDV</option>
                 <option value="CHEF_AGENCE">Chef d&apos;agence</option>
-                <option value="CAISSIER">Caissier</option>
-                <option value="MAGAZINIER">Magasinier</option>
-                <option value="COMPTABLE">Comptable</option>
-                <option value="AGENT_LOGISTIQUE_APPROVISIONNEMENT">Agent logistique</option>
-                <option value="AGENT_TERRAIN">Agent terrain</option>
+                <option value="CAISSIER">{t('role_caissier')}</option>
+                <option value="MAGAZINIER">{t('role_magasinier')}</option>
+                <option value="COMPTABLE">{t('role_comptable')}</option>
+                <option value="AGENT_LOGISTIQUE_APPROVISIONNEMENT">{t('role_agent_logistique')}</option>
+                <option value="AGENT_TERRAIN">{t('role_agent_terrain')}</option>
               </select>
               <button onClick={refetchUsers} className="p-2.5 border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors"><RefreshCw size={15} /></button>
             </div>
@@ -554,11 +554,11 @@ export default function SuperAdminPage() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="bg-slate-50 border-b border-slate-200">
-                      <th className="text-left px-4 py-3 font-semibold text-slate-600 text-xs">Utilisateur</th>
-                      <th className="text-left px-4 py-3 font-semibold text-slate-600 text-xs">Rôle</th>
-                      <th className="text-left px-4 py-3 font-semibold text-slate-600 text-xs">Statut</th>
-                      <th className="text-left px-4 py-3 font-semibold text-slate-600 text-xs">Dernière activité</th>
-                      <th className="text-right px-4 py-3 font-semibold text-slate-600 text-xs">Actions</th>
+                      <th className="text-left px-4 py-3 font-semibold text-slate-600 text-xs">{t('col_utilisateur')}</th>
+                      <th className="text-left px-4 py-3 font-semibold text-slate-600 text-xs">{t('col_role')}</th>
+                      <th className="text-left px-4 py-3 font-semibold text-slate-600 text-xs">{t('col_status')}</th>
+                      <th className="text-left px-4 py-3 font-semibold text-slate-600 text-xs">{t('col_derniere_activite')}</th>
+                      <th className="text-right px-4 py-3 font-semibold text-slate-600 text-xs">{t('col_actions')}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -582,7 +582,7 @@ export default function SuperAdminPage() {
                             )}
                           </td>
                           <td className="px-4 py-3">
-                            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${es.bg} ${es.text}`}>{es.label}</span>
+                            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${es.bg} ${es.text}`}>{t(es.labelKey)}</span>
                           </td>
                           <td className="px-4 py-3">
                             {u.derniereActivite ? (
@@ -596,41 +596,41 @@ export default function SuperAdminPage() {
                             {/* ADMIN ne peut pas agir sur un SUPER_ADMIN */}
                             {isAdmin && u.role === "SUPER_ADMIN" ? (
                               <div className="flex justify-end">
-                                <span className="text-[10px] text-slate-400 italic px-2">Accès restreint</span>
+                                <span className="text-[10px] text-slate-400 italic px-2">{t('sa_acces_restreint')}</span>
                               </div>
                             ) : (
                               <div className="flex items-center justify-end gap-1">
-                                <button title="Détail & permissions"
+                                <button title={t('sa_title_detail_permissions')}
                                   onClick={() => { setSelectedUser(u); setModalUser("detail"); }}
                                   className="p-1.5 text-slate-400 hover:text-violet-600 hover:bg-violet-50 rounded-lg transition-colors">
                                   <Eye size={14} />
                                 </button>
-                                <button title="Réinitialiser le mot de passe"
+                                <button title={t('sa_title_reset_pwd')}
                                   onClick={() => { setSelectedUser(u); setTempPwd(""); setMotifAction(""); setModalUser("reset"); }}
                                   className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors">
                                   <Key size={14} />
                                 </button>
                                 {u.etat === "SUSPENDU" ? (
-                                  <button title="Réactiver le compte" disabled={busy}
+                                  <button title={t('sa_title_reactiver')} disabled={busy}
                                     onClick={() => handleUserAction(u, "unsuspend")}
                                     className="p-1.5 text-emerald-500 hover:bg-emerald-50 rounded-lg transition-colors disabled:opacity-40">
                                     <Unlock size={14} />
                                   </button>
                                 ) : (
-                                  <button title="Suspendre le compte" disabled={busy || u.id === parseInt(session!.user.id)}
+                                  <button title={t('sa_title_suspendre')} disabled={busy || u.id === parseInt(session!.user.id)}
                                     onClick={() => handleUserAction(u, "suspend")}
                                     className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-40">
                                     <Lock size={14} />
                                   </button>
                                 )}
-                                <button title="Forcer la déconnexion" disabled={busy || u.id === parseInt(session!.user.id)}
+                                <button title={t('sa_title_forcer_deco')} disabled={busy || u.id === parseInt(session!.user.id)}
                                   onClick={() => handleUserAction(u, "force_disconnect")}
                                   className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-40">
                                   <LogOut size={14} />
                                 </button>
                                 {/* Suppression définitive — SUPER_ADMIN uniquement */}
                                 {isSuperAdmin && (
-                                  <button title="Supprimer définitivement" disabled={busy}
+                                  <button title={t('sa_title_supprimer_def')} disabled={busy}
                                     onClick={() => { setSelectedUser(u); setModalUser("confirm_delete"); }}
                                     className="p-1.5 text-slate-300 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-40">
                                     <UserX size={14} />
@@ -643,7 +643,7 @@ export default function SuperAdminPage() {
                       );
                     })}
                     {(usersRes?.data.length ?? 0) === 0 && (
-                      <tr><td colSpan={5} className="px-4 py-10 text-center text-slate-400 text-sm">Aucun utilisateur trouvé</td></tr>
+                      <tr><td colSpan={5} className="px-4 py-10 text-center text-slate-400 text-sm">{t('sa_aucun_utilisateur')}</td></tr>
                     )}
                   </tbody>
                 </table>
@@ -671,13 +671,13 @@ export default function SuperAdminPage() {
             {/* Pills sections */}
             <div className="bg-white rounded-2xl border border-slate-200 p-2 shadow-sm flex flex-wrap gap-1">
               {([
-                { key: "platform",   label: "Plateforme",  icon: Globe },
-                { key: "numbering",  label: "Numérotation",icon: Hash },
-                { key: "security",   label: "Sécurité",    icon: ShieldCheck },
-                { key: "accounting", label: "Comptabilité",icon: BarChart3 },
-                { key: "financial",  label: "Financier",   icon: Banknote },
-                { key: "stock",      label: "Stock",        icon: Package },
-                { key: "backup",     label: "Sauvegarde",  icon: HardDrive },
+                { key: "platform",   label: t('sa_param_platform'),  icon: Globe },
+                { key: "numbering",  label: t('sa_param_numbering'), icon: Hash },
+                { key: "security",   label: t('sa_param_security'),  icon: ShieldCheck },
+                { key: "accounting", label: t('sa_param_accounting'),icon: BarChart3 },
+                { key: "financial",  label: t('sa_param_financial'), icon: Banknote },
+                { key: "stock",      label: t('sa_param_stock'),     icon: Package },
+                { key: "backup",     label: t('sa_param_backup'),    icon: HardDrive },
               ] as { key: ParamSection; label: string; icon: React.ElementType }[]).map((s) => {
                 const Icon = s.icon;
                 return (
@@ -693,11 +693,11 @@ export default function SuperAdminPage() {
               {/* Plateforme */}
               {paramSection === "platform" && (
                 <div className="space-y-5">
-                  <h3 className="font-bold text-slate-800 flex items-center gap-2"><Palette size={18} className="text-violet-500" />Paramètres plateforme</h3>
+                  <h3 className="font-bold text-slate-800 flex items-center gap-2"><Palette size={18} className="text-violet-500" />{t('sa_platform_settings_title')}</h3>
                   <div className="grid grid-cols-2 gap-4">
                     {[
-                      { key: "platform.nom",    label: "Nom de la plateforme", type: "text" },
-                      { key: "platform.devise", label: "Devise",               type: "text" },
+                      { key: "platform.nom",    label: t('sa_nom_plateforme'), type: "text" },
+                      { key: "platform.devise", label: t('sa_devise'),         type: "text" },
                     ].map((f) => (
                       <div key={f.key}>
                         <label className="block text-xs font-medium text-slate-600 mb-1">{f.label}</label>
@@ -706,7 +706,7 @@ export default function SuperAdminPage() {
                       </div>  
                     ))}
                     <div>
-                      <label className="block text-xs font-medium text-slate-600 mb-1">Langue</label>
+                      <label className="block text-xs font-medium text-slate-600 mb-1">{t('sa_langue')}</label>
                       <select value={settings["platform.langue"] ?? "fr"} onChange={(e) => setSetting("platform.langue", e.target.value)}
                         className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 bg-slate-50">
                         <option value="fr">Français</option>
@@ -717,12 +717,12 @@ export default function SuperAdminPage() {
                       </select>
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-slate-600 mb-1">Thème</label>
+                      <label className="block text-xs font-medium text-slate-600 mb-1">{t('sa_theme')}</label>
                       <select value={settings["platform.theme"] ?? "light"} onChange={(e) => setSetting("platform.theme", e.target.value)}
                         className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 bg-slate-50">
-                        <option value="light">Clair</option>
-                        <option value="dark">Sombre</option>
-                        <option value="system">Système</option>
+                        <option value="light">{t('sa_theme_clair')}</option>
+                        <option value="dark">{t('sa_theme_sombre')}</option>
+                        <option value="system">{t('sa_theme_systeme')}</option>
                       </select>
                     </div>
                   </div>
@@ -732,14 +732,14 @@ export default function SuperAdminPage() {
               {/* Numérotation */}
               {paramSection === "numbering" && (
                 <div className="space-y-5">
-                  <h3 className="font-bold text-slate-800 flex items-center gap-2"><Hash size={18} className="text-violet-500" />Numérotation automatique</h3>
+                  <h3 className="font-bold text-slate-800 flex items-center gap-2"><Hash size={18} className="text-violet-500" />{t('sa_numbering_title')}</h3>
                   <p className="text-xs text-slate-500 bg-slate-50 rounded-xl p-3">Variables : <code className="font-mono">{"{YYYY}"}</code> = année, <code className="font-mono">{"{MM}"}</code> = mois, <code className="font-mono">{"{SEQ}"}</code> = séquence auto</p>
                   <div className="grid grid-cols-2 gap-4">
                     {[
-                      { key: "numbering.facture",  label: "Format facture" },
-                      { key: "numbering.vente",    label: "Format vente directe" },
-                      { key: "numbering.mouvement",label: "Format mouvement stock" },
-                      { key: "numbering.reception",label: "Format réception" },
+                      { key: "numbering.facture",  label: t('sa_format_facture') },
+                      { key: "numbering.vente",    label: t('sa_format_vente') },
+                      { key: "numbering.mouvement",label: t('sa_format_mouvement') },
+                      { key: "numbering.reception",label: t('sa_format_reception') },
                     ].map((f) => (
                       <div key={f.key}>
                         <label className="block text-xs font-medium text-slate-600 mb-1">{f.label}</label>
@@ -755,10 +755,10 @@ export default function SuperAdminPage() {
               {/* Sécurité */}
               {paramSection === "security" && (
                 <div className="space-y-5">
-                  <h3 className="font-bold text-slate-800 flex items-center gap-2"><ShieldCheck size={18} className="text-violet-500" />Politique de sécurité</h3>
+                  <h3 className="font-bold text-slate-800 flex items-center gap-2"><ShieldCheck size={18} className="text-violet-500" />{t('sa_security_title')}</h3>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs font-medium text-slate-600 mb-1">Longueur minimale mot de passe</label>
+                      <label className="block text-xs font-medium text-slate-600 mb-1">{t('sa_pwd_min_length')}</label>
                       <input type="number" min={6} max={32} value={settings["security.pwd_min_length"] ?? "8"} onChange={(e) => setSetting("security.pwd_min_length", e.target.value)}
                         className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 bg-slate-50" />
                     </div>
@@ -768,7 +768,7 @@ export default function SuperAdminPage() {
                         className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 bg-slate-50" />
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-slate-600 mb-1">Tentatives échouées avant blocage</label>
+                      <label className="block text-xs font-medium text-slate-600 mb-1">{t('sa_pwd_max_attempts')}</label>
                       <input type="number" min={3} max={20} value={settings["security.max_failed_attempts"] ?? "5"} onChange={(e) => setSetting("security.max_failed_attempts", e.target.value)}
                         className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 bg-slate-50" />
                     </div>
@@ -780,9 +780,9 @@ export default function SuperAdminPage() {
                   </div>
                   <div className="space-y-3">
                     {[
-                      { key: "security.pwd_require_upper",   label: "Majuscule obligatoire" },
-                      { key: "security.pwd_require_digit",   label: "Chiffre obligatoire" },
-                      { key: "security.pwd_require_special", label: "Caractère spécial obligatoire" },
+                      { key: "security.pwd_require_upper",   label: t('sa_pwd_require_upper') },
+                      { key: "security.pwd_require_digit",   label: t('sa_pwd_require_digit') },
+                      { key: "security.pwd_require_special", label: t('sa_pwd_require_special') },
                     ].map((f) => (
                       <label key={f.key} className="flex items-center justify-between cursor-pointer bg-slate-50 rounded-xl px-4 py-3 border border-slate-200">
                         <span className="text-sm text-slate-700">{f.label}</span>
@@ -801,7 +801,7 @@ export default function SuperAdminPage() {
               {/* Comptabilité */}
               {paramSection === "accounting" && (
                 <div className="space-y-5">
-                  <h3 className="font-bold text-slate-800 flex items-center gap-2"><BarChart3 size={18} className="text-violet-500" />Paramètres comptables</h3>
+                  <h3 className="font-bold text-slate-800 flex items-center gap-2"><BarChart3 size={18} className="text-violet-500" />{t('sa_accounting_title')}</h3>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-xs font-medium text-slate-600 mb-1">Début exercice comptable (JJ-MM)</label>
@@ -817,8 +817,8 @@ export default function SuperAdminPage() {
                       <label className="block text-xs font-medium text-slate-600 mb-1">Méthode d&apos;amortissement</label>
                       <select value={settings["accounting.methode_amortissement"] ?? "lineaire"} onChange={(e) => setSetting("accounting.methode_amortissement", e.target.value)}
                         className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 bg-slate-50">
-                        <option value="lineaire">Linéaire</option>
-                        <option value="degressif">Dégressif</option>
+                        <option value="lineaire">{t('sa_amort_lineaire')}</option>
+                        <option value="degressif">{t('sa_amort_degressif')}</option>
                       </select>
                     </div>
                   </div>
@@ -837,12 +837,12 @@ export default function SuperAdminPage() {
               {/* Financier */}
               {paramSection === "financial" && (
                 <div className="space-y-5">
-                  <h3 className="font-bold text-slate-800 flex items-center gap-2"><Banknote size={18} className="text-violet-500" />Paramètres financiers</h3>
+                  <h3 className="font-bold text-slate-800 flex items-center gap-2"><Banknote size={18} className="text-violet-500" />{t('sa_financial_title')}</h3>
                   <div className="grid grid-cols-2 gap-4">
                     {[
-                      { key: "financial.plafond_caisse",     label: "Plafond caisse (FCFA)" },
-                      { key: "financial.seuil_alerte_caisse",label: "Seuil alerte caisse (FCFA)" },
-                      { key: "financial.devise_secondaire",  label: "Devise secondaire (optionnel)" },
+                      { key: "financial.plafond_caisse",     label: t('sa_plafond_caisse') },
+                      { key: "financial.seuil_alerte_caisse",label: t('sa_seuil_alerte_caisse') },
+                      { key: "financial.devise_secondaire",  label: t('sa_devise_secondaire') },
                     ].map((f) => (
                       <div key={f.key}>
                         <label className="block text-xs font-medium text-slate-600 mb-1">{f.label}</label>
@@ -857,10 +857,10 @@ export default function SuperAdminPage() {
               {/* Stock */}
               {paramSection === "stock" && (
                 <div className="space-y-5">
-                  <h3 className="font-bold text-slate-800 flex items-center gap-2"><Package size={18} className="text-violet-500" />Paramètres stock</h3>
+                  <h3 className="font-bold text-slate-800 flex items-center gap-2"><Package size={18} className="text-violet-500" />{t('sa_stock_title')}</h3>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs font-medium text-slate-600 mb-1">Méthode de valorisation</label>
+                      <label className="block text-xs font-medium text-slate-600 mb-1">{t('sa_methode_valorisation')}</label>
                       <select value={settings["stock.methode_valorisation"] ?? "FIFO"} onChange={(e) => setSetting("stock.methode_valorisation", e.target.value)}
                         className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 bg-slate-50">
                         <option value="FIFO">FIFO (Premier entré, premier sorti)</option>
@@ -869,13 +869,13 @@ export default function SuperAdminPage() {
                       </select>
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-slate-600 mb-1">Seuil alerte global par défaut</label>
+                      <label className="block text-xs font-medium text-slate-600 mb-1">{t('sa_seuil_alerte_global')}</label>
                       <input type="number" min={0} value={settings["stock.seuil_alerte_global"] ?? "10"} onChange={(e) => setSetting("stock.seuil_alerte_global", e.target.value)}
                         className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 bg-slate-50" />
                     </div>
                   </div>
                   <label className="flex items-center justify-between cursor-pointer bg-slate-50 rounded-xl px-4 py-3 border border-slate-200">
-                    <span className="text-sm text-slate-700">Inventaire automatique activé</span>
+                    <span className="text-sm text-slate-700">{t('sa_inventaire_auto')}</span>
                     <button type="button" onClick={() => setSetting("stock.inventaire_auto", settings["stock.inventaire_auto"] === "true" ? "false" : "true")}>
                       {settings["stock.inventaire_auto"] === "true"
                         ? <ToggleRight size={28} className="text-violet-600" />
@@ -889,16 +889,16 @@ export default function SuperAdminPage() {
               {/* Sauvegarde */}
               {paramSection === "backup" && (
                 <div className="space-y-5">
-                  <h3 className="font-bold text-slate-800 flex items-center gap-2"><HardDrive size={18} className="text-violet-500" />Politique de sauvegarde</h3>
+                  <h3 className="font-bold text-slate-800 flex items-center gap-2"><HardDrive size={18} className="text-violet-500" />{t('sa_backup_title')}</h3>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs font-medium text-slate-600 mb-1">Fréquence</label>
+                      <label className="block text-xs font-medium text-slate-600 mb-1">{t('sa_backup_frequence')}</label>
                       <select value={settings["backup.frequence"] ?? "quotidien"} onChange={(e) => setSetting("backup.frequence", e.target.value)}
                         className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 bg-slate-50">
-                        <option value="quotidien">Quotidien</option>
-                        <option value="hebdomadaire">Hebdomadaire</option>
-                        <option value="mensuel">Mensuel</option>
-                        <option value="manuel">Manuel uniquement</option>
+                        <option value="quotidien">{t('sa_backup_quotidien')}</option>
+                        <option value="hebdomadaire">{t('sa_backup_hebdo')}</option>
+                        <option value="mensuel">{t('sa_backup_mensuel')}</option>
+                        <option value="manuel">{t('sa_backup_manuel')}</option>
                       </select>
                     </div>
                     <div>
@@ -907,7 +907,7 @@ export default function SuperAdminPage() {
                         className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 bg-slate-50" />
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-slate-600 mb-1">Heure de sauvegarde</label>
+                      <label className="block text-xs font-medium text-slate-600 mb-1">{t('sa_backup_heure')}</label>
                       <input type="time" value={settings["backup.heure"] ?? "02:00"} onChange={(e) => setSetting("backup.heure", e.target.value)}
                         className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 bg-slate-50" />
                     </div>
@@ -924,7 +924,7 @@ export default function SuperAdminPage() {
                 <div className="mt-6 flex justify-end">
                   <button onClick={handleSaveSettings} disabled={savingSettings}
                     className="flex items-center gap-2 px-6 py-2.5 bg-violet-600 hover:bg-violet-700 text-white rounded-xl font-semibold text-sm disabled:opacity-50 transition-colors shadow-lg shadow-violet-200">
-                    {savingSettings ? <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />Sauvegarde…</> : <><Save size={16} />Sauvegarder</>}
+                    {savingSettings ? <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />{t('sa_sauvegarde_en_cours')}</> : <><Save size={16} />{t('action_save')}</>}
                   </button>
                 </div>
               )}
@@ -989,13 +989,13 @@ export default function SuperAdminPage() {
                 </button>
                 <button onClick={() => { setLogType("security"); setLogPage(1); }}
                   className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${logType === "security" ? "bg-white text-violet-700 shadow-sm" : "text-slate-600 hover:text-slate-800"}`}>
-                  <div className="flex items-center gap-1.5"><ShieldAlert size={14} />Logs sécurité</div>
+                  <div className="flex items-center gap-1.5"><ShieldAlert size={14} />{t('sa_logs_securite')}</div>
                 </button>
               </div>
               <div className="flex items-center gap-2 flex-1 min-w-48 bg-slate-50 rounded-xl px-3 py-2 border border-slate-200">
                 <Search size={15} className="text-slate-400" />
                 <input value={logSearch} onChange={(e) => { setLogSearch(e.target.value); setLogPage(1); }}
-                  placeholder="Rechercher dans les logs…" className="flex-1 bg-transparent text-sm outline-none" />
+                  placeholder={t('sa_search_logs_ph')} className="flex-1 bg-transparent text-sm outline-none" />
                 {logSearch && <button onClick={() => setLogSearch("")}><X size={14} className="text-slate-400 hover:text-slate-600" /></button>}
               </div>
               <button onClick={refetchLogs} className="p-2.5 border border-slate-200 rounded-xl hover:bg-slate-50"><RefreshCw size={15} /></button>
@@ -1013,10 +1013,10 @@ export default function SuperAdminPage() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="bg-slate-50 border-b border-slate-200">
-                      <th className="text-left px-4 py-3 font-semibold text-slate-600 text-xs">Date</th>
-                      <th className="text-left px-4 py-3 font-semibold text-slate-600 text-xs">Action</th>
+                      <th className="text-left px-4 py-3 font-semibold text-slate-600 text-xs">{t('col_date')}</th>
+                      <th className="text-left px-4 py-3 font-semibold text-slate-600 text-xs">{t('col_action_log')}</th>
                       <th className="text-left px-4 py-3 font-semibold text-slate-600 text-xs">{logType === "audit" ? "Entité" : "Détails"}</th>
-                      <th className="text-left px-4 py-3 font-semibold text-slate-600 text-xs">Utilisateur</th>
+                      <th className="text-left px-4 py-3 font-semibold text-slate-600 text-xs">{t('col_utilisateur')}</th>
                       {logType === "security" && <th className="text-left px-4 py-3 font-semibold text-slate-600 text-xs">IP</th>}
                     </tr>
                   </thead>  
@@ -1050,7 +1050,7 @@ export default function SuperAdminPage() {
                       </tr>
                     ))}
                     {(logsRes?.data.length ?? 0) === 0 && (
-                      <tr><td colSpan={5} className="px-4 py-10 text-center text-slate-400">Aucun log trouvé</td></tr>
+                      <tr><td colSpan={5} className="px-4 py-10 text-center text-slate-400">{t('sa_aucun_log')}</td></tr>
                     )}
                   </tbody>
                 </table>
@@ -1079,8 +1079,8 @@ export default function SuperAdminPage() {
               <div className="flex items-center gap-2 mb-4">
                 <div className="bg-violet-50 p-2 rounded-xl"><Shield className="text-violet-600 w-4 h-4" /></div>
                 <div>
-                  <h2 className="font-bold text-slate-800 text-sm">Configuration par rôle</h2>
-                  <p className="text-xs text-slate-400">Sections accessibles pour chaque rôle gestionnaire</p>
+                  <h2 className="font-bold text-slate-800 text-sm">{t('sa_config_par_role')}</h2>
+                  <p className="text-xs text-slate-400">{t('sa_sections_accessibles')}</p>
                 </div>
               </div>
 
@@ -1151,7 +1151,7 @@ export default function SuperAdminPage() {
               <div className="flex items-center gap-2 mb-4">
                 <div className="bg-blue-50 p-2 rounded-xl"><UserCheck className="text-blue-600 w-4 h-4" /></div>
                 <div>
-                  <h2 className="font-bold text-slate-800 text-sm">Override par utilisateur</h2>
+                  <h2 className="font-bold text-slate-800 text-sm">{t('sa_override_utilisateur')}</h2>
                   <p className="text-xs text-slate-400">Personnaliser l&apos;accès d&apos;un gestionnaire individuel</p>
                 </div>
               </div>
@@ -1160,7 +1160,7 @@ export default function SuperAdminPage() {
               <div className="flex items-center gap-2 bg-slate-50 rounded-xl px-3 py-2 border border-slate-200 mb-3">
                 <Search size={14} className="text-slate-400" />
                 <input value={accesUserSearch} onChange={(e) => setAccesUserSearch(e.target.value)}
-                  placeholder="Rechercher un gestionnaire…" className="flex-1 bg-transparent text-sm outline-none" />
+                  placeholder={t('sa_search_gestionnaire_ph')} className="flex-1 bg-transparent text-sm outline-none" />
                 {accesUserSearch && (
                   <button onClick={() => setAccesUserSearch("")}><X size={13} className="text-slate-400 hover:text-slate-600" /></button>
                 )}
@@ -1189,7 +1189,7 @@ export default function SuperAdminPage() {
                     </button>
                   ))}
                 {accesUsersRes && (accesUsersRes.data ?? []).filter((u) => u.gestionnaire !== null).length === 0 && (
-                  <p className="text-xs text-slate-400 text-center py-4">Aucun gestionnaire trouvé</p>
+                  <p className="text-xs text-slate-400 text-center py-4">{t('sa_aucun_gestionnaire')}</p>
                 )}
               </div>
 
@@ -1232,9 +1232,9 @@ export default function SuperAdminPage() {
                               </div>
                               <div className={`flex gap-1 ${s.moduleBlocked ? "pointer-events-none opacity-40" : ""}`}>
                                 {([
-                                  { label: "Défaut", value: null,  cls: "bg-slate-100 text-slate-600 hover:bg-slate-200" },
-                                  { label: "Autoriser", value: true,  cls: "bg-emerald-100 text-emerald-700 hover:bg-emerald-200" },
-                                  { label: "Bloquer",  value: false, cls: "bg-red-100 text-red-700 hover:bg-red-200" },
+                                  { label: t('sa_defaut'), value: null,  cls: "bg-slate-100 text-slate-600 hover:bg-slate-200" },
+                                  { label: t('sa_autoriser'), value: true,  cls: "bg-emerald-100 text-emerald-700 hover:bg-emerald-200" },
+                                  { label: t('sa_bloquer'),  value: false, cls: "bg-red-100 text-red-700 hover:bg-red-200" },
                                 ] as { label: string; value: boolean | null; cls: string }[]).map((opt) => (
                                   <button key={String(opt.value)}
                                     onClick={() => { setAccesUserOverridesLocal((prev) => ({ ...prev, [s.key]: opt.value })); setAccesUserDirty(true); }}
@@ -1260,7 +1260,7 @@ export default function SuperAdminPage() {
               ) : (
                 <div className="flex flex-col items-center gap-2 py-8 text-center">
                   <UserCheck size={28} className="text-slate-300" />
-                  <p className="text-sm text-slate-400">Sélectionnez un gestionnaire pour personnaliser ses accès</p>
+                  <p className="text-sm text-slate-400">{t('sa_select_gestionnaire_hint')}</p>
                 </div>
               )}
             </div>
@@ -1316,7 +1316,7 @@ export default function SuperAdminPage() {
                             {p.granted ? "Accordé" : "Refusé"}
                           </span>
                           <button
-                            title="Supprimer cette permission"
+                            title={t('sa_supprimer_permission_title')}
                             disabled={processingUserId === selectedUser.id}
                             onClick={async () => {
                               await handleUserAction(selectedUser, "remove_permission", { module: p.module, permission: p.permission });
@@ -1329,7 +1329,7 @@ export default function SuperAdminPage() {
                       </div>
                     ))}
                   </div>
-                ) : <p className="text-xs text-slate-400 italic">Aucune permission personnalisée</p>}
+                ) : <p className="text-xs text-slate-400 italic">{t('sa_aucune_permission_perso')}</p>}
               </div>
             </div>
           </div>
@@ -1341,40 +1341,40 @@ export default function SuperAdminPage() {
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[130] flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm">
             <div className="flex items-center justify-between p-5 border-b border-slate-200">
-              <h2 className="font-bold text-slate-800 flex items-center gap-2"><Key size={18} className="text-amber-500" />Réinitialiser le mot de passe</h2>
+              <h2 className="font-bold text-slate-800 flex items-center gap-2"><Key size={18} className="text-amber-500" />{t('sa_title_reset_pwd')}</h2>
               <button onClick={() => { setModalUser(null); setTempPwd(""); setMotifAction(""); }} className="p-2 text-slate-400 hover:text-slate-600 rounded-lg"><X size={18} /></button>
             </div>
             <div className="p-5 space-y-4">
               {!tempPwd ? (
                 <>
-                  <p className="text-sm text-slate-600">Réinitialiser le mot de passe de <strong>{selectedUser.prenom} {selectedUser.nom}</strong> ?</p>
-                  <p className="text-xs text-slate-400">Un mot de passe temporaire sécurisé sera généré. L&apos;utilisateur devra le changer à sa prochaine connexion.</p>
+                  <p className="text-sm text-slate-600">{t('sa_reset_pwd_confirm_prefix')} <strong>{selectedUser.prenom} {selectedUser.nom}</strong> ?</p>
+                  <p className="text-xs text-slate-400">{t('sa_reset_pwd_hint')}</p>
                   <div>
-                    <label className="block text-xs font-medium text-slate-600 mb-1">Motif (optionnel)</label>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">{t('sa_motif_optionnel')}</label>
                     <input type="text" value={motifAction} onChange={(e) => setMotifAction(e.target.value)}
-                      placeholder="Ex: Demande de l'utilisateur"
+                      placeholder={t('sa_motif_ph')}
                       className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 bg-slate-50" />
                   </div>
                   <div className="flex gap-3">
-                    <button onClick={() => { setModalUser(null); setMotifAction(""); }} className="flex-1 py-2.5 border border-slate-200 rounded-xl text-slate-600 text-sm hover:bg-slate-50">Annuler</button>
+                    <button onClick={() => { setModalUser(null); setMotifAction(""); }} className="flex-1 py-2.5 border border-slate-200 rounded-xl text-slate-600 text-sm hover:bg-slate-50">{t('action_cancel')}</button>
                     <button onClick={() => handleUserAction(selectedUser, "reset_password")} disabled={doingAction}
                       className="flex-1 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-sm font-semibold disabled:opacity-50">
-                      {doingAction ? "Génération…" : "Générer"}
+                      {doingAction ? t('sa_generation_en_cours') : t('sa_generer')}
                     </button>
                   </div>
                 </>
               ) : (
                 <>
                   <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-center">
-                    <p className="text-xs text-amber-600 mb-2">Mot de passe temporaire généré</p>
+                    <p className="text-xs text-amber-600 mb-2">{t('sa_pwd_temp_genere')}</p>
                     <p className="text-xl font-mono font-bold text-amber-800 tracking-wider">{tempPwd}</p>
-                    <p className="text-xs text-amber-500 mt-2">Communiquez-le à l&apos;utilisateur de façon sécurisée. Il ne sera plus affiché après fermeture.</p>
+                    <p className="text-xs text-amber-500 mt-2">{t('sa_communiquer_securise')}</p>
                   </div>
-                  <button onClick={() => { navigator.clipboard.writeText(tempPwd); toast.success("Copié !"); }} className="w-full py-2.5 border border-amber-200 rounded-xl text-amber-700 text-sm font-medium hover:bg-amber-50">
-                    Copier dans le presse-papiers
+                  <button onClick={() => { navigator.clipboard.writeText(tempPwd); toast.success(t('sa_copie_toast')); }} className="w-full py-2.5 border border-amber-200 rounded-xl text-amber-700 text-sm font-medium hover:bg-amber-50">
+                    {t('sa_copier_presse_papiers')}
                   </button>
                   <button onClick={() => { setModalUser(null); setTempPwd(""); refetchUsers(); }} className="w-full py-2.5 bg-slate-800 text-white rounded-xl text-sm font-semibold hover:bg-slate-900">
-                    Fermer
+                    {t('action_close')}
                   </button>
                 </>
               )}
@@ -1388,32 +1388,32 @@ export default function SuperAdminPage() {
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[130] flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm">
             <div className="flex items-center justify-between p-5 border-b border-slate-200">
-              <h2 className="font-bold text-red-700 flex items-center gap-2"><UserX size={18} />Suppression définitive</h2>
+              <h2 className="font-bold text-red-700 flex items-center gap-2"><UserX size={18} />{t('sa_suppression_def_title')}</h2>
               <button onClick={() => setModalUser(null)} className="p-2 text-slate-400 hover:text-slate-600 rounded-lg"><X size={18} /></button>
             </div>
             <div className="p-5 space-y-4">
               <div className="bg-red-50 border border-red-200 rounded-xl p-4">
-                <p className="text-sm font-semibold text-red-800 mb-1">Cette action est irréversible.</p>
+                <p className="text-sm font-semibold text-red-800 mb-1">{t('msg_irreversible')}</p>
                 <p className="text-xs text-red-600">
-                  L&apos;utilisateur <strong>{selectedUser.prenom} {selectedUser.nom}</strong> ({selectedUser.email}) et toutes ses données associées seront supprimés définitivement.
+                  {t('col_utilisateur')} <strong>{selectedUser.prenom} {selectedUser.nom}</strong> ({selectedUser.email}) {t('sa_suppression_desc')}
                 </p>
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1">Motif (optionnel)</label>
+                <label className="block text-xs font-medium text-slate-600 mb-1">{t('sa_motif_optionnel')}</label>
                 <input type="text" value={motifAction} onChange={(e) => setMotifAction(e.target.value)}
-                  placeholder="Ex: Demande de l'utilisateur"
+                  placeholder={t('sa_motif_ph')}
                   className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-red-500 bg-slate-50" />
               </div>
               <div className="flex gap-3">
                 <button onClick={() => { setModalUser(null); setMotifAction(""); }}
                   className="flex-1 py-2.5 border border-slate-200 rounded-xl text-slate-600 text-sm hover:bg-slate-50">
-                  Annuler
+                  {t('action_cancel')}
                 </button>
                 <button
                   disabled={doingAction}
                   onClick={() => handleUserAction(selectedUser, "delete_permanent")}
                   className="flex-1 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-sm font-semibold disabled:opacity-50 flex items-center justify-center gap-2">
-                  <UserX size={14} />{doingAction ? "Suppression…" : "Supprimer définitivement"}
+                  <UserX size={14} />{doingAction ? t('sa_suppression_en_cours') : t('sa_title_supprimer_def')}
                 </button>
               </div>
             </div>
@@ -1426,7 +1426,7 @@ export default function SuperAdminPage() {
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[130] flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
             <div className="flex items-center justify-between p-5 border-b border-slate-200">
-              <h2 className="font-bold text-slate-800 flex items-center gap-2"><Shield size={18} className="text-violet-500" />Permissions — {selectedUser.prenom} {selectedUser.nom}</h2>
+              <h2 className="font-bold text-slate-800 flex items-center gap-2"><Shield size={18} className="text-violet-500" />{t('sa_permissions_prefix')} — {selectedUser.prenom} {selectedUser.nom}</h2>
               <button onClick={() => setModalUser("detail")} className="p-2 text-slate-400 hover:text-slate-600 rounded-lg"><X size={18} /></button>
             </div>
             <div className="p-5 space-y-4">
@@ -1434,27 +1434,27 @@ export default function SuperAdminPage() {
               {isAdmin && selectedUser.role === "SUPER_ADMIN" && (
                 <div className="flex items-start gap-2.5 bg-amber-50 border border-amber-200 rounded-xl p-3">
                   <ShieldAlert size={16} className="text-amber-500 flex-shrink-0 mt-0.5" />
-                  <p className="text-xs text-amber-700">Vous ne pouvez pas modifier les permissions d&apos;un Super Administrateur.</p>
+                  <p className="text-xs text-amber-700">{t('sa_no_edit_superadmin')}</p>
                 </div>
               )}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-medium text-slate-600 mb-1">Module</label>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">{t('xlsx_module')}</label>
                   <select value={permModule} onChange={(e) => setPermModule(e.target.value)}
                     disabled={isAdmin && selectedUser.role === "SUPER_ADMIN"}
                     className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 bg-slate-50 disabled:opacity-50">
-                    <option value="">-- Choisir --</option>
+                    <option value="">{t('sa_choisir_placeholder')}</option>
                     {["caisse","stock","packs","ventes","logistique","comptabilite","rapports","assemblees","admin","superadmin"].map((m) => (
                       <option key={m} value={m}>{m}</option>
                     ))}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-slate-600 mb-1">Permission</label>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">{t('sa_permission_label')}</label>
                   <select value={permPerm} onChange={(e) => setPermPerm(e.target.value)}
                     disabled={isAdmin && selectedUser.role === "SUPER_ADMIN"}
                     className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 bg-slate-50 disabled:opacity-50">
-                    <option value="">-- Choisir --</option>
+                    <option value="">{t('sa_choisir_placeholder')}</option>
                     {["read","write","delete","export","admin","override"].map((p) => (
                       <option key={p} value={p}>{p}</option>
                     ))}
@@ -1462,13 +1462,13 @@ export default function SuperAdminPage() {
                 </div>
               </div>
               <label className={`flex items-center justify-between bg-slate-50 rounded-xl px-4 py-3 border border-slate-200 ${isAdmin && selectedUser.role === "SUPER_ADMIN" ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}>
-                <span className="text-sm text-slate-700">Accordée (sinon refusée)</span>
+                <span className="text-sm text-slate-700">{t('sa_accordee_sinon_refusee')}</span>
                 <button type="button" disabled={isAdmin && selectedUser.role === "SUPER_ADMIN"} onClick={() => setPermGranted(!permGranted)}>
                   {permGranted ? <ToggleRight size={28} className="text-violet-600" /> : <ToggleLeft size={28} className="text-slate-300" />}
                 </button>
               </label>
               <div className="flex gap-3">
-                <button onClick={() => setModalUser("detail")} className="flex-1 py-2.5 border border-slate-200 rounded-xl text-slate-600 text-sm hover:bg-slate-50">Retour</button>
+                <button onClick={() => setModalUser("detail")} className="flex-1 py-2.5 border border-slate-200 rounded-xl text-slate-600 text-sm hover:bg-slate-50">{t('sa_retour')}</button>
                 <button
                   disabled={!permModule || !permPerm || doingAction || (isAdmin && selectedUser.role === "SUPER_ADMIN")}
                   onClick={async () => {

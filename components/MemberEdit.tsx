@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useApi } from '@/hooks/useApi';
 import { useMutation } from '@/hooks/useApi';
+import { useT } from '@/contexts/AppSettingsContext';
 
 interface MemberFormData {
   nom: string;
@@ -32,6 +33,7 @@ interface MemberResponse {
 }
 
 export default function EditMember({ memberId }: { memberId: string }) {
+  const t = useT();
   const router = useRouter();
   const { data: response, loading } = useApi<MemberResponse>(`/api/admin/membres/${memberId}`);
   const { mutate, loading: saving, error: saveError } = useMutation(`/api/admin/membres/${memberId}`, 'PATCH', { successMessage: 'Membre modifié avec succès' });
@@ -78,10 +80,10 @@ export default function EditMember({ memberId }: { memberId: string }) {
 
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
-    if (!formData.nom.trim()) newErrors.nom = 'Le nom est requis';
-    if (!formData.prenom.trim()) newErrors.prenom = 'Le prenom est requis';
-    if (!formData.email.trim()) newErrors.email = 'L\'email est requis';
-    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) newErrors.email = 'Email invalide';
+    if (!formData.nom.trim()) newErrors.nom = t('me_err_nom_requis');
+    if (!formData.prenom.trim()) newErrors.prenom = t('me_err_prenom_requis');
+    if (!formData.email.trim()) newErrors.email = t('me_err_email_requis');
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) newErrors.email = t('me_err_email_invalide');
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -120,8 +122,8 @@ export default function EditMember({ memberId }: { memberId: string }) {
               </svg>
             </Link>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Modifier le membre</h1>
-              <p className="text-sm text-gray-600 mt-1">Mettez a jour les informations du membre</p>
+              <h1 className="text-2xl font-bold text-gray-900">{t('me_modifier_membre')}</h1>
+              <p className="text-sm text-gray-600 mt-1">{t('me_maj_infos')}</p>
             </div>
           </div>
         </div>
@@ -142,7 +144,7 @@ export default function EditMember({ memberId }: { memberId: string }) {
                 </div>
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900 mb-2">{formData.prenom} {formData.nom}</h3>
-                  <p className="text-sm text-gray-600">Membre #{memberId}</p>
+                  <p className="text-sm text-gray-600">{t('me_membre_num')}{memberId}</p>
                 </div>
               </div>
             </div>
@@ -150,29 +152,29 @@ export default function EditMember({ memberId }: { memberId: string }) {
             <div className="p-6 space-y-8">
               {/* Informations personnelles */}
               <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Informations personnelles</h3>
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('md_infos_perso')}</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
-                    <label htmlFor="prenom" className="block text-sm font-medium text-gray-700 mb-2">Prenom *</label>
+                    <label htmlFor="prenom" className="block text-sm font-medium text-gray-700 mb-2">{t('label_prenom')} *</label>
                     <input type="text" id="prenom" name="prenom" value={formData.prenom} onChange={handleChange} className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors ${errors.prenom ? 'border-red-300 bg-red-50' : 'border-gray-300'}`} />
                     {errors.prenom && <p className="mt-1 text-sm text-red-600">{errors.prenom}</p>}
                   </div>
                   <div>
-                    <label htmlFor="nom" className="block text-sm font-medium text-gray-700 mb-2">Nom *</label>
+                    <label htmlFor="nom" className="block text-sm font-medium text-gray-700 mb-2">{t('label_nom')} *</label>
                     <input type="text" id="nom" name="nom" value={formData.nom} onChange={handleChange} className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors ${errors.nom ? 'border-red-300 bg-red-50' : 'border-gray-300'}`} />
                     {errors.nom && <p className="mt-1 text-sm text-red-600">{errors.nom}</p>}
                   </div>
                   <div>
-                    <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">Email *</label>
+                    <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">{t('label_email')} *</label>
                     <input type="email" id="email" name="email" value={formData.email} onChange={handleChange} className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors ${errors.email ? 'border-red-300 bg-red-50' : 'border-gray-300'}`} />
                     {errors.email && <p className="mt-1 text-sm text-red-600">{errors.email}</p>}
                   </div>
                   <div>
-                    <label htmlFor="telephone" className="block text-sm font-medium text-gray-700 mb-2">Telephone</label>
+                    <label htmlFor="telephone" className="block text-sm font-medium text-gray-700 mb-2">{t('label_telephone')}</label>
                     <input type="tel" id="telephone" name="telephone" value={formData.telephone} onChange={handleChange} className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors" />
                   </div>
                   <div className="md:col-span-2">
-                    <label htmlFor="adresse" className="block text-sm font-medium text-gray-700 mb-2">Adresse</label>
+                    <label htmlFor="adresse" className="block text-sm font-medium text-gray-700 mb-2">{t('label_adresse')}</label>
                     <textarea id="adresse" name="adresse" value={formData.adresse} onChange={handleChange} rows={2} className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors resize-none" />
                   </div>
                 </div>
@@ -180,22 +182,22 @@ export default function EditMember({ memberId }: { memberId: string }) {
 
               {/* Compte */}
               <div className="border-t border-gray-200 pt-8">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Informations du compte</h3>
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('md_infos_compte')}</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
-                    <label htmlFor="role" className="block text-sm font-medium text-gray-700 mb-2">Role</label>
+                    <label htmlFor="role" className="block text-sm font-medium text-gray-700 mb-2">{t('col_role')}</label>
                     <select id="role" name="role" value={formData.role} onChange={handleChange} className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors bg-white">
-                      <option value="USER">Utilisateur</option>
-                      <option value="ADMIN">Administrateur</option>
-                      <option value="SUPER_ADMIN">Super Administrateur</option>
+                      <option value="USER">{t('role_user')}</option>
+                      <option value="ADMIN">{t('role_admin')}</option>
+                      <option value="SUPER_ADMIN">{t('role_superadmin')}</option>
                     </select>
                   </div>
                   <div>
-                    <label htmlFor="etat" className="block text-sm font-medium text-gray-700 mb-2">Etat du compte</label>
+                    <label htmlFor="etat" className="block text-sm font-medium text-gray-700 mb-2">{t('me_etat_compte')}</label>
                     <select id="etat" name="etat" value={formData.etat} onChange={handleChange} className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors bg-white">
-                      <option value="ACTIF">Actif</option>
-                      <option value="INACTIF">Inactif</option>
-                      <option value="SUSPENDU">Suspendu</option>
+                      <option value="ACTIF">{t('status_actif')}</option>
+                      <option value="INACTIF">{t('status_inactif')}</option>
+                      <option value="SUSPENDU">{t('status_suspendu')}</option>
                     </select>
                   </div>
                 </div>
@@ -203,12 +205,12 @@ export default function EditMember({ memberId }: { memberId: string }) {
 
               {/* Securite */}
               <div className="border-t border-gray-200 pt-8">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Securite</h3>
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('me_securite')}</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
-                    <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">Nouveau mot de passe</label>
-                    <input type="password" id="password" name="password" value={formData.password || ''} onChange={handleChange} disabled={formData.googleOnly} className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors disabled:bg-gray-100 disabled:opacity-60" placeholder="Laissez vide pour ne pas changer" />
-                    <p className="mt-1 text-sm text-gray-500">Minimum 8 caracteres</p>
+                    <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">{t('me_nouveau_mdp')}</label>
+                    <input type="password" id="password" name="password" value={formData.password || ''} onChange={handleChange} disabled={formData.googleOnly} className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors disabled:bg-gray-100 disabled:opacity-60" placeholder={t('me_laisser_vide')} />
+                    <p className="mt-1 text-sm text-gray-500">{t('me_min_8_car')}</p>
                   </div>
                   <div className="md:col-span-2">
                     <label className="flex items-start gap-3 cursor-pointer">
@@ -219,10 +221,9 @@ export default function EditMember({ memberId }: { memberId: string }) {
                         className="mt-1 w-4 h-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
                       />
                       <div>
-                        <span className="text-sm font-medium text-gray-700">Connexion Google uniquement</span>
+                        <span className="text-sm font-medium text-gray-700">{t('me_connexion_google_only')}</span>
                         <p className="text-xs text-gray-500 mt-0.5">
-                          Désactive le mot de passe : le membre ne pourra se connecter qu&apos;avec « Continuer avec Google »
-                          (l&apos;e-mail ci-dessus doit être son Gmail). Réactiver un mot de passe nécessiterait une réinitialisation.
+                          {t('me_google_only_desc')}
                         </p>
                       </div>
                     </label>
@@ -233,10 +234,10 @@ export default function EditMember({ memberId }: { memberId: string }) {
 
             <div className="bg-gray-50 px-6 py-4 flex items-center justify-between border-t border-gray-200">
               <Link href={`/dashboard/admin/membres/${memberId}`} className="px-6 py-2.5 border border-gray-300 rounded-lg font-medium text-gray-700 hover:bg-gray-100 transition-colors">
-                Annuler
+                {t('action_cancel')}
               </Link>
               <button type="submit" disabled={saving} className="px-6 py-2.5 bg-emerald-600 text-white rounded-lg font-medium hover:bg-emerald-700 transition-colors disabled:opacity-50 flex items-center gap-2">
-                {saving ? 'Enregistrement...' : 'Enregistrer les modifications'}
+                {saving ? t('me_enregistrement') : t('me_enregistrer_modifs')}
               </button>
             </div>
           </div>
