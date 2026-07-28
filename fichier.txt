@@ -78,7 +78,7 @@ erreur d'application et Exception côté client sur quasiment toutes les actions
       Module 1   
 Upload multi-fichiers
 OCR automatique des documents
-  
+    
   
 
 SessionGuard existe mais semble non utilisé dans le layout utilisateur
@@ -139,6 +139,24 @@ Revoir le dashboard financier et même les autres ( tableau de bord admin/SUPERA
 
 
 Pouvoir rajouter grossiste dans les types de fournisseur
+
+
+Est ce que la page t:3000/dashboard/admin/stock a encore une utilité ??? J'ai l'impression qu'elle continue utiliser les anciens modules ( au lieu du catalogue produit )
+
+On va créer des codes QR à scanner pour permettre aux visiteurs et aux clients de pouvoir accéder au catalogue de produit 
+
+
+
+
+Rendre opérationnel toute la partie messagerie pour tous les utilisateurs et l'admin ( que ce soit un peu comme whatsapp où tout le monde peut envoyer un message à tout le monde et tout le monde peut répondre )
+
+réussir les notifs par whatsapp 
+
+Retirer les sous lien de RIA ( essayer de tous les placer sur le dashboard/admin/ria mais que tout soit bien visible , pas caché et impossible d'accès comme ça l'est actuellement )
+
+Rendre le design de l'application plus attrayant
+
+Terminer la partie traduction ( presque toute l'application doit être en paramètre traductible ); pour lemoment y'a trop de textes et trop de pages non traduites
 
 
 

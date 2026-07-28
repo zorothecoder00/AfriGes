@@ -83,6 +83,7 @@ export const PAGES_REGISTRY: RoleRegistry[] = [
       { key: "inventaire", label: "Inventaire",             defaultAllowed: true, module: "stock"      },
       { key: "journal",    label: "Journal des mouvements", defaultAllowed: true, module: "stock"      },
       { key: "reception",  label: "Réceptions",             defaultAllowed: true, module: "logistique" },
+      { key: "reappro",    label: "Réappro (demandes)",     defaultAllowed: true, module: "logistique" },
       { key: "livraisons", label: "Livraisons packs",       defaultAllowed: true, module: "packs"      },
       { key: "alertes",    label: "Alertes stock",          defaultAllowed: true, module: "stock"      },
       { key: "sorties",    label: "Bons de sortie",         defaultAllowed: true, module: "stock"      },

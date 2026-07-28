@@ -198,7 +198,7 @@ export default function MagasinierPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [page, setPage] = useState(1);
-  const [activeTab, setActiveTab] = useState<'inventaire' | 'journal' | 'reception' | 'livraisons' | 'alertes' | 'sorties' | 'anomalies'>('inventaire');
+  const [activeTab, setActiveTab] = useState<'inventaire' | 'journal' | 'reception' | 'reappro' | 'livraisons' | 'alertes' | 'sorties' | 'anomalies'>('inventaire');
   const [filterStatut, setFilterStatut] = useState<StatutStock | ''>('');
   const [filterType, setFilterType] = useState<'ENTREE' | 'SORTIE' | 'AJUSTEMENT' | ''>('');
   const [journalPage, setJournalPage] = useState(1);
@@ -765,6 +765,7 @@ export default function MagasinierPage() {
     { key: 'inventaire'  as const, label: 'Inventaire',  icon: ClipboardList },
     { key: 'journal'     as const, label: 'Journal',     icon: BarChart3 },
     { key: 'reception'   as const, label: 'Reception',   icon: Plus },
+    { key: 'reappro'     as const, label: 'Réappro (demandes)', icon: Inbox },
     { key: 'livraisons'  as const, label: 'Récep. & Livr.', icon: Truck, badge: nbLivraisonsEnCours + transfertsEntrantsMag.length + livClientsPending.length + ventesTerrainALivrer.length + livraisonsPacksPlanifiees.length },
     { key: 'sorties'     as const, label: 'Sorties',     icon: Send },
     { key: 'anomalies'   as const, label: 'Anomalies',   icon: ShieldAlert },
@@ -1979,9 +1980,15 @@ export default function MagasinierPage() {
               </div>
             )}
 
-            {/* Demandes de réapprovisionnement (CDC §7 étape 1) */}
-            <MesDemandesReapproMag />
+          </div>
+        )}
 
+        {/* ================================================================ */}
+        {/* TAB: Réappro (demandes) */}
+        {/* ================================================================ */}
+        {activeTab === 'reappro' && (
+          <div className="space-y-6">
+            <MesDemandesReapproMag />
           </div>
         )}
 
