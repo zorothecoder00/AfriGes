@@ -6,7 +6,7 @@ import {
   ShoppingCart, MoreVertical, Download, Plus, ChevronDown, MessageSquare, Store, Shield,
   Activity, AlertTriangle, CheckCircle, XCircle, Wallet, BarChart2, Truck, RefreshCw,
   CreditCard, TrendingDown, DollarSign, Clock, Award, Percent, ClipboardCheck,
-  UserCog, Network, FileText, BookOpen, FolderOpen, Lock, GitBranch, Target,
+  UserCog, Network, Lock, Target,
 } from 'lucide-react';
 import Link from "next/link";     
 import { useSession } from 'next-auth/react';
@@ -494,13 +494,7 @@ export default function AfriGesDashboard() {
             <div className="p-4 border-b border-slate-100">
               <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">RIA — Investisseurs</h3>
               <nav className="space-y-1">
-                <Link href="/dashboard/admin/ria"                 className="w-full flex items-center gap-3 px-4 py-2.5 text-slate-600 hover:bg-slate-50 rounded-xl transition-all font-medium"><Network size={18} /><span>Dashboard RIA</span></Link>
-                <Link href="/dashboard/admin/ria/gouvernance"     className="w-full flex items-center gap-3 px-4 py-2.5 pl-10 text-slate-500 hover:bg-slate-50 rounded-xl transition-all text-sm"><Shield size={16} /><span>Gouvernance</span></Link>
-                <Link href="/dashboard/admin/ria/gouvernance/dossiers" className="w-full flex items-center gap-3 px-4 py-2.5 pl-10 text-slate-500 hover:bg-slate-50 rounded-xl transition-all text-sm"><GitBranch size={16} /><span>Dossiers Inter-Commissions</span></Link>
-                <Link href="/dashboard/admin/ria/rapports"        className="w-full flex items-center gap-3 px-4 py-2.5 pl-10 text-slate-500 hover:bg-slate-50 rounded-xl transition-all text-sm"><FileText size={16} /><span>Rapports mensuels</span></Link>
-                <Link href="/dashboard/admin/ria/comptabilite"   className="w-full flex items-center gap-3 px-4 py-2.5 pl-10 text-slate-500 hover:bg-slate-50 rounded-xl transition-all text-sm"><BookOpen size={16} /><span>Comptabilité</span></Link>
-                <Link href="/dashboard/admin/ria/alertes"         className="w-full flex items-center gap-3 px-4 py-2.5 pl-10 text-slate-500 hover:bg-slate-50 rounded-xl transition-all text-sm"><AlertTriangle size={16} /><span>Alertes Automatiques</span></Link>
-                <Link href="/dashboard/admin/ria/documents"       className="w-full flex items-center gap-3 px-4 py-2.5 pl-10 text-slate-500 hover:bg-slate-50 rounded-xl transition-all text-sm"><FolderOpen size={16} /><span>Documents Générés</span></Link>
+                <Link href="/dashboard/admin/ria" className="w-full flex items-center gap-3 px-4 py-2.5 text-slate-600 hover:bg-slate-50 rounded-xl transition-all font-medium"><Network size={18} /><span>Dashboard RIA</span></Link>
               </nav>
             </div>
             {/* POPC — Planification des objectifs & pilotage des collectes */}
