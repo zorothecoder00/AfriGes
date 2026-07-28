@@ -141,8 +141,6 @@ Revoir le dashboard financier et même les autres ( tableau de bord admin/SUPERA
 Pouvoir rajouter grossiste dans les types de fournisseur
 
 
-Est ce que la page t:3000/dashboard/admin/stock a encore une utilité ??? J'ai l'impression qu'elle continue utiliser les anciens modules ( au lieu du catalogue produit )
-
 On va créer des codes QR à scanner pour permettre aux visiteurs et aux clients de pouvoir accéder au catalogue de produit 
 
 

@@ -136,7 +136,7 @@ export default function ProduitFormModal({ produitId, refs, onClose, onSaved }:
         ) : isEdit && tab === "tarification" ? (
           <div className="p-6"><TarificationTab produitId={produitId} /></div>
         ) : isEdit && tab === "disponibilite" ? (
-          <div className="p-6"><DisponibiliteTab produitId={produitId} /></div>
+          <div className="p-6"><DisponibiliteTab produitId={produitId} produitNom={form.nom} /></div>
         ) : (
           <div className="p-6 space-y-6">
             {/* Identification */}

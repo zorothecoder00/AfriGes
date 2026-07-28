@@ -1,0 +1,120 @@
+ Ready to code?
+
+ Here is Claude's plan:╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
+ Migration des actions de stock vers la fiche produit Catalogue
+ Contexte
+
+ Le superadmin a signalé que l'alerte "rupture de stock" du dashboard (déjà rendue actionnable en pointant vers /dashboard/admin/stock/[id]) mène vers une page
+ (StockDetails.tsx) strictement en lecture seule — impossible d'y traiter la rupture. En creusant, on a confirmé que :
+ - StockDetails.tsx + StockEdit.tsx (/dashboard/admin/stock/[id] et /edit) sont quasi morts : aucune action réelle, et le formulaire d'ajustement est cassé pour les entrées
+ de stock (pas de sélecteur de PDV alors que l'API l'exige).
+ - La vraie logique métier (Approvisionner, Transférer, Bloquer/Consigner, valider les Anomalies) vit dans la page liste /dashboard/admin/stock (1597 lignes), qui reste
+ utile (vue "Grand stock" agrégée, actions bulk multi-produits) et hors périmètre de suppression.
+ - Le module Catalogue Produits (déjà le PIM de référence du projet) a une fiche produit par [id] avec un onglet "Disponibilité" actuellement lecture-seule — et un
+ composant plus riche components/catalogue/DisponibiliteTab.tsx existe déjà mais n'est importé nulle part (orphelin, édition des seuils/emplacement déjà câblée sur PATCH
+ .../disponibilite).
+
+ Objectif : faire de la fiche Catalogue le lieu unique où on consulte et traite le stock d'un produit (actions réelles + historique + anomalies), supprimer les pages
+ [id]/[id]/edit redondantes de l'ancien module, et rerouter tous les liens/notifications qui les ciblaient. La page liste /dashboard/admin/stock et son entrée sidebar
+ restent inchangées (fonctions bulk non couvertes par la fiche produit) — on évite ainsi de recréer l'anti-pattern "accessible seulement par URL" déjà corrigé pour le
+ module RIA.
+
+ Étape 1 — Petits ajouts API additifs (non-bloquants)
+
+ app/api/admin/catalogue/produits/[id]/disponibilite/route.ts (GET) : ajouter quantiteBloquee, quantiteConsignee au select du stockSite.findMany et au mapping de retour
+ (bloque, consigne).
+
+ app/api/admin/anomalies/route.ts (GET) : ajouter un filtre optionnel produitId (searchParams.get("produitId") → where.produitId = Number(produitId) si fourni), à côté du
+ filtre pdvId existant.
+
+ Nouveau app/api/admin/catalogue/produits/[id]/mouvements/route.ts (GET uniquement) : réutilise la requête prisma.mouvementStock.findMany({ where: { produitId,
+ ...(pointDeVenteId && {pointDeVenteId}) }, orderBy: {dateMouvement:"desc"}, take: 50, include: { pointDeVente: {select:{id,nom}} } }) (même logique que
+ app/api/admin/stock/[id]/route.ts GET lignes ~29-38), auth via getAdminSession comme les autres routes catalogue. Réponse : { data: MouvementRow[] }.
+
+ Étape 2 — Nouveaux composants (components/catalogue/)
+
+ Pattern à suivre : "use client", fetch natif (cohérent avec LotsProduit.tsx/SubstitutsProduit.tsx), props produitId/produitNom.
+
+ 1. BlocageStockModal.tsx — déplacement quasi copier-coller depuis app/dashboard/admin/stock/page.tsx lignes 1502-1596 (type BlocageAction, BLOCAGE_ACTIONS, la fonction
+ complète). Garder useMutation (@/hooks/useApi) tel quel, ne pas réécrire. Signature inchangée : { stock: {produitId, produitNom, pointDeVenteId, pointDeVenteNom, quantite,
+ quantiteBloquee, quantiteConsignee}, onClose, onDone }. PUT /api/admin/stock/${produitId} avec {pointDeVenteId, blocageAction, blocageQuantite, motifAjustement}.
+ 2. ApprovisionnerProduitModal.tsx — dérivé du modal "Approvisionner" (lignes ~641-779 de l'ancien fichier), réduit à un seul produit fixé (produitId/produitNom en props,
+ plus de select produit). Champs : select PDV (fetch /api/admin/pdv?actif=true&limit=100, pré-rempli via prop optionnelle pointDeVenteIdParDefaut), select fournisseur
+ (fetch /api/admin/catalogue/fournisseurs) + champ nom libre, quantité, bloc traçabilité repliable (numeroLot/dlc/dluo), notes. POST /api/admin/approvisionnements avec
+ lignes:[{produitId, quantite, numeroLot?, dlc?, dluo?}].
+ 3. TransfererProduitModal.tsx — dérivé du modal "Transférer" (lignes ~782-885). Props : produitId, produitNom, origineParDefaut?. Champs : select origine, select
+ destination (exclut origine), quantité, notes. POST /api/admin/transferts avec lignes:[{produitId, quantite}].
+ 4. AjustementStockModal.tsx — nouveau, corrige le bug de StockEdit.tsx. Props : produitId, produitNom, stockActuel?, pointDeVenteIdParDefaut?. Inclut un select PDV
+ obligatoire (contrairement à StockEdit.tsx), champ ajustement signé + aperçu du nouveau stock, motif. PUT /api/admin/stock/${produitId} avec uniquement {ajustementStock,
+ motifAjustement, pointDeVenteId} (ne jamais inclure les autres champs produit gérés ailleurs par ProduitFormModal).
+ 5. HistoriqueMouvementsProduit.tsx — { produitId }. Fetch le nouvel endpoint mouvements (étape 1). Réimplémente localement les helpers getMouvementIcon/getMouvementColor
+ de StockDetails.tsx (lignes 59-73) avant sa suppression. Affiche les 50 derniers mouvements avec icône/type/motif/référence/quantité signée/date/agence.
+ 6. AnomaliesProduit.tsx — { produitId, onStockChanged? }. Fetch GET /api/admin/anomalies?produitId=${produitId}&statut=TRANSMISE, boutons Approuver/Rejeter → PATCH
+ /api/admin/anomalies/${id} ({action, motif?}), appelle onStockChanged après une approbation (le stock change).
+
+ Étape 3 — Enrichir components/catalogue/DisponibiliteTab.tsx (sortir de l'oubli)
+
+ - Étendre props : { produitId: number; produitNom: string; onStockChanged?: () => void }.
+ - Étendre AgenceRow avec bloque/consigne (de l'étape 1), afficher 2 colonnes conditionnelles.
+ - Ajouter une colonne "Actions" par ligne : boutons Approvisionner / Transférer / Ajuster / Bloquer-Consigner, chacun ouvrant le modal correspondant avec le PDV de la
+ ligne pré-rempli.
+ - Ajouter 2 boutons d'en-tête "Approvisionner" / "Transférer" (sans PDV pré-rempli, choix dans le modal).
+ - Chaque modal, à la réussite (onDone), rappelle le load() local du composant et onStockChanged?.() remonté au parent (pour rafraîchir le badge de comptage de l'onglet).
+
+ Étape 4 — Câblage dans app/dashboard/admin/catalogue/produits/[id]/page.tsx
+
+ - Étendre l'interface Dispo (lignes 40-45) avec quantiteBloquee, quantiteConsignee.
+ - Remplacer le bloc JSX de l'onglet "dispo" (lignes 316-355, tableau inline lecture seule) par :
+ {tab === "dispo" && (
+   <div className="space-y-4">
+     <DisponibiliteTab produitId={fiche.id} produitNom={fiche.nom} onStockChanged={load} />
+     <AnomaliesProduit produitId={fiche.id} onStockChanged={load} />
+     <HistoriqueMouvementsProduit produitId={fiche.id} />
+   </div>
+ )}
+ - Import DisponibiliteTab, AnomaliesProduit, HistoriqueMouvementsProduit.
+ - Deep-link ?tab=dispo : Next 15 exige un Suspense autour de useSearchParams. Renommer le composant existant FicheProduitPage → FicheProduitInner, ajouter un nouveau
+ export default function FicheProduitPage() { return <Suspense fallback={...}><FicheProduitInner/></Suspense>; }. Dans FicheProduitInner, initialiser tab via lazy state
+ reading useSearchParams().get("tab") (validé contre la liste des Tab valides), sans synchronisation continue de l'URL.
+
+ Étape 5 — Reroutage des liens existants
+
+ ┌────────────────────────────────────────────────────────┬──────────────────────────────────────────┬──────────────────────────────────────────────────────────────────┐
+ │                        Fichier                         │                  Avant                   │                              Après                               │
+ ├────────────────────────────────────────────────────────┼──────────────────────────────────────────┼──────────────────────────────────────────────────────────────────┤
+ │ app/dashboard/admin/ventes/[id]/page.tsx:286           │ /dashboard/admin/stock/${v.produit.id}   │ /dashboard/admin/catalogue/produits/${v.produit.id}?tab=dispo    │
+ ├────────────────────────────────────────────────────────┼──────────────────────────────────────────┼──────────────────────────────────────────────────────────────────┤
+ │ app/dashboard/admin/superadmin/page.tsx:443            │ /dashboard/admin/stock/${p.id} (widget   │ /dashboard/admin/catalogue/produits/${p.id}?tab=dispo            │
+ │                                                        │ alertes)                                 │                                                                  │
+ ├────────────────────────────────────────────────────────┼──────────────────────────────────────────┼──────────────────────────────────────────────────────────────────┤
+ │ app/api/rpv/produits/[id]/route.ts:69                  │ /dashboard/admin/stock/${id} (actionUrl  │ /dashboard/admin/catalogue/produits/${id} (onglet Infos, notif   │
+ │                                                        │ notif)                                   │ de modif fiche)                                                  │
+ ├────────────────────────────────────────────────────────┼──────────────────────────────────────────┼──────────────────────────────────────────────────────────────────┤
+ │ app/api/rpv/mouvements/route.ts:161                    │ /dashboard/admin/stock/${produitId}      │ /dashboard/admin/catalogue/produits/${produitId}?tab=dispo       │
+ │                                                        │ (actionUrl notif)                        │                                                                  │
+ ├────────────────────────────────────────────────────────┼──────────────────────────────────────────┼──────────────────────────────────────────────────────────────────┤
+ │ app/dashboard/admin/stock/page.tsx:1005,1009,1190,1194 │ icônes Voir/Modifier → .../stock/${id}   │ les deux icônes pointent vers                                    │
+ │                                                        │ et .../edit                              │ /dashboard/admin/catalogue/produits/${id}?tab=dispo              │
+ └────────────────────────────────────────────────────────┴──────────────────────────────────────────┴──────────────────────────────────────────────────────────────────┘
+
+ Vérification : grep -rn "/dashboard/admin/stock/\${" . ne doit plus rien retourner (hors /ajustements, module distinct conservé).
+
+ Étape 6 — Suppression (après validation manuelle des étapes précédentes)
+
+ - app/dashboard/admin/stock/[id]/page.tsx
+ - app/dashboard/admin/stock/[id]/edit/page.tsx
+ - components/StockDetails.tsx
+ - components/StockEdit.tsx
+
+ Sidebar (components/DashboardClient.tsx) : aucun changement — l'entrée "Stock" (ligne 479, → liste) reste, car la liste garde des fonctions transverses (vue agrégée,
+ actions bulk multi-produits, queue globale d'anomalies) non couvertes par la fiche produit.
+
+ Vérification finale
+
+ 1. grep -rn "StockDetails\|StockEdit" --include=*.tsx --include=*.ts . → aucune référence après suppression.
+ 2. grep -rn "/dashboard/admin/stock/\[id\]\|admin/stock/\${" . → aucune référence orpheline (hors /ajustements).
+ 3. npm run build — vérifier l'absence d'erreur "useSearchParams should be wrapped in a suspense boundary" et l'absence d'imports cassés.
+ 4. Test manuel (dev) sur /dashboard/admin/catalogue/produits/[id]?tab=dispo pour un produit réel : l'onglet Disponibilité s'ouvre directement ; Approvisionner incrémente
+ quantite ; Transférer décrémente origine + incrémente quantiteEnTransit destination ; Ajuster avec PDV sélectionné réussit (contrairement à l'ancien StockEdit) ;
+ Bloquer/Consigner déplace vers quantiteBloquee/quantiteConsignee ; l'historique des mouvements et les anomalies du produit s'affichent et se traitent.
+╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌

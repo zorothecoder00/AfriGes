@@ -283,7 +283,7 @@ export default function VenteDetailPage({ params }: PageProps) {
                   )}
                 </div>
                 <Link
-                  href={`/dashboard/admin/stock/${v.produit.id}`}
+                  href={`/dashboard/admin/catalogue/produits/${v.produit.id}?tab=dispo`}
                   className="ml-3 inline-flex items-center gap-1 text-xs text-emerald-600 hover:text-emerald-700 font-medium flex-shrink-0"
                 >
                   {t('vente_voir_stock')}

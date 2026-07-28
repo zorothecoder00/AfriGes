@@ -1002,11 +1002,11 @@ export default function GestionStockPage() {
                           </td>
                           <td className="px-5 py-4">
                             <div className="flex items-center gap-1">
-                              <Link href={`/dashboard/admin/stock/${p.id}`}
+                              <Link href={`/dashboard/admin/catalogue/produits/${p.id}?tab=dispo`}
                                 className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
                                 <Eye size={15} />
                               </Link>
-                              <Link href={`/dashboard/admin/stock/${p.id}/edit`}
+                              <Link href={`/dashboard/admin/catalogue/produits/${p.id}?tab=dispo`}
                                 className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
                                 <Edit size={15} />
                               </Link>
@@ -1187,11 +1187,11 @@ export default function GestionStockPage() {
                           </td>
                           <td className="px-5 py-4">
                             <div className="flex items-center gap-1">
-                              <Link href={`/dashboard/admin/stock/${item.produit.id}`}
+                              <Link href={`/dashboard/admin/catalogue/produits/${item.produit.id}?tab=dispo`}
                                 className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
                                 <Eye size={15} />
                               </Link>
-                              <Link href={`/dashboard/admin/stock/${item.produit.id}/edit`}
+                              <Link href={`/dashboard/admin/catalogue/produits/${item.produit.id}?tab=dispo`}
                                 className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
                                 <Edit size={15} />
                               </Link>

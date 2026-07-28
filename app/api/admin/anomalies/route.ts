@@ -21,11 +21,13 @@ export async function GET(req: Request) {
     const skip  = (page - 1) * limit;
     const statut = searchParams.get("statut") || "";
     const pdvId  = searchParams.get("pdvId");
+    const produitId = searchParams.get("produitId");
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const where: any = {};
     if (statut) where.statut = statut;
     if (pdvId)  where.pointDeVenteId = Number(pdvId);
+    if (produitId) where.produitId = Number(produitId);
 
     const [anomalies, total, pendingCount] = await Promise.all([
       prisma.anomalieStock.findMany({

@@ -26,6 +26,7 @@ export async function GET(_req: Request, { params }: Ctx) {
     prisma.pointDeVente.findMany({ where: { actif: true }, orderBy: { nom: "asc" }, select: { id: true, nom: true, type: true } }),
     prisma.stockSite.findMany({ where: { produitId }, select: {
       pointDeVenteId: true, quantite: true, quantiteReservee: true, quantiteEnTransit: true, quantiteEndommagee: true,
+      quantiteBloquee: true, quantiteConsignee: true,
       alerteStock: true, disponible: true, stockMin: true, stockMax: true, seuilCritique: true, rayon: true, etagere: true, allee: true,
     } }),
   ]);
@@ -47,6 +48,8 @@ export async function GET(_req: Request, { params }: Ctx) {
       reserve: s ? Number(s.quantiteReservee) : 0,
       enTransit: s?.quantiteEnTransit ?? 0,
       endommage: s?.quantiteEndommagee ?? 0,
+      bloque: s?.quantiteBloquee ?? 0,
+      consigne: s?.quantiteConsignee ?? 0,
       stockMin: s?.stockMin ?? null, stockMax: s?.stockMax ?? null, seuilCritique: s?.seuilCritique ?? null,
       rayon: s?.rayon ?? null, etagere: s?.etagere ?? null, allee: s?.allee ?? null,
       configure: !!s,

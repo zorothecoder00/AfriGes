@@ -32,7 +32,7 @@ interface StatsData {
   operations:   { clients: number; pdvActifs: number; souscriptionsActives: number; ventes24h: number; ventesCA: number };
   stock:        { rupture: number; faible: number };
   systeme:      { caissesOuvertes: number; notificationsNonLues: number; securityLogs24h: number };
-  alertes:      { type: string; message: string; priorite: string }[];
+  alertes:      { type: string; message: string; priorite: string; produits?: { id: number; nom: string }[] }[];
   logsRecents:  { id: number; action: string; entite: string; entiteId: number | null; date: string; user: string; role: string | null }[];
 }
 
@@ -433,8 +433,21 @@ export default function SuperAdminPage() {
                   {statsRes!.alertes.map((a, i) => (
                     <div key={i} className={`flex items-start gap-3 px-4 py-3 rounded-xl border text-sm ${prioriteStyle[a.priorite] ?? "bg-slate-50 border-slate-200 text-slate-700"}`}>
                       <AlertTriangle size={15} className="mt-0.5 shrink-0" />
-                      <div>
+                      <div className="flex-1 min-w-0">
                         <span className="font-semibold">[{a.priorite}]</span> {a.message}
+                        {a.produits && a.produits.length > 0 && (
+                          <div className="mt-1.5 flex flex-wrap gap-1.5">
+                            {a.produits.map((p) => (
+                              <Link
+                                key={p.id}
+                                href={`/dashboard/admin/catalogue/produits/${p.id}?tab=dispo`}
+                                className="px-2 py-0.5 rounded-lg bg-white/70 border border-white/60 text-xs font-medium hover:underline"
+                              >
+                                {p.nom}
+                              </Link>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     </div>
                   ))}

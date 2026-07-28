@@ -1,19 +1,22 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { Suspense, useEffect, useState, useCallback } from "react";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
 import {
   ArrowLeft, Loader2, Boxes, Pencil, Info, Tag, MapPin, DollarSign, History as HistoryIcon,
   Package, Barcode, QrCode, Truck, PackageCheck, Repeat,
 } from "lucide-react";
-import { formatCurrency } from "@/lib/format";
+import { formatCurrency, formatDate } from "@/lib/format";
 import { TYPE_PRIX_LABEL } from "@/lib/tarificationLabels";
 import HistoriquePrixProduit from "@/components/HistoriquePrixProduit";
 import LotsProduit from "@/components/catalogue/LotsProduit";
 import SubstitutsProduit from "@/components/catalogue/SubstitutsProduit";
 import ProduitFormModal, { type Referentiels } from "@/components/catalogue/ProduitFormModal";
+import DisponibiliteTab from "@/components/catalogue/DisponibiliteTab";
+import AnomaliesProduit from "@/components/catalogue/AnomaliesProduit";
+import HistoriqueMouvementsProduit from "@/components/catalogue/HistoriqueMouvementsProduit";
 
 interface Ref { id: number; nom: string; symbole?: string }
 interface Fiche {
@@ -25,6 +28,7 @@ interface Fiche {
   ficheTechniqueUrl: string | null; videoUrl: string | null;
   famille: Ref | null; sousFamille: Ref | null; categorieProduit: Ref | null; sousCategorie: Ref | null;
   marque: Ref | null; fournisseurPrincipal: Ref | null; uniteVente: Ref | null; uniteAchat: Ref | null;
+  createdAt: string; updatedAt: string;
   _count: { historiquePrix: number };
 }
 interface PrixLigne {
@@ -39,7 +43,8 @@ interface TableauPrix {
 }
 interface Dispo {
   pointDeVenteId: number; agence: string; type: string; disponible: boolean; quantite: number; reserve: number;
-  enTransit: number; endommage: number; stockMin: number | null; stockMax: number | null; seuilCritique: number | null;
+  enTransit: number; endommage: number; bloque: number; consigne: number;
+  stockMin: number | null; stockMax: number | null; seuilCritique: number | null;
   rayon: string | null; etagere: string | null; allee: string | null; configure: boolean;
   etat: { niveau: string; couleur: string; label: string };
 }
@@ -56,7 +61,6 @@ const STATUT_STYLE: Record<string, string> = {
   MASQUE: "bg-slate-100 text-slate-500 border-slate-200",
   ARCHIVE: "bg-gray-100 text-gray-400 border-gray-200",
 };
-const COULEUR_DOT: Record<string, string> = { rouge: "bg-rose-500", orange: "bg-amber-500", vert: "bg-emerald-500" };
 const PROMO_STYLE: Record<string, string> = {
   EN_COURS: "bg-emerald-100 text-emerald-700", PROGRAMMEE: "bg-blue-100 text-blue-700",
   EXPIREE: "bg-gray-100 text-gray-400", INACTIVE: "bg-slate-100 text-slate-500",
@@ -75,10 +79,16 @@ function Ligne({ label, value }: { label: string; value: React.ReactNode }) {
   );
 }
 
-export default function FicheProduitPage() {
+const VALID_TABS: Tab[] = ["infos", "prix", "dispo", "lots", "substituts", "promos", "historique"];
+
+function FicheProduitInner() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
-  const [tab, setTab] = useState<Tab>("infos");
+  const searchParams = useSearchParams();
+  const [tab, setTab] = useState<Tab>(() => {
+    const requested = searchParams.get("tab");
+    return VALID_TABS.includes(requested as Tab) ? (requested as Tab) : "infos";
+  });
   const [fiche, setFiche] = useState<Fiche | null>(null);
   const [prix, setPrix] = useState<PrixLigne[]>([]);
   const [tableau, setTableau] = useState<TableauPrix | null>(null);
@@ -124,6 +134,11 @@ export default function FicheProduitPage() {
   const marge = fiche.prixAchat != null ? fiche.prixUnitaire - fiche.prixAchat : null;
   const margeTaux = fiche.prixAchat != null && fiche.prixAchat > 0 ? (marge! / fiche.prixAchat) * 100 : null;
   const classification = [fiche.famille?.nom, fiche.sousFamille?.nom, fiche.categorieProduit?.nom, fiche.sousCategorie?.nom, fiche.marque?.nom].filter(Boolean).join(" · ");
+  // Coût unitaire retenu pour la valorisation du stock : prix d'achat s'il est renseigné, sinon prix de vente
+  // (même convention que app/api/admin/stock/route.ts et app/dashboard/admin/stock/page.tsx).
+  const stockTotal = dispo.reduce((s, d) => s + d.quantite, 0);
+  const coutUnitaireStock = fiche.prixAchat ?? fiche.prixUnitaire;
+  const valeurStockTotal = stockTotal * coutUnitaireStock;
 
   const TABS: { key: Tab; label: string; icon: React.ReactNode; count?: number }[] = [
     { key: "infos", label: "Informations", icon: <Info className="w-4 h-4" /> },
@@ -204,6 +219,8 @@ export default function FicheProduitPage() {
               <Ligne label="Marque" value={fiche.marque?.nom} />
               <Ligne label="Fournisseur principal" value={fiche.fournisseurPrincipal?.nom && <span className="inline-flex items-center gap-1"><Truck className="w-3.5 h-3.5" /> {fiche.fournisseurPrincipal.nom}</span>} />
               <Ligne label="Pays d'origine" value={fiche.paysOrigine} />
+              <Ligne label="Créé le" value={formatDate(fiche.createdAt)} />
+              <Ligne label="Dernière modification" value={formatDate(fiche.updatedAt)} />
             </div>
             <div className="bg-white rounded-2xl border border-gray-200 p-5">
               <h3 className="font-semibold text-gray-800 flex items-center gap-2 mb-3"><Info className="w-4 h-4 text-blue-500" /> Caractéristiques</h3>
@@ -313,44 +330,22 @@ export default function FicheProduitPage() {
           </div>
         )}
 
-        {/* Onglet Disponibilité */}
+        {/* Onglet Disponibilité — consultation ET traitement du stock (actions réelles) */}
         {tab === "dispo" && (
-          <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-gray-50 text-gray-400 text-xs uppercase">
-                  <tr>
-                    <th className="text-left px-4 py-2.5 font-semibold">Agence</th>
-                    <th className="text-center px-4 py-2.5 font-semibold">État</th>
-                    <th className="text-right px-4 py-2.5 font-semibold">Dispo.</th>
-                    <th className="text-right px-4 py-2.5 font-semibold">Réservé</th>
-                    <th className="text-right px-4 py-2.5 font-semibold">Transit</th>
-                    <th className="text-right px-4 py-2.5 font-semibold">Min/Max</th>
-                    <th className="text-left px-4 py-2.5 font-semibold">Emplacement</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-50">
-                  {dispo.map((d) => (
-                    <tr key={d.pointDeVenteId} className={`hover:bg-gray-50/60 ${d.configure ? "" : "opacity-50"}`}>
-                      <td className="px-4 py-2.5">
-                        {d.agence} {d.type === "DEPOT_CENTRAL" && <span className="text-[10px] text-gray-400">(dépôt)</span>}
-                        {!d.disponible && <span className="text-[10px] px-1.5 py-0.5 rounded bg-rose-50 text-rose-500 ml-1">non commercialisé</span>}
-                      </td>
-                      <td className="px-4 py-2.5 text-center">
-                        <span className="inline-flex items-center gap-1.5 text-xs text-gray-600">
-                          <span className={`w-2 h-2 rounded-full ${COULEUR_DOT[d.etat.couleur] ?? "bg-gray-300"}`} /> {d.etat.label}
-                        </span>
-                      </td>
-                      <td className="px-4 py-2.5 text-right font-medium">{d.quantite}</td>
-                      <td className="px-4 py-2.5 text-right text-gray-500">{d.reserve}</td>
-                      <td className="px-4 py-2.5 text-right text-gray-500">{d.enTransit}</td>
-                      <td className="px-4 py-2.5 text-right text-xs text-gray-500">{d.stockMin ?? "—"} / {d.stockMax ?? "—"}</td>
-                      <td className="px-4 py-2.5 text-xs text-gray-500">{[d.rayon, d.etagere, d.allee].filter(Boolean).join(" · ") || "—"}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="bg-white rounded-2xl border border-gray-200 p-4">
+                <p className="text-xs text-gray-400 mb-1">Stock total (toutes agences)</p>
+                <p className="text-xl font-bold text-gray-900">{stockTotal}</p>
+              </div>
+              <div className="bg-white rounded-2xl border border-gray-200 p-4">
+                <p className="text-xs text-gray-400 mb-1">Valeur du stock</p>
+                <p className="text-xl font-bold text-emerald-700">{formatCurrency(valeurStockTotal)}</p>
+              </div>
             </div>
+            <DisponibiliteTab produitId={fiche.id} produitNom={fiche.nom} onStockChanged={load} />
+            <AnomaliesProduit produitId={fiche.id} onStockChanged={load} />
+            <HistoriqueMouvementsProduit produitId={fiche.id} />
           </div>
         )}
 
@@ -405,5 +400,13 @@ export default function FicheProduitPage() {
         />
       )}
     </div>
+  );
+}
+
+export default function FicheProduitPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-gray-50 flex items-center justify-center text-gray-400"><Loader2 className="w-6 h-6 animate-spin mr-2" /> Chargement…</div>}>
+      <FicheProduitInner />
+    </Suspense>
   );
 }

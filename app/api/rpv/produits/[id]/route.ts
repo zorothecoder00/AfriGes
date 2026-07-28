@@ -66,7 +66,7 @@ export async function PUT(req: Request, { params }: Ctx) {
         titre:    `Produit modifié : ${produitExistant.nom}`,
         message:  `${session.user.name ?? "RPV"} a mis à jour la fiche du produit "${produitExistant.nom}".`,
         priorite: PrioriteNotification.BASSE,
-        actionUrl: `/dashboard/admin/stock/${id}`,
+        actionUrl: `/dashboard/admin/catalogue/produits/${id}`,
       });
 
       await auditLog(tx, parseInt(session.user.id), "MODIFICATION_PRODUIT_RPV", "Produit", id);

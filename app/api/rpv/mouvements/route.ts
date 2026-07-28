@@ -158,7 +158,7 @@ export async function POST(req: Request) {
           titre:    `${typeLabel} stock — ${produit.nom}`,
           message:  `${session.user.name ?? "RPV"} a enregistré un mouvement ${typeLabel.toLowerCase()} de ${Math.abs(qte)} unité(s) sur "${produit.nom}". Stock PDV : ${stockActuel} → ${newStock}.${motif ? ` Motif : ${motif}` : ""}`,
           priorite: PrioriteNotification.NORMAL,
-          actionUrl: `/dashboard/admin/stock/${produitId}`,
+          actionUrl: `/dashboard/admin/catalogue/produits/${produitId}?tab=dispo`,
         }
       );
 

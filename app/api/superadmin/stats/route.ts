@@ -14,7 +14,7 @@ export async function GET() {
       totalUsers, usersActifs, usersSuspendus, usersInactifs,
       totalClients, totalPDV,
       ventes24h, ventesCA,
-      produitsRupture, produitsTous,
+      produitsEnRupture, produitsTous,
       logsRecents,
       notificationsNonLues,
       souscriptionsActives,
@@ -30,8 +30,11 @@ export async function GET() {
       prisma.pointDeVente.count({ where: { actif: true } }),
       prisma.venteDirecte.count({ where: { createdAt: { gte: since24h } } }),
       prisma.venteDirecte.aggregate({ _sum: { montantTotal: true }, where: { statut: "CONFIRMEE" } }),
-      prisma.produit.count({ where: { stocks: { none: { quantite: { gt: 0 } } } } }),
-      prisma.produit.findMany({ select: { alerteStock: true, stocks: { select: { quantite: true } } } }),
+      prisma.produit.findMany({
+        where: { stocks: { none: { quantite: { gt: 0 } } } },
+        select: { id: true, nom: true },
+      }),
+      prisma.produit.findMany({ select: { id: true, nom: true, alerteStock: true, stocks: { select: { quantite: true } } } }),
       prisma.auditLog.findMany({
         take: 20,
         orderBy: { createdAt: "desc" },
@@ -44,16 +47,27 @@ export async function GET() {
       prisma.caissePDV.count({ where: { statut: "OUVERTE" } }).catch(() => 0),
     ]);
 
-    const stockFaible = produitsTous.filter((p) => {
+    const produitsEnStockFaible = produitsTous.filter((p) => {
       const total = p.stocks.reduce((s, ss) => s + ss.quantite, 0);
       return total > 0 && p.alerteStock > 0 && total <= p.alerteStock;
-    }).length;
+    });
 
-    const alertes: { type: string; message: string; priorite: string }[] = [];
-    if (produitsRupture > 0)
-      alertes.push({ type: "RUPTURE_STOCK", message: `${produitsRupture} produit(s) en rupture de stock`, priorite: "CRITIQUE" });
-    if (stockFaible > 0)
-      alertes.push({ type: "STOCK_FAIBLE", message: `${stockFaible} produit(s) en stock faible`, priorite: "HAUTE" });
+    type Alerte = { type: string; message: string; priorite: string; produits?: { id: number; nom: string }[] };
+    const alertes: Alerte[] = [];
+    if (produitsEnRupture.length > 0)
+      alertes.push({
+        type: "RUPTURE_STOCK",
+        message: `${produitsEnRupture.length} produit(s) en rupture de stock`,
+        priorite: "CRITIQUE",
+        produits: produitsEnRupture,
+      });
+    if (produitsEnStockFaible.length > 0)
+      alertes.push({
+        type: "STOCK_FAIBLE",
+        message: `${produitsEnStockFaible.length} produit(s) en stock faible`,
+        priorite: "HAUTE",
+        produits: produitsEnStockFaible.map((p) => ({ id: p.id, nom: p.nom })),
+      });
     if (usersSuspendus > 0)
       alertes.push({ type: "COMPTES_SUSPENDUS", message: `${usersSuspendus} compte(s) suspendu(s)`, priorite: "HAUTE" });
     if (loginFailed1h >= 5)
@@ -62,7 +76,7 @@ export async function GET() {
     return NextResponse.json({
       utilisateurs: { total: totalUsers, actifs: usersActifs, suspendus: usersSuspendus, inactifs: usersInactifs },
       operations:   { clients: totalClients, pdvActifs: totalPDV, souscriptionsActives, ventes24h, ventesCA: Number(ventesCA._sum.montantTotal ?? 0) },
-      stock:        { rupture: produitsRupture, faible: stockFaible },
+      stock:        { rupture: produitsEnRupture.length, faible: produitsEnStockFaible.length },
       systeme:      { caissesOuvertes, notificationsNonLues, securityLogs24h },
       alertes,
       logsRecents: logsRecents.map((l) => ({
