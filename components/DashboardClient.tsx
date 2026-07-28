@@ -172,6 +172,11 @@ export default function AfriGesDashboard() {
   const { data: response, loading, error, refetch } = useApi<DashboardResponse>(
     `/api/admin/dashboard?period=${selectedPeriod}`
   );
+
+  const { data: messagesNonLusRes } = useApi<{ nonLus: number }>(
+    '/api/messages/unread-count', undefined, { refreshInterval: 30_000 }
+  );
+  const messagesNonLus = messagesNonLusRes?.nonLus ?? 0;
   const d = response?.data;
 
   const { data: activityResponse, refetch: refetchActivity } = useApi<ActivityResponse>(
@@ -453,7 +458,14 @@ export default function AfriGesDashboard() {
                 </button>
                 <Link href="/dashboard/admin/membres"       className="w-full flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-50 rounded-xl transition-all"><Users size={20} /><span>{t('nav_membres')}</span></Link>
                 <Link href="/dashboard/admin/gestionnaires" className="w-full flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-50 rounded-xl transition-all"><Users size={20} /><span>{t('nav_gestionnaires')}</span></Link>
-                <Link href="/dashboard/admin/messages"      className="w-full flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-50 rounded-xl transition-all"><MessageSquare size={20} /><span>{t('nav_messages')}</span></Link>
+                <Link href="/dashboard/admin/messages"      className="w-full flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-50 rounded-xl transition-all relative">
+                  <MessageSquare size={20} /><span>{t('nav_messages')}</span>
+                  {messagesNonLus > 0 && (
+                    <span className="ml-auto min-w-[18px] h-[18px] px-1 bg-emerald-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+                      {messagesNonLus > 99 ? "99+" : messagesNonLus}
+                    </span>
+                  )}
+                </Link>
               </nav>
             </div>
             {/* Clientèle — module CRM/Recouvrement */}
@@ -562,6 +574,39 @@ export default function AfriGesDashboard() {
 
           <div className="overflow-y-auto max-h-[calc(100vh-14rem)] space-y-6 pr-2">
 
+          {/* ── Vue d'ensemble : chiffres clés + tendance vs période précédente ── */}
+          <div>
+            <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">{t('dash_overview')}</h3>
+            <div className="grid grid-cols-4 gap-5">
+              {[
+                { label: t('dash_clients_actifs'), value: d?.clientsActifs ?? '—', icon: Users, comp: d?.comparaisons?.clients, brand: true },
+                { label: t('dash_souscriptions_actives'), value: d?.souscriptionsActives ?? '—', icon: Layers, comp: d?.comparaisons?.packs },
+                { label: t('dash_packs_total'), value: d?.packsTotal ?? '—', icon: Package, comp: null },
+                { label: t('dash_versements_total'), value: d ? formatCurrency(d.versementsTotal.montant) : '—', icon: Wallet, comp: d?.comparaisons?.versements },
+              ].map((item) => {
+                const Icon = item.icon;
+                return (
+                  <div key={item.label}
+                    className={`bg-white rounded-2xl p-5 shadow-sm border transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 ${item.brand ? 'border-brand-200 ring-1 ring-brand-100' : 'border-slate-200/60'}`}>
+                    <div className="flex items-start justify-between mb-3">
+                      <div className={`p-2.5 rounded-xl ${item.brand ? 'bg-brand-50' : 'bg-slate-50'}`}>
+                        <Icon size={18} className={item.brand ? 'text-brand-600' : 'text-slate-500'} />
+                      </div>
+                      {item.comp && (
+                        <span className={`inline-flex items-center gap-0.5 text-[11px] font-semibold px-1.5 py-0.5 rounded-full ${item.comp.positif ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-500'}`}>
+                          {item.comp.positif ? <TrendingUp size={11} /> : <TrendingDown size={11} />}
+                          {item.comp.positif ? '+' : ''}{item.comp.pct}%
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-2xl font-bold text-slate-800">{item.value}</p>
+                    <p className="text-xs text-slate-500 mt-0.5">{item.label}</p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
           {/* ── Activité globale du jour ──────────────────────────────────── */}
           <div className="space-y-4">
 
@@ -569,7 +614,7 @@ export default function AfriGesDashboard() {
             <div className="grid grid-cols-3 gap-5">
 
               {/* Activité du jour */}
-              <div className="col-span-2 bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60">
+              <div className="col-span-2 bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60 hover:shadow-md transition-shadow duration-200">
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-2">
                     <div className="bg-emerald-50 p-2 rounded-lg">
@@ -611,7 +656,7 @@ export default function AfriGesDashboard() {
               </div>
 
               {/* Modules actifs / inactifs */}
-              <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60">
+              <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60 hover:shadow-md transition-shadow duration-200">
                 <div className="flex items-center gap-2 mb-4">
                   <div className="bg-violet-50 p-2 rounded-lg">
                     <BarChart2 size={18} className="text-violet-600" />
@@ -656,7 +701,7 @@ export default function AfriGesDashboard() {
             <div className="grid grid-cols-2 gap-5">
 
               {/* Alertes opérationnelles */}
-              <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60">
+              <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60 hover:shadow-md transition-shadow duration-200">
                 <div className="flex items-center gap-2 mb-4">
                   <div className="bg-amber-50 p-2 rounded-lg">
                     <AlertTriangle size={18} className="text-amber-600" />
@@ -701,7 +746,7 @@ export default function AfriGesDashboard() {
               </div>
 
               {/* Rapports rapides */}
-              <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60">
+              <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60 hover:shadow-md transition-shadow duration-200">
                 <div className="flex items-center gap-2 mb-4">
                   <div className="bg-blue-50 p-2 rounded-lg">
                     <TrendingUp size={18} className="text-blue-600" />
@@ -758,7 +803,7 @@ export default function AfriGesDashboard() {
           <div className="grid grid-cols-3 gap-5">
 
             {/* ── Line chart : évolution des versements ─────────────────────── */}
-            <div className="col-span-2 bg-white rounded-2xl p-6 shadow-sm border border-slate-200/60">
+            <div className="col-span-2 bg-white rounded-2xl p-6 shadow-sm border border-slate-200/60 hover:shadow-md transition-shadow duration-200">
               <div className="flex items-center justify-between mb-6">
                 <div>
                   <h3 className="text-xl font-bold text-slate-800">{t('dash_evolution_credits_ventes')}</h3>
@@ -877,7 +922,7 @@ export default function AfriGesDashboard() {
             </div>
 
             {/* ── Donut : répartition des souscriptions ────────────────────── */}
-            <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/60">
+            <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/60 hover:shadow-md transition-shadow duration-200">
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <h3 className="text-xl font-bold text-slate-800">{t('dash_souscriptions')}</h3>
@@ -1022,7 +1067,7 @@ export default function AfriGesDashboard() {
             <div className="grid grid-cols-3 gap-5">
 
               {/* Taux de remboursement */}
-              <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60">
+              <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60 hover:shadow-md transition-shadow duration-200">
                 <div className="flex items-center gap-2 mb-4">
                   <div className="bg-indigo-50 p-2 rounded-lg">
                     <Percent size={16} className="text-indigo-600" />
@@ -1058,7 +1103,7 @@ export default function AfriGesDashboard() {
               </div>
 
               {/* Classement agents */}
-              <div className="col-span-2 bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60">
+              <div className="col-span-2 bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60 hover:shadow-md transition-shadow duration-200">
                 <div className="flex items-center gap-2 mb-4">
                   <div className="bg-amber-50 p-2 rounded-lg">
                     <Award size={16} className="text-amber-600" />
@@ -1112,7 +1157,7 @@ export default function AfriGesDashboard() {
             </div>
 
             {/* 8.2 — Dashboard Financier */}
-            <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60">
+            <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60 hover:shadow-md transition-shadow duration-200">
               <div className="flex items-center gap-2 mb-5">
                 <div className="bg-blue-50 p-2 rounded-lg">
                   <DollarSign size={16} className="text-blue-600" />

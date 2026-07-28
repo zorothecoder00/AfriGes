@@ -1303,6 +1303,13 @@ export const translations = {
   gest_role_auto_reconnu: { fr: "sera automatiquement reconnu sur le PDV sélectionné.", en: "will be automatically recognized on the selected POS.", ar: "سيُعترف به تلقائيًا في نقطة البيع المحددة.", es: "será reconocido automáticamente en el PDV seleccionado.", pt: "será reconhecido automaticamente no PDV selecionado." },
   gest_resp_officiel_pdv: { fr: "Il sera aussi défini comme responsable officiel du PDV.", en: "They will also be set as the official manager of the POS.", ar: "سيُعيَّن أيضًا كمسؤول رسمي عن نقطة البيع.", es: "También será designado como responsable oficial del PDV.", pt: "Também será definido como responsável oficial do PDV." },
   gest_son_role:          { fr: "Son rôle",                           en: "Their role",                     ar: "دوره",                             es: "Su rol",                              pt: "Sua função" },
+
+  // ── Dashboard admin — vue d'ensemble ────────────────────────────────────────
+  dash_overview:           { fr: "Vue d'ensemble",     en: "Overview",           ar: "نظرة عامة",          es: "Resumen",               pt: "Visão geral" },
+  dash_clients_actifs:     { fr: "Clients actifs",     en: "Active clients",     ar: "العملاء النشطون",   es: "Clientes activos",      pt: "Clientes ativos" },
+  dash_souscriptions_actives:{ fr: "Souscriptions actives", en: "Active subscriptions", ar: "الاشتراكات النشطة", es: "Suscripciones activas", pt: "Assinaturas ativas" },
+  dash_packs_total:        { fr: "Packs total",        en: "Total packs",        ar: "إجمالي الحزم",       es: "Total de paquetes",     pt: "Total de pacotes" },
+  dash_versements_total:   { fr: "Versements",         en: "Payments",           ar: "المدفوعات",         es: "Pagos",                 pt: "Pagamentos" },
 } as const;
 
 export type TranslationKey = keyof typeof translations;

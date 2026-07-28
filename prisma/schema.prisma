@@ -3341,13 +3341,18 @@ model Conversation {
 }
 
 model MessageChat {
-  id             Int       @id @default(autoincrement())
-  conversationId Int
-  expediteurId   Int
-  contenu        String
-  lu             Boolean   @default(false)
-  dateLecture    DateTime?
-  createdAt      DateTime  @default(now())
+  id                Int       @id @default(autoincrement())
+  conversationId    Int
+  expediteurId      Int
+  contenu           String
+  lu                Boolean   @default(false)
+  dateLecture       DateTime?
+  /// Pièce jointe optionnelle (uploadthing) — un fichier par message, comme WhatsApp.
+  pieceJointeUrl    String?
+  pieceJointeNom    String?
+  pieceJointeType   String?
+  pieceJointeTaille Int?
+  createdAt         DateTime  @default(now())
 
   conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   expediteur   User         @relation("MessagesChatEnvoyes", fields: [expediteurId], references: [id])

@@ -3,8 +3,15 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
-import { ArrowLeft, Search, X, Send, MessageSquarePlus, Loader2, MessageSquare } from "lucide-react";
+import { generateUploadButton } from "@uploadthing/react";
+import {
+  ArrowLeft, Search, X, Send, MessageSquarePlus, Loader2, MessageSquare,
+  Smile, Paperclip, FileText, Download,
+} from "lucide-react";
 import { formatDate } from "@/lib/format";
+import type { OurFileRouter } from "@/app/api/uploadthing/core";
+
+const UploadButton = generateUploadButton<OurFileRouter>();
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -12,16 +19,68 @@ interface Personne {
   id: number; nom: string; prenom: string; email: string; photo: string | null;
   role: string | null; gestionnaireRole: string | null;
 }
+interface PieceJointe { url: string; nom: string; type: string; taille: number }
 interface ConversationRow {
   id: number;
   autreParticipant: Personne;
-  dernierMessage: { contenu: string; createdAt: string; expediteurId: number } | null;
+  dernierMessage: { contenu: string; createdAt: string; expediteurId: number; pieceJointeNom: string | null } | null;
   dernierMessageAt: string;
   nonLus: number;
 }
 interface MessageRow {
   id: number; conversationId: number; expediteurId: number; contenu: string;
   lu: boolean; dateLecture: string | null; createdAt: string;
+  pieceJointeUrl: string | null; pieceJointeNom: string | null; pieceJointeType: string | null; pieceJointeTaille: number | null;
+}
+
+const EMOJIS = ["👋","😊","✅","❌","⚠️","📦","💰","📝","🔔","👍","👎","🎉","📊","🤝","💬","📞","✉️","🕐","🔍","📋","💡","🚀","✨","🙏","😅","🤔","👏","🎯","📈","📉"];
+
+function EmojiPicker({ onPick }: { onPick: (e: string) => void }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="relative shrink-0">
+      <button type="button" onClick={() => setOpen((o) => !o)} title="Emojis"
+        className="p-2.5 text-gray-400 hover:text-amber-500 hover:bg-amber-50 rounded-full transition-colors">
+        <Smile className="w-5 h-5" />
+      </button>
+      {open && (
+        <div className="absolute bottom-full left-0 mb-2 bg-white border border-gray-200 rounded-xl shadow-xl p-2 z-20 w-64 flex flex-wrap gap-1">
+          {EMOJIS.map((e) => (
+            <button key={e} type="button" onClick={() => { onPick(e); setOpen(false); }}
+              className="w-8 h-8 flex items-center justify-center text-lg hover:bg-gray-100 rounded-lg transition-colors">
+              {e}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function formatTaille(octets: number): string {
+  if (octets < 1024) return `${octets} o`;
+  if (octets < 1024 * 1024) return `${(octets / 1024).toFixed(0)} Ko`;
+  return `${(octets / (1024 * 1024)).toFixed(1)} Mo`;
+}
+
+function PieceJointeBulle({ url, nom, type, taille }: { url: string; nom: string | null; type: string | null; taille: number | null }) {
+  if (type?.startsWith("image/")) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <a href={url} target="_blank" rel="noreferrer"><img src={url} alt={nom ?? ""} className="max-w-full max-h-60 rounded-lg mb-1" /></a>
+    );
+  }
+  return (
+    <a href={url} target="_blank" rel="noreferrer" download
+      className="flex items-center gap-2 px-2.5 py-2 rounded-lg bg-black/5 hover:bg-black/10 transition-colors mb-1">
+      <FileText className="w-5 h-5 shrink-0" />
+      <div className="min-w-0">
+        <p className="text-xs font-medium truncate">{nom ?? "Fichier"}</p>
+        {taille != null && <p className="text-[10px] opacity-70">{formatTaille(taille)}</p>}
+      </div>
+      <Download className="w-3.5 h-3.5 shrink-0 opacity-70" />
+    </a>
+  );
 }
 
 const ROLE_LABELS: Record<string, string> = {
@@ -77,6 +136,8 @@ export default function MessagerieApp({ initialConversationId }: { initialConver
   const [contacts, setContacts] = useState<Personne[]>([]);
   const [mobileShowThread, setMobileShowThread] = useState(!!initialConversationId);
   const [contactCible, setContactCible] = useState<Personne | null>(null);
+  const [pieceJointeEnAttente, setPieceJointeEnAttente] = useState<PieceJointe | null>(null);
+  const [uploading, setUploading] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   const loadConversations = useCallback(async (silencieux = false) => {
@@ -111,6 +172,7 @@ export default function MessagerieApp({ initialConversationId }: { initialConver
   // Fil actif : chargement + rafraîchissement périodique + marquage lu
   useEffect(() => {
     if (!activeId) return;
+    if (activeId < 0) { setMessages([]); return; } // conversation virtuelle (nouveau contact) : pas encore créée côté serveur
     loadMessages(activeId);
     const id = setInterval(() => loadMessages(activeId, true), 5_000);
     return () => clearInterval(id);
@@ -153,29 +215,31 @@ export default function MessagerieApp({ initialConversationId }: { initialConver
 
   const envoyer = async () => {
     const contenu = texte.trim();
-    if (!contenu || sending || !activeId) return;
+    if ((!contenu && !pieceJointeEnAttente) || sending || uploading || !activeId) return;
     setSending(true);
     try {
       if (activeId < 0 && contactCible) {
         const r = await fetch("/api/messages/conversations", {
           method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ destinataireId: contactCible.id, contenu }),
+          body: JSON.stringify({ destinataireId: contactCible.id, contenu, pieceJointe: pieceJointeEnAttente ?? undefined }),
         });
         const j = await r.json();
         if (!r.ok) throw new Error(j.message ?? "Erreur");
         setActiveId(j.data.conversationId);
         setContactCible(null);
         setTexte("");
+        setPieceJointeEnAttente(null);
         await loadConversations(true);
         await loadMessages(j.data.conversationId, true);
       } else {
         const r = await fetch(`/api/messages/conversations/${activeId}`, {
           method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ contenu }),
+          body: JSON.stringify({ contenu, pieceJointe: pieceJointeEnAttente ?? undefined }),
         });
         const j = await r.json();
         if (!r.ok) throw new Error(j.message ?? "Erreur");
         setTexte("");
+        setPieceJointeEnAttente(null);
         await loadMessages(activeId, true);
         await loadConversations(true);
       }
@@ -246,7 +310,9 @@ export default function MessagerieApp({ initialConversationId }: { initialConver
                   </div>
                   <div className="flex items-center justify-between gap-2">
                     <p className="text-xs text-gray-500 truncate">
-                      {c.dernierMessage ? (c.dernierMessage.expediteurId === meId ? "Vous : " : "") + c.dernierMessage.contenu : roleLabel(c.autreParticipant)}
+                      {c.dernierMessage
+                        ? (c.dernierMessage.expediteurId === meId ? "Vous : " : "") + (c.dernierMessage.contenu || (c.dernierMessage.pieceJointeNom ? `📎 ${c.dernierMessage.pieceJointeNom}` : ""))
+                        : roleLabel(c.autreParticipant)}
                     </p>
                     {c.nonLus > 0 && (
                       <span className="text-[10px] bg-emerald-500 text-white font-bold rounded-full min-w-[18px] h-[18px] px-1 flex items-center justify-center shrink-0">
@@ -291,6 +357,9 @@ export default function MessagerieApp({ initialConversationId }: { initialConver
                 return (
                   <div key={m.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
                     <div className={`max-w-[70%] px-3.5 py-2 rounded-2xl text-sm whitespace-pre-wrap break-words ${mine ? "bg-emerald-600 text-white rounded-br-sm" : "bg-white border border-gray-200 text-gray-800 rounded-bl-sm"}`}>
+                      {m.pieceJointeUrl && (
+                        <PieceJointeBulle url={m.pieceJointeUrl} nom={m.pieceJointeNom} type={m.pieceJointeType} taille={m.pieceJointeTaille} />
+                      )}
                       {m.contenu}
                       <div className={`text-[10px] mt-1 ${mine ? "text-emerald-100" : "text-gray-400"}`}>{formatDate(m.createdAt)}</div>
                     </div>
@@ -300,18 +369,48 @@ export default function MessagerieApp({ initialConversationId }: { initialConver
               <div ref={bottomRef} />
             </div>
 
-            <div className="p-3 border-t border-gray-100 flex items-center gap-2">
-              <input
-                value={texte}
-                onChange={(e) => setTexte(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); envoyer(); } }}
-                placeholder="Écrivez un message…"
-                className="flex-1 px-4 py-2.5 border border-gray-200 rounded-full text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-              />
-              <button onClick={envoyer} disabled={sending || !texte.trim()}
-                className="p-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-full transition-colors shrink-0">
-                {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-              </button>
+            <div className="border-t border-gray-100">
+              {pieceJointeEnAttente && (
+                <div className="px-3 pt-3 flex items-center gap-2">
+                  <div className="flex items-center gap-2 px-2.5 py-1.5 bg-emerald-50 border border-emerald-200 rounded-lg text-xs text-emerald-700 max-w-full">
+                    <Paperclip className="w-3.5 h-3.5 shrink-0" />
+                    <span className="truncate">{pieceJointeEnAttente.nom}</span>
+                    <button onClick={() => setPieceJointeEnAttente(null)} className="text-emerald-500 hover:text-emerald-800 shrink-0"><X className="w-3.5 h-3.5" /></button>
+                  </div>
+                </div>
+              )}
+              <div className="p-3 flex items-center gap-1">
+                <EmojiPicker onPick={(e) => setTexte((c) => c + e)} />
+                <div className="shrink-0">
+                  <UploadButton
+                    endpoint="messagePieceJointe"
+                    appearance={{
+                      container: "!w-auto !m-0",
+                      button: "!w-9 !h-9 !p-0 !min-h-0 !rounded-full !bg-transparent !text-gray-400 hover:!text-emerald-600 hover:!bg-emerald-50 !shadow-none !ring-0 !text-[0px] ut-uploading:!bg-transparent after:!bg-emerald-500",
+                      allowedContent: "!hidden",
+                    }}
+                    content={{ button: () => <Paperclip className="w-5 h-5" /> }}
+                    onUploadBegin={() => setUploading(true)}
+                    onClientUploadComplete={(res) => {
+                      setUploading(false);
+                      const file = res?.[0];
+                      if (file) setPieceJointeEnAttente({ url: file.url, nom: file.name, type: file.type ?? "application/octet-stream", taille: file.size });
+                    }}
+                    onUploadError={(err) => { setUploading(false); toast.error(err.message || "Échec de l'envoi du fichier"); }}
+                  />
+                </div>
+                <input
+                  value={texte}
+                  onChange={(e) => setTexte(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); envoyer(); } }}
+                  placeholder="Écrivez un message…"
+                  className="flex-1 px-4 py-2.5 border border-gray-200 rounded-full text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                />
+                <button onClick={envoyer} disabled={sending || uploading || (!texte.trim() && !pieceJointeEnAttente)}
+                  className="p-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-full transition-colors shrink-0">
+                  {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                </button>
+              </div>
             </div>
           </>
         )}

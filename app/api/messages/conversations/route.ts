@@ -22,7 +22,7 @@ export async function GET() {
     include: {
       utilisateurA: { select: { id: true, nom: true, prenom: true, email: true, photo: true, role: true, gestionnaire: { select: { role: true, actif: true } } } },
       utilisateurB: { select: { id: true, nom: true, prenom: true, email: true, photo: true, role: true, gestionnaire: { select: { role: true, actif: true } } } },
-      messages: { orderBy: { createdAt: "desc" }, take: 1 },
+      messages: { orderBy: { createdAt: "desc" }, take: 1, select: { contenu: true, createdAt: true, expediteurId: true, pieceJointeNom: true } },
     },
   });
 
@@ -39,7 +39,7 @@ export async function GET() {
           role: autre.role, gestionnaireRole: autre.gestionnaire?.actif ? autre.gestionnaire.role : null,
         },
         dernierMessage: c.messages[0]
-          ? { contenu: c.messages[0].contenu, createdAt: c.messages[0].createdAt, expediteurId: c.messages[0].expediteurId }
+          ? { contenu: c.messages[0].contenu, createdAt: c.messages[0].createdAt, expediteurId: c.messages[0].expediteurId, pieceJointeNom: c.messages[0].pieceJointeNom }
           : null,
         dernierMessageAt: c.dernierMessageAt,
         nonLus,
@@ -58,9 +58,10 @@ export async function POST(req: Request) {
   const body = await req.json().catch(() => null);
   const destinataireId = Number(body?.destinataireId);
   const contenu = typeof body?.contenu === "string" ? body.contenu.trim() : "";
+  const pieceJointe = body?.pieceJointe as { url?: string; nom?: string; type?: string; taille?: number } | undefined;
   if (!destinataireId) return NextResponse.json({ message: "Destinataire requis" }, { status: 400 });
   if (destinataireId === userId) return NextResponse.json({ message: "Impossible de s'envoyer un message à soi-même" }, { status: 400 });
-  if (!contenu) return NextResponse.json({ message: "Message vide" }, { status: 400 });
+  if (!contenu && !pieceJointe?.url) return NextResponse.json({ message: "Message vide" }, { status: 400 });
 
   const destinataire = await prisma.user.findUnique({ where: { id: destinataireId }, select: { id: true, nom: true, prenom: true, role: true } });
   if (!destinataire) return NextResponse.json({ message: "Destinataire introuvable" }, { status: 404 });
@@ -68,15 +69,21 @@ export async function POST(req: Request) {
   const result = await prisma.$transaction(async (tx) => {
     const conversation = await getOrCreateConversation(tx, userId, destinataireId);
     const message = await tx.messageChat.create({
-      data: { conversationId: conversation.id, expediteurId: userId, contenu },
+      data: {
+        conversationId: conversation.id, expediteurId: userId, contenu,
+        ...(pieceJointe?.url ? {
+          pieceJointeUrl: pieceJointe.url, pieceJointeNom: pieceJointe.nom, pieceJointeType: pieceJointe.type, pieceJointeTaille: pieceJointe.taille,
+        } : {}),
+      },
     });
     await tx.conversation.update({ where: { id: conversation.id }, data: { dernierMessageAt: message.createdAt } });
 
     const routeDestinataire = ["ADMIN", "SUPER_ADMIN"].includes(destinataire.role ?? "")
       ? "/dashboard/admin/messages" : "/dashboard/gestionnaire/messages";
+    const apercu = contenu || (pieceJointe?.nom ? `📎 ${pieceJointe.nom}` : "Pièce jointe");
     await notify(tx, [destinataireId], {
       titre: `${session.user.prenom ?? session.user.name ?? ""} vous a envoyé un message`,
-      message: contenu.length > 120 ? `${contenu.slice(0, 120)}…` : contenu,
+      message: apercu.length > 120 ? `${apercu.slice(0, 120)}…` : apercu,
       actionUrl: `${routeDestinataire}?c=${conversation.id}`,
     });
 

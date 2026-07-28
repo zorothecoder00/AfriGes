@@ -14,6 +14,24 @@ export const ourFileRouter = {
       return { url: file.url };
     }),
 
+  // Endpoint pièces jointes de la messagerie — ouvert à tout utilisateur connecté
+  messagePieceJointe: f({
+    image: { maxFileSize: "8MB", maxFileCount: 1 },
+    pdf:   { maxFileSize: "16MB", maxFileCount: 1 },
+    blob:  { maxFileSize: "16MB", maxFileCount: 1 },
+  })
+    .middleware(async () => {
+      const session = await getAuthSession();
+      if (!session) throw new Error("Non autorisé");
+      return { uploaderUserId: Number(session.user.id) };
+    })
+    .onUploadComplete(async ({ metadata, file }) => {
+      return {
+        url: file.url, name: file.name, size: file.size, type: file.type,
+        uploaderUserId: metadata.uploaderUserId,
+      };
+    }),
+
   // Endpoint pièces justificatives comptables
   justificatif: f({
     pdf:   { maxFileSize: "16MB", maxFileCount: 5 },

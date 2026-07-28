@@ -59,20 +59,29 @@ export async function POST(req: Request, { params }: Ctx) {
 
   const body = await req.json().catch(() => null);
   const contenu = typeof body?.contenu === "string" ? body.contenu.trim() : "";
-  if (!contenu) return NextResponse.json({ message: "Message vide" }, { status: 400 });
+  const pieceJointe = body?.pieceJointe as { url?: string; nom?: string; type?: string; taille?: number } | undefined;
+  if (!contenu && !pieceJointe?.url) return NextResponse.json({ message: "Message vide" }, { status: 400 });
 
   const destinataireId = conversation.utilisateurAId === userId ? conversation.utilisateurBId : conversation.utilisateurAId;
   const destinataire = await prisma.user.findUnique({ where: { id: destinataireId }, select: { role: true } });
 
   const message = await prisma.$transaction(async (tx) => {
-    const created = await tx.messageChat.create({ data: { conversationId, expediteurId: userId, contenu } });
+    const created = await tx.messageChat.create({
+      data: {
+        conversationId, expediteurId: userId, contenu,
+        ...(pieceJointe?.url ? {
+          pieceJointeUrl: pieceJointe.url, pieceJointeNom: pieceJointe.nom, pieceJointeType: pieceJointe.type, pieceJointeTaille: pieceJointe.taille,
+        } : {}),
+      },
+    });
     await tx.conversation.update({ where: { id: conversationId }, data: { dernierMessageAt: created.createdAt } });
 
     const routeDestinataire = ["ADMIN", "SUPER_ADMIN"].includes(destinataire?.role ?? "")
       ? "/dashboard/admin/messages" : "/dashboard/gestionnaire/messages";
+    const apercu = contenu || (pieceJointe?.nom ? `📎 ${pieceJointe.nom}` : "Pièce jointe");
     await notify(tx, [destinataireId], {
       titre: `${session.user.prenom ?? session.user.name ?? ""} vous a envoyé un message`,
-      message: contenu.length > 120 ? `${contenu.slice(0, 120)}…` : contenu,
+      message: apercu.length > 120 ? `${apercu.slice(0, 120)}…` : apercu,
       actionUrl: `${routeDestinataire}?c=${conversationId}`,
     });
 
