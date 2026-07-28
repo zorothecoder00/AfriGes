@@ -13,7 +13,6 @@ import { useSession } from 'next-auth/react';
 import { useT } from '@/contexts/AppSettingsContext';
 import NotificationBell from '@/components/NotificationBell';
 import UserPdvBadge from '@/components/UserPdvBadge';
-import MessageModal from '@/components/MessageModal';   
 import { useApi } from '@/hooks/useApi';     
 import { formatCurrency } from '@/lib/format';
 import { exportMultiSheetXlsx, type XlsxSheetSpec } from '@/lib/exportXlsx';
@@ -160,7 +159,6 @@ export default function AfriGesDashboard() {
   const t = useT();
   const [selectedPeriod, setSelectedPeriod] = useState<'7' | '30' | '90'>('30');
   const [showMenu, setShowMenu] = useState(false);
-  const [showMessageModal, setShowMessageModal] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -552,13 +550,10 @@ export default function AfriGesDashboard() {
                     <Link href="/dashboard/admin/ventes"  onClick={() => setShowMenu(false)} className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 transition-colors"><Package size={18} className="text-emerald-500" /><span className="text-sm font-medium text-slate-700">{t('new_sale_delivery')}</span></Link>
                     <Link href="/dashboard/admin/membres" onClick={() => setShowMenu(false)} className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 transition-colors"><Users size={18} className="text-amber-500" /><span className="text-sm font-medium text-slate-700">{t('add_member')}</span></Link>
                     <div className="border-t border-slate-100 my-1" />
-                    <button
-                      onClick={() => { setShowMenu(false); setShowMessageModal(true); }}
-                      className="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-50 transition-colors"
-                    >
+                    <Link href="/dashboard/admin/messages" onClick={() => setShowMenu(false)} className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 transition-colors">
                       <MessageSquare size={18} className="text-purple-500" />
                       <span className="text-sm font-medium text-slate-700">{t('send_message')}</span>
-                    </button>
+                    </Link>
                   </div>
                 )}
               </div>
@@ -788,7 +783,7 @@ export default function AfriGesDashboard() {
                 </div>
                 <div className="flex items-center gap-1.5">
                   <div className="w-3 h-3 rounded-full bg-blue-400" />
-                  <span className="text-xs text-slate-500">{t('dash_ventes_directes')}</span>
+                  <span className="text-xs text-slate-500">{t('dash_legende_ventes_directes')}</span>
                 </div>
               </div>
 
@@ -1220,9 +1215,6 @@ export default function AfriGesDashboard() {
         </main>
       </div>
 
-      {showMessageModal && (
-        <MessageModal onClose={() => setShowMessageModal(false)} />
-      )}
     </div>
   );
 }

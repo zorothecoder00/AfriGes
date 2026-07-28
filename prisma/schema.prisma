@@ -667,6 +667,9 @@ model User {
   securityLogs         SecurityLog[]
   messagesEnvoyes      Message[]            @relation("MessagesEnvoyes")
   messagesRecus        Message[]            @relation("MessagesRecus")
+  conversationsA       Conversation[]       @relation("ConversationsA")
+  conversationsB       Conversation[]       @relation("ConversationsB")
+  messagesChatEnvoyes  MessageChat[]        @relation("MessagesChatEnvoyes")
 
   // Packs & fidélité      
   souscriptionsPacks   SouscriptionPack[]  
@@ -3314,6 +3317,43 @@ model Message {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+/// Messagerie instantanée (type WhatsApp) — remplace le modèle Message ci-dessus
+/// pour tous les nouveaux échanges. Un seul fil continu par paire d'utilisateurs,
+/// ouvert à tous les rôles (admin, gestionnaires, membres simples).
+model Conversation {
+  id               Int      @id @default(autoincrement())
+  /// Toujours le plus petit des deux IDs utilisateur (ordre normalisé pour garantir
+  /// l'unicité de la paire, quel que soit qui a démarré la conversation).
+  utilisateurAId   Int
+  utilisateurBId   Int
+  dernierMessageAt DateTime @default(now())
+  createdAt        DateTime @default(now())
+
+  utilisateurA User          @relation("ConversationsA", fields: [utilisateurAId], references: [id])
+  utilisateurB User          @relation("ConversationsB", fields: [utilisateurBId], references: [id])
+  messages     MessageChat[]
+
+  @@unique([utilisateurAId, utilisateurBId])
+  @@index([utilisateurAId])
+  @@index([utilisateurBId])
+}
+
+model MessageChat {
+  id             Int       @id @default(autoincrement())
+  conversationId Int
+  expediteurId   Int
+  contenu        String
+  lu             Boolean   @default(false)
+  dateLecture    DateTime?
+  createdAt      DateTime  @default(now())
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  expediteur   User         @relation("MessagesChatEnvoyes", fields: [expediteurId], references: [id])
+
+  @@index([conversationId])
+  @@index([expediteurId])
 }
 
 // ============================================================

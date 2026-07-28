@@ -14,7 +14,7 @@ export default function MessagesLink() {
   useEffect(() => {
     const fetchCount = async () => {
       try {
-        const res = await fetch("/api/gestionnaire/messages/count");
+        const res = await fetch("/api/messages/unread-count");
         if (res.ok) {
           const data = await res.json();
           setNonLus(data.nonLus ?? 0);
