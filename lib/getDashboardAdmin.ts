@@ -9,11 +9,11 @@ const VENTE_EXCLUES = ["ANNULEE", "BROUILLON"] as const;
 export async function getDashboardDecisionnel() {
   const now = new Date();
 
-  // Bornes "aujourd'hui"
-  const todayStart = new Date(now);
-  todayStart.setHours(0, 0, 0, 0);
-  const todayEnd = new Date(now);
-  todayEnd.setHours(23, 59, 59, 999);
+  // Bornes "aujourd'hui" — calculées en UTC explicite (indépendant du fuseau
+  // d'exécution du serveur), pour matcher exactement les dates de type "date
+  // seule" (ex. "2026-07-28") que JS interprète toujours comme minuit UTC.
+  const todayStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0, 0));
+  const todayEnd   = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 23, 59, 59, 999));
 
   // Bornes "30 derniers jours" pour classement agents
   const since30 = new Date(now);
@@ -32,6 +32,7 @@ export async function getDashboardDecisionnel() {
     pertesAgg,
     creancesARisque,
     cashAttenduAgg,
+    encoursRIAAgg,
   ] = await Promise.all([
     // Clients avec au moins un crédit actif (solde > 0)
     prisma.client.count({
@@ -51,15 +52,16 @@ export async function getDashboardDecisionnel() {
     // Retards critiques = nombre de crédits EN_RETARD
     prisma.creditClient.count({ where: { statut: "EN_RETARD" } }),
 
-    // Cash du jour — versements packs
+    // Cash du jour — versements packs réellement payés (exclut EN_ATTENTE/ANNULE/EN_RETARD)
     prisma.versementPack.aggregate({
-      where: { datePaiement: { gte: todayStart, lte: todayEnd } },
+      where: { statut: "PAYE", datePaiement: { gte: todayStart, lte: todayEnd } },
       _sum: { montant: true },
     }),
 
-    // Cash du jour — remboursements crédits
+    // Cash du jour — remboursements crédits confirmés par le caissier uniquement
+    // (EN_ATTENTE_CAISSIER = pas encore réellement encaissé, REJETE = annulé)
     prisma.remboursementCredit.aggregate({
-      where: { dateRemboursement: { gte: todayStart, lte: todayEnd } },
+      where: { statut: "CONFIRME", dateRemboursement: { gte: todayStart, lte: todayEnd } },
       _sum: { montant: true },
     }),
 
@@ -92,13 +94,24 @@ export async function getDashboardDecisionnel() {
       },
     }),
 
-    // Cash attendu aujourd'hui = échéances dues aujourd'hui non payées
+    // Cash attendu = objectif de collecte du jour : solde restant dû sur les
+    // échéances dont la date tombe précisément aujourd'hui (celles que les
+    // agents terrain doivent normalement encaisser aujourd'hui), qu'elles
+    // soient non payées ou seulement partiellement réglées.
     prisma.echeanceCredit.aggregate({
       where: {
-        statut: { in: ["EN_ATTENTE", "EN_RETARD"] },
+        statut: { in: ["EN_ATTENTE", "PARTIEL", "EN_RETARD"] },
         dateEcheance: { gte: todayStart, lte: todayEnd },
       },
-      _sum: { montantDu: true },
+      _sum: { montantDu: true, montantPaye: true },
+    }),
+
+    // Encours financements RIA actifs/en retard (pour l'encours global 8.2 —
+    // volontairement exclu des comptes courants : un solde CC est l'argent du
+    // client chez nous, pas une créance)
+    prisma.operationFinancementRIA.aggregate({
+      where: { statut: { in: ["ACTIF", "EN_RETARD"] } },
+      _sum: { encours: true },
     }),
   ]);
 
@@ -181,17 +194,21 @@ export async function getDashboardDecisionnel() {
     montantCollecte,
   }));
 
+  const creancesCredit = Number(creancesAgg._sum.soldeRestant ?? 0);
+  const encoursRIA = Number(encoursRIAAgg._sum.encours ?? 0);
+
   return {
-    // 8.1
+    // 8.1 — créances clients uniquement (crédits actifs/en retard)
     clientsDebiteurs,
-    creancesTotales: Number(creancesAgg._sum.soldeRestant ?? 0),
+    creancesTotales: creancesCredit,
     retardsCritiques,
     montantCollecteJour,
     tauxRemboursement,
     agentsPerformants,
-    // 8.2
-    encoursGlobal: Number(creancesAgg._sum.soldeRestant ?? 0),
-    cashAttendu: Number(cashAttenduAgg._sum.montantDu ?? 0),
+    // 8.2 — encours global = créances clients + financements RIA (les comptes
+    // courants ne sont pas inclus : un solde CC est un dépôt du client, pas une créance)
+    encoursGlobal: creancesCredit + encoursRIA,
+    cashAttendu: Math.max(0, Number(cashAttenduAgg._sum.montantDu ?? 0) - Number(cashAttenduAgg._sum.montantPaye ?? 0)),
     cashCollecte: montantCollecteJour,
     pertesPoentielles: Number(pertesAgg._sum.soldeRestant ?? 0),
     creancesARisque,

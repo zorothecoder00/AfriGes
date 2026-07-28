@@ -53,9 +53,10 @@ export async function GET() {
       // Appros en attente (BROUILLON)
       prisma.receptionApprovisionnement.count({ where: { statut: "BROUILLON" } }),
 
-      // Montant versements packs du jour
+      // Montant versements packs du jour — réellement payés uniquement
+      // (exclut EN_ATTENTE / ANNULE / EN_RETARD)
       prisma.versementPack.aggregate({
-        where: { createdAt: todayRange },
+        where: { statut: "PAYE", createdAt: todayRange },
         _sum: { montant: true },
       }),
 
@@ -65,9 +66,11 @@ export async function GET() {
         _sum: { montantTotal: true },
       }),
 
-      // Remboursements crédits du jour (pour l'encaissé réel)
+      // Remboursements crédits du jour (pour l'encaissé réel) — confirmés
+      // par le caissier uniquement (EN_ATTENTE_CAISSIER = pas encore réellement
+      // encaissé, REJETE = annulé)
       prisma.remboursementCredit.aggregate({
-        where: { dateRemboursement: todayRange },
+        where: { statut: "CONFIRME", dateRemboursement: todayRange },
         _sum: { montant: true },
       }),
 

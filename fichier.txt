@@ -2,6 +2,10 @@
 
 -exceljs est une lib pour styliser les exports
 
+-"test": "vitest run",
+ 11 +    "test:watch": "vitest",
+
+
 -Chromium headless est une lib qui permet le rendu pdf
 
 -Print CSS et window.print() pour les export PDF/Excel
@@ -53,9 +57,53 @@ netsh wlan show profile name="NomDuWifi" key=clear affiche toutes les propriét�
   3. AT_USERNAME → ton nom d'utilisateur AT (souvent le nom de ton app)
 
   Pour WhatsApp (Twilio — plus simple à démarrer) :
-  1. WA_ENABLED=true
-  2. TWILIO_ACCOUNT_SID + TWILIO_AUTH_TOKEN → depuis https://console.twilio.com
-  3. TWILIO_WA_FROM → le numéro WhatsApp Twilio (sandbox: +14155238886)
+   Étapes réelles pour activer les notifications WhatsApp
+
+  1. Compte Twilio — crée un compte sur https://console.twilio.com, récupère
+  Account SID et Auth Token (page d'accueil de la console).
+  2. Numéro WhatsApp :
+    - Pour tester tout de suite : active le WhatsApp Sandbox de Twilio (gratuit,
+  numéro +14155238886). Limite importante : chaque destinataire (toi, tes
+  admins, tes agents terrain) doit d'abord envoyer le code d'activation ("join
+  xxx-xxx") depuis son propre WhatsApp vers ce numéro sandbox — sinon Twilio
+  refuse d'envoyer. Ça marche pour valider que le système fonctionne, mais pas
+  utilisable en prod avec de vrais clients (ils ne feront jamais cette manip).
+    - Pour la vraie prod : il faut demander un numéro WhatsApp Business Sender
+  via Twilio (vérification d'entreprise + approbation Meta, ça prend quelques
+  jours). Comme les rappels de retard sont des messages initiés par toi (pas une
+  réponse à un message du client), Meta exige aussi un template de message
+  pré-approuvé pour ce type d'envoi.
+  3. Variables d'environnement (Vercel + ton .env local) :
+  WA_ENABLED=true
+  TWILIO_ACCOUNT_SID=...
+  TWILIO_AUTH_TOKEN=...
+  TWILIO_WA_FROM=+14155238886   # ou ton numéro approuvé en prod
+  DEFAULT_PHONE_PREFIX=228      # 228 Togo, 229 Bénin, 225 CIV
+  4. Test manuel avant de compter sur le cron : appelle GET /api/cron/alertes
+  toi-même (navigateur ou curl) une fois les variables posées, et regarde les
+  logs Vercel pour les lignes [WA] ... (erreurs explicites si un numéro ou une
+  variable manque).
+  5. Vérifie que les numéros des admins/agents terrain (ceux qui reçoivent
+  l'alerte aujourd'hui, pas le client) sont bien enregistrés dans
+  Gestionnaire/User et ont rejoint le sandbox si tu testes avec le sandbox.
+  6. Une fois validé, le cron Vercel (déjà programmé à 08h00) prend le relais
+  automatiquement — rien d'autre à déployer.
+
+  Tu veux que je corrige le bug CRON_SECRET maintenant ?
+
+  Sources:
+  - Static Configuration with vercel.json
+  (https://vercel.com/docs/project-configuration/vercel-json)
+  - Getting started with cron jobs
+  (https://vercel.com/docs/cron-jobs/quickstart)
+  - How can I use env variables in vercel.json file (if possible)? ·
+  vercel/vercel · Discussion #9611
+  (https://github.com/vercel/vercel/discussions/9611)
+  - Managing Cron Jobs (https://vercel.com/docs/cron-jobs/manage-cron-jobs)
+  - Troubleshooting Vercel Cron Jobs | Vercel Knowledge Base
+  (https://vercel.com/kb/guide/troubleshooting-vercel-cron-jobs)
+
+
 
   À ne pas oublier :
   - CRON_SECRET → une chaîne aléatoire pour sécuriser les endpoints cron (ex:
@@ -120,18 +168,6 @@ Dans les crédits clients , on va essayer de faire des filtres par agent ( avec 
 Dans les dossiers des collaborateurs pour leurs informations, faut ajouter aussi personne à prévénir
   
     
-  
-DocumentsRH
-Catalogue et annexe Prix
-Cahier de charge ResponsableApprovisionnement supply chain  
-
-
-Permettre à tous les user de pouvoir discuter ( pas juste l'admin )
-   
-  
-
-Je dois corriger la relation entre les approvisionnements et les lots( de la route des catalogue de prix) surtout chez l'admin qui peut lancer des approvisionnents lui même
-
 
 Retoucher le logo
 
@@ -144,7 +180,7 @@ Pouvoir rajouter grossiste dans les types de fournisseur
 On va créer des codes QR à scanner pour permettre aux visiteurs et aux clients de pouvoir accéder au catalogue de produit 
 
 
-
+  
 
 Rendre opérationnel toute la partie messagerie pour tous les utilisateurs et l'admin ( que ce soit un peu comme whatsapp où tout le monde peut envoyer un message à tout le monde et tout le monde peut répondre )
 

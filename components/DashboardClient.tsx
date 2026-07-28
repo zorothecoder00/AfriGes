@@ -6,7 +6,7 @@ import {
   ShoppingCart, MoreVertical, Download, Plus, ChevronDown, MessageSquare, Store, Shield,
   Activity, AlertTriangle, CheckCircle, XCircle, Wallet, BarChart2, Truck, RefreshCw,
   CreditCard, TrendingDown, DollarSign, Clock, Award, Percent, ClipboardCheck,
-  UserCog, Network, Lock, Target,
+  UserCog, Network, Lock, Target, Info,
 } from 'lucide-react';
 import Link from "next/link";     
 import { useSession } from 'next-auth/react';
@@ -149,6 +149,47 @@ function souscSegments(actives: number, completes: number, annulees: number, lab
 function fmtDateShort(iso: string) {
   const d = new Date(iso);
   return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+}
+
+/** Anime un nombre de 0 vers sa valeur cible à chaque changement (effet "compteur"). */
+function AnimatedNumber({ value, format }: { value: number; format?: (n: number) => string }) {
+  const [affiche, setAffiche] = useState(0);
+  const depart = useRef(0);
+
+  useEffect(() => {
+    const from = depart.current;
+    const to = value;
+    if (from === to) return;
+    const duree = 700;
+    const t0 = performance.now();
+    let raf = 0;
+    const tick = (now: number) => {
+      const p = Math.min(1, (now - t0) / duree);
+      const ease = 1 - Math.pow(1 - p, 3); // ease-out cubic
+      const courant = Math.round(from + (to - from) * ease);
+      setAffiche(courant);
+      if (p < 1) raf = requestAnimationFrame(tick);
+      else depart.current = to;
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value]);
+
+  return <>{format ? format(affiche) : affiche.toLocaleString('fr-FR')}</>;
+}
+
+/** Petite icône ⓘ avec bulle explicative au survol/focus — pour clarifier un indicateur. */
+function InfoTooltip({ text }: { text: string }) {
+  return (
+    <span className="group/tip relative inline-flex align-middle ml-1">
+      <Info size={12} className="text-slate-300 hover:text-slate-500 cursor-help transition-colors" tabIndex={0} />
+      <span className="pointer-events-none absolute z-30 bottom-full left-1/2 -translate-x-1/2 mb-2 w-52 rounded-lg bg-slate-800 text-white text-[11px] leading-snug px-2.5 py-1.5 text-left font-normal normal-case tracking-normal opacity-0 scale-95 group-hover/tip:opacity-100 group-hover/tip:scale-100 group-focus-within/tip:opacity-100 group-focus-within/tip:scale-100 transition-all duration-150 shadow-lg">
+        {text}
+        <span className="absolute top-full left-1/2 -translate-x-1/2 -mt-px border-4 border-transparent border-t-slate-800" />
+      </span>
+    </span>
+  );
 }
 
 // ─── Composant principal ──────────────────────────────────────────────────────
@@ -397,7 +438,7 @@ export default function AfriGesDashboard() {
   // Supprimé : stats cards remplacées par la section activité ci-dessous
 
   // ── Loading ────────────────────────────────────────────────────────────────
-  if (loading) {
+  if (loading && !response) {
     return (
       <div className="min-h-screen bg-linear-to-br from-cream via-cream-100 to-brand-50 flex items-center justify-center">
   <div className="flex flex-col items-center gap-4">
@@ -406,9 +447,9 @@ export default function AfriGesDashboard() {
         </div>
       </div>
     );
-  }    
+  }
 
-  if (error) {
+  if (error && !response) {
     return (
       <div className="min-h-screen bg-linear-to-br from-cream via-cream-100 to-brand-50 flex items-center justify-center">
   <div className="flex flex-col items-center gap-4 bg-white rounded-2xl p-8 shadow-sm border border-slate-200/60 max-w-md text-center">
@@ -427,13 +468,20 @@ export default function AfriGesDashboard() {
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-linear-to-br from-cream via-cream-100 to-brand-50">
-      
+    <div className="min-h-screen bg-linear-to-br from-cream via-cream-100 to-brand-50 relative isolate">
+
+      {/* Aurora décorative — halos flous animés, discrets, aux couleurs du logo */}
+      <div className="pointer-events-none fixed inset-0 overflow-hidden -z-10" aria-hidden="true">
+        <div className="absolute -top-40 -left-24 w-[34rem] h-[34rem] bg-brand-300/25 dark:bg-brand-700/15 rounded-full blur-3xl animate-[auroraFloat_20s_ease-in-out_infinite]" />
+        <div className="absolute top-1/4 -right-28 w-[30rem] h-[30rem] bg-brand-400/20 dark:bg-brand-600/10 rounded-full blur-3xl animate-[auroraFloat_26s_ease-in-out_infinite_reverse]" />
+        <div className="absolute bottom-0 left-1/3 w-[26rem] h-[26rem] bg-brand-200/25 dark:bg-brand-800/10 rounded-full blur-3xl animate-[auroraFloat_23s_ease-in-out_infinite]" />
+      </div>
+
       {/* Header */}
-      <header className="bg-white border-b border-slate-200 sticky top-0 z-50">
+      <header className="bg-white/90 backdrop-blur-md border-b border-slate-200 sticky top-0 z-50">
         <div className="max-w-400 mx-auto px-8 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-brand-700 rounded-lg flex items-center justify-center">
+            <div className="w-10 h-10 bg-linear-to-br from-brand-500 to-brand-700 rounded-lg flex items-center justify-center shadow-md shadow-brand-200">
               <span className="text-white font-bold">A</span>
             </div>
             <h1 className="text-xl font-bold text-slate-800">AfriGes</h1>
@@ -445,15 +493,15 @@ export default function AfriGesDashboard() {
         </div>
       </header>
 
-      <div className="max-w-400 mx-auto px-8 py-8 flex gap-6">
+      <div className="max-w-400 mx-auto px-8 py-8 flex gap-6 relative">
 
         {/* Sidebar */}
         <aside className="w-72 shrink-0">
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 overflow-y-auto sticky top-28 max-h-[calc(100vh-8rem)]">
+          <div className="bg-white/85 backdrop-blur-md rounded-2xl shadow-sm border border-slate-200/60 overflow-y-auto sticky top-28 max-h-[calc(100vh-8rem)]">
             <div className="p-4 border-b border-slate-100">
               <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">{t('main')}</h3>
               <nav className="space-y-1">
-                <button className="w-full flex items-center gap-3 px-4 py-3 bg-linear-to-r from-brand-500 to-brand-700 text-white rounded-xl font-medium transition-all shadow-md shadow-brand-200">
+                <button className="w-full flex items-center gap-3 px-4 py-3 bg-linear-to-r from-brand-500 to-brand-700 text-white rounded-xl font-medium transition-all duration-300 shadow-md shadow-brand-200 hover:shadow-lg hover:shadow-brand-300 hover:scale-[1.02]">
                   <TrendingUp size={20} /><span>{t('nav_dashboard')}</span>
                 </button>
                 <Link href="/dashboard/admin/membres"       className="w-full flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-50 rounded-xl transition-all"><Users size={20} /><span>{t('nav_membres')}</span></Link>
@@ -461,8 +509,11 @@ export default function AfriGesDashboard() {
                 <Link href="/dashboard/admin/messages"      className="w-full flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-50 rounded-xl transition-all relative">
                   <MessageSquare size={20} /><span>{t('nav_messages')}</span>
                   {messagesNonLus > 0 && (
-                    <span className="ml-auto min-w-[18px] h-[18px] px-1 bg-emerald-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
-                      {messagesNonLus > 99 ? "99+" : messagesNonLus}
+                    <span className="relative ml-auto flex items-center justify-center">
+                      <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75 animate-ping" />
+                      <span className="relative min-w-[18px] h-[18px] px-1 bg-emerald-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+                        {messagesNonLus > 99 ? "99+" : messagesNonLus}
+                      </span>
                     </span>
                   )}
                 </Link>
@@ -579,28 +630,33 @@ export default function AfriGesDashboard() {
             <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">{t('dash_overview')}</h3>
             <div className="grid grid-cols-4 gap-5">
               {[
-                { label: t('dash_clients_actifs'), value: d?.clientsActifs ?? '—', icon: Users, comp: d?.comparaisons?.clients, brand: true },
-                { label: t('dash_souscriptions_actives'), value: d?.souscriptionsActives ?? '—', icon: Layers, comp: d?.comparaisons?.packs },
-                { label: t('dash_packs_total'), value: d?.packsTotal ?? '—', icon: Package, comp: null },
-                { label: t('dash_versements_total'), value: d ? formatCurrency(d.versementsTotal.montant) : '—', icon: Wallet, comp: d?.comparaisons?.versements },
-              ].map((item) => {
+                { label: t('dash_clients_actifs'), help: t('dash_help_clients_actifs'), raw: d?.clientsActifs, icon: Users, comp: d?.comparaisons?.clients, brand: true },
+                { label: t('dash_souscriptions_actives'), help: t('dash_help_souscriptions_actives'), raw: d?.souscriptionsActives, icon: Layers, comp: d?.comparaisons?.packs },
+                { label: t('dash_packs_total'), help: t('dash_help_packs_total'), raw: d?.packsTotal, icon: Package, comp: null },
+                { label: t('dash_versements_total'), help: t('dash_help_versements_total'), raw: d?.versementsTotal.montant, icon: Wallet, comp: d?.comparaisons?.versements, montant: true },
+              ].map((item, idx) => {
                 const Icon = item.icon;
                 return (
                   <div key={item.label}
-                    className={`bg-white rounded-2xl p-5 shadow-sm border transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 ${item.brand ? 'border-brand-200 ring-1 ring-brand-100' : 'border-slate-200/60'}`}>
+                    style={{ animationDelay: `${idx * 70}ms` }}
+                    className={`group bg-white rounded-2xl p-5 shadow-sm border transition-all duration-300 hover:shadow-[0_14px_32px_-10px_rgba(98,178,56,0.35)] hover:-translate-y-1 animate-[fadeInUp_0.5s_ease-out_both] ${item.brand ? 'border-brand-200 ring-1 ring-brand-100' : 'border-slate-200/60 hover:border-brand-100'}`}>
                     <div className="flex items-start justify-between mb-3">
-                      <div className={`p-2.5 rounded-xl ${item.brand ? 'bg-brand-50' : 'bg-slate-50'}`}>
+                      <div className={`p-2.5 rounded-xl transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3 ${item.brand ? 'bg-brand-50' : 'bg-slate-50'}`}>
                         <Icon size={18} className={item.brand ? 'text-brand-600' : 'text-slate-500'} />
                       </div>
                       {item.comp && (
-                        <span className={`inline-flex items-center gap-0.5 text-[11px] font-semibold px-1.5 py-0.5 rounded-full ${item.comp.positif ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-500'}`}>
+                        <span
+                          style={{ animationDelay: `${idx * 70 + 300}ms` }}
+                          className={`inline-flex items-center gap-0.5 text-[11px] font-semibold px-1.5 py-0.5 rounded-full animate-[popIn_0.4s_ease-out_both] ${item.comp.positif ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-500'}`}>
                           {item.comp.positif ? <TrendingUp size={11} /> : <TrendingDown size={11} />}
                           {item.comp.positif ? '+' : ''}{item.comp.pct}%
                         </span>
                       )}
                     </div>
-                    <p className="text-2xl font-bold text-slate-800">{item.value}</p>
-                    <p className="text-xs text-slate-500 mt-0.5">{item.label}</p>
+                    <p className="text-2xl font-bold text-slate-800 tabular-nums">
+                      {item.raw != null ? <AnimatedNumber value={item.raw} format={item.montant ? formatCurrency : undefined} /> : '—'}
+                    </p>
+                    <p className="text-xs text-slate-500 mt-0.5">{item.label}<InfoTooltip text={item.help} /></p>
                   </div>
                 );
               })}
@@ -635,20 +691,24 @@ export default function AfriGesDashboard() {
                 </div>
                 <div className="grid grid-cols-5 gap-3">
                   {[
-                    { label: t('dash_versements'), value: act?.activiteJour.versements ?? '—', icon: Wallet,      color: 'text-purple-600', bg: 'bg-purple-50' },
-                    { label: t('dash_souscription'), value: act?.activiteJour.souscriptions ?? '—', icon: Layers, color: 'text-blue-600', bg: 'bg-blue-50' },
-                    { label: t('dash_vente_directe'), value: act?.activiteJour.ventes ?? '—', icon: ShoppingCart, color: 'text-emerald-600', bg: 'bg-emerald-50' },
-                    { label: t('dash_remboursements'), value: act?.activiteJour.remboursements ?? '—', icon: CreditCard, color: 'text-rose-600', bg: 'bg-rose-50' },
-                    { label: t('dash_mouvements_stock'), value: act?.activiteJour.mouvementsStock ?? '—', icon: Package, color: 'text-amber-600', bg: 'bg-amber-50' },
-                  ].map((item) => {
+                    { label: t('dash_versements'), help: t('dash_help_act_versements'), value: act?.activiteJour.versements ?? '—', icon: Wallet,      color: 'text-purple-600', bg: 'bg-purple-50' },
+                    { label: t('dash_souscription'), help: t('dash_help_act_souscription'), value: act?.activiteJour.souscriptions ?? '—', icon: Layers, color: 'text-blue-600', bg: 'bg-blue-50' },
+                    { label: t('dash_vente_directe'), help: t('dash_help_act_vente_directe'), value: act?.activiteJour.ventes ?? '—', icon: ShoppingCart, color: 'text-emerald-600', bg: 'bg-emerald-50' },
+                    { label: t('dash_remboursements'), help: t('dash_help_act_remboursements'), value: act?.activiteJour.remboursements ?? '—', icon: CreditCard, color: 'text-rose-600', bg: 'bg-rose-50' },
+                    { label: t('dash_mouvements_stock'), help: t('dash_help_act_mouvements_stock'), value: act?.activiteJour.mouvementsStock ?? '—', icon: Package, color: 'text-amber-600', bg: 'bg-amber-50' },
+                  ].map((item, idx) => {
                     const Icon = item.icon;
                     return (
-                      <div key={item.label} className="flex flex-col items-center gap-1.5 p-3 bg-slate-50 rounded-xl">
-                        <div className={`${item.bg} p-2 rounded-lg`}>
+                      <div key={item.label}
+                        style={{ animationDelay: `${idx * 60}ms` }}
+                        className="group flex flex-col items-center gap-1.5 p-3 bg-slate-50 rounded-xl transition-all duration-300 hover:bg-white hover:shadow-md hover:-translate-y-0.5 animate-[fadeInUp_0.5s_ease-out_both]">
+                        <div className={`${item.bg} p-2 rounded-lg transition-transform duration-300 group-hover:scale-110`}>
                           <Icon size={16} className={item.color} />
                         </div>
-                        <span className="text-2xl font-bold text-slate-800">{item.value}</span>
-                        <span className="text-[10px] text-slate-500 text-center leading-tight">{item.label}</span>
+                        <span className="text-2xl font-bold text-slate-800 tabular-nums">
+                          {typeof item.value === 'number' ? <AnimatedNumber value={item.value} /> : item.value}
+                        </span>
+                        <span className="text-[10px] text-slate-500 text-center leading-tight">{item.label}<InfoTooltip text={item.help} /></span>
                       </div>
                     );
                   })}
@@ -809,15 +869,18 @@ export default function AfriGesDashboard() {
                   <h3 className="text-xl font-bold text-slate-800">{t('dash_evolution_credits_ventes')}</h3>
                   <p className="text-xs text-slate-400 mt-0.5">{t('dash_montants_journaliers')}</p>
                 </div>
-                <select
-                  value={selectedPeriod}
-                  onChange={(e) => setSelectedPeriod(e.target.value as '7' | '30' | '90')}
-                  className="px-4 py-2 border border-slate-200 rounded-lg text-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
-                >
-                  <option value="7">{t('dash_period_7')}</option>
-                  <option value="30">{t('dash_period_30')}</option>
-                  <option value="90">{t('dash_period_90')}</option>
-                </select>
+                <div className="flex items-center gap-2">
+                  {loading && response && <RefreshCw size={14} className="text-brand-500 animate-spin" />}
+                  <select
+                    value={selectedPeriod}
+                    onChange={(e) => setSelectedPeriod(e.target.value as '7' | '30' | '90')}
+                    className="px-4 py-2 border border-slate-200 rounded-lg text-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
+                  >
+                    <option value="7">{t('dash_period_7')}</option>
+                    <option value="30">{t('dash_period_30')}</option>
+                    <option value="90">{t('dash_period_90')}</option>
+                  </select>
+                </div>
               </div>
 
               {/* Légende */}
@@ -891,12 +954,15 @@ export default function AfriGesDashboard() {
                           />
                         )}
 
-                        {/* Courbe versements */}
+                        {/* Courbe versements — tracé animé à l'apparition */}
                         <path
+                          key={selectedPeriod}
                           d={buildPath(versementsPoints)}
                           fill="none" stroke="url(#lineGrad)" strokeWidth="2.5"
                           strokeLinecap="round" strokeLinejoin="round"
                           vectorEffect="non-scaling-stroke"
+                          pathLength={1}
+                          style={{ strokeDasharray: 1, animation: 'drawLine 1.1s ease-out forwards' }}
                         />
                       </svg>
                     </div>
@@ -1012,39 +1078,39 @@ export default function AfriGesDashboard() {
               {[
                 {
                   label: t('dash_clients_debiteurs'),
+                  help: t('dash_help_clients_debiteurs'),
                   value: dec?.clientsDebiteurs ?? '—',
                   icon: Users,
                   color: 'text-orange-600',
                   bg: 'bg-orange-50',
                   border: 'border-orange-100',
-                  sub: t('dash_sub_credit_actif'),
                 },
                 {
                   label: t('dash_creances_totales'),
+                  help: t('dash_help_creances_totales'),
                   value: dec ? formatCurrency(dec.creancesTotales) : '—',
                   icon: CreditCard,
                   color: 'text-red-600',
                   bg: 'bg-red-50',
                   border: 'border-red-100',
-                  sub: t('dash_sub_encours_retard'),
                 },
                 {
                   label: t('dash_retards_critiques'),
+                  help: t('dash_help_retards_critiques'),
                   value: dec?.retardsCritiques ?? '—',
                   icon: AlertTriangle,
                   color: 'text-amber-600',
                   bg: 'bg-amber-50',
                   border: 'border-amber-100',
-                  sub: t('dash_sub_credits_en_retard'),
                 },
                 {
                   label: t('dash_collecte_jour'),
+                  help: t('dash_help_collecte_jour'),
                   value: dec ? formatCurrency(dec.montantCollecteJour) : '—',
                   icon: Wallet,
                   color: 'text-emerald-600',
                   bg: 'bg-emerald-50',
                   border: 'border-emerald-100',
-                  sub: t('dash_sub_packs_credits'),
                 },
               ].map((kpi) => {
                 const Icon = kpi.icon;
@@ -1056,8 +1122,7 @@ export default function AfriGesDashboard() {
                       </div>
                     </div>
                     <p className="text-2xl font-bold text-slate-800 mb-0.5">{kpi.value}</p>
-                    <p className="text-xs font-semibold text-slate-600">{kpi.label}</p>
-                    <p className="text-[10px] text-slate-400 mt-0.5">{kpi.sub}</p>
+                    <p className="text-xs font-semibold text-slate-600">{kpi.label}<InfoTooltip text={kpi.help} /></p>
                   </div>
                 );
               })}
@@ -1073,7 +1138,7 @@ export default function AfriGesDashboard() {
                     <Percent size={16} className="text-indigo-600" />
                   </div>
                   <div>
-                    <h4 className="text-sm font-bold text-slate-800">{t('dash_taux_remboursement')}</h4>
+                    <h4 className="text-sm font-bold text-slate-800">{t('dash_taux_remboursement')}<InfoTooltip text={t('dash_help_taux_remboursement')} /></h4>
                     <p className="text-xs text-slate-400">{t('dash_taux_remb_sous_titre')}</p>
                   </div>
                 </div>
@@ -1109,7 +1174,7 @@ export default function AfriGesDashboard() {
                     <Award size={16} className="text-amber-600" />
                   </div>
                   <div>
-                    <h4 className="text-sm font-bold text-slate-800">{t('dash_classement_agents')}</h4>
+                    <h4 className="text-sm font-bold text-slate-800">{t('dash_classement_agents')}<InfoTooltip text={t('dash_help_classement_agents')} /></h4>
                     <p className="text-xs text-slate-400">{t('dash_collecte_30j')}</p>
                   </div>
                 </div>
@@ -1171,43 +1236,43 @@ export default function AfriGesDashboard() {
                 {[
                   {
                     label: t('dash_encours_global'),
+                    help: t('dash_help_encours_global'),
                     value: dec ? formatCurrency(dec.encoursGlobal) : '—',
                     icon: CreditCard,
                     color: 'text-blue-600',
                     bg: 'bg-blue-50',
-                    desc: t('dash_desc_solde_restant'),
                   },
                   {
                     label: t('dash_cash_attendu'),
+                    help: t('dash_help_cash_attendu'),
                     value: dec ? formatCurrency(dec.cashAttendu) : '—',
                     icon: Clock,
                     color: 'text-indigo-600',
                     bg: 'bg-indigo-50',
-                    desc: t('dash_desc_echeances_jour'),
                   },
                   {
                     label: t('dash_cash_collecte'),
+                    help: t('dash_help_cash_collecte'),
                     value: dec ? formatCurrency(dec.cashCollecte) : '—',
                     icon: CheckCircle,
                     color: 'text-emerald-600',
                     bg: 'bg-emerald-50',
-                    desc: t('dash_desc_encaisse_aujourdhui'),
                   },
                   {
                     label: t('dash_pertes_potentielles'),
+                    help: t('dash_help_pertes_potentielles'),
                     value: dec ? formatCurrency(dec.pertesPoentielles) : '—',
                     icon: TrendingDown,
                     color: 'text-red-600',
                     bg: 'bg-red-50',
-                    desc: t('dash_desc_en_retard_risque'),
                   },
                   {
                     label: t('dash_creances_a_risque'),
+                    help: t('dash_help_creances_a_risque'),
                     value: dec?.creancesARisque ?? '—',
                     icon: AlertTriangle,
                     color: 'text-amber-600',
                     bg: 'bg-amber-50',
-                    desc: t('dash_desc_clients_eleve_critique'),
                   },
                 ].map((item) => {
                   const Icon = item.icon;
@@ -1217,8 +1282,7 @@ export default function AfriGesDashboard() {
                         <Icon size={15} className={item.color} />
                       </div>
                       <p className="text-xl font-bold text-slate-800">{item.value}</p>
-                      <p className="text-xs font-semibold text-slate-600 mt-0.5">{item.label}</p>
-                      <p className="text-[10px] text-slate-400 mt-0.5">{item.desc}</p>
+                      <p className="text-xs font-semibold text-slate-600 mt-0.5">{item.label}<InfoTooltip text={item.help} /></p>
                     </div>
                   );
                 })}

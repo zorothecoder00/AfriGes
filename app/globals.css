@@ -248,3 +248,30 @@ html[data-theme="light"] { color-scheme: light; }
     --foreground: #f1f5f9;
   }
 }
+
+/* ─── Animations partagées (effets "wow" dashboard) ──────────────────────────
+   Définies globalement pour être référencées via les classes utilitaires
+   Tailwind `animate-[nomDeLaKeyframe_...]` depuis n'importe quel composant.
+──────────────────────────────────────────────────────────────────────────── */
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes auroraFloat {
+  0%   { transform: translate(0, 0) scale(1); }
+  33%  { transform: translate(3%, -4%) scale(1.08); }
+  66%  { transform: translate(-3%, 3%) scale(0.96); }
+  100% { transform: translate(0, 0) scale(1); }
+}
+
+@keyframes drawLine {
+  from { stroke-dashoffset: 1; }
+  to   { stroke-dashoffset: 0; }
+}
+
+@keyframes popIn {
+  from { opacity: 0; transform: scale(0.85); }
+  to   { opacity: 1; transform: scale(1); }
+}

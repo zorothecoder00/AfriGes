@@ -2,7 +2,7 @@
  * Système d'alertes automatiques (Module 9).
  *
  * 5 types d'alertes déclenchées quotidiennement par le cron :
- *   1. Retard crédit > X jours          (ALERT_RETARD_JOURS, défaut: 3)
+ *   1. Retard crédit > X jours          (ALERT_RETARD_JOURS, défaut: 1 — dès le 1er jour de retard)
  *   2. Dépassement plafond crédit        (ALERT_PLAFOND_CREDIT, défaut: 500000)
  *   3. Faible collecte agent             (ALERT_COLLECTE_MIN_PCT, défaut: 20 %)
  *   4. Client inactif                    (ALERT_INACTIVITE_JOURS, défaut: 14)
@@ -19,7 +19,7 @@ import { sendWhatsApp } from "@/lib/whatsapp";
 
 // ─── Seuils configurables ──────────────────────────────────────────────────────
 
-const SEUIL_RETARD_JOURS     = parseInt(process.env.ALERT_RETARD_JOURS     ?? "3");
+const SEUIL_RETARD_JOURS     = parseInt(process.env.ALERT_RETARD_JOURS     ?? "1");
 const SEUIL_INACTIVITE_JOURS = parseInt(process.env.ALERT_INACTIVITE_JOURS ?? "14");
 const SEUIL_COLLECTE_MIN_PCT = parseInt(process.env.ALERT_COLLECTE_MIN_PCT ?? "20");
 const SEUIL_PLAFOND_CREDIT   = parseFloat(process.env.ALERT_PLAFOND_CREDIT  ?? "500000");
@@ -91,13 +91,26 @@ async function getAdminIds(): Promise<number[]> {
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // ALERTE 1 — Crédit en retard depuis plus de X jours
+//
+// Le retard est calculé en direct depuis EcheanceCredit.dateEcheance (comme pour
+// evaluerRetardsRIA), et non depuis CreditClient.statut / EcheanceCredit.statut :
+// ces deux champs "EN_RETARD" ne sont jamais mis à jour par un scan quotidien —
+// ils ne changent qu'en sous-produit d'un remboursement (cf. lib/dureeCredit.ts) —
+// donc s'y fier ici ne détectait quasiment jamais rien.
+//
+// Volontairement staff uniquement (admin + agent terrain) pour l'instant : pas de
+// SMS/WhatsApp direct au client, pour ne pas mettre une pression commerciale trop
+// tôt (décision produit — à activer plus tard si besoin, cf. alertesPaiementsManques).
 // ═══════════════════════════════════════════════════════════════════════════════
 
 async function alertesRetardCredit(): Promise<number> {
   const seuil = daysAgo(SEUIL_RETARD_JOURS);
 
   const creditsEnRetard = await prisma.creditClient.findMany({
-    where: { statut: "EN_RETARD" },
+    where: {
+      statut: { in: ["ACTIF", "EN_RETARD"] },
+      echeances: { some: { statut: { in: ["EN_ATTENTE", "PARTIEL"] }, dateEcheance: { lte: seuil } } },
+    },
     select: {
       id: true,
       reference: true,
@@ -113,7 +126,7 @@ async function alertesRetardCredit(): Promise<number> {
         },
       },
       echeances: {
-        where:   { statut: "EN_RETARD" },
+        where:   { statut: { in: ["EN_ATTENTE", "PARTIEL"] }, dateEcheance: { lte: seuil } },
         orderBy: { dateEcheance: "asc" },
         take:    1,
         select:  { dateEcheance: true },
@@ -127,14 +140,14 @@ async function alertesRetardCredit(): Promise<number> {
   for (const credit of creditsEnRetard) {
     const premiereEcheanceRetard = credit.echeances[0];
     if (!premiereEcheanceRetard) continue;
-    if (premiereEcheanceRetard.dateEcheance > seuil) continue; // pas encore assez vieux
 
+    const joursRetard = Math.floor((Date.now() - premiereEcheanceRetard.dateEcheance.getTime()) / 86_400_000);
     const client   = credit.client;
     const nomClient = `${client.prenom} ${client.nom}`;
     const titreKey  = `Retard crédit ${credit.reference}`;
     const message   =
       `Le crédit ${credit.reference} de ${nomClient} est en retard depuis ` +
-      `plus de ${SEUIL_RETARD_JOURS} jours. Solde restant : ` +
+      `${joursRetard} jour${joursRetard > 1 ? "s" : ""}. Solde restant : ` +
       `${Number(credit.soldeRestant).toLocaleString("fr-FR")} FCFA.`;
 
     // Notifier les admins
