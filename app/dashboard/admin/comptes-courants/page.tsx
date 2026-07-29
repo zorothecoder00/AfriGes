@@ -87,19 +87,8 @@ export default function ComptesCourantsPage() {
   );
   const nbAValider = pendingRes?.data?.length ?? 0;
 
-  return (
-    <div className="min-h-screen bg-gray-50">
-      {isAdmin ? (
-        <ClienteleTabBar />
-      ) : (
-        <div className="bg-white border-b border-gray-200 px-6 py-3">
-          <Link href="/dashboard/user" className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700">
-            <ArrowLeft className="w-4 h-4" /> Mon tableau de bord
-          </Link>
-        </div>
-      )}
-
-      <div className="p-6 space-y-6 max-w-screen-xl mx-auto">
+  const pageContent = (
+    <div className="p-6 space-y-6 max-w-screen-xl mx-auto">
         {/* En-tête */}
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
@@ -281,6 +270,22 @@ export default function ComptesCourantsPage() {
           )}
         </div>
       </div>
+  );
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      {isAdmin ? (
+        <ClienteleTabBar>{pageContent}</ClienteleTabBar>
+      ) : (
+        <>
+          <div className="bg-white border-b border-gray-200 px-6 py-3">
+            <Link href="/dashboard/user" className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700">
+              <ArrowLeft className="w-4 h-4" /> Mon tableau de bord
+            </Link>
+          </div>
+          {pageContent}
+        </>
+      )}
     </div>
   );
 }

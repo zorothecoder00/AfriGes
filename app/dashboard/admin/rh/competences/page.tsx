@@ -9,6 +9,7 @@ import {
 import Link from "next/link";
 import { useApi, useMutation } from "@/hooks/useApi";
 import { toast } from "sonner";
+import SideTabs from "@/components/ui/SideTabs";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -157,22 +158,19 @@ export default function CompetencesPage() {
         )}
 
         {/* Tabs */}
-        <div className="bg-white border border-slate-200 rounded-xl p-1 overflow-x-auto">
-          <div className="flex min-w-max gap-1">
-          {([
-            ["referentiel", BookOpen,     "Référentiel"],
-            ["matrice",     LayoutGrid,   "Matrice"],
-            ["collaborateur", Users,      "Par collaborateur"],
-          ] as const).map(([tab, Icon, label]) => (
-            <button key={tab} onClick={() => setActiveTab(tab)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                activeTab === tab ? "bg-emerald-600 text-white shadow-sm" : "text-slate-500 hover:text-slate-700"
-              }`}>
-              <Icon className="w-4 h-4" /> {label}
-            </button>
-          ))}
-          </div>
-        </div>
+        <div className="flex flex-col md:flex-row gap-4 md:gap-6">
+          <SideTabs
+            accent="emerald"
+            items={([
+              ["referentiel", BookOpen,     "Référentiel"],
+              ["matrice",     LayoutGrid,   "Matrice"],
+              ["collaborateur", Users,      "Par collaborateur"],
+            ] as const).map(([tab, Icon, label]) => ({
+              key: tab, label, icon: <Icon className="w-4 h-4" />,
+              active: activeTab === tab, onClick: () => setActiveTab(tab),
+            }))}
+          />
+          <div className="flex-1 min-w-0 space-y-6">
 
         {/* ── TAB : RÉFÉRENTIEL ── */}
         {activeTab === "referentiel" && (
@@ -371,6 +369,8 @@ export default function CompetencesPage() {
           </div>
         )}
 
+          </div>
+        </div>
       </div>
 
       {/* Modal créer/éditer compétence */}

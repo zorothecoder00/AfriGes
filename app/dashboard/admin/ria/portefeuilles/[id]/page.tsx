@@ -4,6 +4,7 @@ import { use, useMemo, useState } from "react";
 import { useApi, useMutation } from "@/hooks/useApi";
 import { toast } from "sonner";
 import Link from "next/link";
+import SideTabs from "@/components/ui/SideTabs";
 import {
   RefreshCw, ArrowLeft, Wallet, TrendingUp, Activity,
   Users, BarChart2, Clock, CheckCircle2, XCircle, Star,
@@ -566,18 +567,15 @@ export default function PortefeuilleDetailPage({ params }: { params: Promise<{ i
       </div>
 
       {/* Onglets */}
-      <div className="flex gap-1 border-b border-slate-200 overflow-x-auto">
-        {TABS.map((t) => (
-          <button key={t.id} onClick={() => setTab(t.id)}
-            className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-              tab === t.id
-                ? "border-emerald-500 text-emerald-600"
-                : "border-transparent text-slate-500 hover:text-slate-700"
-            }`}>
-            {t.icon}{t.label}
-          </button>
-        ))}
-      </div>
+      <div className="flex flex-col md:flex-row gap-4 md:gap-6">
+        <SideTabs
+          accent="emerald"
+          items={TABS.map((t) => ({
+            key: t.id, label: t.label, icon: t.icon, active: tab === t.id, onClick: () => setTab(t.id),
+          }))}
+        />
+
+        <div className="flex-1 min-w-0 space-y-6">
 
       {/* ── Tab : Vue d'ensemble ─────────────────────────────────────────────── */}
       {tab === "overview" && (
@@ -946,6 +944,8 @@ export default function PortefeuilleDetailPage({ params }: { params: Promise<{ i
           </table>
         </div>
       )}
+        </div>
+      </div>
     </div>
   );
 }

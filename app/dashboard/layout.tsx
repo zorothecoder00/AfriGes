@@ -31,7 +31,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
       {!hasOwnHeader && (
         <div className="no-print border-b-2 border-brand-500 bg-cream/90 backdrop-blur-sm relative z-40">
           <div className="mx-auto flex max-w-7xl items-center justify-center px-4 py-2 md:justify-start md:px-6">
-            <AfriSimeLogo className="h-9 w-auto md:h-10" priority />
+            <AfriSimeLogo className="h-14 w-auto md:h-16" priority />
           </div>
         </div>
       )}

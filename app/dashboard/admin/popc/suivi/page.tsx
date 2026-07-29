@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { useApi } from "@/hooks/useApi";
 import { CalendarCheck, TrendingUp, AlertTriangle } from "lucide-react";
-import PopcTabs from "../PopcTabs";
 
 interface IndicateurSuivi { indicateur: string; objectif: number; realise: number; reste: number }
 interface SuiviResp {
@@ -28,7 +27,6 @@ export default function SuiviJournalierPage() {
 
   return (
     <div className="p-6 max-w-5xl mx-auto space-y-6">
-      <PopcTabs />
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useApi } from "@/hooks/useApi";
 import { useMutation } from "@/hooks/useApi";
 import { toast } from "sonner";
+import SideTabs from "@/components/ui/SideTabs";
 import {
   RefreshCw, Plus, CheckCircle, XCircle, DollarSign,
   ArrowDownCircle, ArrowUpCircle, Activity, Search, Pencil, FileText,
@@ -716,20 +717,20 @@ export default function RIAFondsPage() {
         <p className="text-sm text-slate-500 mt-0.5">Gestion des dépôts, retraits et journal des mouvements</p>
       </div>
 
-      <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl w-fit">
-        {TABS.map(({ id, label, icon }) => (
-          <button key={id} onClick={() => setTab(id)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-              tab === id ? "bg-white shadow-sm text-slate-900" : "text-slate-500 hover:text-slate-700"
-            }`}>
-            {icon} {label}
-          </button>
-        ))}
-      </div>
+      <div className="flex flex-col md:flex-row gap-4 md:gap-6">
+        <SideTabs
+          accent="emerald"
+          items={TABS.map(({ id, label, icon }) => ({
+            key: id, label, icon, active: tab === id, onClick: () => setTab(id),
+          }))}
+        />
 
-      {tab === "depots"   && <DepotsTab />}
-      {tab === "retraits" && <RetraitsTab />}
-      {tab === "journal"  && <JournalTab />}
+        <div className="flex-1 min-w-0 space-y-6">
+          {tab === "depots"   && <DepotsTab />}
+          {tab === "retraits" && <RetraitsTab />}
+          {tab === "journal"  && <JournalTab />}
+        </div>
+      </div>
     </div>
   );
 }

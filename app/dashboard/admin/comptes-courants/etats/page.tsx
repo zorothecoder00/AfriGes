@@ -83,7 +83,7 @@ export default function EtatsCCPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 print:bg-white">
-      <div className="print:hidden"><ClienteleTabBar /></div>
+      <ClienteleTabBar>
 
       <div className="p-6 max-w-screen-xl mx-auto space-y-6">
         <div className="flex items-center justify-between flex-wrap gap-3 print:hidden">
@@ -296,6 +296,7 @@ export default function EtatsCCPage() {
           </>
         )}
       </div>
+      </ClienteleTabBar>
     </div>
   );
 }

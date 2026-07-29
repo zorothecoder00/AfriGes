@@ -141,7 +141,7 @@ export default function NouveauCompteCourantPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <ClienteleTabBar />
+      <ClienteleTabBar>
       <div className="p-6 max-w-3xl mx-auto space-y-6">
         <Link href="/dashboard/admin/comptes-courants" className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700">
           <ArrowLeft className="w-4 h-4" /> Retour aux comptes courants
@@ -367,6 +367,7 @@ export default function NouveauCompteCourantPage() {
           </div>
         )}
       </div>
+      </ClienteleTabBar>
     </div>
   );
 }

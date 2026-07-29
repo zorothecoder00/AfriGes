@@ -10,18 +10,19 @@ import {
   Rocket, BarChart2, Home, ChevronRight, Map,
   ShieldAlert, Inbox, Search,
 } from "lucide-react";
+import SideTabs, { type SideTabItem, type SideTabsAccent } from "@/components/ui/SideTabs";
 
 type NavItem = { href: string; label: string; icon: React.ElementType };
 
 const COMMISSIONS: Record<string, {
   label: string;
-  color: string; bg: string; activeClass: string;
+  color: string; bg: string; activeClass: string; accent: SideTabsAccent;
   nav: NavItem[];
 }> = {
   finance: {
     label: "Commission Finance",
     color: "text-blue-700", bg: "bg-blue-50",
-    activeClass: "border-blue-600 text-blue-700",
+    activeClass: "border-blue-600 text-blue-700", accent: "blue",
     nav: [
       { href: "",                  label: "Vue d'ensemble",              icon: LayoutDashboard },
       { href: "/tableau-bord",     label: "Tableau de Bord Financier",   icon: BarChart3 },
@@ -34,7 +35,7 @@ const COMMISSIONS: Record<string, {
   "operations-terrain": {
     label: "Commission Opérations Terrain & Approvisionnement",
     color: "text-emerald-700", bg: "bg-emerald-50",
-    activeClass: "border-emerald-600 text-emerald-700",
+    activeClass: "border-emerald-600 text-emerald-700", accent: "emerald",
     nav: [
       { href: "",                      label: "Vue d'ensemble",                   icon: LayoutDashboard },
       { href: "/activites",            label: "Activités Terrain",                icon: MapPin },
@@ -47,7 +48,7 @@ const COMMISSIONS: Record<string, {
   "audit-controle": {
     label: "Commission Audit & Contrôle Interne",
     color: "text-amber-700", bg: "bg-amber-50",
-    activeClass: "border-amber-600 text-amber-700",
+    activeClass: "border-amber-600 text-amber-700", accent: "amber",
     nav: [
       { href: "",                  label: "Vue d'ensemble",              icon: LayoutDashboard },
       { href: "/programme",        label: "Programme d'Audit",           icon: ClipboardList },
@@ -63,7 +64,7 @@ const COMMISSIONS: Record<string, {
   optimisation: {
     label: "Commission Optimisation des Processus",
     color: "text-violet-700", bg: "bg-violet-50",
-    activeClass: "border-violet-600 text-violet-700",
+    activeClass: "border-violet-600 text-violet-700", accent: "violet",
     nav: [
       { href: "",               label: "Vue d'ensemble",             icon: LayoutDashboard },
       { href: "/processus",     label: "Cartographie des Processus", icon: GitBranch },
@@ -85,40 +86,31 @@ export default function CommissionLayout({ children }: { children: ReactNode }) 
 
   if (!config) return <>{children}</>;
 
+  const items: SideTabItem[] = config.nav.map(({ href, label, icon: Icon }) => {
+    const fullHref = base + href;
+    const active = href === ""
+      ? pathname === base
+      : pathname === fullHref || pathname.startsWith(fullHref + "/");
+    return { key: href, href: fullHref, label, icon: <Icon className="w-3.5 h-3.5" />, active };
+  });
+
   return (
     <div>
       {/* Breadcrumb + titre */}
-      <div className={`${config.bg} border-b border-slate-200`}>
-        <div className="px-6 pt-3 flex items-center gap-1.5 text-xs text-slate-400">
-          <Link href="/dashboard/admin/ria/gouvernance" className="flex items-center gap-1 hover:text-slate-600">
-            <Home className="w-3 h-3" /> Gouvernance RIA
-          </Link>
-          <ChevronRight className="w-3 h-3" />
-          <span className={`font-medium ${config.color}`}>{config.label}</span>
-        </div>
-
-        {/* Sous-nav */}
-        <nav className="px-6 flex items-end gap-0.5 overflow-x-auto">
-          {config.nav.map(({ href, label, icon: Icon }) => {
-            const fullHref = base + href;
-            const active   = href === ""
-              ? pathname === base
-              : pathname === fullHref || pathname.startsWith(fullHref + "/");
-            return (
-              <Link key={href} href={fullHref}
-                className={`flex items-center gap-1.5 px-3 py-2.5 text-sm font-medium border-b-2 whitespace-nowrap transition-colors ${
-                  active
-                    ? config.activeClass
-                    : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300"
-                }`}>
-                <Icon className="w-3.5 h-3.5" /> {label}
-              </Link>
-            );
-          })}
-        </nav>
+      <div className={`${config.bg} border-b border-slate-200 px-6 pt-3 pb-3 flex items-center gap-1.5 text-xs text-slate-400`}>
+        <Link href="/dashboard/admin/ria/gouvernance" className="flex items-center gap-1 hover:text-slate-600">
+          <Home className="w-3 h-3" /> Gouvernance RIA
+        </Link>
+        <ChevronRight className="w-3 h-3" />
+        <span className={`font-medium ${config.color}`}>{config.label}</span>
       </div>
 
-      {children}
+      <div className="flex flex-col md:flex-row">
+        {/* Sous-nav */}
+        <SideTabs accent={config.accent} items={items} className={`${config.bg} px-3 py-2 md:py-4`} />
+
+        <div className="flex-1 min-w-0">{children}</div>
+      </div>
     </div>
   );
 }

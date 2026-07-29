@@ -692,7 +692,7 @@ export default function ClientsPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-emerald-50/20 font-['DM_Sans',sans-serif]"
       onClick={() => setQuickStatusClient(null)}>
-      <ClienteleTabBar />
+      <ClienteleTabBar>
       <div className="max-w-[1600px] mx-auto space-y-6 p-8">
 
         {/* Header */}
@@ -1951,6 +1951,7 @@ export default function ClientsPage() {
         </>
       )}
 
+      </ClienteleTabBar>
     </div>
   );
 }

@@ -90,7 +90,7 @@ export default function ClienteleDashboard() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <ClienteleTabBar />
+      <ClienteleTabBar>
 
       <div className="p-6 space-y-6 max-w-screen-xl mx-auto">
 
@@ -384,6 +384,7 @@ export default function ClienteleDashboard() {
         </div>
 
       </div>
+      </ClienteleTabBar>
     </div>
   );
 }

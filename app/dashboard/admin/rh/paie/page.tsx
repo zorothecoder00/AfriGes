@@ -14,6 +14,7 @@ import { useApi, useMutation } from "@/hooks/useApi";
 import { formatDate } from "@/lib/format";
 import { toast } from "sonner";
 import { exportToXlsx } from "@/lib/exportXlsx";
+import SideTabs from "@/components/ui/SideTabs";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -174,28 +175,30 @@ export default function PaiePage() {
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-1 bg-white border border-slate-200 rounded-xl p-1 overflow-x-auto">
-          {TABS.map((t) => (
-            <button key={t.id} onClick={() => setActiveTab(t.id)}
-              className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg whitespace-nowrap transition-all ${
-                activeTab === t.id
-                  ? "bg-emerald-600 text-white shadow-sm"
-                  : "text-slate-600 hover:bg-slate-100"
-              }`}>
-              {t.icon} {t.label}
-            </button>
-          ))}
-        </div>
+        <div className="flex flex-col md:flex-row gap-4 md:gap-6">
+          <SideTabs
+            accent="emerald"
+            items={TABS.map((t) => ({
+              key: t.id,
+              label: t.label,
+              icon: t.icon,
+              active: activeTab === t.id,
+              onClick: () => setActiveTab(t.id),
+            }))}
+          />
 
-        {/* Contenu de l'onglet actif */}
-        {activeTab === "fiches"     && <FichesTab />}
-        {activeTab === "avances"    && <AvancesPretsTab />}
-        {activeTab === "ordres"     && <OrdresPaiementTab />}
-        {activeTab === "historique" && <HistoriqueTab />}
-        {activeTab === "retenues"   && <RetenuesTab />}
-        {activeTab === "cnss"       && <CnssFiscalTab />}
-        {activeTab === "config"     && <ConfigTab />}
-        {activeTab === "dashboard"  && <DashboardTab />}
+          {/* Contenu de l'onglet actif */}
+          <div className="flex-1 min-w-0 space-y-5">
+            {activeTab === "fiches"     && <FichesTab />}
+            {activeTab === "avances"    && <AvancesPretsTab />}
+            {activeTab === "ordres"     && <OrdresPaiementTab />}
+            {activeTab === "historique" && <HistoriqueTab />}
+            {activeTab === "retenues"   && <RetenuesTab />}
+            {activeTab === "cnss"       && <CnssFiscalTab />}
+            {activeTab === "config"     && <ConfigTab />}
+            {activeTab === "dashboard"  && <DashboardTab />}
+          </div>
+        </div>
 
       </div>
     </div>

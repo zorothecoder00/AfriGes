@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { useApi, useMutation } from "@/hooks/useApi";
 import { toast } from "sonner";
+import SideTabs from "@/components/ui/SideTabs";
 
 // ── Types communs ─────────────────────────────────────────────────────────────
 
@@ -661,24 +662,21 @@ export default function ScoringPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 bg-slate-100 p-1 rounded-xl w-fit">
-        <button
-          onClick={() => setTab("risque")}
-          className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors ${tab === "risque" ? "bg-white text-slate-800 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
-        >
-          <Shield className="w-4 h-4" /> Gestion des Risques A→E
-        </button>
-        <button
-          onClick={() => setTab("solvabilite")}
-          className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors ${tab === "solvabilite" ? "bg-white text-slate-800 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
-        >
-          <Brain className="w-4 h-4" /> Scoring Intelligent 0-100
-        </button>
-      </div>
+      <div className="flex flex-col md:flex-row gap-4 md:gap-6">
+        <SideTabs
+          accent="emerald"
+          items={[
+            { key: "risque",      label: "Gestion des Risques A→E",     icon: <Shield className="w-4 h-4" />, active: tab === "risque",      onClick: () => setTab("risque") },
+            { key: "solvabilite", label: "Scoring Intelligent 0-100",   icon: <Brain className="w-4 h-4" />,  active: tab === "solvabilite", onClick: () => setTab("solvabilite") },
+          ]}
+        />
 
-      {/* Contenu */}
-      {tab === "risque"       && <TabRisque />}
-      {tab === "solvabilite"  && <TabSolvabilite />}
+        {/* Contenu */}
+        <div className="flex-1 min-w-0 space-y-5">
+          {tab === "risque"       && <TabRisque />}
+          {tab === "solvabilite"  && <TabSolvabilite />}
+        </div>
+      </div>
     </div>
   );
 }

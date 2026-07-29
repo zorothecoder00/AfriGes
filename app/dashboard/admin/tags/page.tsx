@@ -237,7 +237,7 @@ export default function TagsPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50/20 to-purple-50/10 font-['DM_Sans',sans-serif]">
-      <ClienteleTabBar />
+      <ClienteleTabBar>
 
       <div className="max-w-5xl mx-auto px-6 py-8 space-y-6">
         {/* Header */}
@@ -412,6 +412,7 @@ export default function TagsPage() {
           </div>
         </div>
       )}
+      </ClienteleTabBar>
     </div>
   );
 }

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { toast } from "sonner";
 import { ShieldCheck, ArrowLeft, Save, Loader2, RotateCcw, Check, X, Minus, Search, Users } from "lucide-react";
 import { useApi } from "@/hooks/useApi";
+import SideTabs from "@/components/ui/SideTabs";
 
 type Matrix = Record<string, Record<string, Record<string, boolean>>>; // role → module → action → bool
 interface PermsResponse {
@@ -44,22 +45,23 @@ export default function PermissionsPage() {
           </p>
         </div>
 
-        <div className="flex gap-1 border-b border-gray-200">
-          {([["role", "Par rôle"], ["user", "Par utilisateur"]] as const).map(([k, label]) => (
-            <button key={k} onClick={() => setTab(k)}
-              className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${tab === k ? "border-indigo-600 text-indigo-700" : "border-transparent text-gray-500 hover:text-gray-800"}`}>
-              {label}
-            </button>
-          ))}
+        <div className="flex flex-col md:flex-row gap-4 md:gap-6">
+          <SideTabs
+            accent="indigo"
+            items={([["role", "Par rôle"], ["user", "Par utilisateur"]] as const).map(([k, label]) => ({
+              key: k, label, active: tab === k, onClick: () => setTab(k),
+            }))}
+          />
+          <div className="flex-1 min-w-0 space-y-6">
+            {loading && !res ? (
+              <div className="flex items-center justify-center py-20 text-gray-400"><Loader2 className="w-6 h-6 animate-spin mr-3" /> Chargement…</div>
+            ) : tab === "role" ? (
+              <RoleMatrix res={res!} modules={modules} actions={actions} />
+            ) : (
+              <UserOverrides modules={modules} actions={actions} />
+            )}
+          </div>
         </div>
-
-        {loading && !res ? (
-          <div className="flex items-center justify-center py-20 text-gray-400"><Loader2 className="w-6 h-6 animate-spin mr-3" /> Chargement…</div>
-        ) : tab === "role" ? (
-          <RoleMatrix res={res!} modules={modules} actions={actions} />
-        ) : (
-          <UserOverrides modules={modules} actions={actions} />
-        )}
       </div>
     </div>
   );

@@ -20,6 +20,7 @@ import { toast } from "sonner";
 import NotificationBell from "@/components/NotificationBell";
 import { PAGES_REGISTRY } from "@/lib/pagesRegistry";
 import { exportRowsToXlsx } from "@/lib/exportXlsx";
+import SideTabs from "@/components/ui/SideTabs";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -364,28 +365,6 @@ export default function SuperAdminPage() {
         </div>
       </header>
 
-      {/* Tabs */}
-      <div className="bg-white border-b border-slate-200 sticky top-[57px] z-40">
-        <div className="max-w-[1600px] mx-auto px-6">
-          <div className="flex gap-1 overflow-x-auto py-1 scrollbar-hide">
-            {tabs.map((tab) => {
-              const Icon = tab.icon;
-              const active = activeTab === tab.key;
-              return (
-                <button key={tab.key} onClick={() => setActiveTab(tab.key)}
-                  className={`flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-medium whitespace-nowrap transition-all relative ${active ? "bg-violet-600 text-white shadow-md shadow-violet-200" : "text-slate-600 hover:bg-slate-100"}`}>
-                  <Icon size={16} />
-                  {tab.label}
-                  {!!tab.badge && tab.badge > 0 && (
-                    <span className={`text-xs font-bold px-1.5 py-0.5 rounded-full ${active ? "bg-white/20 text-white" : "bg-red-500 text-white"}`}>{tab.badge}</span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-
       <div className="max-w-[1600px] mx-auto px-6 py-6">
 
         {/* ── Bandeau restrictions ADMIN simple ──────────────────────────── */}
@@ -402,6 +381,30 @@ export default function SuperAdminPage() {
             </div>
           </div>
         )}
+
+        {/* Tabs */}
+        <div className="flex flex-col md:flex-row gap-4 md:gap-6">
+          <SideTabs
+            accent="violet"
+            items={tabs.map((tab) => {
+              const Icon = tab.icon;
+              return {
+                key: tab.key,
+                label: tab.label,
+                icon: (
+                  <span className="flex items-center gap-2">
+                    <Icon size={16} />
+                    {!!tab.badge && tab.badge > 0 && (
+                      <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-red-500 text-white">{tab.badge}</span>
+                    )}
+                  </span>
+                ),
+                active: activeTab === tab.key,
+                onClick: () => setActiveTab(tab.key),
+              };
+            })}
+          />
+          <div className="flex-1 min-w-0 space-y-6">
 
         {/* ═══ TAB SYSTEME ═══════════════════════════════════════════════════ */}
         {activeTab === "systeme" && (
@@ -1267,6 +1270,9 @@ export default function SuperAdminPage() {
 
           </div>
         )}
+
+          </div>
+        </div>
 
       </div>
 

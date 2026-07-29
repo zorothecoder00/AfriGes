@@ -817,7 +817,7 @@ export default function CreditsPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <ClienteleTabBar />
+      <ClienteleTabBar>
 
       <div className="p-6 space-y-6 max-w-screen-xl mx-auto">
 
@@ -2492,6 +2492,7 @@ export default function CreditsPage() {
           onClose={() => setBordereauData(null)}
         />
       )}
+      </ClienteleTabBar>
     </div>
   );
 }

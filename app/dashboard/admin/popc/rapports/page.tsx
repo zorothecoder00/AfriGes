@@ -4,7 +4,6 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { FileText, FileSpreadsheet, Download, Loader2 } from "lucide-react";
 import { exportRowsToXlsx, type XlsxColumnType } from "@/lib/exportXlsx";
-import PopcTabs from "../PopcTabs";
 
 interface RapportData {
   titre: string; periode: string;
@@ -81,7 +80,6 @@ export default function RapportsPage() {
 
   return (
     <div className="p-6 max-w-3xl mx-auto space-y-6">
-      <PopcTabs />
       <div>
         <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
           <FileText className="w-6 h-6 text-indigo-600" /> Rapports

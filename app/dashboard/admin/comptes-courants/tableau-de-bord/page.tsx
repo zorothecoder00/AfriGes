@@ -46,7 +46,7 @@ export default function TableauBordCCPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <ClienteleTabBar />
+      <ClienteleTabBar>
       <div className="p-6 max-w-screen-xl mx-auto space-y-6">
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
@@ -269,6 +269,7 @@ export default function TableauBordCCPage() {
           </>
         )}
       </div>
+      </ClienteleTabBar>
     </div>
   );
 }

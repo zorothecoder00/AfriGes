@@ -6,7 +6,6 @@ import {
   LayoutDashboard, ShieldCheck, TrendingUp, Users, FileText,
   BookOpen, Wallet, Target, AlertTriangle, CheckCircle2, XCircle,
 } from "lucide-react";
-import PopcTabs from "../PopcTabs";
 
 interface DirectionData {
   objectifsGeneres: boolean;
@@ -38,7 +37,6 @@ export default function DirectionPage() {
 
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-6">
-      <PopcTabs />
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">

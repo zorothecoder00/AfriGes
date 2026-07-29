@@ -13,6 +13,7 @@ import { formatCurrency, formatDateTime } from '@/lib/format';
 import { exportToXlsx } from '@/lib/exportXlsx';
 import { useT } from '@/contexts/AppSettingsContext';
 import { useTagModal } from '@/contexts/TagModalContext';
+import SideTabs from '@/components/ui/SideTabs';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -632,22 +633,6 @@ export default function VentesPage() {
               </button>
             )}
           </div>
-        </div>
-
-        {/* ─── Onglets ─────────────────────────────────────────────────────── */}
-        <div className="flex gap-1 bg-slate-100 rounded-xl p-1 w-fit">
-          <button onClick={() => setActiveTab('ventes')}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-lg font-medium text-sm transition-all ${
-              isVentesTab ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'
-            }`}>
-            <Receipt size={16} /> Ventes directes
-          </button>
-          <button onClick={() => setActiveTab('packs')}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-lg font-medium text-sm transition-all ${
-              !isVentesTab ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'
-            }`}>
-            <Layers size={16} /> Livraisons packs
-          </button>
         </div>
 
         {factureVenteId     && <FactureModal venteDirecteId={factureVenteId}       onClose={() => setFactureVenteId(null)} />}
@@ -1364,6 +1349,17 @@ export default function VentesPage() {
           </div>
         )}
 
+        {/* ─── Onglets ─────────────────────────────────────────────────────── */}
+        <div className="flex flex-col md:flex-row gap-4 md:gap-6">
+          <SideTabs
+            accent="emerald"
+            items={[
+              { key: 'ventes', label: 'Ventes directes',    icon: <Receipt size={16} />, active: isVentesTab,  onClick: () => setActiveTab('ventes') },
+              { key: 'packs',  label: 'Livraisons packs',    icon: <Layers size={16} />,  active: !isVentesTab, onClick: () => setActiveTab('packs') },
+            ]}
+          />
+          <div className="flex-1 min-w-0 space-y-6">
+
         {/* ══════════════════════════════════════════════════════════════════
             ONGLET — VENTES DIRECTES
         ══════════════════════════════════════════════════════════════════ */}
@@ -1760,6 +1756,9 @@ export default function VentesPage() {
             </div>
           </>
         )}
+
+          </div>
+        </div>
 
       {/* ── Modal Annuler Vente directe ── */}
       {annulVenteTarget && (

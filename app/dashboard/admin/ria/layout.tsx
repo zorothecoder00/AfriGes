@@ -9,6 +9,7 @@ import {
   ArrowDownUp, Star, TrendingUp, FileText, Award, BarChart2, Shield,
   Briefcase, ClipboardList, Calculator, AlertTriangle, FolderOpen,
 } from "lucide-react";
+import SideTabs, { type SideTabItem } from "@/components/ui/SideTabs";
 
 // ── Navigation RIA ────────────────────────────────────────────────────────────
 
@@ -44,43 +45,36 @@ function isActive(pathname: string, href: string, exact?: boolean) {
 export default function RIALayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
 
+  const items: SideTabItem[] = NAV_ITEMS.map(({ href, label, icon: Icon, exact }) => ({
+    key: href,
+    href,
+    label,
+    icon: <Icon className="w-3.5 h-3.5" />,
+    active: isActive(pathname, href, exact),
+  }));
+
   return (
     <div className="min-h-screen bg-slate-50">
-      {/* ── Barre de navigation RIA ── */}
-      <div className="bg-white border-b border-slate-200 sticky top-0 z-10">
-        {/* Breadcrumb */}
-        <div className="px-6 pt-3 flex items-center gap-1.5 text-xs text-slate-400">
-          <Link href="/dashboard/admin" className="flex items-center gap-1 hover:text-slate-600 transition-colors">
-            <Home className="w-3 h-3" /> Admin
-          </Link>
-          <ChevronRight className="w-3 h-3" />
-          <span className="text-emerald-600 font-medium">RIA — Réseau des Investisseurs AfriSime</span>
-        </div>
-
-        {/* Onglets */}
-        <nav className="px-6 flex items-end gap-0.5 overflow-x-auto">
-          {NAV_ITEMS.map(({ href, label, icon: Icon, exact }) => {
-            const active = isActive(pathname, href, exact);
-            return (
-              <Link
-                key={href}
-                href={href}
-                className={`flex items-center gap-1.5 px-3 py-2.5 text-sm font-medium border-b-2 whitespace-nowrap transition-colors ${
-                  active
-                    ? "border-emerald-600 text-emerald-700"
-                    : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300"
-                }`}
-              >
-                <Icon className="w-3.5 h-3.5" />
-                {label}
-              </Link>
-            );
-          })}
-        </nav>
+      {/* Breadcrumb */}
+      <div className="bg-white border-b border-slate-200 px-6 pt-3 pb-3 flex items-center gap-1.5 text-xs text-slate-400">
+        <Link href="/dashboard/admin" className="flex items-center gap-1 hover:text-slate-600 transition-colors">
+          <Home className="w-3 h-3" /> Admin
+        </Link>
+        <ChevronRight className="w-3 h-3" />
+        <span className="text-emerald-600 font-medium">RIA — Réseau des Investisseurs AfriSime</span>
       </div>
 
-      {/* ── Contenu ── */}
-      {children}
+      <div className="flex flex-col md:flex-row">
+        {/* ── Onglets ── */}
+        <SideTabs
+          accent="emerald"
+          items={items}
+          className="bg-white px-3 md:px-3 py-2 md:py-4 md:sticky md:top-0 md:h-[calc(100vh-49px)] md:overflow-y-auto"
+        />
+
+        {/* ── Contenu ── */}
+        <div className="flex-1 min-w-0">{children}</div>
+      </div>
     </div>
   );
 }

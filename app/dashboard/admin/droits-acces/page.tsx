@@ -11,6 +11,7 @@ import {
   Crown, FileText, Gavel, UserCheck,
   ClipboardList, Search, ShieldCheck,
 } from "lucide-react";
+import SideTabs from "@/components/ui/SideTabs";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -406,31 +407,29 @@ export default function DroitsAccesPage() {
 
       {/* Tabs */}
       <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-        <div className="flex border-b border-slate-100 overflow-x-auto">
-          {TABS.map(({ key, label, icon: Icon }) => (
-            <button key={key} onClick={() => setTab(key)}
-              className={`flex items-center gap-1.5 px-5 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
-                tab === key ? "border-violet-600 text-violet-700" : "border-transparent text-slate-500 hover:text-slate-700"
-              }`}>
-              <Icon className="w-4 h-4" /> {label}
-            </button>
-          ))}
-        </div>
-
-        <div className="p-5">
-          {loading ? (
-            <div className="flex items-center justify-center h-40">
-              <div className="w-7 h-7 border-4 border-violet-400 border-t-transparent rounded-full animate-spin" />
-            </div>
-          ) : !data ? (
-            <p className="text-center text-sm text-slate-400 py-12">Erreur de chargement</p>
-          ) : (
-            <>
-              {tab === "overview"    && <OverviewTab data={data} />}
-              {tab === "config"      && <ConfigTab data={data} refresh={() => setRefresh(r => r + 1)} />}
-              {tab === "gouvernance" && <GouvernanceTab />}
-            </>
-          )}
+        <div className="flex flex-col md:flex-row gap-4 md:gap-6 p-5">
+          <SideTabs
+            accent="violet"
+            items={TABS.map(({ key, label, icon: Icon }) => ({
+              key, label, icon: <Icon className="w-4 h-4" />,
+              active: tab === key, onClick: () => setTab(key),
+            }))}
+          />
+          <div className="flex-1 min-w-0">
+            {loading ? (
+              <div className="flex items-center justify-center h-40">
+                <div className="w-7 h-7 border-4 border-violet-400 border-t-transparent rounded-full animate-spin" />
+              </div>
+            ) : !data ? (
+              <p className="text-center text-sm text-slate-400 py-12">Erreur de chargement</p>
+            ) : (
+              <>
+                {tab === "overview"    && <OverviewTab data={data} />}
+                {tab === "config"      && <ConfigTab data={data} refresh={() => setRefresh(r => r + 1)} />}
+                {tab === "gouvernance" && <GouvernanceTab />}
+              </>
+            )}
+          </div>
         </div>
       </div>
 

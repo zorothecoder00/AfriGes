@@ -97,7 +97,7 @@ function buildBordereauHtml(credit: BordereauCredit, client: BordereauClient, or
     ? { text: "#000", muted: "#333", faint: "#555", rule: "#000", line: "#999", headBg: "#eee", headText: "#000", accent: "#000", danger: "#000", logoFilter: "filter:grayscale(1);", barColor: "#000" }
     : { text: "#0f172a", muted: "#475569", faint: "#94a3b8", rule: "#047857", line: "#e2e8f0", headBg: "#ecfdf5", headText: "#065f46", accent: "#047857", danger: "#dc2626", logoFilter: "", barColor: "#0f172a" };
 
-  const logoUrl  = `${origin}/afrisime-logo.svg`;
+  const logoUrl  = `${origin}/nouveaulogo.jpeg`;
   const dossierUrl = `${origin}/suivi/${credit.reference}`;
   const noBordereau = `BR-${credit.reference}`;
   const today = new Date();

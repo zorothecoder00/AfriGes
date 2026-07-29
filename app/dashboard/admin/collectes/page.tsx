@@ -135,7 +135,7 @@ export default function CollectesPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <ClienteleTabBar />
+      <ClienteleTabBar>
       <div className="p-6 space-y-6">
 
       {/* En-tête */}
@@ -340,6 +340,7 @@ export default function CollectesPage() {
         />
       )}
       </div>{/* end p-6 */}
+      </ClienteleTabBar>
     </div>
   );
 }

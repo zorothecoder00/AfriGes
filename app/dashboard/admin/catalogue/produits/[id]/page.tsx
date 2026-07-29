@@ -17,6 +17,7 @@ import ProduitFormModal, { type Referentiels } from "@/components/catalogue/Prod
 import DisponibiliteTab from "@/components/catalogue/DisponibiliteTab";
 import AnomaliesProduit from "@/components/catalogue/AnomaliesProduit";
 import HistoriqueMouvementsProduit from "@/components/catalogue/HistoriqueMouvementsProduit";
+import SideTabs from "@/components/ui/SideTabs";
 
 interface Ref { id: number; nom: string; symbole?: string }
 interface Fiche {
@@ -191,15 +192,23 @@ function FicheProduitInner() {
         </div>
 
         {/* Onglets */}
-        <div className="flex gap-1 border-b border-gray-200 flex-wrap">
-          {TABS.map((t) => (
-            <button key={t.key} onClick={() => setTab(t.key)}
-              className={`inline-flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 -mb-px ${tab === t.key ? "border-blue-600 text-blue-700" : "border-transparent text-gray-500 hover:text-gray-700"}`}>
-              {t.icon} {t.label}
-              {t.count != null && t.count > 0 && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-500">{t.count}</span>}
-            </button>
-          ))}
-        </div>
+        <div className="flex flex-col md:flex-row gap-4 md:gap-6">
+          <SideTabs
+            accent="blue"
+            items={TABS.map((t) => ({
+              key: t.key,
+              label: t.label,
+              icon: (
+                <span className="inline-flex items-center gap-2">
+                  {t.icon}
+                  {t.count != null && t.count > 0 && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-500">{t.count}</span>}
+                </span>
+              ),
+              active: tab === t.key,
+              onClick: () => setTab(t.key),
+            }))}
+          />
+          <div className="flex-1 min-w-0 space-y-5">
 
         {/* Onglet Informations */}
         {tab === "infos" && (
@@ -389,6 +398,9 @@ function FicheProduitInner() {
 
         {/* Onglet Historique */}
         {tab === "historique" && <HistoriquePrixProduit produitId={fiche.id} />}
+
+          </div>
+        </div>
       </div>
 
       {editOpen && (

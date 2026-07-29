@@ -13,6 +13,7 @@ import { useApi, useMutation } from "@/hooks/useApi";
 import { toast } from "sonner";
 import SaisieJourPointage from "@/components/SaisieJourPointage";
 import { exportToXlsx } from "@/lib/exportXlsx";
+import SideTabs from "@/components/ui/SideTabs";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -136,75 +137,76 @@ export default function PointagesPage() {
         </div>
 
         {/* Tabs */}
-        <div className="overflow-x-auto">
-          <div className="flex w-max gap-1 bg-white border border-slate-200 rounded-xl p-1">
-            {([["calendrier", CalendarDays, "Calendrier individuel"], ["saisie", UserCheck, "Saisie du jour"], ["rapport", BarChart2, "Rapport mensuel"]] as const).map(([tab, Icon, label]) => (
-              <button key={tab} onClick={() => setActiveTab(tab)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                  activeTab === tab ? "bg-emerald-600 text-white shadow-sm" : "text-slate-500 hover:text-slate-700"
-                }`}>
-                <Icon className="w-4 h-4" /> {label}
-              </button>
-            ))}
+        <div className="flex flex-col md:flex-row gap-4 md:gap-6">
+          <SideTabs
+            accent="emerald"
+            items={([["calendrier", CalendarDays, "Calendrier individuel"], ["saisie", UserCheck, "Saisie du jour"], ["rapport", BarChart2, "Rapport mensuel"]] as const).map(([tab, Icon, label]) => ({
+              key: tab,
+              label,
+              icon: <Icon className="w-4 h-4" />,
+              active: activeTab === tab,
+              onClick: () => setActiveTab(tab),
+            }))}
+          />
+          <div className="flex-1 min-w-0">
+            {activeTab === "calendrier" ? (
+              <div className="flex flex-col lg:flex-row gap-4 lg:gap-6">
+                {/* Sidebar collaborateurs */}
+                <div className="w-full lg:w-64 lg:flex-shrink-0 space-y-3">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                    <input value={search} onChange={(e) => handleSearch(e.target.value)}
+                      placeholder="Rechercher…"
+                      className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                  </div>
+                  <div className="bg-white rounded-xl border border-slate-200 overflow-hidden max-h-64 lg:max-h-[75vh] overflow-y-auto">
+                    {loadingCollabs ? (
+                      <div className="flex justify-center py-8 text-slate-400"><RefreshCw className="w-5 h-5 animate-spin" /></div>
+                    ) : (
+                      <div className="divide-y divide-slate-100">
+                        {collabs.map((c) => {
+                          const m = c.gestionnaire.member;
+                          return (
+                            <button key={c.id} onClick={() => setSelectedCollab(c)}
+                              className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-slate-50 transition-colors ${selectedCollab?.id === c.id ? "bg-emerald-50 border-l-2 border-emerald-500" : ""}`}>
+                              <div className="w-8 h-8 rounded-full bg-emerald-500 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+                                {m.prenom[0]}{m.nom[0]}
+                              </div>
+                              <div className="min-w-0">
+                                <p className="text-sm font-medium text-slate-800 truncate">{m.prenom} {m.nom}</p>
+                                <p className="text-xs text-slate-400 font-mono">{c.matricule}</p>
+                              </div>
+                            </button>
+                          );
+                        })}
+                        {collabs.length === 0 && <p className="text-sm text-slate-400 text-center py-8">Aucun collaborateur</p>}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Calendrier */}
+                <div className="flex-1 min-w-0">
+                  {selectedCollab ? (
+                    <PointageCalendar collab={selectedCollab} year={year} month={month} onPrev={prevMonth} onNext={nextMonth} />
+                  ) : (
+                    <div className="bg-white rounded-xl border border-slate-200 flex flex-col items-center justify-center py-36 text-slate-400">
+                      <CalendarDays className="w-12 h-12 mb-3 opacity-30" />
+                      <p className="text-sm">Sélectionnez un collaborateur pour voir son pointage</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : activeTab === "saisie" ? (
+              <SaisieJourPointage
+                pointagesBase="/api/admin/rh/pointages"
+                collabsUrl="/api/admin/rh/collaborateurs?limit=200&statut=ACTIF"
+              />
+            ) : (
+              <RapportMensuel year={year} month={month} onPrev={prevMonth} onNext={nextMonth} />
+            )}
           </div>
         </div>
-
-        {activeTab === "calendrier" ? (
-          <div className="flex flex-col lg:flex-row gap-4 lg:gap-6">
-            {/* Sidebar collaborateurs */}
-            <div className="w-full lg:w-64 lg:flex-shrink-0 space-y-3">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                <input value={search} onChange={(e) => handleSearch(e.target.value)}
-                  placeholder="Rechercher…"
-                  className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500" />
-              </div>
-              <div className="bg-white rounded-xl border border-slate-200 overflow-hidden max-h-64 lg:max-h-[75vh] overflow-y-auto">
-                {loadingCollabs ? (
-                  <div className="flex justify-center py-8 text-slate-400"><RefreshCw className="w-5 h-5 animate-spin" /></div>
-                ) : (
-                  <div className="divide-y divide-slate-100">
-                    {collabs.map((c) => {
-                      const m = c.gestionnaire.member;
-                      return (
-                        <button key={c.id} onClick={() => setSelectedCollab(c)}
-                          className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-slate-50 transition-colors ${selectedCollab?.id === c.id ? "bg-emerald-50 border-l-2 border-emerald-500" : ""}`}>
-                          <div className="w-8 h-8 rounded-full bg-emerald-500 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
-                            {m.prenom[0]}{m.nom[0]}
-                          </div>
-                          <div className="min-w-0">
-                            <p className="text-sm font-medium text-slate-800 truncate">{m.prenom} {m.nom}</p>
-                            <p className="text-xs text-slate-400 font-mono">{c.matricule}</p>
-                          </div>
-                        </button>
-                      );
-                    })}
-                    {collabs.length === 0 && <p className="text-sm text-slate-400 text-center py-8">Aucun collaborateur</p>}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Calendrier */}
-            <div className="flex-1 min-w-0">
-              {selectedCollab ? (
-                <PointageCalendar collab={selectedCollab} year={year} month={month} onPrev={prevMonth} onNext={nextMonth} />
-              ) : (
-                <div className="bg-white rounded-xl border border-slate-200 flex flex-col items-center justify-center py-36 text-slate-400">
-                  <CalendarDays className="w-12 h-12 mb-3 opacity-30" />
-                  <p className="text-sm">Sélectionnez un collaborateur pour voir son pointage</p>
-                </div>
-              )}
-            </div>
-          </div>
-        ) : activeTab === "saisie" ? (
-          <SaisieJourPointage
-            pointagesBase="/api/admin/rh/pointages"
-            collabsUrl="/api/admin/rh/collaborateurs?limit=200&statut=ACTIF"
-          />
-        ) : (
-          <RapportMensuel year={year} month={month} onPrev={prevMonth} onNext={nextMonth} />
-        )}
 
       </div>
     </div>

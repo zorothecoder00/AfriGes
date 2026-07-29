@@ -91,7 +91,7 @@ export default async function SuiviRemboursementPage({ params }: Ctx) {
         {/* En-tête */}
         <header className="flex items-center gap-3 mb-6">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/afrisime-logo.svg" alt="AFRISIME" className="h-10 w-auto" />
+          <img src="/nouveaulogo.jpeg" alt="AFRISIME" className="h-10 w-auto" />
           <div className="ml-auto text-right">
             <p className="text-xs text-slate-400">Suivi de crédit</p>
             <p className="font-mono text-sm font-semibold text-slate-700">{credit.reference}</p>

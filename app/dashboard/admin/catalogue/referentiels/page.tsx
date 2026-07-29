@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import {
   Layers, Tag, Boxes, Ruler, Plus, Trash2, Pencil, Check, X, ChevronRight, ChevronDown, ArrowLeft, Loader2,
 } from "lucide-react";
+import SideTabs from "@/components/ui/SideTabs";
 
 type TabKey = "familles" | "categories" | "marques" | "unites";
 
@@ -74,50 +75,51 @@ export default function ReferentielsCataloguePage() {
           <p className="text-sm text-gray-400">Familles, catégories, marques et unités qui structurent le catalogue produits.</p>
         </div>
 
-        {/* Onglets */}
-        <div className="flex gap-2 flex-wrap">
-          {TABS.map((t) => {
-            const Icon = t.icon;
-            const active = tab === t.key;
-            return (
-              <button key={t.key} onClick={() => setTab(t.key)}
-                className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium border transition-all ${active ? "bg-blue-600 text-white border-blue-600" : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"}`}>
-                <Icon className="w-4 h-4" /> {t.label}
-              </button>
-            );
-          })}
-        </div>
-
         {loading || !data ? (
           <div className="flex items-center justify-center py-20 text-gray-400"><Loader2 className="w-6 h-6 animate-spin mr-2" /> Chargement…</div>
         ) : (
-          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5">
-            {tab === "familles" && (
-              <HierarchieSection
-                type="familles" childType="sous-familles" parentKey="familleId"
-                items={data.familles.map((f) => ({ id: f.id, nom: f.nom, actif: f.actif, count: f._count.produits, enfants: f.sousFamilles.map((s) => ({ id: s.id, nom: s.nom, actif: s.actif, count: s._count.produits })) }))}
-                onCreate={create} onPatch={patch} onRemove={remove}
-              />
-            )}
-            {tab === "categories" && (
-              <HierarchieSection
-                type="categories" childType="sous-categories" parentKey="categorieId"
-                items={data.categories.map((c) => ({ id: c.id, nom: c.nom, actif: c.actif, count: c._count.produits, enfants: c.sousCategories.map((s) => ({ id: s.id, nom: s.nom, actif: s.actif, count: s._count.produits })) }))}
-                onCreate={create} onPatch={patch} onRemove={remove}
-              />
-            )}
-            {tab === "marques" && (
-              <FlatSection type="marques"
-                items={data.marques.map((m) => ({ id: m.id, nom: m.nom, actif: m.actif, count: m._count.produits }))}
-                onCreate={create} onPatch={patch} onRemove={remove}
-              />
-            )}
-            {tab === "unites" && (
-              <FlatSection type="unites" extraLabel="Symbole" extraKey="symbole"
-                items={data.unites.map((u) => ({ id: u.id, nom: u.nom, actif: u.actif, count: u._count.produitsVente + u._count.produitsAchat, extra: u.symbole }))}
-                onCreate={create} onPatch={patch} onRemove={remove}
-              />
-            )}
+          <div className="flex flex-col md:flex-row gap-4 md:gap-6">
+            <SideTabs
+              accent="blue"
+              items={TABS.map((t) => {
+                const Icon = t.icon;
+                return {
+                  key: t.key,
+                  label: t.label,
+                  icon: <Icon className="w-4 h-4" />,
+                  active: tab === t.key,
+                  onClick: () => setTab(t.key),
+                };
+              })}
+            />
+            <div className="flex-1 min-w-0 bg-white rounded-2xl border border-gray-200 shadow-sm p-5">
+              {tab === "familles" && (
+                <HierarchieSection
+                  type="familles" childType="sous-familles" parentKey="familleId"
+                  items={data.familles.map((f) => ({ id: f.id, nom: f.nom, actif: f.actif, count: f._count.produits, enfants: f.sousFamilles.map((s) => ({ id: s.id, nom: s.nom, actif: s.actif, count: s._count.produits })) }))}
+                  onCreate={create} onPatch={patch} onRemove={remove}
+                />
+              )}
+              {tab === "categories" && (
+                <HierarchieSection
+                  type="categories" childType="sous-categories" parentKey="categorieId"
+                  items={data.categories.map((c) => ({ id: c.id, nom: c.nom, actif: c.actif, count: c._count.produits, enfants: c.sousCategories.map((s) => ({ id: s.id, nom: s.nom, actif: s.actif, count: s._count.produits })) }))}
+                  onCreate={create} onPatch={patch} onRemove={remove}
+                />
+              )}
+              {tab === "marques" && (
+                <FlatSection type="marques"
+                  items={data.marques.map((m) => ({ id: m.id, nom: m.nom, actif: m.actif, count: m._count.produits }))}
+                  onCreate={create} onPatch={patch} onRemove={remove}
+                />
+              )}
+              {tab === "unites" && (
+                <FlatSection type="unites" extraLabel="Symbole" extraKey="symbole"
+                  items={data.unites.map((u) => ({ id: u.id, nom: u.nom, actif: u.actif, count: u._count.produitsVente + u._count.produitsAchat, extra: u.symbole }))}
+                  onCreate={create} onPatch={patch} onRemove={remove}
+                />
+              )}
+            </div>
           </div>
         )}
       </div>

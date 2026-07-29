@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { formatDate } from "@/lib/format";
+import SideTabs from "@/components/ui/SideTabs";
 
 /* ─── Types ──────────────────────────────────────────────── */
 type StatutPoste = "BROUILLON" | "OUVERT" | "EN_COURS" | "POURVU" | "ANNULE";
@@ -1107,65 +1108,65 @@ export default function RecrutementPage() {
         </div>
 
         {/* Onglets */}
-        <div className="flex gap-1 border-b border-gray-200">
-          {([["postes","Postes & Pipeline",<Briefcase key="b" size={14} />],["ats","Base CV / ATS",<Database key="d" size={14} />],["plan","Plan annuel",<FileText key="p" size={14} />]] as const).map(([id, label, icon]) => (
-            <button key={id} onClick={() => setActiveTab(id)}
-              className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
-                activeTab === id ? "border-indigo-500 text-indigo-600" : "border-transparent text-gray-500 hover:text-gray-700"
-              }`}>
-              {icon} {label}
-            </button>
-          ))}
-        </div>
+        <div className="flex flex-col md:flex-row gap-4 md:gap-6">
+          <SideTabs
+            accent="indigo"
+            items={([["postes","Postes & Pipeline",<Briefcase key="b" size={14} />],["ats","Base CV / ATS",<Database key="d" size={14} />],["plan","Plan annuel",<FileText key="p" size={14} />]] as const).map(([id, label, icon]) => ({
+              key: id, label, icon,
+              active: activeTab === id, onClick: () => setActiveTab(id),
+            }))}
+          />
+          <div className="flex-1 min-w-0 space-y-6">
+            {activeTab === "postes" ? (
+              <>
+                {/* Filtres */}
+                <div className="flex gap-3 flex-wrap">
+                  <div className="relative flex-1 min-w-48">
+                    <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <input value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+                      placeholder="Rechercher un poste…"
+                      className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-xl text-sm bg-white" />
+                  </div>
+                  <button onClick={() => { setSearch(""); setStatut(""); }}
+                    className="flex items-center gap-1 px-3 py-2 text-sm text-gray-500 border border-gray-200 rounded-xl hover:bg-gray-50">
+                    <Filter size={14} /> Réinitialiser
+                  </button>
+                </div>
 
-        {activeTab === "postes" ? (
-          <>
-            {/* Filtres */}
-            <div className="flex gap-3 flex-wrap">
-              <div className="relative flex-1 min-w-48">
-                <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                <input value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-                  placeholder="Rechercher un poste…"
-                  className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-xl text-sm bg-white" />
-              </div>
-              <button onClick={() => { setSearch(""); setStatut(""); }}
-                className="flex items-center gap-1 px-3 py-2 text-sm text-gray-500 border border-gray-200 rounded-xl hover:bg-gray-50">
-                <Filter size={14} /> Réinitialiser
-              </button>
-            </div>
+                {/* Liste postes */}
+                {loading ? (
+                  <div className="text-center py-12 text-gray-400 flex items-center justify-center gap-2">
+                    <RefreshCw size={16} className="animate-spin" /> Chargement…
+                  </div>
+                ) : !data?.data?.length ? (
+                  <div className="text-center py-12 text-gray-400">
+                    <Briefcase size={40} className="mx-auto mb-3 opacity-30" />
+                    <p>Aucun poste trouvé</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {data.data.map((poste) => (
+                      <PosteCard key={poste.id} poste={poste} onRefresh={handleRefresh} />
+                    ))}
+                  </div>
+                )}
 
-            {/* Liste postes */}
-            {loading ? (
-              <div className="text-center py-12 text-gray-400 flex items-center justify-center gap-2">
-                <RefreshCw size={16} className="animate-spin" /> Chargement…
-              </div>
-            ) : !data?.data?.length ? (
-              <div className="text-center py-12 text-gray-400">
-                <Briefcase size={40} className="mx-auto mb-3 opacity-30" />
-                <p>Aucun poste trouvé</p>
-              </div>
+                {/* Pagination */}
+                {data && data.meta.totalPages > 1 && (
+                  <div className="flex items-center justify-center gap-2">
+                    <button disabled={page === 1} onClick={() => setPage(page - 1)} className="px-3 py-1.5 text-sm border rounded-lg disabled:opacity-40">Précédent</button>
+                    <span className="text-sm text-gray-600">{page} / {data.meta.totalPages}</span>
+                    <button disabled={page === data.meta.totalPages} onClick={() => setPage(page + 1)} className="px-3 py-1.5 text-sm border rounded-lg disabled:opacity-40">Suivant</button>
+                  </div>
+                )}
+              </>
+            ) : activeTab === "ats" ? (
+              <BaseCVTab />
             ) : (
-              <div className="space-y-3">
-                {data.data.map((poste) => (
-                  <PosteCard key={poste.id} poste={poste} onRefresh={handleRefresh} />
-                ))}
-              </div>
+              <PlanRecrutementTab />
             )}
-
-            {/* Pagination */}
-            {data && data.meta.totalPages > 1 && (
-              <div className="flex items-center justify-center gap-2">
-                <button disabled={page === 1} onClick={() => setPage(page - 1)} className="px-3 py-1.5 text-sm border rounded-lg disabled:opacity-40">Précédent</button>
-                <span className="text-sm text-gray-600">{page} / {data.meta.totalPages}</span>
-                <button disabled={page === data.meta.totalPages} onClick={() => setPage(page + 1)} className="px-3 py-1.5 text-sm border rounded-lg disabled:opacity-40">Suivant</button>
-              </div>
-            )}
-          </>
-        ) : activeTab === "ats" ? (
-          <BaseCVTab />
-        ) : (
-          <PlanRecrutementTab />
-        )}
+          </div>
+        </div>
       </div>
 
       {showCreate && <CreatePosteModal onClose={() => setShowCreate(false)} onCreated={handleRefresh} />}

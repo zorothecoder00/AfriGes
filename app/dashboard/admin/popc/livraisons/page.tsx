@@ -5,7 +5,6 @@ import { useApi } from "@/hooks/useApi";
 import {
   PackagePlus, AlertTriangle, CheckCircle2, TrendingUp, CalendarDays,
 } from "lucide-react";
-import PopcTabs from "../PopcTabs";
 
 interface LigneLivraison { date: string; quinzaine: number; trentaine: number; carnets: number; total: number }
 interface PlanResp {
@@ -40,7 +39,6 @@ export default function LivraisonsPage() {
 
   return (
     <div className="p-6 max-w-5xl mx-auto space-y-6">
-      <PopcTabs />
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">

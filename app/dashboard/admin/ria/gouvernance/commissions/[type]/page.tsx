@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { COMMISSION_ROLES, COMMISSION_ROLE_LABELS, COMMISSION_ROLE_POWERS, roleLabel } from "@/lib/commissionsRIA";
+import SideTabs from "@/components/ui/SideTabs";
 
 type PageParams = { type: string };
 
@@ -889,18 +890,15 @@ export default function CommissionTypePage({ params }: { params: Promise<PagePar
       )}
 
       {/* Tabs */}
-      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-        <div className="flex border-b border-slate-100 overflow-x-auto">
-          {TABS.map(({ key, label, icon: Icon }) => (
-            <button key={key} onClick={() => setTab(key)}
-              className={`flex items-center gap-1.5 px-4 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
-                tab === key ? "border-emerald-600 text-emerald-700" : "border-transparent text-slate-500 hover:text-slate-700"}`}>
-              <Icon className="w-3.5 h-3.5" /> {label}
-            </button>
-          ))}
-        </div>
+      <div className="flex flex-col md:flex-row gap-4 md:gap-6">
+        <SideTabs
+          accent="emerald"
+          items={TABS.map(({ key, label, icon: Icon }) => ({
+            key, label, icon: <Icon className="w-3.5 h-3.5" />, active: tab === key, onClick: () => setTab(key),
+          }))}
+        />
 
-        <div className="p-5">
+        <div className="flex-1 min-w-0 bg-white rounded-xl border border-slate-200 p-5">
           {loading && (
             <div className="flex items-center justify-center h-40">
               <div className="w-7 h-7 border-4 border-emerald-400 border-t-transparent rounded-full animate-spin" />

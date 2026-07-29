@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { useApi, useMutation } from "@/hooks/useApi";
 import { toast } from "sonner";
+import SideTabs from "@/components/ui/SideTabs";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -173,24 +174,24 @@ export default function AlertesRIAPage() {
       )}
 
       {/* Tabs */}
-      <div className="border-b border-slate-200">
-        <div className="flex gap-1">
-          {sections.map((s) => (
-            <button key={s.key} onClick={() => setSection(s.key)}
-              className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
-                section === s.key ? "border-emerald-500 text-emerald-600" : "border-transparent text-slate-500 hover:text-slate-700"
-              }`}>
-              {s.critical && <span className="w-1.5 h-1.5 rounded-full bg-red-500 inline-block" />}
-              {s.icon} {s.label}
-              {s.badge !== undefined && s.badge > 0 && (
-                <span className={`ml-1 px-1.5 py-0.5 text-xs rounded-full ${section === s.key ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-500"}`}>
-                  {s.badge}
-                </span>
-              )}
-            </button>
-          ))}
-        </div>
-      </div>
+      <div className="flex flex-col md:flex-row gap-4 md:gap-6">
+        <SideTabs
+          accent="emerald"
+          items={sections.map((s) => ({
+            key: s.key,
+            label: s.badge !== undefined && s.badge > 0 ? `${s.label} (${s.badge})` : s.label,
+            icon: (
+              <span className="relative inline-flex">
+                {s.icon}
+                {s.critical && <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-red-500 inline-block" />}
+              </span>
+            ),
+            active: section === s.key,
+            onClick: () => setSection(s.key),
+          }))}
+        />
+
+        <div className="flex-1 min-w-0 space-y-6">
 
       {/* ── Section Clients ── */}
       {section === "clients" && (
@@ -453,6 +454,8 @@ export default function AlertesRIAPage() {
           </button>
         </div>
       )}
+        </div>
+      </div>
     </div>
   );
 }

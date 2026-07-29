@@ -19,6 +19,7 @@ import { formatDate } from "@/lib/format";
 import { toast } from "sonner";
 import { generateUploadButton } from "@uploadthing/react";
 import type { OurFileRouter } from "@/app/api/uploadthing/core";
+import SideTabs from "@/components/ui/SideTabs";
 
 const UploadButton = generateUploadButton<OurFileRouter>();
 
@@ -394,68 +395,65 @@ export default function DossierCollaborateurPage({
         </div>
 
         {/* ── Onglets ── */}
-        <div className="border-b border-slate-200 overflow-x-auto">
-          <div className="flex gap-1 min-w-max">
-            {(["identite", "contrat", "documents", "conges", "missions", "docs-rh", "paie", "formations", "pointages", "avantages", "evaluations", "disciplinaire", "historique"] as const).map((t) => {
+        <div className="flex flex-col md:flex-row gap-4 md:gap-6">
+          <SideTabs
+            accent="emerald"
+            items={(["identite", "contrat", "documents", "conges", "missions", "docs-rh", "paie", "formations", "pointages", "avantages", "evaluations", "disciplinaire", "historique"] as const).map((t) => {
               const labels: Record<string, string> = { identite: "Identité", contrat: "Contrat & poste", documents: `Documents (${profil._count.documents})`, conges: `Congés (${profil._count.demandesConge})`, missions: `Missions (${profil._count.missions})`, "docs-rh": "Docs RH", paie: `Paie (${profil._count.fichesPaie})`, formations: `Formations (${profil._count.participationsFormation})`, pointages: "Pointages", avantages: `Avantages (${profil._count.avantages})`, evaluations: `Évaluations (${profil._count.evaluations})`, disciplinaire: `Disciplinaire (${profil._count.procedures})`, historique: "Historique de poste" };
               const icons: Record<string, React.ReactNode>  = { identite: <User className="w-4 h-4" />, contrat: <Briefcase className="w-4 h-4" />, documents: <FileText className="w-4 h-4" />, conges: <CalendarDays className="w-4 h-4" />, missions: <MapPin className="w-4 h-4" />, "docs-rh": <Archive className="w-4 h-4" />, paie: <Banknote className="w-4 h-4" />, formations: <GraduationCap className="w-4 h-4" />, pointages: <Clock className="w-4 h-4" />, avantages: <Gift className="w-4 h-4" />, evaluations: <Star className="w-4 h-4" />, disciplinaire: <AlertTriangle className="w-4 h-4" />, historique: <History className="w-4 h-4" /> };
-              return (
-                <button
-                  key={t}
-                  onClick={() => setTab(t)}
-                  className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
-                    tab === t
-                      ? "border-emerald-500 text-emerald-600"
-                      : "border-transparent text-slate-500 hover:text-slate-700"
-                  }`}
-                >
-                  {icons[t]} {labels[t]}
-                </button>
-              );
+              return {
+                key: t,
+                label: labels[t],
+                icon: icons[t],
+                active: tab === t,
+                onClick: () => setTab(t),
+              };
             })}
+          />
+
+          {/* ── Contenu onglets ── */}
+          <div className="flex-1 min-w-0 space-y-6">
+            {tab === "identite" && (
+              <IdentiteTab profil={profil} onSaved={refetch} />
+            )}
+            {tab === "contrat" && (
+              <ContratTab profil={profil} onSaved={refetch} />
+            )}
+            {tab === "documents" && (
+              <DocumentsTab profilId={profil.id} documents={profil.documents} onSaved={refetch} />
+            )}
+            {tab === "conges" && (
+              <CongesTab profilId={profil.id} />
+            )}
+            {tab === "missions" && (
+              <MissionsTab profilId={profil.id} />
+            )}
+            {tab === "docs-rh" && (
+              <DocsRHTab profilId={profil.id} />
+            )}
+            {tab === "paie" && (
+              <PaieTab profilId={profil.id} />
+            )}
+            {tab === "formations" && (
+              <FormationsTab profilId={profil.id} />
+            )}
+            {tab === "pointages" && (
+              <PointagesTab profilId={profil.id} />
+            )}
+            {tab === "avantages" && (
+              <AvantagesTab profilId={profil.id} />
+            )}
+            {tab === "evaluations" && (
+              <EvaluationsTab profilId={profil.id} />
+            )}
+            {tab === "disciplinaire" && (
+              <DisciplinaireTab profilId={profil.id} />
+            )}
+            {tab === "historique" && (
+              <HistoriquePosteTab profilId={profil.id} />
+            )}
           </div>
         </div>
-
-        {/* ── Contenu onglets ── */}
-        {tab === "identite" && (
-          <IdentiteTab profil={profil} onSaved={refetch} />
-        )}
-        {tab === "contrat" && (
-          <ContratTab profil={profil} onSaved={refetch} />
-        )}
-        {tab === "documents" && (
-          <DocumentsTab profilId={profil.id} documents={profil.documents} onSaved={refetch} />
-        )}
-        {tab === "conges" && (
-          <CongesTab profilId={profil.id} />
-        )}
-        {tab === "missions" && (
-          <MissionsTab profilId={profil.id} />
-        )}
-        {tab === "docs-rh" && (
-          <DocsRHTab profilId={profil.id} />
-        )}
-        {tab === "paie" && (
-          <PaieTab profilId={profil.id} />
-        )}
-        {tab === "formations" && (
-          <FormationsTab profilId={profil.id} />
-        )}
-        {tab === "pointages" && (
-          <PointagesTab profilId={profil.id} />
-        )}
-        {tab === "avantages" && (
-          <AvantagesTab profilId={profil.id} />
-        )}
-        {tab === "evaluations" && (
-          <EvaluationsTab profilId={profil.id} />
-        )}
-        {tab === "disciplinaire" && (
-          <DisciplinaireTab profilId={profil.id} />
-        )}
-        {tab === "historique" && (
-          <HistoriquePosteTab profilId={profil.id} />
-        )}
 
       </div>
     </div>

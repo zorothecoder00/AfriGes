@@ -17,6 +17,7 @@ import {
 } from "@/lib/commissionsRIA";
 import { ActionsCREditor } from "@/components/gouvernance/ActionsCompteRendu";
 import { ActeResolutionButton } from "@/components/gouvernance/ActeResolutionButton";
+import SideTabs from "@/components/ui/SideTabs";
 
 /* ─── Types ─── */
 interface Presence {
@@ -869,45 +870,33 @@ export default function ReunionDetailPage() {
       </div>
 
       {/* Tabs */}
-      <div className="border-b border-slate-200">
-        <nav className="flex gap-0.5 overflow-x-auto">
-          {TABS.map(t => {
+      <div className="flex flex-col md:flex-row gap-4 md:gap-6">
+        <SideTabs
+          accent="blue"
+          items={TABS.map(t => {
             const Icon = t.icon;
-            const active = tab === t.id;
-            return (
-              <button key={t.id} onClick={() => setTab(t.id)}
-                className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 whitespace-nowrap transition-colors ${
-                  active ? "border-blue-600 text-blue-700" : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300"
-                }`}>
-                <Icon className="w-3.5 h-3.5" /> {t.label}
-                {t.id === "presences" && (
-                  <span className="ml-1 text-xs bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded-full">
-                    {reunion.presences.length}
-                  </span>
-                )}
-                {t.id === "resolutions" && (
-                  <span className="ml-1 text-xs bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded-full">
-                    {reunion.resolutions.length}
-                  </span>
-                )}
-                {t.id === "plans" && reunion.plansAction.length > 0 && (
-                  <span className="ml-1 text-xs bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded-full">
-                    {reunion.plansAction.length}
-                  </span>
-                )}
-              </button>
-            );
+            let label: string = t.label;
+            if (t.id === "presences")  label = `${t.label} (${reunion.presences.length})`;
+            if (t.id === "resolutions") label = `${t.label} (${reunion.resolutions.length})`;
+            if (t.id === "plans" && reunion.plansAction.length > 0) label = `${t.label} (${reunion.plansAction.length})`;
+            return {
+              key: t.id,
+              label,
+              icon: <Icon className="w-3.5 h-3.5" />,
+              active: tab === t.id,
+              onClick: () => setTab(t.id),
+            };
           })}
-        </nav>
-      </div>
+        />
 
-      {/* Contenu onglet */}
-      <div>
-        {tab === "convocation" && <OngletConvocation r={reunion} onRefresh={onRefresh} />}
-        {tab === "presences"   && <OngletPresences   r={reunion} onRefresh={onRefresh} />}
-        {tab === "cr"          && <OngletCompteRendu reunionId={reunion.id} membres={reunion.presences.map(p => p.membre.user)} />}
-        {tab === "resolutions" && <OngletResolutions r={reunion} onRefresh={onRefresh} />}
-        {tab === "plans"       && <OngletPlansAction r={reunion} />}
+        {/* Contenu onglet */}
+        <div className="flex-1 min-w-0">
+          {tab === "convocation" && <OngletConvocation r={reunion} onRefresh={onRefresh} />}
+          {tab === "presences"   && <OngletPresences   r={reunion} onRefresh={onRefresh} />}
+          {tab === "cr"          && <OngletCompteRendu reunionId={reunion.id} membres={reunion.presences.map(p => p.membre.user)} />}
+          {tab === "resolutions" && <OngletResolutions r={reunion} onRefresh={onRefresh} />}
+          {tab === "plans"       && <OngletPlansAction r={reunion} />}
+        </div>
       </div>
     </div>
   );

@@ -7,6 +7,7 @@ import {
   ChevronDown, ChevronRight, Printer, FileSpreadsheet,
 } from "lucide-react";
 import { useApi } from "@/hooks/useApi";
+import SideTabs from "@/components/ui/SideTabs";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -119,27 +120,22 @@ export default function ComptabiliteRIAPage() {
       )}
 
       {/* Tabs */}
-      <div className="border-b border-slate-200">
-        <nav className="flex gap-0.5 overflow-x-auto">
-          {TABS.map(({ id, label, icon }) => (
-            <button key={id} onClick={() => setTab(id)}
-              className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 whitespace-nowrap transition-colors ${
-                tab === id
-                  ? "border-emerald-600 text-emerald-700"
-                  : "border-transparent text-slate-500 hover:text-slate-700"
-              }`}
-            >
-              {icon} {label}
-            </button>
-          ))}
-        </nav>
-      </div>
+      <div className="flex flex-col md:flex-row gap-4 md:gap-6">
+        <SideTabs
+          accent="emerald"
+          items={TABS.map(({ id, label, icon }) => ({
+            key: id, label, icon, active: tab === id, onClick: () => setTab(id),
+          }))}
+        />
 
-      {/* Contenu par onglet */}
-      {tab === "journal"     && <TabJournal />}
-      {tab === "grand-livre" && <TabGrandLivre comptes={statsData?.comptes ?? []} statsLoading={statsLoading} />}
-      {tab === "balance"     && <TabBalance exportExcel={exportBalanceExcel} />}
-      {tab === "bilan"       && <TabBilan />}
+        {/* Contenu par onglet */}
+        <div className="flex-1 min-w-0 space-y-6">
+          {tab === "journal"     && <TabJournal />}
+          {tab === "grand-livre" && <TabGrandLivre comptes={statsData?.comptes ?? []} statsLoading={statsLoading} />}
+          {tab === "balance"     && <TabBalance exportExcel={exportBalanceExcel} />}
+          {tab === "bilan"       && <TabBilan />}
+        </div>
+      </div>
     </div>
   );
 }

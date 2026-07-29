@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useApi, useMutation } from "@/hooks/useApi";
+import SideTabs from "@/components/ui/SideTabs";
 import { formatDate } from "@/lib/format";
 import { toast } from "sonner";
 import { exportToXlsx } from "@/lib/exportXlsx";
@@ -241,24 +242,23 @@ export default function CongesPage() {
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-1 bg-white border border-slate-200 rounded-xl p-1 w-fit">
-          {([
-            ["demandes",   CalendarDays, "Demandes"],
-            ["calendrier", CalendarDays, "Calendrier"],
-            ["planning",   BarChart2,    "Planning annuel"],
-            ["soldes",     Wallet,       "Soldes"],
-          ] as const).map(([tab, Icon, label]) => (
-            <button key={tab} onClick={() => setActiveTab(tab)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                activeTab === tab ? "bg-emerald-600 text-white shadow-sm" : "text-slate-500 hover:text-slate-700"
-              }`}>
-              <Icon className="w-4 h-4" /> {label}
-              {tab === "demandes" && enAttente > 0 && (
-                <span className="ml-1 bg-amber-500 text-white text-[10px] rounded-full px-1.5 py-0.5 leading-none">{enAttente}</span>
-              )}
-            </button>
-          ))}
-        </div>
+        <div className="flex flex-col md:flex-row gap-4 md:gap-6">
+          <SideTabs
+            accent="emerald"
+            items={([
+              ["demandes",   CalendarDays, "Demandes"],
+              ["calendrier", CalendarDays, "Calendrier"],
+              ["planning",   BarChart2,    "Planning annuel"],
+              ["soldes",     Wallet,       "Soldes"],
+            ] as const).map(([tab, Icon, label]) => ({
+              key: tab,
+              label: tab === "demandes" && enAttente > 0 ? `${label} (${enAttente})` : label,
+              icon: <Icon className="w-4 h-4" />,
+              active: activeTab === tab,
+              onClick: () => setActiveTab(tab),
+            }))}
+          />
+          <div className="flex-1 min-w-0 space-y-6">
 
         {/* ── TAB : DEMANDES ── */}
         {activeTab === "demandes" && (
@@ -586,6 +586,8 @@ export default function CongesPage() {
           </>
         )}
 
+          </div>
+        </div>
       </div>
 
       {/* Modal Politiques */}

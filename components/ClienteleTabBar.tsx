@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { Users, AlertTriangle, Calendar, TrendingUp, ArrowLeft, LayoutDashboard, UserCheck, Bell, Shield, BarChart2, BellRing, CreditCard, Tag, Wallet } from "lucide-react";
+import SideTabs, { type SideTabItem } from "@/components/ui/SideTabs";
 
 // sharedWithGestionnaires : onglet visible aussi par les gestionnaires à double
 // casquette (caissier, chef d'agence…) autorisés à naviguer sur cette page admin.
@@ -99,7 +100,7 @@ const TABS: Tab[] = [
   },
 ];
 
-export default function ClienteleTabBar() {
+export default function ClienteleTabBar({ children }: { children?: ReactNode }) {
   const pathname = usePathname();
   const { data: session } = useSession();
   const role = session?.user?.role;
@@ -109,9 +110,17 @@ export default function ClienteleTabBar() {
   // les autres pages admin leur sont inaccessibles (redirection proxy).
   const tabs = isAdmin ? TABS : TABS.filter((t) => t.sharedWithGestionnaires);
 
+  const items: SideTabItem[] = tabs.map((tab) => ({
+    key: tab.href,
+    href: tab.href,
+    label: tab.label,
+    icon: tab.icon,
+    active: tab.match(pathname),
+  }));
+
   return (
-    <div className="bg-white border-b border-gray-200">
-      <div className="px-6 pt-4 pb-0">
+    <div>
+      <div className="bg-white border-b border-gray-200 px-6 pt-4 pb-3 print:hidden">
         {/* Breadcrumb — le retour vers /dashboard/admin n'a de sens que pour un admin */}
         {isAdmin && (
           <div className="flex items-center gap-2 mb-3">
@@ -127,30 +136,14 @@ export default function ClienteleTabBar() {
         )}
 
         {/* Module title */}
-        <h1 className="text-xl font-bold text-gray-900 mb-3">Gestion de la clientèle</h1>
+        <h1 className="text-xl font-bold text-gray-900">Gestion de la clientèle</h1>
+      </div>
 
-        {/* Tabs */}
-        <nav className="flex gap-1 -mb-px overflow-x-auto scrollbar-hide">
-          {tabs.map((tab) => {
-            const active = tab.match(pathname);
-            return (
-              <Link
-                key={tab.href}
-                href={tab.href}
-                className={`
-                  flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap
-                  ${active
-                    ? "border-blue-600 text-blue-700 bg-blue-50/50"
-                    : "border-transparent text-gray-500 hover:text-gray-800 hover:border-gray-300 hover:bg-gray-50"
-                  }
-                `}
-              >
-                {tab.icon}
-                {tab.label}
-              </Link>
-            );
-          })}
-        </nav>
+      <div className="flex flex-col md:flex-row gap-4 md:gap-6 px-6 py-4 print:block print:p-0">
+        <div className="print:hidden">
+          <SideTabs accent="blue" items={items} />
+        </div>
+        {children && <div className="flex-1 min-w-0">{children}</div>}
       </div>
     </div>
   );

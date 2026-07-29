@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useApi, useMutation } from "@/hooks/useApi";
 import { toast } from "sonner";
-import PopcTabs from "./PopcTabs";
 import { calculerObjectifs, type ParametresPOPC } from "@/lib/popc/moteurObjectifs";
 import {
   Target, TrendingUp, Wallet, CalendarDays, BookOpen,
@@ -200,7 +199,6 @@ export default function POPCPage() {
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
-      <PopcTabs />
       {/* En-tête */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>

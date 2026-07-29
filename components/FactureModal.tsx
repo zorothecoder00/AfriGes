@@ -94,7 +94,7 @@ const MODE_LABELS: Record<string, string> = {
 
 // Identité société pour l'en-tête / pied de facture (letterhead AFRISIME).
 const AFRISIME = {
-  logo:      "/afrisime-logo.svg",
+  logo:      "/nouveaulogo.jpeg",
   nom:       "AFRISIME SARL",
   slogan:    "La Grande Distribution Africaine",
   activites: [...SOCIETE.activites],

@@ -11,6 +11,7 @@ import Link from "next/link";
 import { useApi, useMutation } from "@/hooks/useApi";
 import { formatDate } from "@/lib/format";
 import { toast } from "sonner";
+import SideTabs from "@/components/ui/SideTabs";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -230,21 +231,20 @@ export default function CarrieresPage() {
         </div>
 
         {/* Onglets */}
-        <div className="flex gap-1 bg-white border border-slate-200 rounded-xl p-1 w-fit">
-          {[
-            { key: "parcours",   label: "Parcours",         icon: <TrendingUp className="w-3.5 h-3.5" /> },
-            { key: "demandes",   label: "Demandes",         icon: <Award      className="w-3.5 h-3.5" /> },
-            { key: "succession", label: "Plan de succession",icon: <Shield     className="w-3.5 h-3.5" /> },
-            { key: "talents",    label: "Talents clés",     icon: <Star       className="w-3.5 h-3.5" /> },
-          ].map(({ key, label, icon }) => (
-            <button key={key} onClick={() => setActiveTab(key as typeof activeTab)}
-              className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                activeTab === key ? "bg-indigo-600 text-white shadow-sm" : "text-slate-600 hover:bg-slate-50"
-              }`}>
-              {icon} {label}
-            </button>
-          ))}
-        </div>
+        <div className="flex flex-col md:flex-row gap-4 md:gap-6">
+          <SideTabs
+            accent="indigo"
+            items={[
+              { key: "parcours",   label: "Parcours",         icon: <TrendingUp className="w-3.5 h-3.5" /> },
+              { key: "demandes",   label: "Demandes",         icon: <Award      className="w-3.5 h-3.5" /> },
+              { key: "succession", label: "Plan de succession",icon: <Shield     className="w-3.5 h-3.5" /> },
+              { key: "talents",    label: "Talents clés",     icon: <Star       className="w-3.5 h-3.5" /> },
+            ].map(({ key, label, icon }) => ({
+              key, label, icon,
+              active: activeTab === key, onClick: () => setActiveTab(key as typeof activeTab),
+            }))}
+          />
+          <div className="flex-1 min-w-0 space-y-5">
 
         {/* ════════════ PARCOURS ════════════ */}
         {activeTab === "parcours" && (
@@ -406,6 +406,8 @@ export default function CarrieresPage() {
             )}
           </>
         )}
+          </div>
+        </div>
       </div>
 
       {showNewMouvement && (
