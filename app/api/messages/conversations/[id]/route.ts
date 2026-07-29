@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthSession } from "@/lib/auth";
 import { notify } from "@/lib/notifications";
+import { estAutoriseMessagerie } from "@/lib/messagerie";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -9,7 +10,8 @@ type Ctx = { params: Promise<{ id: string }> };
  * GET  — messages d'une conversation (50 derniers, plus anciens via ?before=<messageId>),
  *        marque comme lus les messages reçus par l'appelant.
  * POST — envoie un message dans une conversation existante.
- * Accès : réservé aux deux participants de la conversation.
+ * Accès : réservé aux deux participants de la conversation, et à la messagerie
+ * (gestionnaires/admin uniquement).
  */
 async function verifierParticipant(conversationId: number, userId: number) {
   const conversation = await prisma.conversation.findUnique({ where: { id: conversationId } });
@@ -22,6 +24,9 @@ export async function GET(req: Request, { params }: Ctx) {
   const session = await getAuthSession();
   if (!session) return NextResponse.json({ message: "Accès refusé" }, { status: 401 });
   const userId = Number(session.user.id);
+  if (!(await estAutoriseMessagerie(prisma, userId))) {
+    return NextResponse.json({ message: "Messagerie réservée aux gestionnaires" }, { status: 403 });
+  }
 
   const conversationId = Number((await params).id);
   if (!conversationId) return NextResponse.json({ message: "Identifiant invalide" }, { status: 400 });
@@ -50,6 +55,9 @@ export async function POST(req: Request, { params }: Ctx) {
   const session = await getAuthSession();
   if (!session) return NextResponse.json({ message: "Accès refusé" }, { status: 401 });
   const userId = Number(session.user.id);
+  if (!(await estAutoriseMessagerie(prisma, userId))) {
+    return NextResponse.json({ message: "Messagerie réservée aux gestionnaires" }, { status: 403 });
+  }
 
   const conversationId = Number((await params).id);
   if (!conversationId) return NextResponse.json({ message: "Identifiant invalide" }, { status: 400 });

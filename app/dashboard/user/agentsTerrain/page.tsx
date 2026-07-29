@@ -328,14 +328,14 @@ const PACK_COLORS: Record<TypePack, { badge: string; border: string }> = {
 const StatCard = ({ label, value, subtitle, icon: Icon, color, lightBg }: {
   label: string; value: string; subtitle?: string; icon: LucideIcon; color: string; lightBg: string;
 }) => (
-  <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/60 hover:shadow-md transition-all group">
+  <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/60 hover:shadow-[0_14px_32px_-10px_rgba(15,23,42,0.18)] hover:-translate-y-1 transition-all duration-300 group animate-[fadeInUp_0.5s_ease-out_both]">
     <div className="flex items-start justify-between mb-4">
-      <div className={`${lightBg} p-3 rounded-xl group-hover:scale-110 transition-transform`}>
+      <div className={`${lightBg} p-3 rounded-xl group-hover:scale-110 group-hover:rotate-3 transition-transform duration-300`}>
         <Icon className={`${color} w-6 h-6`} />
       </div>
     </div>
     <h3 className="text-slate-600 text-sm font-medium mb-1">{label}</h3>
-    <p className="text-3xl font-bold text-slate-800">{value}</p>
+    <p className="text-3xl font-bold text-slate-800 tabular-nums">{value}</p>
     {subtitle && <p className="text-xs text-slate-500 mt-1">{subtitle}</p>}
   </div>
 );
@@ -1984,7 +1984,7 @@ export default function AgentTerrainPage() {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-teal-50/30 to-emerald-50/20 font-['DM_Sans',sans-serif]">
 
       {/* Navbar */}
-      <nav className="bg-white shadow-sm border-b border-slate-200 sticky top-0 z-50">
+      <nav className="bg-white/85 backdrop-blur-md shadow-sm border-b border-slate-200 sticky top-0 z-50">
         <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center gap-4">
@@ -2057,8 +2057,8 @@ export default function AgentTerrainPage() {
             const Icon = tab.icon;
             return (
               <button key={tab.key} onClick={() => { setActiveTab(tab.key); setSearchQuery(""); }}
-                className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-sm font-semibold transition-all ${
-                  activeTab === tab.key ? "bg-teal-600 text-white shadow-lg shadow-teal-200" : "text-slate-600 hover:bg-slate-100"
+                className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-sm font-semibold transition-all duration-300 ${
+                  activeTab === tab.key ? "bg-gradient-to-r from-teal-500 to-emerald-600 text-white shadow-lg shadow-teal-200 scale-[1.02]" : "text-slate-600 hover:bg-slate-100 hover:scale-[1.01]"
                 }`}>
                 <Icon size={18} />{tab.label}
                 {tab.badge !== undefined && tab.badge > 0 && (

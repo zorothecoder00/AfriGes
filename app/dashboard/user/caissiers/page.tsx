@@ -440,14 +440,14 @@ function KpiCard({ label, value, sub, icon: Icon, color, bg }: {
   icon: React.ElementType; color: string; bg: string;
 }) {
   return (
-    <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60 hover:shadow-md transition-all group">
+    <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60 hover:shadow-[0_14px_32px_-10px_rgba(15,23,42,0.18)] hover:-translate-y-1 transition-all duration-300 group animate-[fadeInUp_0.5s_ease-out_both]">
       <div className="flex items-start justify-between mb-3">
-        <div className={`${bg} p-2.5 rounded-xl group-hover:scale-110 transition-transform`}>
+        <div className={`${bg} p-2.5 rounded-xl group-hover:scale-110 group-hover:rotate-3 transition-transform duration-300`}>
           <Icon className={`${color} w-5 h-5`} />
         </div>
       </div>
       <p className="text-slate-500 text-xs font-medium mb-1">{label}</p>
-      <p className="text-2xl font-bold text-slate-800 leading-tight">{value}</p>
+      <p className="text-2xl font-bold text-slate-800 leading-tight tabular-nums">{value}</p>
       {sub && <p className="text-xs text-slate-400 mt-1">{sub}</p>}
     </div>
   );
@@ -2020,13 +2020,13 @@ export default function CaissierPage() {
       )}
 
       {/* ── Navbar ── */}
-      <nav className="bg-white shadow-sm border-b border-slate-200 sticky top-0 z-40">
+      <nav className="bg-white/85 backdrop-blur-md shadow-sm border-b border-slate-200 sticky top-0 z-40">
         <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center gap-4">
               <DashboardBackButton />
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-lg flex items-center justify-center">
+                <div className="w-8 h-8 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-lg flex items-center justify-center shadow-md shadow-emerald-200 transition-transform hover:scale-105 hover:rotate-3 duration-300">
                   <Banknote className="w-4 h-4 text-white" />
                 </div>
                 <h1 className="text-xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
@@ -2085,10 +2085,10 @@ export default function CaissierPage() {
             <button
               key={key}
               onClick={() => setActiveTab(key)}
-              className={`relative flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-sm font-semibold transition-all whitespace-nowrap ${
+              className={`relative flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-sm font-semibold transition-all duration-300 whitespace-nowrap ${
                 activeTab === key
-                  ? "bg-emerald-600 text-white shadow-lg shadow-emerald-200"
-                  : "text-slate-600 hover:bg-slate-100"
+                  ? "bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-200 scale-[1.03]"
+                  : "text-slate-600 hover:bg-slate-100 hover:scale-[1.02]"
               }`}
             >
               <Icon size={16} />
@@ -2153,7 +2153,7 @@ export default function CaissierPage() {
 
             {/* Bandeaux */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl p-5 text-white shadow-lg shadow-emerald-200">
+              <div className="bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl p-5 text-white shadow-lg shadow-emerald-200 hover:shadow-xl hover:shadow-emerald-300 hover:-translate-y-1 transition-all duration-300">
                 <p className="text-emerald-100 text-xs mb-1">Total encaissé aujourd&apos;hui</p>
                 <p className="text-3xl font-bold">{formatCurrency((dashboard?.versements.montant ?? 0) + (dashboard?.ventesDirectes?.montant ?? 0) + (dashboard?.remboursementsCredit?.montant ?? 0))}</p>
                 <div className="text-emerald-200 text-xs mt-2 space-y-0.5">
@@ -2173,7 +2173,7 @@ export default function CaissierPage() {
                   )}
                 </div>
               </div>
-              <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60 space-y-3">
+              <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60 space-y-3 hover:shadow-md hover:-translate-y-1 transition-all duration-300">
                 <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">État du stock</p>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-slate-600">Produits disponibles</span>
@@ -2188,7 +2188,7 @@ export default function CaissierPage() {
                   <span className="font-bold text-red-500">{dashboard?.stock.rupture ?? 0}</span>
                 </div>
               </div>
-              <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60 space-y-3">
+              <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60 space-y-3 hover:shadow-md hover:-translate-y-1 transition-all duration-300">
                 <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Souscriptions packs</p>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-slate-600">Actives</span>

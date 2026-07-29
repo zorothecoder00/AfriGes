@@ -281,12 +281,12 @@ function KpiCard({ label, value, sub, icon: Icon, color, bg }: {
   label: string; value: string; sub?: string; icon: React.ElementType; color: string; bg: string;
 }) {
   return (
-    <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60 hover:shadow-md transition-all group">
-      <div className={`${bg} p-2.5 rounded-xl w-fit mb-3 group-hover:scale-110 transition-transform`}>
+    <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60 hover:shadow-[0_14px_32px_-10px_rgba(15,23,42,0.18)] hover:-translate-y-1 transition-all duration-300 group animate-[fadeInUp_0.5s_ease-out_both]">
+      <div className={`${bg} p-2.5 rounded-xl w-fit mb-3 group-hover:scale-110 group-hover:rotate-3 transition-transform duration-300`}>
         <Icon className={`${color} w-5 h-5`} />
       </div>
       <p className="text-slate-500 text-xs font-medium mb-1">{label}</p>
-      <p className="text-2xl font-bold text-slate-800 leading-tight">{value}</p>
+      <p className="text-2xl font-bold text-slate-800 leading-tight tabular-nums">{value}</p>
       {sub && <p className="text-xs text-slate-400 mt-1">{sub}</p>}
     </div>
   );
@@ -1840,12 +1840,12 @@ export default function ResponsablePDVPage() {
       )}
 
       {/* ── Navbar ── */}
-      <nav className="bg-white shadow-sm border-b border-slate-200 sticky top-0 z-40">
+      <nav className="bg-white/85 backdrop-blur-md shadow-sm border-b border-slate-200 sticky top-0 z-40">
         <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center gap-3">
               <DashboardBackButton />
-              <div className="w-8 h-8 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-lg flex items-center justify-center">
+              <div className="w-8 h-8 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-lg flex items-center justify-center shadow-md shadow-indigo-200 transition-transform hover:scale-105 hover:rotate-3 duration-300">
                 <MapPin className="w-4 h-4 text-white" />
               </div>
               <h1 className="text-xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
@@ -1918,8 +1918,8 @@ export default function ResponsablePDVPage() {
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 p-1.5 flex gap-1 overflow-x-auto">
           {tabs.map(({ key, label, icon: Icon, badge }) => (
             <button key={key} onClick={() => setActiveTab(key)}
-              className={`flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-sm font-semibold transition-all whitespace-nowrap ${
-                activeTab === key ? "bg-indigo-600 text-white shadow-lg shadow-indigo-200" : "text-slate-600 hover:bg-slate-100"
+              className={`flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-sm font-semibold transition-all duration-300 whitespace-nowrap ${
+                activeTab === key ? "bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-lg shadow-indigo-200 scale-[1.03]" : "text-slate-600 hover:bg-slate-100 hover:scale-[1.02]"
               }`}>
               <Icon size={15} />{label}
               {badge !== undefined && badge > 0 && (

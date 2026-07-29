@@ -2,10 +2,11 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthSession } from "@/lib/auth";
 import { notify } from "@/lib/notifications";
-import { getOrCreateConversation } from "@/lib/messagerie";
+import { getOrCreateConversation, estAutoriseMessagerie } from "@/lib/messagerie";
 
 /**
- * Messagerie instantanée — ouverte à tous les rôles (admin, gestionnaires, membres).
+ * Messagerie instantanée — réservée aux gestionnaires (Admin/Super-admin ou profil
+ * Gestionnaire actif) ; les utilisateurs simples n'y ont pas accès.
  * GET  — liste des conversations de l'utilisateur connecté, triées par dernier message,
  *        avec l'autre participant, l'aperçu du dernier message et le nombre de non-lus.
  * POST — démarre une conversation avec un destinataire (ou réutilise l'existante) et
@@ -15,6 +16,9 @@ export async function GET() {
   const session = await getAuthSession();
   if (!session) return NextResponse.json({ message: "Accès refusé" }, { status: 401 });
   const userId = Number(session.user.id);
+  if (!(await estAutoriseMessagerie(prisma, userId))) {
+    return NextResponse.json({ message: "Messagerie réservée aux gestionnaires" }, { status: 403 });
+  }
 
   const conversations = await prisma.conversation.findMany({
     where: { OR: [{ utilisateurAId: userId }, { utilisateurBId: userId }] },
@@ -54,6 +58,9 @@ export async function POST(req: Request) {
   const session = await getAuthSession();
   if (!session) return NextResponse.json({ message: "Accès refusé" }, { status: 401 });
   const userId = Number(session.user.id);
+  if (!(await estAutoriseMessagerie(prisma, userId))) {
+    return NextResponse.json({ message: "Messagerie réservée aux gestionnaires" }, { status: 403 });
+  }
 
   const body = await req.json().catch(() => null);
   const destinataireId = Number(body?.destinataireId);
@@ -65,6 +72,9 @@ export async function POST(req: Request) {
 
   const destinataire = await prisma.user.findUnique({ where: { id: destinataireId }, select: { id: true, nom: true, prenom: true, role: true } });
   if (!destinataire) return NextResponse.json({ message: "Destinataire introuvable" }, { status: 404 });
+  if (!(await estAutoriseMessagerie(prisma, destinataireId))) {
+    return NextResponse.json({ message: "Ce destinataire n'est pas éligible à la messagerie" }, { status: 403 });
+  }
 
   const result = await prisma.$transaction(async (tx) => {
     const conversation = await getOrCreateConversation(tx, userId, destinataireId);
