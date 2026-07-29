@@ -16,18 +16,50 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-inter);
+
+  /* ─── Design system AfriGes (Refonte UX/UI) ─────────────────────────────────
+     Bleu = couleur PRIMAIRE (identité produit, boutons/liens/focus/actif).
+     Le vert AfriSime (--color-brand-*) devient une couleur SECONDAIRE/accent
+     (ex: succès, éléments liés au logo/marque), il n'est plus dominant. */
+  --color-primary-50:  #eff6ff;
+  --color-primary-100: #dbeafe;
+  --color-primary-200: #bfdbfe;
+  --color-primary-300: #93c5fd;
+  --color-primary-400: #60a5fa;
+  --color-primary-500: #3b82f6; /* bleu primaire */
+  --color-primary-600: #2563eb; /* primaire — boutons/liens par défaut */
+  --color-primary-700: #1d4ed8;
+  --color-primary-800: #1e40af;
+  --color-primary-900: #1e3a8a;
+
+  /* Accent orange (usage ponctuel : highlights, promos) */
+  --color-accent-50:  #fff7ed;
+  --color-accent-100: #ffedd5;
+  --color-accent-200: #fed7aa;
+  --color-accent-300: #fdba74;
+  --color-accent-400: #fb923c;
+  --color-accent-500: #f97316;
+  --color-accent-600: #ea580c;
+  --color-accent-700: #c2410c;
+
+  /* États sémantiques — alias, pas de nouvelle palette */
+  --color-success: #059669; /* emerald-600 */
+  --color-error:   #dc2626; /* red-600 */
+  --color-warning: #d97706; /* amber-600 */
+  --color-info:    var(--color-primary-600);
 
   /* ─── Identité visuelle AfriSime (dérivée du logo) ──────────────────────────
      Verts forêt/feuille (#62B238 panier, #7ACB4E feuille, #195936 wordmark)
-     sur fond crème chaud (#F6F3EA). Génère bg-brand-*, text-brand-*, bg-cream… */
+     sur fond crème chaud (#F6F3EA). Génère bg-brand-*, text-brand-*, bg-cream…
+     Devenue palette SECONDAIRE depuis la refonte (le bleu est désormais
+     la couleur primaire de l'application, voir --color-primary-* ci-dessus). */
   --color-brand-50:  #f3f8ec;
   --color-brand-100: #e4f0d4;
   --color-brand-200: #cbe3ad;
   --color-brand-300: #aad07f;
   --color-brand-400: #7acb4e; /* feuille claire */
-  --color-brand-500: #62b238; /* vert panier — primaire */
+  --color-brand-500: #62b238; /* vert panier */
   --color-brand-600: #4f8f30; /* nervure feuille */
   --color-brand-700: #195936; /* wordmark */
   --color-brand-800: #0f5132; /* « COMMUNAUTÉ » */
@@ -39,7 +71,7 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────

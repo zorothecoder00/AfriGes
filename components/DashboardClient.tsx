@@ -2,22 +2,21 @@
 
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
-  TrendingUp, Users, UserCheck, Package, Layers,
-  ShoppingCart, MoreVertical, Download, Plus, ChevronDown, MessageSquare, Store, Shield,
+  TrendingUp, Users, Package, Layers,
+  ShoppingCart, MoreVertical, Download, Plus, ChevronDown, MessageSquare,
   Activity, AlertTriangle, CheckCircle, XCircle, Wallet, BarChart2, Truck, RefreshCw,
-  CreditCard, TrendingDown, DollarSign, Clock, Award, Percent, ClipboardCheck,
-  UserCog, Network, Lock, Target, Info,
+  CreditCard, TrendingDown, DollarSign, Clock, Award, Percent,
+  Info,
 } from 'lucide-react';
-import Link from "next/link";     
-import { useSession } from 'next-auth/react';
+import Link from "next/link";
 import { useT } from '@/contexts/AppSettingsContext';
-import NotificationBell from '@/components/NotificationBell';
-import UserPdvBadge from '@/components/UserPdvBadge';
-import AccountMenuButton from '@/components/AccountMenuButton';
-import AfriSimeLogo from '@/components/AfriSimeLogo';
-import { useApi } from '@/hooks/useApi';     
+import { useApi } from '@/hooks/useApi';
 import { formatCurrency } from '@/lib/format';
 import { exportMultiSheetXlsx, type XlsxSheetSpec } from '@/lib/exportXlsx';
+import AnimatedNumber from '@/components/ui/AnimatedNumber';
+import InfoTooltip from '@/components/ui/InfoTooltip';
+import KpiCard from '@/components/ui/KpiCard';
+import Button from '@/components/ui/Button';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -153,52 +152,10 @@ function fmtDateShort(iso: string) {
   return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
 }
 
-/** Anime un nombre de 0 vers sa valeur cible à chaque changement (effet "compteur"). */
-function AnimatedNumber({ value, format }: { value: number; format?: (n: number) => string }) {
-  const [affiche, setAffiche] = useState(0);
-  const depart = useRef(0);
-
-  useEffect(() => {
-    const from = depart.current;
-    const to = value;
-    if (from === to) return;
-    const duree = 700;
-    const t0 = performance.now();
-    let raf = 0;
-    const tick = (now: number) => {
-      const p = Math.min(1, (now - t0) / duree);
-      const ease = 1 - Math.pow(1 - p, 3); // ease-out cubic
-      const courant = Math.round(from + (to - from) * ease);
-      setAffiche(courant);
-      if (p < 1) raf = requestAnimationFrame(tick);
-      else depart.current = to;
-    };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [value]);
-
-  return <>{format ? format(affiche) : affiche.toLocaleString('fr-FR')}</>;
-}
-
-/** Petite icône ⓘ avec bulle explicative au survol/focus — pour clarifier un indicateur. */
-function InfoTooltip({ text }: { text: string }) {
-  return (
-    <span className="group/tip relative inline-flex align-middle ml-1">
-      <Info size={12} className="text-slate-300 hover:text-slate-500 cursor-help transition-colors" tabIndex={0} />
-      <span className="pointer-events-none absolute z-30 bottom-full left-1/2 -translate-x-1/2 mb-2 w-52 rounded-lg bg-slate-800 text-white text-[11px] leading-snug px-2.5 py-1.5 text-left font-normal normal-case tracking-normal opacity-0 scale-95 group-hover/tip:opacity-100 group-hover/tip:scale-100 group-focus-within/tip:opacity-100 group-focus-within/tip:scale-100 transition-all duration-150 shadow-lg">
-        {text}
-        <span className="absolute top-full left-1/2 -translate-x-1/2 -mt-px border-4 border-transparent border-t-slate-800" />
-      </span>
-    </span>
-  );
-}
 
 // ─── Composant principal ──────────────────────────────────────────────────────
 
 export default function AfriGesDashboard() {
-  const { data: session } = useSession();
-  const isSuperAdmin = session?.user?.role === 'SUPER_ADMIN';
   const t = useT();
   const [selectedPeriod, setSelectedPeriod] = useState<'7' | '30' | '90'>('30');
   const [showMenu, setShowMenu] = useState(false);
@@ -216,10 +173,6 @@ export default function AfriGesDashboard() {
     `/api/admin/dashboard?period=${selectedPeriod}`
   );
 
-  const { data: messagesNonLusRes } = useApi<{ nonLus: number }>(
-    '/api/messages/unread-count', undefined, { refreshInterval: 30_000 }
-  );
-  const messagesNonLus = messagesNonLusRes?.nonLus ?? 0;
   const d = response?.data;
 
   const { data: activityResponse, refetch: refetchActivity } = useApi<ActivityResponse>(
@@ -469,144 +422,37 @@ export default function AfriGesDashboard() {
   }
 
   // ── Render ─────────────────────────────────────────────────────────────────
+  // Sidebar/topbar globales désormais fournies par app/dashboard/admin/layout.tsx
+  // (AdminSidebar/AdminTopbar) — ce composant ne rend plus que le contenu du
+  // tableau de bord lui-même.
   return (
-    <div className="min-h-screen bg-linear-to-br from-cream via-cream-100 to-brand-50 relative isolate">
+    <div className="relative isolate space-y-6">
 
       {/* Aurora décorative — halos flous animés, discrets, aux couleurs du logo */}
       <div className="pointer-events-none fixed inset-0 overflow-hidden -z-10" aria-hidden="true">
-        <div className="absolute -top-40 -left-24 w-[34rem] h-[34rem] bg-brand-300/25 dark:bg-brand-700/15 rounded-full blur-3xl animate-[auroraFloat_20s_ease-in-out_infinite]" />
-        <div className="absolute top-1/4 -right-28 w-[30rem] h-[30rem] bg-brand-400/20 dark:bg-brand-600/10 rounded-full blur-3xl animate-[auroraFloat_26s_ease-in-out_infinite_reverse]" />
-        <div className="absolute bottom-0 left-1/3 w-[26rem] h-[26rem] bg-brand-200/25 dark:bg-brand-800/10 rounded-full blur-3xl animate-[auroraFloat_23s_ease-in-out_infinite]" />
+        <div className="absolute -top-40 -left-24 w-[34rem] h-[34rem] bg-primary-300/20 dark:bg-primary-700/10 rounded-full blur-3xl animate-[auroraFloat_20s_ease-in-out_infinite]" />
+        <div className="absolute top-1/4 -right-28 w-[30rem] h-[30rem] bg-brand-400/15 dark:bg-brand-600/10 rounded-full blur-3xl animate-[auroraFloat_26s_ease-in-out_infinite_reverse]" />
+        <div className="absolute bottom-0 left-1/3 w-[26rem] h-[26rem] bg-primary-200/20 dark:bg-primary-800/10 rounded-full blur-3xl animate-[auroraFloat_23s_ease-in-out_infinite]" />
       </div>
 
-      {/* Header */}
-      <header className="bg-white/90 backdrop-blur-md border-b border-slate-200 sticky top-0 z-50">
-        <div className="max-w-400 mx-auto px-8 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <AfriSimeLogo className="h-16 w-auto" priority />
-          </div>
-          <div className="flex items-center gap-4">
-            <UserPdvBadge />
-            <NotificationBell href="/dashboard/admin/notifications" />
-            <AccountMenuButton settingsHref="/dashboard/admin/parametres" inline />
-          </div>
-        </div>
-      </header>
-
-      <div className="max-w-400 mx-auto px-8 py-8 flex gap-6 relative">
-
-        {/* Sidebar */}
-        <aside className="w-72 shrink-0">
-          <div className="bg-white/85 backdrop-blur-md rounded-2xl shadow-sm border border-slate-200/60 overflow-y-auto sticky top-28 max-h-[calc(100vh-8rem)]">
-            <div className="p-4 border-b border-slate-100">
-              <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">{t('main')}</h3>
-              <nav className="space-y-1">
-                <button className="w-full flex items-center gap-3 px-4 py-3 bg-linear-to-r from-brand-500 to-brand-700 text-white rounded-xl font-medium transition-all duration-300 shadow-md shadow-brand-200 hover:shadow-lg hover:shadow-brand-300 hover:scale-[1.02]">
-                  <TrendingUp size={20} /><span>{t('nav_dashboard')}</span>
-                </button>
-                <Link href="/dashboard/admin/membres"       className="w-full flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-50 rounded-xl transition-all"><Users size={20} /><span>{t('nav_membres')}</span></Link>
-                <Link href="/dashboard/admin/gestionnaires" className="w-full flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-50 rounded-xl transition-all"><Users size={20} /><span>{t('nav_gestionnaires')}</span></Link>
-                <Link href="/dashboard/admin/messages"      className="w-full flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-50 rounded-xl transition-all relative">
-                  <MessageSquare size={20} /><span>{t('nav_messages')}</span>
-                  {messagesNonLus > 0 && (
-                    <span className="relative ml-auto flex items-center justify-center">
-                      <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75 animate-ping" />
-                      <span className="relative min-w-[18px] h-[18px] px-1 bg-emerald-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
-                        {messagesNonLus > 99 ? "99+" : messagesNonLus}
-                      </span>
-                    </span>
-                  )}
-                </Link>
-              </nav>
-            </div>
-            {/* Clientèle — module CRM/Recouvrement */}
-            <div className="p-4 border-b border-slate-100">
-              <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">{t('nav_section_clientele')}</h3>
-              <nav className="space-y-1">
-                <Link href="/dashboard/admin/clients" className="w-full flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-50 rounded-xl transition-all"><UserCheck size={20} /><span>{t('nav_clients')}</span></Link>
-              </nav>
-            </div>
-            <div className="p-4 border-b border-slate-100">
-              <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">{t('packs_sales')}</h3>
-              <nav className="space-y-1">
-                <Link href="/dashboard/admin/packs" className="w-full flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-50 rounded-xl transition-all"><Layers size={20} /><span>{t('nav_packs')}</span></Link>
-              </nav>
-            </div>
-            <div className="p-4 border-b border-slate-100">
-              <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">{t('commerce')}</h3>
-              <nav className="space-y-1">
-                <Link href="/dashboard/admin/ventes" className="w-full flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-50 rounded-xl transition-all"><ShoppingCart size={20} /><span>{t('nav_ventes')}</span></Link>
-                <Link href="/dashboard/admin/catalogue/produits" className="w-full flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-50 rounded-xl transition-all"><Layers size={20} /><span>{t('nav_catalogue_produits')}</span></Link>
-                <Link href="/dashboard/admin/stock"             className="w-full flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-50 rounded-xl transition-all"><Package size={20} /><span>{t('nav_stock')}</span></Link>
-                <Link href="/dashboard/admin/pdv"              className="w-full flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-50 rounded-xl transition-all"><Store size={20} /><span>{t('nav_pdv')}</span></Link>
-                <Link href="/dashboard/admin/approvisionnements" className="w-full flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-50 rounded-xl transition-all"><Truck size={20} /><span>{t('nav_approvisionnements')}</span></Link>
-                <Link href="/dashboard/admin/stock/ajustements" className="w-full flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-50 rounded-xl transition-all"><ClipboardCheck size={20} /><span>{t('nav_ajustements_stock')}</span></Link>
-                <Link href="/dashboard/gestionnaire/logistique" className="w-full flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-50 rounded-xl transition-all"><BarChart2 size={20} /><span>{t('nav_dashboard_logistique')}</span></Link>
-              </nav>
-            </div>
-            {/* RH — Gestion des ressources humaines */}
-            <div className="p-4 border-b border-slate-100">
-              <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">{t('nav_section_rh')}</h3>
-              <nav className="space-y-1">
-                <Link href="/dashboard/admin/rh" className="w-full flex items-center gap-3 px-4 py-2.5 text-slate-600 hover:bg-slate-50 rounded-xl transition-all font-medium"><UserCog size={18} /><span>{t('nav_dashboard_rh')}</span></Link>
-              </nav>
-            </div>
-            {/* RIA — Réseau des Investisseurs AfriSime */}
-            <div className="p-4 border-b border-slate-100">
-              <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">{t('nav_section_ria')}</h3>
-              <nav className="space-y-1">
-                <Link href="/dashboard/admin/ria" className="w-full flex items-center gap-3 px-4 py-2.5 text-slate-600 hover:bg-slate-50 rounded-xl transition-all font-medium"><Network size={18} /><span>{t('nav_dashboard_ria')}</span></Link>
-              </nav>
-            </div>
-            {/* POPC — Planification des objectifs & pilotage des collectes */}
-            <div className="p-4 border-b border-slate-100">
-              <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">{t('nav_section_popc')}</h3>
-              <nav className="space-y-1">
-                <Link href="/dashboard/admin/popc" className="w-full flex items-center gap-3 px-4 py-2.5 text-slate-600 hover:bg-slate-50 rounded-xl transition-all font-medium"><Target size={18} /><span>{t('nav_popc_objectifs')}</span></Link>
-              </nav>
-            </div>
-            {/* Visible pour ADMIN et SUPER_ADMIN */}
-            <div className="p-4 border-b border-slate-100">
-              <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
-                {isSuperAdmin ? t('nav_superadmin_short') : t('nav_admin_section')}
-              </h3>
-              <nav className="space-y-1">
-                <Link href="/dashboard/admin/superadmin"
-                  className="w-full flex items-center gap-3 px-4 py-3 text-violet-600 hover:bg-violet-50 rounded-xl transition-all font-medium border border-violet-100">
-                  <Shield size={20} />
-                  <span>{t('nav_superadmin')}</span>
-                </Link>
-                <Link href="/dashboard/admin/droits-acces"
-                  className="w-full flex items-center gap-3 px-4 py-2.5 text-slate-600 hover:bg-slate-50 rounded-xl transition-all text-sm">
-                  <Lock size={16} />
-                  <span>{t('nav_droits_acces')}</span>
-                </Link>
-              </nav>
-            </div>
-          </div>
-        </aside>
-
-        {/* Main */}
-        <main className="flex-1 space-y-6">
-
-          {/* Titre */}
+      {/* Titre */}
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-4xl font-bold text-slate-800 mb-2">{t('dash_title')}</h2>
               <p className="text-slate-500">{t('dash_subtitle')}</p>
             </div>
             <div className="flex gap-3">
-              <button onClick={handleExport} className="px-5 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-700 hover:bg-slate-50 transition-all shadow-sm flex items-center gap-2 font-medium">
-                <Download size={18} />{t('action_export')}
-              </button>
+              <Button variant="secondary" icon={<Download size={18} />} onClick={handleExport}>
+                {t('action_export')}
+              </Button>
               <div className="relative" ref={menuRef}>
-                <button
+                <Button
+                  icon={<Plus size={18} />}
                   onClick={() => setShowMenu(!showMenu)}
-                  className="px-5 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-200 flex items-center gap-2 font-medium"
                 >
-                  <Plus size={18} />{t('action_new_op')}
+                  {t('action_new_op')}
                   <ChevronDown size={16} className={`transition-transform ${showMenu ? 'rotate-180' : ''}`} />
-                </button>
+                </Button>
                 {showMenu && (
                   <div className="absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-slate-200 py-2 z-50">
                     <Link href="/dashboard/admin/packs"   onClick={() => setShowMenu(false)} className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 transition-colors"><Layers size={18} className="text-blue-500" /><span className="text-sm font-medium text-slate-700">{t('new_pack_subscription')}</span></Link>
@@ -630,36 +476,22 @@ export default function AfriGesDashboard() {
             <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">{t('dash_overview')}</h3>
             <div className="grid grid-cols-4 gap-5">
               {[
-                { label: t('dash_clients_actifs'), help: t('dash_help_clients_actifs'), raw: d?.clientsActifs, icon: Users, comp: d?.comparaisons?.clients, brand: true },
-                { label: t('dash_souscriptions_actives'), help: t('dash_help_souscriptions_actives'), raw: d?.souscriptionsActives, icon: Layers, comp: d?.comparaisons?.packs },
-                { label: t('dash_packs_total'), help: t('dash_help_packs_total'), raw: d?.packsTotal, icon: Package, comp: null },
-                { label: t('dash_versements_total'), help: t('dash_help_versements_total'), raw: d?.versementsTotal.montant, icon: Wallet, comp: d?.comparaisons?.versements, montant: true },
-              ].map((item, idx) => {
-                const Icon = item.icon;
-                return (
-                  <div key={item.label}
-                    style={{ animationDelay: `${idx * 70}ms` }}
-                    className={`group bg-white rounded-2xl p-5 shadow-sm border transition-all duration-300 hover:shadow-[0_14px_32px_-10px_rgba(98,178,56,0.35)] hover:-translate-y-1 animate-[fadeInUp_0.5s_ease-out_both] ${item.brand ? 'border-brand-200 ring-1 ring-brand-100' : 'border-slate-200/60 hover:border-brand-100'}`}>
-                    <div className="flex items-start justify-between mb-3">
-                      <div className={`p-2.5 rounded-xl transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3 ${item.brand ? 'bg-brand-50' : 'bg-slate-50'}`}>
-                        <Icon size={18} className={item.brand ? 'text-brand-600' : 'text-slate-500'} />
-                      </div>
-                      {item.comp && (
-                        <span
-                          style={{ animationDelay: `${idx * 70 + 300}ms` }}
-                          className={`inline-flex items-center gap-0.5 text-[11px] font-semibold px-1.5 py-0.5 rounded-full animate-[popIn_0.4s_ease-out_both] ${item.comp.positif ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-500'}`}>
-                          {item.comp.positif ? <TrendingUp size={11} /> : <TrendingDown size={11} />}
-                          {item.comp.positif ? '+' : ''}{item.comp.pct}%
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-2xl font-bold text-slate-800 tabular-nums">
-                      {item.raw != null ? <AnimatedNumber value={item.raw} format={item.montant ? formatCurrency : undefined} /> : '—'}
-                    </p>
-                    <p className="text-xs text-slate-500 mt-0.5">{item.label}<InfoTooltip text={item.help} /></p>
-                  </div>
-                );
-              })}
+                { label: t('dash_clients_actifs'), help: t('dash_help_clients_actifs'), raw: d?.clientsActifs, icon: Users, comp: d?.comparaisons?.clients, accent: 'primary' as const },
+                { label: t('dash_souscriptions_actives'), help: t('dash_help_souscriptions_actives'), raw: d?.souscriptionsActives, icon: Layers, comp: d?.comparaisons?.packs, accent: 'brand' as const },
+                { label: t('dash_packs_total'), help: t('dash_help_packs_total'), raw: d?.packsTotal, icon: Package, comp: null, accent: 'neutral' as const },
+                { label: t('dash_versements_total'), help: t('dash_help_versements_total'), raw: d?.versementsTotal.montant, icon: Wallet, comp: d?.comparaisons?.versements, montant: true, accent: 'success' as const },
+              ].map((item) => (
+                <KpiCard
+                  key={item.label}
+                  label={item.label}
+                  help={item.help}
+                  value={item.raw ?? 0}
+                  format={item.montant ? formatCurrency : undefined}
+                  icon={<item.icon size={18} />}
+                  accent={item.accent}
+                  evolutionPct={item.comp ? Number(item.comp.pct) * (item.comp.positif ? 1 : -1) : undefined}
+                />
+              ))}
             </div>
           </div>
 
@@ -1320,9 +1152,6 @@ export default function AfriGesDashboard() {
           </div>
 
           </div>{/* end overflow-y wrapper */}
-
-        </main>
-      </div>
 
     </div>
   );
