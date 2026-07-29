@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowLeft, Settings, Loader2, Save } from "lucide-react";
 import { toast } from "sonner";
 import ClienteleTabBar from "@/components/ClienteleTabBar";
+import Button from "@/components/ui/Button";
 
 interface Parametrage {
   montantMinOuverture: string | number;
@@ -81,18 +82,18 @@ export default function ParametrageCCPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-slate-50">
       <ClienteleTabBar>
       <div className="p-6 max-w-3xl mx-auto space-y-6">
-        <Link href="/dashboard/admin/comptes-courants" className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700">
+        <Link href="/dashboard/admin/comptes-courants" className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700">
           <ArrowLeft className="w-4 h-4" /> Retour aux comptes courants
         </Link>
-        <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+        <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
           <Settings className="w-6 h-6 text-emerald-600" /> Paramètres · Comptes Courants
         </h2>
 
         {loading ? (
-          <div className="flex items-center justify-center py-20 text-gray-400">
+          <div className="flex items-center justify-center py-20 text-slate-400">
             <Loader2 className="w-6 h-6 animate-spin mr-3" /> Chargement…
           </div>
         ) : (
@@ -109,9 +110,9 @@ export default function ParametrageCCPage() {
 
             <Section title="Règles">
               <div className="flex items-center justify-between py-1.5">
-                <span className="text-sm text-gray-600">Autoriser un solde négatif</span>
+                <span className="text-sm text-slate-600">Autoriser un solde négatif</span>
                 <button onClick={() => set("autoriserSoldeNegatif", !form.autoriserSoldeNegatif)}
-                  className={`relative w-11 h-6 rounded-full transition-colors ${form.autoriserSoldeNegatif ? "bg-emerald-500" : "bg-gray-300"}`}>
+                  className={`relative w-11 h-6 rounded-full transition-colors ${form.autoriserSoldeNegatif ? "bg-emerald-500" : "bg-slate-300"}`}>
                   <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${form.autoriserSoldeNegatif ? "translate-x-5" : ""}`} />
                 </button>
               </div>
@@ -123,7 +124,7 @@ export default function ParametrageCCPage() {
             <Section title="Identité bancaire (RIB)">
               <TextField label="Code Agence" k="codeAgence" form={form} set={set} />
               <TextField label="Code Guichet" k="codeGuichet" form={form} set={set} />
-              <p className="text-xs text-gray-400">
+              <p className="text-xs text-slate-400">
                 Ces codes servent à construire le RIB des comptes. Le numéro (12 chiffres, commençant par 12) et la clé de contrôle sont générés automatiquement à l&apos;ouverture.
               </p>
             </Section>
@@ -132,17 +133,15 @@ export default function ParametrageCCPage() {
               <TextField label="Compte Caisse" k="compteCaisseNumero" form={form} set={set} />
               <TextField label="Compte courant client (crédit)" k="compteCourantClientNumero" form={form} set={set} />
               <TextField label="Compte Ventes (contrepartie paiement)" k="compteVentesNumero" form={form} set={set} />
-              <p className="text-xs text-gray-400">
+              <p className="text-xs text-slate-400">
                 Numéros du plan comptable utilisés pour les écritures automatiques (dépôt : débit Caisse / crédit Compte courant client). Si un numéro est absent du plan comptable, le mouvement est enregistré sans écriture (à régulariser).
               </p>
             </Section>
 
             <div className="flex justify-end">
-              <button onClick={save} disabled={saving}
-                className="inline-flex items-center gap-2 px-6 py-3 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-xl text-sm font-semibold shadow-sm">
-                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+              <Button onClick={save} loading={saving} icon={<Save className="w-4 h-4" />}>
                 Enregistrer
-              </button>
+              </Button>
             </div>
 
             <FideliteProgrammeSection />
@@ -156,8 +155,8 @@ export default function ParametrageCCPage() {
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
-      <h3 className="font-bold text-gray-800 mb-4">{title}</h3>
+    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+      <h3 className="font-bold text-slate-800 mb-4">{title}</h3>
       <div className="space-y-3">{children}</div>
     </div>
   );
@@ -166,11 +165,11 @@ type FieldProps = { label: string; k: string; form: Record<string, string | bool
 function Money({ label, k, form, set, placeholder }: FieldProps) {
   return (
     <div className="flex items-center justify-between gap-4">
-      <label className="text-sm text-gray-600">{label}</label>
+      <label className="text-sm text-slate-600">{label}</label>
       <div className="relative w-48">
         <input type="number" min={0} value={String(form[k] ?? "")} onChange={(e) => set(k, e.target.value)}
-          placeholder={placeholder} className="w-full pr-12 pl-3 py-2 border border-gray-200 rounded-lg text-sm text-right bg-gray-50 focus:outline-none focus:ring-2 focus:ring-emerald-500" />
-        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">FCFA</span>
+          placeholder={placeholder} className="w-full pr-12 pl-3 py-2 border border-slate-200 rounded-lg text-sm text-right bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400">FCFA</span>
       </div>
     </div>
   );
@@ -178,18 +177,18 @@ function Money({ label, k, form, set, placeholder }: FieldProps) {
 function NumField({ label, k, form, set, placeholder }: FieldProps) {
   return (
     <div className="flex items-center justify-between gap-4">
-      <label className="text-sm text-gray-600">{label}</label>
+      <label className="text-sm text-slate-600">{label}</label>
       <input type="number" min={0} value={String(form[k] ?? "")} onChange={(e) => set(k, e.target.value)}
-        placeholder={placeholder} className="w-48 px-3 py-2 border border-gray-200 rounded-lg text-sm text-right bg-gray-50 focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+        placeholder={placeholder} className="w-48 px-3 py-2 border border-slate-200 rounded-lg text-sm text-right bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500" />
     </div>
   );
 }
 function TextField({ label, k, form, set }: FieldProps) {
   return (
     <div className="flex items-center justify-between gap-4">
-      <label className="text-sm text-gray-600">{label}</label>
+      <label className="text-sm text-slate-600">{label}</label>
       <input value={String(form[k] ?? "")} onChange={(e) => set(k, e.target.value)}
-        className="w-48 px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+        className="w-48 px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500" />
     </div>
   );
 }
@@ -236,36 +235,34 @@ function FideliteProgrammeSection() {
   if (loading) return null;
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
-      <h3 className="font-bold text-gray-800 mb-4">Programme de fidélité (récompenses)</h3>
+    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+      <h3 className="font-bold text-slate-800 mb-4">Programme de fidélité (récompenses)</h3>
       <div className="space-y-3">
         <div className="flex items-center justify-between py-1.5">
-          <span className="text-sm text-gray-600">Programme actif</span>
+          <span className="text-sm text-slate-600">Programme actif</span>
           <button onClick={() => set("actif", !form.actif)}
-            className={`relative w-11 h-6 rounded-full transition-colors ${form.actif ? "bg-yellow-500" : "bg-gray-300"}`}>
+            className={`relative w-11 h-6 rounded-full transition-colors ${form.actif ? "bg-yellow-500" : "bg-slate-300"}`}>
             <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${form.actif ? "translate-x-5" : ""}`} />
           </button>
         </div>
         <NumField label="1 point tous les … FCFA déposés" k="pointsParMontant" form={form} set={set} placeholder="1000" />
         <NumField label="Bonus fixe par dépôt (points)" k="bonusParDepot" form={form} set={set} placeholder="0" />
-        <div className="pt-2 border-t border-gray-100" />
+        <div className="pt-2 border-t border-slate-100" />
         <NumField label="Seuil niveau Argent (points cumulés)" k="seuilArgent" form={form} set={set} />
         <NumField label="Seuil niveau Or (points cumulés)" k="seuilOr" form={form} set={set} />
         <NumField label="Seuil niveau Platine (points cumulés)" k="seuilPlatine" form={form} set={set} />
-        <div className="pt-2 border-t border-gray-100" />
+        <div className="pt-2 border-t border-slate-100" />
         <NumField label="Réduction frais de dossier — Argent (%)" k="reductionFraisArgent" form={form} set={set} />
         <NumField label="Réduction frais de dossier — Or (%)" k="reductionFraisOr" form={form} set={set} />
         <NumField label="Réduction frais de dossier — Platine (%)" k="reductionFraisPlatine" form={form} set={set} />
-        <p className="text-xs text-gray-400">
+        <p className="text-xs text-slate-400">
           Les points sont attribués automatiquement à chaque dépôt (dépôt courant, ouverture, cotisation épargne). La priorité crédit est acquise dès le niveau Or, les cadeaux au niveau Platine.
         </p>
       </div>
       <div className="flex justify-end mt-4">
-        <button onClick={save} disabled={saving}
-          className="inline-flex items-center gap-2 px-6 py-3 bg-yellow-500 hover:bg-yellow-600 disabled:opacity-50 text-white rounded-xl text-sm font-semibold shadow-sm">
-          {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+        <Button onClick={save} loading={saving} icon={<Save className="w-4 h-4" />}>
           Enregistrer le programme
-        </button>
+        </Button>
       </div>
     </div>
   );

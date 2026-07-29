@@ -13,7 +13,7 @@ export type SideTabItem = {
 };
 
 const ACCENTS = {
-  blue:    { text: "text-blue-700",    border: "border-blue-600",    bg: "bg-blue-50/50" },
+  blue:    { text: "text-primary-700", border: "border-primary-600", bg: "bg-primary-50/50" },
   emerald: { text: "text-emerald-700", border: "border-emerald-600", bg: "bg-emerald-50/50" },
   indigo:  { text: "text-indigo-700",  border: "border-indigo-600", bg: "bg-indigo-50/50" },
   violet:  { text: "text-violet-700",  border: "border-violet-600", bg: "bg-violet-50/50" },

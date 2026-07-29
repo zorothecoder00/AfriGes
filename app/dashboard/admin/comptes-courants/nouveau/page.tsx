@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import ClienteleTabBar from "@/components/ClienteleTabBar";
+import Button from "@/components/ui/Button";
 
 const MODES = ["Espèces", "Mobile Money", "Carte", "Virement"];
 
@@ -140,13 +141,13 @@ export default function NouveauCompteCourantPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-slate-50">
       <ClienteleTabBar>
       <div className="p-6 max-w-3xl mx-auto space-y-6">
-        <Link href="/dashboard/admin/comptes-courants" className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700">
+        <Link href="/dashboard/admin/comptes-courants" className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700">
           <ArrowLeft className="w-4 h-4" /> Retour aux comptes courants
         </Link>
-        <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+        <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
           <Wallet className="w-6 h-6 text-emerald-600" /> Nouveau compte courant
         </h2>
 
@@ -156,19 +157,19 @@ export default function NouveauCompteCourantPage() {
             <div className="w-16 h-16 rounded-2xl bg-emerald-50 flex items-center justify-center mx-auto">
               <CheckCircle2 className="w-9 h-9 text-emerald-600" />
             </div>
-            <h3 className="text-lg font-bold text-gray-900">
+            <h3 className="text-lg font-bold text-slate-900">
               {cree.libelle ? `Compte « ${cree.libelle} » ouvert` : `Compte ouvert pour ${selected?.prenom} ${selected?.nom}`}
             </h3>
             <div className="bg-slate-50 rounded-xl border border-slate-200 p-5 inline-block text-left">
               <div className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-2 text-sm">
-                <span className="text-gray-500">Type de compte</span>
-                <span className="font-semibold text-gray-800">{TYPES_COMPTE.find((t) => t.value === cree.typeCompte)?.label ?? cree.typeCompte}{cree.typeCompte !== "INDIVIDUEL" && membres.length > 0 ? ` · ${membres.length + 1} membres` : ""}</span>
-                <span className="text-gray-500">Numéro de compte</span>
+                <span className="text-slate-500">Type de compte</span>
+                <span className="font-semibold text-slate-800">{TYPES_COMPTE.find((t) => t.value === cree.typeCompte)?.label ?? cree.typeCompte}{cree.typeCompte !== "INDIVIDUEL" && membres.length > 0 ? ` · ${membres.length + 1} membres` : ""}</span>
+                <span className="text-slate-500">Numéro de compte</span>
                 <span className="font-mono font-bold text-emerald-700 text-base">{cree.numeroCompte}</span>
-                <span className="text-gray-500">RIB complet</span>
-                <span className="font-mono font-semibold text-gray-800">{cree.ribComplet}</span>
-                <span className="text-gray-500">Agence / Guichet</span>
-                <span className="text-gray-700">{cree.codeAgence} · {cree.codeGuichet} · clé {cree.cleRib}</span>
+                <span className="text-slate-500">RIB complet</span>
+                <span className="font-mono font-semibold text-slate-800">{cree.ribComplet}</span>
+                <span className="text-slate-500">Agence / Guichet</span>
+                <span className="text-slate-700">{cree.codeAgence} · {cree.codeGuichet} · clé {cree.cleRib}</span>
               </div>
             </div>
             <div className="flex items-center justify-center gap-3 pt-2">
@@ -176,17 +177,16 @@ export default function NouveauCompteCourantPage() {
                 className="px-5 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 text-sm font-medium">
                 Voir le compte
               </Link>
-              <button onClick={() => { setCree(null); setSelected(null); setSearchInput(""); setTypeCompte("INDIVIDUEL"); setLibelle(""); setMembres([]); }}
-                className="px-5 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl hover:bg-slate-50 text-sm font-medium">
+              <Button variant="secondary" onClick={() => { setCree(null); setSelected(null); setSearchInput(""); setTypeCompte("INDIVIDUEL"); setLibelle(""); setMembres([]); }}>
                 Ouvrir un autre compte
-              </button>
+              </Button>
             </div>
           </div>
         ) : (
-          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-5">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-5">
             {/* 1. Type de compte (CDC §19.A) */}
             <div>
-              <p className="text-sm font-semibold text-gray-700 mb-2">1. Type de compte</p>
+              <p className="text-sm font-semibold text-slate-700 mb-2">1. Type de compte</p>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 {TYPES_COMPTE.map((t) => {
                   const Icon = t.icon;
@@ -205,41 +205,41 @@ export default function NouveauCompteCourantPage() {
             </div>
 
             <div>
-              <p className="text-sm font-semibold text-gray-700 mb-2">
+              <p className="text-sm font-semibold text-slate-700 mb-2">
                 2. {estCollectif ? "Titulaire principal (représentant)" : "Sélectionner le client"}
               </p>
               {!selected ? (
                 <div className="relative">
                   <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                     <input
                       autoFocus value={searchInput} onChange={(e) => setSearchInput(e.target.value)}
                       placeholder="Rechercher par nom, téléphone ou code client…"
-                      className="w-full pl-9 pr-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-gray-50"
+                      className="w-full pl-9 pr-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50"
                     />
-                    {searching && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 animate-spin" />}
+                    {searching && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 animate-spin" />}
                   </div>
                   {results.length > 0 && (
-                    <div className="mt-2 border border-gray-100 rounded-xl divide-y divide-gray-50 overflow-hidden">
+                    <div className="mt-2 border border-slate-100 rounded-xl divide-y divide-slate-50 overflow-hidden">
                       {results.map((c) => (
                         <button key={c.id} onClick={() => { setSelected(c); setResults([]); }}
                           className="w-full text-left px-4 py-2.5 hover:bg-emerald-50/50 flex items-center justify-between">
                           <span>
-                            <span className="font-medium text-gray-800">{c.prenom} {c.nom}</span>
-                            <span className="text-xs text-gray-400 ml-2">{c.telephone}{c.codeClient ? ` · ${c.codeClient}` : ""}</span>
+                            <span className="font-medium text-slate-800">{c.prenom} {c.nom}</span>
+                            <span className="text-xs text-slate-400 ml-2">{c.telephone}{c.codeClient ? ` · ${c.codeClient}` : ""}</span>
                           </span>
-                          <span className="text-xs text-gray-400">{c.commune || c.ville || ""}</span>
+                          <span className="text-xs text-slate-400">{c.commune || c.ville || ""}</span>
                         </button>
                       ))}
                     </div>
                   )}
                   {searchInput.trim().length >= 2 && !searching && results.length === 0 && (
-                    <p className="text-xs text-gray-400 mt-2">Aucun client trouvé.</p>
+                    <p className="text-xs text-slate-400 mt-2">Aucun client trouvé.</p>
                   )}
                 </div>
               ) : (
                 <div className="rounded-xl border border-emerald-200 bg-emerald-50/40 p-4 relative">
-                  <button onClick={() => setSelected(null)} className="absolute top-3 right-3 text-gray-400 hover:text-gray-600" title="Changer de client">
+                  <button onClick={() => setSelected(null)} className="absolute top-3 right-3 text-slate-400 hover:text-slate-600" title="Changer de client">
                     <X className="w-4 h-4" />
                   </button>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-2 gap-x-6 text-sm">
@@ -259,7 +259,7 @@ export default function NouveauCompteCourantPage() {
             {/* 3. Compte collectif : libellé + membres (CDC §19.A) */}
             {selected && estCollectif && (
               <div className="rounded-xl border border-indigo-200 bg-indigo-50/30 p-4 space-y-4">
-                <p className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                <p className="text-sm font-semibold text-slate-700 flex items-center gap-2">
                   <Users className="w-4 h-4 text-indigo-600" /> 3. Compte collectif
                 </p>
                 <label className="block">
@@ -273,11 +273,11 @@ export default function NouveauCompteCourantPage() {
                   <span className="text-xs font-semibold text-slate-500">Membres additionnels <span className="font-normal text-slate-400">(optionnel — le titulaire est déjà membre)</span></span>
                   {/* Recherche membre */}
                   <div className="relative mt-1">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                     <input value={memberSearch} onChange={(e) => setMemberSearch(e.target.value)}
                       placeholder="Ajouter un membre par nom, téléphone ou code…"
                       className="w-full pl-9 pr-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-                    {memberSearching && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 animate-spin" />}
+                    {memberSearching && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 animate-spin" />}
                   </div>
                   {memberResults.length > 0 && (
                     <div className="mt-2 border border-slate-100 rounded-xl divide-y divide-slate-50 overflow-hidden bg-white">
@@ -285,8 +285,8 @@ export default function NouveauCompteCourantPage() {
                         <button key={c.id} type="button" onClick={() => ajouterMembre(c)}
                           className="w-full text-left px-4 py-2.5 hover:bg-indigo-50/50 flex items-center justify-between">
                           <span>
-                            <span className="font-medium text-gray-800">{c.prenom} {c.nom}</span>
-                            <span className="text-xs text-gray-400 ml-2">{c.telephone}{c.codeClient ? ` · ${c.codeClient}` : ""}</span>
+                            <span className="font-medium text-slate-800">{c.prenom} {c.nom}</span>
+                            <span className="text-xs text-slate-400 ml-2">{c.telephone}{c.codeClient ? ` · ${c.codeClient}` : ""}</span>
                           </span>
                           <UserPlus className="w-4 h-4 text-indigo-500" />
                         </button>
@@ -299,9 +299,9 @@ export default function NouveauCompteCourantPage() {
                     <ul className="mt-3 space-y-2">
                       {membres.map((m) => (
                         <li key={m.client.id} className="flex items-center gap-2 bg-white rounded-xl border border-slate-200 px-3 py-2">
-                          <span className="flex-1 min-w-0 text-sm text-gray-800 truncate">
+                          <span className="flex-1 min-w-0 text-sm text-slate-800 truncate">
                             {m.client.prenom} {m.client.nom}
-                            <span className="text-xs text-gray-400 ml-1">{m.client.telephone}</span>
+                            <span className="text-xs text-slate-400 ml-1">{m.client.telephone}</span>
                           </span>
                           <select value={m.role} onChange={(e) => majMembre(m.client.id, { role: e.target.value as RoleMembre })}
                             className="text-xs border border-slate-200 rounded-lg px-2 py-1.5 bg-slate-50">
@@ -325,8 +325,8 @@ export default function NouveauCompteCourantPage() {
             {/* Dépôt d'ouverture (optionnel) */}
             {selected && (
               <div>
-                <p className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-                  <Banknote className="w-4 h-4 text-emerald-600" /> {estCollectif ? "4" : "3"}. Dépôt d&apos;ouverture <span className="font-normal text-gray-400">(optionnel)</span>
+                <p className="text-sm font-semibold text-slate-700 mb-2 flex items-center gap-2">
+                  <Banknote className="w-4 h-4 text-emerald-600" /> {estCollectif ? "4" : "3"}. Dépôt d&apos;ouverture <span className="font-normal text-slate-400">(optionnel)</span>
                 </p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <label className="block">
@@ -346,7 +346,7 @@ export default function NouveauCompteCourantPage() {
                     </select>
                   </label>
                 </div>
-                <p className="text-[11px] text-gray-400 mt-2">
+                <p className="text-[11px] text-slate-400 mt-2">
                   {minOuverture != null && minOuverture > 0
                     ? `Laisser vide pour ouvrir sans dépôt. Si renseigné, minimum ${minOuverture.toLocaleString("fr-FR")} FCFA.`
                     : "Laisser vide pour ouvrir le compte à solde nul."}
@@ -355,14 +355,12 @@ export default function NouveauCompteCourantPage() {
             )}
 
             <div className="pt-1">
-              <p className="text-xs text-gray-400 mb-3">
+              <p className="text-xs text-slate-400 mb-3">
                 Le numéro de compte (12 chiffres) et la clé RIB seront générés automatiquement à l&apos;ouverture.
               </p>
-              <button onClick={ouvrir} disabled={!selected || submitting}
-                className="inline-flex items-center gap-2 px-6 py-3 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl text-sm font-semibold shadow-sm">
-                {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wallet className="w-4 h-4" />}
+              <Button onClick={ouvrir} disabled={!selected} loading={submitting} icon={<Wallet className="w-4 h-4" />}>
                 Ouvrir le compte courant
-              </button>
+              </Button>
             </div>
           </div>
         )}
@@ -377,8 +375,8 @@ function Info({ icon, label, value }: { icon: React.ReactNode; label: string; va
     <div className="flex items-start gap-2">
       <span className="text-emerald-500 mt-0.5">{icon}</span>
       <div>
-        <p className="text-[11px] text-gray-500">{label}</p>
-        <p className="font-medium text-gray-800">{value}</p>
+        <p className="text-[11px] text-slate-500">{label}</p>
+        <p className="font-medium text-slate-800">{value}</p>
       </div>
     </div>
   );

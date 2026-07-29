@@ -1,0 +1,391 @@
+Ce qui existe déjà (bonnes surprises)
+
+  - Un mode sombre existe déjà, entièrement fonctionnel (data-theme="dark" + une
+  longue liste d'overrides !important par classe Tailwind dans globals.css). Le
+  point 10 du cahier est donc largement déjà couvert — mais l'approche actuelle
+  (patcher chaque classe Tailwind une par une) est fragile et illustre
+  justement le genre de dette qu'un vrai design system à base de tokens
+  sémantiques (bg-surface, text-primary...) est censé éliminer.
+  - Une couleur de marque est déjà définie (--color-brand-50 à 900), mais elle
+  est verte (dérivée du logo AfriSime : "vert panier", "vert forêt"), alors que
+  le cahier des charges annonce un bleu principal. C'est une vraie contradiction
+  à trancher, pas un détail.
+  - Quelques animations discrètes existent déjà (fadeInUp, popIn...) — la
+  demande du point 11 est donc partiellement entamée.
+
+  Un problème concret déjà présent (à corriger de toute façon)
+
+  app/layout.tsx charge la police Geist (reste du template create-next-app,
+  title: "Create Next App" toujours en place), mais globals.css force body {
+  font-family: Arial, Helvetica, sans-serif; } qui écrase tout. Et les pages qui
+  utilisent font-['DM_Sans',sans-serif] en inline (vu dans clients/page.tsx par
+  ex.) ne chargent jamais réellement DM Sans nulle part — donc aujourd'hui,
+  toute l'appli s'affiche en Arial système, pas dans la police que la mémoire du
+  projet croit utiliser. Premier quick-win gratuit du redesign : charger une
+  vraie police et l'appliquer partout, une fois.
+
+  Contradictions / zones floues du cahier des charges
+
+  1. Bleu vs Vert — déjà mentionné : à trancher en premier, ça détermine toute
+  la palette.
+  2. Références stylistiques contradictoires entre elles — Notion/ClickUp
+  (minimaliste, aéré, peu dense) et SAP Fiori/Odoo Enterprise/Dynamics 365
+  (denses, orientés tableaux de gestion) tirent dans des directions opposées.
+  AfriGes a des écrans très denses en données (tableaux de crédits, paie,
+  RIA...) — copier Notion littéralement casserait la densité d'info dont vos
+  gestionnaires ont besoin. Il faut une référence dominante, pas 8 en parallèle.
+  3. "Sans modifier les fonctionnalités" répété partout, mais des points comme
+  "réduire les clics inutiles" (§4) ou "actions regroupées" dans les tableaux
+  (§6) sont déjà des micro-changements de comportement/organisation, pas juste
+  visuels. Bonne nouvelle pour vous, mais ça dépasse formellement le périmètre
+  "graphique uniquement" annoncé en §1-2.
+  4. Livrables §14 pensés pour un vrai prestataire externe (Figma, prototype
+  interactif, assets livrés à une "équipe de dev" séparée) — hors sujet ici
+  puisque c'est moi qui code directement dans le repo. Pas besoin de maquettes
+  Figma intermédiaires sauf si vous le souhaitez explicitement pour valider
+  avant codage.
+  5. Aucune priorisation/phasage. Le cahier parle de "toutes les interfaces",
+  "chaque écran" — mais ce projet compte des centaines de routes (RH, RIA, POPC,
+  Catalogue, Comptes Courants, Messagerie...). Un big-bang complet est risqué :
+  ça peut casser des choses qui marchent, et ça ne peut objectivement pas être
+  livré en un seul passage sans revalidation. Il faut un ordre de priorité.
+
+  Mon retour sur l'approche
+
+  Je recommande : poser le design system une fois (tokens
+  couleur/typo/espacement/radius/ombres + 5-6 composants primitifs : bouton,
+  champ, carte, tableau, modal, badge), l'appliquer d'abord à la coquille
+  globale (sidebar, barre du haut, dashboard — le plus visible, le plus
+  rentable), puis dérouler module par module en gardant l'appli utilisable à
+  chaque étape — plutôt qu'un chantier monolithique.
+
+  Sur les icônes : le cahier hésite entre Lucide et Phosphor — Lucide est déjà
+  utilisé partout dans le code (des centaines d'imports). Remplacer par Phosphor
+  serait un chantier de migration pur sans aucun gain visuel, à éviter.
+
+● User answered Claude's questions:
+  ⎿  · Couleur principale : on garde le vert AfriSime déjà en place (identité du
+     logo), ou on bascule vraiment vers le bleu principal annoncé dans le
+     cahier des charges ? → Basculer vers le bleu comme couleur principale
+     · Quelle référence de style doit dominer, vu que les 8 exemples cités
+     (Notion, SAP Fiori, Stripe...) tirent dans des directions différentes et
+     qu'AfriGes a des écrans très denses (tableaux de crédits, paie, RIA) ? →
+     Style épuré type Stripe Dashboard / Linear (recommandé)
+     · Comment veux-tu qu'on procède concrètement pour l'exécution ? → Design
+     system d'abord, puis coquille globale, puis module par module (recommandé)
+
+● Entered plan mode
+  Claude is now exploring and designing an implementation approach.
+
+● Explore(Explore current shell and design tokens)
+  ⎿  Backgrounded agent (↓ to manage · ctrl+o to expand)
+
+● J'explore la coquille actuelle (sidebar, barre du haut, login, dashboard) pour
+  ancrer le plan dans le code réel. Je reviens dès que le rapport arrive.
+
+✻ Waiting for 1 background agent to finish
+
+● Agent "Explore current shell and design tokens" finished · 1m 55s
+
+● Updated plan
+  ⎿  /plan to preview
+
+────────────────────────────────────────────────────────────────────────────────
+ Ready to code?
+
+ Here is Claude's plan:
+╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
+ Refonte UX/UI AfriGes — Milestone 1 : Design System + Coquille globale + Login
+ + Dashboard
+
+ Contexte
+
+ Le cahier des charges demande une refonte graphique complète (aucun changement
+ fonctionnel) inspirée de Stripe Dashboard / Linear (validé avec
+ l'utilisateur), avec le bleu comme couleur principale (validé — la couleur
+ brand verte actuelle, dérivée du logo AfriSime, devient secondaire/accent).
+ L'utilisateur a validé la méthode : design system d'abord → coquille globale →
+ module par module, dans des sessions séparées plutôt qu'un big-bang.
+
+ État des lieux réel du code (vérifié, pas supposé) :
+ - Police : app/layout.tsx charge Geist mais app/globals.css force body {
+ font-family: Arial, Helvetica, sans-serif } — la police effectivement affichée
+ aujourd'hui est Arial système, pas Geist ni "DM Sans" (jamais chargée malgré
+ des classes font-['DM_Sans',...] éparses dans certaines pages). metadata.title
+ est toujours "Create Next App" (reste du template).
+ - Couleurs : --color-brand-* (vert, app/globals.css:22-37) déjà défini via
+ @theme inline (Tailwind v4, pas de fichier tailwind.config.*). Neutres :
+ slate-* domine à 82% (20905 occurrences) contre gray-* (4638) — slate est le
+ standard de fait, gray est l'exception (surtout page login).
+ - Mode sombre : déjà implémenté (html[data-theme="dark"], overrides !important
+ par classe Tailwind littérale dans globals.css) — fonctionnel mais fragile ;
+ à terme les nouveaux composants doivent utiliser des tokens sémantiques plutôt
+ que ce pattern, mais on ne touche pas à l'existant hors du périmètre de ce
+ Milestone.
+ - Coquille globale (sidebar + topbar) : elle n'existe PAS de façon
+ persistante. Elle est codée en dur à l'intérieur de
+ components/DashboardClient.tsx (lignes 483-587, fichier monolithique de 1330
+ lignes) et n'apparaît que sur /dashboard/admin — toutes les autres pages admin
+ n'ont ni sidebar ni topbar (seulement un bouton de compte flottant via
+ AccountMenuButton dans app/dashboard/admin/layout.tsx). La sidebar actuelle ne
+ détecte même pas la route active via usePathname() (sauf "Tableau de bord",
+ codé en dur).
+ - Boutons/rayons/ombres : forte incohérence confirmée (couleurs
+ blue-600/emerald-600/indigo-600/violet-600 sans logique, rayons
+ rounded-lg/rounded-xl mélangés, paddings variables, ombres parfois en rgba()
+ arbitraire).
+ - Page login (app/auth/login/LoginClient.tsx) : palette émeraude/verte isolée,
+ rounded-3xl unique au projet, emoji 🙈/👁️ au lieu d'icônes Lucide, gray-* au
+ lieu de slate-*.
+ - Le travail précédent (onglets verticaux components/ui/SideTabs.tsx) reste la
+ navigation de niveau 2 (à l'intérieur d'un module : Clientèle, RIA, POPC). La
+ nouvelle sidebar globale devient la navigation de niveau 1 (entre modules),
+ sans dupliquer ni casser SideTabs.
+
+ Périmètre de ce Milestone (explicitement borné)
+
+ Inclus : tokens du design system, primitives UI de base, coquille globale
+ (sidebar niveau 1 + topbar) appliquée à app/dashboard/admin/**, refonte de la
+ page Login et de la page Dashboard admin (les deux écrans cités en exemple au
+ §7 du cahier).
+
+ Exclu (sessions futures, module par module) : Clients, Fournisseurs, Produits,
+ Stock, Ventes, RH, RIA, POPC, Catalogue, Comptes Courants, Paramètres, etc. —
+ et les dashboards des autres rôles (dashboard/user/**). Ne pas s'y attaquer
+ dans ce Milestone.
+
+ 1. Design tokens (app/globals.css, extension du bloc @theme inline existant)
+
+ - Police unique : Inter (next/font/google, remplace Geist dans
+ app/layout.tsx), assignée à --font-sans. Suppression du font-family: Arial...
+ forcé sur body. Fix metadata (title "AfriGes", description correcte).
+ - Couleur primaire (bleu) : nouvelle échelle --color-primary-50 → 900 (bleu,
+ valeurs proches de la palette Tailwind blue, éprouvée et lisible) ajoutée à
+ côté de --color-brand-* existant (vert, devient secondaire/accent). Orange en
+ accent tertiaire (--color-accent-*, usage ponctuel : highlights, promos).
+ - États sémantiques : --color-success (emerald), --color-error (red),
+ --color-warning (amber), --color-info (= primary bleu) — alias clairs pour les
+ futurs composants, pas de nouvelle palette de zéro.
+ - Neutres : on standardise sur slate-* (déjà dominant) — pas de nouvelle
+ échelle neutre à inventer.
+ - Règle radius (convention documentée, pas de nouveau token CSS) : rounded-xl
+ pour contrôles (boutons, champs, badges), rounded-2xl pour conteneurs (cards,
+ modals, panneaux). On arrête rounded-lg/rounded-3xl sur tout nouveau
+ composant.
+ - Règle ombre : shadow-sm (repos), shadow-md (hover cards),
+ shadow-lg/shadow-xl (modals/dropdowns) — on arrête les shadow-[...]
+ arbitraires en rgba().
+
+ 2. Primitives UI (components/ui/, nouveaux fichiers)
+
+ Composants réutilisables, purement présentationnels (aucune logique métier),
+ pour que les modules futurs les adoptent progressivement sans réécrire leur
+ logique de données :
+ - Button.tsx — variants primary/secondary/ghost/danger/success, tailles
+ sm/md/lg, états loading/disabled, slot icône.
+ - Input.tsx — label, message d'erreur, icône, focus ring bleu primaire.
+ - Card.tsx — conteneur rounded-2xl bg-white shadow-sm border border-slate-200.
+ - KpiCard.tsx — icône + couleur + valeur + évolution (répond explicitement au
+ §6 "Cartes" du cahier), réutilise AnimatedNumber si déjà présent dans le code.
+ - Badge.tsx — variants success/error/warning/info/neutral.
+ - Modal.tsx — overlay backdrop-blur, animation d'entrée (réutilise le keyframe
+ popIn déjà défini dans globals.css), bouton fermer, tailles sm/md/lg.
+
+ Chaque primitive supporte le mode sombre via les classes dark: (Tailwind v4,
+ variant déjà configuré @variant dark dans globals.css) plutôt que de dépendre
+ des overrides !important existants.
+
+ 3. Coquille globale (niveau 1 de navigation)
+
+ - components/ui/AdminSidebar.tsx (nouveau) : sidebar persistante, sections
+ identiques à celles déjà définies dans DashboardClient.tsx:498-587 (Principal,
+ Clientèle, Packs & ventes, Commerce, RH, RIA, POPC, Admin/Superadmin) mais
+ redessinée (tokens du design system) et avec détection réelle de la route
+ active via usePathname() pour tous les items (pas seulement "Tableau de
+ bord").
+ - components/ui/AdminTopbar.tsx (nouveau) : logo, emplacement recherche (UI
+ seule dans ce Milestone — pas de logique de recherche globale à construire,
+ hors périmètre "aucun changement fonctionnel"), NotificationBell,
+ AccountMenuButton, UserPdvBadge (composants déjà existants, réutilisés tels
+ quels).
+ - Montage dans app/dashboard/admin/layout.tsx : la sidebar/topbar entourent
+ {children} pour que toutes les pages app/dashboard/admin/** en bénéficient
+ (pas seulement le dashboard). Les sous-navigations déjà en place
+ (ClienteleTabBar, layout RIA, PopcTabs) restent intactes à l'intérieur — elles
+ deviennent la navigation de niveau 2, sans changement de leur code.
+ - components/DashboardClient.tsx : la sidebar/topbar codées en dur (lignes
+ 483-587) sont retirées de ce fichier (déplacées vers le layout) ; le reste du
+ fichier (KPI, graphiques, activité) est conservé et migré vers les nouvelles
+ primitives au point 4.
+
+ 4. Refonte des deux écrans cités en exemple (§7 du cahier)
+
+ - Login (app/auth/login/LoginClient.tsx) : remplacement de la palette émeraude
+ isolée par les tokens du design system (bleu primaire), rounded-2xl au lieu
+ de rounded-3xl, remplacement des emojis 🙈/👁️ par des icônes Lucide
+ (Eye/EyeOff, déjà la bibliothèque standard du projet), utilisation des
+ primitives Button/Input. Aucun changement de logique d'authentification.
+ - Dashboard admin (components/DashboardClient.tsx) : cartes KPI migrées vers
+ KpiCard, boutons vers Button, sections réorganisées avec Card. Les appels API
+ existants (useApi vers /api/admin/dashboard, /api/admin/activity,
+ /api/admin/dashboard/decisional) et toute la logique de calcul restent
+ strictement inchangés — seule la présentation change, conformément au cahier.
+
+
+ Login + Dashboard
+
+     Contexte
+
+     Le cahier des charges demande une refonte graphique complète (aucun
+     changement fonctionnel) inspirée de Stripe Dashboard / Linear (validé avec
+     l'utilisateur), avec le bleu comme couleur principale (validé — la couleur
+     brand verte actuelle, dérivée du logo AfriSime, devient secondaire/accent).
+     L'utilisateur a validé la méthode : design system d'abord → coquille
+     globale → module par module, dans des sessions séparées plutôt qu'un
+     big-bang.
+
+     État des lieux réel du code (vérifié, pas supposé) :
+     - Police : app/layout.tsx charge Geist mais app/globals.css force body {
+     font-family: Arial, Helvetica, sans-serif } — la police effectivement
+     affichée aujourd'hui est Arial système, pas Geist ni "DM Sans" (jamais
+     chargée malgré des classes font-['DM_Sans',...] éparses dans certaines
+     pages). metadata.title est toujours "Create Next App" (reste du template).
+     - Couleurs : --color-brand-* (vert, app/globals.css:22-37) déjà défini via
+     @theme inline (Tailwind v4, pas de fichier tailwind.config.*). Neutres :
+     slate-* domine à 82% (20905 occurrences) contre gray-* (4638) — slate est
+     le standard de fait, gray est l'exception (surtout page login).
+     - Mode sombre : déjà implémenté (html[data-theme="dark"], overrides
+     !important par classe Tailwind littérale dans globals.css) — fonctionnel
+     mais fragile ; à terme les nouveaux composants doivent utiliser des tokens
+     sémantiques plutôt que ce pattern, mais on ne touche pas à l'existant hors
+     du périmètre de ce Milestone.
+     - Coquille globale (sidebar + topbar) : elle n'existe PAS de façon
+     persistante. Elle est codée en dur à l'intérieur de
+     components/DashboardClient.tsx (lignes 483-587, fichier monolithique de
+     1330 lignes) et n'apparaît que sur /dashboard/admin — toutes les autres
+     pages admin n'ont ni sidebar ni topbar (seulement un bouton de compte
+     flottant via AccountMenuButton dans app/dashboard/admin/layout.tsx). La
+     sidebar actuelle ne détecte même pas la route active via usePathname()
+     (sauf "Tableau de bord", codé en dur).
+     - Boutons/rayons/ombres : forte incohérence confirmée (couleurs
+     blue-600/emerald-600/indigo-600/violet-600 sans logique, rayons
+     rounded-lg/rounded-xl mélangés, paddings variables, ombres parfois en
+     rgba() arbitraire).
+     - Page login (app/auth/login/LoginClient.tsx) : palette émeraude/verte
+     isolée, rounded-3xl unique au projet, emoji 🙈/👁️ au lieu d'icônes Lucide,
+     gray-* au lieu de slate-*.
+     - Le travail précédent (onglets verticaux components/ui/SideTabs.tsx) reste
+     la navigation de niveau 2 (à l'intérieur d'un module : Clientèle, RIA,
+     POPC). La nouvelle sidebar globale devient la navigation de niveau 1 (entre
+     modules), sans dupliquer ni casser SideTabs.
+
+     Périmètre de ce Milestone (explicitement borné)
+
+     Inclus : tokens du design system, primitives UI de base, coquille globale
+     (sidebar niveau 1 + topbar) appliquée à app/dashboard/admin/**, refonte de
+     la page Login et de la page Dashboard admin (les deux écrans cités en
+     exemple au §7 du cahier).
+
+     Exclu (sessions futures, module par module) : Clients, Fournisseurs,
+     Produits, Stock, Ventes, RH, RIA, POPC, Catalogue, Comptes Courants,
+     Paramètres, etc. — et les dashboards des autres rôles (dashboard/user/**).
+     Ne pas s'y attaquer dans ce Milestone.
+
+     1. Design tokens (app/globals.css, extension du bloc @theme inline
+     existant)
+
+     - Police unique : Inter (next/font/google, remplace Geist dans
+     app/layout.tsx), assignée à --font-sans. Suppression du font-family:
+     Arial... forcé sur body. Fix metadata (title "AfriGes", description
+     correcte).
+     - Couleur primaire (bleu) : nouvelle échelle --color-primary-50 → 900
+     (bleu, valeurs proches de la palette Tailwind blue, éprouvée et lisible)
+     ajoutée à côté de --color-brand-* existant (vert, devient
+     secondaire/accent). Orange en accent tertiaire (--color-accent-*, usage
+     ponctuel : highlights, promos).
+     - États sémantiques : --color-success (emerald), --color-error (red),
+     --color-warning (amber), --color-info (= primary bleu) — alias clairs pour
+     les futurs composants, pas de nouvelle palette de zéro.
+     - Neutres : on standardise sur slate-* (déjà dominant) — pas de nouvelle
+     échelle neutre à inventer.
+     - Règle radius (convention documentée, pas de nouveau token CSS) :
+     rounded-xl pour contrôles (boutons, champs, badges), rounded-2xl pour
+     conteneurs (cards, modals, panneaux). On arrête rounded-lg/rounded-3xl sur
+     tout nouveau composant.
+     - Règle ombre : shadow-sm (repos), shadow-md (hover cards),
+     shadow-lg/shadow-xl (modals/dropdowns) — on arrête les shadow-[...]
+     arbitraires en rgba().
+
+     2. Primitives UI (components/ui/, nouveaux fichiers)
+
+     Composants réutilisables, purement présentationnels (aucune logique
+     métier), pour que les modules futurs les adoptent progressivement sans
+     réécrire leur logique de données :
+     - Button.tsx — variants primary/secondary/ghost/danger/success, tailles
+     sm/md/lg, états loading/disabled, slot icône.
+     - Input.tsx — label, message d'erreur, icône, focus ring bleu primaire.
+     - Card.tsx — conteneur rounded-2xl bg-white shadow-sm border
+     border-slate-200.
+     - KpiCard.tsx — icône + couleur + valeur + évolution (répond explicitement
+     au §6 "Cartes" du cahier), réutilise AnimatedNumber si déjà présent dans le
+     code.
+     - Badge.tsx — variants success/error/warning/info/neutral.
+     - Modal.tsx — overlay backdrop-blur, animation d'entrée (réutilise le
+     keyframe popIn déjà défini dans globals.css), bouton fermer, tailles
+     sm/md/lg.
+
+     Chaque primitive supporte le mode sombre via les classes dark: (Tailwind
+     v4, variant déjà configuré @variant dark dans globals.css) plutôt que de
+     dépendre des overrides !important existants.
+
+     3. Coquille globale (niveau 1 de navigation)
+
+     - components/ui/AdminSidebar.tsx (nouveau) : sidebar persistante, sections
+     identiques à celles déjà définies dans DashboardClient.tsx:498-587
+     (Principal, Clientèle, Packs & ventes, Commerce, RH, RIA, POPC,
+     Admin/Superadmin) mais redessinée (tokens du design system) et avec
+     détection réelle de la route active via usePathname() pour tous les items
+     (pas seulement "Tableau de bord").
+     - components/ui/AdminTopbar.tsx (nouveau) : logo, emplacement recherche (UI
+     seule dans ce Milestone — pas de logique de recherche globale à
+     construire, hors périmètre "aucun changement fonctionnel"),
+     NotificationBell, AccountMenuButton, UserPdvBadge (composants déjà
+     existants, réutilisés tels quels).
+     - Montage dans app/dashboard/admin/layout.tsx : la sidebar/topbar entourent
+     {children} pour que toutes les pages app/dashboard/admin/** en bénéficient
+     (pas seulement le dashboard). Les sous-navigations déjà en place
+     (ClienteleTabBar, layout RIA, PopcTabs) restent intactes à l'intérieur —
+     elles deviennent la navigation de niveau 2, sans changement de leur code.
+     - components/DashboardClient.tsx : la sidebar/topbar codées en dur (lignes
+     483-587) sont retirées de ce fichier (déplacées vers le layout) ; le reste
+     du fichier (KPI, graphiques, activité) est conservé et migré vers les
+     nouvelles primitives au point 4.
+
+     4. Refonte des deux écrans cités en exemple (§7 du cahier)
+
+     - Login (app/auth/login/LoginClient.tsx) : remplacement de la palette
+     émeraude isolée par les tokens du design system (bleu primaire),
+     rounded-2xl au lieu de rounded-3xl, remplacement des emojis 🙈/👁️ par des
+     icônes Lucide (Eye/EyeOff, déjà la bibliothèque standard du projet),
+     utilisation des primitives Button/Input. Aucun changement de logique
+     d'authentification.
+     - Dashboard admin (components/DashboardClient.tsx) : cartes KPI migrées
+     vers KpiCard, boutons vers Button, sections réorganisées avec Card. Les
+     appels API existants (useApi vers /api/admin/dashboard,
+     /api/admin/activity, /api/admin/dashboard/decisional) et toute la logique
+     de calcul restent strictement inchangés — seule la présentation change,
+     conformément au cahier.
+
+     Vérification
+
+     - npm run build (règle du projet) après chaque étape (tokens, primitives,
+     shell, login, dashboard) pour repérer vite toute régression.
+     - Vérification visuelle via npm run dev : contrôler que la sidebar/topbar
+     apparaissent bien sur plusieurs pages admin différentes (pas seulement le
+     dashboard) et que les sous-navigations déjà en place (Clientèle, RIA, POPC)
+     fonctionnent toujours normalement à l'intérieur.
+     - Basculer le mode sombre (déjà existant) sur les écrans retouchés pour
+     confirmer qu'il n'est pas cassé par les nouvelles primitives.
+     - Aucun changement de logique métier, API, permissions ou données —
+     uniquement présentation, conformément au périmètre du cahier des charges.
+

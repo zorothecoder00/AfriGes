@@ -16,29 +16,33 @@ export default function Modal({
   onClose,
   title,
   size = "md",
+  /** Personnalisable pour empiler une modale (ex: confirmation) au-dessus d'une autre déjà ouverte. */
+  zIndex = 100,
   children,
 }: {
   open: boolean;
   onClose: () => void;
   title?: string;
   size?: Size;
+  zIndex?: number;
   children: ReactNode;
 }) {
   if (!open) return null;
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4"
+      className="fixed inset-0 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4"
+      style={{ zIndex }}
       onClick={onClose}
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className={`w-full ${SIZE_CLASSES[size]} rounded-2xl bg-white shadow-xl border border-slate-200
+        className={`w-full ${SIZE_CLASSES[size]} max-h-[85vh] flex flex-col rounded-2xl bg-white shadow-xl border border-slate-200
           dark:bg-slate-800 dark:border-slate-700
           animate-[popIn_0.18s_ease-out]`}
       >
         {title && (
-          <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-700">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-700 shrink-0">
             <h2 className="text-base font-semibold text-slate-800 dark:text-slate-100">{title}</h2>
             <button
               onClick={onClose}
@@ -49,7 +53,7 @@ export default function Modal({
             </button>
           </div>
         )}
-        <div className="px-6 py-5">{children}</div>
+        <div className="px-6 py-5 overflow-y-auto">{children}</div>
       </div>
     </div>
   );

@@ -10,6 +10,8 @@ import { useApi } from "@/hooks/useApi";
 import { formatCurrency } from "@/lib/format";
 import { exportToXlsx } from "@/lib/exportXlsx";
 import ClienteleTabBar from "@/components/ClienteleTabBar";
+import Button from "@/components/ui/Button";
+import KpiCard from "@/components/ui/KpiCard";
 
 type Granularite = "jour" | "semaine" | "mois" | "annee";
 
@@ -82,46 +84,45 @@ export default function EtatsCCPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 print:bg-white">
+    <div className="min-h-screen bg-slate-50 print:bg-white">
       <ClienteleTabBar>
 
       <div className="p-6 max-w-screen-xl mx-auto space-y-6">
         <div className="flex items-center justify-between flex-wrap gap-3 print:hidden">
           <div>
-            <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+            <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
               <Scale className="w-6 h-6 text-emerald-600" /> États &amp; statistiques — Comptes Courants
             </h2>
-            <p className="text-sm text-gray-500 mt-0.5">Flux par période, évolution des soldes, balance et comptes à surveiller</p>
+            <p className="text-sm text-slate-500 mt-0.5">Flux par période, évolution des soldes, balance et comptes à surveiller</p>
           </div>
           <div className="flex items-center gap-2">
             <Link href="/dashboard/admin/comptes-courants/tableau-de-bord"
-              className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700">
+              className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700">
               <ArrowLeft className="w-4 h-4" /> Tableau de bord
             </Link>
-            <button onClick={() => window.print()}
-              className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl hover:bg-slate-50 text-sm font-medium">
-              <Printer className="w-4 h-4" /> Imprimer / PDF
-            </button>
+            <Button variant="secondary" icon={<Printer className="w-4 h-4" />} onClick={() => window.print()}>
+              Imprimer / PDF
+            </Button>
           </div>
         </div>
 
         {/* Filtres de période */}
-        <div className="bg-white rounded-xl border border-gray-200 p-4 flex flex-wrap items-end gap-4 print:hidden">
-          <div className="flex items-center gap-2 text-gray-500 text-sm font-medium"><Filter className="w-4 h-4" /> Période</div>
+        <div className="bg-white rounded-xl border border-slate-200 p-4 flex flex-wrap items-end gap-4 print:hidden">
+          <div className="flex items-center gap-2 text-slate-500 text-sm font-medium"><Filter className="w-4 h-4" /> Période</div>
           <div>
-            <label className="block text-xs text-gray-500 mb-1">Du</label>
+            <label className="block text-xs text-slate-500 mb-1">Du</label>
             <input type="date" value={from} onChange={(e) => setFrom(e.target.value)}
-              className="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+              className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500" />
           </div>
           <div>
-            <label className="block text-xs text-gray-500 mb-1">Au</label>
+            <label className="block text-xs text-slate-500 mb-1">Au</label>
             <input type="date" value={to} onChange={(e) => setTo(e.target.value)}
-              className="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+              className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500" />
           </div>
           <div>
-            <label className="block text-xs text-gray-500 mb-1">Regroupement</label>
+            <label className="block text-xs text-slate-500 mb-1">Regroupement</label>
             <select value={granularite} onChange={(e) => setGranularite(e.target.value as Granularite)}
-              className="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+              className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500">
               {GRANULARITES.map(([k, v]) => <option key={k} value={k}>{v}</option>)}
             </select>
           </div>
@@ -130,33 +131,33 @@ export default function EtatsCCPage() {
         {/* Titre impression */}
         <div className="hidden print:block">
           <h1 className="text-xl font-bold">AFRISIME — États des Comptes Courants</h1>
-          <p className="text-sm text-gray-600">Période : {fmtDate(from)} → {fmtDate(to)}</p>
+          <p className="text-sm text-slate-600">Période : {fmtDate(from)} → {fmtDate(to)}</p>
         </div>
 
         {loading && !s ? (
-          <div className="flex items-center justify-center py-20 text-gray-400"><Loader2 className="w-6 h-6 animate-spin mr-3" /> Chargement…</div>
+          <div className="flex items-center justify-center py-20 text-slate-400"><Loader2 className="w-6 h-6 animate-spin mr-3" /> Chargement…</div>
         ) : !s ? (
-          <p className="text-center py-20 text-gray-400">Aucune donnée.</p>
+          <p className="text-center py-20 text-slate-400">Aucune donnée.</p>
         ) : (
           <>
             {/* KPIs période */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-              <Kpi label="Solde global (actuel)" value={formatCurrency(s.soldeGlobal)} icon={<Wallet className="w-5 h-5 text-emerald-600" />} bg="bg-emerald-50" />
-              <Kpi label="Dépôts (période)" value={formatCurrency(s.totaux.depots)} icon={<TrendingUp className="w-5 h-5 text-teal-600" />} bg="bg-teal-50" />
-              <Kpi label="Retraits (période)" value={formatCurrency(s.totaux.retraits)} icon={<TrendingDown className="w-5 h-5 text-orange-600" />} bg="bg-orange-50" />
-              <Kpi label="Utilisation achats (période)" value={formatCurrency(s.totaux.utilisations)} icon={<ShoppingCart className="w-5 h-5 text-blue-600" />} bg="bg-blue-50" />
+              <KpiCard label="Solde global (actuel)" value={s.soldeGlobal} format={formatCurrency} icon={<Wallet size={18} />} accent="success" />
+              <KpiCard label="Dépôts (période)" value={s.totaux.depots} format={formatCurrency} icon={<TrendingUp size={18} />} accent="teal" />
+              <KpiCard label="Retraits (période)" value={s.totaux.retraits} format={formatCurrency} icon={<TrendingDown size={18} />} accent="warning" />
+              <KpiCard label="Utilisation achats (période)" value={s.totaux.utilisations} format={formatCurrency} icon={<ShoppingCart size={18} />} accent="primary" />
             </div>
 
             {/* Flux par période */}
             <Card title="Dépôts / Retraits / Utilisations par période" icon={<Activity />} action={
-              <button onClick={exportSeries} className="flex items-center gap-1.5 text-xs px-3 py-1.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 print:hidden">
-                <FileSpreadsheet className="w-3.5 h-3.5" /> Excel
-              </button>
+              <Button variant="success" size="sm" className="print:hidden" icon={<FileSpreadsheet className="w-3.5 h-3.5" />} onClick={exportSeries}>
+                Excel
+              </Button>
             }>
               {s.series.length === 0 ? <Empty /> : (
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
-                    <thead className="text-xs text-gray-400 uppercase border-b border-gray-100">
+                    <thead className="text-xs text-slate-400 uppercase border-b border-slate-100">
                       <tr>
                         <th className="text-left font-semibold py-2 px-2">Période</th>
                         <th className="text-left font-semibold py-2 px-2 w-1/2">Flux</th>
@@ -166,10 +167,10 @@ export default function EtatsCCPage() {
                         <th className="text-right font-semibold py-2 px-2">Net</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-50">
+                    <tbody className="divide-y divide-slate-50">
                       {s.series.map((r) => (
                         <tr key={r.key}>
-                          <td className="py-2 px-2 text-gray-700 whitespace-nowrap">{r.label}</td>
+                          <td className="py-2 px-2 text-slate-700 whitespace-nowrap">{r.label}</td>
                           <td className="py-2 px-2">
                             <div className="flex items-center gap-1 h-4">
                               <span className="bg-teal-400 h-3 rounded-sm" style={{ width: `${(r.depots / maxFlux) * 100}%` }} title={`Dépôts ${formatCurrency(r.depots)}`} />
@@ -200,24 +201,24 @@ export default function EtatsCCPage() {
                       <div className="w-full bg-emerald-100 rounded-t relative flex items-end justify-center" style={{ height: `${(Math.abs(e.cumul) / maxCumul) * 100}%` }}>
                         <span className="w-full bg-emerald-500 rounded-t" style={{ height: "100%" }} />
                       </div>
-                      <span className="text-[9px] text-gray-400 -rotate-45 origin-center whitespace-nowrap mt-1">{e.label}</span>
+                      <span className="text-[9px] text-slate-400 -rotate-45 origin-center whitespace-nowrap mt-1">{e.label}</span>
                     </div>
                   ))}
                 </div>
               )}
-              <p className="text-[11px] text-gray-400 mt-6">Cumul du solde net (dépôts − retraits − utilisations) depuis le début de la période.</p>
+              <p className="text-[11px] text-slate-400 mt-6">Cumul du solde net (dépôts − retraits − utilisations) depuis le début de la période.</p>
             </Card>
 
             {/* Balance des comptes */}
             <Card title="Balance des comptes courants" icon={<Scale />} action={
-              <button onClick={exportBalance} className="flex items-center gap-1.5 text-xs px-3 py-1.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 print:hidden">
-                <FileSpreadsheet className="w-3.5 h-3.5" /> Excel
-              </button>
+              <Button variant="success" size="sm" className="print:hidden" icon={<FileSpreadsheet className="w-3.5 h-3.5" />} onClick={exportBalance}>
+                Excel
+              </Button>
             }>
               {s.balance.length === 0 ? <Empty /> : (
                 <div className="overflow-x-auto max-h-[420px] overflow-y-auto">
                   <table className="w-full text-sm">
-                    <thead className="text-xs text-gray-400 uppercase border-b border-gray-100 sticky top-0 bg-white">
+                    <thead className="text-xs text-slate-400 uppercase border-b border-slate-100 sticky top-0 bg-white">
                       <tr>
                         <th className="text-left font-semibold py-2 px-2">N° compte</th>
                         <th className="text-left font-semibold py-2 px-2">Client</th>
@@ -227,19 +228,19 @@ export default function EtatsCCPage() {
                         <th className="text-right font-semibold py-2 px-2">Solde</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-50">
+                    <tbody className="divide-y divide-slate-50">
                       {s.balance.map((c) => (
-                        <tr key={c.id} className="hover:bg-gray-50/60">
-                          <td className="py-2 px-2 font-mono text-xs text-gray-600">{c.numeroCompte}</td>
-                          <td className="py-2 px-2 text-gray-800">{c.client}</td>
+                        <tr key={c.id} className="hover:bg-slate-50/60">
+                          <td className="py-2 px-2 font-mono text-xs text-slate-600">{c.numeroCompte}</td>
+                          <td className="py-2 px-2 text-slate-800">{c.client}</td>
                           <td className="py-2 px-2 text-right text-teal-700">{formatCurrency(c.totalDepose)}</td>
                           <td className="py-2 px-2 text-right text-orange-700">{formatCurrency(c.totalRetire)}</td>
                           <td className="py-2 px-2 text-right text-blue-700">{formatCurrency(c.totalUtilise)}</td>
-                          <td className="py-2 px-2 text-right font-bold text-gray-900">{formatCurrency(c.solde)}</td>
+                          <td className="py-2 px-2 text-right font-bold text-slate-900">{formatCurrency(c.solde)}</td>
                         </tr>
                       ))}
                     </tbody>
-                    <tfoot className="border-t border-gray-200 font-semibold">
+                    <tfoot className="border-t border-slate-200 font-semibold">
                       <tr>
                         <td className="py-2 px-2" colSpan={5}>Solde global</td>
                         <td className="py-2 px-2 text-right text-emerald-700">{formatCurrency(s.soldeGlobal)}</td>
@@ -256,14 +257,14 @@ export default function EtatsCCPage() {
                 {s.comptesInactifs.length === 0 ? <Empty label="Aucun compte inactif." /> : (
                   <div className="max-h-[360px] overflow-y-auto">
                     <table className="w-full text-sm">
-                      <tbody className="divide-y divide-gray-50">
+                      <tbody className="divide-y divide-slate-50">
                         {s.comptesInactifs.map((c) => (
-                          <tr key={c.id} className="hover:bg-gray-50/60">
+                          <tr key={c.id} className="hover:bg-slate-50/60">
                             <td className="py-2 px-2">
-                              <p className="font-medium text-gray-800">{c.client}</p>
-                              <p className="text-[11px] text-gray-400 font-mono">{c.numeroCompte} · dern. op. {fmtDate(c.derniereOperationAt)}</p>
+                              <p className="font-medium text-slate-800">{c.client}</p>
+                              <p className="text-[11px] text-slate-400 font-mono">{c.numeroCompte} · dern. op. {fmtDate(c.derniereOperationAt)}</p>
                             </td>
-                            <td className="py-2 px-2 text-right font-semibold text-gray-700">{formatCurrency(c.solde)}</td>
+                            <td className="py-2 px-2 text-right font-semibold text-slate-700">{formatCurrency(c.solde)}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -277,14 +278,14 @@ export default function EtatsCCPage() {
                 {s.comptesSuspendus.length === 0 ? <Empty label="Aucun compte suspendu." /> : (
                   <div className="max-h-[360px] overflow-y-auto">
                     <table className="w-full text-sm">
-                      <tbody className="divide-y divide-gray-50">
+                      <tbody className="divide-y divide-slate-50">
                         {s.comptesSuspendus.map((c) => (
-                          <tr key={c.id} className="hover:bg-gray-50/60">
+                          <tr key={c.id} className="hover:bg-slate-50/60">
                             <td className="py-2 px-2">
-                              <p className="font-medium text-gray-800">{c.client}</p>
-                              <p className="text-[11px] text-gray-400 font-mono">{c.numeroCompte}{c.motif ? ` · ${c.motif}` : ""}</p>
+                              <p className="font-medium text-slate-800">{c.client}</p>
+                              <p className="text-[11px] text-slate-400 font-mono">{c.numeroCompte}{c.motif ? ` · ${c.motif}` : ""}</p>
                             </td>
-                            <td className="py-2 px-2 text-right font-semibold text-gray-700">{formatCurrency(c.solde)}</td>
+                            <td className="py-2 px-2 text-right font-semibold text-slate-700">{formatCurrency(c.solde)}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -301,21 +302,12 @@ export default function EtatsCCPage() {
   );
 }
 
-function Kpi({ label, value, icon, bg }: { label: string; value: string; icon: React.ReactNode; bg: string }) {
-  return (
-    <div className="bg-white border border-gray-200 rounded-xl p-4 flex items-center gap-3 shadow-sm">
-      <div className={`${bg} p-2.5 rounded-xl shrink-0`}>{icon}</div>
-      <div><p className="text-xs text-gray-500">{label}</p><p className="font-bold text-gray-900 text-lg">{value}</p></div>
-    </div>
-  );
-}
-
 function Card({ title, icon, action, children }: { title: string; icon: React.ReactNode; action?: React.ReactNode; children: React.ReactNode }) {
   return (
-    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 print:shadow-none print:border-gray-300">
+    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 print:shadow-none print:border-slate-300">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="font-bold text-gray-800 flex items-center gap-2">
-          <span className="text-gray-400 [&>svg]:w-4 [&>svg]:h-4">{icon}</span> {title}
+        <h3 className="font-bold text-slate-800 flex items-center gap-2">
+          <span className="text-slate-400 [&>svg]:w-4 [&>svg]:h-4">{icon}</span> {title}
         </h3>
         {action}
       </div>
@@ -325,5 +317,5 @@ function Card({ title, icon, action, children }: { title: string; icon: React.Re
 }
 
 function Empty({ label = "Aucune donnée sur la période." }: { label?: string }) {
-  return <p className="text-center py-8 text-gray-400 text-sm">{label}</p>;
+  return <p className="text-center py-8 text-slate-400 text-sm">{label}</p>;
 }

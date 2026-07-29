@@ -120,23 +120,23 @@ export default function ClienteleTabBar({ children }: { children?: ReactNode }) 
 
   return (
     <div>
-      <div className="bg-white border-b border-gray-200 px-6 pt-4 pb-3 print:hidden">
+      <div className="bg-white border-b border-slate-200 px-6 pt-4 pb-3 print:hidden">
         {/* Breadcrumb — le retour vers /dashboard/admin n'a de sens que pour un admin */}
         {isAdmin && (
           <div className="flex items-center gap-2 mb-3">
             <Link
               href="/dashboard/admin"
-              className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 transition-colors"
+              className="flex items-center gap-1 text-xs text-slate-400 hover:text-slate-600 transition-colors"
             >
               <ArrowLeft className="w-3 h-3" /> Dashboard
             </Link>
-            <span className="text-gray-300 text-xs">/</span>
-            <span className="text-xs font-semibold text-gray-700">Gestion clientèle</span>
+            <span className="text-slate-300 text-xs">/</span>
+            <span className="text-xs font-semibold text-slate-700">Gestion clientèle</span>
           </div>
         )}
 
         {/* Module title */}
-        <h1 className="text-xl font-bold text-gray-900">Gestion de la clientèle</h1>
+        <h1 className="text-xl font-bold text-slate-900">Gestion de la clientèle</h1>
       </div>
 
       <div className="flex flex-col md:flex-row gap-4 md:gap-6 px-6 py-4 print:block print:p-0">

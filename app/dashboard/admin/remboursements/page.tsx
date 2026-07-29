@@ -10,6 +10,11 @@ import { formatDate, formatCurrency } from '@/lib/format';
 import { exportToXlsx } from '@/lib/exportXlsx';
 import ClienteleTabBar from '@/components/ClienteleTabBar';
 import { useTagModal } from '@/contexts/TagModalContext';
+import Button from '@/components/ui/Button';
+import Badge, { type BadgeVariant } from '@/components/ui/Badge';
+import KpiCard from '@/components/ui/KpiCard';
+import Pagination from '@/components/ui/Pagination';
+
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -63,19 +68,19 @@ const TYPE_VERSEMENT_LABELS: Record<string, string> = {
   AJUSTEMENT: 'Ajustement',
 };
 
-const TYPE_VERSEMENT_BADGE: Record<string, string> = {
-  COTISATION_INITIALE:  'bg-blue-100 text-blue-700',
-  VERSEMENT_PERIODIQUE: 'bg-emerald-100 text-emerald-700',
-  REMBOURSEMENT:        'bg-teal-100 text-teal-700',
-  BONUS:                'bg-purple-100 text-purple-700',
-  AJUSTEMENT:           'bg-amber-100 text-amber-700',
+const TYPE_VERSEMENT_BADGE: Record<string, BadgeVariant> = {
+  COTISATION_INITIALE:  'info',
+  VERSEMENT_PERIODIQUE: 'success',
+  REMBOURSEMENT:        'teal',
+  BONUS:                'purple',
+  AJUSTEMENT:           'warning',
 };
 
-const PACK_TYPE_BADGE: Record<string, string> = {
-  FAMILIAL:        'bg-purple-100 text-purple-700',
-  URGENCE:         'bg-red-100 text-red-700',
-  REVENDEUR:       'bg-blue-100 text-blue-700',
-  EPARGNE_PRODUIT: 'bg-teal-100 text-teal-700',
+const PACK_TYPE_BADGE: Record<string, BadgeVariant> = {
+  FAMILIAL:        'purple',
+  URGENCE:         'error',
+  REVENDEUR:       'info',
+  EPARGNE_PRODUIT: 'teal',
 };
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
@@ -142,71 +147,67 @@ export default function RemboursementsPage() {
   const stats = res?.stats;
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-slate-50">
       <ClienteleTabBar>
       <div className="p-6 space-y-6">
 
       {/* En-tête */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Remboursements</h2>
-          <p className="text-sm text-gray-500 mt-0.5">
+          <h2 className="text-2xl font-bold text-slate-900">Remboursements</h2>
+          <p className="text-sm text-slate-500 mt-0.5">
             Suivi de tous les versements sur souscriptions packs
           </p>
         </div>
         <div className="flex gap-2">
-          <button
-            onClick={handleExport}
-            className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50"
-          >
-            <Download className="w-4 h-4" /> Exporter CSV
-          </button>
-          <button
-            onClick={refetch}
-            className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50"
-          >
-            <RefreshCw className="w-4 h-4" /> Actualiser
-          </button>
+          <Button variant="secondary" icon={<Download size={16} />} onClick={handleExport}>
+            Exporter CSV
+          </Button>
+          <Button variant="secondary" icon={<RefreshCw size={16} />} onClick={refetch}>
+            Actualiser
+          </Button>
         </div>
       </div>
 
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard
+        <KpiCard
           label="Total encaissé"
-          value={formatCurrency(stats?.totalVersements ?? 0)}
-          icon={<Wallet className="w-5 h-5 text-emerald-600" />}
-          bg="bg-emerald-50"
+          value={stats?.totalVersements ?? 0}
+          format={formatCurrency}
+          icon={<Wallet size={18} />}
+          accent="success"
         />
-        <StatCard
+        <KpiCard
           label="Nb de versements"
-          value={String(stats?.nombreVersements ?? 0)}
-          icon={<TrendingUp className="w-5 h-5 text-blue-600" />}
-          bg="bg-blue-50"
+          value={stats?.nombreVersements ?? 0}
+          icon={<TrendingUp size={18} />}
+          accent="primary"
         />
         {stats?.parType.slice(0, 2).map((s) => (
-          <StatCard
+          <KpiCard
             key={s.type}
             label={TYPE_VERSEMENT_LABELS[s.type] ?? s.type}
-            value={formatCurrency(s.montant)}
-            icon={<CheckCircle className="w-5 h-5 text-purple-600" />}
-            bg="bg-purple-50"
+            value={s.montant}
+            format={formatCurrency}
+            icon={<CheckCircle size={18} />}
+            accent="purple"
           />
         ))}
       </div>
 
       {/* Répartition par type */}
       {stats?.parType && stats.parType.length > 0 && (
-        <div className="bg-white rounded-xl border border-gray-200 p-4">
-          <p className="text-sm font-semibold text-gray-700 mb-3">Répartition par type</p>
+        <div className="bg-white rounded-xl border border-slate-200 p-4">
+          <p className="text-sm font-semibold text-slate-700 mb-3">Répartition par type</p>
           <div className="flex flex-wrap gap-3">
             {stats.parType.map((s) => (
-              <div key={s.type} className="flex items-center gap-2 bg-gray-50 rounded-lg px-3 py-2">
-                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${TYPE_VERSEMENT_BADGE[s.type] ?? 'bg-gray-100 text-gray-600'}`}>
+              <div key={s.type} className="flex items-center gap-2 bg-slate-50 rounded-lg px-3 py-2">
+                <Badge variant={TYPE_VERSEMENT_BADGE[s.type] ?? 'neutral'}>
                   {TYPE_VERSEMENT_LABELS[s.type] ?? s.type}
-                </span>
-                <span className="text-sm font-bold text-gray-800">{formatCurrency(s.montant)}</span>
-                <span className="text-xs text-gray-500">({s.nombre})</span>
+                </Badge>
+                <span className="text-sm font-bold text-slate-800">{formatCurrency(s.montant)}</span>
+                <span className="text-xs text-slate-500">({s.nombre})</span>
               </div>
             ))}
           </div>
@@ -214,24 +215,22 @@ export default function RemboursementsPage() {
       )}
 
       {/* Filtres */}
-      <div className="bg-white rounded-xl border border-gray-200 p-4 flex flex-wrap gap-3 items-center">
+      <div className="bg-white rounded-xl border border-slate-200 p-4 flex flex-wrap gap-3 items-center">
         <div className="flex-1 min-w-[220px] flex gap-2">
           <input
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
             placeholder="Nom client, téléphone, code…"
-            className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
-          <button onClick={handleSearch} className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-            <Search className="w-4 h-4" />
-          </button>
+          <Button variant="primary" icon={<Search size={16} />} onClick={handleSearch} aria-label="Rechercher" />
         </div>
 
         <select
           value={type}
           onChange={(e) => { setType(e.target.value); setPage(1); }}
-          className="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:outline-none"
+          className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none"
         >
           <option value="">Tous types</option>
           {Object.entries(TYPE_VERSEMENT_LABELS).map(([k, v]) => (
@@ -240,55 +239,55 @@ export default function RemboursementsPage() {
         </select>
 
         <div className="flex items-center gap-2">
-          <Calendar className="w-4 h-4 text-gray-400" />
+          <Calendar className="w-4 h-4 text-slate-400" />
           <input
             type="date"
             value={dateDebut}
             onChange={(e) => { setDateDebut(e.target.value); setPage(1); }}
-            className="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:outline-none"
+            className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none"
           />
-          <span className="text-gray-400 text-sm">→</span>
+          <span className="text-slate-400 text-sm">→</span>
           <input
             type="date"
             value={dateFin}
             onChange={(e) => { setDateFin(e.target.value); setPage(1); }}
-            className="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:outline-none"
+            className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none"
           />
         </div>
 
-        <div className="flex items-center gap-1 text-sm text-gray-500">
+        <div className="flex items-center gap-1 text-sm text-slate-500">
           <Filter className="w-4 h-4" />
           {res?.meta.total ?? 0} résultat(s)
         </div>
       </div>
 
       {/* Table */}
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
         {loading ? (
-          <div className="flex items-center justify-center py-16 text-gray-400">
+          <div className="flex items-center justify-center py-16 text-slate-400">
             <RefreshCw className="w-5 h-5 animate-spin mr-2" /> Chargement…
           </div>
         ) : !res?.data.length ? (
-          <div className="flex flex-col items-center justify-center py-16 text-gray-400">
+          <div className="flex flex-col items-center justify-center py-16 text-slate-400">
             <Wallet className="w-10 h-10 mb-2" />
             <p className="text-sm">Aucun versement trouvé</p>
           </div>
         ) : (
           <table className="w-full text-sm">
-            <thead className="bg-gray-50 border-b border-gray-200">
+            <thead className="bg-slate-50 border-b border-slate-200">
               <tr>
-                <th className="text-left px-4 py-3 font-semibold text-gray-600">Date</th>
-                <th className="text-left px-4 py-3 font-semibold text-gray-600">Client</th>
-                <th className="text-left px-4 py-3 font-semibold text-gray-600">Pack</th>
-                <th className="text-left px-4 py-3 font-semibold text-gray-600">Type</th>
-                <th className="text-right px-4 py-3 font-semibold text-gray-600">Montant</th>
-                <th className="text-left px-4 py-3 font-semibold text-gray-600">Progression</th>
-                <th className="text-left px-4 py-3 font-semibold text-gray-600">Agent</th>
-                <th className="text-left px-4 py-3 font-semibold text-gray-600">Via collecte</th>
-                <th className="text-left px-4 py-3 font-semibold text-gray-600">Encaissé par</th>
+                <th className="text-left px-4 py-3 font-semibold text-slate-600">Date</th>
+                <th className="text-left px-4 py-3 font-semibold text-slate-600">Client</th>
+                <th className="text-left px-4 py-3 font-semibold text-slate-600">Pack</th>
+                <th className="text-left px-4 py-3 font-semibold text-slate-600">Type</th>
+                <th className="text-right px-4 py-3 font-semibold text-slate-600">Montant</th>
+                <th className="text-left px-4 py-3 font-semibold text-slate-600">Progression</th>
+                <th className="text-left px-4 py-3 font-semibold text-slate-600">Agent</th>
+                <th className="text-left px-4 py-3 font-semibold text-slate-600">Via collecte</th>
+                <th className="text-left px-4 py-3 font-semibold text-slate-600">Encaissé par</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody className="divide-y divide-slate-100">
               {res.data.map((v) => {
                 const total   = Number(v.souscription.montantTotal);
                 const verse   = Number(v.souscription.montantVerse);
@@ -296,29 +295,29 @@ export default function RemboursementsPage() {
                 const solde   = v.souscription.statut === 'COMPLETE';
 
                 return (
-                  <tr key={v.id} className="hover:bg-gray-50">
+                  <tr key={v.id} className="hover:bg-slate-50">
                     {/* Date */}
-                    <td className="px-4 py-3 whitespace-nowrap text-gray-600">
+                    <td className="px-4 py-3 whitespace-nowrap text-slate-600">
                       <div className="flex items-center gap-1">
-                        <Calendar className="w-3.5 h-3.5 text-gray-400" />
+                        <Calendar className="w-3.5 h-3.5 text-slate-400" />
                         {formatDate(v.datePaiement)}
                       </div>
                     </td>
 
                     {/* Client */}
                     <td className="px-4 py-3">
-                      <div className="font-medium text-gray-900">
+                      <div className="font-medium text-slate-900">
                         {v.souscription.client.prenom} {v.souscription.client.nom}
                         {v.souscription.client.segment === 'RIA' && (
-                          <span className="ml-1.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-indigo-100 text-indigo-700 leading-none">★ RIA</span>
+                          <Badge variant="indigo" className="ml-1.5">★ RIA</Badge>
                         )}
                       </div>
-                      <div className="flex items-center gap-1 text-xs text-gray-500 mt-0.5">
+                      <div className="flex items-center gap-1 text-xs text-slate-500 mt-0.5">
                         <Phone className="w-3 h-3" />
                         {v.souscription.client.telephone}
                       </div>
                       {v.souscription.client.pointDeVente && (
-                        <div className="flex items-center gap-1 text-xs text-gray-400 mt-0.5">
+                        <div className="flex items-center gap-1 text-xs text-slate-400 mt-0.5">
                           <MapPin className="w-3 h-3" />
                           {v.souscription.client.pointDeVente.nom}
                         </div>
@@ -341,17 +340,17 @@ export default function RemboursementsPage() {
 
                     {/* Pack */}
                     <td className="px-4 py-3">
-                      <div className="font-medium text-gray-800">{v.souscription.pack.nom}</div>
-                      <span className={`inline-block mt-0.5 text-xs px-2 py-0.5 rounded-full font-medium ${PACK_TYPE_BADGE[v.souscription.pack.type] ?? 'bg-gray-100 text-gray-600'}`}>
+                      <div className="font-medium text-slate-800">{v.souscription.pack.nom}</div>
+                      <Badge variant={PACK_TYPE_BADGE[v.souscription.pack.type] ?? 'neutral'} className="mt-0.5">
                         {v.souscription.pack.type}
-                      </span>
+                      </Badge>
                     </td>
 
                     {/* Type versement */}
                     <td className="px-4 py-3">
-                      <span className={`inline-block text-xs px-2 py-1 rounded-full font-medium ${TYPE_VERSEMENT_BADGE[v.type] ?? 'bg-gray-100 text-gray-600'}`}>
+                      <Badge variant={TYPE_VERSEMENT_BADGE[v.type] ?? 'neutral'}>
                         {TYPE_VERSEMENT_LABELS[v.type] ?? v.type}
-                      </span>
+                      </Badge>
                     </td>
 
                     {/* Montant */}
@@ -361,17 +360,17 @@ export default function RemboursementsPage() {
 
                     {/* Progression */}
                     <td className="px-4 py-3 min-w-[120px]">
-                      <div className="flex justify-between text-xs text-gray-500 mb-1">
+                      <div className="flex justify-between text-xs text-slate-500 mb-1">
                         <span>{pct}%</span>
                         {solde && <span className="text-emerald-600 font-medium">Soldé</span>}
                       </div>
-                      <div className="w-full bg-gray-200 rounded-full h-1.5">
+                      <div className="w-full bg-slate-200 rounded-full h-1.5">
                         <div
                           className={`h-1.5 rounded-full ${solde ? 'bg-emerald-500' : pct >= 50 ? 'bg-blue-500' : 'bg-amber-500'}`}
                           style={{ width: `${pct}%` }}
                         />
                       </div>
-                      <div className="text-xs text-gray-400 mt-0.5">
+                      <div className="text-xs text-slate-400 mt-0.5">
                         {formatCurrency(verse)} / {formatCurrency(total)}
                       </div>
                     </td>
@@ -379,12 +378,12 @@ export default function RemboursementsPage() {
                     {/* Agent */}
                     <td className="px-4 py-3">
                       {v.souscription.client.agentTerrain ? (
-                        <span className="text-xs text-gray-700">
+                        <span className="text-xs text-slate-700">
                           {v.souscription.client.agentTerrain.prenom}{' '}
                           {v.souscription.client.agentTerrain.nom}
                         </span>
                       ) : (
-                        <span className="text-xs text-gray-400">—</span>
+                        <span className="text-xs text-slate-400">—</span>
                       )}
                     </td>
 
@@ -395,17 +394,17 @@ export default function RemboursementsPage() {
                           <div className="text-xs font-medium text-blue-700">
                             {v.ligneCollecte.collecte.reference}
                           </div>
-                          <div className="text-xs text-gray-400">
+                          <div className="text-xs text-slate-400">
                             {formatDate(v.ligneCollecte.collecte.dateCollecte)}
                           </div>
                         </div>
                       ) : (
-                        <span className="text-xs text-gray-400">Direct</span>
+                        <span className="text-xs text-slate-400">Direct</span>
                       )}
                     </td>
 
                     {/* Encaissé par */}
-                    <td className="px-4 py-3 text-xs text-gray-600">
+                    <td className="px-4 py-3 text-xs text-slate-600">
                       {v.encaisseParNom ?? '—'}
                     </td>
                   </tr>
@@ -414,46 +413,19 @@ export default function RemboursementsPage() {
             </tbody>
           </table>
         )}
+        {/* Pagination */}
+        {res && (
+          <Pagination
+            page={page}
+            totalPages={res.meta.totalPages}
+            total={res.meta.total}
+            onPageChange={setPage}
+            itemLabel="versement(s)"
+          />
+        )}
       </div>
-
-      {/* Pagination */}
-      {res && res.meta.totalPages > 1 && (
-        <div className="flex items-center justify-between text-sm text-gray-600">
-          <span>Page {res.meta.page} / {res.meta.totalPages} — {res.meta.total} versement(s)</span>
-          <div className="flex gap-2">
-            <button
-              disabled={page === 1}
-              onClick={() => setPage((p) => p - 1)}
-              className="px-3 py-1.5 border border-gray-200 rounded-lg disabled:opacity-40 hover:bg-gray-50"
-            >
-              Précédent
-            </button>
-            <button
-              disabled={page === res.meta.totalPages}
-              onClick={() => setPage((p) => p + 1)}
-              className="px-3 py-1.5 border border-gray-200 rounded-lg disabled:opacity-40 hover:bg-gray-50"
-            >
-              Suivant
-            </button>
-          </div>
-        </div>
-      )}
       </div>{/* end p-6 */}
       </ClienteleTabBar>
-    </div>
-  );
-}
-
-function StatCard({ label, value, icon, bg }: {
-  label: string; value: string; icon: React.ReactNode; bg: string;
-}) {
-  return (
-    <div className="bg-white rounded-xl border border-gray-200 p-4 flex items-center gap-3">
-      <div className={`${bg} p-2.5 rounded-lg`}>{icon}</div>
-      <div>
-        <p className="text-xs text-gray-500">{label}</p>
-        <p className="font-bold text-gray-900 text-lg">{value}</p>
-      </div>
     </div>
   );
 }

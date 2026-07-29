@@ -12,6 +12,9 @@ import { toast } from 'sonner';
 import { useT } from '@/contexts/AppSettingsContext';
 import ClienteleTabBar from '@/components/ClienteleTabBar';
 import { useTagModal } from '@/contexts/TagModalContext';
+import Button from '@/components/ui/Button';
+import Badge from '@/components/ui/Badge';
+import Pagination from '@/components/ui/Pagination';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -50,10 +53,10 @@ const SEUILS = [
   { label: '> 90 jours', value: 90 },
 ];
 
-const URGENCE_COLOR = (j: number) =>
-  j > 90 ? 'bg-red-100 text-red-800 border border-red-200'
-  : j > 30 ? 'bg-orange-100 text-orange-700 border border-orange-200'
-  : 'bg-amber-100 text-amber-700 border border-amber-200';
+// Sévérité : > 90j = critique (error) ; le reste = à surveiller (warning).
+// Le badge design system ne propose pas de variante "orange" intermédiaire —
+// le nombre exact de jours reste affiché dans le badge pour la précision.
+const URGENCE_VARIANT = (j: number): 'error' | 'warning' => (j > 90 ? 'error' : 'warning');
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
@@ -114,7 +117,7 @@ export default function AlertesImpayesPage() {
   const creances = res?.data ?? [];
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-slate-50">
       <ClienteleTabBar>
 
       <div className="p-6 space-y-6 max-w-screen-xl mx-auto">
@@ -122,16 +125,14 @@ export default function AlertesImpayesPage() {
         {/* En-tête */}
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-2xl font-bold text-gray-900">{t('alertes_title')}</h2>
-            <p className="text-sm text-gray-500 mt-0.5">
+            <h2 className="text-2xl font-bold text-slate-900">{t('alertes_title')}</h2>
+            <p className="text-sm text-slate-500 mt-0.5">
               {t('alertes_subtitle')}
             </p>
           </div>
-          <button onClick={refetch}
-            className="flex items-center gap-2 px-4 py-2 text-sm text-gray-600 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 shadow-sm">
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+          <Button variant="secondary" icon={<RefreshCw className={loading ? 'animate-spin' : ''} size={16} />} onClick={refetch}>
             {t('refresh')}
-          </button>
+          </Button>
         </div>
 
         {/* Stats urgence */}
@@ -157,21 +158,18 @@ export default function AlertesImpayesPage() {
         </div>
 
         {/* Seuils + filtres */}
-        <div className="bg-white rounded-xl border border-gray-200 p-4 space-y-3">
+        <div className="bg-white rounded-xl border border-slate-200 p-4 space-y-3">
           {/* Seuils de jours */}
           <div className="flex flex-wrap gap-2">
             {SEUILS.map((s) => (
-              <button
+              <Button
                 key={s.value}
+                size="sm"
+                variant={jours === s.value ? 'primary' : 'secondary'}
                 onClick={() => { setJours(s.value); setPage(1); }}
-                className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
-                  jours === s.value
-                    ? 'bg-red-600 text-white'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                }`}
               >
                 {s.label}
-              </button>
+              </Button>
             ))}
           </div>
           {/* Search */}
@@ -181,12 +179,9 @@ export default function AlertesImpayesPage() {
               onChange={(e) => setSearchInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
               placeholder={t('alertes_search_ph')}
-              className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-400"
+              className="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-400"
             />
-            <button onClick={handleSearch}
-              className="px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">
-              <Search className="w-4 h-4" />
-            </button>
+            <Button variant="primary" icon={<Search className="w-4 h-4" />} onClick={handleSearch} />
           </div>
         </div>
 
@@ -202,43 +197,39 @@ export default function AlertesImpayesPage() {
                   value={notifMessage}
                   onChange={(e) => setNotifMessage(e.target.value)}
                   placeholder={t('alertes_notif_ph')}
-                  className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+                  className="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
                 />
-                <button
+                <Button
+                  variant="primary"
+                  icon={<Bell className="w-4 h-4" />}
+                  loading={notifying}
                   onClick={() => handleNotifier([...selected])}
-                  disabled={notifying}
-                  className="px-4 py-2 bg-orange-600 text-white rounded-lg text-sm font-medium hover:bg-orange-700 disabled:opacity-50 flex items-center gap-2"
                 >
-                  <Bell className="w-4 h-4" />
                   {notifying ? t('btn_sending') : t('btn_send')}
-                </button>
-                <button onClick={() => setShowNotifBox(false)} className="p-2 text-gray-400 hover:text-gray-600">
-                  <X className="w-4 h-4" />
-                </button>
+                </Button>
+                <Button variant="ghost" size="sm" icon={<X className="w-4 h-4" />} onClick={() => setShowNotifBox(false)} />
               </div>
             ) : (
               <>
-                <button onClick={() => setShowNotifBox(true)}
-                  className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-lg text-sm font-medium hover:bg-orange-700">
-                  <Bell className="w-4 h-4" /> {t('alertes_notif_agents')}
-                </button>
-                <button onClick={() => setSelected(new Set())}
-                  className="text-sm text-gray-500 hover:text-gray-700">
+                <Button variant="primary" icon={<Bell className="w-4 h-4" />} onClick={() => setShowNotifBox(true)}>
+                  {t('alertes_notif_agents')}
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => setSelected(new Set())}>
                   {t('alertes_deselect_all')}
-                </button>
+                </Button>
               </>
             )}
           </div>
         )}
 
         {/* Table */}
-        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
           {loading ? (
-            <div className="flex items-center justify-center py-16 text-gray-400">
+            <div className="flex items-center justify-center py-16 text-slate-400">
               <RefreshCw className="w-5 h-5 animate-spin mr-2" /> {t('collecte_loading')}
             </div>
           ) : creances.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 text-gray-400">
+            <div className="flex flex-col items-center justify-center py-16 text-slate-400">
               <CheckCircle className="w-10 h-10 mb-2 text-emerald-400" />
               <p className="text-sm font-medium text-emerald-600">{t('alertes_none')}</p>
               <p className="text-xs mt-1">{t('alertes_none_sub')}</p>
@@ -246,7 +237,7 @@ export default function AlertesImpayesPage() {
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
-                <thead className="bg-gray-50 border-b border-gray-200">
+                <thead className="bg-slate-50 border-b border-slate-200">
                   <tr>
                     <th className="px-4 py-3 w-8">
                       <input type="checkbox"
@@ -255,16 +246,16 @@ export default function AlertesImpayesPage() {
                         className="w-4 h-4 text-red-600 rounded cursor-pointer"
                       />
                     </th>
-                    <th className="text-left px-4 py-3 font-semibold text-gray-600">{t('label_client')}</th>
-                    <th className="text-left px-4 py-3 font-semibold text-gray-600">{t('alertes_col_pack')}</th>
-                    <th className="text-right px-4 py-3 font-semibold text-gray-600">{t('alertes_col_montant_du')}</th>
-                    <th className="text-center px-4 py-3 font-semibold text-gray-600">{t('alertes_col_retard')}</th>
-                    <th className="text-left px-4 py-3 font-semibold text-gray-600">{t('alertes_col_agent_affecte')}</th>
-                    <th className="text-left px-4 py-3 font-semibold text-gray-600">{t('alertes_col_echeance_anc')}</th>
-                    <th className="text-center px-4 py-3 font-semibold text-gray-600">{t('label_actions')}</th>
+                    <th className="text-left px-4 py-3 font-semibold text-slate-600">{t('label_client')}</th>
+                    <th className="text-left px-4 py-3 font-semibold text-slate-600">{t('alertes_col_pack')}</th>
+                    <th className="text-right px-4 py-3 font-semibold text-slate-600">{t('alertes_col_montant_du')}</th>
+                    <th className="text-center px-4 py-3 font-semibold text-slate-600">{t('alertes_col_retard')}</th>
+                    <th className="text-left px-4 py-3 font-semibold text-slate-600">{t('alertes_col_agent_affecte')}</th>
+                    <th className="text-left px-4 py-3 font-semibold text-slate-600">{t('alertes_col_echeance_anc')}</th>
+                    <th className="text-center px-4 py-3 font-semibold text-slate-600">{t('label_actions')}</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100">
+                <tbody className="divide-y divide-slate-100">
                   {creances.map((c) => (
                     <tr key={c.id} className={`hover:bg-red-50/30 transition-colors ${selected.has(c.id) ? 'bg-orange-50/40' : ''}`}>
                       <td className="px-4 py-3">
@@ -277,17 +268,17 @@ export default function AlertesImpayesPage() {
 
                       {/* Client */}
                       <td className="px-4 py-3">
-                        <p className="font-medium text-gray-900">
+                        <p className="font-medium text-slate-900">
                           {c.client.prenom} {c.client.nom}
                           {c.client.codeClient && (
-                            <span className="ml-1.5 text-xs text-gray-400">· {c.client.codeClient}</span>
+                            <span className="ml-1.5 text-xs text-slate-400">· {c.client.codeClient}</span>
                           )}
                         </p>
-                        <div className="flex items-center gap-1 text-xs text-gray-400 mt-0.5">
+                        <div className="flex items-center gap-1 text-xs text-slate-400 mt-0.5">
                           <Phone className="w-3 h-3" />{c.client.telephone}
                         </div>
                         {c.client.pointDeVente && (
-                          <div className="flex items-center gap-1 text-xs text-gray-400 mt-0.5">
+                          <div className="flex items-center gap-1 text-xs text-slate-400 mt-0.5">
                             <MapPin className="w-3 h-3" />{c.client.pointDeVente.nom}
                           </div>
                         )}
@@ -307,22 +298,22 @@ export default function AlertesImpayesPage() {
 
                       {/* Pack */}
                       <td className="px-4 py-3">
-                        <p className="font-medium text-gray-800">{c.pack.nom}</p>
-                        <span className="text-xs text-gray-400">{c.pack.type}</span>
+                        <p className="font-medium text-slate-800">{c.pack.nom}</p>
+                        <span className="text-xs text-slate-400">{c.pack.type}</span>
                       </td>
 
                       {/* Montant */}
                       <td className="px-4 py-3 text-right">
                         <p className="font-bold text-red-600">{formatCurrency(c.montantRestant)}</p>
-                        <p className="text-xs text-gray-400">/ {formatCurrency(c.montantTotal)}</p>
+                        <p className="text-xs text-slate-400">/ {formatCurrency(c.montantTotal)}</p>
                       </td>
 
                       {/* Retard */}
                       <td className="px-4 py-3 text-center">
-                        <span className={`inline-block text-xs px-2.5 py-1 rounded-full font-bold ${URGENCE_COLOR(c.joursRetard)}`}>
+                        <Badge variant={URGENCE_VARIANT(c.joursRetard)} bordered>
                           {c.joursRetard}j
-                        </span>
-                        <p className="text-xs text-gray-400 mt-0.5">{c.nbEcheancesRetard} éch.</p>
+                        </Badge>
+                        <p className="text-xs text-slate-400 mt-0.5">{c.nbEcheancesRetard} éch.</p>
                       </td>
 
                       {/* Agent */}
@@ -330,12 +321,12 @@ export default function AlertesImpayesPage() {
                         {c.client.agentTerrain ? (
                           <div className="flex items-center gap-1.5 text-sm">
                             <UserCheck className="w-3.5 h-3.5 text-blue-500 shrink-0" />
-                            <span className="text-gray-700">
+                            <span className="text-slate-700">
                               {c.client.agentTerrain.prenom} {c.client.agentTerrain.nom}
                             </span>
                           </div>
                         ) : (
-                          <span className="text-xs text-gray-400">{t('alertes_non_affecte')}</span>
+                          <span className="text-xs text-slate-400">{t('alertes_non_affecte')}</span>
                         )}
                       </td>
 
@@ -346,7 +337,7 @@ export default function AlertesImpayesPage() {
                             <p className="text-red-500 font-medium">
                               {formatDate(c.echeancePlusAncienne.datePrevue)}
                             </p>
-                            <p className="text-gray-400">{formatCurrency(Number(c.echeancePlusAncienne.montant))}</p>
+                            <p className="text-slate-400">{formatCurrency(Number(c.echeancePlusAncienne.montant))}</p>
                           </div>
                         ) : '—'}
                       </td>
@@ -354,14 +345,14 @@ export default function AlertesImpayesPage() {
                       {/* Actions */}
                       <td className="px-4 py-3 text-center">
                         <div className="flex items-center justify-center gap-1">
-                          <button
+                          <Button
+                            variant="ghost"
+                            size="sm"
                             onClick={() => handleNotifier([c.id])}
                             disabled={notifying}
                             title="Notifier l'agent"
-                            className="p-1.5 text-orange-500 hover:text-orange-700 hover:bg-orange-50 rounded"
-                          >
-                            <Bell className="w-3.5 h-3.5" />
-                          </button>
+                            icon={<Bell className="w-3.5 h-3.5" />}
+                          />
                           <Link href={`/dashboard/admin/clients/${c.client.id}`}
                             className="p-1.5 text-blue-500 hover:text-blue-700 hover:bg-blue-50 rounded">
                             <ChevronRight className="w-3.5 h-3.5" />
@@ -377,20 +368,14 @@ export default function AlertesImpayesPage() {
         </div>
 
         {/* Pagination */}
-        {res && res.meta.totalPages > 1 && (
-          <div className="flex items-center justify-between text-sm text-gray-600">
-            <span>Page {res.meta.page} / {res.meta.totalPages} — {res.meta.total} {t('rapports_col_creances').toLowerCase()}</span>
-            <div className="flex gap-2">
-              <button disabled={page === 1} onClick={() => setPage((p) => p - 1)}
-                className="px-3 py-1.5 border border-gray-200 rounded-lg disabled:opacity-40 hover:bg-gray-50">
-                {t('btn_prev')}
-              </button>
-              <button disabled={page === res.meta.totalPages} onClick={() => setPage((p) => p + 1)}
-                className="px-3 py-1.5 border border-gray-200 rounded-lg disabled:opacity-40 hover:bg-gray-50">
-                {t('btn_next')}
-              </button>
-            </div>
-          </div>
+        {res && (
+          <Pagination
+            page={page}
+            totalPages={res.meta.totalPages}
+            total={res.meta.total}
+            onPageChange={(p) => setPage(p)}
+            itemLabel={t('rapports_col_creances').toLowerCase()}
+          />
         )}
       </div>
       </ClienteleTabBar>

@@ -5,7 +5,7 @@ import { TrendingUp, TrendingDown } from "lucide-react";
 import AnimatedNumber from "@/components/ui/AnimatedNumber";
 import InfoTooltip from "@/components/ui/InfoTooltip";
 
-type Accent = "primary" | "success" | "warning" | "error" | "brand" | "neutral";
+type Accent = "primary" | "success" | "warning" | "error" | "brand" | "neutral" | "purple" | "teal";
 
 const ACCENT_CLASSES: Record<Accent, { bg: string; text: string }> = {
   primary: { bg: "bg-primary-50 dark:bg-primary-900/30", text: "text-primary-600 dark:text-primary-300" },
@@ -14,6 +14,8 @@ const ACCENT_CLASSES: Record<Accent, { bg: string; text: string }> = {
   error:   { bg: "bg-red-50 dark:bg-red-900/30",       text: "text-red-600 dark:text-red-300" },
   brand:   { bg: "bg-brand-50 dark:bg-brand-900/30",   text: "text-brand-700 dark:text-brand-300" },
   neutral: { bg: "bg-slate-100 dark:bg-slate-700",     text: "text-slate-600 dark:text-slate-300" },
+  purple:  { bg: "bg-purple-50 dark:bg-purple-900/30", text: "text-purple-600 dark:text-purple-300" },
+  teal:    { bg: "bg-teal-50 dark:bg-teal-900/30",     text: "text-teal-600 dark:text-teal-300" },
 };
 
 export default function KpiCard({
@@ -24,6 +26,7 @@ export default function KpiCard({
   accent = "primary",
   evolutionPct,
   help,
+  sub,
   className = "",
 }: {
   label: string;
@@ -35,6 +38,8 @@ export default function KpiCard({
   evolutionPct?: number;
   /** Texte d'aide affiché dans une info-bulle à côté du libellé. */
   help?: string;
+  /** Ligne secondaire sous le libellé (détail complémentaire, ex: "8 total · 2 bloqué(s)"). */
+  sub?: string;
   className?: string;
 }) {
   const c = ACCENT_CLASSES[accent];
@@ -68,6 +73,7 @@ export default function KpiCard({
         {label}
         {help && <InfoTooltip text={help} />}
       </p>
+      {sub && <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5 truncate">{sub}</p>}
     </div>
   );
 }

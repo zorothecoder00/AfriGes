@@ -4,7 +4,7 @@ import React, { useState, useEffect, startTransition } from 'react';
 import {
   RefreshCw, Filter, Calendar, CheckCircle,
   Clock, XCircle, Eye, Phone,
-  MapPin, Wallet, TrendingUp, X,
+  MapPin, Wallet, TrendingUp,
   Save, Check,
 } from 'lucide-react';
 import { useApi, useMutation } from '@/hooks/useApi';
@@ -13,6 +13,11 @@ import { toast } from 'sonner';
 import ClienteleTabBar from '@/components/ClienteleTabBar';
 import { useT } from '@/contexts/AppSettingsContext';
 import { useTagModal } from '@/contexts/TagModalContext';
+import Button from '@/components/ui/Button';
+import Badge, { type BadgeVariant } from '@/components/ui/Badge';
+import KpiCard from '@/components/ui/KpiCard';
+import Pagination from '@/components/ui/Pagination';
+import Modal from '@/components/ui/Modal';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -63,32 +68,45 @@ interface AgentOption {
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
 
+
+const STATUT_VARIANT: Record<string, BadgeVariant> = {
+  EN_COURS: 'warning',
+  VALIDEE:  'success',
+  ANNULEE:  'error',
+};
+
 function getStatutBadge(
   t: ReturnType<typeof useT>
-): Record<string, { cls: string; icon: React.ReactNode; label: string }> {
+): Record<string, { icon: React.ReactNode; label: string }> {
   return {
     EN_COURS: {
-      cls: 'bg-amber-100 text-amber-700',
       icon: <Clock className="w-3 h-3" />,
       label: t('collecte_en_cours')
     },
 
     VALIDEE: {
-      cls: 'bg-emerald-100 text-emerald-700',
       icon: <CheckCircle className="w-3 h-3" />,
       label: t('collecte_validee')
     },
 
     ANNULEE: {
-      cls: 'bg-red-100 text-red-700',
       icon: <XCircle className="w-3 h-3" />,
       label: t('collecte_annulee')
     },
   };
 }
 
-const LIGNE_STATUT_BADGE: Record<string, string> = {
-  EN_ATTENTE: 'bg-gray-100 text-gray-600',
+// Variante Badge pour le statut des lignes de collecte (utilisée en affichage seul)
+const LIGNE_STATUT_VARIANT: Record<string, BadgeVariant> = {
+  EN_ATTENTE: 'neutral',
+  COLLECTE:   'success',
+  PARTIEL:    'info',
+  ECHEC:      'error',
+};
+
+// Le <select> de saisie a besoin de classes de fond (pas un simple badge d'affichage)
+const LIGNE_STATUT_SELECT_STYLE: Record<string, string> = {
+  EN_ATTENTE: 'bg-slate-100 text-slate-600',
   COLLECTE:   'bg-emerald-100 text-emerald-700',
   PARTIEL:    'bg-blue-100 text-blue-700',
   ECHEC:      'bg-red-100 text-red-700',
@@ -134,38 +152,39 @@ export default function CollectesPage() {
   ) ?? 0;
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-slate-50">
       <ClienteleTabBar>
       <div className="p-6 space-y-6">
 
       {/* En-tête */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">{t('collecte_title')}</h2>
-          <p className="text-sm text-gray-500 mt-0.5">{t('collecte_subtitle')}</p>
+          <h2 className="text-2xl font-bold text-slate-900">{t('collecte_title')}</h2>
+          <p className="text-sm text-slate-500 mt-0.5">{t('collecte_subtitle')}</p>
         </div>
-        <button
+        <Button
+          variant="secondary"
+          icon={<RefreshCw className={loading ? 'animate-spin' : ''} size={16} />}
           onClick={refetch}
-          className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50"
         >
-          <RefreshCw className="w-4 h-4" />
-        </button>
+          Actualiser
+        </Button>
       </div>
 
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard label={t('collecte_en_cours')}    value={String(enCours)}          icon={<Clock className="w-5 h-5 text-amber-600" />}   bg="bg-amber-50" />
-        <StatCard label={t('collecte_validee')}     value={String(validees)}         icon={<CheckCircle className="w-5 h-5 text-emerald-600" />} bg="bg-emerald-50" />
-        <StatCard label={t('collecte_montant_col')} value={formatCurrency(totalCollecte)} icon={<Wallet className="w-5 h-5 text-blue-600" />}    bg="bg-blue-50" />
-        <StatCard label={t('collecte_total')}       value={String(res?.meta.total ?? 0)} icon={<TrendingUp className="w-5 h-5 text-purple-600" />} bg="bg-purple-50" />
+        <KpiCard label={t('collecte_en_cours')}    value={enCours}       icon={<Clock size={18} />}       accent="warning" />
+        <KpiCard label={t('collecte_validee')}     value={validees}      icon={<CheckCircle size={18} />} accent="success" />
+        <KpiCard label={t('collecte_montant_col')} value={totalCollecte} icon={<Wallet size={18} />}      accent="primary" format={formatCurrency} />
+        <KpiCard label={t('collecte_total')}       value={res?.meta.total ?? 0} icon={<TrendingUp size={18} />} accent="purple" />
       </div>
 
       {/* Filtres */}
-      <div className="bg-white rounded-xl border border-gray-200 p-4 flex flex-wrap gap-3 items-center">
+      <div className="bg-white rounded-xl border border-slate-200 p-4 flex flex-wrap gap-3 items-center">
         <select
           value={statut}
           onChange={(e) => { setStatut(e.target.value); setPage(1); }}
-          className="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:outline-none"
+          className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none"
         >
           <option value="">{t('collecte_all_statuts')}</option>
           <option value="EN_COURS">{t('collecte_en_cours')}</option>
@@ -176,7 +195,7 @@ export default function CollectesPage() {
         <select
           value={agentId}
           onChange={(e) => { setAgentId(e.target.value); setPage(1); }}
-          className="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:outline-none"
+          className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none"
         >
           <option value="">{t('collecte_all_agents')}</option>
           {agents?.data.map((a) => (
@@ -187,52 +206,52 @@ export default function CollectesPage() {
         </select>
 
         <div className="flex items-center gap-2">
-          <Calendar className="w-4 h-4 text-gray-400" />
+          <Calendar className="w-4 h-4 text-slate-400" />
           <input
             type="date" value={dateDebut}
             onChange={(e) => { setDateDebut(e.target.value); setPage(1); }}
-            className="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:outline-none"
+            className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none"
           />
-          <span className="text-gray-400 text-sm">→</span>
+          <span className="text-slate-400 text-sm">→</span>
           <input
             type="date" value={dateFin}
             onChange={(e) => { setDateFin(e.target.value); setPage(1); }}
-            className="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:outline-none"
+            className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none"
           />
         </div>
 
-        <div className="flex items-center gap-1 text-sm text-gray-500">
+        <div className="flex items-center gap-1 text-sm text-slate-500">
           <Filter className="w-4 h-4" /> {res?.meta.total ?? 0} session(s)
         </div>
       </div>
 
       {/* Liste collectes */}
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
         {loading ? (
-          <div className="flex items-center justify-center py-16 text-gray-400">
+          <div className="flex items-center justify-center py-16 text-slate-400">
             <RefreshCw className="w-5 h-5 animate-spin mr-2" /> {t('collecte_loading')}
           </div>
         ) : !res?.data.length ? (
-          <div className="flex flex-col items-center justify-center py-16 text-gray-400">
+          <div className="flex flex-col items-center justify-center py-16 text-slate-400">
             <Calendar className="w-10 h-10 mb-2" />
             <p className="text-sm">{t('collecte_none_found')}</p>
           </div>
         ) : (
           <table className="w-full text-sm">
-            <thead className="bg-gray-50 border-b border-gray-200">
+            <thead className="bg-slate-50 border-b border-slate-200">
               <tr>
-                <th className="text-left px-4 py-3 font-semibold text-gray-600">{t('label_reference')}</th>
-                <th className="text-left px-4 py-3 font-semibold text-gray-600">{t('collecte_col_date')}</th>
-                <th className="text-left px-4 py-3 font-semibold text-gray-600">{t('collecte_col_agent')}</th>
-                <th className="text-left px-4 py-3 font-semibold text-gray-600">{t('collecte_col_pdv')}</th>
-                <th className="text-right px-4 py-3 font-semibold text-gray-600">{t('collecte_col_prevu')}</th>
-                <th className="text-right px-4 py-3 font-semibold text-gray-600">{t('collecte_col_collecte')}</th>
-                <th className="text-center px-4 py-3 font-semibold text-gray-600">{t('collecte_lignes')}</th>
-                <th className="text-left px-4 py-3 font-semibold text-gray-600">{t('col_status')}</th>
-                <th className="text-center px-4 py-3 font-semibold text-gray-600">{t('col_actions')}</th>
+                <th className="text-left px-4 py-3 font-semibold text-slate-600">{t('label_reference')}</th>
+                <th className="text-left px-4 py-3 font-semibold text-slate-600">{t('collecte_col_date')}</th>
+                <th className="text-left px-4 py-3 font-semibold text-slate-600">{t('collecte_col_agent')}</th>
+                <th className="text-left px-4 py-3 font-semibold text-slate-600">{t('collecte_col_pdv')}</th>
+                <th className="text-right px-4 py-3 font-semibold text-slate-600">{t('collecte_col_prevu')}</th>
+                <th className="text-right px-4 py-3 font-semibold text-slate-600">{t('collecte_col_collecte')}</th>
+                <th className="text-center px-4 py-3 font-semibold text-slate-600">{t('collecte_lignes')}</th>
+                <th className="text-left px-4 py-3 font-semibold text-slate-600">{t('col_status')}</th>
+                <th className="text-center px-4 py-3 font-semibold text-slate-600">{t('col_actions')}</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody className="divide-y divide-slate-100">
               {res.data.map((c) => {
                 const badge = STATUT_BADGE[c.statut];
                 const taux = Number(c.montantPrevu) > 0
@@ -240,21 +259,21 @@ export default function CollectesPage() {
                   : 0;
 
                 return (
-                  <tr key={c.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 font-mono text-xs text-gray-700">{c.reference}</td>
-                    <td className="px-4 py-3 text-gray-600">
+                  <tr key={c.id} className="hover:bg-slate-50">
+                    <td className="px-4 py-3 font-mono text-xs text-slate-700">{c.reference}</td>
+                    <td className="px-4 py-3 text-slate-600">
                       <div className="flex items-center gap-1">
-                        <Calendar className="w-3.5 h-3.5 text-gray-400" />
+                        <Calendar className="w-3.5 h-3.5 text-slate-400" />
                         {formatDate(c.dateCollecte)}
                       </div>
                     </td>
-                    <td className="px-4 py-3 font-medium text-gray-800">
+                    <td className="px-4 py-3 font-medium text-slate-800">
                       {c.agent.prenom} {c.agent.nom}
                     </td>
-                    <td className="px-4 py-3 text-gray-600 text-xs">
-                      {c.pointDeVente?.nom ?? <span className="text-gray-400">—</span>}
+                    <td className="px-4 py-3 text-slate-600 text-xs">
+                      {c.pointDeVente?.nom ?? <span className="text-slate-400">—</span>}
                     </td>
-                    <td className="px-4 py-3 text-right text-gray-700">
+                    <td className="px-4 py-3 text-right text-slate-700">
                       {formatCurrency(Number(c.montantPrevu))}
                     </td>
                     <td className="px-4 py-3 text-right">
@@ -262,41 +281,41 @@ export default function CollectesPage() {
                         {formatCurrency(Number(c.montantCollecte))}
                       </span>
                       {Number(c.montantPrevu) > 0 && (
-                        <div className="text-xs text-gray-400 mt-0.5">{taux}%</div>
+                        <div className="text-xs text-slate-400 mt-0.5">{taux}%</div>
                       )}
                     </td>
                     <td className="px-4 py-3 text-center">
-                      <span className="inline-flex items-center justify-center w-7 h-7 bg-gray-100 text-gray-700 rounded-full text-xs font-bold">
+                      <span className="inline-flex items-center justify-center w-7 h-7 bg-slate-100 text-slate-700 rounded-full text-xs font-bold">
                         {c._count.lignes}
                       </span>
                     </td>
                     <td className="px-4 py-3">
-                      <span className={`inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full font-medium ${badge.cls}`}>
-                        {badge.icon} {badge.label}
-                      </span>
+                      <Badge variant={STATUT_VARIANT[c.statut] ?? 'neutral'} icon={badge.icon}>
+                        {badge.label}
+                      </Badge>
                       {c.validePar && (
-                        <div className="text-xs text-gray-400 mt-0.5">
+                        <div className="text-xs text-slate-400 mt-0.5">
                           par {c.validePar.prenom} {c.validePar.nom}
                         </div>
                       )}
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-center gap-1">
-                        <button
+                        <Button
+                          variant="ghost"
+                          size="sm"
                           onClick={() => setDetailId(c.id)}
-                          className="p-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded"
                           title="Voir détail"
-                        >
-                          <Eye className="w-4 h-4" />
-                        </button>
+                          icon={<Eye className="w-4 h-4" />}
+                        />
                         {c.statut === 'EN_COURS' && (
-                          <button
+                          <Button
+                            variant="ghost"
+                            size="sm"
                             onClick={() => setSaisieId(c.id)}
-                            className="p-1.5 text-gray-500 hover:text-emerald-600 hover:bg-emerald-50 rounded"
                             title="Saisir montants collectés"
-                          >
-                            <Save className="w-4 h-4" />
-                          </button>
+                            icon={<Save className="w-4 h-4" />}
+                          />
                         )}
                       </div>
                     </td>
@@ -309,20 +328,13 @@ export default function CollectesPage() {
       </div>
 
       {/* Pagination */}
-      {res && res.meta.totalPages > 1 && (
-        <div className="flex items-center justify-between text-sm text-gray-600">
-          <span>Page {res.meta.page} / {res.meta.totalPages}</span>
-          <div className="flex gap-2">
-            <button disabled={page === 1} onClick={() => setPage((p) => p - 1)}
-              className="px-3 py-1.5 border border-gray-200 rounded-lg disabled:opacity-40 hover:bg-gray-50">
-              {t('btn_prev')}
-            </button>
-            <button disabled={page === res.meta.totalPages} onClick={() => setPage((p) => p + 1)}
-              className="px-3 py-1.5 border border-gray-200 rounded-lg disabled:opacity-40 hover:bg-gray-50">
-              {t('btn_next')}
-            </button>
-          </div>
-        </div>
+      {res && (
+        <Pagination
+          page={page}
+          totalPages={res.meta.totalPages}
+          total={res.meta.total}
+          onPageChange={setPage}
+        />
       )}
 
       {detailId && (
@@ -390,55 +402,49 @@ function SaisieCollecteModal({ id, onClose, onSaved }: { id: number; onClose: ()
   const collecte = res?.data;
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-[300] p-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl max-h-[90vh] flex flex-col">
-        <div className="flex items-center justify-between p-5 border-b border-gray-200">
-          <div>
-            <h2 className="text-lg font-bold text-gray-900">{t('collecte_saisie_title')}</h2>
-            {collecte && (
-              <p className="text-sm text-gray-500 mt-0.5">
-                {collecte.reference} · {formatDate(collecte.dateCollecte)} · {collecte.agent.prenom} {collecte.agent.nom}
-              </p>
-            )}
-          </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
-        </div>
+    <Modal open onClose={onClose} title={t('collecte_saisie_title')} size="lg">
+      {collecte && (
+        <p className="text-sm text-slate-500 -mt-3 mb-4">
+          {collecte.reference} · {formatDate(collecte.dateCollecte)} · {collecte.agent.prenom} {collecte.agent.nom}
+        </p>
+      )}
 
-        <div className="overflow-y-auto flex-1">
+      <div className="-mx-6 -mt-2">
+        <div className="overflow-y-auto max-h-[55vh]">
           {loading ? (
-            <div className="flex items-center justify-center py-16 text-gray-400">
+            <div className="flex items-center justify-center py-16 text-slate-400">
               <RefreshCw className="w-5 h-5 animate-spin mr-2" /> {t('collecte_loading')}
             </div>
           ) : (
             <table className="w-full text-sm">
-              <thead className="bg-gray-50 border-b border-gray-200 sticky top-0">
+              <thead className="bg-slate-50 border-b border-slate-200 sticky top-0">
                 <tr>
-                  <th className="text-left px-4 py-3 font-semibold text-gray-600">{t('label_client')}</th>
-                  <th className="text-left px-4 py-3 font-semibold text-gray-600">{t('collecte_pack_restant')}</th>
-                  <th className="text-right px-4 py-3 font-semibold text-gray-600">{t('collecte_attendu')}</th>
-                  <th className="text-right px-4 py-3 font-semibold text-gray-600">{t('collecte_col_collecte')}</th>
-                  <th className="text-left px-4 py-3 font-semibold text-gray-600">{t('collecte_resultat')}</th>
-                  <th className="text-left px-4 py-3 font-semibold text-gray-600">{t('label_notes')}</th>
+                  <th className="text-left px-4 py-3 font-semibold text-slate-600">{t('label_client')}</th>
+                  <th className="text-left px-4 py-3 font-semibold text-slate-600">{t('collecte_pack_restant')}</th>
+                  <th className="text-right px-4 py-3 font-semibold text-slate-600">{t('collecte_attendu')}</th>
+                  <th className="text-right px-4 py-3 font-semibold text-slate-600">{t('collecte_col_collecte')}</th>
+                  <th className="text-left px-4 py-3 font-semibold text-slate-600">{t('collecte_resultat')}</th>
+                  <th className="text-left px-4 py-3 font-semibold text-slate-600">{t('label_notes')}</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-slate-100">
                 {collecte?.lignes.map((ligne, i) => {
                   const saisie = lignes[i];
                   if (!saisie) return null;
                   return (
-                    <tr key={ligne.id} className="hover:bg-gray-50">
+                    <tr key={ligne.id} className="hover:bg-slate-50">
                       <td className="px-4 py-3">
-                        <div className="font-medium text-gray-800">
+                        <div className="font-medium text-slate-800">
                           {ligne.client.prenom} {ligne.client.nom}
                           {ligne.client.segment === 'RIA' && (
-                            <span className="ml-1.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-indigo-100 text-indigo-700 leading-none">★ RIA</span>
+                            <Badge variant="indigo" className="ml-1.5">★ RIA</Badge>
                           )}
                         </div>
-                        <div className="flex items-center gap-1 text-xs text-gray-500 mt-0.5">
+                        <div className="flex items-center gap-1 text-xs text-slate-500 mt-0.5">
                           <Phone className="w-3 h-3" /> {ligne.client.telephone}
                         </div>
                         {(ligne.client.quartier || ligne.client.ville) && (
-                          <div className="flex items-center gap-1 text-xs text-gray-400 mt-0.5">
+                          <div className="flex items-center gap-1 text-xs text-slate-400 mt-0.5">
                             <MapPin className="w-3 h-3" />
                             {[ligne.client.quartier, ligne.client.ville].filter(Boolean).join(', ')}
                           </div>
@@ -459,12 +465,12 @@ function SaisieCollecteModal({ id, onClose, onSaved }: { id: number; onClose: ()
                         )}
                       </td>
                       <td className="px-4 py-3">
-                        <div className="text-xs font-medium text-gray-700">{ligne.souscription.pack.nom}</div>
+                        <div className="text-xs font-medium text-slate-700">{ligne.souscription.pack.nom}</div>
                         <div className="text-xs text-red-600 font-semibold mt-0.5">
                           {formatCurrency(Number(ligne.souscription.montantRestant))} restant
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-right text-gray-700 font-medium">
+                      <td className="px-4 py-3 text-right text-slate-700 font-medium">
                         {formatCurrency(Number(ligne.montantAttendu))}
                       </td>
                       <td className="px-4 py-3">
@@ -481,14 +487,14 @@ function SaisieCollecteModal({ id, onClose, onSaved }: { id: number; onClose: ()
                             else if (v >= Number(ligne.montantAttendu)) updateLigne(ligne.id, 'statut', 'COLLECTE');
                             else updateLigne(ligne.id, 'statut', 'PARTIEL');
                           }}
-                          className="w-28 px-2 py-1.5 border border-gray-200 rounded text-sm text-right focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          className="w-28 px-2 py-1.5 border border-slate-200 rounded text-sm text-right focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
                       </td>
                       <td className="px-4 py-3">
                         <select
                           value={saisie.statut}
                           onChange={(e) => updateLigne(ligne.id, 'statut', e.target.value)}
-                          className={`text-xs px-2 py-1.5 rounded-lg border border-gray-200 font-medium focus:outline-none ${LIGNE_STATUT_BADGE[saisie.statut] ?? ''}`}
+                          className={`text-xs px-2 py-1.5 rounded-lg border border-slate-200 font-medium focus:outline-none ${LIGNE_STATUT_SELECT_STYLE[saisie.statut] ?? ''}`}
                         >
                           <option value="EN_ATTENTE">{t('collecte_en_attente')}</option>
                           <option value="COLLECTE">{t('collecte_collecte')}</option>
@@ -502,7 +508,7 @@ function SaisieCollecteModal({ id, onClose, onSaved }: { id: number; onClose: ()
                           value={saisie.notes}
                           onChange={(e) => updateLigne(ligne.id, 'notes', e.target.value)}
                           placeholder={t('collecte_notes_ph')}
-                          className="w-full px-2 py-1.5 border border-gray-200 rounded text-xs focus:outline-none"
+                          className="w-full px-2 py-1.5 border border-slate-200 rounded text-xs focus:outline-none"
                         />
                       </td>
                     </tr>
@@ -510,9 +516,9 @@ function SaisieCollecteModal({ id, onClose, onSaved }: { id: number; onClose: ()
                 })}
               </tbody>
               {/* Total */}
-              <tfoot className="bg-gray-50 border-t border-gray-200">
+              <tfoot className="bg-slate-50 border-t border-slate-200">
                 <tr>
-                  <td colSpan={3} className="px-4 py-3 text-sm font-semibold text-gray-700">{t('label_total')}</td>
+                  <td colSpan={3} className="px-4 py-3 text-sm font-semibold text-slate-700">{t('label_total')}</td>
                   <td className="px-4 py-3 text-right font-bold text-emerald-700">
                     {formatCurrency(lignes.reduce((s, l) => s + l.montantCollecte, 0))}
                   </td>
@@ -522,32 +528,31 @@ function SaisieCollecteModal({ id, onClose, onSaved }: { id: number; onClose: ()
             </table>
           )}
         </div>
+      </div>
 
-        <div className="flex items-center justify-between gap-3 p-5 border-t border-gray-200">
-          <button onClick={onClose} className="px-4 py-2 text-sm text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50">
-            {t('btn_close')}
-          </button>
-          <div className="flex gap-2">
-            <button
-              onClick={handleSave}
-              disabled={saving}
-              className="flex items-center gap-2 px-4 py-2 text-sm text-white bg-gray-700 rounded-lg hover:bg-gray-800 disabled:opacity-50"
-            >
-              {saving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-              {t('btn_save')}
-            </button>
-            <button
-              onClick={handleValider}
-              disabled={validating || saving}
-              className="flex items-center gap-2 px-4 py-2 text-sm text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 disabled:opacity-50"
-            >
-              {validating ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-              {t('collecte_valider_et_generer')}
-            </button>
-          </div>
+      <div className="flex items-center justify-between gap-3 -mx-6 -mb-5 mt-4 px-6 py-4 border-t border-slate-200 sticky bottom-0 bg-white rounded-b-2xl">
+        <Button variant="secondary" onClick={onClose}>{t('btn_close')}</Button>
+        <div className="flex gap-2">
+          <Button
+            variant="secondary"
+            onClick={handleSave}
+            loading={saving}
+            icon={<Save className="w-4 h-4" />}
+          >
+            {t('btn_save')}
+          </Button>
+          <Button
+            variant="success"
+            onClick={handleValider}
+            loading={validating}
+            disabled={saving}
+            icon={<Check className="w-4 h-4" />}
+          >
+            {t('collecte_valider_et_generer')}
+          </Button>
         </div>
       </div>
-    </div>
+    </Modal>
   );
 }
 
@@ -571,38 +576,31 @@ function CollecteDetailModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-[300] p-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col">
-        <div className="flex items-center justify-between p-5 border-b border-gray-200">
-          <div>
-            <h2 className="text-lg font-bold text-gray-900">{t('collecte_detail_title')}</h2>
-            {collecte && (
-              <p className="text-sm text-gray-500 mt-0.5">
-                {collecte.reference} · {formatDate(collecte.dateCollecte)}
-              </p>
-            )}
-          </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
-        </div>
+    <Modal open onClose={onClose} title={t('collecte_detail_title')} size="lg">
+      {collecte && (
+        <p className="text-sm text-slate-500 -mt-3 mb-4">
+          {collecte.reference} · {formatDate(collecte.dateCollecte)}
+        </p>
+      )}
 
-        <div className="overflow-y-auto flex-1 p-5 space-y-4">
-          {loading ? (
-            <div className="flex items-center justify-center py-12 text-gray-400">
-              <RefreshCw className="w-5 h-5 animate-spin mr-2" /> {t('collecte_loading')}
-            </div>
-          ) : collecte ? (
-            <>
-              {/* Résumé */}
+      <div className="space-y-4 max-h-[55vh] overflow-y-auto">
+        {loading ? (
+          <div className="flex items-center justify-center py-12 text-slate-400">
+            <RefreshCw className="w-5 h-5 animate-spin mr-2" /> {t('collecte_loading')}
+          </div>
+        ) : collecte ? (
+          <>
+            {/* Résumé */}
               <div className="grid grid-cols-3 gap-4">
-                <div className="bg-gray-50 rounded-lg p-3">
-                  <p className="text-xs text-gray-500">{t('label_agent')}</p>
-                  <p className="text-sm font-semibold text-gray-800 mt-0.5">
+                <div className="bg-slate-50 rounded-lg p-3">
+                  <p className="text-xs text-slate-500">{t('label_agent')}</p>
+                  <p className="text-sm font-semibold text-slate-800 mt-0.5">
                     {collecte.agent.prenom} {collecte.agent.nom}
                   </p>
                 </div>
-                <div className="bg-gray-50 rounded-lg p-3">
-                  <p className="text-xs text-gray-500">{t('collecte_col_prevu')}</p>
-                  <p className="text-sm font-semibold text-gray-800 mt-0.5">
+                <div className="bg-slate-50 rounded-lg p-3">
+                  <p className="text-xs text-slate-500">{t('collecte_col_prevu')}</p>
+                  <p className="text-sm font-semibold text-slate-800 mt-0.5">
                     {formatCurrency(Number(collecte.montantPrevu))}
                   </p>
                 </div>
@@ -617,16 +615,16 @@ function CollecteDetailModal({
               {/* Lignes */}
               <div className="space-y-2">
                 {collecte.lignes.map((l) => (
-                  <div key={l.id} className="border border-gray-200 rounded-lg p-3">
+                  <div key={l.id} className="border border-slate-200 rounded-lg p-3">
                     <div className="flex items-center justify-between mb-2">
                       <div>
-                        <span className="font-medium text-gray-800 text-sm">
+                        <span className="font-medium text-slate-800 text-sm">
                           {l.client.prenom} {l.client.nom}
                         </span>
                         {l.client.segment === 'RIA' && (
-                          <span className="ml-1.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-indigo-100 text-indigo-700 leading-none">★ RIA</span>
+                          <Badge variant="indigo" className="ml-1.5">★ RIA</Badge>
                         )}
-                        <span className="ml-2 text-xs text-gray-500">{l.client.telephone}</span>
+                        <span className="ml-2 text-xs text-slate-500">{l.client.telephone}</span>
                         {l.client.tags.length > 0 && (
                           <span className="ml-2 inline-flex flex-wrap gap-1">
                             {l.client.tags.map(({ tag }) => (
@@ -642,11 +640,11 @@ function CollecteDetailModal({
                           </span>
                         )}
                       </div>
-                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${LIGNE_STATUT_BADGE[l.statut] ?? 'bg-gray-100 text-gray-600'}`}>
+                      <Badge variant={LIGNE_STATUT_VARIANT[l.statut] ?? 'neutral'}>
                         {l.statut}
-                      </span>
+                      </Badge>
                     </div>
-                    <div className="flex items-center justify-between text-xs text-gray-600">
+                    <div className="flex items-center justify-between text-xs text-slate-600">
                       <span>{l.souscription.pack.nom}</span>
                       <span>
                         {t('collecte_attendu')} : <strong>{formatCurrency(Number(l.montantAttendu))}</strong>
@@ -661,47 +659,28 @@ function CollecteDetailModal({
                       </div>
                     )}
                     {l.notes && (
-                      <div className="mt-1 text-xs text-gray-500 italic">{l.notes}</div>
+                      <div className="mt-1 text-xs text-slate-500 italic">{l.notes}</div>
                     )}
                   </div>
                 ))}
               </div>
             </>
           ) : null}
-        </div>
-
-        <div className="flex items-center justify-between p-5 border-t border-gray-200">
-          <button onClick={onClose} className="px-4 py-2 text-sm text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50">
-            {t('btn_close')}
-          </button>
-          {canValidate && (
-            <button
-              onClick={handleValider}
-              disabled={validating}
-              className="flex items-center gap-2 px-4 py-2 text-sm text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 disabled:opacity-50"
-            >
-              {validating ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-              {t('collecte_valider')}
-            </button>
-          )}
-        </div>
       </div>
-    </div>
-  );
-}
 
-// ─── StatCard ─────────────────────────────────────────────────────────────────
-
-function StatCard({ label, value, icon, bg }: {
-  label: string; value: string; icon: React.ReactNode; bg: string;
-}) {
-  return (
-    <div className="bg-white rounded-xl border border-gray-200 p-4 flex items-center gap-3">
-      <div className={`${bg} p-2.5 rounded-lg`}>{icon}</div>
-      <div>
-        <p className="text-xs text-gray-500">{label}</p>
-        <p className="font-bold text-gray-900 text-lg">{value}</p>
+      <div className="flex items-center justify-between gap-3 -mx-6 -mb-5 mt-4 px-6 py-4 border-t border-slate-200 sticky bottom-0 bg-white rounded-b-2xl">
+        <Button variant="secondary" onClick={onClose}>{t('btn_close')}</Button>
+        {canValidate && (
+          <Button
+            variant="success"
+            onClick={handleValider}
+            loading={validating}
+            icon={<Check className="w-4 h-4" />}
+          >
+            {t('collecte_valider')}
+          </Button>
+        )}
       </div>
-    </div>
+    </Modal>
   );
 }

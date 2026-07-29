@@ -9,6 +9,8 @@ import {
 import { useApi } from "@/hooks/useApi";
 import { formatCurrency } from "@/lib/format";
 import ClienteleTabBar from "@/components/ClienteleTabBar";
+import KpiCard from "@/components/ui/KpiCard";
+import Badge from "@/components/ui/Badge";
 
 interface Stats {
   totaux: {
@@ -25,10 +27,12 @@ interface Stats {
   clientsActifs: { id: number; numeroCompte: string; nbMouvements: number; solde: number; client: string }[];
 }
 
-const STATUT_STYLE: Record<string, string> = {
-  ACTIF: "bg-emerald-100 text-emerald-700", SUSPENDU: "bg-amber-100 text-amber-700",
-  CLOTURE: "bg-gray-100 text-gray-600", DECEDE: "bg-slate-200 text-slate-700",
-  BLACKLIST: "bg-red-100 text-red-700", FRAUDULEUX: "bg-rose-100 text-rose-700",
+type CCBadgeVariant = "success" | "warning" | "neutral" | "error";
+
+const STATUT_VARIANT: Record<string, CCBadgeVariant> = {
+  ACTIF: "success", SUSPENDU: "warning",
+  CLOTURE: "neutral", DECEDE: "neutral",
+  BLACKLIST: "error", FRAUDULEUX: "error",
 };
 const STATUT_LABEL: Record<string, string> = {
   ACTIF: "Actif", SUSPENDU: "Suspendu", CLOTURE: "Clôturé",
@@ -45,15 +49,15 @@ export default function TableauBordCCPage() {
   const s = res?.data;
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-slate-50">
       <ClienteleTabBar>
       <div className="p-6 max-w-screen-xl mx-auto space-y-6">
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
-            <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+            <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
               <Activity className="w-6 h-6 text-emerald-600" /> Tableau de bord — Comptes Courants
             </h2>
-            <p className="text-sm text-gray-500 mt-0.5">États consolidés du portefeuille interne clients</p>
+            <p className="text-sm text-slate-500 mt-0.5">États consolidés du portefeuille interne clients</p>
           </div>
           <div className="flex items-center gap-3">
             <Link href="/dashboard/admin/comptes-courants/etats"
@@ -61,64 +65,65 @@ export default function TableauBordCCPage() {
               <Scale className="w-4 h-4" /> États &amp; rapports
             </Link>
             <Link href="/dashboard/admin/comptes-courants"
-              className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700">
+              className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700">
               <ArrowLeft className="w-4 h-4" /> Liste des comptes
             </Link>
           </div>
         </div>
 
         {loading && !s ? (
-          <div className="flex items-center justify-center py-20 text-gray-400"><Loader2 className="w-6 h-6 animate-spin mr-3" /> Chargement…</div>
+          <div className="flex items-center justify-center py-20 text-slate-400"><Loader2 className="w-6 h-6 animate-spin mr-3" /> Chargement…</div>
         ) : !s ? (
-          <p className="text-center py-20 text-gray-400">Aucune donnée.</p>
+          <p className="text-center py-20 text-slate-400">Aucune donnée.</p>
         ) : (
           <>
             {/* KPIs */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-              <Kpi label="Total disponible" value={formatCurrency(s.totaux.encoursGlobal)} icon={<Wallet className="w-5 h-5 text-emerald-600" />} bg="bg-emerald-50" />
-              <Kpi label="Nombre de comptes" value={String(s.totaux.nbComptes)} icon={<Users className="w-5 h-5 text-violet-600" />} bg="bg-violet-50" />
-              <Kpi label="Comptes actifs" value={String(s.totaux.comptesActifs)} icon={<UserCheck className="w-5 h-5 text-emerald-600" />} bg="bg-emerald-50" />
-              <Kpi label="Comptes inactifs" value={String(s.totaux.comptesInactifs)} icon={<UserX className="w-5 h-5 text-rose-600" />} bg="bg-rose-50" />
-              <Kpi label="Total des dépôts" value={formatCurrency(s.totaux.totalDepose)} icon={<TrendingUp className="w-5 h-5 text-teal-600" />} bg="bg-teal-50" />
-              <Kpi label="Total des retraits" value={formatCurrency(s.totaux.totalRetire)} icon={<TrendingDown className="w-5 h-5 text-orange-600" />} bg="bg-orange-50" />
-              <Kpi label="Total utilisé (achats)" value={formatCurrency(s.totaux.totalUtilise)} icon={<ShoppingCart className="w-5 h-5 text-blue-600" />} bg="bg-blue-50" />
-              <Kpi label="Solde moyen" value={formatCurrency(s.totaux.soldeMoyen)} icon={<Gauge className="w-5 h-5 text-indigo-600" />} bg="bg-indigo-50" />
-              <Kpi label="Mouvements" value={String(s.totaux.nbMouvements)} icon={<Activity className="w-5 h-5 text-slate-600" />} bg="bg-slate-100" />
-              <Kpi label="Retraits en attente" value={String(s.totaux.retraitsEnAttente)} icon={<Clock className="w-5 h-5 text-amber-600" />} bg="bg-amber-50"
-                highlight={s.totaux.retraitsEnAttente > 0} />
+              <KpiCard label="Total disponible" value={s.totaux.encoursGlobal} format={formatCurrency} icon={<Wallet size={18} />} accent="success" />
+              <KpiCard label="Nombre de comptes" value={s.totaux.nbComptes} icon={<Users size={18} />} accent="purple" />
+              <KpiCard label="Comptes actifs" value={s.totaux.comptesActifs} icon={<UserCheck size={18} />} accent="success" />
+              <KpiCard label="Comptes inactifs" value={s.totaux.comptesInactifs} icon={<UserX size={18} />} accent="error" />
+              <KpiCard label="Total des dépôts" value={s.totaux.totalDepose} format={formatCurrency} icon={<TrendingUp size={18} />} accent="teal" />
+              <KpiCard label="Total des retraits" value={s.totaux.totalRetire} format={formatCurrency} icon={<TrendingDown size={18} />} accent="warning" />
+              <KpiCard label="Total utilisé (achats)" value={s.totaux.totalUtilise} format={formatCurrency} icon={<ShoppingCart size={18} />} accent="primary" />
+              <KpiCard label="Solde moyen" value={s.totaux.soldeMoyen} format={formatCurrency} icon={<Gauge size={18} />} accent="purple" />
+              <KpiCard label="Mouvements" value={s.totaux.nbMouvements} icon={<Activity size={18} />} accent="neutral" />
+              <div className={s.totaux.retraitsEnAttente > 0 ? "rounded-2xl ring-2 ring-amber-300" : ""}>
+                <KpiCard label="Retraits en attente" value={s.totaux.retraitsEnAttente} icon={<Clock size={18} />} accent="warning" />
+              </div>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Répartition par statut */}
-              <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
-                <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2"><ListChecks className="w-4 h-4 text-gray-400" /> Comptes par statut</h3>
+              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+                <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2"><ListChecks className="w-4 h-4 text-slate-400" /> Comptes par statut</h3>
                 <div className="space-y-2">
-                  {s.parStatut.length === 0 && <p className="text-sm text-gray-400">Aucun compte.</p>}
+                  {s.parStatut.length === 0 && <p className="text-sm text-slate-400">Aucun compte.</p>}
                   {s.parStatut.map((p) => (
                     <div key={p.statut} className="flex items-center justify-between text-sm">
-                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUT_STYLE[p.statut] ?? "bg-gray-100 text-gray-600"}`}>
+                      <Badge variant={STATUT_VARIANT[p.statut] ?? "neutral"}>
                         {STATUT_LABEL[p.statut] ?? p.statut}
-                      </span>
-                      <span className="text-gray-500">{p.nb} compte(s)</span>
-                      <span className="font-semibold text-gray-800">{formatCurrency(p.solde)}</span>
+                      </Badge>
+                      <span className="text-slate-500">{p.nb} compte(s)</span>
+                      <span className="font-semibold text-slate-800">{formatCurrency(p.solde)}</span>
                     </div>
                   ))}
                 </div>
               </div>
 
               {/* Flux par nature */}
-              <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
-                <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2"><Activity className="w-4 h-4 text-gray-400" /> Flux par nature (validés)</h3>
+              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+                <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2"><Activity className="w-4 h-4 text-slate-400" /> Flux par nature (validés)</h3>
                 <table className="w-full text-sm">
-                  <thead className="text-xs text-gray-400 uppercase">
+                  <thead className="text-xs text-slate-400 uppercase">
                     <tr><th className="text-left font-semibold pb-2">Nature</th><th className="text-center font-semibold pb-2">Nb</th><th className="text-right font-semibold pb-2">Montant net</th></tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-50">
-                    {s.mvtParNature.length === 0 && <tr><td colSpan={3} className="text-gray-400 py-3">Aucun mouvement.</td></tr>}
+                  <tbody className="divide-y divide-slate-50">
+                    {s.mvtParNature.length === 0 && <tr><td colSpan={3} className="text-slate-400 py-3">Aucun mouvement.</td></tr>}
                     {s.mvtParNature.map((m) => (
                       <tr key={m.nature}>
-                        <td className="py-2 text-gray-700">{NATURE_LABEL[m.nature] ?? m.nature}</td>
-                        <td className="py-2 text-center text-gray-500">{m.nb}</td>
+                        <td className="py-2 text-slate-700">{NATURE_LABEL[m.nature] ?? m.nature}</td>
+                        <td className="py-2 text-center text-slate-500">{m.nb}</td>
                         <td className={`py-2 text-right font-semibold ${m.montant < 0 ? "text-orange-600" : "text-emerald-600"}`}>
                           {m.montant < 0 ? "−" : "+"} {formatCurrency(Math.abs(m.montant))}
                         </td>
@@ -131,28 +136,28 @@ export default function TableauBordCCPage() {
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Top 100 épargnants */}
-              <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-                <div className="px-6 py-4 border-b border-gray-100 flex items-center gap-2">
-                  <TrendingUp className="w-4 h-4 text-gray-400" />
-                  <h3 className="font-bold text-gray-800">Top 100 épargnants</h3>
-                  <span className="text-xs text-gray-400">(par solde)</span>
+              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-2">
+                  <TrendingUp className="w-4 h-4 text-slate-400" />
+                  <h3 className="font-bold text-slate-800">Top 100 épargnants</h3>
+                  <span className="text-xs text-slate-400">(par solde)</span>
                 </div>
                 {s.topComptes.length === 0 ? (
-                  <p className="text-center py-10 text-gray-400 text-sm">Aucun compte actif.</p>
+                  <p className="text-center py-10 text-slate-400 text-sm">Aucun compte actif.</p>
                 ) : (
                   <div className="max-h-[460px] overflow-y-auto">
                     <table className="w-full text-sm">
-                      <tbody className="divide-y divide-gray-50">
+                      <tbody className="divide-y divide-slate-50">
                         {s.topComptes.map((c, i) => (
-                          <tr key={c.id} className="hover:bg-gray-50/60">
-                            <td className="px-4 py-2.5 text-gray-400 w-8 text-xs">{i + 1}</td>
+                          <tr key={c.id} className="hover:bg-slate-50/60">
+                            <td className="px-4 py-2.5 text-slate-400 w-8 text-xs">{i + 1}</td>
                             <td className="px-2 py-2.5">
-                              <p className="font-medium text-gray-800">{c.client}</p>
-                              <p className="text-[11px] text-gray-400 font-mono">{c.numeroCompte}</p>
+                              <p className="font-medium text-slate-800">{c.client}</p>
+                              <p className="text-[11px] text-slate-400 font-mono">{c.numeroCompte}</p>
                             </td>
                             <td className="px-2 py-2.5 text-right font-bold text-emerald-700">{formatCurrency(c.solde)}</td>
                             <td className="px-3 py-2.5 text-right">
-                              <Link href={`/dashboard/admin/comptes-courants/${c.id}`} className="text-gray-300 hover:text-emerald-600">
+                              <Link href={`/dashboard/admin/comptes-courants/${c.id}`} className="text-slate-300 hover:text-emerald-600">
                                 <ChevronRight className="w-4 h-4" />
                               </Link>
                             </td>
@@ -165,27 +170,27 @@ export default function TableauBordCCPage() {
               </div>
 
               {/* Top dépôts du mois */}
-              <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-                <div className="px-6 py-4 border-b border-gray-100 flex items-center gap-2">
+              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-2">
                   <TrendingUp className="w-4 h-4 text-teal-500" />
-                  <h3 className="font-bold text-gray-800">Top dépôts du mois</h3>
+                  <h3 className="font-bold text-slate-800">Top dépôts du mois</h3>
                 </div>
                 {s.topDepotsMois.length === 0 ? (
-                  <p className="text-center py-10 text-gray-400 text-sm">Aucun dépôt ce mois-ci.</p>
+                  <p className="text-center py-10 text-slate-400 text-sm">Aucun dépôt ce mois-ci.</p>
                 ) : (
                   <div className="max-h-[460px] overflow-y-auto">
                     <table className="w-full text-sm">
-                      <tbody className="divide-y divide-gray-50">
+                      <tbody className="divide-y divide-slate-50">
                         {s.topDepotsMois.map((d, i) => (
-                          <tr key={d.id} className="hover:bg-gray-50/60">
-                            <td className="px-4 py-2.5 text-gray-400 w-8 text-xs">{i + 1}</td>
+                          <tr key={d.id} className="hover:bg-slate-50/60">
+                            <td className="px-4 py-2.5 text-slate-400 w-8 text-xs">{i + 1}</td>
                             <td className="px-2 py-2.5">
-                              <p className="font-medium text-gray-800">{d.client}</p>
-                              <p className="text-[11px] text-gray-400 font-mono">{d.numeroCompte} · {d.nb} dépôt(s)</p>
+                              <p className="font-medium text-slate-800">{d.client}</p>
+                              <p className="text-[11px] text-slate-400 font-mono">{d.numeroCompte} · {d.nb} dépôt(s)</p>
                             </td>
                             <td className="px-2 py-2.5 text-right font-bold text-teal-700">{formatCurrency(d.total)}</td>
                             <td className="px-3 py-2.5 text-right">
-                              <Link href={`/dashboard/admin/comptes-courants/${d.id}`} className="text-gray-300 hover:text-teal-600">
+                              <Link href={`/dashboard/admin/comptes-courants/${d.id}`} className="text-slate-300 hover:text-teal-600">
                                 <ChevronRight className="w-4 h-4" />
                               </Link>
                             </td>
@@ -200,29 +205,29 @@ export default function TableauBordCCPage() {
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Top agences (CDC §11) */}
-              <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-                <div className="px-6 py-4 border-b border-gray-100 flex items-center gap-2">
+              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-2">
                   <Building2 className="w-4 h-4 text-indigo-500" />
-                  <h3 className="font-bold text-gray-800">Top agences</h3>
-                  <span className="text-xs text-gray-400">(par encours)</span>
+                  <h3 className="font-bold text-slate-800">Top agences</h3>
+                  <span className="text-xs text-slate-400">(par encours)</span>
                 </div>
                 {s.topAgences.length === 0 ? (
-                  <p className="text-center py-10 text-gray-400 text-sm">Aucune agence.</p>
+                  <p className="text-center py-10 text-slate-400 text-sm">Aucune agence.</p>
                 ) : (
                   <div className="max-h-[420px] overflow-y-auto">
                     <table className="w-full text-sm">
-                      <thead className="text-xs text-gray-400 uppercase border-b border-gray-100">
+                      <thead className="text-xs text-slate-400 uppercase border-b border-slate-100">
                         <tr>
                           <th className="text-left font-semibold py-2 px-4">Agence</th>
                           <th className="text-center font-semibold py-2 px-2">Comptes</th>
                           <th className="text-right font-semibold py-2 px-4">Encours</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-gray-50">
+                      <tbody className="divide-y divide-slate-50">
                         {s.topAgences.map((a) => (
-                          <tr key={a.codeAgence} className="hover:bg-gray-50/60">
-                            <td className="px-4 py-2.5 font-medium text-gray-800">{a.codeAgence}</td>
-                            <td className="px-2 py-2.5 text-center text-gray-500">{a.nbComptes}</td>
+                          <tr key={a.codeAgence} className="hover:bg-slate-50/60">
+                            <td className="px-4 py-2.5 font-medium text-slate-800">{a.codeAgence}</td>
+                            <td className="px-2 py-2.5 text-center text-slate-500">{a.nbComptes}</td>
                             <td className="px-4 py-2.5 text-right font-bold text-indigo-700">{formatCurrency(a.encours)}</td>
                           </tr>
                         ))}
@@ -233,28 +238,28 @@ export default function TableauBordCCPage() {
               </div>
 
               {/* Clients les plus actifs (CDC §18) */}
-              <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-                <div className="px-6 py-4 border-b border-gray-100 flex items-center gap-2">
+              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-2">
                   <Zap className="w-4 h-4 text-amber-500" />
-                  <h3 className="font-bold text-gray-800">Clients les plus actifs</h3>
-                  <span className="text-xs text-gray-400">(par mouvements)</span>
+                  <h3 className="font-bold text-slate-800">Clients les plus actifs</h3>
+                  <span className="text-xs text-slate-400">(par mouvements)</span>
                 </div>
                 {s.clientsActifs.length === 0 ? (
-                  <p className="text-center py-10 text-gray-400 text-sm">Aucun mouvement.</p>
+                  <p className="text-center py-10 text-slate-400 text-sm">Aucun mouvement.</p>
                 ) : (
                   <div className="max-h-[420px] overflow-y-auto">
                     <table className="w-full text-sm">
-                      <tbody className="divide-y divide-gray-50">
+                      <tbody className="divide-y divide-slate-50">
                         {s.clientsActifs.map((c, i) => (
-                          <tr key={c.id} className="hover:bg-gray-50/60">
-                            <td className="px-4 py-2.5 text-gray-400 w-8 text-xs">{i + 1}</td>
+                          <tr key={c.id} className="hover:bg-slate-50/60">
+                            <td className="px-4 py-2.5 text-slate-400 w-8 text-xs">{i + 1}</td>
                             <td className="px-2 py-2.5">
-                              <p className="font-medium text-gray-800">{c.client}</p>
-                              <p className="text-[11px] text-gray-400 font-mono">{c.numeroCompte}</p>
+                              <p className="font-medium text-slate-800">{c.client}</p>
+                              <p className="text-[11px] text-slate-400 font-mono">{c.numeroCompte}</p>
                             </td>
                             <td className="px-2 py-2.5 text-right font-bold text-amber-700">{c.nbMouvements} mvt</td>
                             <td className="px-3 py-2.5 text-right">
-                              <Link href={`/dashboard/admin/comptes-courants/${c.id}`} className="text-gray-300 hover:text-amber-600">
+                              <Link href={`/dashboard/admin/comptes-courants/${c.id}`} className="text-slate-300 hover:text-amber-600">
                                 <ChevronRight className="w-4 h-4" />
                               </Link>
                             </td>
@@ -270,15 +275,6 @@ export default function TableauBordCCPage() {
         )}
       </div>
       </ClienteleTabBar>
-    </div>
-  );
-}
-
-function Kpi({ label, value, icon, bg, highlight }: { label: string; value: string; icon: React.ReactNode; bg: string; highlight?: boolean }) {
-  return (
-    <div className={`bg-white border rounded-xl p-4 flex items-center gap-3 shadow-sm ${highlight ? "border-amber-300 ring-1 ring-amber-200" : "border-gray-200"}`}>
-      <div className={`${bg} p-2.5 rounded-xl shrink-0`}>{icon}</div>
-      <div><p className="text-xs text-gray-500">{label}</p><p className="font-bold text-gray-900 text-lg">{value}</p></div>
     </div>
   );
 }

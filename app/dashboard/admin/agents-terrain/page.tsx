@@ -4,13 +4,17 @@ import React, { useState, useCallback } from 'react';
 import {
   UserCheck, Search, RefreshCw, Users, Wallet,
   Phone, MapPin, Calendar, AlertTriangle,
-  BarChart2, Eye, ArrowRightLeft, X, CheckCircle2, QrCode, Printer,
+  BarChart2, Eye, ArrowRightLeft, CheckCircle2, QrCode, Printer,
 } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { useApi } from '@/hooks/useApi';
 import { formatCurrency, formatDate } from '@/lib/format';
 import ClienteleTabBar from '@/components/ClienteleTabBar';
+import Button from '@/components/ui/Button';
+import Badge from '@/components/ui/Badge';
+import Modal from '@/components/ui/Modal';
+import KpiCard from '@/components/ui/KpiCard';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -155,7 +159,7 @@ export default function AgentsTerrainPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-slate-50">
       <ClienteleTabBar>
 
       <div className="p-6 space-y-6 max-w-screen-xl mx-auto">
@@ -163,108 +167,114 @@ export default function AgentsTerrainPage() {
         {/* En-tête */}
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-2xl font-bold text-gray-900">Supervision agents de terrain</h2>
-            <p className="text-sm text-gray-500 mt-0.5">Performance, recouvrement et activité par agent</p>
+            <h2 className="text-2xl font-bold text-slate-900">Supervision agents de terrain</h2>
+            <p className="text-sm text-slate-500 mt-0.5">Performance, recouvrement et activité par agent</p>
           </div>
           <div className="flex items-center gap-2">
             <Link href="/dashboard/admin/agents-terrain/qr-planche"
               className="flex items-center gap-2 px-4 py-2 text-sm text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-sm">
               <QrCode className="w-4 h-4" /> Imprimer tous les QR
             </Link>
-            <button onClick={refetch}
-              className="flex items-center gap-2 px-4 py-2 text-sm text-gray-600 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 shadow-sm">
-              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            <Button variant="secondary" icon={<RefreshCw className={loading ? 'animate-spin' : ''} size={16} />} onClick={refetch}>
               Actualiser
-            </button>
+            </Button>
           </div>
         </div>
 
         {/* KPIs */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {[
-            { label: 'Agents actifs',    value: stats?.actifs ?? 0,                      icon: <UserCheck className="w-5 h-5 text-blue-600" />,    bg: 'bg-blue-50',    fmt: 'n' },
-            { label: 'Clients affectés', value: stats?.totalClientsAffectes ?? 0,         icon: <Users className="w-5 h-5 text-violet-600" />,       bg: 'bg-violet-50',  fmt: 'n' },
-            { label: 'Total agents',     value: stats?.total ?? 0,                        icon: <BarChart2 className="w-5 h-5 text-slate-600" />,    bg: 'bg-slate-50',   fmt: 'n' },
-            { label: 'Collecté ce mois', value: formatCurrency(stats?.totalCollecteCeMois ?? 0), icon: <Wallet className="w-5 h-5 text-emerald-600" />, bg: 'bg-emerald-50', fmt: 'c' },
-          ].map((k) => (
-            <div key={k.label} className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm flex items-center gap-4">
-              <div className={`${k.bg} p-2.5 rounded-xl shrink-0`}>{k.icon}</div>
-              <div>
-                <p className="text-xs text-gray-500">{k.label}</p>
-                <p className={`font-bold text-gray-900 ${k.fmt === 'n' ? 'text-2xl' : 'text-lg'}`}>{k.value}</p>
-              </div>
-            </div>
-          ))}
+          <KpiCard
+            label="Agents actifs"
+            value={stats?.actifs ?? 0}
+            icon={<UserCheck size={18} />}
+            accent="primary"
+          />
+          <KpiCard
+            label="Clients affectés"
+            value={stats?.totalClientsAffectes ?? 0}
+            icon={<Users size={18} />}
+            accent="purple"
+          />
+          <KpiCard
+            label="Total agents"
+            value={stats?.total ?? 0}
+            icon={<BarChart2 size={18} />}
+            accent="neutral"
+          />
+          <KpiCard
+            label="Collecté ce mois"
+            value={stats?.totalCollecteCeMois ?? 0}
+            format={formatCurrency}
+            icon={<Wallet size={18} />}
+            accent="success"
+          />
         </div>
 
         {/* Filtres */}
-        <div className="bg-white rounded-xl border border-gray-200 p-4 flex flex-wrap gap-3 items-center">
+        <div className="bg-white rounded-xl border border-slate-200 p-4 flex flex-wrap gap-3 items-center">
           <div className="flex-1 min-w-[220px] flex gap-2">
             <input
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
               placeholder="Rechercher un agent…"
-              className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
-            <button onClick={handleSearch}
-              className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-              <Search className="w-4 h-4" />
-            </button>
+            <Button variant="primary" icon={<Search size={16} />} onClick={handleSearch} aria-label="Rechercher" />
           </div>
           <select value={actifFilter} onChange={(e) => setActifFilter(e.target.value)}
-            className="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white">
+            className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white">
             <option value="">Tous</option>
             <option value="true">Actifs</option>
             <option value="false">Inactifs</option>
           </select>
-          <span className="text-sm text-gray-400">{agents.length} agent(s)</span>
+          <span className="text-sm text-slate-400">{agents.length} agent(s)</span>
         </div>
 
         {/* Table */}
-        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
           {loading ? (
-            <div className="flex items-center justify-center py-16 text-gray-400">
+            <div className="flex items-center justify-center py-16 text-slate-400">
               <RefreshCw className="w-5 h-5 animate-spin mr-2" /> Chargement…
             </div>
           ) : agents.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 text-gray-400">
+            <div className="flex flex-col items-center justify-center py-16 text-slate-400">
               <UserCheck className="w-10 h-10 mb-2" />
               <p className="text-sm">Aucun agent de terrain trouvé</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
-                <thead className="bg-gray-50 border-b border-gray-200">
+                <thead className="bg-slate-50 border-b border-slate-200">
                   <tr>
-                    <th className="text-left px-5 py-3 font-semibold text-gray-600">Agent</th>
-                    <th className="text-left px-4 py-3 font-semibold text-gray-600">Zone</th>
-                    <th className="text-center px-4 py-3 font-semibold text-gray-600">Clients</th>
-                    <th className="text-center px-4 py-3 font-semibold text-gray-600">Créances actives</th>
-                    <th className="text-right px-4 py-3 font-semibold text-gray-600">Collecté ce mois</th>
-                    <th className="text-center px-4 py-3 font-semibold text-gray-600">Taux recouvrement</th>
-                    <th className="text-left px-4 py-3 font-semibold text-gray-600">Dernière activité</th>
-                    <th className="text-center px-4 py-3 font-semibold text-gray-600">Statut</th>
-                    <th className="text-center px-4 py-3 font-semibold text-gray-600">Actions</th>
+                    <th className="text-left px-5 py-3 font-semibold text-slate-600">Agent</th>
+                    <th className="text-left px-4 py-3 font-semibold text-slate-600">Zone</th>
+                    <th className="text-center px-4 py-3 font-semibold text-slate-600">Clients</th>
+                    <th className="text-center px-4 py-3 font-semibold text-slate-600">Créances actives</th>
+                    <th className="text-right px-4 py-3 font-semibold text-slate-600">Collecté ce mois</th>
+                    <th className="text-center px-4 py-3 font-semibold text-slate-600">Taux recouvrement</th>
+                    <th className="text-left px-4 py-3 font-semibold text-slate-600">Dernière activité</th>
+                    <th className="text-center px-4 py-3 font-semibold text-slate-600">Statut</th>
+                    <th className="text-center px-4 py-3 font-semibold text-slate-600">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100">
+                <tbody className="divide-y divide-slate-100">
                   {agents.map((agent) => {
                     const pdv = agent.member.affectationsPDV[0]?.pointDeVente ?? null;
                     return (
-                      <tr key={agent.id} className="hover:bg-gray-50 transition-colors">
+                      <tr key={agent.id} className="hover:bg-slate-50 transition-colors">
                         {/* Agent */}
                         <td className="px-5 py-3">
-                          <p className="font-medium text-gray-900">
+                          <p className="font-medium text-slate-900">
                             {agent.member.prenom} {agent.member.nom}
                           </p>
                           {agent.member.telephone && (
-                            <div className="flex items-center gap-1 text-xs text-gray-400 mt-0.5">
+                            <div className="flex items-center gap-1 text-xs text-slate-400 mt-0.5">
                               <Phone className="w-3 h-3" />{agent.member.telephone}
                             </div>
                           )}
                           {pdv && (
-                            <div className="flex items-center gap-1 text-xs text-gray-400 mt-0.5">
+                            <div className="flex items-center gap-1 text-xs text-slate-400 mt-0.5">
                               <MapPin className="w-3 h-3" />{pdv.nom}
                             </div>
                           )}
@@ -273,26 +283,26 @@ export default function AgentsTerrainPage() {
                         {/* Zone */}
                         <td className="px-4 py-3">
                           {agent.zone ? (
-                            <span className="inline-flex items-center gap-1 text-xs text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-full font-medium">
+                            <Badge variant="indigo">
                               <MapPin className="w-3 h-3" />{agent.zone}
-                            </span>
+                            </Badge>
                           ) : (
-                            <span className="text-xs text-gray-300">—</span>
+                            <span className="text-xs text-slate-300">—</span>
                           )}
                         </td>
 
                         {/* Nb clients */}
                         <td className="px-4 py-3 text-center">
-                          <span className="text-lg font-bold text-gray-900">{agent.stats.nbClients}</span>
+                          <span className="text-lg font-bold text-slate-900">{agent.stats.nbClients}</span>
                         </td>
 
                         {/* Créances */}
                         <td className="px-4 py-3 text-center">
-                          <span className={`text-lg font-bold ${agent.stats.nbCreancesActives > 0 ? 'text-orange-600' : 'text-gray-400'}`}>
+                          <span className={`text-lg font-bold ${agent.stats.nbCreancesActives > 0 ? 'text-orange-600' : 'text-slate-400'}`}>
                             {agent.stats.nbCreancesActives}
                           </span>
                           {agent.stats.montantCreances > 0 && (
-                            <p className="text-xs text-gray-400 mt-0.5">{formatCurrency(agent.stats.montantCreances)}</p>
+                            <p className="text-xs text-slate-400 mt-0.5">{formatCurrency(agent.stats.montantCreances)}</p>
                           )}
                         </td>
 
@@ -304,8 +314,8 @@ export default function AgentsTerrainPage() {
                             </p>
 
                             {/* Tooltip détail */}
-                            <div className="absolute right-0 top-full mt-1 z-20 hidden group-hover:block w-64 bg-white border border-gray-200 rounded-xl shadow-xl p-3 text-left">
-                              <p className="text-xs font-semibold text-gray-700 mb-2">Détail — ce mois</p>
+                            <div className="absolute right-0 top-full mt-1 z-20 hidden group-hover:block w-64 bg-white border border-slate-200 rounded-xl shadow-xl p-3 text-left">
+                              <p className="text-xs font-semibold text-slate-700 mb-2">Détail — ce mois</p>
                               <div className="space-y-1.5">
                                 {[
                                   { label: 'Collectes terrain',       value: agent.stats.collecteDetail.terrain,        color: 'text-blue-600' },
@@ -314,14 +324,14 @@ export default function AgentsTerrainPage() {
                                   { label: 'Ventes directes',         value: agent.stats.collecteDetail.ventes,         color: 'text-emerald-600' },
                                 ].map((row) => (
                                   <div key={row.label} className="flex items-center justify-between gap-2">
-                                    <span className="text-xs text-gray-500 truncate">{row.label}</span>
-                                    <span className={`text-xs font-semibold shrink-0 ${row.value > 0 ? row.color : 'text-gray-300'}`}>
+                                    <span className="text-xs text-slate-500 truncate">{row.label}</span>
+                                    <span className={`text-xs font-semibold shrink-0 ${row.value > 0 ? row.color : 'text-slate-300'}`}>
                                       {formatCurrency(row.value)}
                                     </span>
                                   </div>
                                 ))}
-                                <div className="border-t border-gray-100 pt-1.5 flex items-center justify-between">
-                                  <span className="text-xs font-semibold text-gray-700">Total</span>
+                                <div className="border-t border-slate-100 pt-1.5 flex items-center justify-between">
+                                  <span className="text-xs font-semibold text-slate-700">Total</span>
                                   <span className="text-xs font-bold text-emerald-700">{formatCurrency(agent.stats.montantCollecteCeMois)}</span>
                                 </div>
                               </div>
@@ -335,7 +345,7 @@ export default function AgentsTerrainPage() {
                             <span className={`text-lg font-bold ${TAUX_COLOR(agent.stats.tauxRecouvrement)}`}>
                               {agent.stats.tauxRecouvrement}%
                             </span>
-                            <div className="w-20 bg-gray-100 rounded-full h-1.5">
+                            <div className="w-20 bg-slate-100 rounded-full h-1.5">
                               <div
                                 className={`h-1.5 rounded-full ${TAUX_BG(agent.stats.tauxRecouvrement)}`}
                                 style={{ width: `${agent.stats.tauxRecouvrement}%` }}
@@ -348,16 +358,16 @@ export default function AgentsTerrainPage() {
                         <td className="px-4 py-3">
                           {agent.stats.derniereActivite ? (
                             <div>
-                              <div className="flex items-center gap-1 text-xs text-gray-600">
+                              <div className="flex items-center gap-1 text-xs text-slate-600">
                                 <Calendar className="w-3 h-3" />
                                 {formatDate(agent.stats.derniereActivite)}
                               </div>
-                              <p className="text-xs text-gray-400 mt-0.5">
+                              <p className="text-xs text-slate-400 mt-0.5">
                                 {joursDepuis(agent.stats.derniereActivite)}
                               </p>
                             </div>
                           ) : (
-                            <span className="text-xs text-gray-400 flex items-center gap-1">
+                            <span className="text-xs text-slate-400 flex items-center gap-1">
                               <AlertTriangle className="w-3 h-3 text-amber-400" /> Aucune collecte
                             </span>
                           )}
@@ -365,11 +375,9 @@ export default function AgentsTerrainPage() {
 
                         {/* Statut */}
                         <td className="px-4 py-3 text-center">
-                          <span className={`inline-block text-xs px-2 py-1 rounded-full font-medium ${
-                            agent.actif ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'
-                          }`}>
+                          <Badge variant={agent.actif ? 'success' : 'neutral'}>
                             {agent.actif ? 'Actif' : 'Inactif'}
-                          </span>
+                          </Badge>
                         </td>
 
                         {/* Actions */}
@@ -381,20 +389,24 @@ export default function AgentsTerrainPage() {
                             >
                               <Eye className="w-3 h-3" /> Détail
                             </Link>
-                            <button
+                            <Button
+                              variant="ghost"
+                              size="sm"
                               onClick={() => openQr(agent)}
                               title="QR de tournée (accès sans login)"
-                              className="inline-flex items-center gap-1 text-xs text-emerald-600 hover:text-emerald-800 px-2 py-1 rounded hover:bg-emerald-50"
+                              icon={<QrCode className="w-3 h-3" />}
                             >
-                              <QrCode className="w-3 h-3" /> QR
-                            </button>
-                            <button
+                              QR
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
                               onClick={() => openTransfer(agent)}
                               title="Transférer le portefeuille"
-                              className="inline-flex items-center gap-1 text-xs text-violet-600 hover:text-violet-800 px-2 py-1 rounded hover:bg-violet-50"
+                              icon={<ArrowRightLeft className="w-3 h-3" />}
                             >
-                              <ArrowRightLeft className="w-3 h-3" /> Transférer
-                            </button>
+                              Transférer
+                            </Button>
                           </div>
                         </td>
                       </tr>
@@ -408,127 +420,112 @@ export default function AgentsTerrainPage() {
       </div>
 
       {/* Modal QR de tournée (accès sans login) */}
-      {qrAgent && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl w-full max-w-sm shadow-xl overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-              <div>
-                <h3 className="font-bold text-gray-900 flex items-center gap-2"><QrCode className="w-5 h-5 text-emerald-600" /> QR de tournée</h3>
-                <p className="text-sm text-gray-500 mt-0.5">{qrAgent.member.prenom} {qrAgent.member.nom}</p>
-              </div>
-              <button onClick={() => setQrAgent(null)} className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"><X className="w-5 h-5" /></button>
-            </div>
-            <div className="p-6 flex flex-col items-center">
-              {qrLoading ? (
-                <div className="py-16 text-gray-400"><RefreshCw className="w-6 h-6 animate-spin" /></div>
-              ) : qrData ? (
-                <>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={qrData.qr} alt="QR de tournée" className="w-52 h-52" />
-                  <a href={qrData.url} target="_blank" rel="noopener noreferrer" className="mt-2 text-xs text-blue-600 break-all text-center hover:underline">{qrData.url}</a>
-                  <p className="text-[11px] text-gray-400 text-center mt-3">
-                    L&apos;agent scanne ce code pour voir ses objectifs du jour et ses clients à visiter, <strong>sans se connecter</strong>. Ce QR est personnel.
-                  </p>
-                </>
-              ) : (
-                <p className="text-sm text-gray-400 py-16">QR indisponible.</p>
-              )}
-            </div>
-            <div className="px-6 py-4 border-t border-gray-100 flex gap-3">
-              <button onClick={() => window.print()} disabled={!qrData}
-                className="flex-1 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center gap-2">
-                <Printer className="w-4 h-4" /> Imprimer
-              </button>
-              <button onClick={regenererQr} disabled={qrRegen || !qrData}
-                className="py-2.5 px-4 bg-white border border-gray-200 text-gray-700 rounded-xl text-sm font-medium hover:bg-gray-50 disabled:opacity-50 flex items-center justify-center gap-2">
-                <RefreshCw className={`w-4 h-4 ${qrRegen ? 'animate-spin' : ''}`} /> Régénérer
-              </button>
-            </div>
-          </div>
+      <Modal open={!!qrAgent} onClose={() => setQrAgent(null)} title="QR de tournée" size="sm">
+        <div className="-mt-2 mb-4 flex items-center gap-2 text-sm text-slate-500">
+          <QrCode className="w-4 h-4 text-emerald-600 shrink-0" />
+          {qrAgent?.member.prenom} {qrAgent?.member.nom}
         </div>
-      )}
+        <div className="flex flex-col items-center">
+          {qrLoading ? (
+            <div className="py-16 text-slate-400"><RefreshCw className="w-6 h-6 animate-spin" /></div>
+          ) : qrData ? (
+            <>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={qrData.qr} alt="QR de tournée" className="w-52 h-52" />
+              <a href={qrData.url} target="_blank" rel="noopener noreferrer" className="mt-2 text-xs text-blue-600 break-all text-center hover:underline">{qrData.url}</a>
+              <p className="text-[11px] text-slate-400 text-center mt-3">
+                L&apos;agent scanne ce code pour voir ses objectifs du jour et ses clients à visiter, <strong>sans se connecter</strong>. Ce QR est personnel.
+              </p>
+            </>
+          ) : (
+            <p className="text-sm text-slate-400 py-16">QR indisponible.</p>
+          )}
+        </div>
+        <div className="mt-6 flex gap-3">
+          <Button
+            variant="primary"
+            className="flex-1"
+            onClick={() => window.print()}
+            disabled={!qrData}
+            icon={<Printer size={16} />}
+          >
+            Imprimer
+          </Button>
+          <Button
+            variant="secondary"
+            onClick={regenererQr}
+            disabled={qrRegen || !qrData}
+            loading={qrRegen}
+            icon={<RefreshCw size={16} />}
+          >
+            Régénérer
+          </Button>
+        </div>
+      </Modal>
 
       {/* Modal transfert portefeuille */}
-      {transferSource && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl w-full max-w-md shadow-xl overflow-hidden">
-            {/* Header */}
-            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-              <div>
-                <h3 className="font-bold text-gray-900 text-lg">Transférer le portefeuille</h3>
-                <p className="text-sm text-gray-500 mt-0.5">
-                  De <span className="font-medium text-gray-700">{transferSource.member.prenom} {transferSource.member.nom}</span>
-                  {' '}({transferSource.stats.nbClients} client(s))
-                </p>
-              </div>
-              <button
-                onClick={() => setTransferSource(null)}
-                className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
+      <Modal open={!!transferSource} onClose={() => setTransferSource(null)} title="Transférer le portefeuille" size="sm">
+        <p className="-mt-2 mb-4 text-sm text-slate-500">
+          De <span className="font-medium text-slate-700">{transferSource?.member.prenom} {transferSource?.member.nom}</span>
+          {' '}({transferSource?.stats.nbClients} client(s))
+        </p>
 
-            <div className="p-6 space-y-4">
-              {/* Avertissement */}
-              <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex gap-2 text-sm text-amber-800">
-                <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
-                <p>Tous les clients de cet agent seront réaffectés à l&apos;agent sélectionné. L&apos;historique des affectations est conservé.</p>
-              </div>
-
-              {/* Sélection agent destination */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Agent destination</label>
-                <select
-                  value={transferTargetId}
-                  onChange={(e) => setTransferTargetId(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-violet-500"
-                >
-                  <option value="">— Choisir un agent —</option>
-                  {agents
-                    .filter((a) => a.memberId !== transferSource.memberId)
-                    .map((a) => (
-                      <option key={a.memberId} value={a.memberId}>
-                        {a.member.prenom} {a.member.nom}
-                        {a.zone ? ` · ${a.zone}` : ''}
-                        {' '}({a.stats.nbClients} clients)
-                      </option>
-                    ))}
-                </select>
-              </div>
-
-              {/* Feedback */}
-              {transferError && (
-                <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{transferError}</p>
-              )}
-              {transferSuccess && (
-                <div className="flex items-center gap-2 text-sm text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">
-                  <CheckCircle2 className="w-4 h-4 shrink-0" />{transferSuccess}
-                </div>
-              )}
-            </div>
-
-            {/* Footer */}
-            <div className="px-6 py-4 border-t border-gray-100 flex gap-3">
-              <button
-                onClick={() => setTransferSource(null)}
-                className="flex-1 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl text-sm font-medium hover:bg-gray-50"
-              >
-                Annuler
-              </button>
-              <button
-                onClick={handleTransfer}
-                disabled={!transferTargetId || transferLoading || !!transferSuccess}
-                className="flex-1 py-2.5 bg-violet-600 text-white rounded-xl text-sm font-medium hover:bg-violet-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-              >
-                {transferLoading
-                  ? <><RefreshCw className="w-4 h-4 animate-spin" /> Transfert…</>
-                  : <><ArrowRightLeft className="w-4 h-4" /> Confirmer le transfert</>}
-              </button>
-            </div>
+        <div className="space-y-4">
+          {/* Avertissement */}
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex gap-2 text-sm text-amber-800">
+            <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+            <p>Tous les clients de cet agent seront réaffectés à l&apos;agent sélectionné. L&apos;historique des affectations est conservé.</p>
           </div>
+
+          {/* Sélection agent destination */}
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Agent destination</label>
+            <select
+              value={transferTargetId}
+              onChange={(e) => setTransferTargetId(e.target.value)}
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-violet-500"
+            >
+              <option value="">— Choisir un agent —</option>
+              {agents
+                .filter((a) => transferSource && a.memberId !== transferSource.memberId)
+                .map((a) => (
+                  <option key={a.memberId} value={a.memberId}>
+                    {a.member.prenom} {a.member.nom}
+                    {a.zone ? ` · ${a.zone}` : ''}
+                    {' '}({a.stats.nbClients} clients)
+                  </option>
+                ))}
+            </select>
+          </div>
+
+          {/* Feedback */}
+          {transferError && (
+            <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{transferError}</p>
+          )}
+          {transferSuccess && (
+            <div className="flex items-center gap-2 text-sm text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">
+              <CheckCircle2 className="w-4 h-4 shrink-0" />{transferSuccess}
+            </div>
+          )}
         </div>
-      )}
+
+        {/* Footer */}
+        <div className="mt-6 flex gap-3">
+          <Button variant="secondary" className="flex-1" onClick={() => setTransferSource(null)}>
+            Annuler
+          </Button>
+          <Button
+            variant="primary"
+            className="flex-1"
+            onClick={handleTransfer}
+            disabled={!transferTargetId || transferLoading || !!transferSuccess}
+            loading={transferLoading}
+            icon={<ArrowRightLeft size={16} />}
+          >
+            Confirmer le transfert
+          </Button>
+        </div>
+      </Modal>
       </ClienteleTabBar>
     </div>
   );

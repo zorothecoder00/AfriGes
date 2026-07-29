@@ -7,6 +7,9 @@ import { useT } from '@/contexts/AppSettingsContext';
 import { formatDateTime } from '@/lib/format';
 import { exportToXlsx } from '@/lib/exportXlsx';
 import ClienteleTabBar from '@/components/ClienteleTabBar';
+import Button from '@/components/ui/Button';
+import Badge, { type BadgeVariant } from '@/components/ui/Badge';
+import Pagination from '@/components/ui/Pagination';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -31,29 +34,34 @@ interface AuditResponse {
 }
 
 // ─── Couleurs par entité ──────────────────────────────────────────────────────
+// Catégories métier non sémantiques : chaque entité reçoit le variant Badge
+// le plus proche de sa couleur d'origine (le système ne propose pas autant
+// de teintes que l'ancien habillage ad-hoc, certaines entités partagent donc
+// désormais le même variant).
 
-const ENTITE_STYLE: Record<string, string> = {
-  Client:               'bg-blue-100 text-blue-700',
-  SouscriptionPack:     'bg-violet-100 text-violet-700',
-  CollecteJournaliere:  'bg-teal-100 text-teal-700',
-  VersementPack:        'bg-emerald-100 text-emerald-700',
-  VenteDirecte:         'bg-orange-100 text-orange-700',
-  EcheancePack:         'bg-amber-100 text-amber-700',
+
+const ENTITE_BADGE_VARIANT: Record<string, BadgeVariant> = {
+  Client:               'indigo',
+  SouscriptionPack:     'purple',
+  CollecteJournaliere:  'teal',
+  VersementPack:        'success',
+  VenteDirecte:         'warning',
+  EcheancePack:         'warning',
 };
 
-const ACTION_STYLE: Record<string, string> = {
-  CREATION:   'text-emerald-600',
-  MODIFICATION: 'text-blue-600',
-  SUPPRESSION:  'text-red-600',
-  VALIDATION:   'text-violet-600',
-  ANNULATION:   'text-amber-600',
+const ACTION_BADGE_VARIANT: Record<string, BadgeVariant> = {
+  CREATION:     'success',
+  MODIFICATION: 'info',
+  SUPPRESSION:  'error',
+  VALIDATION:   'purple',
+  ANNULATION:   'warning',
 };
 
-function actionColor(action: string) {
-  for (const [k, v] of Object.entries(ACTION_STYLE)) {
+function actionVariant(action: string): BadgeVariant {
+  for (const [k, v] of Object.entries(ACTION_BADGE_VARIANT)) {
     if (action.includes(k)) return v;
   }
-  return 'text-gray-600';
+  return 'neutral';
 }
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
@@ -99,7 +107,7 @@ export default function AuditPage() {
   const logs = res?.data ?? [];
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-slate-50">
       <ClienteleTabBar>
 
       <div className="p-6 space-y-6 max-w-screen-xl mx-auto">
@@ -107,20 +115,16 @@ export default function AuditPage() {
         {/* En-tête */}
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-2xl font-bold text-gray-900">{t('audit_title')}</h2>
-            <p className="text-sm text-gray-500 mt-0.5">
+            <h2 className="text-2xl font-bold text-slate-900">{t('audit_title')}</h2>
+            <p className="text-sm text-slate-500 mt-0.5">
               {t('audit_subtitle')}
             </p>
           </div>
           <div className="flex gap-2">
-            <button onClick={handleExport} disabled={!logs.length}
-              className="flex items-center gap-2 px-4 py-2 text-sm text-gray-600 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 shadow-sm disabled:opacity-40">
-              <Download className="w-4 h-4" /> {t('audit_export_csv')}
-            </button>
-            <button onClick={refetch}
-              className="flex items-center gap-2 px-4 py-2 text-sm text-gray-600 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 shadow-sm">
-              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-            </button>
+            <Button variant="secondary" disabled={!logs.length} icon={<Download className="w-4 h-4" />} onClick={handleExport}>
+              {t('audit_export_csv')}
+            </Button>
+            <Button variant="secondary" icon={<RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />} onClick={refetch} />
           </div>
         </div>
 
@@ -128,24 +132,24 @@ export default function AuditPage() {
         {res?.stats && (
           <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
             {res.stats.parEntite.slice(0, 6).map((e) => (
-              <div key={e.entite} className="bg-white border border-gray-200 rounded-xl p-4 flex items-center gap-3">
-                <span className={`text-xs px-2 py-1 rounded-full font-medium ${ENTITE_STYLE[e.entite] ?? 'bg-gray-100 text-gray-600'}`}>
+              <div key={e.entite} className="bg-white border border-slate-200 rounded-xl p-4 flex items-center gap-3">
+                <Badge variant={ENTITE_BADGE_VARIANT[e.entite] ?? 'neutral'}>
                   {e.entite}
-                </span>
-                <span className="text-lg font-bold text-gray-800 ml-auto">{e._count.id}</span>
+                </Badge>
+                <span className="text-lg font-bold text-slate-800 ml-auto">{e._count.id}</span>
               </div>
             ))}
           </div>
         )}
 
         {/* Filtres */}
-        <div className="bg-white rounded-xl border border-gray-200 p-4 flex flex-wrap gap-3 items-end">
+        <div className="bg-white rounded-xl border border-slate-200 p-4 flex flex-wrap gap-3 items-end">
           <div>
-            <label className="block text-xs text-gray-500 mb-1 flex items-center gap-1">
+            <label className="block text-xs text-slate-500 mb-1 flex items-center gap-1">
               <Filter className="w-3 h-3" /> {t('audit_filter_entite')}
             </label>
             <select value={entite} onChange={(e) => { setEntite(e.target.value); setPage(1); }}
-              className="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+              className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
               <option value="">{t('audit_all_entities')}</option>
               {res?.entitesDisponibles.map((e) => (
                 <option key={e} value={e}>{e}</option>
@@ -154,98 +158,99 @@ export default function AuditPage() {
           </div>
 
           <div>
-            <label className="block text-xs text-gray-500 mb-1 flex items-center gap-1">
+            <label className="block text-xs text-slate-500 mb-1 flex items-center gap-1">
               <Shield className="w-3 h-3" /> {t('audit_filter_action')}
             </label>
             <div className="flex gap-1">
               <input value={actionInput} onChange={(e) => setActionInput(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && applyAction()}
                 placeholder="Ex: CREATION"
-                className="px-3 py-2 border border-gray-200 rounded-lg text-sm w-36 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-              <button onClick={applyAction}
-                className="px-2 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-                <Search className="w-4 h-4" />
-              </button>
+                className="px-3 py-2 border border-slate-200 rounded-lg text-sm w-36 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              <Button variant="primary" size="sm" icon={<Search className="w-4 h-4" />} onClick={applyAction} />
             </div>
           </div>
 
           <div>
-            <label className="block text-xs text-gray-500 mb-1 flex items-center gap-1">
+            <label className="block text-xs text-slate-500 mb-1 flex items-center gap-1">
               <Calendar className="w-3 h-3" /> {t('audit_filter_from')}
             </label>
             <input type="date" value={dateDebut} onChange={(e) => { setDateDebut(e.target.value); setPage(1); }}
-              className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              className="px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
           </div>
 
           <div>
-            <label className="block text-xs text-gray-500 mb-1">{t('audit_filter_to')}</label>
+            <label className="block text-xs text-slate-500 mb-1">{t('audit_filter_to')}</label>
             <input type="date" value={dateFin} onChange={(e) => { setDateFin(e.target.value); setPage(1); }}
-              className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              className="px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
           </div>
 
           {(entite || action || dateDebut || dateFin) && (
-            <button onClick={() => { setEntite(''); setAction(''); setActionInput(''); setDateDebut(''); setDateFin(''); setPage(1); }}
-              className="px-3 py-2 text-sm text-gray-500 hover:text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50 self-end">
+            <Button
+              variant="secondary"
+              size="sm"
+              className="self-end"
+              onClick={() => { setEntite(''); setAction(''); setActionInput(''); setDateDebut(''); setDateFin(''); setPage(1); }}
+            >
               {t('audit_reset')}
-            </button>
+            </Button>
           )}
 
-          <span className="text-sm text-gray-400 self-end ml-auto">
+          <span className="text-sm text-slate-400 self-end ml-auto">
             {res?.meta.total ?? 0} entrée(s)
           </span>
         </div>
 
         {/* Table */}
-        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
           {loading ? (
-            <div className="flex items-center justify-center py-16 text-gray-400">
+            <div className="flex items-center justify-center py-16 text-slate-400">
               <RefreshCw className="w-5 h-5 animate-spin mr-2" /> {t('audit_loading')}
             </div>
           ) : logs.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 text-gray-400">
+            <div className="flex flex-col items-center justify-center py-16 text-slate-400">
               <Shield className="w-10 h-10 mb-2" />
               <p className="text-sm">{t('audit_none')}</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
-                <thead className="bg-gray-50 border-b border-gray-200">
+                <thead className="bg-slate-50 border-b border-slate-200">
                   <tr>
-                    <th className="text-left px-5 py-3 font-semibold text-gray-600">{t('audit_col_date')}</th>
-                    <th className="text-left px-4 py-3 font-semibold text-gray-600">{t('audit_col_action')}</th>
-                    <th className="text-left px-4 py-3 font-semibold text-gray-600">{t('audit_col_entite')}</th>
-                    <th className="text-left px-4 py-3 font-semibold text-gray-600">ID</th>
-                    <th className="text-left px-4 py-3 font-semibold text-gray-600">{t('audit_col_user')}</th>
+                    <th className="text-left px-5 py-3 font-semibold text-slate-600">{t('audit_col_date')}</th>
+                    <th className="text-left px-4 py-3 font-semibold text-slate-600">{t('audit_col_action')}</th>
+                    <th className="text-left px-4 py-3 font-semibold text-slate-600">{t('audit_col_entite')}</th>
+                    <th className="text-left px-4 py-3 font-semibold text-slate-600">ID</th>
+                    <th className="text-left px-4 py-3 font-semibold text-slate-600">{t('audit_col_user')}</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100">
+                <tbody className="divide-y divide-slate-100">
                   {logs.map((log) => (
-                    <tr key={log.id} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-5 py-3 text-xs text-gray-500 font-mono whitespace-nowrap">
+                    <tr key={log.id} className="hover:bg-slate-50 transition-colors">
+                      <td className="px-5 py-3 text-xs text-slate-500 font-mono whitespace-nowrap">
                         {formatDateTime(log.createdAt)}
                       </td>
                       <td className="px-4 py-3">
-                        <span className={`text-sm font-medium ${actionColor(log.action)}`}>
+                        <Badge variant={actionVariant(log.action)}>
                           {log.actionLabel}
-                        </span>
-                        <p className="text-xs text-gray-400 font-mono mt-0.5">{log.action}</p>
+                        </Badge>
+                        <p className="text-xs text-slate-400 font-mono mt-0.5">{log.action}</p>
                       </td>
                       <td className="px-4 py-3">
-                        <span className={`text-xs px-2 py-1 rounded-full font-medium ${ENTITE_STYLE[log.entite] ?? 'bg-gray-100 text-gray-600'}`}>
+                        <Badge variant={ENTITE_BADGE_VARIANT[log.entite] ?? 'neutral'}>
                           {log.entite}
-                        </span>
+                        </Badge>
                       </td>
-                      <td className="px-4 py-3 text-xs text-gray-400 font-mono">
+                      <td className="px-4 py-3 text-xs text-slate-400 font-mono">
                         {log.entiteId ?? '—'}
                       </td>
                       <td className="px-4 py-3">
                         {log.user ? (
                           <div className="flex items-center gap-1.5 text-sm">
-                            <User className="w-3.5 h-3.5 text-gray-400" />
-                            <span className="text-gray-700">{log.user.nom}</span>
+                            <User className="w-3.5 h-3.5 text-slate-400" />
+                            <span className="text-slate-700">{log.user.nom}</span>
                           </div>
                         ) : (
-                          <span className="text-xs text-gray-400 italic">{t('audit_system')}</span>
+                          <span className="text-xs text-slate-400 italic">{t('audit_system')}</span>
                         )}
                       </td>
                     </tr>
@@ -257,20 +262,13 @@ export default function AuditPage() {
         </div>
 
         {/* Pagination */}
-        {res && res.meta.totalPages > 1 && (
-          <div className="flex items-center justify-between text-sm text-gray-600">
-            <span>Page {res.meta.page} / {res.meta.totalPages}</span>
-            <div className="flex gap-2">
-              <button disabled={page === 1} onClick={() => setPage((p) => p - 1)}
-                className="px-3 py-1.5 border border-gray-200 rounded-lg disabled:opacity-40 hover:bg-gray-50">
-                {t('btn_prev')}
-              </button>
-              <button disabled={page === res.meta.totalPages} onClick={() => setPage((p) => p + 1)}
-                className="px-3 py-1.5 border border-gray-200 rounded-lg disabled:opacity-40 hover:bg-gray-50">
-                {t('btn_next')}
-              </button>
-            </div>
-          </div>
+        {res && (
+          <Pagination
+            page={page}
+            totalPages={res.meta.totalPages}
+            total={res.meta.total}
+            onPageChange={(p) => setPage(p)}
+          />
         )}
       </div>
       </ClienteleTabBar>
