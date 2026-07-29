@@ -6,10 +6,15 @@ import {
   ArrowLeft, RefreshCw, Save, User, Briefcase,
   Phone, Mail, Building2, Calendar, FileText,
   CalendarDays, Clock, CheckCircle, XCircle, TrendingDown,
+  Upload, X,
 } from "lucide-react";
 import { useApi, useMutation } from "@/hooks/useApi";
 import { formatDate } from "@/lib/format";
 import { toast } from "sonner";
+import { generateUploadButton } from "@uploadthing/react";
+import type { OurFileRouter } from "@/app/api/uploadthing/core";
+
+const UploadButton = generateUploadButton<OurFileRouter>();
 
 // ── Types minimaux ────────────────────────────────────────────────────────────
 
@@ -27,7 +32,18 @@ interface ProfilRH {
     };
   };
   manager: { id: number; matricule: string; gestionnaire: { member: { nom: string; prenom: string } } | null } | null;
+  documents: DocumentCollab[];
   _count: { documents: number; demandesConge: number; missions: number; evaluations: number; procedures: number; fichesPaie: number; participationsFormation: number; pointages: number; avantages: number };
+}
+
+interface DocumentCollab {
+  id:        number;
+  type:      string;
+  nom:       string;
+  fileUrl:   string;
+  version:   number;
+  notes:     string | null;
+  createdAt: string;
 }
 
 interface DemandeConge {
@@ -56,11 +72,59 @@ const STATUT_CONGE_BADGE: Record<string, string> = {
   REJETE: "bg-red-100 text-red-700",
 };
 
+const DOC_TYPE_LABEL: Record<string, string> = {
+  CNI: "Carte nationale d'identité", PASSEPORT: "Passeport",
+  DIPLOME: "Diplôme", CERTIFICAT: "Certificat", CV: "CV",
+  ATTESTATION: "Attestation", CONTRAT: "Contrat", PHOTO_IDENTITE: "Photo d'identité",
+  LETTRE_MOTIVATION: "Lettre de motivation", ACTE_NAISSANCE: "Acte de naissance",
+  CASIER_JUDICIAIRE: "Casier judiciaire", CERTIFICAT_MEDICAL: "Certificat médical",
+  ATTESTATION_CNSS: "Attestation CNSS", COORDONNEES_BANCAIRES: "Coordonnées bancaires (RIB)",
+  CONTACT_URGENCE: "Contact d'urgence", CORRESPONDANCE: "Correspondance administrative",
+  AUTRE: "Autre",
+};
+
+// Checklist du dossier administratif (CDC §3) : pièces attendues vs présentes.
+const DOSSIER_CHECKLIST: { label: string; types: string[]; required: boolean }[] = [
+  { label: "Contrat de travail",     types: ["CONTRAT"],               required: true },
+  { label: "Curriculum Vitae",       types: ["CV"],                    required: true },
+  { label: "Lettre de motivation",   types: ["LETTRE_MOTIVATION"],     required: false },
+  { label: "Diplômes",               types: ["DIPLOME"],               required: true },
+  { label: "Pièce d'identité",       types: ["CNI", "PASSEPORT"],      required: true },
+  { label: "Photo d'identité",       types: ["PHOTO_IDENTITE"],        required: true },
+  { label: "Acte de naissance",      types: ["ACTE_NAISSANCE"],        required: true },
+  { label: "Casier judiciaire",      types: ["CASIER_JUDICIAIRE"],     required: true },
+  { label: "Certificat médical",     types: ["CERTIFICAT_MEDICAL"],    required: true },
+  { label: "Attestation CNSS",       types: ["ATTESTATION_CNSS"],      required: false },
+  { label: "Coordonnées bancaires",  types: ["COORDONNEES_BANCAIRES"], required: true },
+  { label: "Contact d'urgence",      types: ["CONTACT_URGENCE"],       required: false },
+  { label: "Attestations de travail",types: ["ATTESTATION"],           required: false },
+];
+
+const DOC_TYPE_COLOR: Record<string, string> = {
+  CNI:           "bg-blue-100 text-blue-700",
+  PASSEPORT:     "bg-indigo-100 text-indigo-700",
+  DIPLOME:       "bg-emerald-100 text-emerald-700",
+  CERTIFICAT:    "bg-teal-100 text-teal-700",
+  CV:            "bg-purple-100 text-purple-700",
+  ATTESTATION:   "bg-amber-100 text-amber-700",
+  CONTRAT:       "bg-rose-100 text-rose-700",
+  PHOTO_IDENTITE:"bg-pink-100 text-pink-700",
+  LETTRE_MOTIVATION:     "bg-violet-100 text-violet-700",
+  ACTE_NAISSANCE:        "bg-cyan-100 text-cyan-700",
+  CASIER_JUDICIAIRE:     "bg-red-100 text-red-700",
+  CERTIFICAT_MEDICAL:    "bg-lime-100 text-lime-700",
+  ATTESTATION_CNSS:      "bg-sky-100 text-sky-700",
+  COORDONNEES_BANCAIRES: "bg-green-100 text-green-700",
+  CONTACT_URGENCE:       "bg-orange-100 text-orange-700",
+  CORRESPONDANCE:        "bg-slate-100 text-slate-700",
+  AUTRE:         "bg-gray-100 text-gray-600",
+};
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function DossierCollaborateurRHPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
-  const [tab, setTab] = useState<"identite" | "contrat" | "conges" | "pointages">("identite");
+  const [tab, setTab] = useState<"identite" | "contrat" | "documents" | "conges" | "pointages">("identite");
 
   const { data: res, loading, refetch } = useApi<{ data: ProfilRH }>(`/api/responsableRH/collaborateurs/${id}`);
   const profil = res?.data;
@@ -77,6 +141,7 @@ export default function DossierCollaborateurRHPage({ params }: { params: Promise
   const TABS = [
     { key: "identite",  label: "Identité",        icon: <User className="w-4 h-4" /> },
     { key: "contrat",   label: "Contrat & Poste",  icon: <Briefcase className="w-4 h-4" /> },
+    { key: "documents", label: `Documents (${profil._count.documents})`, icon: <FileText className="w-4 h-4" /> },
     { key: "conges",    label: `Congés (${profil._count.demandesConge})`, icon: <CalendarDays className="w-4 h-4" /> },
     { key: "pointages", label: "Pointages",        icon: <Clock className="w-4 h-4" /> },
   ] as const;
@@ -146,6 +211,7 @@ export default function DossierCollaborateurRHPage({ params }: { params: Promise
 
         {tab === "identite"  && <IdentiteTab  profil={profil} onSaved={refetch} />}
         {tab === "contrat"   && <ContratTab   profil={profil} onSaved={refetch} />}
+        {tab === "documents" && <DocumentsTab profilId={profil.id} documents={profil.documents} onSaved={refetch} />}
         {tab === "conges"    && <CongesTab    profilId={profil.id} />}
         {tab === "pointages" && <PointagesTab profilId={profil.id} />}
       </div>
@@ -304,11 +370,210 @@ function ContratTab({ profil, onSaved }: { profil: ProfilRH; onSaved: () => void
   );
 }
 
+// ── Onglet Documents ──────────────────────────────────────────────────────────
+
+function DocumentsTab({
+  profilId, documents, onSaved,
+}: { profilId: number; documents: DocumentCollab[]; onSaved: () => void }) {
+  const { mutate } = useMutation(
+    `/api/responsableRH/collaborateurs/${profilId}/documents`, "POST"
+  );
+
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState({ type: "", notes: "" });
+  const [uploading, setUploading] = useState(false);
+
+  const handleFilesUploaded = async (files: { url: string; name: string }[]) => {
+    setUploading(true);
+    let success = 0;
+    for (const file of files) {
+      const result = await mutate({ type: form.type, nom: file.name, fileUrl: file.url, notes: form.notes || undefined });
+      if (result) success++;
+    }
+    setUploading(false);
+    if (success > 0) {
+      toast.success(success > 1 ? `${success} documents ajoutés` : "Document ajouté");
+      setForm({ type: "", notes: "" });
+      setShowForm(false);
+      onSaved();
+    }
+    if (success < files.length) {
+      toast.error(`${files.length - success} fichier(s) n'ont pas pu être enregistrés`);
+    }
+  };
+
+  const openAddWithType = (type: string) => { setForm({ type, notes: "" }); setShowForm(true); };
+
+  // Checklist : pièces présentes vs attendues
+  const presentTypes = new Set(documents.map((d) => d.type));
+  const itemPresent = (item: { types: string[] }) => item.types.some((t) => presentTypes.has(t));
+  const requiredItems = DOSSIER_CHECKLIST.filter((i) => i.required);
+  const requiredPresent = requiredItems.filter(itemPresent).length;
+  const dossierComplet = requiredPresent === requiredItems.length;
+
+  // Grouper par type
+  const grouped = documents.reduce<Record<string, DocumentCollab[]>>((acc, d) => {
+    if (!acc[d.type]) acc[d.type] = [];
+    acc[d.type].push(d);
+    return acc;
+  }, {});
+
+  return (
+    <div className="space-y-4">
+      {/* Checklist du dossier administratif */}
+      <div className="bg-white rounded-xl border border-slate-200 p-5">
+        <div className="flex items-center justify-between mb-3 gap-2">
+          <h3 className="text-sm font-semibold text-slate-700">Dossier administratif</h3>
+          <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${dossierComplet ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}>
+            {requiredPresent}/{requiredItems.length} pièces requises
+          </span>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+          {DOSSIER_CHECKLIST.map((item) => {
+            const present = itemPresent(item);
+            return (
+              <button
+                key={item.label}
+                onClick={() => { if (!present) openAddWithType(item.types[0]); }}
+                title={present ? "Pièce présente" : "Ajouter cette pièce"}
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-left text-sm transition-colors ${
+                  present
+                    ? "border-emerald-200 bg-emerald-50 cursor-default"
+                    : item.required
+                    ? "border-red-200 bg-red-50 hover:bg-red-100"
+                    : "border-slate-200 bg-slate-50 hover:bg-slate-100"
+                }`}
+              >
+                {present
+                  ? <CheckCircle className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                  : <span className={`w-4 h-4 rounded-full border-2 flex-shrink-0 ${item.required ? "border-red-400" : "border-slate-300"}`} />}
+                <span className="flex-1 min-w-0 truncate text-slate-700">{item.label}</span>
+                {!item.required && <span className="text-[10px] text-slate-400 flex-shrink-0">facultatif</span>}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Bouton ajouter */}
+      <div className="flex justify-end">
+        <button onClick={() => setShowForm((v) => !v)}
+          className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-emerald-600 rounded-lg hover:bg-emerald-700">
+          {showForm ? <X className="w-4 h-4" /> : <Upload className="w-4 h-4" />}
+          {showForm ? "Annuler" : "Ajouter un document"}
+        </button>
+      </div>
+
+      {/* Formulaire ajout */}
+      {showForm && (
+        <div className="bg-white rounded-xl border border-slate-200 p-5 space-y-4">
+          <h3 className="text-sm font-semibold text-slate-700">Nouveau document</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Field label="Type de document">
+              <select value={form.type} onChange={(e) => setForm((f) => ({ ...f, type: e.target.value }))}
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                <option value="">— Sélectionner —</option>
+                {Object.entries(DOC_TYPE_LABEL).map(([v, l]) => (
+                  <option key={v} value={v}>{l}</option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Notes">
+              <input value={form.notes} onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
+                placeholder="Optionnel"
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+            </Field>
+          </div>
+          <div>
+            <p className="text-xs font-medium text-slate-500 mb-2">
+              Fichier(s) — PDF ou image, plusieurs fichiers possibles en une fois (max 10)
+            </p>
+            {!form.type ? (
+              <div className="px-4 py-3 rounded-lg border border-dashed border-slate-300 bg-slate-50 text-sm text-slate-400">
+                Sélectionne d&apos;abord un type de document pour activer l&apos;upload
+              </div>
+            ) : (
+              <UploadButton
+                endpoint="documentCollaborateur"
+                disabled={uploading}
+                onClientUploadComplete={(res) => {
+                  void handleFilesUploaded(res.map((f) => ({ url: f.url, name: f.name })));
+                }}
+                onUploadError={(error) => { toast.error(error.message || "Échec de l'upload"); }}
+              />
+            )}
+            {uploading && (
+              <p className="mt-2 flex items-center gap-1.5 text-xs text-slate-500">
+                <RefreshCw className="w-3.5 h-3.5 animate-spin" /> Enregistrement des documents…
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Documents groupés par type */}
+      {documents.length === 0 ? (
+        <div className="bg-white rounded-xl border border-slate-200 flex flex-col items-center justify-center py-16 text-slate-400">
+          <FileText className="w-10 h-10 mb-2 opacity-30" />
+          <p className="text-sm">Aucun document dans le dossier</p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {Object.entries(grouped).map(([type, docs]) => (
+            <div key={type} className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+              <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 flex items-center gap-2">
+                <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${DOC_TYPE_COLOR[type] ?? "bg-gray-100 text-gray-600"}`}>
+                  {DOC_TYPE_LABEL[type] ?? type}
+                </span>
+                <span className="text-xs text-slate-400">{docs.length} version{docs.length > 1 ? "s" : ""}</span>
+              </div>
+              <div className="divide-y divide-slate-100">
+                {docs.map((doc) => (
+                  <div key={doc.id} className="flex items-center gap-4 px-4 py-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium text-slate-800 truncate">{doc.nom}</span>
+                        <span className="text-xs text-slate-400 flex-shrink-0">v{doc.version}</span>
+                        {doc.version === Math.max(...docs.map((d) => d.version)) && (
+                          <span className="flex items-center gap-0.5 text-[10px] text-emerald-600 font-semibold flex-shrink-0">
+                            <CheckCircle className="w-3 h-3" /> Actuel
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <span className="text-xs text-slate-400">
+                          <Calendar className="w-3 h-3 inline mr-0.5" />
+                          {formatDate(doc.createdAt)}
+                        </span>
+                        {doc.notes && (
+                          <span className="text-xs text-slate-400 truncate">{doc.notes}</span>
+                        )}
+                      </div>
+                    </div>
+                    <a
+                      href={doc.fileUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-600 bg-slate-50 border border-slate-200 rounded-lg hover:bg-slate-100"
+                    >
+                      <FileText className="w-3.5 h-3.5" /> Ouvrir
+                    </a>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Onglet Congés ─────────────────────────────────────────────────────────────
 
 function CongesTab({ profilId }: { profilId: number }) {
   const { data: res, loading, refetch } = useApi<{ data: { soldes: SoldeConge[]; demandes: DemandeConge[]; annee: number } }>(
-    `/api/admin/rh/collaborateurs/${profilId}/conges`
+    `/api/responsableRH/collaborateurs/${profilId}/conges`
   );
   const soldes   = res?.data?.soldes   ?? [];
   const demandes = res?.data?.demandes ?? [];
@@ -399,8 +664,8 @@ function PointagesTab({ profilId }: { profilId: number }) {
   const [mois,  setMois]  = useState(now.getMonth() + 1);
   const [annee, setAnnee] = useState(now.getFullYear());
 
-  const { data: res, loading } = useApi<{ data: { id: number; date: string; statut: string; heuresSupp: number | null }[]; meta: { total: number } }>(
-    `/api/admin/rh/pointages?profilRHId=${profilId}&mois=${mois}&annee=${annee}&limit=31`
+  const { data: res, loading } = useApi<{ data: { id: number; date: string; statut: string; heuresSup: number | null }[]; meta: { total: number } }>(
+    `/api/responsableRH/pointages?profilRHId=${profilId}&mois=${mois}&annee=${annee}&limit=31`
   );
   const pointages = res?.data ?? [];
 
@@ -431,14 +696,27 @@ function PointagesTab({ profilId }: { profilId: number }) {
               <div key={p.id} className="flex items-center gap-4 px-5 py-3">
                 <span className="text-sm text-slate-600 w-28 flex-shrink-0">{formatDate(p.date)}</span>
                 <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${cfg.color}`}>{cfg.label}</span>
-                {p.heuresSupp != null && p.heuresSupp > 0 && (
-                  <span className="text-xs text-indigo-600">+{p.heuresSupp}h sup.</span>
+                {p.heuresSup != null && p.heuresSup > 0 && (
+                  <span className="text-xs text-indigo-600">+{p.heuresSup}h sup.</span>
                 )}
               </div>
             );
           })}
         </div>
       )}
+    </div>
+  );
+}
+
+// ── Helpers UI ────────────────────────────────────────────────────────────────
+
+function Field({ label, children, className }: {
+  label: string; children: React.ReactNode; className?: string;
+}) {
+  return (
+    <div className={className}>
+      <label className="block text-xs font-medium text-slate-600 mb-1">{label}</label>
+      {children}
     </div>
   );
 }

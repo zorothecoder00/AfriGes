@@ -123,15 +123,6 @@ l'admin et les responsables (chefagence , rpv,admin  ) doivent pouvoir modifier 
 
 erreur d'application et Exception côté client sur quasiment toutes les actions(post ou patch surtout et même get je crois) d'un de mes supérieurs sur l'app déployée (sur vercel) 
 
-      Module 1   
-Upload multi-fichiers
-OCR automatique des documents
-    
-  
-
-SessionGuard existe mais semble non utilisé dans le layout utilisateur
-
-Google OAuth crée automatiquement un utilisateur sans rôle
 
 
 Pour les archivages des crédits clients au niveau du dashboard admin/superadmin, je veux le montant total des impayés et des autres status
@@ -155,7 +146,6 @@ Pour les rh/audit tu es sûr d'avoir fait
 
 Pour la gestion des commissions et le paramètre des profils de de collaborateur on doit revoir ça
 
-Revoir les chiffres du dashboard/admin (tableau de bord)
 
 Permettre d'avoir des rapports de recouvrement (taux de recouvrement, restant , payé etc etc ria par mois sur le dashboard admin ria et responsableRIA )
 
@@ -173,12 +163,6 @@ Retoucher le logo
 
 Pouvoir rajouter grossiste dans les types de fournisseur
 
-
-On va créer des codes QR à scanner pour permettre aux visiteurs et aux clients de pouvoir accéder au catalogue de produit 
- 
-
-Rendre opérationnel toute la partie messagerie pour tous les utilisateurs et l'admin ( que ce soit un peu comme whatsapp où tout le monde peut envoyer un message à tout le monde et tout le monde peut répondre )
-
 réussir les notifs par whatsapp 
 
 Rendre le design de l'application plus attrayant
@@ -186,6 +170,8 @@ Rendre le design de l'application plus attrayant
 Terminer la partie traduction ( presque toute l'application doit être en paramètre traductible ); pour lemoment y'a trop de textes et trop de pages non traduites
 
 Limiter la messagerie juste pour les gestionnaires ( pas les autres user simpples )
+
+Retirer toute la partie où se trouve le logo et la petite carte dépliable ( on va mettre le logo la place du grand A Afriges et rajouter la carte de profil à côté ou au milieu du nom de la cloche de notification  ) . Je parle évidemment du dashboard/admin
 
 
 

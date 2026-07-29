@@ -6,7 +6,7 @@ import {
   ArrowLeft, RefreshCw, Save, Upload,
   User, FileText, Briefcase,
   Phone, Mail, Building2,
-  Calendar, FileUp, CheckCircle, X,
+  Calendar, CheckCircle, X,
   CalendarDays, TrendingDown, Clock, XCircle,
   MapPin, PlayCircle, Flag,
   Download, Archive, ExternalLink,
@@ -17,6 +17,10 @@ import {
 import { useApi, useMutation } from "@/hooks/useApi";
 import { formatDate } from "@/lib/format";
 import { toast } from "sonner";
+import { generateUploadButton } from "@uploadthing/react";
+import type { OurFileRouter } from "@/app/api/uploadthing/core";
+
+const UploadButton = generateUploadButton<OurFileRouter>();
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -194,7 +198,7 @@ interface Pointage {
   id:     number;
   date:   string;
   statut: string;
-  heuresSupp: number | null;
+  heuresSup: number | null;
   notes:  string | null;
 }
 
@@ -713,28 +717,34 @@ function ContratTab({ profil, onSaved }: { profil: ProfilRH; onSaved: () => void
 function DocumentsTab({
   profilId, documents, onSaved,
 }: { profilId: number; documents: DocumentCollab[]; onSaved: () => void }) {
-  const { mutate, loading } = useMutation(
+  const { mutate } = useMutation(
     `/api/admin/rh/collaborateurs/${profilId}/documents`, "POST"
   );
 
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ type: "", nom: "", fileUrl: "", notes: "" });
+  const [form, setForm] = useState({ type: "", notes: "" });
+  const [uploading, setUploading] = useState(false);
 
-  const handleAdd = async () => {
-    if (!form.type || !form.nom || !form.fileUrl) {
-      toast.error("Type, nom et URL du fichier sont obligatoires");
-      return;
+  const handleFilesUploaded = async (files: { url: string; name: string }[]) => {
+    setUploading(true);
+    let success = 0;
+    for (const file of files) {
+      const result = await mutate({ type: form.type, nom: file.name, fileUrl: file.url, notes: form.notes || undefined });
+      if (result) success++;
     }
-    const result = await mutate(form);
-    if (result) {
-      toast.success("Document ajouté");
-      setForm({ type: "", nom: "", fileUrl: "", notes: "" });
+    setUploading(false);
+    if (success > 0) {
+      toast.success(success > 1 ? `${success} documents ajoutés` : "Document ajouté");
+      setForm({ type: "", notes: "" });
       setShowForm(false);
       onSaved();
     }
+    if (success < files.length) {
+      toast.error(`${files.length - success} fichier(s) n'ont pas pu être enregistrés`);
+    }
   };
 
-  const openAddWithType = (type: string) => { setForm({ type, nom: "", fileUrl: "", notes: "" }); setShowForm(true); };
+  const openAddWithType = (type: string) => { setForm({ type, notes: "" }); setShowForm(true); };
 
   // Checklist : pièces présentes vs attendues
   const presentTypes = new Set(documents.map((d) => d.type));
@@ -810,28 +820,35 @@ function DocumentsTab({
                 ))}
               </select>
             </Field>
-            <Field label="Nom du fichier">
-              <input value={form.nom} onChange={(e) => setForm((f) => ({ ...f, nom: e.target.value }))}
-                placeholder="Ex: CNI_Recto_2024"
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
-            </Field>
-            <Field label="URL du fichier" className="md:col-span-2">
-              <input value={form.fileUrl} onChange={(e) => setForm((f) => ({ ...f, fileUrl: e.target.value }))}
-                placeholder="https://… (URL après upload)"
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
-            </Field>
-            <Field label="Notes" className="md:col-span-2">
+            <Field label="Notes">
               <input value={form.notes} onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
                 placeholder="Optionnel"
                 className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
             </Field>
           </div>
-          <div className="flex justify-end">
-            <button onClick={handleAdd} disabled={loading}
-              className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 disabled:opacity-50">
-              {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <FileUp className="w-4 h-4" />}
-              Enregistrer le document
-            </button>
+          <div>
+            <p className="text-xs font-medium text-slate-500 mb-2">
+              Fichier(s) — PDF ou image, plusieurs fichiers possibles en une fois (max 10)
+            </p>
+            {!form.type ? (
+              <div className="px-4 py-3 rounded-lg border border-dashed border-slate-300 bg-slate-50 text-sm text-slate-400">
+                Sélectionne d&apos;abord un type de document pour activer l&apos;upload
+              </div>
+            ) : (
+              <UploadButton
+                endpoint="documentCollaborateur"
+                disabled={uploading}
+                onClientUploadComplete={(res) => {
+                  void handleFilesUploaded(res.map((f) => ({ url: f.url, name: f.name })));
+                }}
+                onUploadError={(error) => { toast.error(error.message || "Échec de l'upload"); }}
+              />
+            )}
+            {uploading && (
+              <p className="mt-2 flex items-center gap-1.5 text-xs text-slate-500">
+                <RefreshCw className="w-3.5 h-3.5 animate-spin" /> Enregistrement des documents…
+              </p>
+            )}
           </div>
         </div>
       )}
@@ -1569,7 +1586,7 @@ function PointagesTab({ profilId }: { profilId: number }) {
                   <div key={day} className={`bg-white py-2 ${cfg ? cfg.color : ""}`}>
                     <div className="text-xs font-medium">{day}</div>
                     {cfg && <div className="text-[10px] font-bold mt-0.5">{cfg.short}</div>}
-                    {p?.heuresSupp ? <div className="text-[9px] text-orange-500">+{p.heuresSupp}h</div> : null}
+                    {p?.heuresSup ? <div className="text-[9px] text-orange-500">+{p.heuresSup}h</div> : null}
                   </div>
                 );
               })}

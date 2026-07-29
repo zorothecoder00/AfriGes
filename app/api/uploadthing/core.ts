@@ -32,6 +32,27 @@ export const ourFileRouter = {
       };
     }),
 
+  // Endpoint documents du dossier collaborateur RH (CNI, diplômes, contrats…) — admin uniquement
+  documentCollaborateur: f({
+    pdf:   { maxFileSize: "16MB", maxFileCount: 10 },
+    image: { maxFileSize: "8MB",  maxFileCount: 10 },
+  })
+    .middleware(async () => {
+      const session = await getAuthSession();
+      if (!session) throw new Error("Non autorisé");
+      const { role, gestionnaireRole } = session.user;
+      if (role !== "ADMIN" && role !== "SUPER_ADMIN" && gestionnaireRole !== "RESPONSABLE_RH") {
+        throw new Error("Accès réservé à l'administrateur ou au responsable RH");
+      }
+      return { uploaderUserId: Number(session.user.id) };
+    })
+    .onUploadComplete(async ({ metadata, file }) => {
+      return {
+        url: file.url, name: file.name, size: file.size, type: file.type,
+        uploaderUserId: metadata.uploaderUserId,
+      };
+    }),
+
   // Endpoint pièces justificatives comptables
   justificatif: f({
     pdf:   { maxFileSize: "16MB", maxFileCount: 5 },
