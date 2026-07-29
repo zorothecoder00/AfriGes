@@ -13,6 +13,8 @@ import { useSession } from 'next-auth/react';
 import { useT } from '@/contexts/AppSettingsContext';
 import NotificationBell from '@/components/NotificationBell';
 import UserPdvBadge from '@/components/UserPdvBadge';
+import AccountMenuButton from '@/components/AccountMenuButton';
+import AfriSimeLogo from '@/components/AfriSimeLogo';
 import { useApi } from '@/hooks/useApi';     
 import { formatCurrency } from '@/lib/format';
 import { exportMultiSheetXlsx, type XlsxSheetSpec } from '@/lib/exportXlsx';
@@ -481,14 +483,12 @@ export default function AfriGesDashboard() {
       <header className="bg-white/90 backdrop-blur-md border-b border-slate-200 sticky top-0 z-50">
         <div className="max-w-400 mx-auto px-8 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-linear-to-br from-brand-500 to-brand-700 rounded-lg flex items-center justify-center shadow-md shadow-brand-200">
-              <span className="text-white font-bold">A</span>
-            </div>
-            <h1 className="text-xl font-bold text-slate-800">AfriGes</h1>
+            <AfriSimeLogo className="h-10 w-auto" priority />
           </div>
           <div className="flex items-center gap-4">
             <UserPdvBadge />
             <NotificationBell href="/dashboard/admin/notifications" />
+            <AccountMenuButton settingsHref="/dashboard/admin/parametres" inline />
           </div>
         </div>
       </header>

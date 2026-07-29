@@ -167,11 +167,9 @@ réussir les notifs par whatsapp
 
 Rendre le design de l'application plus attrayant
 
-Terminer la partie traduction ( presque toute l'application doit être en paramètre traductible ); pour lemoment y'a trop de textes et trop de pages non traduites
-
 Limiter la messagerie juste pour les gestionnaires ( pas les autres user simpples )
 
-Retirer toute la partie où se trouve le logo et la petite carte dépliable ( on va mettre le logo la place du grand A Afriges et rajouter la carte de profil à côté ou au milieu du nom de la cloche de notification  ) . Je parle évidemment du dashboard/admin
+
 
 
 

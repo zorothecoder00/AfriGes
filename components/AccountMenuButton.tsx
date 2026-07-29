@@ -12,13 +12,14 @@ const initials = (prenom?: string, nom?: string) =>
   `${prenom?.[0] ?? ""}${nom?.[0] ?? ""}`.toUpperCase() || "?";
 
 /**
- * Avatar flottant (haut-droite) présent sur tous les dashboards.
  * Point d'entrée clair vers les paramètres du compte + déconnexion.
  * `settingsHref` diffère selon l'espace (user vs admin).
  * `catalogueHref` (optionnel) ajoute un accès au catalogue produits en lecture
  * seule — utilisé dans l'espace gestionnaire pour que tous les rôles y accèdent.
+ * `inline` : intègre le bouton dans son conteneur (ex. en-tête) au lieu de le
+ * faire flotter en haut-droite de l'écran.
  */
-export default function AccountMenuButton({ settingsHref, catalogueHref }: { settingsHref: string; catalogueHref?: string }) {
+export default function AccountMenuButton({ settingsHref, catalogueHref, inline = false }: { settingsHref: string; catalogueHref?: string; inline?: boolean }) {
   const { data: session, status } = useSession();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -42,13 +43,13 @@ export default function AccountMenuButton({ settingsHref, catalogueHref }: { set
   const role = prettifyRole(u.gestionnaireRole ?? u.role);
 
   return (
-    <div ref={ref} className="no-print fixed top-3 right-3 z-[190]">
+    <div ref={ref} className={inline ? "no-print relative z-[190]" : "no-print fixed top-3 right-3 z-[190]"}>
       <button
         onClick={() => setOpen((o) => !o)}
         title="Mon compte"
         className="flex items-center gap-1.5 pl-1 pr-2 py-1 bg-white/95 backdrop-blur border border-slate-200 rounded-full shadow-lg hover:shadow-xl hover:border-slate-300 transition-all"
       >
-        <span className="w-8 h-8 rounded-full overflow-hidden bg-emerald-100 flex items-center justify-center text-emerald-700 text-xs font-bold ring-1 ring-emerald-200">
+        <span className="w-8 h-8 rounded-full overflow-hidden bg-emerald-100 flex items-center justify-center text-emerald-700 text-xs font-bold ring-1 ring-emerald-200 shrink-0">
           {u.photo ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={u.photo} alt="" className="w-full h-full object-cover" />

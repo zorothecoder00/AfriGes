@@ -1,10 +1,18 @@
+"use client";
+
 import type { ReactNode } from 'react'
+import { usePathname } from 'next/navigation'
 import AfriSimeLogo from '@/components/AfriSimeLogo'
 import SessionGuard from '@/components/SessionGuard'
 import ViewAsBanner from '@/components/ViewAsBanner'
 import { ViewAsProvider } from '@/contexts/ViewAsContext'
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
+  const pathname = usePathname();
+  // Le tableau de bord admin principal a son propre en-tête (logo + carte de
+  // profil) — le bandeau global ferait doublon avec le logo affiché en dessous.
+  const hasOwnHeader = pathname === "/dashboard/admin";
+
   return (
     <ViewAsProvider>
       <SessionGuard />
@@ -20,13 +28,15 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
       </div>
 
       {/* Bandeau d'identité AfriSime — fond crème + filet vert, présent sur tous les dashboards */}
-      <div className="no-print border-b-2 border-brand-500 bg-cream/90 backdrop-blur-sm relative z-40">
-        <div className="mx-auto flex max-w-7xl items-center justify-center px-4 py-2 md:justify-start md:px-6">
-          <AfriSimeLogo className="h-9 w-auto md:h-10" priority />
+      {!hasOwnHeader && (
+        <div className="no-print border-b-2 border-brand-500 bg-cream/90 backdrop-blur-sm relative z-40">
+          <div className="mx-auto flex max-w-7xl items-center justify-center px-4 py-2 md:justify-start md:px-6">
+            <AfriSimeLogo className="h-9 w-auto md:h-10" priority />
+          </div>
         </div>
-      </div>
+      )}
       {children}
     </ViewAsProvider>
   )
-}  
+}
 
