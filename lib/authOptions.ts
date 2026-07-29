@@ -5,6 +5,10 @@ import GoogleProvider from 'next-auth/providers/google'
 import CredentialsProvider from 'next-auth/providers/credentials'
 import { NextAuthOptions } from 'next-auth'
 
+// Fenêtre de revalidation DB du token dans le callback jwt (voir plus bas) :
+// au-delà, on refait le contrôle etat/tokenVersion/mustChangePassword en base.
+const REVALIDATE_INTERVAL_MS = 60_000
+
 export const authOptions: NextAuthOptions = {
 	providers: [
 		GoogleProvider({
@@ -122,6 +126,15 @@ export const authOptions: NextAuthOptions = {
 				token.gestionnaireRole = gestionnaire?.role ?? null
 				token.tokenVersion = dbUser?.tokenVersion ?? 0
 				token.mustChangePassword = dbUser?.mustChangePassword ?? false
+				token.lastChecked = Date.now()
+			} else if (Date.now() - ((token.lastChecked as number) ?? 0) < REVALIDATE_INTERVAL_MS) {
+				// Revalidé récemment (< 60s) : le callback jwt tourne à CHAQUE
+				// getServerSession() (donc à chaque appel API d'une même page,
+				// souvent plusieurs par navigation) — sans ce throttle, on
+				// refait 2 requêtes DB (User + Gestionnaire) par appel, ce qui
+				// multiplie inutilement les allers-retours et sature le pool
+				// de connexions. On fait confiance au token en cache le temps
+				// de la fenêtre ; la révocation reste effective en < 60s.
 			} else {
 				// Requêtes suivantes : vérifier que le compte est toujours actif
 				// et que le token n'a pas été révoqué (force_disconnect)
@@ -152,6 +165,7 @@ export const authOptions: NextAuthOptions = {
 					token.nom    = dbUser.nom
 					token.photo  = dbUser.photo ?? null
 				}
+				token.lastChecked = Date.now()
 			}
 			return token
 		},

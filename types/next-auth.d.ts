@@ -36,6 +36,7 @@ declare module "next-auth" {
     tokenVersion?: number;
     mustChangePassword?: boolean;
     error?: string;
+    lastChecked?: number;
   }
 }
 
